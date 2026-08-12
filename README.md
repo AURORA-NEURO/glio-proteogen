@@ -39,8 +39,11 @@ recommendations. Missing or unsupported evidence is never converted into a negat
 - `GLIO-PROTEOGEN-M01-06` — deterministic harmonization and normalization. This module applies
   reviewed control-median batch and platform shifts while preserving typed missingness and
   enforcing protected biological direction and rank invariants.
+- `GLIO-PROTEOGEN-M01-07` — deterministic support-domain and abstention routing. This module
+  evaluates eight closed support dimensions and emits typed abstention reasons and remediation
+  paths without converting missing or unsupported evidence into a negative finding.
 
-All six modules expose strict JSON Schema 2020-12 contracts and typed library, HTTP, and
+All seven modules expose strict JSON Schema 2020-12 contracts and typed library, HTTP, and
 command-line boundaries. M01-01 and M01-02 additionally provide deterministic append-only
 event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -61,19 +64,21 @@ uv run python -m evals.m01_03.run
 uv run python -m evals.m01_04.run
 uv run python -m evals.m01_05.run
 uv run python -m evals.m01_06.run
+uv run python -m evals.m01_07.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_04_quality_metrics.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_06_harmonization.py --benchmark-only --no-cov
+uv run pytest benchmarks/m01_07_support_routing.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
 The `glio-proteogen` command exports each module's contracts and exposes M01-01 register,
 evaluate, retrieve, and ledger-verification operations plus M01-02 reconcile, retrieve, and
 ledger-verification operations, M01-03 bounded file inspection, M01-04 quality computation,
-M01-05 artifact detection, and M01-06 technical harmonization.
+M01-05 artifact detection, M01-06 technical harmonization, and M01-07 support routing.
 For example:
 
 ```bash
@@ -89,11 +94,13 @@ glio-proteogen artifact export-schema request
 glio-proteogen artifact detect artifact-request.json
 glio-proteogen harmonize export-schema request
 glio-proteogen harmonize run harmonization-request.json
+glio-proteogen support export-schema request
+glio-proteogen support route support-request.json
 ```
 
 `glio-proteogen serve` provides the same strict byte-validated operations over HTTP. M01-03
 inspection, M01-04 quality computation, M01-05 artifact detection, and M01-06 harmonization are
-deliberately stateless.
+deliberately stateless. M01-07 support routing is also stateless.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

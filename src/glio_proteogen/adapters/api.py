@@ -72,6 +72,16 @@ from glio_proteogen.contracts.m01_06.v1 import (
     HarmonizationResult,
     HarmonizeObservationsRequest,
 )
+from glio_proteogen.contracts.m01_07.schema import (
+    ContractName as M0107ContractName,
+)
+from glio_proteogen.contracts.m01_07.schema import (
+    contract_json_schema as m0107_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_07.v1 import (
+    RouteSupportRequest,
+    SupportRoutingResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -137,6 +147,13 @@ from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.engine import (
 from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.service import (
     M0106Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.engine import (
+    SupportRoutingAuthorizationError,
+    preflight_support_routing_authorization,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.service import (
+    M0107Service,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -144,6 +161,7 @@ _RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
 _QUALITY_ADAPTER: Final = TypeAdapter(ComputeQualityMetricsRequest)
 _ARTIFACT_ADAPTER: Final = TypeAdapter(DetectArtifactsRequest)
 _HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeObservationsRequest)
+_SUPPORT_ROUTING_ADAPTER: Final = TypeAdapter(RouteSupportRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -178,6 +196,10 @@ def _artifact_contract_schema(name: M0105ContractName) -> dict[str, object]:
 
 def _harmonization_contract_schema(name: M0106ContractName) -> dict[str, object]:
     return m0106_contract_json_schema(name)
+
+
+def _support_routing_contract_schema(name: M0107ContractName) -> dict[str, object]:
+    return m0107_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -228,6 +250,17 @@ def _harmonization_request_body() -> dict[str, object]:
             "required": True,
             "content": {
                 "application/json": {"schema": m0106_contract_json_schema("request")}
+            },
+        }
+    }
+
+
+def _support_routing_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0107_contract_json_schema("request")}
             },
         }
     }
@@ -287,6 +320,14 @@ async def _harmonization_body(request: Request) -> HarmonizeObservationsRequest:
     )
 
 
+async def _support_routing_body(request: Request) -> RouteSupportRequest:
+    return await _strict_json_body(
+        request,
+        _SUPPORT_ROUTING_ADAPTER,
+        preflight_support_routing_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -297,6 +338,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     quality_service = M0104Service()
     artifact_service = M0105Service()
     harmonization_service = M0106Service()
+    support_routing_service = M0107Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -327,6 +369,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
 
     @app.exception_handler(ConsentAuthorizationError)
     @app.exception_handler(UpstreamControlAuthorizationError)
+    @app.exception_handler(SupportRoutingAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -424,6 +467,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-06/{name}/schema", tags=["contracts"])
     def harmonization_contract_schema(name: M0106ContractName) -> dict[str, object]:
         return _harmonization_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-07/{name}/schema", tags=["contracts"])
+    def support_routing_contract_schema(name: M0107ContractName) -> dict[str, object]:
+        return _support_routing_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M01-07/route",
+        response_model=SupportRoutingResult,
+        tags=["M01-07"],
+        openapi_extra=_support_routing_request_body(),
+    )
+    def route_support(
+        request: Annotated[RouteSupportRequest, Depends(_support_routing_body)],
+    ) -> SupportRoutingResult:
+        return support_routing_service.execute(request)
 
     @app.post(
         "/v1/modules/M01-06/harmonize",

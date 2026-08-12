@@ -1,0 +1,13 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-07-R01,"Evaluate all eight closed support dimensions","closed dimension enum and profile requirements","all-dimensions-supported fixture",G1
+M01-07-R02,"Route each explicitly unsupported dimension to its exact typed reason","dimension-local deterministic matcher","eight isolated unsupported fixtures",G1
+M01-07-R03,"Attach the reviewed remediation for every abstention","requirement-bound remediation contract","exact per-dimension remediation expectations",G1
+M01-07-R04,"Preserve missing required evidence as abstention rather than a negative finding","typed missing evidence state","missing-required fixture",G1
+M01-07-R05,"Preserve unknown required evidence as abstention rather than a negative finding","typed unknown evidence state","unknown-required fixture",G1
+M01-07-R06,"Support not-applicable evidence only where optional and declared","closed requiredness and N/A policy","optional-not-applicable fixture",G1
+M01-07-R07,"Aggregate all failures in canonical dimension order","dimension-keyed deterministic aggregation","multiple-failure fixture and order replay",G1
+M01-07-R08,"Reject unauthorized consent before routing","strict request context validation","consent-denial fixture",G1
+M01-07-R09,"Produce canonical output independent of input order","semantic canonicalization of evidence and requirements","reordered request replay",G1
+M01-07-R10,"Bind result to request profile policy configuration evidence and controls","canonical digests and provenance envelope","contract invariants and exact eval replay",G1
+M01-07-R11,"Stay inside the support-decision and remediation output ceiling","closed result and exact limitations","recursive output-boundary eval",G1
+M01-07-R12,"Meet bounded near-linear routing cost","dimension-indexed evaluation","representative public-engine microbenchmark",G1

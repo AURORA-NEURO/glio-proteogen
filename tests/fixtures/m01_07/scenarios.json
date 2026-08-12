@@ -1,0 +1,78 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M01-07",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_routing_fixtures_not_support_domain_validation",
+  "dimensions": [
+    "assay",
+    "specimen",
+    "disease_class",
+    "quality",
+    "completeness",
+    "platform",
+    "reference",
+    "intended_use"
+  ],
+  "scenarios": [
+    {
+      "case_id": "all_dimensions_supported",
+      "request_case": "supported",
+      "outcome": "result",
+      "expected_decision": "supported",
+      "expected_abstentions": []
+    },
+    {
+      "case_id": "each_dimension_unsupported",
+      "request_case": "unsupported_matrix",
+      "outcome": "matrix",
+      "expected_decision": "abstained",
+      "expected_dimensions": [
+        "assay",
+        "specimen",
+        "disease_class",
+        "quality",
+        "completeness",
+        "platform",
+        "reference",
+        "intended_use"
+      ]
+    },
+    {
+      "case_id": "missing_required_evidence",
+      "request_case": "missing_required",
+      "outcome": "result",
+      "expected_decision": "abstained",
+      "expected_dimensions": ["quality"],
+      "expected_reason_state": "missing"
+    },
+    {
+      "case_id": "unknown_required_evidence",
+      "request_case": "unknown_required",
+      "outcome": "result",
+      "expected_decision": "abstained",
+      "expected_dimensions": ["reference"],
+      "expected_reason_state": "unknown"
+    },
+    {
+      "case_id": "optional_not_applicable_supported",
+      "request_case": "optional_not_applicable",
+      "outcome": "result",
+      "expected_decision": "supported",
+      "expected_abstentions": []
+    },
+    {
+      "case_id": "multiple_failures_canonical",
+      "request_case": "multiple_failures",
+      "outcome": "result",
+      "expected_decision": "abstained",
+      "expected_dimensions": ["assay", "quality", "reference"]
+    },
+    {
+      "case_id": "consent_denied",
+      "request_case": "consent_denied",
+      "outcome": "validation_rejected",
+      "expected_decision": null,
+      "expected_abstentions": []
+    }
+  ]
+}

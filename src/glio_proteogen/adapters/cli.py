@@ -17,6 +17,7 @@ from glio_proteogen.adapters.api import (
     _identity_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
+    _support_routing_contract_schema,
     create_app,
 )
 from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
@@ -28,6 +29,7 @@ from glio_proteogen.contracts.m01_02.v1 import ReconcileIdentityLineageRequest
 from glio_proteogen.contracts.m01_04.v1 import ComputeQualityMetricsRequest
 from glio_proteogen.contracts.m01_05.v1 import DetectArtifactsRequest
 from glio_proteogen.contracts.m01_06.v1 import HarmonizeObservationsRequest
+from glio_proteogen.contracts.m01_07.v1 import RouteSupportRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -69,6 +71,12 @@ from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.engine import (
 from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.service import (
     M0106Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.engine import (
+    preflight_support_routing_authorization,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.service import (
+    M0107Service,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -89,6 +97,11 @@ harmonization_app = typer.Typer(
     help="M01-06 deterministic harmonization and normalization.",
 )
 app.add_typer(harmonization_app, name="harmonize")
+support_routing_app = typer.Typer(
+    no_args_is_help=True,
+    help="M01-07 deterministic support and abstention routing.",
+)
+app.add_typer(support_routing_app, name="support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -391,6 +404,38 @@ def export_harmonization_schema(
     """Export a machine-readable M01-06 contract for agents and tools."""
 
     typer.echo(json.dumps(_harmonization_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@support_routing_app.command("route")
+def run_support_routing(request: RequestArgument) -> None:
+    """Route one authorized request through a declared support domain."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(RouteSupportRequest),
+        preflight_support_routing_authorization,
+    )
+    _emit(M0107Service().execute(parsed))
+
+
+@support_routing_app.command("export-schema")
+def export_support_routing_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "criterion",
+            "evidence",
+            "assessment",
+        ],
+        typer.Argument(help="M01-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M01-07 contract for agents and tools."""
+
+    typer.echo(json.dumps(_support_routing_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @app.command("export-schema")
