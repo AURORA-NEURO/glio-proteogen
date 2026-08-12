@@ -1,0 +1,15 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-07-R01,"Authorize all seven controls before receipt or support-evidence traversal","raw authorization preflight","denied-consent hostile-preflight group",G1
+M02-07-R02,"Bind compact receipts derived from genuine M02-04 and M02-06 public results","typed receipt builder and digest closure","exact-joint and unreleasable-receipts groups",G1
+M02-07-R03,"Require both prerequisite receipts to be releasable and lineage-consistent","closed prerequisite release gate","unreleasable-receipts group and focused contract tests",G1
+M02-07-R04,"Evaluate all eight identification support dimensions","closed dimension declaration","exact-joint group and eight-case outside-dimension matrix",G1
+M02-07-R05,"Require one envelope to support the complete joint declaration","envelope-local conjunction","exact-joint and cross-envelope-combination groups",G1
+M02-07-R06,"Route each outside-envelope dimension to its exact typed reason and remediation","dimension-local failure projection","eight-case outside-dimension matrix",G1
+M02-07-R07,"Preserve missing and unknown evidence as distinct abstentions","typed evidence-state union","missing-and-unknown group",G1
+M02-07-R08,"Require all declared platform and reference members to be admitted","set-subset matching","all-members-platform-reference group",G1
+M02-07-R09,"Reject cross-envelope combinations even when every value is supported somewhere","single-envelope coherence invariant","cross-envelope-combination group",G1
+M02-07-R10,"Aggregate all failures and remediations in canonical dimension order","deterministic reason aggregation","outside-dimension matrix and focused tests",G1
+M02-07-R11,"Produce complete canonical results independent of semantic declaration order","canonical set envelope receipt and evidence ordering","semantic-reorder full-equality group",G1
+M02-07-R12,"Bind result to request profile policy configuration receipts evidence and controls","canonical digests and provenance envelope","focused tests and exact eval replay",G1
+M02-07-R13,"Stay within the support-decision reason and remediation output ceiling","closed result schema and exact limitations","recursive ownership-boundary eval",G1
+M02-07-R14,"Meet the representative deterministic public-router latency budget","bounded envelope scan and dimension matching","broad public-router benchmark",G1

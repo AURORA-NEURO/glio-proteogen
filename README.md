@@ -71,8 +71,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   module applies eight ordered control-median adjustments, preserves typed unresolved states,
   enforces M02-05 exclusions, and releases only when technical spread falls while declared
   biological direction and rank controls remain within tolerance.
+- `GLIO-PROTEOGEN-M02-07` — deterministic identification support and abstention routing. This
+  stateless module reduces genuine M02-04 and M02-06 results to compact receipts, then requires
+  one reviewed envelope to admit the complete assay, specimen, disease, quality, completeness,
+  platform, reference, and intended-use declaration.
 
-All fourteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All fifteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -101,6 +105,7 @@ uv run python -m evals.m02_03.run
 uv run python -m evals.m02_04.run
 uv run python -m evals.m02_05.run
 uv run python -m evals.m02_06.run
+uv run python -m evals.m02_07.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -115,6 +120,7 @@ uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --n
 uv run pytest benchmarks/m02_04_quality_metrics.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -125,7 +131,8 @@ M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routin
 directory-backed release package build and verification, and M02-01 peptide-identification
 metadata conformance, M02-02 immutable identity-binding audit, and M02-03 directory-backed
 identification raw-input ingestion, M02-04 stateless identification-quality computation, M02-05
-stateless identification-artifact detection, and M02-06 identification harmonization.
+stateless identification-artifact detection, M02-06 identification harmonization, and M02-07
+identification support routing.
 For example:
 
 ```bash
@@ -158,6 +165,8 @@ glio-proteogen identification-artifacts export-schema request
 glio-proteogen identification-artifacts detect identification-artifact-request.json
 glio-proteogen identification-harmonization export-schema request
 glio-proteogen identification-harmonization harmonize identification-harmonization-request.json
+glio-proteogen identification-support export-schema request
+glio-proteogen identification-support route identification-support-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -179,6 +188,10 @@ M02-06 is stateless and consumes only the exact M02-01 through M02-05 receipts p
 abundance observations. It emits a harmonized analysis object and auditable eight-stage
 transformation manifest; it does not parse assay files, impute missing evidence, alter upstream
 artifacts, or make subtype, kinase-state, treatment, or clinical claims.
+M02-07 is stateless and consumes only compact, digest-bound M02-04/M02-06 receipts plus reviewed
+support envelopes and typed declarations. It emits support-domain assessments, abstention reasons,
+and reviewed remediation codes; it does not copy harmonized values, combine partial envelope
+matches, infer biology, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

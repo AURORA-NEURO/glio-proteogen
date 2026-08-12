@@ -1,0 +1,83 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-07",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_joint_envelope_routing_not_support_domain_validation",
+  "dimensions": [
+    "assay",
+    "specimen",
+    "disease_class",
+    "quality",
+    "completeness",
+    "platform",
+    "reference",
+    "intended_use"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "exact_joint_envelope_supported",
+      "request_case": "joint_supported",
+      "case_count": 1,
+      "expected_decision": "supported",
+      "expected_reason_dimensions": []
+    },
+    {
+      "group_id": "each_dimension_outside_envelope",
+      "request_case": "outside_dimension_matrix",
+      "case_count": 8,
+      "expected_decision": "abstained",
+      "expected_reason_dimensions": [
+        "assay",
+        "specimen",
+        "disease_class",
+        "quality",
+        "completeness",
+        "platform",
+        "reference",
+        "intended_use"
+      ]
+    },
+    {
+      "group_id": "missing_and_unknown_evidence",
+      "request_case": "typed_nonobserved_matrix",
+      "case_count": 2,
+      "expected_decision": "abstained",
+      "expected_reason_states": ["missing", "unknown"]
+    },
+    {
+      "group_id": "unreleasable_prerequisite_receipts",
+      "request_case": "receipt_release_matrix",
+      "case_count": 2,
+      "expected_decision": "abstained",
+      "expected_prerequisite_modules": ["GLIO-PROTEOGEN-M02-04", "GLIO-PROTEOGEN-M02-06"]
+    },
+    {
+      "group_id": "all_members_platform_reference",
+      "request_case": "set_subset_matrix",
+      "case_count": 2,
+      "expected_decision": "abstained",
+      "expected_reason_dimensions": ["platform", "reference"]
+    },
+    {
+      "group_id": "cross_envelope_combination_rejected",
+      "request_case": "cross_envelope_composite",
+      "case_count": 1,
+      "expected_decision": "abstained",
+      "expected_matching_envelope_ids": []
+    },
+    {
+      "group_id": "semantic_reorder_full_equality",
+      "request_case": "semantic_reorder_pair",
+      "case_count": 2,
+      "expected_decision": "supported",
+      "expected_relation": "complete_typed_result_equality"
+    },
+    {
+      "group_id": "denied_consent_hostile_preflight",
+      "request_case": "consent_denied_hostile_evidence",
+      "case_count": 1,
+      "expected_outcome": "validation_rejected_before_traversal",
+      "expected_decision": null
+    }
+  ]
+}

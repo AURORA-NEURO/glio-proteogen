@@ -19,6 +19,7 @@ from glio_proteogen.adapters.api import (
     _identification_harmonization_contract_schema,
     _identification_quality_contract_schema,
     _identification_raw_contract_schema,
+    _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
@@ -48,6 +49,7 @@ from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequ
 from glio_proteogen.contracts.m02_04.v1 import ComputeIdentificationQualityRequest
 from glio_proteogen.contracts.m02_05.v1 import DetectIdentificationArtifactsRequest
 from glio_proteogen.contracts.m02_06.v1 import HarmonizeIdentificationEvidenceRequest
+from glio_proteogen.contracts.m02_07.v1 import RouteIdentificationSupportRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -126,6 +128,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_06_harmonization import (
     M0206Service,
     preflight_identification_harmonization_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_07_support_router import (
+    M0207Service,
+    preflight_identification_support_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -186,6 +192,11 @@ identification_harmonization_app = typer.Typer(
     help="M02-06 peptide-identification harmonization and normalization.",
 )
 app.add_typer(identification_harmonization_app, name="identification-harmonization")
+identification_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-07 joint-envelope peptide-identification support routing.",
+)
+app.add_typer(identification_support_app, name="identification-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -918,6 +929,45 @@ def harmonize_identification(request: RequestArgument) -> None:
         preflight_identification_harmonization_authorization,
     )
     _emit(M0206Service().execute(parsed))
+
+
+@identification_support_app.command("export-schema")
+def export_identification_support_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "prerequisites",
+            "profile",
+            "policy",
+            "declaration",
+            "envelope",
+            "abstention",
+        ],
+        typer.Argument(help="M02-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-07 contract for agents and tools."""
+
+    typer.echo(
+        json.dumps(
+            _identification_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@identification_support_app.command("route")
+def route_identification_support(request: RequestArgument) -> None:
+    """Route authorized identification evidence through whole support envelopes."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(RouteIdentificationSupportRequest),
+        preflight_identification_support_authorization,
+    )
+    _emit(M0207Service().execute(parsed))
 
 
 @release_packaging_app.command("build")
