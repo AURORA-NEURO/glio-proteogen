@@ -134,7 +134,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
 def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
-    for module in ("m01_01", "m01_02", "m01_03"):
+    for module in ("m01_01", "m01_02", "m01_03", "m01_04"):
         artifact = module.replace("_", "-")
         assert f"evals.{module}.run --output {module}-eval.json" in workflow
         assert f"name: {artifact}-eval" in workflow
@@ -145,6 +145,8 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "benchmark-json=m01_02-benchmark.json" in workflow
     assert "benchmarks/m01_03_ingestion.py" in workflow
     assert "benchmark-json=m01_03-benchmark.json" in workflow
+    assert "benchmarks/m01_04_quality_metrics.py" in workflow
+    assert "benchmark-json=m01_04-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -161,6 +163,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("raw", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:request"
+        ),
+        ("quality", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-04:1.0.0:request"
         ),
     }
 

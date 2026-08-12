@@ -1,0 +1,13 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-04-R01,"Compute only metrics declared by the selected assay profile and policy","closed assay profile and metric-definition contracts","supported assay and strict unknown-assay scenarios",G1
+M01-04-R02,"Compute coverage and completeness against explicit denominators","deterministic metric engine","locked complete and incomplete reference values",G1
+M01-04-R03,"Preserve measured, below-detection, and missing states without coercion","typed observation value state","below-detection and missing-value scenario",G1
+M01-04-R04,"Apply direction implied by inclusive acceptance bounds","definition-driven comparison","passing and failing threshold cases",G1
+M01-04-R05,"Quarantine any failed metric and required non-evaluable metrics","closed quality disposition aggregation","incompleteness and control-failure scenarios",G1
+M01-04-R06,"Quarantine missing or conflicting required sample context","sample-context metric and aggregation","sample-context mismatch scenario",G1
+M01-04-R07,"Reject unknown assay types without borrowing another assay's thresholds","closed AssayType contract","strict unknown-assay request scenario",G1
+M01-04-R08,"Reject unauthorized consent or unresolved identity before computation","strict request context validation","consent-denial contract and transport tests",G1
+M01-04-R09,"Emit sorted metric results with metric-level provenance","immutable typed quality profile","exact locked result and order-determinism replay",G1
+M01-04-R10,"Bind the profile to request, assay, policy, configuration and evidence","canonical digests and provenance envelope","contract invariants and eval digest checks",G1
+M01-04-R11,"Preserve parent target without inferring proteotype or kinase state","closed output and exact limitations","recursive output-boundary eval",G1
+M01-04-R12,"Meet bounded near-linear computation cost","single definition/observation indexing pass","representative public-engine microbenchmark",G1

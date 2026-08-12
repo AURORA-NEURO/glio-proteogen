@@ -42,6 +42,16 @@ from glio_proteogen.contracts.m01_03.schema import (
     contract_json_schema as m0103_contract_json_schema,
 )
 from glio_proteogen.contracts.m01_03.v1 import ValidatedRawInputDescriptor
+from glio_proteogen.contracts.m01_04.schema import (
+    ContractName as M0104ContractName,
+)
+from glio_proteogen.contracts.m01_04.schema import (
+    contract_json_schema as m0104_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_04.v1 import (
+    ComputeQualityMetricsRequest,
+    QualityProfile,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -94,10 +104,14 @@ from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.parser import (
     IngestionLimits,
     parse_raw_input,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics.service import (
+    M0104Service,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
 _RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
+_QUALITY_ADAPTER: Final = TypeAdapter(ComputeQualityMetricsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -122,6 +136,10 @@ def _raw_contract_schema(name: M0103ContractName) -> dict[str, object]:
     return m0103_contract_json_schema(name)
 
 
+def _quality_contract_schema(name: M0104ContractName) -> dict[str, object]:
+    return m0104_contract_json_schema(name)
+
+
 def _request_body(name: M0101ContractName) -> dict[str, object]:
     return {
         "requestBody": {
@@ -137,6 +155,17 @@ def _identity_request_body() -> dict[str, object]:
             "required": True,
             "content": {
                 "application/json": {"schema": m0102_contract_json_schema("request")}
+            },
+        }
+    }
+
+
+def _quality_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0104_contract_json_schema("request")}
             },
         }
     }
@@ -180,6 +209,10 @@ async def _reconcile_body(request: Request) -> ReconcileIdentityLineageRequest:
     )
 
 
+async def _quality_body(request: Request) -> ComputeQualityMetricsRequest:
+    return await _strict_json_body(request, _QUALITY_ADAPTER)
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -187,6 +220,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     service = M0101Service(store)
     identity_store = M0102EventStore(database_path)
     identity_service = M0102Service(identity_store)
+    quality_service = M0104Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -295,6 +329,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-03/{name}/schema", tags=["contracts"])
     def raw_contract_schema(name: M0103ContractName) -> dict[str, object]:
         return _raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-04/{name}/schema", tags=["contracts"])
+    def quality_contract_schema(name: M0104ContractName) -> dict[str, object]:
+        return _quality_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M01-04/quality",
+        response_model=QualityProfile,
+        tags=["M01-04"],
+        openapi_extra=_quality_request_body(),
+    )
+    def compute_quality_metrics(
+        request: Annotated[ComputeQualityMetricsRequest, Depends(_quality_body)],
+    ) -> QualityProfile:
+        return quality_service.execute(request)
 
     @app.post(
         "/v1/modules/M01-03/inspect",

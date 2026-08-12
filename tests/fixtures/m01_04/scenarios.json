@@ -1,0 +1,94 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M01-04",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "scenarios": [
+    {
+      "case_id": "complete_supported_assay",
+      "request_case": "complete",
+      "expected": {
+        "outcome": "profile",
+        "disposition": "accepted",
+        "support": "limited",
+        "metrics": [
+          ["metric.completeness", "observed", "pass", 0.95, "1"],
+          ["metric.control", "observed", "pass", 0.05, "1"],
+          ["metric.coverage", "observed", "pass", 0.9, "1"],
+          ["metric.detection", "observed", "pass", 4.0, "1"],
+          ["metric.sample-context", "observed", "pass", 1.0, "1"]
+        ]
+      }
+    },
+    {
+      "case_id": "optional_missing_and_below_detection",
+      "request_case": "optional_missing",
+      "expected": {
+        "outcome": "profile",
+        "disposition": "accepted",
+        "support": "limited",
+        "metrics": [
+          ["metric.below-detection", "below_detection", "not_evaluable", null, "1"],
+          ["metric.optional-missing", "missing", "not_evaluable", null, "%"],
+          ["metric.required", "observed", "pass", 0.9, "%"]
+        ]
+      }
+    },
+    {
+      "case_id": "required_metric_incomplete",
+      "request_case": "required_missing",
+      "expected": {
+        "outcome": "profile",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "metrics": [
+          ["metric.required", "missing", "not_evaluable", null, "%"]
+        ]
+      }
+    },
+    {
+      "case_id": "detection_and_control_failure",
+      "request_case": "control_failure",
+      "expected": {
+        "outcome": "profile",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "metrics": [
+          ["metric.control-failure", "observed", "fail", 0.4, "1"],
+          ["metric.detection-failure", "observed", "fail", 1.0, "1"]
+        ]
+      }
+    },
+    {
+      "case_id": "sample_context_mismatch",
+      "request_case": "context_mismatch",
+      "expected": {
+        "outcome": "profile",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "metrics": [
+          ["metric.sample-context", "observed", "fail", 0.0, "1"]
+        ]
+      }
+    },
+    {
+      "case_id": "unknown_assay_rejected",
+      "request_case": "unknown_assay",
+      "expected": {
+        "outcome": "validation_rejected",
+        "disposition": null,
+        "support": null,
+        "metrics": []
+      }
+    },
+    {
+      "case_id": "consent_denied",
+      "request_case": "consent_denied",
+      "expected": {
+        "outcome": "validation_rejected",
+        "disposition": null,
+        "support": null,
+        "metrics": []
+      }
+    }
+  ]
+}
