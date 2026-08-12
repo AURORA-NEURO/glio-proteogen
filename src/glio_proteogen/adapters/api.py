@@ -124,6 +124,16 @@ from glio_proteogen.contracts.m02_04.v1 import (
     ComputeIdentificationQualityRequest,
     IdentificationQualityProfile,
 )
+from glio_proteogen.contracts.m02_05.schema import (
+    ContractName as M0205ContractName,
+)
+from glio_proteogen.contracts.m02_05.schema import (
+    contract_json_schema as m0205_contract_json_schema,
+)
+from glio_proteogen.contracts.m02_05.v1 import (
+    DetectIdentificationArtifactsRequest,
+    IdentificationArtifactDetectionResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -211,6 +221,11 @@ from glio_proteogen.modules.c02_identification_qc.m02_04_quality_metrics import 
     M0204Service,
     preflight_identification_quality_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_05_artifact_detection import (
+    IdentificationArtifactAuthorizationError,
+    M0205Service,
+    preflight_identification_artifact_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -222,6 +237,7 @@ _SUPPORT_ROUTING_ADAPTER: Final = TypeAdapter(RouteSupportRequest)
 _M0201_CONFORMANCE_ADAPTER: Final = TypeAdapter(EvaluateConformanceRequest)
 _M0202_BINDING_ADAPTER: Final = TypeAdapter(ValidateIdentityBindingsRequest)
 _M0204_QUALITY_ADAPTER: Final = TypeAdapter(ComputeIdentificationQualityRequest)
+_M0205_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectIdentificationArtifactsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -280,6 +296,10 @@ def _identification_raw_contract_schema(name: M0203ContractName) -> dict[str, ob
 
 def _identification_quality_contract_schema(name: M0204ContractName) -> dict[str, object]:
     return m0204_contract_json_schema(name)
+
+
+def _identification_artifact_contract_schema(name: M0205ContractName) -> dict[str, object]:
+    return m0205_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -379,6 +399,17 @@ def _identification_quality_request_body() -> dict[str, object]:
     }
 
 
+def _identification_artifact_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0205_contract_json_schema("request")}
+            },
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
@@ -467,6 +498,16 @@ async def _identification_quality_body(
     )
 
 
+async def _identification_artifact_body(
+    request: Request,
+) -> DetectIdentificationArtifactsRequest:
+    return await _strict_json_body(
+        request,
+        _M0205_ARTIFACT_ADAPTER,
+        preflight_identification_artifact_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -481,6 +522,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     identification_evaluator = M0201ConformanceEvaluator()
     identity_binding_evaluator = M0202IdentityBindingEvaluator()
     identification_quality_service = M0204Service()
+    identification_artifact_service = M0205Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -515,6 +557,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ConformanceAuthorizationError)
     @app.exception_handler(IdentityBindingAuthorizationError)
     @app.exception_handler(IdentificationQualityAuthorizationError)
+    @app.exception_handler(IdentificationArtifactAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -647,6 +690,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M02-04/{name}/schema", tags=["contracts"])
     def identification_quality_contract_schema(name: M0204ContractName) -> dict[str, object]:
         return _identification_quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M02-05/{name}/schema", tags=["contracts"])
+    def identification_artifact_contract_schema(name: M0205ContractName) -> dict[str, object]:
+        return _identification_artifact_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M02-05/artifacts",
+        response_model=IdentificationArtifactDetectionResult,
+        tags=["M02-05"],
+        openapi_extra=_identification_artifact_request_body(),
+    )
+    def detect_identification_artifacts(
+        request: Annotated[
+            DetectIdentificationArtifactsRequest,
+            Depends(_identification_artifact_body),
+        ],
+    ) -> IdentificationArtifactDetectionResult:
+        return identification_artifact_service.execute(request)
 
     @app.post(
         "/v1/modules/M02-04/quality",

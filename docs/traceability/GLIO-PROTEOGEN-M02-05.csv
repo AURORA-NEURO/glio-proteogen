@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-05-R01,"Authorize all seven controls before signal traversal","raw authorization preflight","consent-denial hostile signal case",G1
+M02-05-R02,"Bind requests to the pinned identification-artifact profile policy and rules","configuration digest binding","conformant scenario and contract tests",G1
+M02-05-R03,"Evaluate all seven declared artifact classes","closed artifact-class contract and rule coverage","seven-class seeded synthetic scenario",G1
+M02-05-R04,"Preserve missing not-applicable and unsupported signals without coercion","typed identification signal states","required-missing and optional-rule unsupported/OOD scenarios",G1
+M02-05-R05,"Apply configured posterior review exclusion and eligibility semantics","maximum configured-posterior kernel","seeded and clean exact flag expectations",G1
+M02-05-R06,"Quarantine every exclusion review or required non-evaluable flag","closed result aggregation","seeded missing and unsupported scenarios",G1
+M02-05-R07,"Deduplicate targets in the exclusion mask","set-derived sorted mask","multi-class target scenario",G1
+M02-05-R08,"Meet seeded sensitivity of at least 0.95","locked seven-pair scorer","eval expects seven of seven exclusions",G1
+M02-05-R09,"Keep clean false exclusions at or below 0.05","locked clean-target scorer","clean batch expects zero false exclusions",G1
+M02-05-R10,"Produce canonical full results independent of input order","sorted request and output semantics","reordered request scenario",G1
+M02-05-R11,"Emit only artifact metadata for parent target protein_subtype","closed result schema and limitations","recursive privacy and ownership check",G1
+M02-05-R12,"Bind flags and result to configuration rules signals and controls","flag and envelope provenance","focused tests and exact replay",G1
+M02-05-R13,"Meet a broad representative batch latency budget","bounded deterministic evaluator","public batch benchmark under 500 ms",G1

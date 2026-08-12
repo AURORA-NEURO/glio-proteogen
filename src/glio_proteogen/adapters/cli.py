@@ -14,6 +14,7 @@ from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
     _contract_schema,
     _harmonization_contract_schema,
+    _identification_artifact_contract_schema,
     _identification_contract_schema,
     _identification_quality_contract_schema,
     _identification_raw_contract_schema,
@@ -44,6 +45,7 @@ from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
 from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
 from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequest
 from glio_proteogen.contracts.m02_04.v1 import ComputeIdentificationQualityRequest
+from glio_proteogen.contracts.m02_05.v1 import DetectIdentificationArtifactsRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -114,6 +116,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_04_quality_metrics import 
     M0204Service,
     preflight_identification_quality_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_05_artifact_detection import (
+    M0205Service,
+    preflight_identification_artifact_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -164,6 +170,11 @@ identification_quality_app = typer.Typer(
     help="M02-04 deterministic peptide-identification quality metrics.",
 )
 app.add_typer(identification_quality_app, name="identification-quality")
+identification_artifacts_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-05 deterministic peptide-identification artifact detection.",
+)
+app.add_typer(identification_artifacts_app, name="identification-artifacts")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -825,6 +836,40 @@ def compute_identification_quality(request: RequestArgument) -> None:
         preflight_identification_quality_authorization,
     )
     _emit(M0204Service().execute(parsed))
+
+
+@identification_artifacts_app.command("export-schema")
+def export_identification_artifact_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "profile",
+            "policy",
+            "signal",
+            "flag",
+            "evaluation",
+        ],
+        typer.Argument(help="M02-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-05 contract for agents and tools."""
+
+    typer.echo(
+        json.dumps(_identification_artifact_contract_schema(contract), indent=2, sort_keys=True)
+    )
+
+
+@identification_artifacts_app.command("detect")
+def detect_identification_artifacts(request: RequestArgument) -> None:
+    """Detect configured technical artifacts in authorized identification evidence."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(DetectIdentificationArtifactsRequest),
+        preflight_identification_artifact_authorization,
+    )
+    _emit(M0205Service().execute(parsed))
 
 
 @release_packaging_app.command("build")

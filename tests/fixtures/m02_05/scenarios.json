@@ -1,0 +1,121 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-05",
+  "contract_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_synthetic_fixture_regression_only",
+  "criteria": {
+    "seeded_sensitivity_minimum": 0.95,
+    "clean_false_exclusion_maximum": 0.05
+  },
+  "scenarios": [
+    {
+      "id": "conformant_clean",
+      "mutation": "clean_single",
+      "expected_disposition": "accepted",
+      "expected_flag_count": 7,
+      "seeded_pairs": [],
+      "clean_target_ids": ["target.clean.single"],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": [],
+      "expected_review_target_ids": []
+    },
+    {
+      "id": "seven_class_seeded",
+      "mutation": "seven_class_seeded",
+      "expected_disposition": "quarantined",
+      "expected_flag_count": 28,
+      "seeded_pairs": [
+        ["target.seeded.alpha", "technical"],
+        ["target.seeded.alpha", "contamination"],
+        ["target.seeded.beta", "barcode_index"],
+        ["target.seeded.beta", "batch"],
+        ["target.seeded.gamma", "low_complexity"],
+        ["target.seeded.gamma", "mapping"],
+        ["target.seeded.delta", "context_false_positive"]
+      ],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": [
+        "target.seeded.alpha",
+        "target.seeded.beta",
+        "target.seeded.delta",
+        "target.seeded.gamma"
+      ],
+      "expected_review_target_ids": []
+    },
+    {
+      "id": "clean_zero_false_exclusion",
+      "mutation": "clean_batch",
+      "expected_disposition": "accepted",
+      "expected_flag_count": 28,
+      "seeded_pairs": [],
+      "clean_target_ids": [
+        "target.clean.01",
+        "target.clean.02",
+        "target.clean.03",
+        "target.clean.04"
+      ],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": [],
+      "expected_review_target_ids": []
+    },
+    {
+      "id": "missing_required_signal",
+      "mutation": "missing_required",
+      "expected_disposition": "quarantined",
+      "expected_flag_count": 7,
+      "seeded_pairs": [],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [["target.missing", "technical"]],
+      "expected_excluded_target_ids": [],
+      "expected_review_target_ids": ["target.missing"]
+    },
+    {
+      "id": "unsupported_ood_signal",
+      "mutation": "unsupported_ood",
+      "expected_disposition": "quarantined",
+      "expected_flag_count": 7,
+      "seeded_pairs": [],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [["target.ood", "contamination"]],
+      "expected_excluded_target_ids": [],
+      "expected_review_target_ids": ["target.ood"]
+    },
+    {
+      "id": "multi_class_deduplicated_mask",
+      "mutation": "multi_class",
+      "expected_disposition": "quarantined",
+      "expected_flag_count": 7,
+      "seeded_pairs": [
+        ["target.multi", "contamination"],
+        ["target.multi", "barcode_index"]
+      ],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": ["target.multi"],
+      "expected_review_target_ids": []
+    },
+    {
+      "id": "order_determinism",
+      "mutation": "order_determinism",
+      "expected_disposition": "quarantined",
+      "expected_flag_count": 14,
+      "seeded_pairs": [["target.order.seeded", "technical"]],
+      "clean_target_ids": ["target.order.clean"],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": ["target.order.seeded"],
+      "expected_review_target_ids": []
+    },
+    {
+      "id": "consent_denied_preflight",
+      "mutation": "withheld_consent_hostile_signals",
+      "expected_disposition": "boundary_rejected",
+      "expected_flag_count": 0,
+      "seeded_pairs": [],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [],
+      "expected_excluded_target_ids": [],
+      "expected_review_target_ids": []
+    }
+  ]
+}
