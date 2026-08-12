@@ -19,6 +19,7 @@ from glio_proteogen.adapters.api import (
     _identification_harmonization_contract_schema,
     _identification_quality_contract_schema,
     _identification_raw_contract_schema,
+    _identification_release_contract_schema,
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
@@ -43,13 +44,40 @@ from glio_proteogen.contracts.m01_08.v1 import (
     ReleaseDisposition,
     ReleasePackagingResult,
 )
+from glio_proteogen.contracts.m02_01.v1 import (
+    ConformanceEvaluation as M0201ConformanceEvaluation,
+)
 from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
-from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
-from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequest
-from glio_proteogen.contracts.m02_04.v1 import ComputeIdentificationQualityRequest
-from glio_proteogen.contracts.m02_05.v1 import DetectIdentificationArtifactsRequest
-from glio_proteogen.contracts.m02_06.v1 import HarmonizeIdentificationEvidenceRequest
-from glio_proteogen.contracts.m02_07.v1 import RouteIdentificationSupportRequest
+from glio_proteogen.contracts.m02_02.v1 import (
+    IdentityBindingEvaluation,
+    ValidateIdentityBindingsRequest,
+)
+from glio_proteogen.contracts.m02_03.v1 import (
+    IdentificationRawIngestionResult,
+    IngestIdentificationRawInputsRequest,
+)
+from glio_proteogen.contracts.m02_04.v1 import (
+    ComputeIdentificationQualityRequest,
+    IdentificationQualityProfile,
+)
+from glio_proteogen.contracts.m02_05.v1 import (
+    DetectIdentificationArtifactsRequest,
+    IdentificationArtifactDetectionResult,
+)
+from glio_proteogen.contracts.m02_06.v1 import (
+    HarmonizeIdentificationEvidenceRequest,
+    IdentificationHarmonizationResult,
+)
+from glio_proteogen.contracts.m02_07.v1 import (
+    IdentificationSupportRouteResult,
+    RouteIdentificationSupportRequest,
+)
+from glio_proteogen.contracts.m02_08 import (
+    BuildIdentificationQcReleaseRequest,
+    IdentificationQcReleaseResult,
+    IdentificationReleaseArtifactRole,
+    IdentificationReleaseDisposition,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -132,6 +160,12 @@ from glio_proteogen.modules.c02_identification_qc.m02_07_support_router import (
     M0207Service,
     preflight_identification_support_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_08_release_packaging import (
+    IdentificationReleaseAuthorizationError,
+    IdentificationReleaseInputError,
+    M0208Service,
+    preflight_identification_release_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -197,8 +231,50 @@ identification_support_app = typer.Typer(
     help="M02-07 joint-envelope peptide-identification support routing.",
 )
 app.add_typer(identification_support_app, name="identification-support")
+identification_release_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-08 peptide-identification provenance and release packaging.",
+)
+app.add_typer(identification_release_app, name="identification-release")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
+_IDENTIFICATION_RELEASE_STAGES = (
+    (
+        IdentificationReleaseArtifactRole.M02_01_CONFORMANCE,
+        "GLIO-PROTEOGEN-M02-01",
+        TypeAdapter(M0201ConformanceEvaluation),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_02_IDENTITY_LINEAGE,
+        "GLIO-PROTEOGEN-M02-02",
+        TypeAdapter(IdentityBindingEvaluation),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_03_RAW_INGESTION,
+        "GLIO-PROTEOGEN-M02-03",
+        TypeAdapter(IdentificationRawIngestionResult),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_04_QUALITY,
+        "GLIO-PROTEOGEN-M02-04",
+        TypeAdapter(IdentificationQualityProfile),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_05_ARTIFACT_DETECTION,
+        "GLIO-PROTEOGEN-M02-05",
+        TypeAdapter(IdentificationArtifactDetectionResult),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_06_HARMONIZATION,
+        "GLIO-PROTEOGEN-M02-06",
+        TypeAdapter(IdentificationHarmonizationResult),
+    ),
+    (
+        IdentificationReleaseArtifactRole.M02_07_SUPPORT_ROUTE,
+        "GLIO-PROTEOGEN-M02-07",
+        TypeAdapter(IdentificationSupportRouteResult),
+    ),
+)
 
 DatabaseOption = Annotated[
     Path,
@@ -280,6 +356,50 @@ class _IdentificationRawFileError(ValueError):
     @classmethod
     def source_unavailable(cls) -> _IdentificationRawFileError:
         return cls("raw source is unavailable")
+
+
+class _IdentificationReleaseFileError(ValueError):
+    """A CLI path violates the closed M02-08 file or archive boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _IdentificationReleaseFileError:
+        return cls("release source directory is unavailable")
+
+    @classmethod
+    def linked_source(cls) -> _IdentificationReleaseFileError:
+        return cls("release source cannot contain symbolic links or junctions")
+
+    @classmethod
+    def unexpected_entry(cls) -> _IdentificationReleaseFileError:
+        return cls("release source must contain exactly the declared artifact paths")
+
+    @classmethod
+    def non_regular_source(cls) -> _IdentificationReleaseFileError:
+        return cls("release artifacts must be regular files")
+
+    @classmethod
+    def source_size_mismatch(cls) -> _IdentificationReleaseFileError:
+        return cls("release artifact size contradicts its declaration")
+
+    @classmethod
+    def source_unavailable(cls) -> _IdentificationReleaseFileError:
+        return cls("release artifact source is unavailable")
+
+    @classmethod
+    def stage_invalid(cls) -> _IdentificationReleaseFileError:
+        return cls("release stage artifact is not its exact strict result contract")
+
+    @classmethod
+    def package_unavailable(cls) -> _IdentificationReleaseFileError:
+        return cls("identification release package is unavailable")
+
+    @classmethod
+    def package_size_mismatch(cls) -> _IdentificationReleaseFileError:
+        return cls("identification release package size contradicts its descriptor")
+
+    @classmethod
+    def output_unavailable(cls) -> _IdentificationReleaseFileError:
+        return cls("identification release output must be a new writable file")
 
 
 def _emit(value: object) -> None:
@@ -381,6 +501,137 @@ def _write_release_package(path: Path, package_bytes: bytes) -> None:
             stream.write(package_bytes)
     except OSError as error:
         raise _ReleaseFileError.output_unavailable() from error
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    return path.is_symlink() or path.is_junction()
+
+
+def _load_identification_release_inputs(
+    request: BuildIdentificationQcReleaseRequest,
+    source_directory: Path,
+) -> tuple[dict[str, bytes], dict[str, object]]:
+    """Read the exact declared tree and strictly reconstruct all seven stage results."""
+
+    root = _resolve_identification_release_directory(source_directory)
+    expected_paths = {item.path for item in request.artifacts}
+    _validate_identification_release_tree(root, expected_paths)
+
+    artifacts: dict[str, bytes] = {}
+    by_role = {item.role: item for item in request.artifacts}
+    for declaration in request.artifacts:
+        candidate = root.joinpath(*PurePosixPath(declaration.path).parts)
+        artifacts[declaration.path] = _read_identification_release_artifact(
+            root,
+            candidate,
+            declaration.declared_size,
+        )
+
+    stages: dict[str, object] = {}
+    for role, module_id, adapter in _IDENTIFICATION_RELEASE_STAGES:
+        declaration = by_role[role]
+        try:
+            stages[module_id] = adapter.validate_json(
+                artifacts[declaration.path],
+                strict=True,
+            )
+        except ValidationError as error:
+            raise _IdentificationReleaseFileError.stage_invalid() from error
+    return artifacts, stages
+
+
+def _validate_identification_release_tree(root: Path, expected_paths: set[str]) -> None:
+    expected_directories = {
+        parent.as_posix()
+        for path in expected_paths
+        for parent in PurePosixPath(path).parents
+        if parent != PurePosixPath(".")
+    }
+    actual_paths: set[str] = set()
+    try:
+        entries = tuple(root.rglob("*"))
+    except OSError as error:
+        raise _IdentificationReleaseFileError.source_unavailable() from error
+    for entry in entries:
+        relative = entry.relative_to(root).as_posix()
+        if _is_link_or_junction(entry):
+            raise _IdentificationReleaseFileError.linked_source()
+        if entry.is_dir():
+            if relative not in expected_directories:
+                raise _IdentificationReleaseFileError.unexpected_entry()
+            continue
+        if not entry.is_file():
+            raise _IdentificationReleaseFileError.non_regular_source()
+        if relative not in expected_paths:
+            raise _IdentificationReleaseFileError.unexpected_entry()
+        actual_paths.add(relative)
+    if actual_paths != expected_paths:
+        raise _IdentificationReleaseFileError.unexpected_entry()
+
+
+def _resolve_identification_release_directory(source_directory: Path) -> Path:
+    try:
+        if _is_link_or_junction(source_directory):
+            raise _IdentificationReleaseFileError.linked_source()
+        root = source_directory.resolve(strict=True)
+    except OSError as error:
+        raise _IdentificationReleaseFileError.source_not_directory() from error
+    if not root.is_dir():
+        raise _IdentificationReleaseFileError.source_not_directory()
+    return root
+
+
+def _read_identification_release_artifact(
+    root: Path,
+    path: Path,
+    expected_size: int,
+) -> bytes:
+    try:
+        if _is_link_or_junction(path):
+            raise _IdentificationReleaseFileError.linked_source()
+        resolved = path.resolve(strict=True)
+    except OSError as error:
+        raise _IdentificationReleaseFileError.source_unavailable() from error
+    if not resolved.is_relative_to(root) or not resolved.is_file():
+        raise _IdentificationReleaseFileError.non_regular_source()
+    try:
+        with resolved.open("rb") as stream:
+            content = stream.read(expected_size + 1)
+    except OSError as error:
+        raise _IdentificationReleaseFileError.source_unavailable() from error
+    if len(content) != expected_size:
+        raise _IdentificationReleaseFileError.source_size_mismatch()
+    return content
+
+
+def _read_identification_release_package(
+    path: Path,
+    result: IdentificationQcReleaseResult,
+) -> bytes:
+    descriptor = result.package_descriptor
+    if descriptor is None:
+        raise _IdentificationReleaseFileError.package_unavailable()
+    try:
+        if _is_link_or_junction(path):
+            raise _IdentificationReleaseFileError.package_unavailable()
+        resolved = path.resolve(strict=True)
+        if not resolved.is_file():
+            raise _IdentificationReleaseFileError.package_unavailable()
+        with resolved.open("rb") as stream:
+            content = stream.read(descriptor.byte_size + 1)
+    except OSError as error:
+        raise _IdentificationReleaseFileError.package_unavailable() from error
+    if len(content) != descriptor.byte_size:
+        raise _IdentificationReleaseFileError.package_size_mismatch()
+    return content
+
+
+def _write_identification_release_package(path: Path, package_bytes: bytes) -> None:
+    try:
+        with path.open("xb") as stream:
+            stream.write(package_bytes)
+    except OSError as error:
+        raise _IdentificationReleaseFileError.output_unavailable() from error
 
 
 def _load_identification_raw_files(
@@ -968,6 +1219,85 @@ def route_identification_support(request: RequestArgument) -> None:
         preflight_identification_support_authorization,
     )
     _emit(M0207Service().execute(parsed))
+
+
+@identification_release_app.command("export-schema")
+def export_identification_release_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact",
+            "manifest",
+            "verification",
+            "signature",
+        ],
+        typer.Argument(help="M02-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-08 identification release contract."""
+
+    typer.echo(
+        json.dumps(
+            _identification_release_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@identification_release_app.command("build")
+def build_identification_release_archive(
+    request: RequestArgument,
+    source_directory: SourceDirectoryArgument,
+    output: OutputOption,
+) -> None:
+    """Validate a closed release; without an injected verifier this quarantines safely."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(BuildIdentificationQcReleaseRequest),
+        preflight_identification_release_authorization,
+    )
+    try:
+        artifacts, stages = _load_identification_release_inputs(parsed, source_directory)
+        built = M0208Service().build(parsed, artifacts, stages)
+        if built.package_bytes is not None:
+            _write_identification_release_package(output, built.package_bytes)
+    except (
+        IdentificationReleaseAuthorizationError,
+        IdentificationReleaseInputError,
+        _IdentificationReleaseFileError,
+    ) as error:
+        typer.echo(f"identification release build failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    _emit(built.result)
+    if built.result.disposition is not IdentificationReleaseDisposition.RELEASED:
+        raise typer.Exit(code=1)
+
+
+@identification_release_app.command("verify")
+def verify_identification_release_archive(
+    result: RequestArgument,
+    package: Annotated[
+        Path,
+        typer.Argument(exists=True, file_okay=True, dir_okay=False, readable=True),
+    ],
+) -> None:
+    """Verify archive structure and content; authenticity needs an injected verifier."""
+
+    parsed = _load_request(result, TypeAdapter(IdentificationQcReleaseResult))
+    try:
+        package_bytes = _read_identification_release_package(package, parsed)
+        verification = M0208Service().verify(parsed, package_bytes)
+    except _IdentificationReleaseFileError as error:
+        typer.echo(f"identification release verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    _emit(verification)
+    if not verification.verified:
+        raise typer.Exit(code=1)
 
 
 @release_packaging_app.command("build")

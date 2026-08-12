@@ -1,0 +1,17 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-08-R01,"Authorize all seven controls before upstream or byte traversal","raw authorization preflight","withheld-consent hostile-chain and hostile-artifact cases",G1
+M02-08-R02,"Bind genuine exact M02-01 through M02-07 outputs","closed seven-stage result chain","canonical release and stage-disposition matrix",G1
+M02-08-R03,"Reject independently valid results from a different chain","lineage and predecessor digest closure","cross-chain substitution cases",G1
+M02-08-R04,"Preserve each upstream disposition without relabeling or repair","stage-specific release eligibility aggregation","seven-stage disposition matrix",G1
+M02-08-R05,"Admit exactly eight caller artifacts with exact bytes sizes digests and media types","closed release-member declarations","canonical and integrity cases",G1
+M02-08-R06,"Reject unsafe aliased duplicate missing or undeclared archive members","canonical relative path and inventory closure","archive-safety matrix",G1
+M02-08-R07,"Construct the manifest before signature verification without circular receipt inclusion","pre-receipt canonical manifest digest","signature-binding and manifest-oracle cases",G1
+M02-08-R08,"Verify an external statement through an injected boundary without signing or authority inference","typed verifier protocol and verification receipt","success rejection malformed algorithm and one-call cases",G1
+M02-08-R09,"Emit exactly ten deterministic archive members","fixed canonical archive assembly","canonical ten-member oracle",G1
+M02-08-R10,"Produce complete result and byte equality under semantic reordering","canonical set ordering and deterministic archive metadata","canonical reorder/replay cases",G1
+M02-08-R11,"Reject strict-schema coercion unknown fields and stale derived values","strict public contract reconstruction","strict-canonical matrix",G1
+M02-08-R12,"Bind software references transformations decisions tolerances and stage receipts","canonical reproducibility manifest","manifest exactness and replay cases",G1
+M02-08-R13,"Emit only release-packaging-owned metadata beneath protein_subtype","closed output schema and fixed limitations","recursive privacy and ownership check",G1
+M02-08-R14,"Provide typed recovery and governed review for blocked releases","immutable failure and recovery envelope","recovery matrix",G1
+M02-08-R15,"Enforce maximum accepted request shape and reject first excess","contract and policy limits before archive construction","maximum-shape and first-excess cases",G1
+M02-08-R16,"Meet the representative practical public-packager latency budget","bounded deterministic full-chain packaging","broad ten-member benchmark",G1

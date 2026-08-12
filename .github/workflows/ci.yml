@@ -59,6 +59,7 @@ jobs:
       - run: uv run python -m evals.m02_05.run --output m02_05-eval.json
       - run: uv run python -m evals.m02_06.run --output m02_06-eval.json
       - run: uv run python -m evals.m02_07.run --output m02_07-eval.json
+      - run: uv run python -m evals.m02_08.run --output m02_08-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -134,6 +135,11 @@ jobs:
         with:
           name: m02-07-eval
           path: m02_07-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-08-eval
+          path: m02_08-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -163,6 +169,7 @@ jobs:
       - run: uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --benchmark-json=m02_05-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --benchmark-json=m02_06-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --benchmark-json=m02_07-benchmark.json --no-cov
+      - run: uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --benchmark-json=m02_08-benchmark.json --no-cov
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -238,6 +245,11 @@ jobs:
         with:
           name: m02-07-benchmark
           path: m02_07-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-08-benchmark
+          path: m02_08-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

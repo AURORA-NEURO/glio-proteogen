@@ -55,6 +55,7 @@ jobs:
           uv run python -m evals.m02_05.run --output evidence/m02-05-eval.json
           uv run python -m evals.m02_06.run --output evidence/m02-06-eval.json
           uv run python -m evals.m02_07.run --output evidence/m02-07-eval.json
+          uv run python -m evals.m02_08.run --output evidence/m02-08-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
           uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
           uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=evidence/m01-03-benchmark.json --no-cov
@@ -70,6 +71,7 @@ jobs:
           uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --benchmark-json=evidence/m02-05-benchmark.json --no-cov
           uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --benchmark-json=evidence/m02-06-benchmark.json --no-cov
           uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --benchmark-json=evidence/m02-07-benchmark.json --no-cov
+          uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --benchmark-json=evidence/m02-08-benchmark.json --no-cov
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json

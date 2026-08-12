@@ -75,8 +75,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   stateless module reduces genuine M02-04 and M02-06 results to compact receipts, then requires
   one reviewed envelope to admit the complete assay, specimen, disease, quality, completeness,
   platform, reference, and intended-use declaration.
+- `GLIO-PROTEOGEN-M02-08` — deterministic identification provenance and release packaging. This
+  stateless module closes the exact M02-01 through M02-07 result bytes, one minimal typed parent
+  protein-subtype receipt, reviewed software/reference/reproduction evidence, and an externally
+  verified signature statement into a canonical ten-member USTAR candidate package.
 
-All fifteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All sixteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -106,6 +110,7 @@ uv run python -m evals.m02_04.run
 uv run python -m evals.m02_05.run
 uv run python -m evals.m02_06.run
 uv run python -m evals.m02_07.run
+uv run python -m evals.m02_08.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -121,6 +126,7 @@ uv run pytest benchmarks/m02_04_quality_metrics.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -131,8 +137,9 @@ M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routin
 directory-backed release package build and verification, and M02-01 peptide-identification
 metadata conformance, M02-02 immutable identity-binding audit, and M02-03 directory-backed
 identification raw-input ingestion, M02-04 stateless identification-quality computation, M02-05
-stateless identification-artifact detection, M02-06 identification harmonization, and M02-07
-identification support routing.
+stateless identification-artifact detection, M02-06 identification harmonization, M02-07
+identification support routing, and M02-08 directory-backed identification release packaging and
+verification.
 For example:
 
 ```bash
@@ -167,6 +174,9 @@ glio-proteogen identification-harmonization export-schema request
 glio-proteogen identification-harmonization harmonize identification-harmonization-request.json
 glio-proteogen identification-support export-schema request
 glio-proteogen identification-support route identification-support-request.json
+glio-proteogen identification-release export-schema request
+glio-proteogen identification-release build identification-release-request.json release-source --output identification-release.tar
+glio-proteogen identification-release verify identification-release-result.json identification-release.tar
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -192,6 +202,15 @@ M02-07 is stateless and consumes only compact, digest-bound M02-04/M02-06 receip
 support envelopes and typed declarations. It emits support-domain assessments, abstention reasons,
 and reviewed remediation codes; it does not copy harmonized values, combine partial envelope
 matches, infer biology, or make treatment or clinical claims.
+M02-08 is stateless and closes exact, separately supplied M02-01 through M02-07 JSON result bytes
+against their typed objects, artifact declarations, issued digests, dispositions, lineage receipts,
+and cross-stage identity bindings. Its manifest is signed without including the generated signature
+verification receipt, avoiding a circular statement. The HTTP surface is schema-only. The CLI has
+no built-in verifier: a build therefore returns typed quarantine metadata and writes no archive,
+while verification can establish canonical structure and content but not authenticity. Positive
+release remains a library/service/plugin operation with an explicitly injected verifier. M02-08
+does not inspect the parent subtype artifact for biological meaning, own signing keys, authenticate
+release authority, infer kinase state, fuse omics, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
