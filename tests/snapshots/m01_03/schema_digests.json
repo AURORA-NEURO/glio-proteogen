@@ -1,0 +1,30 @@
+{
+  "contract_version": "1.0.0",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "schemas": {
+    "request": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:request",
+      "digest": "sha256:9e657867d9786b63e0dca9ef2a195731376b863303fc7db33b6409c30e0bbe16"
+    },
+    "output": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:output",
+      "digest": "sha256:77e878364f93140271f38a4d065b246163133d64cf2d2ceea014605218f48088"
+    },
+    "policy": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:policy",
+      "digest": "sha256:bbf0cc6db6979049e1844a27363351fae1c98f1f2db8cf6f8df1362ea39eb6ee"
+    },
+    "source": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:source",
+      "digest": "sha256:c0402e7e29f906bc0d83f2dada425a6597e4d8e69250c9f20ef44477bc36aa92"
+    },
+    "raw_input": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:raw_input",
+      "digest": "sha256:5d0494427a7167765bdd5f407b287a0aa43b98c0fb977085017838a0a9b19e4a"
+    },
+    "diagnostic": {
+      "$id": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:diagnostic",
+      "digest": "sha256:9ad072fddcf8967d608cab2bf8494aeb51d095ea046769a2072081ea12802108"
+    }
+  }
+}

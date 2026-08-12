@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mzML xmlns="http://psi.hupo.org/ms/mzml" version="1.0.0">
+  <run id="synthetic-unsupported" />
+</mzML>

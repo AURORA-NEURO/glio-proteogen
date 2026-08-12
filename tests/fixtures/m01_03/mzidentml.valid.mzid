@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MzIdentML xmlns="http://psidev.info/psi/pi/mzIdentML/1.3" id="synthetic-identification" version="1.3.0">
+  <SequenceCollection>
+    <PeptideEvidence id="pe-1" peptide_ref="pep-1" dBSequence_ref="db-1" />
+  </SequenceCollection>
+  <DataCollection>
+    <AnalysisData>
+      <SpectrumIdentificationList id="sil-1">
+        <SpectrumIdentificationResult id="sir-1" spectrumID="scan=1" spectraData_ref="sd-1" />
+      </SpectrumIdentificationList>
+    </AnalysisData>
+  </DataCollection>
+</MzIdentML>

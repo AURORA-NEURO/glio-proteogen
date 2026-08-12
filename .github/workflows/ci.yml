@@ -46,6 +46,7 @@ jobs:
       - run: uv run pytest tests
       - run: uv run python -m evals.m01_01.run --output m01_01-eval.json
       - run: uv run python -m evals.m01_02.run --output m01_02-eval.json
+      - run: uv run python -m evals.m01_03.run --output m01_03-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -56,6 +57,11 @@ jobs:
         with:
           name: m01-02-eval
           path: m01_02-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m01-03-eval
+          path: m01_03-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -72,6 +78,7 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=m01_01-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=m01_02-benchmark.json --no-cov
+      - run: uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=m01_03-benchmark.json --no-cov
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -82,6 +89,11 @@ jobs:
         with:
           name: m01-02-benchmark
           path: m01_02-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m01-03-benchmark
+          path: m01_03-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

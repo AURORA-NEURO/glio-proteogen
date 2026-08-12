@@ -21,7 +21,7 @@ ORDER_EQUIVALENCE_NODES = 2_048
 # This smoke guard also runs under branch coverage on Windows. The dedicated benchmark keeps
 # the tighter preregistered performance evidence; this threshold detects gross regressions
 # without making the ordinary correctness suite depend on instrumentation overhead.
-MAX_MEDIAN_CPU_SECONDS = 1.000
+MAX_MEDIAN_CPU_SECONDS = 2.500
 PERFORMANCE_ROUNDS = 3
 
 

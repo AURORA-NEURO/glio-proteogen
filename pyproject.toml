@@ -17,6 +17,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
+  "defusedxml>=0.7.1,<1",
   "fastapi>=0.141.1,<1",
   "pydantic>=2.13.4,<3",
   "typer>=0.27.1,<1",
@@ -38,6 +39,7 @@ dev = [
   "pytest-cov>=6.0",
   "pytest-xdist>=3.6",
   "ruff>=0.11",
+  "types-defusedxml>=0.7.0,<1",
 ]
 
 [tool.hatch.build.targets.wheel]

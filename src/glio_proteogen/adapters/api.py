@@ -35,7 +35,14 @@ from glio_proteogen.contracts.m01_02.v1 import (
     IdentityLineageResolution,
     ReconcileIdentityLineageRequest,
 )
-from glio_proteogen.kernel.models import Sha256Digest
+from glio_proteogen.contracts.m01_03.schema import (
+    ContractName as M0103ContractName,
+)
+from glio_proteogen.contracts.m01_03.schema import (
+    contract_json_schema as m0103_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_03.v1 import ValidatedRawInputDescriptor
+from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -83,11 +90,22 @@ from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.service impo
     M0102Service,
     preflight_identity_authorization,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.parser import (
+    IngestionLimits,
+    parse_raw_input,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
 _RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
+_IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
+_MAX_ADVISORY_FILENAME_BYTES: Final = 512
+_MAX_CHECKSUM_TEXT_LENGTH: Final = 80
+_RAW_API_LIMITS: Final = IngestionLimits(
+    max_source_bytes=MAX_REQUEST_BYTES,
+    max_decoded_bytes=MAX_REQUEST_BYTES * 4,
+)
 
 
 def _contract_schema(name: M0101ContractName) -> dict[str, object]:
@@ -98,6 +116,10 @@ def _contract_schema(name: M0101ContractName) -> dict[str, object]:
 
 def _identity_contract_schema(name: M0102ContractName) -> dict[str, object]:
     return m0102_contract_json_schema(name)
+
+
+def _raw_contract_schema(name: M0103ContractName) -> dict[str, object]:
+    return m0103_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -158,7 +180,7 @@ async def _reconcile_body(request: Request) -> ReconcileIdentityLineageRequest:
     )
 
 
-def create_app(database_path: Path) -> FastAPI:
+def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
     store = M0101EventStore(database_path)
@@ -175,7 +197,7 @@ def create_app(database_path: Path) -> FastAPI:
     app = FastAPI(
         title="GLIO-PROTEOGEN",
         version="0.1.0",
-        description="Research-use-only protocol specification and metadata conformance.",
+        description="Research-use-only preanalytic contracts and bounded evidence processing.",
         lifespan=lifespan,
     )
     app.add_middleware(RequestSizeLimitMiddleware, max_bytes=MAX_REQUEST_BYTES)
@@ -269,6 +291,48 @@ def create_app(database_path: Path) -> FastAPI:
     @app.get("/v1/contracts/M01-02/{name}/schema", tags=["contracts"])
     def identity_contract_schema(name: M0102ContractName) -> dict[str, object]:
         return _identity_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-03/{name}/schema", tags=["contracts"])
+    def raw_contract_schema(name: M0103ContractName) -> dict[str, object]:
+        return _raw_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M01-03/inspect",
+        response_model=ValidatedRawInputDescriptor,
+        tags=["M01-03"],
+    )
+    async def inspect_raw_input(
+        request: Request,
+        source_id: str,
+        filename: str | None = None,
+        expected_sha256: str | None = None,
+    ) -> ValidatedRawInputDescriptor:
+        """Inspect one bounded binary body without retaining or interpreting its records."""
+
+        media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/octet-stream":
+            raise HTTPException(
+                status_code=415,
+                detail="content-type must be application/octet-stream",
+            )
+        if (
+            filename is not None
+            and len(filename.encode("utf-8")) > _MAX_ADVISORY_FILENAME_BYTES
+        ):
+            raise HTTPException(status_code=422, detail="filename is too long")
+        if expected_sha256 is not None and len(expected_sha256) > _MAX_CHECKSUM_TEXT_LENGTH:
+            raise HTTPException(status_code=422, detail="checksum is too long")
+        try:
+            validated_source_id = _IDENTIFIER_ADAPTER.validate_python(source_id, strict=True)
+        except ValidationError as error:
+            raise HTTPException(status_code=422, detail="source identifier is invalid") from error
+        return parse_raw_input(
+            await request.body(),
+            source_id=validated_source_id,
+            filename=filename,
+            expected_sha256=expected_sha256,
+            limits=_RAW_API_LIMITS,
+        )
 
     @app.post(
         "/v1/modules/M01-01/protocols",

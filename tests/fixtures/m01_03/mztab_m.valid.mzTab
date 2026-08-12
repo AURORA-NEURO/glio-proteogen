@@ -1,0 +1,10 @@
+MTD	mzTab-version	2.0.0-M
+MTD	mzTab-ID	synthetic-mztab-m
+PRH	accession	description
+PRT	SYNTHETIC_P1	nonclinical synthetic protein
+PEH	sequence	accession
+PEP	PEPTIDE	SYNTHETIC_P1
+PSH	PSM_ID	sequence	accession
+PSM	1	PEPTIDE	SYNTHETIC_P1
+SMH	identifier	chemical_formula
+SML	SYNTHETIC_M1	C1H2

@@ -1,0 +1,13 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-03-R01,"Recognize exactly the six supported ingestion profiles by content","closed RawInputFormat enum and parser registry","six accepted locked fixtures and scenario eval",G0
+M01-03-R02,"Verify the exact supplied-byte SHA-256 before decompression or parsing","pre-parse checksum gate","matching lower/upper-case checksum and mismatch scenarios",G0
+M01-03-R03,"Detect gzip by magic and fail safely on corrupt compression","magic-based bounded decompression","compressed FASTA, misleading filename, and truncated-gzip scenarios",G0
+M01-03-R04,"Bound raw and decoded resource use independently","IngestionLimits raw and decoded byte ceilings","exact-boundary and first-excess policy tests",G0
+M01-03-R05,"Validate structural version and required content without silent repair","strict profile parsers","valid profile facts, malformed XML, and unsupported-version scenarios",G0
+M01-03-R06,"Quarantine unknown or ambiguous content rather than guess from a filename","exactly-one content detector rule","unknown-content and filename-independence checks",G0
+M01-03-R07,"Produce deterministic results for bytes and binary streams","immutable value result and ordered diagnostics","byte/stream replay and executable eval",G0
+M01-03-R08,"Retain only a bounded structural record count and no raw scientific payload","metadata-only descriptor; no raw-content field","recursive policy scan and privacy canaries",G0
+M01-03-R09,"Keep missing content distinct from a negative biological finding","typed quarantine and diagnostic semantics","malformed/missing boundary tests",G0
+M01-03-R10,"Never infer identity or consent or mutate upstream evidence","closed parser output","forbidden-key policy checks",G0
+M01-03-R11,"Exclude proteotype interpretation, kinase activity, generic fusion, and treatment recommendation","closed parser output","forbidden-output policy checks",G0
+M01-03-R12,"Meet bounded linear ingestion cost","single bounded pass per raw/decoded representation","four public-boundary microbenchmarks",G0

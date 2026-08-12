@@ -123,16 +123,18 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "release-candidate-evidence" in workflow
     assert "evals.m01_01.run --output evidence/m01-01-eval.json" in workflow
     assert "evals.m01_02.run --output evidence/m01-02-eval.json" in workflow
+    assert "evals.m01_03.run --output evidence/m01-03-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
 
-def test_ci_records_eval_and_benchmark_evidence_for_both_modules() -> None:
+def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
-    for module in ("m01_01", "m01_02"):
+    for module in ("m01_01", "m01_02", "m01_03"):
         artifact = module.replace("_", "-")
         assert f"evals.{module}.run --output {module}-eval.json" in workflow
         assert f"name: {artifact}-eval" in workflow
@@ -141,9 +143,11 @@ def test_ci_records_eval_and_benchmark_evidence_for_both_modules() -> None:
     assert "benchmark-json=m01_01-benchmark.json" in workflow
     assert "benchmarks/m01_02_identity_lineage.py" in workflow
     assert "benchmark-json=m01_02-benchmark.json" in workflow
+    assert "benchmarks/m01_03_ingestion.py" in workflow
+    assert "benchmark-json=m01_03-benchmark.json" in workflow
 
 
-def test_clean_wheel_smoke_checks_both_module_cli_schema_routes(
+def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, ...]] = []
@@ -154,6 +158,9 @@ def test_clean_wheel_smoke_checks_both_module_cli_schema_routes(
         ),
         ("identity", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-02:1.0.0:request"
+        ),
+        ("raw", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-03:1.0.0:request"
         ),
     }
 

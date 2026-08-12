@@ -13,6 +13,7 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.adapters.api import (
     _contract_schema,
     _identity_contract_schema,
+    _raw_contract_schema,
     create_app,
 )
 from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
@@ -22,7 +23,7 @@ from glio_proteogen.contracts.m01_01.v1 import (
 )
 from glio_proteogen.contracts.m01_02.v1 import ReconcileIdentityLineageRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import Sha256Digest
+from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -47,6 +48,9 @@ from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.service impo
     M0102Service,
     preflight_identity_authorization,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.parser import (
+    parse_raw_input,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -56,6 +60,8 @@ protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operation
 app.add_typer(protocol_app, name="protocol")
 identity_app = typer.Typer(no_args_is_help=True, help="M01-02 identity and lineage operations.")
 app.add_typer(identity_app, name="identity")
+raw_app = typer.Typer(no_args_is_help=True, help="M01-03 bounded raw-format ingestion.")
+app.add_typer(raw_app, name="raw")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -232,6 +238,52 @@ def export_identity_schema(
     """Export a machine-readable M01-02 contract for agents and tools."""
 
     typer.echo(json.dumps(_identity_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@raw_app.command("inspect")
+def inspect_raw_input(
+    source: Annotated[
+        Path,
+        typer.Argument(exists=True, file_okay=True, dir_okay=False, readable=True),
+    ],
+    source_id: Annotated[str, typer.Option("--source-id", help="Opaque source identifier.")],
+    expected_sha256: Annotated[
+        str | None,
+        typer.Option("--sha256", help="Optional SHA-256 digest of the transported bytes."),
+    ] = None,
+) -> None:
+    """Inspect one bounded file and emit metadata only; source content is never echoed."""
+
+    try:
+        validated_source_id = TypeAdapter(Identifier).validate_python(source_id, strict=True)
+        with source.open("rb") as stream:
+            result = parse_raw_input(
+                stream,
+                source_id=validated_source_id,
+                filename=source.name,
+                expected_sha256=expected_sha256,
+            )
+    except ValidationError as error:
+        typer.echo("invalid source identifier", err=True)
+        raise typer.Exit(code=2) from error
+    except OSError as error:
+        typer.echo("inspection failed: unable to read source", err=True)
+        raise typer.Exit(code=1) from error
+    _emit(result)
+    if result.disposition.value != "accepted":
+        raise typer.Exit(code=1)
+
+
+@raw_app.command("export-schema")
+def export_raw_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "source", "raw_input", "diagnostic"],
+        typer.Argument(help="M01-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M01-03 contract for agents and tools."""
+
+    typer.echo(json.dumps(_raw_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @app.command("export-schema")

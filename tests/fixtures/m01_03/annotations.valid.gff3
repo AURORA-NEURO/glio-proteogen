@@ -1,0 +1,7 @@
+##gff-version 3
+##sequence-region synthetic_chr 1 1000
+synthetic	fixture	gene	101	300	.	+	.	ID=gene1;Name=synthetic_gene
+synthetic	fixture	mRNA	101	300	.	+	.	ID=transcript1;Parent=gene1
+##FASTA
+>synthetic_chr
+ACGT

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mzML xmlns="http://psi.hupo.org/ms/mzml" version="1.1.0">
+  <run id="synthetic-truncated">
+    <spectrumList count="1">
+      <spectrum id="scan=1" index="0" defaultArrayLength="0">
