@@ -1,0 +1,102 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-06",
+  "contract_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_synthetic_fixture_regression_only",
+  "criteria": {
+    "technical_factor_count": 8,
+    "technical_spread_must_strictly_reduce": true,
+    "technical_after_spread_maximum": 0.000001,
+    "protected_direction_count": 1,
+    "protected_rank_count": 1,
+    "state_fidelity_required": true,
+    "excluded_adjustment_count": 0
+  },
+  "scenarios": [
+    {
+      "id": "eight_factor_reduction_with_protected_biology",
+      "mutation": "conformant_eight_factor",
+      "expected_disposition": "accepted",
+      "expected_technical_statuses": {"passed": 8, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 2, "failed": 0, "not_evaluable": 0},
+      "expected_states": {"observed": 128}
+    },
+    {
+      "id": "typed_nonobserved_state_fidelity",
+      "mutation": "typed_nonobserved_states",
+      "expected_disposition": "abstained",
+      "expected_technical_statuses": {"passed": 0, "failed": 0, "not_evaluable": 8},
+      "expected_biological_statuses": {"passed": 0, "failed": 0, "not_evaluable": 2},
+      "expected_states": {"missing": 1, "censored": 1, "not_applicable": 1, "unsupported": 1}
+    },
+    {
+      "id": "m0205_exclusion_firewall",
+      "mutation": "upstream_excluded_target",
+      "expected_disposition": "accepted",
+      "expected_technical_statuses": {"passed": 8, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 2, "failed": 0, "not_evaluable": 0},
+      "expected_states": {"excluded": 8},
+      "expected_excluded_target_ids": ["target.multi"]
+    },
+    {
+      "id": "insufficient_controls_abstain",
+      "mutation": "insufficient_controls",
+      "expected_disposition": "abstained",
+      "expected_technical_statuses": {"passed": 7, "failed": 0, "not_evaluable": 1},
+      "expected_biological_statuses": {"passed": 2, "failed": 0, "not_evaluable": 0},
+      "expected_states": {}
+    },
+    {
+      "id": "capped_shift_requires_review",
+      "mutation": "capped_shift",
+      "expected_disposition": "quarantined",
+      "expected_technical_statuses": {"passed": 7, "failed": 1, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 2, "failed": 0, "not_evaluable": 0},
+      "expected_states": {},
+      "expected_capped_shift_count_minimum": 1
+    },
+    {
+      "id": "direction_control_violation",
+      "mutation": "direction_violation",
+      "expected_disposition": "quarantined",
+      "expected_technical_statuses": {"passed": 8, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 1, "failed": 1, "not_evaluable": 0},
+      "expected_states": {},
+      "expected_failed_invariant_kind": "direction"
+    },
+    {
+      "id": "rank_control_violation",
+      "mutation": "rank_violation",
+      "expected_disposition": "quarantined",
+      "expected_technical_statuses": {"passed": 8, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 1, "failed": 1, "not_evaluable": 0},
+      "expected_states": {},
+      "expected_failed_invariant_kind": "rank"
+    },
+    {
+      "id": "unacceptable_prerequisite_abstention",
+      "mutation": "unacceptable_prerequisite",
+      "expected_disposition": "abstained",
+      "expected_technical_statuses": {"passed": 0, "failed": 0, "not_evaluable": 8},
+      "expected_biological_statuses": {"passed": 0, "failed": 0, "not_evaluable": 2},
+      "expected_states": {}
+    },
+    {
+      "id": "full_output_semantic_order_equality",
+      "mutation": "semantic_reordering",
+      "expected_disposition": "accepted",
+      "expected_technical_statuses": {"passed": 8, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 2, "failed": 0, "not_evaluable": 0},
+      "expected_states": {"observed": 128},
+      "expected_full_output_equal": true
+    },
+    {
+      "id": "consent_denied_before_hostile_observations",
+      "mutation": "withheld_consent_hostile_observations",
+      "expected_disposition": "boundary_rejected",
+      "expected_technical_statuses": {"passed": 0, "failed": 0, "not_evaluable": 0},
+      "expected_biological_statuses": {"passed": 0, "failed": 0, "not_evaluable": 0},
+      "expected_states": {}
+    }
+  ]
+}

@@ -134,6 +134,16 @@ from glio_proteogen.contracts.m02_05.v1 import (
     DetectIdentificationArtifactsRequest,
     IdentificationArtifactDetectionResult,
 )
+from glio_proteogen.contracts.m02_06.schema import (
+    ContractName as M0206ContractName,
+)
+from glio_proteogen.contracts.m02_06.schema import (
+    contract_json_schema as m0206_contract_json_schema,
+)
+from glio_proteogen.contracts.m02_06.v1 import (
+    HarmonizeIdentificationEvidenceRequest,
+    IdentificationHarmonizationResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -226,6 +236,11 @@ from glio_proteogen.modules.c02_identification_qc.m02_05_artifact_detection impo
     M0205Service,
     preflight_identification_artifact_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_06_harmonization import (
+    IdentificationHarmonizationAuthorizationError,
+    M0206Service,
+    preflight_identification_harmonization_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -238,6 +253,7 @@ _M0201_CONFORMANCE_ADAPTER: Final = TypeAdapter(EvaluateConformanceRequest)
 _M0202_BINDING_ADAPTER: Final = TypeAdapter(ValidateIdentityBindingsRequest)
 _M0204_QUALITY_ADAPTER: Final = TypeAdapter(ComputeIdentificationQualityRequest)
 _M0205_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectIdentificationArtifactsRequest)
+_M0206_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeIdentificationEvidenceRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -302,6 +318,12 @@ def _identification_artifact_contract_schema(name: M0205ContractName) -> dict[st
     return m0205_contract_json_schema(name)
 
 
+def _identification_harmonization_contract_schema(
+    name: M0206ContractName,
+) -> dict[str, object]:
+    return m0206_contract_json_schema(name)
+
+
 def _request_body(name: M0101ContractName) -> dict[str, object]:
     return {
         "requestBody": {
@@ -315,9 +337,7 @@ def _identity_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0102_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0102_contract_json_schema("request")}},
         }
     }
 
@@ -326,9 +346,7 @@ def _quality_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0104_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0104_contract_json_schema("request")}},
         }
     }
 
@@ -337,9 +355,7 @@ def _artifact_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0105_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0105_contract_json_schema("request")}},
         }
     }
 
@@ -348,9 +364,7 @@ def _harmonization_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0106_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0106_contract_json_schema("request")}},
         }
     }
 
@@ -359,9 +373,7 @@ def _support_routing_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0107_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0107_contract_json_schema("request")}},
         }
     }
 
@@ -370,9 +382,7 @@ def _identification_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0201_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0201_contract_json_schema("request")}},
         }
     }
 
@@ -381,9 +391,7 @@ def _identity_binding_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0202_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0202_contract_json_schema("request")}},
         }
     }
 
@@ -392,9 +400,7 @@ def _identification_quality_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0204_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0204_contract_json_schema("request")}},
         }
     }
 
@@ -403,9 +409,16 @@ def _identification_artifact_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {
-                "application/json": {"schema": m0205_contract_json_schema("request")}
-            },
+            "content": {"application/json": {"schema": m0205_contract_json_schema("request")}},
+        }
+    }
+
+
+def _identification_harmonization_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0206_contract_json_schema("request")}},
         }
     }
 
@@ -508,6 +521,16 @@ async def _identification_artifact_body(
     )
 
 
+async def _identification_harmonization_body(
+    request: Request,
+) -> HarmonizeIdentificationEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M0206_HARMONIZATION_ADAPTER,
+        preflight_identification_harmonization_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -523,6 +546,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     identity_binding_evaluator = M0202IdentityBindingEvaluator()
     identification_quality_service = M0204Service()
     identification_artifact_service = M0205Service()
+    identification_harmonization_service = M0206Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -558,6 +582,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(IdentityBindingAuthorizationError)
     @app.exception_handler(IdentificationQualityAuthorizationError)
     @app.exception_handler(IdentificationArtifactAuthorizationError)
+    @app.exception_handler(IdentificationHarmonizationAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -695,6 +720,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def identification_artifact_contract_schema(name: M0205ContractName) -> dict[str, object]:
         return _identification_artifact_contract_schema(name)
 
+    @app.get("/v1/contracts/M02-06/{name}/schema", tags=["contracts"])
+    def identification_harmonization_contract_schema(
+        name: M0206ContractName,
+    ) -> dict[str, object]:
+        return _identification_harmonization_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M02-06/harmonization",
+        response_model=IdentificationHarmonizationResult,
+        tags=["M02-06"],
+        openapi_extra=_identification_harmonization_request_body(),
+    )
+    def harmonize_identification_evidence(
+        request: Annotated[
+            HarmonizeIdentificationEvidenceRequest,
+            Depends(_identification_harmonization_body),
+        ],
+    ) -> IdentificationHarmonizationResult:
+        return identification_harmonization_service.execute(request)
+
     @app.post(
         "/v1/modules/M02-05/artifacts",
         response_model=IdentificationArtifactDetectionResult,
@@ -797,10 +842,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
                 status_code=415,
                 detail="content-type must be application/octet-stream",
             )
-        if (
-            filename is not None
-            and len(filename.encode("utf-8")) > _MAX_ADVISORY_FILENAME_BYTES
-        ):
+        if filename is not None and len(filename.encode("utf-8")) > _MAX_ADVISORY_FILENAME_BYTES:
             raise HTTPException(status_code=422, detail="filename is too long")
         if expected_sha256 is not None and len(expected_sha256) > _MAX_CHECKSUM_TEXT_LENGTH:
             raise HTTPException(status_code=422, detail="checksum is too long")
