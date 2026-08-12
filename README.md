@@ -63,8 +63,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   preserves missing, censored, not-applicable, and unsupported states, and emits only a typed
   quality profile with metric-level provenance. It does not parse raw inputs, rescore
   identifications, estimate new q-values, or interpret biology.
+- `GLIO-PROTEOGEN-M02-05` — deterministic peptide-identification artifact detection. This
+  stateless module evaluates authorized aggregate QC signals under a pinned rule profile, emits
+  configured posteriors and technical flags across seven closed artifact classes, and produces a
+  deduplicated exclusion mask without interpreting biological absence or changing upstream data.
 
-All twelve modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All thirteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -91,6 +95,7 @@ uv run python -m evals.m02_01.run
 uv run python -m evals.m02_02.run
 uv run python -m evals.m02_03.run
 uv run python -m evals.m02_04.run
+uv run python -m evals.m02_05.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -103,6 +108,7 @@ uv run pytest benchmarks/m02_01_metadata_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_02_identity_bindings.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_04_quality_metrics.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -112,7 +118,8 @@ ledger-verification operations, M01-03 bounded file inspection, M01-04 quality c
 M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, M01-08
 directory-backed release package build and verification, and M02-01 peptide-identification
 metadata conformance, M02-02 immutable identity-binding audit, and M02-03 directory-backed
-identification raw-input ingestion, plus M02-04 stateless identification-quality computation.
+identification raw-input ingestion, M02-04 stateless identification-quality computation, and
+M02-05 stateless identification-artifact detection.
 For example:
 
 ```bash
@@ -141,6 +148,8 @@ glio-proteogen identification-raw export-schema request
 glio-proteogen identification-raw ingest ingestion-request.json source-directory
 glio-proteogen identification-quality export-schema request
 glio-proteogen identification-quality compute identification-quality-request.json
+glio-proteogen identification-artifacts export-schema request
+glio-proteogen identification-artifacts detect identification-artifact-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -154,6 +163,10 @@ M02-03 is also stateless: byte content stays at the library or safe directory-ba
 boundary, while its result contains only digests, format metadata, and typed diagnostics.
 M02-04 is stateless and consumes only authorized aggregate observations and fixed thresholds;
 it emits a typed quality profile and does not retain raw spectra, PSMs, or biological claims.
+M02-05 is stateless and consumes only authorized aggregate identification-QC signals plus a pinned
+profile, policy, and explicit rules. It emits typed technical flags and a target-level exclusion
+mask; it does not parse raw assay inputs, repair measurements, infer protein subtypes, or retain
+raw spectra or peptide rows.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

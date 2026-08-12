@@ -133,6 +133,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m02_02.run --output evidence/m02-02-eval.json" in workflow
     assert "evals.m02_03.run --output evidence/m02-03-eval.json" in workflow
     assert "evals.m02_04.run --output evidence/m02-04-eval.json" in workflow
+    assert "evals.m02_05.run --output evidence/m02-05-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -145,6 +146,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "benchmark-json=evidence/m02-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-03-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-04-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m02-05-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -165,6 +167,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m02_02",
         "m02_03",
         "m02_04",
+        "m02_05",
     ):
         artifact = module.replace("_", "-")
         assert f"evals.{module}.run --output {module}-eval.json" in workflow
@@ -194,6 +197,8 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "benchmark-json=m02_03-benchmark.json" in workflow
     assert "benchmarks/m02_04_quality_metrics.py" in workflow
     assert "benchmark-json=m02_04-benchmark.json" in workflow
+    assert "benchmarks/m02_05_artifact_detection.py" in workflow
+    assert "benchmark-json=m02_05-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -237,6 +242,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("identification-quality", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-04:1.0.0:request"
+        ),
+        ("identification-artifacts", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-05:1.0.0:request"
         ),
     }
 
