@@ -13,6 +13,7 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
     _contract_schema,
+    _harmonization_contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -26,6 +27,7 @@ from glio_proteogen.contracts.m01_01.v1 import (
 from glio_proteogen.contracts.m01_02.v1 import ReconcileIdentityLineageRequest
 from glio_proteogen.contracts.m01_04.v1 import ComputeQualityMetricsRequest
 from glio_proteogen.contracts.m01_05.v1 import DetectArtifactsRequest
+from glio_proteogen.contracts.m01_06.v1 import HarmonizeObservationsRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -61,6 +63,12 @@ from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics.service impor
 from glio_proteogen.modules.c01_preanalytic.m01_05_artifact_detection.service import (
     M0105Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.engine import (
+    preflight_harmonization_authorization,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.service import (
+    M0106Service,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -76,6 +84,11 @@ quality_app = typer.Typer(no_args_is_help=True, help="M01-04 deterministic quali
 app.add_typer(quality_app, name="quality")
 artifact_app = typer.Typer(no_args_is_help=True, help="M01-05 deterministic artifact detection.")
 app.add_typer(artifact_app, name="artifact")
+harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M01-06 deterministic harmonization and normalization.",
+)
+app.add_typer(harmonization_app, name="harmonize")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -346,6 +359,38 @@ def export_artifact_schema(
     """Export a machine-readable M01-05 contract for agents and tools."""
 
     typer.echo(json.dumps(_artifact_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@harmonization_app.command("run")
+def run_harmonization(request: RequestArgument) -> None:
+    """Apply one authorized, configured technical harmonization."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(HarmonizeObservationsRequest),
+        preflight_harmonization_authorization,
+    )
+    _emit(M0106Service().execute(parsed))
+
+
+@harmonization_app.command("export-schema")
+def export_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "invariant",
+            "value",
+            "transformation",
+        ],
+        typer.Argument(help="M01-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M01-06 contract for agents and tools."""
+
+    typer.echo(json.dumps(_harmonization_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @app.command("export-schema")

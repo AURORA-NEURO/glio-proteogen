@@ -62,6 +62,16 @@ from glio_proteogen.contracts.m01_05.v1 import (
     ArtifactDetectionResult,
     DetectArtifactsRequest,
 )
+from glio_proteogen.contracts.m01_06.schema import (
+    ContractName as M0106ContractName,
+)
+from glio_proteogen.contracts.m01_06.schema import (
+    contract_json_schema as m0106_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_06.v1 import (
+    HarmonizationResult,
+    HarmonizeObservationsRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -120,12 +130,20 @@ from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics.service impor
 from glio_proteogen.modules.c01_preanalytic.m01_05_artifact_detection.service import (
     M0105Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.engine import (
+    HarmonizationAuthorizationError,
+    preflight_harmonization_authorization,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_06_harmonization.service import (
+    M0106Service,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
 _RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
 _QUALITY_ADAPTER: Final = TypeAdapter(ComputeQualityMetricsRequest)
 _ARTIFACT_ADAPTER: Final = TypeAdapter(DetectArtifactsRequest)
+_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeObservationsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -156,6 +174,10 @@ def _quality_contract_schema(name: M0104ContractName) -> dict[str, object]:
 
 def _artifact_contract_schema(name: M0105ContractName) -> dict[str, object]:
     return m0105_contract_json_schema(name)
+
+
+def _harmonization_contract_schema(name: M0106ContractName) -> dict[str, object]:
+    return m0106_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -195,6 +217,17 @@ def _artifact_request_body() -> dict[str, object]:
             "required": True,
             "content": {
                 "application/json": {"schema": m0105_contract_json_schema("request")}
+            },
+        }
+    }
+
+
+def _harmonization_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0106_contract_json_schema("request")}
             },
         }
     }
@@ -246,6 +279,14 @@ async def _artifact_body(request: Request) -> DetectArtifactsRequest:
     return await _strict_json_body(request, _ARTIFACT_ADAPTER)
 
 
+async def _harmonization_body(request: Request) -> HarmonizeObservationsRequest:
+    return await _strict_json_body(
+        request,
+        _HARMONIZATION_ADAPTER,
+        preflight_harmonization_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -255,6 +296,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     identity_service = M0102Service(identity_store)
     quality_service = M0104Service()
     artifact_service = M0105Service()
+    harmonization_service = M0106Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -338,6 +380,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
+    @app.exception_handler(HarmonizationAuthorizationError)
+    def harmonization_authorization_handler(
+        _request: Request,
+        error: HarmonizationAuthorizationError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(error)})
+
     @app.exception_handler(M0102ChainIntegrityError)
     @app.exception_handler(M0102EventStoreError)
     def identity_integrity_handler(_request: Request, error: Exception) -> JSONResponse:
@@ -371,6 +420,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-05/{name}/schema", tags=["contracts"])
     def artifact_contract_schema(name: M0105ContractName) -> dict[str, object]:
         return _artifact_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-06/{name}/schema", tags=["contracts"])
+    def harmonization_contract_schema(name: M0106ContractName) -> dict[str, object]:
+        return _harmonization_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M01-06/harmonize",
+        response_model=HarmonizationResult,
+        tags=["M01-06"],
+        openapi_extra=_harmonization_request_body(),
+    )
+    def harmonize_observations(
+        request: Annotated[HarmonizeObservationsRequest, Depends(_harmonization_body)],
+    ) -> HarmonizationResult:
+        return harmonization_service.execute(request)
 
     @app.post(
         "/v1/modules/M01-05/detect",

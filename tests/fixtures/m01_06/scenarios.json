@@ -1,0 +1,75 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M01-06",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_fixture_regression_not_cohort_validation",
+  "scenarios": [
+    {
+      "case_id": "batch_platform_shift_reduction",
+      "request_case": "supported",
+      "expected": {
+        "outcome": "result",
+        "disposition": "accepted",
+        "support": "limited",
+        "technical_spread_reduced": true,
+        "protected_direction_retained": true,
+        "protected_rank_retained": true,
+        "missing_count": 0,
+        "censored_count": 0
+      }
+    },
+    {
+      "case_id": "typed_missing_and_censored",
+      "request_case": "missing_censored",
+      "expected": {
+        "outcome": "result",
+        "disposition": "accepted",
+        "support": "limited",
+        "technical_spread_reduced": true,
+        "protected_direction_retained": true,
+        "protected_rank_retained": true,
+        "missing_count": 1,
+        "censored_count": 1
+      }
+    },
+    {
+      "case_id": "insufficient_controls",
+      "request_case": "insufficient_controls",
+      "expected": {
+        "outcome": "result",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "reason": "insufficient_controls"
+      }
+    },
+    {
+      "case_id": "capped_shift",
+      "request_case": "capped_shift",
+      "expected": {
+        "outcome": "result",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "reason": "shift_capped"
+      }
+    },
+    {
+      "case_id": "protected_invariant_violation",
+      "request_case": "invariant_violation",
+      "expected": {
+        "outcome": "result",
+        "disposition": "quarantined",
+        "support": "review_required",
+        "reason": "invariant_violation"
+      }
+    },
+    {
+      "case_id": "consent_denied",
+      "request_case": "consent_denied",
+      "expected": {
+        "outcome": "validation_rejected",
+        "disposition": null,
+        "support": null
+      }
+    }
+  ]
+}

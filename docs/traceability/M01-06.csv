@@ -1,0 +1,13 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-06-R01,"Estimate supported technical shifts from declared controls only","closed control and stratum declarations","batch/platform control-median fixture",G1
+M01-06-R02,"Reduce the declared technical control spread","control-median shift calculation and spread summary","locked before/after spread expectations",G1
+M01-06-R03,"Preserve protected biological direction and rank","post-transform invariant evaluation","protected direction/rank replay",G1
+M01-06-R04,"Preserve measured missing and censored states without coercion","typed observation state","missing/censored scenario",G1
+M01-06-R05,"Quarantine strata with insufficient controls","minimum-control policy","insufficient-control scenario",G1
+M01-06-R06,"Record and quarantine a shift that reaches the reviewed cap","bounded shift policy manifest and capped technical diagnostic","capped-shift scenario",G1
+M01-06-R07,"Quarantine protected invariant violations","closed invariant disposition aggregation","invariant-violation scenario",G1
+M01-06-R08,"Reject unauthorized consent before harmonization","strict request context validation","consent-denial scenario",G1
+M01-06-R09,"Produce canonical results independent of input order","sorted observation stratum and invariant semantics","reordered request replay",G1
+M01-06-R10,"Bind output to request profile policy configuration inputs and controls","canonical digests and transformation provenance","contract invariants and exact eval replay",G1
+M01-06-R11,"Stay inside the harmonized-object and transformation-manifest output ceiling","closed output and exact limitations","recursive output-boundary eval",G1
+M01-06-R12,"Meet bounded near-linear framework cost","indexed feature/stratum passes","representative public-engine microbenchmark",G1

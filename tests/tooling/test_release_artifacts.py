@@ -126,11 +126,13 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m01_03.run --output evidence/m01-03-eval.json" in workflow
     assert "evals.m01_04.run --output evidence/m01-04-eval.json" in workflow
     assert "evals.m01_05.run --output evidence/m01-05-eval.json" in workflow
+    assert "evals.m01_06.run --output evidence/m01-06-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-04-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-05-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m01-06-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -138,7 +140,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
 def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 
-    for module in ("m01_01", "m01_02", "m01_03", "m01_04", "m01_05"):
+    for module in ("m01_01", "m01_02", "m01_03", "m01_04", "m01_05", "m01_06"):
         artifact = module.replace("_", "-")
         assert f"evals.{module}.run --output {module}-eval.json" in workflow
         assert f"name: {artifact}-eval" in workflow
@@ -153,6 +155,8 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "benchmark-json=m01_04-benchmark.json" in workflow
     assert "benchmarks/m01_05_artifact_detection.py" in workflow
     assert "benchmark-json=m01_05-benchmark.json" in workflow
+    assert "benchmarks/m01_06_harmonization.py" in workflow
+    assert "benchmark-json=m01_06-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -175,6 +179,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("artifact", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-05:1.0.0:request"
+        ),
+        ("harmonize", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-06:1.0.0:request"
         ),
     }
 
