@@ -1,0 +1,12 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-04-R01,"Authorize all seven controls before observation traversal","raw authorization preflight","consent-denial hostile observation case",G1
+M02-04-R02,"Bind the request to one assay profile and exact six-metric policy","configuration digest binding","conformant scenario and contract tests",G1
+M02-04-R03,"Compute exactly the six pinned identification quality metrics","closed metric-code enum and threshold evaluator","conformant exact-six scenario",G1
+M02-04-R04,"Preserve explicit non-observed states without coercion","typed observation-state contract","missing and censored/not-applicable scenarios",G1
+M02-04-R05,"Apply inclusive lower and upper acceptance thresholds","deterministic scalar comparison","coverage FDR and mass-error scenarios",G1
+M02-04-R06,"Quarantine every failed or required non-evaluable metric","closed profile aggregation","failure and required-missing scenarios",G1
+M02-04-R07,"Keep optional censored or not-applicable metrics visible and non-evaluable","typed metric result","optional-state scenario",G1
+M02-04-R08,"Detect control-material and sample-context disagreement","pinned recovery and boolean-match metrics","control/context mismatch scenario",G1
+M02-04-R09,"Emit canonical metric results with metric-level provenance","immutable typed quality profile","full-output order equality replay",G1
+M02-04-R10,"Emit metadata only without subtype kinase or treatment inference","closed result schema and exact limitations","recursive privacy replay",G1
+M02-04-R11,"Meet a broad representative batch latency budget","bounded stateless evaluator","public batch benchmark",G1
