@@ -1,0 +1,114 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-08",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_package_replay_not_scientific_reproducibility_cryptographic_assurance_release_authority_supply_chain_assay_biological_or_clinical_validation",
+  "caller_artifact_count": 8,
+  "archive_member_count": 10,
+  "scenario_groups": [
+    {
+      "group_id": "canonical_release_and_semantic_reorder",
+      "request_case": "canonical_release_reorder_pair",
+      "case_count": 2,
+      "expected_disposition": "released",
+      "expected_archive_member_count": 10,
+      "expected_relation": "complete_result_and_archive_byte_equality"
+    },
+    {
+      "group_id": "seven_stage_disposition_matrix",
+      "request_case": "upstream_disposition_matrix",
+      "case_count": 7,
+      "expected_stage_modules": [
+        "GLIO-PROTEOGEN-M02-01",
+        "GLIO-PROTEOGEN-M02-02",
+        "GLIO-PROTEOGEN-M02-03",
+        "GLIO-PROTEOGEN-M02-04",
+        "GLIO-PROTEOGEN-M02-05",
+        "GLIO-PROTEOGEN-M02-06",
+        "GLIO-PROTEOGEN-M02-07"
+      ],
+      "must_not_release": true
+    },
+    {
+      "group_id": "cross_chain_closure",
+      "request_case": "cross_chain_substitution_matrix",
+      "case_count": 3,
+      "expected_outcome": "rejected",
+      "expected_reasons": [
+        "identity_lineage_mismatch",
+        "predecessor_digest_mismatch",
+        "analysis_lineage_mismatch"
+      ]
+    },
+    {
+      "group_id": "integrity_and_archive_safety",
+      "request_case": "integrity_archive_matrix",
+      "case_count": 8,
+      "expected_outcome": "rejected",
+      "expected_reasons": [
+        "artifact_byte_digest_mismatch",
+        "artifact_declared_digest_mismatch",
+        "artifact_size_mismatch",
+        "missing_artifact_member",
+        "undeclared_artifact_member",
+        "duplicate_canonical_member",
+        "unsafe_member_path",
+        "archive_member_alias"
+      ]
+    },
+    {
+      "group_id": "signature_binding_and_replay",
+      "request_case": "signature_replay_matrix",
+      "case_count": 6,
+      "expected_statement_target": "canonical_manifest_digest",
+      "expected_verifier_calls": 1,
+      "expected_archive_receipt_member": true,
+      "forbidden_circular_dependency": "verification_receipt_in_signed_manifest"
+    },
+    {
+      "group_id": "strict_canonical_reconstruction",
+      "request_case": "strict_canonical_matrix",
+      "case_count": 6,
+      "expected_outcome": "validation_rejected",
+      "expected_reasons": [
+        "coerced_integer",
+        "coerced_boolean",
+        "unknown_field",
+        "invalid_enumeration",
+        "stale_derived_digest",
+        "semantic_duplicate"
+      ]
+    },
+    {
+      "group_id": "privacy_and_ownership_closure",
+      "request_case": "recursive_output_boundary",
+      "case_count": 1,
+      "expected_disposition": "released",
+      "forbidden_outputs": [
+        "artifact_bytes",
+        "raw_spectra",
+        "peptide_rows",
+        "protein_subtype_score",
+        "proteotype",
+        "kinase_activity",
+        "omics_fusion",
+        "treatment_recommendation",
+        "private_key",
+        "signing_secret",
+        "upstream_mutations"
+      ]
+    },
+    {
+      "group_id": "authorization_recovery_and_maximum_shape",
+      "request_case": "authorization_recovery_limit_matrix",
+      "case_count": 5,
+      "expected_cases": [
+        "consent_denied_before_hostile_chain",
+        "consent_denied_before_hostile_artifacts",
+        "typed_blocked_recovery",
+        "maximum_accepted_shape",
+        "first_excess_rejected_before_archive"
+      ]
+    }
+  ]
+}
