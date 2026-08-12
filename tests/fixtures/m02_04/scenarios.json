@@ -1,0 +1,66 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-04",
+  "contract_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_synthetic_reference_regression_only",
+  "scenarios": [
+    {
+      "id": "conformant_supported_profile",
+      "mutation": "none",
+      "expected_disposition": "accepted",
+      "expected_statuses": {
+        "identification_coverage": "pass",
+        "target_decoy_fdr": "pass",
+        "precursor_mass_error_accuracy": "pass",
+        "identification_completeness": "pass",
+        "control_material_recovery": "pass",
+        "sample_context_match": "pass"
+      }
+    },
+    {
+      "id": "low_identification_coverage",
+      "mutation": "low_identification_coverage",
+      "expected_disposition": "quarantined",
+      "expected_statuses": {"identification_coverage": "fail"}
+    },
+    {
+      "id": "excessive_target_decoy_fdr",
+      "mutation": "excessive_target_decoy_fdr",
+      "expected_disposition": "quarantined",
+      "expected_statuses": {"target_decoy_fdr": "fail"}
+    },
+    {
+      "id": "precursor_mass_error_accuracy_failure",
+      "mutation": "precursor_mass_error_accuracy_failure",
+      "expected_disposition": "quarantined",
+      "expected_statuses": {"precursor_mass_error_accuracy": "fail"}
+    },
+    {
+      "id": "required_observation_missing",
+      "mutation": "required_observation_missing",
+      "expected_disposition": "quarantined",
+      "expected_statuses": {"identification_completeness": "not_evaluable"}
+    },
+    {
+      "id": "optional_censored_or_not_applicable",
+      "mutation": "optional_censored_or_not_applicable",
+      "expected_disposition": "accepted",
+      "expected_statuses": {"precursor_mass_error_accuracy": "not_evaluable"}
+    },
+    {
+      "id": "control_material_and_sample_context_mismatch",
+      "mutation": "control_material_and_sample_context_mismatch",
+      "expected_disposition": "quarantined",
+      "expected_statuses": {
+        "control_material_recovery": "fail",
+        "sample_context_match": "fail"
+      }
+    },
+    {
+      "id": "consent_denied_preflight",
+      "mutation": "withheld_consent_and_unreadable_observations",
+      "expected_disposition": "boundary_rejected",
+      "expected_statuses": {}
+    }
+  ]
+}

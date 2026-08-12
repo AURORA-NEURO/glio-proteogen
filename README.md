@@ -58,8 +58,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
 - `GLIO-PROTEOGEN-M02-03` — deterministic identification raw-input ingestion. This module
   reuses the shared bounded M01-03 parser, then applies explicit identification roles,
   cardinality, and role-to-format rules without retaining bytes or interpreting biology.
+- `GLIO-PROTEOGEN-M02-04` — deterministic peptide-identification quality computation. This
+  stateless module computes six closed quality metrics from authorized aggregate observations,
+  preserves missing, censored, not-applicable, and unsupported states, and emits only a typed
+  quality profile with metric-level provenance. It does not parse raw inputs, rescore
+  identifications, estimate new q-values, or interpret biology.
 
-All eleven modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All twelve modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -85,6 +90,7 @@ uv run python -m evals.m01_08.run
 uv run python -m evals.m02_01.run
 uv run python -m evals.m02_02.run
 uv run python -m evals.m02_03.run
+uv run python -m evals.m02_04.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -96,6 +102,7 @@ uv run pytest benchmarks/m01_08_release_packaging.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_01_metadata_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_02_identity_bindings.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_04_quality_metrics.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -105,7 +112,7 @@ ledger-verification operations, M01-03 bounded file inspection, M01-04 quality c
 M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, M01-08
 directory-backed release package build and verification, and M02-01 peptide-identification
 metadata conformance, M02-02 immutable identity-binding audit, and M02-03 directory-backed
-identification raw-input ingestion.
+identification raw-input ingestion, plus M02-04 stateless identification-quality computation.
 For example:
 
 ```bash
@@ -132,6 +139,8 @@ glio-proteogen binding export-schema request
 glio-proteogen binding audit identity-binding-request.json
 glio-proteogen identification-raw export-schema request
 glio-proteogen identification-raw ingest ingestion-request.json source-directory
+glio-proteogen identification-quality export-schema request
+glio-proteogen identification-quality compute identification-quality-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -143,6 +152,8 @@ result; quarantined results remain metadata-only. M02-02 is also stateless and c
 already-issued M01-02 resolution plus opaque content-addressed binding claims.
 M02-03 is also stateless: byte content stays at the library or safe directory-backed CLI
 boundary, while its result contains only digests, format metadata, and typed diagnostics.
+M02-04 is stateless and consumes only authorized aggregate observations and fixed thresholds;
+it emits a typed quality profile and does not retain raw spectra, PSMs, or biological claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

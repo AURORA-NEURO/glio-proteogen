@@ -15,6 +15,7 @@ from glio_proteogen.adapters.api import (
     _contract_schema,
     _harmonization_contract_schema,
     _identification_contract_schema,
+    _identification_quality_contract_schema,
     _identification_raw_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
@@ -42,6 +43,7 @@ from glio_proteogen.contracts.m01_08.v1 import (
 from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
 from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
 from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequest
+from glio_proteogen.contracts.m02_04.v1 import ComputeIdentificationQualityRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -108,6 +110,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_03_raw_ingestion import (
     M0203Service,
     preflight_identification_raw_ingestion_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_04_quality_metrics import (
+    M0204Service,
+    preflight_identification_quality_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -153,6 +159,11 @@ identification_raw_app = typer.Typer(
     help="M02-03 role-aware peptide-identification raw ingestion.",
 )
 app.add_typer(identification_raw_app, name="identification-raw")
+identification_quality_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-04 deterministic peptide-identification quality metrics.",
+)
+app.add_typer(identification_quality_app, name="identification-quality")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -780,6 +791,40 @@ def export_identification_raw_schema(
     """Export a machine-readable M02-03 contract for agents and tools."""
 
     typer.echo(json.dumps(_identification_raw_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@identification_quality_app.command("export-schema")
+def export_identification_quality_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "assay_profile",
+            "policy",
+            "threshold",
+            "observation",
+            "metric",
+        ],
+        typer.Argument(help="M02-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-04 contract for agents and tools."""
+
+    typer.echo(
+        json.dumps(_identification_quality_contract_schema(contract), indent=2, sort_keys=True)
+    )
+
+
+@identification_quality_app.command("compute")
+def compute_identification_quality(request: RequestArgument) -> None:
+    """Compute one authorized deterministic identification-quality profile."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ComputeIdentificationQualityRequest),
+        preflight_identification_quality_authorization,
+    )
+    _emit(M0204Service().execute(parsed))
 
 
 @release_packaging_app.command("build")
