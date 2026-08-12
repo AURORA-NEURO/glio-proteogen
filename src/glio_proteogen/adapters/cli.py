@@ -16,6 +16,7 @@ from glio_proteogen.adapters.api import (
     _harmonization_contract_schema,
     _identification_artifact_contract_schema,
     _identification_contract_schema,
+    _identification_harmonization_contract_schema,
     _identification_quality_contract_schema,
     _identification_raw_contract_schema,
     _identity_binding_contract_schema,
@@ -46,6 +47,7 @@ from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
 from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequest
 from glio_proteogen.contracts.m02_04.v1 import ComputeIdentificationQualityRequest
 from glio_proteogen.contracts.m02_05.v1 import DetectIdentificationArtifactsRequest
+from glio_proteogen.contracts.m02_06.v1 import HarmonizeIdentificationEvidenceRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -120,6 +122,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_05_artifact_detection impo
     M0205Service,
     preflight_identification_artifact_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_06_harmonization import (
+    M0206Service,
+    preflight_identification_harmonization_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -175,6 +181,11 @@ identification_artifacts_app = typer.Typer(
     help="M02-05 deterministic peptide-identification artifact detection.",
 )
 app.add_typer(identification_artifacts_app, name="identification-artifacts")
+identification_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-06 peptide-identification harmonization and normalization.",
+)
+app.add_typer(identification_harmonization_app, name="identification-harmonization")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -757,9 +768,7 @@ def export_identity_binding_schema(
 ) -> None:
     """Export a machine-readable M02-02 contract for agents and tools."""
 
-    typer.echo(
-        json.dumps(_identity_binding_contract_schema(contract), indent=2, sort_keys=True)
-    )
+    typer.echo(json.dumps(_identity_binding_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @identification_raw_app.command("ingest")
@@ -870,6 +879,45 @@ def detect_identification_artifacts(request: RequestArgument) -> None:
         preflight_identification_artifact_authorization,
     )
     _emit(M0205Service().execute(parsed))
+
+
+@identification_harmonization_app.command("export-schema")
+def export_identification_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "prerequisites",
+            "profile",
+            "policy",
+            "observation",
+            "value",
+            "manifest",
+        ],
+        typer.Argument(help="M02-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-06 contract for agents and tools."""
+
+    typer.echo(
+        json.dumps(
+            _identification_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@identification_harmonization_app.command("harmonize")
+def harmonize_identification(request: RequestArgument) -> None:
+    """Harmonize authorized aggregate identification evidence."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(HarmonizeIdentificationEvidenceRequest),
+        preflight_identification_harmonization_authorization,
+    )
+    _emit(M0206Service().execute(parsed))
 
 
 @release_packaging_app.command("build")

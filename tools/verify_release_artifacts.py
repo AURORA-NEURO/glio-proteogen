@@ -87,6 +87,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         ("identification-artifacts", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-05:1.0.0:request",
     ),
+    (
+        ("identification-harmonization", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-06:1.0.0:request",
+    ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {
@@ -218,8 +222,7 @@ def verify_runtime_sbom(sbom: Path, wheel: Path) -> RuntimeSbomSummary:
     if not isinstance(root_name, str) or not isinstance(root_version, str):
         raise ReleaseArtifactError("runtime SBOM root identity is incomplete")
     if (
-        _normalized_distribution_name(root_name)
-        != _normalized_distribution_name(identity.name)
+        _normalized_distribution_name(root_name) != _normalized_distribution_name(identity.name)
         or root_version != identity.version
     ):
         raise ReleaseArtifactError("runtime SBOM root does not match the candidate wheel")
@@ -230,8 +233,7 @@ def verify_runtime_sbom(sbom: Path, wheel: Path) -> RuntimeSbomSummary:
 
     dependencies = _sequence(document.get("dependencies"), "dependencies")
     root_edges = sum(
-        _mapping(item, "dependency entry").get("ref") == root_reference
-        for item in dependencies
+        _mapping(item, "dependency entry").get("ref") == root_reference for item in dependencies
     )
     if root_edges != 1:
         raise ReleaseArtifactError("runtime SBOM dependency graph does not contain one root")
@@ -386,9 +388,7 @@ def _verify_console_script() -> None:
             ) from error
         exported = _mapping(schema, "exported schema")
         if exported.get("$schema") != _SCHEMA_URI:
-            raise ReleaseArtifactError(
-                "installed console script emitted the wrong schema dialect"
-            )
+            raise ReleaseArtifactError("installed console script emitted the wrong schema dialect")
         if exported.get("$id") != expected_schema_id:
             raise ReleaseArtifactError("installed console script emitted the wrong contract")
 

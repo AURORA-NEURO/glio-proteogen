@@ -1,0 +1,19 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-06-R01,"Authorize all seven controls before prerequisite or observation traversal","raw authorization preflight","consent denial with hostile observations",G1
+M02-06-R02,"Bind exact M02-01 through M02-05 prerequisite results","typed prerequisite closure and digest receipts","public upstream execution in conformant and unacceptable-prerequisite scenarios",G1
+M02-06-R03,"Configure all eight technical factors exactly once and in order","closed eight-stage profile","all-eight-factor conformant scenario",G1
+M02-06-R04,"Use only observed eligible non-excluded controls to estimate shifts","control eligibility filter","typed-state exclusion and insufficient-control scenarios",G1
+M02-06-R05,"Prevent M02-05-excluded targets from training or receiving repair","upstream exclusion firewall with complete detector target closure","excluded-target immutability scenario",G1
+M02-06-R06,"Preserve missing censored not-applicable unsupported and excluded states","closed harmonization value-state union","typed-state and exclusion scenarios",G1
+M02-06-R07,"Apply deterministic ordered additive shifts on one declared unit","normalization kernel plus ordered adjustment trace","all-eight-factor exact replay",G1
+M02-06-R08,"Cap absolute shifts at the reviewed limit and require review when capped","bounded shift classification","capped-shift scenario",G1
+M02-06-R09,"Leave inadequate-control shifts non-evaluable","minimum-control closure","insufficient-control scenario",G1
+M02-06-R10,"Strictly reduce technical spread to tolerance for every accepted stage","pre/post level-spread diagnostic","all-eight-factor conformant scenario",G1
+M02-06-R11,"Preserve declared biological direction","signed before/after direction diagnostic","conformant and direction-violation scenarios",G1
+M02-06-R12,"Preserve declared biological rank","signed before/after rank diagnostic","conformant and rank-violation scenarios",G1
+M02-06-R13,"Distinguish abstention for non-evaluable required work from quarantine for evaluable hard-control failure","closed result disposition aggregation","unsupported insufficient-control capped and invariant scenarios",G1
+M02-06-R14,"Abstain when an upstream prerequisite is unacceptable","prerequisite disposition gate","upstream-prerequisite scenario",G1
+M02-06-R15,"Produce canonical complete results independent of semantic input order","canonical request and output ordering","full-output order-equality scenario",G1
+M02-06-R16,"Bind every output value adjustment stage and result to exact sources","source observation adjustment manifest and envelope digests","focused tests and exact replay",G1
+M02-06-R17,"Emit only harmonization-owned output beneath protein_subtype","closed result schema and limitations","recursive privacy and ownership check",G1
+M02-06-R18,"Meet the representative public-engine latency budget","bounded eight-stage deterministic pipeline","128-observation benchmark under 500 ms",G1

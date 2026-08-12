@@ -57,6 +57,7 @@ jobs:
       - run: uv run python -m evals.m02_03.run --output m02_03-eval.json
       - run: uv run python -m evals.m02_04.run --output m02_04-eval.json
       - run: uv run python -m evals.m02_05.run --output m02_05-eval.json
+      - run: uv run python -m evals.m02_06.run --output m02_06-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -122,6 +123,11 @@ jobs:
         with:
           name: m02-05-eval
           path: m02_05-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-06-eval
+          path: m02_06-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -149,6 +155,7 @@ jobs:
       - run: uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --benchmark-json=m02_03-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_04_quality_metrics.py --benchmark-only --benchmark-json=m02_04-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --benchmark-json=m02_05-benchmark.json --no-cov
+      - run: uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --benchmark-json=m02_06-benchmark.json --no-cov
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -214,6 +221,11 @@ jobs:
         with:
           name: m02-05-benchmark
           path: m02_05-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-06-benchmark
+          path: m02_06-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

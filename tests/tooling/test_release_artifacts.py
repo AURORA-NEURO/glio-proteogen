@@ -98,7 +98,7 @@ def test_runtime_sbom_is_rooted_at_exact_wheel_and_excludes_dev_tools(
         verify_runtime_sbom(_sbom(tmp_path, include_root_edge=False), wheel)
 
 
-def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:
+def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:  # noqa: PLR0915
     workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
     build = workflow.index("Build reproducible candidate distributions")
@@ -134,6 +134,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m02_03.run --output evidence/m02-03-eval.json" in workflow
     assert "evals.m02_04.run --output evidence/m02-04-eval.json" in workflow
     assert "evals.m02_05.run --output evidence/m02-05-eval.json" in workflow
+    assert "evals.m02_06.run --output evidence/m02-06-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -147,6 +148,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "benchmark-json=evidence/m02-03-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-04-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-05-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m02-06-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -168,6 +170,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m02_03",
         "m02_04",
         "m02_05",
+        "m02_06",
     ):
         artifact = module.replace("_", "-")
         assert f"evals.{module}.run --output {module}-eval.json" in workflow
@@ -199,6 +202,8 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "benchmark-json=m02_04-benchmark.json" in workflow
     assert "benchmarks/m02_05_artifact_detection.py" in workflow
     assert "benchmark-json=m02_05-benchmark.json" in workflow
+    assert "benchmarks/m02_06_harmonization.py" in workflow
+    assert "benchmark-json=m02_06-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -207,8 +212,7 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
     calls: list[tuple[str, ...]] = []
     schema_ids = {
         ("export-schema", "protocol-schema"): (
-            "urn:aurora-neuro:glio-proteogen:"
-            "GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"
         ),
         ("identity", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-02:1.0.0:request"
@@ -246,6 +250,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ("identification-artifacts", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-05:1.0.0:request"
         ),
+        ("identification-harmonization", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-06:1.0.0:request"
+        ),
     }
 
     def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -274,10 +281,7 @@ def test_clean_wheel_smoke_rejects_wrong_m01_02_contract(
 ) -> None:
     wrong_schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": (
-            "urn:aurora-neuro:glio-proteogen:"
-            "GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"
-        ),
+        "$id": ("urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"),
     }
 
     def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
