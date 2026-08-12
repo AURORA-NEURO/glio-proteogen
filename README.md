@@ -46,8 +46,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   builds canonical USTAR packages from exact content-addressed artifacts, records reproducibility
   metadata and quality/support decisions, and quarantines packages without a digest-bound external
   signature receipt. It does not authenticate the external signer or validate scientific results.
+- `GLIO-PROTEOGEN-M02-01` — deterministic peptide-identification protocol metadata
+  conformance. This module validates one pinned schema/profile, controlled terms, units,
+  cardinality, conditional applicability, and assay/specimen compatibility while preserving
+  unresolved mandatory values as quarantined states. It does not establish ontology completeness,
+  assay validity, biological correctness, calibration, or clinical readiness.
 
-All eight modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All nine modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -70,6 +75,7 @@ uv run python -m evals.m01_05.run
 uv run python -m evals.m01_06.run
 uv run python -m evals.m01_07.run
 uv run python -m evals.m01_08.run
+uv run python -m evals.m02_01.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -78,14 +84,16 @@ uv run pytest benchmarks/m01_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_06_harmonization.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_07_support_routing.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_08_release_packaging.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_01_metadata_validation.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
 The `glio-proteogen` command exports each module's contracts and exposes M01-01 register,
 evaluate, retrieve, and ledger-verification operations plus M01-02 reconcile, retrieve, and
 ledger-verification operations, M01-03 bounded file inspection, M01-04 quality computation,
-M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, and M01-08
-directory-backed release package build and verification.
+M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, M01-08
+directory-backed release package build and verification, and M02-01 peptide-identification
+metadata conformance.
 For example:
 
 ```bash
@@ -106,14 +114,16 @@ glio-proteogen support route support-request.json
 glio-proteogen release export-schema request
 glio-proteogen release build release-request.json release-source --output release.tar
 glio-proteogen release verify release-result.json release.tar
+glio-proteogen identification export-schema request
+glio-proteogen identification validate-metadata conformance-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
 routes. M01-08 intentionally keeps artifact bytes at its library and directory-backed CLI boundary;
 it does not invent an HTTP upload protocol. M01-03 inspection, M01-04 quality computation, M01-05
-artifact detection, M01-06 harmonization, M01-07 support routing, and M01-08 release packaging are
-stateless. M01-08 publishes package bytes only for a released result; quarantined results remain
-metadata-only.
+artifact detection, M01-06 harmonization, M01-07 support routing, M01-08 release packaging, and
+M02-01 metadata conformance are stateless. M01-08 publishes package bytes only for a released
+result; quarantined results remain metadata-only.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

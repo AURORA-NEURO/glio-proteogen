@@ -1,0 +1,76 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-01",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_pinned_synthetic_peptide_identification_metadata_validation_not_ontology_completeness_assay_validity_biological_correctness_calibration_or_clinical_readiness",
+  "profile_id": "profile.synthetic.peptide-identification",
+  "profile_version": "1.0.0",
+  "scenarios": [
+    {
+      "case_id": "canonical_conformant_metadata",
+      "request_case": "canonical",
+      "outcome": "result",
+      "expected_status": "conformant",
+      "expected_disposition": "conformant",
+      "expected_finding_codes": []
+    },
+    {
+      "case_id": "missing_mandatory_field",
+      "request_case": "missing_mandatory",
+      "outcome": "result",
+      "expected_status": "indeterminate",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["mandatory_field_missing"]
+    },
+    {
+      "case_id": "unsupported_controlled_term",
+      "request_case": "unsupported_term",
+      "outcome": "result",
+      "expected_status": "nonconformant",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["controlled_term_unsupported"]
+    },
+    {
+      "case_id": "incompatible_unit",
+      "request_case": "incompatible_unit",
+      "outcome": "result",
+      "expected_status": "nonconformant",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["unit_incompatible"]
+    },
+    {
+      "case_id": "scalar_over_cardinality",
+      "request_case": "over_cardinality",
+      "outcome": "result",
+      "expected_status": "nonconformant",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["cardinality_exceeded"]
+    },
+    {
+      "case_id": "conditional_reagent_applicability",
+      "request_case": "conditional_applicability",
+      "outcome": "paired_result",
+      "label_free_expected_status": "conformant",
+      "label_free_expected_disposition": "conformant",
+      "isobaric_expected_status": "nonconformant",
+      "isobaric_expected_disposition": "quarantined",
+      "isobaric_expected_finding_codes": ["not_applicable_disallowed"]
+    },
+    {
+      "case_id": "unresolved_mandatory_value",
+      "request_case": "unresolved_mandatory",
+      "outcome": "result",
+      "expected_status": "indeterminate",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["mandatory_value_unknown"],
+      "must_not_emit_finding_codes": ["negative_finding"]
+    },
+    {
+      "case_id": "consent_denied_before_metadata_traversal",
+      "request_case": "consent_denied",
+      "outcome": "authorization_rejected",
+      "consent_denied_before_metadata_traversal": true,
+      "expected_reason": "authorization_denied"
+    }
+  ]
+}
