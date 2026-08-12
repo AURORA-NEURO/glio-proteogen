@@ -15,6 +15,7 @@ from glio_proteogen.adapters.api import (
     _contract_schema,
     _harmonization_contract_schema,
     _identification_contract_schema,
+    _identity_binding_contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -38,6 +39,7 @@ from glio_proteogen.contracts.m01_08.v1 import (
     ReleasePackagingResult,
 )
 from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
+from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -95,6 +97,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_01_protocol_metadata impor
     evaluate_conformance,
     preflight_conformance_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_02_identity_lineage import (
+    evaluate_identity_bindings,
+    preflight_identity_binding_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -130,6 +136,11 @@ identification_app = typer.Typer(
     help="M02-01 peptide-identification protocol metadata conformance.",
 )
 app.add_typer(identification_app, name="identification")
+binding_audit_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-02 peptide-identification identity-binding audit.",
+)
+app.add_typer(binding_audit_app, name="binding")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -607,6 +618,32 @@ def export_identification_schema(
     """Export a machine-readable M02-01 contract for agents and tools."""
 
     typer.echo(json.dumps(_identification_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@binding_audit_app.command("audit")
+def audit_identity_bindings(request: RequestArgument) -> None:
+    """Audit bindings against one immutable upstream identity resolution."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ValidateIdentityBindingsRequest),
+        preflight_identity_binding_authorization,
+    )
+    _emit(evaluate_identity_bindings(parsed))
+
+
+@binding_audit_app.command("export-schema")
+def export_identity_binding_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "binding", "finding"],
+        typer.Argument(help="M02-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-02 contract for agents and tools."""
+
+    typer.echo(
+        json.dumps(_identity_binding_contract_schema(contract), indent=2, sort_keys=True)
+    )
 
 
 @release_packaging_app.command("build")

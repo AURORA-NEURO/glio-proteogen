@@ -1,0 +1,422 @@
+{
+  "output_type": "identity_lineage_resolution",
+  "resolution_id": "resolution.3bf61ffe1b23eecdac4fec3a0f6cd80dd8c7ea420febc6fcfc6f95afff4bd3ac",
+  "resolution_version": "1.0.0",
+  "request_digest": "sha256:3bf61ffe1b23eecdac4fec3a0f6cd80dd8c7ea420febc6fcfc6f95afff4bd3ac",
+  "policy_digest": "sha256:3450a47c597cbb85e3a14363dcf5c47a4f8f29537513c777c4a9696bbc1f0e7f",
+  "core_digest": "sha256:27696d4833393bf8e538190d41a1d3269dc74195d7ef04a72f51286e10081f4f",
+  "resolution_digest": "sha256:78dd6fd216f454ef434d6f2ab6cf164939d576c5835a6ae707d3d110fc542674",
+  "event_digest": "sha256:5fdfc0ea2e7f9d69801d9f3e53a9182d20f75ed1aa634710e22bdd7e99b243ce",
+  "decision": "unresolved",
+  "components": [
+    {
+      "component_id": "sha256:5683699e954d9839dd4408a53531ed36506a60352cef34a55a8df10760f2e80d",
+      "member_entity_ids": [
+        "entity.synthetic.run.b"
+      ],
+      "subject_component_ids": [
+        "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+      ],
+      "composition": "single_subject"
+    },
+    {
+      "component_id": "sha256:5854dda0178b7d6d7e7592068439e5c11b5b1e42f19034ca07b5c3428ccf56dc",
+      "member_entity_ids": [
+        "entity.synthetic.run.a"
+      ],
+      "subject_component_ids": [
+        "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+      ],
+      "composition": "single_subject"
+    },
+    {
+      "component_id": "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb",
+      "member_entity_ids": [
+        "entity.synthetic.patient.b"
+      ],
+      "subject_component_ids": [
+        "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+      ],
+      "composition": "single_subject"
+    },
+    {
+      "component_id": "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec",
+      "member_entity_ids": [
+        "entity.synthetic.patient.a"
+      ],
+      "subject_component_ids": [
+        "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+      ],
+      "composition": "single_subject"
+    },
+    {
+      "component_id": "sha256:acd78ba18945042b2304d5c6277abd037a4e44afe61442a0bf7daf10d1053bed",
+      "member_entity_ids": [
+        "entity.synthetic.derived.a"
+      ],
+      "subject_component_ids": [
+        "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+      ],
+      "composition": "single_subject"
+    },
+    {
+      "component_id": "sha256:e6803913a83c99b120bfd63ad29f0224cbe809fa35a83eb8194e07ddb2fd046b",
+      "member_entity_ids": [
+        "entity.synthetic.derived.b"
+      ],
+      "subject_component_ids": [
+        "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+      ],
+      "composition": "single_subject"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "entity_id": "entity.synthetic.derived.a",
+        "kind": "derived_object",
+        "component_id": "sha256:acd78ba18945042b2304d5c6277abd037a4e44afe61442a0bf7daf10d1053bed",
+        "subject_component_ids": [
+          "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+        ]
+      },
+      {
+        "entity_id": "entity.synthetic.derived.b",
+        "kind": "derived_object",
+        "component_id": "sha256:e6803913a83c99b120bfd63ad29f0224cbe809fa35a83eb8194e07ddb2fd046b",
+        "subject_component_ids": [
+          "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+        ]
+      },
+      {
+        "entity_id": "entity.synthetic.patient.a",
+        "kind": "patient",
+        "component_id": "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec",
+        "subject_component_ids": [
+          "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+        ]
+      },
+      {
+        "entity_id": "entity.synthetic.patient.b",
+        "kind": "patient",
+        "component_id": "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb",
+        "subject_component_ids": [
+          "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+        ]
+      },
+      {
+        "entity_id": "entity.synthetic.run.a",
+        "kind": "run",
+        "component_id": "sha256:5854dda0178b7d6d7e7592068439e5c11b5b1e42f19034ca07b5c3428ccf56dc",
+        "subject_component_ids": [
+          "sha256:8b7e2ecb21269865dd51fa6d65ef72485e34b9c936ba3a3f7c63267d9c4c1eec"
+        ]
+      },
+      {
+        "entity_id": "entity.synthetic.run.b",
+        "kind": "run",
+        "component_id": "sha256:5683699e954d9839dd4408a53531ed36506a60352cef34a55a8df10760f2e80d",
+        "subject_component_ids": [
+          "sha256:66db3d754b824291780ce2863d65bb983f2a6ad5ea09cbbaf1552108f2aea4bb"
+        ]
+      }
+    ],
+    "operations": [],
+    "graph_digest": "sha256:7a846f9e19e65c8a522d714c2ba0f86c7c288d084fa96838061b7a19d08da724"
+  },
+  "assertion_dispositions": [
+    {
+      "assertion_id": "assertion.synthetic.membership.derived.a",
+      "state": "accepted",
+      "reason_code": "assertion.accepted",
+      "evidence": [
+        {
+          "artifact_id": "artifact.synthetic.assertion.derived.a",
+          "version": "1.0.0",
+          "digest": "sha256:a868e15ce047c32e4107128911d7ddfe889932b007d4d3805331af2216fabadf",
+          "media_type": "application/json"
+        }
+      ]
+    },
+    {
+      "assertion_id": "assertion.synthetic.membership.derived.b",
+      "state": "accepted",
+      "reason_code": "assertion.accepted",
+      "evidence": [
+        {
+          "artifact_id": "artifact.synthetic.assertion.derived.b",
+          "version": "1.0.0",
+          "digest": "sha256:49419361fef7393381f9071160893297734648777d719e73ba4f354d5a1647fa",
+          "media_type": "application/json"
+        }
+      ]
+    },
+    {
+      "assertion_id": "assertion.synthetic.membership.run.a",
+      "state": "accepted",
+      "reason_code": "assertion.accepted",
+      "evidence": [
+        {
+          "artifact_id": "artifact.synthetic.assertion.run.a",
+          "version": "1.0.0",
+          "digest": "sha256:b4d8b6d8da82b768c7bb5fb81ab6a849ef45c235793d40a10885738f11fdf553",
+          "media_type": "application/json"
+        }
+      ]
+    },
+    {
+      "assertion_id": "assertion.synthetic.membership.run.b",
+      "state": "accepted",
+      "reason_code": "assertion.accepted",
+      "evidence": [
+        {
+          "artifact_id": "artifact.synthetic.assertion.run.b",
+          "version": "1.0.0",
+          "digest": "sha256:638faff8ee3a7be6a5b504f31340dedd77abd77a226287e534a314472f08ced4",
+          "media_type": "application/json"
+        }
+      ]
+    }
+  ],
+  "concordance": {
+    "concordant": 0,
+    "discordant": 0,
+    "indeterminate": 1,
+    "missing": 0,
+    "unsupported": 0,
+    "excluded_dependent": 0,
+    "informative_loci": 0,
+    "concordant_loci": 0,
+    "discordant_loci": 0
+  },
+  "issues": [
+    {
+      "code": "concordance.indeterminate",
+      "severity": "warning",
+      "action": "human_review",
+      "evidence_basis_digest": "sha256:52ffea68d7390dd5384299166e082216d35d31315910c3aadbf87a0c9245f6a3",
+      "evidence_reference_count": 1,
+      "entity_ids": [],
+      "component_ids": [],
+      "operation_ids": [],
+      "assertion_ids": [],
+      "message": "Deterministic reconciliation finding: concordance.indeterminate.",
+      "evidence": [
+        {
+          "artifact_id": "artifact.synthetic.observation.unresolved",
+          "version": "1.0.0",
+          "digest": "sha256:7c5eec6a1f8fca9b68caaace8ac5bd2a8c2e72674c16a86a77bacf1ae076b9b0",
+          "media_type": "application/json"
+        }
+      ]
+    }
+  ],
+  "support": {
+    "status": "review_required",
+    "reason_code": "identity_lineage_unresolved",
+    "rationale": "At least one ambiguity remains unresolved and must not be treated as negative."
+  },
+  "uncertainty": {
+    "measurement": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "M01-02 consumes declarations and aggregates but does not estimate measurement error."
+    },
+    "sampling": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "The submitted lineage graph does not identify a calibrated sampling distribution."
+    },
+    "parameter": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "The deterministic reconciliation policy fits no probabilistic parameters."
+    },
+    "model_form": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "No predictive model is used, so model-form uncertainty is not calibrated."
+    },
+    "identification": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "Identity is accepted only from explicit authority decisions; residual ambiguity is represented as unresolved or quarantined, not a probability."
+    },
+    "support": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "Support is a typed deterministic policy result, not a calibrated confidence."
+    },
+    "transport": {
+      "state": "not_estimable",
+      "probability": null,
+      "rationale": "Transportability outside the bound policy, authority, namespace, and issuer scope is not estimated."
+    },
+    "sensitivity_notes": [
+      "Concordance aggregates may downgrade or quarantine but never authorize a merge.",
+      "Missing or ambiguous evidence is preserved as unknown rather than negative."
+    ]
+  },
+  "provenance": {
+    "activity_id": "activity.m0102.3bf61ffe1b23eecdac4fec3a0f6cd80dd8c7ea420febc6fcfc6f95afff4bd3ac",
+    "actor_id": "actor.synthetic.fixture",
+    "module_id": "GLIO-PROTEOGEN-M01-02",
+    "module_version": "1.0.0",
+    "generated_at": "2026-08-12T15:00:00Z",
+    "input_digests": [
+      "sha256:3bf61ffe1b23eecdac4fec3a0f6cd80dd8c7ea420febc6fcfc6f95afff4bd3ac",
+      "sha256:3450a47c597cbb85e3a14363dcf5c47a4f8f29537513c777c4a9696bbc1f0e7f",
+      "sha256:27696d4833393bf8e538190d41a1d3269dc74195d7ef04a72f51286e10081f4f",
+      "sha256:7a846f9e19e65c8a522d714c2ba0f86c7c288d084fa96838061b7a19d08da724",
+      "sha256:f7d375d77d60c4c703c5ae5fa9527022692e55cbc5f1c5d493b7c7bc22c705f0",
+      "sha256:672ce6542c7eadfedeb0818dcb00d389720692a59fcad23485fda7fc9083cd44",
+      "sha256:4db2901c504160967cee7451cfc85e36064cce70c4c7177225146dcadc90e403",
+      "sha256:a07efee7bce79a46f48eb2e1252980b6df09138b85732ef1fda5705ba441a782",
+      "sha256:34a934c2aa7693b10a2f4f6aeba05f1c53932be52f41fdb34ee1a774a060c6cb",
+      "sha256:b5c79d3412a085d858c2d6d66ec60f23a6e6db99afcaf852febffe3b290dc9d5",
+      "sha256:7ea015ab1d0399a4e3a4b8b80f231fbd2181ad7ae7d435a0fb1063d6990c977e"
+    ],
+    "evidence_manifest_digest": "sha256:f7d375d77d60c4c703c5ae5fa9527022692e55cbc5f1c5d493b7c7bc22c705f0",
+    "configuration_digest": "sha256:3450a47c597cbb85e3a14363dcf5c47a4f8f29537513c777c4a9696bbc1f0e7f",
+    "consent_decision_id": "decision.synthetic.consent",
+    "consent_state": "granted",
+    "consent_policy_version": "1.0.0",
+    "consent_evidence_digest": "sha256:672ce6542c7eadfedeb0818dcb00d389720692a59fcad23485fda7fc9083cd44",
+    "control_decisions": [
+      {
+        "role": "approved_configuration",
+        "decision_id": "decision.synthetic.configuration",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:3450a47c597cbb85e3a14363dcf5c47a4f8f29537513c777c4a9696bbc1f0e7f"
+      },
+      {
+        "role": "consent",
+        "decision_id": "decision.synthetic.consent",
+        "state": "granted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:672ce6542c7eadfedeb0818dcb00d389720692a59fcad23485fda7fc9083cd44"
+      },
+      {
+        "role": "identity_authority",
+        "decision_id": "decision.synthetic.identity-authority",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:4db2901c504160967cee7451cfc85e36064cce70c4c7177225146dcadc90e403"
+      },
+      {
+        "role": "intended_use",
+        "decision_id": "decision.synthetic.intended-use",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:a07efee7bce79a46f48eb2e1252980b6df09138b85732ef1fda5705ba441a782"
+      },
+      {
+        "role": "provenance",
+        "decision_id": "decision.synthetic.provenance",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:34a934c2aa7693b10a2f4f6aeba05f1c53932be52f41fdb34ee1a774a060c6cb"
+      },
+      {
+        "role": "quality",
+        "decision_id": "decision.synthetic.quality",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:b5c79d3412a085d858c2d6d66ec60f23a6e6db99afcaf852febffe3b290dc9d5"
+      },
+      {
+        "role": "support",
+        "decision_id": "decision.synthetic.support",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence_digest": "sha256:7ea015ab1d0399a4e3a4b8b80f231fbd2181ad7ae7d435a0fb1063d6990c977e"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.configuration",
+        "version": "1.0.0",
+        "digest": "sha256:3450a47c597cbb85e3a14363dcf5c47a4f8f29537513c777c4a9696bbc1f0e7f",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared approved-configuration control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.identity-authority",
+        "version": "1.0.0",
+        "digest": "sha256:4db2901c504160967cee7451cfc85e36064cce70c4c7177225146dcadc90e403",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared identity-authority control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.provenance",
+        "version": "1.0.0",
+        "digest": "sha256:34a934c2aa7693b10a2f4f6aeba05f1c53932be52f41fdb34ee1a774a060c6cb",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared provenance control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.consent",
+        "version": "1.0.0",
+        "digest": "sha256:672ce6542c7eadfedeb0818dcb00d389720692a59fcad23485fda7fc9083cd44",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared consent control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.quality",
+        "version": "1.0.0",
+        "digest": "sha256:b5c79d3412a085d858c2d6d66ec60f23a6e6db99afcaf852febffe3b290dc9d5",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared quality control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.support",
+        "version": "1.0.0",
+        "digest": "sha256:7ea015ab1d0399a4e3a4b8b80f231fbd2181ad7ae7d435a0fb1063d6990c977e",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared support control reference; issuer and content are not authenticated by M01-02."
+    },
+    {
+      "reference": {
+        "artifact_id": "artifact.synthetic.control.intended-use",
+        "version": "1.0.0",
+        "digest": "sha256:a07efee7bce79a46f48eb2e1252980b6df09138b85732ef1fda5705ba441a782",
+        "media_type": "application/json"
+      },
+      "role": "evidence",
+      "claim": "Caller-declared intended-use control reference; issuer and content are not authenticated by M01-02."
+    }
+  ],
+  "limitations": [
+    {
+      "code": "identity_lineage_only",
+      "statement": "This output reconciles pseudonymous identity and lineage only; it is not a direct identity, biological interpretation, clinical conclusion, or treatment recommendation."
+    },
+    {
+      "code": "external_identity_authority_unverified",
+      "statement": "The seven upstream control references are caller-declared content references; this offline module does not authenticate their issuers or resolve their content."
+    }
+  ],
+  "human_review_required": true,
+  "resolved_at": "2026-08-12T15:00:00Z",
+  "supersedes_resolution_digest": null
+}
