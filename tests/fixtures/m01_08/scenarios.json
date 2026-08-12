@@ -1,0 +1,63 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M01-08",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_package_reproducibility_not_scientific_result_validation_signature_authority_or_supply_chain_qualification",
+  "artifact_count": 3,
+  "scenarios": [
+    {
+      "case_id": "canonical_three_artifact_package",
+      "request_case": "canonical",
+      "outcome": "result",
+      "expected_disposition": "released",
+      "expected_artifact_count": 3,
+      "bit_reproducible": true,
+      "exact_manifest": true
+    },
+    {
+      "case_id": "tampered_artifact_byte",
+      "request_case": "tampered_byte",
+      "outcome": "rejected",
+      "expected_reason": "artifact_digest_mismatch"
+    },
+    {
+      "case_id": "wrong_declared_digest",
+      "request_case": "wrong_digest",
+      "outcome": "rejected",
+      "expected_reason": "artifact_digest_mismatch"
+    },
+    {
+      "case_id": "path_traversal",
+      "request_case": "path_traversal",
+      "outcome": "validation_rejected",
+      "expected_reason": "unsafe_artifact_path"
+    },
+    {
+      "case_id": "duplicate_canonical_path",
+      "request_case": "duplicate_path",
+      "outcome": "validation_rejected",
+      "expected_reason": "duplicate_artifact_path"
+    },
+    {
+      "case_id": "missing_external_signature_receipt",
+      "request_case": "missing_receipt",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_reason": "signature_receipt_missing"
+    },
+    {
+      "case_id": "mismatched_external_signature_receipt",
+      "request_case": "mismatched_receipt",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_reason": "signature_receipt_mismatch"
+    },
+    {
+      "case_id": "consent_denied_before_byte_access",
+      "request_case": "consent_denied",
+      "outcome": "authorization_rejected",
+      "expected_disposition": null,
+      "expected_reason": "authorization_denied"
+    }
+  ]
+}

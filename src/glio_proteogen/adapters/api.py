@@ -82,6 +82,12 @@ from glio_proteogen.contracts.m01_07.v1 import (
     RouteSupportRequest,
     SupportRoutingResult,
 )
+from glio_proteogen.contracts.m01_08.schema import (
+    ContractName as M0108ContractName,
+)
+from glio_proteogen.contracts.m01_08.schema import (
+    contract_json_schema as m0108_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -200,6 +206,10 @@ def _harmonization_contract_schema(name: M0106ContractName) -> dict[str, object]
 
 def _support_routing_contract_schema(name: M0107ContractName) -> dict[str, object]:
     return m0107_contract_json_schema(name)
+
+
+def _release_packaging_contract_schema(name: M0108ContractName) -> dict[str, object]:
+    return m0108_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -471,6 +481,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-07/{name}/schema", tags=["contracts"])
     def support_routing_contract_schema(name: M0107ContractName) -> dict[str, object]:
         return _support_routing_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-08/{name}/schema", tags=["contracts"])
+    def release_packaging_contract_schema(name: M0108ContractName) -> dict[str, object]:
+        return _release_packaging_contract_schema(name)
 
     @app.post(
         "/v1/modules/M01-07/route",
