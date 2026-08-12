@@ -1,0 +1,384 @@
+{
+  "corpus_id": "glio_preanalytic_proteomics_conformance",
+  "corpus_version": "1.0.0",
+  "description": "Synthetic, non-clinical conformance corpus. Cases are deterministic patches over one complete base document so shared evidence cannot drift between duplicated fixtures.",
+  "base_document": {
+    "document_id": "document.synthetic.glio.001",
+    "schema_id": "glio_preanalytic_proteomics",
+    "schema_version": "1.0.0",
+    "assay_version": "1.0.0",
+    "specimen_version": "1.0.0",
+    "entries": [
+      {
+        "path": "/identity/analytical_sample_id",
+        "values": [{"state": "observed", "value": "SYN-GLIO-001"}]
+      },
+      {
+        "path": "/identity/source_specimen_id",
+        "values": [{"state": "observed", "value": "SYN-SPEC-001"}]
+      },
+      {
+        "path": "/identity/lineage_node_id",
+        "values": [{"state": "observed", "value": "SYN-LINEAGE-001"}]
+      },
+      {
+        "path": "/identity/lineage_artifact_digest",
+        "values": [{"state": "observed", "value": "sha256:1111111111111111111111111111111111111111111111111111111111111111"}]
+      },
+      {
+        "path": "/context/treatment_history/reference_id",
+        "values": [{"state": "observed", "value": "treatment.synthetic.001"}]
+      },
+      {
+        "path": "/context/treatment_history/reference_digest",
+        "values": [{"state": "observed", "value": "sha256:2222222222222222222222222222222222222222222222222222222222222222"}]
+      },
+      {
+        "path": "/context/genomic_context/reference_id",
+        "values": [{"state": "observed", "value": "genomic.synthetic.001"}]
+      },
+      {
+        "path": "/context/genomic_context/reference_digest",
+        "values": [{"state": "observed", "value": "sha256:3333333333333333333333333333333333333333333333333333333333333333"}]
+      },
+      {
+        "path": "/context/transcriptome_context/reference_id",
+        "values": [{"state": "observed", "value": "transcriptome.synthetic.001"}]
+      },
+      {
+        "path": "/context/transcriptome_context/reference_digest",
+        "values": [{"state": "observed", "value": "sha256:4444444444444444444444444444444444444444444444444444444444444444"}]
+      },
+      {
+        "path": "/context/ptm_annotations/reference_id",
+        "values": [{"state": "observed", "value": "ptm.synthetic.001"}]
+      },
+      {
+        "path": "/context/ptm_annotations/reference_digest",
+        "values": [{"state": "observed", "value": "sha256:5555555555555555555555555555555555555555555555555555555555555555"}]
+      },
+      {
+        "path": "/specimen/organism",
+        "values": [{"state": "observed", "value": "NCBITaxon:9606"}]
+      },
+      {
+        "path": "/specimen/organism_part",
+        "values": [{"state": "observed", "value": "UBERON:0000955"}]
+      },
+      {
+        "path": "/specimen/material_type",
+        "values": [{"state": "observed", "value": "solid_tissue"}]
+      },
+      {
+        "path": "/specimen/collection_method",
+        "values": [{"state": "observed", "value": "surgical_resection"}]
+      },
+      {
+        "path": "/specimen/preservation",
+        "values": [{"state": "observed", "value": "frozen_tissue"}]
+      },
+      {
+        "path": "/specimen/biological_replicate",
+        "values": [{"state": "observed", "value": 1}]
+      },
+      {
+        "path": "/specimen/warm_ischemia_time",
+        "values": [{"state": "observed", "value": 15, "unit": "min"}]
+      },
+      {
+        "path": "/specimen/cold_ischemia_time",
+        "values": [{"state": "observed", "value": 0.5, "unit": "h"}]
+      },
+      {
+        "path": "/specimen/stabilization_timestamp",
+        "values": [{"state": "observed", "value": "2026-01-01T12:00:00Z"}]
+      },
+      {
+        "path": "/specimen/storage_temperature",
+        "values": [{"state": "observed", "value": -80, "unit": "Cel"}]
+      },
+      {
+        "path": "/specimen/storage_duration",
+        "values": [{"state": "observed", "value": 30, "unit": "d"}]
+      },
+      {
+        "path": "/preparation/protocol_reference_id",
+        "values": [{"state": "observed", "value": "preparation.synthetic.001"}]
+      },
+      {
+        "path": "/preparation/protocol_digest",
+        "values": [{"state": "observed", "value": "sha256:6666666666666666666666666666666666666666666666666666666666666666"}]
+      },
+      {
+        "path": "/preparation/input_tissue_mass",
+        "values": [{"state": "observed", "value": 25, "unit": "mg"}]
+      },
+      {
+        "path": "/preparation/extraction_method",
+        "values": [{"state": "observed", "value": "urea_lysis"}]
+      },
+      {
+        "path": "/preparation/reduction_reagent",
+        "values": [{"state": "observed", "value": "dtt"}]
+      },
+      {
+        "path": "/preparation/alkylation_reagent",
+        "values": [{"state": "observed", "value": "iodoacetamide"}]
+      },
+      {
+        "path": "/preparation/cleavage_agent",
+        "values": [{"state": "observed", "value": "MS:1001251"}]
+      },
+      {
+        "path": "/preparation/digestion_duration",
+        "values": [{"state": "observed", "value": 16, "unit": "h"}]
+      },
+      {
+        "path": "/preparation/digestion_temperature",
+        "values": [{"state": "observed", "value": 37, "unit": "Cel"}]
+      },
+      {
+        "path": "/preparation/fractionation_method",
+        "values": [{"state": "observed", "value": "none"}]
+      },
+      {
+        "path": "/acquisition/assay_id",
+        "values": [{"state": "observed", "value": "assay.synthetic.001"}]
+      },
+      {
+        "path": "/acquisition/method",
+        "values": [{"state": "observed", "value": "PRIDE:0000627"}]
+      },
+      {
+        "path": "/acquisition/label",
+        "values": [{"state": "observed", "value": "MS:1002038"}]
+      },
+      {
+        "path": "/acquisition/instrument_model",
+        "values": [{"state": "observed", "value": "MS:1002523"}]
+      },
+      {
+        "path": "/acquisition/dissociation_method",
+        "values": [{"state": "observed", "value": "MS:1000422"}]
+      },
+      {
+        "path": "/acquisition/raw_data_reference_id",
+        "values": [{"state": "observed", "value": "raw.synthetic.001"}]
+      },
+      {
+        "path": "/acquisition/raw_data_digest",
+        "values": [{"state": "observed", "value": "sha256:7777777777777777777777777777777777777777777777777777777777777777"}]
+      },
+      {
+        "path": "/acquisition/raw_data_format",
+        "values": [{"state": "observed", "value": "vendor_native"}]
+      },
+      {
+        "path": "/acquisition/fraction_identifier",
+        "values": [{"state": "observed", "value": 1}]
+      },
+      {
+        "path": "/acquisition/technical_replicate",
+        "values": [{"state": "observed", "value": 1}]
+      },
+      {
+        "path": "/acquisition/injection_volume",
+        "values": [{"state": "observed", "value": 1, "unit": "uL"}]
+      },
+      {
+        "path": "/acquisition/lc_gradient_duration",
+        "values": [{"state": "observed", "value": 120, "unit": "min"}]
+      },
+      {
+        "path": "/acquisition/column_temperature",
+        "values": [{"state": "observed", "value": 40, "unit": "Cel"}]
+      },
+      {
+        "path": "/quality/report_reference_id",
+        "values": [{"state": "observed", "value": "quality.synthetic.001"}]
+      },
+      {
+        "path": "/quality/report_digest",
+        "values": [{"state": "observed", "value": "sha256:8888888888888888888888888888888888888888888888888888888888888888"}]
+      },
+      {
+        "path": "/quality/pathology_review_status",
+        "values": [{"state": "observed", "value": "completed"}]
+      },
+      {
+        "path": "/quality/tumor_cellularity",
+        "values": [{"state": "observed", "value": 70, "unit": "%"}]
+      },
+      {
+        "path": "/quality/necrosis",
+        "values": [{"state": "observed", "value": 5, "unit": "%"}]
+      },
+      {
+        "path": "/quality/extracted_protein_yield",
+        "values": [{"state": "observed", "value": 500, "unit": "ug"}]
+      },
+      {
+        "path": "/quality/protein_concentration",
+        "values": [{"state": "observed", "value": 2, "unit": "ug/uL"}]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "frozen_dda_conformant",
+      "description": "Complete frozen-tissue, label-free DDA metadata remains conformant.",
+      "replace_entries": [],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "conformant",
+      "expected_human_review": false,
+      "expected_issue_codes": []
+    },
+    {
+      "case_id": "ffpe_dia_conformant",
+      "description": "Complete FFPE DIA metadata, including cross-unit quantities, remains conformant.",
+      "replace_entries": [
+        {"path": "/specimen/preservation", "values": [{"state": "observed", "value": "ffpe_tissue"}]},
+        {"path": "/specimen/storage_temperature", "values": [{"state": "observed", "value": 293.15, "unit": "K"}]},
+        {"path": "/preparation/input_tissue_mass", "values": [{"state": "observed", "value": 0.025, "unit": "g"}]},
+        {"path": "/acquisition/method", "values": [{"state": "observed", "value": "PRIDE:0000450"}]},
+        {"path": "/acquisition/instrument_model", "values": [{"state": "observed", "value": "MS:1002732"}]},
+        {"path": "/acquisition/raw_data_format", "values": [{"state": "observed", "value": "mzml_1_1_1"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [
+        {"path": "/specimen/fixative", "values": [{"state": "observed", "value": "neutral_buffered_formalin"}]},
+        {"path": "/specimen/fixation_duration", "values": [{"state": "observed", "value": 1, "unit": "d"}]}
+      ],
+      "expected_decision": "conformant",
+      "expected_human_review": false,
+      "expected_issue_codes": []
+    },
+    {
+      "case_id": "ffpe_missing_fixation_duration",
+      "description": "FFPE metadata without the conditionally required fixation duration is quarantined.",
+      "replace_entries": [
+        {"path": "/specimen/preservation", "values": [{"state": "observed", "value": "ffpe_tissue"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [
+        {"path": "/specimen/fixative", "values": [{"state": "observed", "value": "neutral_buffered_formalin"}]}
+      ],
+      "expected_decision": "quarantined",
+      "expected_human_review": true,
+      "expected_issue_codes": ["compatibility.requirement_failed"]
+    },
+    {
+      "case_id": "unknown_acquisition_term",
+      "description": "A syntactically valid but unregistered acquisition code is nonconformant.",
+      "replace_entries": [
+        {"path": "/acquisition/method", "values": [{"state": "observed", "value": "PRIDE:9999999"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["value.term_unknown"]
+    },
+    {
+      "case_id": "missing_treatment_history_pointer",
+      "description": "Omitting a mandatory treatment-history pointer is nonconformant rather than interpreted as untreated.",
+      "replace_entries": [],
+      "remove_paths": ["/context/treatment_history/reference_id"],
+      "add_entries": [],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["field.required_missing"]
+    },
+    {
+      "case_id": "unresolved_genomic_context",
+      "description": "Explicit unresolved genomic context remains unresolved and is quarantined.",
+      "replace_entries": [
+        {
+          "path": "/context/genomic_context/reference_id",
+          "values": [{"state": "unknown", "reason_code": "upstream_not_available", "explanation": "Synthetic upstream context is intentionally unavailable."}]
+        },
+        {
+          "path": "/context/genomic_context/reference_digest",
+          "values": [{"state": "unknown", "reason_code": "upstream_not_available", "explanation": "Synthetic upstream context is intentionally unavailable."}]
+        }
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "quarantined",
+      "expected_human_review": true,
+      "expected_issue_codes": ["value.unresolved_unknown"]
+    },
+    {
+      "case_id": "frozen_declares_fixative",
+      "description": "A frozen-tissue record carrying an FFPE fixative is rejected as incompatible.",
+      "replace_entries": [],
+      "remove_paths": [],
+      "add_entries": [
+        {"path": "/specimen/fixative", "values": [{"state": "observed", "value": "neutral_buffered_formalin"}]}
+      ],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["compatibility.requirement_failed"]
+    },
+    {
+      "case_id": "unfractionated_fraction_two",
+      "description": "An unfractionated sample using fraction identifier 2 is rejected.",
+      "replace_entries": [
+        {"path": "/acquisition/fraction_identifier", "values": [{"state": "observed", "value": 2}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["compatibility.requirement_failed"]
+    },
+    {
+      "case_id": "pathology_review_pending",
+      "description": "A declared pending pathology review is retained and escalated to human review.",
+      "replace_entries": [
+        {"path": "/quality/pathology_review_status", "values": [{"state": "observed", "value": "review_required"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "review_required",
+      "expected_human_review": true,
+      "expected_issue_codes": ["compatibility.requirement_failed"]
+    },
+    {
+      "case_id": "converted_mass_above_bound",
+      "description": "A gram input is converted to the milligram reference unit before enforcing bounds.",
+      "replace_entries": [
+        {"path": "/preparation/input_tissue_mass", "values": [{"state": "observed", "value": 20, "unit": "g"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["value.numeric_above_maximum"]
+    },
+    {
+      "case_id": "unregistered_injection_unit",
+      "description": "A valid UCUM code outside the field and profile unit set is rejected without coercion.",
+      "replace_entries": [
+        {"path": "/acquisition/injection_volume", "values": [{"state": "observed", "value": 0.001, "unit": "L"}]}
+      ],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_decision": "nonconformant",
+      "expected_human_review": false,
+      "expected_issue_codes": ["value.unit_unknown"]
+    },
+    {
+      "case_id": "identity_lineage_binding_mismatch",
+      "description": "A resolved lineage decision bound to different identity-key evidence is quarantined as a critical mismatch.",
+      "replace_entries": [],
+      "remove_paths": [],
+      "add_entries": [],
+      "expected_identity_binding_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "expected_decision": "quarantined",
+      "expected_human_review": true,
+      "expected_issue_codes": ["identity.lineage_binding_mismatch"]
+    }
+  ]
+}

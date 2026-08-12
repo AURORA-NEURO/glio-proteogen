@@ -1,0 +1,129 @@
+{
+  "manifest_id": "glio_preanalytic_proteomics_standards",
+  "manifest_version": "1.0.0",
+  "profile_schema_id": "glio_preanalytic_proteomics",
+  "profile_schema_version": "1.0.0",
+  "retrieved_at": "2026-08-11",
+  "source_policy": "Clean-room profile design from the governing dossier and authoritative standards only; no prior GLIO implementation or repository was inspected or reused.",
+  "runtime_reference_inventory": [],
+  "conformance_claim": "The profile is informed by and cross-referenced to the listed sources. It does not claim blanket conformance to an entire external standard, ontology, repository submission format, clinical regulation, or laboratory accreditation program.",
+  "quality_reference_provenance": {
+    "model_id": "glio_preanalytic_quality_consensus",
+    "model_version": "1.0.0",
+    "method": "Synthetic factorial reference design for deterministic nearest-medoid consensus OOD evaluation; no fitting, optimization, calibration, or patient-data learning was performed.",
+    "source_ids": ["governing_dossier", "sdrf_proteomics_1_1_0", "psi_ms_cv_4_1_258", "pride_ontology_2026_06_19", "ucum_2_2", "nci_best_practices_2026", "nci_gdc_biospecimen"],
+    "data_class": "synthetic_non_clinical",
+    "patient_record_count": 0,
+    "identity_feature_count": 0,
+    "opaque_pointer_feature_count": 0,
+    "reference_cluster_count": 4,
+    "reference_profile_count": 12,
+    "implementation_status": "integrated_quarantine_only_reference_domain_guard",
+    "decision_authority": "May quarantine a deterministically conformant document and require human review; cannot promote or override an existing adverse decision.",
+    "interpretation_ceiling": "Synthetic reference-domain proximity only; no trained, calibrated, biological-quality, assay-fitness, diagnostic, prognostic, or clinical claim.",
+    "review_status": "automated invariant checks complete; independent reviewer sign-off remains external"
+  },
+  "sources": [
+    {
+      "source_id": "governing_dossier",
+      "authority": "AURORA-NEURO project specification",
+      "title": "GLIO-PROTEOGEN 240 Module Dossier",
+      "version": "supplied 2026-08-11",
+      "locator": "Project-owner-supplied governing dossier",
+      "content_digest": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+      "used_for": ["module ownership", "inputs and outputs", "support and uncertainty boundary", "human-review triggers", "prohibited responsibilities"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "sdrf_proteomics_1_1_0",
+      "authority": "HUPO Proteomics Standards Initiative community",
+      "title": "Sample and Data Relationship Format for Proteomics",
+      "version": "1.1.0 (2026-01)",
+      "locator": "https://github.com/bigbio/proteomics-sample-metadata/blob/03df7bc728dc740a7e9aa2a56262cf32848545f6/sdrf-proteomics/README.adoc",
+      "source_pin": "git:03df7bc728dc740a7e9aa2a56262cf32848545f6",
+      "used_for": ["sample-to-assay linkage", "replicate and fraction semantics", "required MS acquisition metadata", "sample-preparation categories", "human treatment-history pointer rationale"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "psi_ms_cv_4_1_258",
+      "authority": "HUPO Proteomics Standards Initiative",
+      "title": "PSI-MS controlled vocabulary",
+      "version": "4.1.258",
+      "locator": "https://github.com/HUPO-PSI/psi-ms-CV/blob/6a9fd09937c0e64fd441bbbbf78d6ec1a9f408f6/psi-ms.obo",
+      "source_pin": "git:6a9fd09937c0e64fd441bbbbf78d6ec1a9f408f6",
+      "used_for": ["cleavage agents", "quantification label", "instrument models", "dissociation methods"],
+      "license": "CC-BY-4.0",
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "pride_ontology_2026_06_19",
+      "authority": "PRIDE Archive, EMBL-EBI",
+      "title": "PRIDE ontology",
+      "version": "release 2026-06-19",
+      "locator": "https://github.com/PRIDE-Archive/pride-ontology/blob/7cd30c13a035247ccbc86f0b4efa8f8a7cc3f1e3/pride_cv.obo",
+      "source_pin": "git:7cd30c13a035247ccbc86f0b4efa8f8a7cc3f1e3",
+      "used_for": ["DDA and DIA acquisition strategy terms"],
+      "license": "CC-BY-4.0",
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "ucum_2_2",
+      "authority": "UCUM Organization and Regenstrief Institute",
+      "title": "The Unified Code for Units of Measure",
+      "version": "2.2 (2024-06-17)",
+      "locator": "https://ucum.org/ucum",
+      "source_pin": "git:d060c6d3dfe3b0deb196c190b8024d95385e0b92",
+      "release_artifact": "https://github.com/ucum-org/ucum/blob/v2.2/ucum-essence.xml",
+      "used_for": ["unit codes", "dimensional compatibility", "reference-unit conversion semantics", "Celsius affine conversion"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "mzml_1_1_1",
+      "authority": "HUPO Proteomics Standards Initiative",
+      "title": "mzML XML schema",
+      "version": "1.1.1",
+      "locator": "https://github.com/HUPO-PSI/mzML/blob/c43c4ea57ad73abd72ff3b55ebd78827a73fab61/schema/schema_1.1/mzML1.1.1.xsd",
+      "source_pin": "git:c43c4ea57ad73abd72ff3b55ebd78827a73fab61",
+      "used_for": ["versioned open mass-spectrometry data-format declaration"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "miape_2007",
+      "authority": "HUPO Proteomics Standards Initiative",
+      "title": "The minimum information about a proteomics experiment (MIAPE)",
+      "version": "2007",
+      "locator": "https://doi.org/10.1038/nbt1329",
+      "persistent_identifier": "doi:10.1038/nbt1329",
+      "used_for": ["minimum experimental protocol and acquisition reporting rationale"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "brisq_2011",
+      "authority": "National Cancer Institute-led international working group",
+      "title": "Biospecimen Reporting for Improved Study Quality (BRISQ)",
+      "version": "2011",
+      "locator": "https://pubmed.ncbi.nlm.nih.gov/21433001/",
+      "persistent_identifier": "doi:10.1002/cncy.20147",
+      "used_for": ["collection, processing, storage, and preanalytic reporting rationale", "privacy-preserving biospecimen reporting"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "nci_best_practices_2026",
+      "authority": "U.S. National Cancer Institute",
+      "title": "NCI Best Practices for Biospecimen Resources",
+      "version": "4th edition (2026)",
+      "locator": "https://dctd.cancer.gov/data-tools-biospecimens/biospecimens-biobanks/resources/best-practices/biospecimen-resources/technical-operational",
+      "used_for": ["unique non-identifying specimen identifiers", "parent-child lineage tracking", "collection and storage metadata", "pathology review and quality reporting"],
+      "runtime_dependency": false
+    },
+    {
+      "source_id": "nci_gdc_biospecimen",
+      "authority": "U.S. National Cancer Institute Genomic Data Commons",
+      "title": "Biospecimen Data Standardization",
+      "version": "retrieved 2026-08-11",
+      "locator": "https://gdc.cancer.gov/about-data/gdc-data-processing/biospecimen-data-standardization",
+      "used_for": ["case-sample-aliquot provenance separation", "UUID-style linkage", "biospecimen quality-control metadata"],
+      "runtime_dependency": false
+    }
+  ]
+}

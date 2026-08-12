@@ -1,0 +1,1 @@
+"""Locked public-contract behavior."""

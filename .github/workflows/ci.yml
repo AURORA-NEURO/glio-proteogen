@@ -1,0 +1,123 @@
+name: evidence
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run python -m tools.scan_secrets
+      - run: uv run pip-audit
+
+  test-and-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv run pytest tests
+      - run: uv run python -m evals.m01_01.run --output m01_01-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m01-01-eval
+          path: m01_01-eval.json
+
+  microbenchmarks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
+
+  package-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHON_VERSION: "3.12.13"
+      SOURCE_DATE_EPOCH: "315532800"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install "$PYTHON_VERSION"
+      - run: uv sync --locked --all-groups
+      - name: Build twice from the same source epoch
+        run: |
+          build_environment="$RUNNER_TEMP/release-build-environment"
+          build_python="$build_environment/bin/python"
+          uv venv "$build_environment" --python "$PYTHON_VERSION"
+          uv pip install \
+            --python "$build_python" \
+            --require-hashes \
+            --no-deps \
+            --requirement tools/release-build-requirements.txt
+          uv pip check --python "$build_python"
+          uv build --python "$build_python" --no-build-isolation --offline --out-dir dist-one
+          uv build --python "$build_python" --no-build-isolation --offline --out-dir dist-two
+          sha256sum dist-one/* | sed 's#dist-one/##' > dist-one.sha256
+          sha256sum dist-two/* | sed 's#dist-two/##' > dist-two.sha256
+          diff --unified dist-one.sha256 dist-two.sha256
+      - name: Replay from the built wheel in a clean environment
+        run: |
+          test "$(find dist-one -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          wheel="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.whl')"
+          requirements="$RUNNER_TEMP/runtime-requirements.txt"
+          runtime_environment="$RUNNER_TEMP/package-replay"
+          runtime_python="$runtime_environment/bin/python"
+          uv export --frozen --no-dev --no-emit-project --output-file "$requirements"
+          uv venv "$runtime_environment" --python "$PYTHON_VERSION"
+          uv pip install \
+            --python "$runtime_python" \
+            --require-hashes \
+            --no-deps \
+            --requirement "$requirements"
+          uv pip install --python "$runtime_python" --no-deps "$wheel"
+          uv pip check --python "$runtime_python"
+          (
+            cd "$RUNNER_TEMP"
+            "$runtime_python" -I \
+              "$GITHUB_WORKSPACE/tools/verify_release_artifacts.py" \
+              installed-wheel \
+              "$wheel"
+          )

@@ -1,0 +1,183 @@
+name: release-candidate-evidence
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-and-attest-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+    env:
+      PYTHON_VERSION: "3.12.13"
+      SOURCE_DATE_EPOCH: "315532800"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install "$PYTHON_VERSION"
+      - run: uv sync --locked --all-groups
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run python -m tools.scan_secrets
+      - name: Execute locked tests and coverage
+        run: |
+          mkdir -p evidence
+          uv run pytest tests --junitxml=evidence/tests.junit.xml --cov-report=xml:evidence/coverage.xml
+      - name: Execute M01-01 evaluation and benchmarks
+        run: |
+          uv run python -m evals.m01_01.run --output evidence/m01-01-eval.json
+          uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
+      - name: Audit the full locked development environment
+        run: |
+          uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json
+      - name: Export and audit the locked runtime dependency set
+        run: |
+          uv export --frozen --no-dev --no-emit-project --output-file evidence/runtime-requirements.txt
+          uv run pip-audit \
+            --requirement evidence/runtime-requirements.txt \
+            --require-hashes \
+            --disable-pip \
+            --format json \
+            --progress-spinner off \
+            --output evidence/runtime-dependency-audit.json
+          uv run pip-audit \
+            --requirement tools/release-sbom-requirements.txt \
+            --require-hashes \
+            --disable-pip \
+            --format json \
+            --progress-spinner off \
+            --output evidence/sbom-tool-dependency-audit.json
+          uv run pip-audit \
+            --requirement tools/release-build-requirements.txt \
+            --require-hashes \
+            --disable-pip \
+            --format json \
+            --progress-spinner off \
+            --output evidence/build-tool-dependency-audit.json
+      - name: Build reproducible candidate distributions
+        run: |
+          build_environment="$RUNNER_TEMP/release-build-environment"
+          build_python="$build_environment/bin/python"
+          uv venv "$build_environment" --python "$PYTHON_VERSION"
+          uv pip install \
+            --python "$build_python" \
+            --require-hashes \
+            --no-deps \
+            --requirement tools/release-build-requirements.txt
+          uv pip check --python "$build_python"
+          mkdir -p release-build-one release-build-two evidence/distribution
+          uv build --python "$build_python" --no-build-isolation --offline --out-dir release-build-one
+          uv build --python "$build_python" --no-build-isolation --offline --out-dir release-build-two
+          test "$(find release-build-one -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1
+          test "$(find release-build-one -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 1
+          (cd release-build-one && sha256sum * | sort) > "$RUNNER_TEMP/distribution-one.sha256"
+          (cd release-build-two && sha256sum * | sort) > "$RUNNER_TEMP/distribution-two.sha256"
+          diff --unified "$RUNNER_TEMP/distribution-one.sha256" "$RUNNER_TEMP/distribution-two.sha256"
+          cp release-build-one/* evidence/distribution/
+          cp "$RUNNER_TEMP/distribution-one.sha256" evidence/distribution-reproducibility.sha256
+          wheel="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.whl')"
+          echo "RELEASE_WHEEL=$wheel" >> "$GITHUB_ENV"
+      - name: Install and test the exact candidate wheel
+        run: |
+          runtime_environment="$RUNNER_TEMP/glio-proteogen-runtime"
+          runtime_python="$runtime_environment/bin/python"
+          tag_arguments=()
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag_arguments=(--expected-tag "$GITHUB_REF_NAME")
+          fi
+          uv venv "$runtime_environment" --python "$PYTHON_VERSION"
+          uv pip install \
+            --python "$runtime_python" \
+            --require-hashes \
+            --no-deps \
+            --requirement evidence/runtime-requirements.txt
+          uv pip install --python "$runtime_python" --no-deps "$RELEASE_WHEEL"
+          uv pip check --python "$runtime_python"
+          (
+            cd "$RUNNER_TEMP"
+            "$runtime_python" -I \
+              "$GITHUB_WORKSPACE/tools/verify_release_artifacts.py" \
+              installed-wheel \
+              "$RELEASE_WHEEL" \
+              "${tag_arguments[@]}" \
+              --report "$GITHUB_WORKSPACE/evidence/installed-wheel-verification.json"
+          )
+          echo "RELEASE_RUNTIME_PYTHON=$runtime_python" >> "$GITHUB_ENV"
+      - name: Generate reproducible runtime SBOM from the wheel environment
+        run: |
+          sbom_tool_environment="$RUNNER_TEMP/cyclonedx-tool"
+          sbom_tool="$sbom_tool_environment/bin/cyclonedx-py"
+          uv venv "$sbom_tool_environment" --python "$PYTHON_VERSION"
+          uv pip install \
+            --python "$sbom_tool_environment/bin/python" \
+            --require-hashes \
+            --no-deps \
+            --requirement tools/release-sbom-requirements.txt
+          "$sbom_tool" environment \
+            "$RELEASE_RUNTIME_PYTHON" \
+            --pyproject "$GITHUB_WORKSPACE/pyproject.toml" \
+            --mc-type application \
+            --spec-version 1.6 \
+            --output-reproducible \
+            --output-format JSON \
+            --output-file evidence/runtime-sbom.cdx.json
+          "$sbom_tool" environment \
+            "$RELEASE_RUNTIME_PYTHON" \
+            --pyproject "$GITHUB_WORKSPACE/pyproject.toml" \
+            --mc-type application \
+            --spec-version 1.6 \
+            --output-reproducible \
+            --output-format JSON \
+            --output-file "$RUNNER_TEMP/runtime-sbom-replay.cdx.json"
+          cmp evidence/runtime-sbom.cdx.json "$RUNNER_TEMP/runtime-sbom-replay.cdx.json"
+          "$RELEASE_RUNTIME_PYTHON" -I \
+            "$GITHUB_WORKSPACE/tools/verify_release_artifacts.py" \
+            runtime-sbom \
+            evidence/runtime-sbom.cdx.json \
+            "$RELEASE_WHEEL"
+      - name: Assemble content-addressed evidence bundle
+        run: |
+          find evidence -type f -print0 | sort -z | xargs -0 sha256sum > evidence.sha256
+          mv evidence.sha256 evidence/SHA256SUMS
+          tar --sort=name --mtime=@315532800 --owner=0 --group=0 --numeric-owner -cf - evidence \
+            | gzip --no-name > glio-proteogen-evidence.tar.gz
+      - name: Attest candidate distribution provenance
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            evidence/distribution/*.whl
+            evidence/distribution/*.tar.gz
+      - name: Attest candidate wheel runtime SBOM
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: evidence/distribution/*.whl
+          sbom-path: evidence/runtime-sbom.cdx.json
+      - name: Attest the candidate evidence bundle
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: glio-proteogen-evidence.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: release-candidate-evidence
+          path: |
+            evidence/
+            glio-proteogen-evidence.tar.gz

@@ -1,0 +1,39 @@
+{
+  "operation": "evaluate",
+  "context": {
+    "request_id": "request.synthetic.evaluate.004",
+    "actor_id": "actor.synthetic",
+    "occurred_at": "2026-01-01T00:00:04Z",
+    "references": {
+      "approved_configuration": {"decision_id": "configuration.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "configuration.synthetic", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}},
+      "identity_lineage": {"decision_id": "identity.synthetic", "state": "resolved", "policy_version": "1.0.0", "binding_digest": "sha256:ee2f9343b13a8fe0ff3331907db7ba3100f77a3782fe5933039b91a9188bed83", "evidence": {"artifact_id": "identity.synthetic", "version": "1.0.0", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "media_type": "application/json"}},
+      "provenance": {"decision_id": "provenance.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "provenance.synthetic", "version": "1.0.0", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "media_type": "application/json"}},
+      "consent": {
+        "decision_id": "consent.synthetic",
+        "state": "granted",
+        "policy_version": "1.0.0",
+        "evidence": {"artifact_id": "consent_evidence.synthetic", "version": "1.0.0", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "media_type": "application/json"}
+      },
+      "quality": {"decision_id": "quality.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "quality.synthetic", "version": "1.0.0", "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "media_type": "application/json"}},
+      "support": {"decision_id": "support.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "support.synthetic", "version": "1.0.0", "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "media_type": "application/json"}},
+      "intended_use": {"decision_id": "intended_use.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "intended_use.synthetic", "version": "1.0.0", "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "media_type": "application/json"}}
+    }
+  },
+  "protocol": {
+    "schema_id": "protocol.synthetic",
+    "version": "1.0.0",
+    "digest": "sha256:1639198d5be84e002f88c8eef7fdc7811cda4d28fc788742d40e80a02022f5d3"
+  },
+  "document": {
+    "document_id": "document.synthetic.004",
+    "schema_id": "protocol.synthetic",
+    "schema_version": "1.0.0",
+    "assay_version": "1.0.0",
+    "specimen_version": "1.0.0",
+    "entries": [
+      {"path": "/sample/key", "values": [{"state": "observed", "value": "SYN-004"}]},
+      {"path": "/assay/mode", "values": [{"state": "observed", "value": "direct"}]},
+      {"path": "/sample/batch", "values": [{"state": "unknown", "reason_code": "not_supplied", "explanation": "Synthetic source intentionally leaves this value unresolved."}]}
+    ]
+  }
+}

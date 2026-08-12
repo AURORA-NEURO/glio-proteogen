@@ -1,0 +1,8 @@
+{
+  "path": "/sample/key",
+  "title": "Synthetic key",
+  "description": "Strict boolean rejection fixture.",
+  "value_kind": "identifier",
+  "required": "true",
+  "cardinality": {"minimum": 1, "maximum": 1}
+}

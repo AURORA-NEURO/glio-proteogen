@@ -1,0 +1,46 @@
+{
+  "manifest_id": "glio_preanalytic_proteomics_artifacts",
+  "manifest_version": "1.0.0",
+  "profile_schema_id": "glio_preanalytic_proteomics",
+  "profile_schema_version": "1.0.0",
+  "canonical_protocol_digest": "sha256:1d07ccd51a014702f612cc6d83cd0d67d1bab2f17fa17de61c4e6beb68572391",
+  "digest_algorithm": "SHA-256 over exact packaged file bytes",
+  "artifacts": [
+    {
+      "file": "catalog.json",
+      "media_type": "application/json",
+      "bytes": 11933,
+      "digest": "sha256:cbafecf90c5f03c6cfdf93d2386a76ab92a60917144563ce9106b996b3ec96c6"
+    },
+    {
+      "file": "conformance-corpus.json",
+      "media_type": "application/json",
+      "bytes": 15243,
+      "digest": "sha256:9e353e9a67dba97de02a77505f10a275a249e32762771691727cd454d8b377f6"
+    },
+    {
+      "file": "protocol-schema.json",
+      "media_type": "application/json",
+      "bytes": 37299,
+      "digest": "sha256:8abea794a8bd178d0f9a1d15949ed00d3a0ed25aa74a21931123610cfb4d5952"
+    },
+    {
+      "file": "quality-model.json",
+      "media_type": "application/json",
+      "bytes": 3734,
+      "digest": "sha256:c4876ea329e65fff63e992c8697bd9eea64a75614116a46a980ff0c2e364c81f"
+    },
+    {
+      "file": "quality-reference-corpus.json",
+      "media_type": "application/json",
+      "bytes": 12265,
+      "digest": "sha256:1f33cf9c074231de29f77b957ad241bbb9045764fabcda03d90553a6dba237b9"
+    },
+    {
+      "file": "standards-manifest.json",
+      "media_type": "application/json",
+      "bytes": 7299,
+      "digest": "sha256:566e11fe76964c2443c535d9a99c18abe20070a7404daf5bbb75c6a3922d2580"
+    }
+  ]
+}

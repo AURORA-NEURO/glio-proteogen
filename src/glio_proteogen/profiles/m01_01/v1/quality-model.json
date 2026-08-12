@@ -1,0 +1,148 @@
+{
+  "model_id": "glio_preanalytic_quality_consensus",
+  "model_version": "1.0.0",
+  "profile_schema_id": "glio_preanalytic_proteomics",
+  "profile_schema_version": "1.0.0",
+  "canonical_protocol_digest": "sha256:1d07ccd51a014702f612cc6d83cd0d67d1bab2f17fa17de61c4e6beb68572391",
+  "reference_corpus_file": "quality-reference-corpus.json",
+  "reference_corpus_digest": "sha256:9ae807d745cbda935222758a2ce29d0d6855cd6452dd16adf9c694fed6145940",
+  "minimum_consensus": 0.66,
+  "maximum_mean_distance": 0.35,
+  "minimum_view_coverage": 0.75,
+  "features": [
+    {
+      "path": "/specimen/preservation",
+      "kind": "categorical"
+    },
+    {
+      "path": "/specimen/collection_method",
+      "kind": "categorical"
+    },
+    {
+      "path": "/specimen/warm_ischemia_time",
+      "kind": "numeric",
+      "minimum": 0,
+      "maximum": 1440
+    },
+    {
+      "path": "/specimen/cold_ischemia_time",
+      "kind": "numeric",
+      "minimum": 0,
+      "maximum": 10080
+    },
+    {
+      "path": "/specimen/storage_temperature",
+      "kind": "numeric",
+      "minimum": -196,
+      "maximum": 25
+    },
+    {
+      "path": "/specimen/storage_duration",
+      "kind": "numeric",
+      "minimum": 0,
+      "maximum": 175200
+    },
+    {
+      "path": "/preparation/input_tissue_mass",
+      "kind": "numeric",
+      "minimum": 0.01,
+      "maximum": 10000
+    },
+    {
+      "path": "/preparation/extraction_method",
+      "kind": "categorical"
+    },
+    {
+      "path": "/preparation/cleavage_agent",
+      "kind": "categorical"
+    },
+    {
+      "path": "/preparation/digestion_duration",
+      "kind": "numeric",
+      "minimum": 0.1,
+      "maximum": 72
+    },
+    {
+      "path": "/preparation/fractionation_method",
+      "kind": "categorical"
+    },
+    {
+      "path": "/acquisition/method",
+      "kind": "categorical"
+    },
+    {
+      "path": "/acquisition/instrument_model",
+      "kind": "categorical"
+    },
+    {
+      "path": "/acquisition/dissociation_method",
+      "kind": "categorical"
+    },
+    {
+      "path": "/acquisition/injection_volume",
+      "kind": "numeric",
+      "minimum": 0.01,
+      "maximum": 1000
+    },
+    {
+      "path": "/acquisition/lc_gradient_duration",
+      "kind": "numeric",
+      "minimum": 1,
+      "maximum": 1440
+    },
+    {
+      "path": "/quality/tumor_cellularity",
+      "kind": "numeric",
+      "minimum": 0,
+      "maximum": 100
+    },
+    {
+      "path": "/quality/necrosis",
+      "kind": "numeric",
+      "minimum": 0,
+      "maximum": 100
+    }
+  ],
+  "views": [
+    {
+      "view_id": "specimen_preanalytic",
+      "paths": [
+        "/specimen/preservation",
+        "/acquisition/method",
+        "/specimen/collection_method",
+        "/specimen/warm_ischemia_time",
+        "/specimen/cold_ischemia_time",
+        "/specimen/storage_temperature",
+        "/specimen/storage_duration"
+      ]
+    },
+    {
+      "view_id": "preparation_acquisition",
+      "paths": [
+        "/specimen/preservation",
+        "/acquisition/method",
+        "/preparation/input_tissue_mass",
+        "/preparation/extraction_method",
+        "/preparation/cleavage_agent",
+        "/preparation/digestion_duration",
+        "/preparation/fractionation_method",
+        "/acquisition/instrument_model",
+        "/acquisition/dissociation_method"
+      ]
+    },
+    {
+      "view_id": "quantitative_quality",
+      "paths": [
+        "/specimen/preservation",
+        "/acquisition/method",
+        "/specimen/warm_ischemia_time",
+        "/specimen/cold_ischemia_time",
+        "/preparation/input_tissue_mass",
+        "/acquisition/injection_volume",
+        "/acquisition/lc_gradient_duration",
+        "/quality/tumor_cellularity",
+        "/quality/necrosis"
+      ]
+    }
+  ]
+}

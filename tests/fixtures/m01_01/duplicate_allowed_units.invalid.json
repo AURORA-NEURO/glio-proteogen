@@ -1,0 +1,10 @@
+{
+  "path": "/sample/input_mass",
+  "title": "Synthetic mass",
+  "description": "Invalid duplicate-unit fixture.",
+  "value_kind": "number",
+  "required": false,
+  "cardinality": {"minimum": 0, "maximum": 1},
+  "unit_dimension": "mass",
+  "allowed_units": ["ug", "ug"]
+}

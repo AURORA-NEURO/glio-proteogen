@@ -1,0 +1,9 @@
+{
+  "path": "/sample/batch",
+  "title": "Synthetic batch",
+  "description": "Invalid duplicate-missingness fixture.",
+  "value_kind": "identifier",
+  "required": false,
+  "cardinality": {"minimum": 0, "maximum": 1},
+  "allowed_missingness": ["unknown", "unknown"]
+}

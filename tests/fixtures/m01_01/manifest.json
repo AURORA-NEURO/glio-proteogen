@@ -1,0 +1,210 @@
+{
+  "manifest_version": "1.0.0",
+  "module_id": "GLIO-PROTEOGEN-M01-01",
+  "data_classification": "synthetic_non_clinical",
+  "strict_json": true,
+  "data_inventory": {
+    "source": "repository_locked_synthetic_fixtures",
+    "clinical_records": false,
+    "external_datasets": []
+  },
+  "model_inventory": [
+    {
+      "model_id": "glio_preanalytic_quality_consensus",
+      "model_version": "1.0.0",
+      "model_content_digest": "sha256:c0d8b536f2d162a41fb7ff6d3de9941f7debad31aa15bc39444a993e16ab869b",
+      "model_artifact_digest": "sha256:c4876ea329e65fff63e992c8697bd9eea64a75614116a46a980ff0c2e364c81f",
+      "reference_corpus_id": "glio_preanalytic_quality_reference",
+      "reference_corpus_version": "1.0.0",
+      "reference_corpus_content_digest": "sha256:9ae807d745cbda935222758a2ce29d0d6855cd6452dd16adf9c694fed6145940",
+      "reference_corpus_artifact_digest": "sha256:1f33cf9c074231de29f77b957ad241bbb9045764fabcda03d90553a6dba237b9",
+      "algorithm": "deterministic_multi_view_nearest_medoid_gower_consensus_with_abstention",
+      "data_classification": "synthetic_non_clinical",
+      "trained": false,
+      "calibrated": false,
+      "runtime_fetch": false,
+      "clinical_claim": false,
+      "output_effect": "retain_ordinary_conformance_or_quarantine_for_review_never_promote"
+    }
+  ],
+  "runtime_reference_inventory": [
+    {
+      "name": "Unified Code for Units of Measure supported subset",
+      "version": "2.2",
+      "source": "https://ucum.org/ucum",
+      "license": "https://ucum.org/license",
+      "runtime_fetch": false,
+      "purpose": "Closed unit-code validation and deterministic affine quantity conversion."
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "register_minimal",
+      "file": "register_minimal.valid.json",
+      "target": "M0101Request",
+      "expected": "accept",
+      "phase": "contract",
+      "invariant": "A versioned protocol with closed vocabulary, unit, and rule references is accepted."
+    },
+    {
+      "case_id": "evaluate_conformant",
+      "file": "evaluate_conformant.valid.json",
+      "target": "M0101Request",
+      "expected": "accept",
+      "phase": "validation",
+      "expected_decision": "conformant",
+      "expected_issue_codes": [],
+      "invariant": "A fully compatible synthetic document is conformant."
+    },
+    {
+      "case_id": "evaluate_quarantine",
+      "file": "evaluate_quarantine.valid.json",
+      "target": "M0101Request",
+      "expected": "accept",
+      "phase": "validation",
+      "expected_decision": "quarantined",
+      "expected_issue_codes": ["compatibility.requirement_failed"],
+      "invariant": "A failed quarantine compatibility rule cannot silently pass."
+    },
+    {
+      "case_id": "evaluate_unresolved",
+      "file": "evaluate_unresolved.valid.json",
+      "target": "M0101Request",
+      "expected": "accept",
+      "phase": "validation",
+      "expected_decision": "quarantined",
+      "expected_issue_codes": ["value.unresolved_unknown"],
+      "invariant": "Allowed unresolved evidence remains explicit and quarantined for review."
+    },
+    {
+      "case_id": "evaluate_reject",
+      "file": "evaluate_reject.valid.json",
+      "target": "M0101Request",
+      "expected": "accept",
+      "phase": "validation",
+      "expected_decision": "nonconformant",
+      "expected_issue_codes": ["identity.missing"],
+      "invariant": "Absent required identity evidence is nonconformant, never a negative observation."
+    },
+    {
+      "case_id": "absent_required",
+      "file": "absent_required.invalid.json",
+      "target": "MetadataDocument",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "A required property cannot be absent."
+    },
+    {
+      "case_id": "null_required",
+      "file": "null_required.invalid.json",
+      "target": "MetadataDocument",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Null is not shorthand for missing required evidence."
+    },
+    {
+      "case_id": "naive_timestamp",
+      "file": "naive_timestamp.invalid.json",
+      "target": "ExecutionContext",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Execution timestamps require an explicit UTC offset."
+    },
+    {
+      "case_id": "coerced_boolean",
+      "file": "coerced_boolean.invalid.json",
+      "target": "FieldSpecification",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "String booleans are not coerced."
+    },
+    {
+      "case_id": "coerced_integer",
+      "file": "coerced_integer.invalid.json",
+      "target": "Cardinality",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "String integers are not coerced."
+    },
+    {
+      "case_id": "nan",
+      "file": "nan.invalid.json",
+      "target": "NumericBounds",
+      "expected": "reject",
+      "phase": "json",
+      "invariant": "NaN is forbidden before model validation."
+    },
+    {
+      "case_id": "infinity",
+      "file": "infinity.invalid.json",
+      "target": "ObservedValue",
+      "expected": "reject",
+      "phase": "json",
+      "invariant": "Infinity is forbidden before model validation."
+    },
+    {
+      "case_id": "duplicate_key",
+      "file": "duplicate_key.invalid.json",
+      "target": "Cardinality",
+      "expected": "reject",
+      "phase": "json",
+      "invariant": "Duplicate JSON object keys are rejected even when their values agree."
+    },
+    {
+      "case_id": "extra_unknown",
+      "file": "extra_unknown.invalid.json",
+      "target": "MetadataDocument",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Unknown properties are rejected instead of ignored."
+    },
+    {
+      "case_id": "forbidden_output",
+      "file": "forbidden_output.invalid.json",
+      "target": "MetadataDocument",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Treatment recommendations are outside the module output ceiling."
+    },
+    {
+      "case_id": "duplicate_entries",
+      "file": "duplicate_entries.invalid.json",
+      "target": "MetadataDocument",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "A JSON pointer has one unambiguous metadata entry."
+    },
+    {
+      "case_id": "identity_shape",
+      "file": "identity_shape.invalid.json",
+      "target": "FieldSpecification",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "An identity key is required, identifier-valued, singular, and never unresolved."
+    },
+    {
+      "case_id": "duplicate_allowed_units",
+      "file": "duplicate_allowed_units.invalid.json",
+      "target": "FieldSpecification",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Allowed unit codes are unique rather than silently deduplicated."
+    },
+    {
+      "case_id": "duplicate_missingness",
+      "file": "duplicate_missingness.invalid.json",
+      "target": "FieldSpecification",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "Allowed missingness states are unique rather than silently deduplicated."
+    },
+    {
+      "case_id": "unknown_operation",
+      "file": "unknown_operation.invalid.json",
+      "target": "M0101Request",
+      "expected": "reject",
+      "phase": "contract",
+      "invariant": "The request discriminator is closed to register and evaluate."
+    }
+  ]
+}

@@ -1,0 +1,212 @@
+{
+  "catalog_id": "glio_preanalytic_proteomics_profile_catalog",
+  "catalog_version": "1.0.0",
+  "profile_schema_id": "glio_preanalytic_proteomics",
+  "profile_schema_version": "1.0.0",
+  "module_id": "GLIO-PROTEOGEN-M01-01",
+  "safety_class": "S2",
+  "gate": "G0",
+  "intended_use": "Deterministic, research-use-only conformance checking of declared preanalytic metadata for human brain tissue bottom-up mass-spectrometry proteomics.",
+  "support_domain": {
+    "organism": ["NCBITaxon:9606"],
+    "organism_part": ["UBERON:0000955"],
+    "material": ["solid_tissue"],
+    "preservation": ["frozen_tissue", "ffpe_tissue"],
+    "acquisition_methods": ["PRIDE:0000627", "PRIDE:0000450"],
+    "quantification_labels": ["MS:1002038"],
+    "assay_versions": {
+      "1.0.0": "Label-free bottom-up DDA or DIA using the enumerated instruments, cleavage agents, dissociation methods, and raw-data representations."
+    },
+    "specimen_versions": {
+      "1.0.0": "Human brain solid tissue preserved frozen or by neutral-buffered-formalin fixation and paraffin embedding."
+    }
+  },
+  "field_groups": [
+    {
+      "group": "identity_and_lineage",
+      "purpose": "Bind the exact analytical sample to an opaque source-specimen lineage without embedding personal or clinical identity.",
+      "source_ids": ["governing_dossier", "nci_best_practices_2026", "nci_gdc_biospecimen"],
+      "paths": [
+        "/identity/analytical_sample_id",
+        "/identity/source_specimen_id",
+        "/identity/lineage_node_id",
+        "/identity/lineage_artifact_digest"
+      ]
+    },
+    {
+      "group": "external_biological_context",
+      "purpose": "Preserve treatment, genomic, transcriptomic, and PTM context as immutable upstream pointers rather than copied claims or fused data.",
+      "source_ids": ["governing_dossier"],
+      "paths": [
+        "/context/treatment_history/reference_id",
+        "/context/treatment_history/reference_digest",
+        "/context/genomic_context/reference_id",
+        "/context/genomic_context/reference_digest",
+        "/context/transcriptome_context/reference_id",
+        "/context/transcriptome_context/reference_digest",
+        "/context/ptm_annotations/reference_id",
+        "/context/ptm_annotations/reference_digest"
+      ]
+    },
+    {
+      "group": "specimen_preanalytics",
+      "purpose": "Capture specimen origin, preservation, ischemia, stabilization, storage, and fixation with explicit units and conditionality.",
+      "source_ids": ["governing_dossier", "brisq_2011", "nci_best_practices_2026", "sdrf_proteomics_1_1_0", "ucum_2_2"],
+      "paths": [
+        "/specimen/organism",
+        "/specimen/organism_part",
+        "/specimen/material_type",
+        "/specimen/collection_method",
+        "/specimen/preservation",
+        "/specimen/biological_replicate",
+        "/specimen/warm_ischemia_time",
+        "/specimen/cold_ischemia_time",
+        "/specimen/stabilization_timestamp",
+        "/specimen/storage_temperature",
+        "/specimen/storage_duration",
+        "/specimen/fixative",
+        "/specimen/fixation_duration"
+      ]
+    },
+    {
+      "group": "sample_preparation",
+      "purpose": "Capture the approved protocol, input mass, extraction, reduction, alkylation, proteolysis, and fractionation needed to interpret a proteomics assay.",
+      "source_ids": ["miape_2007", "sdrf_proteomics_1_1_0", "psi_ms_cv_4_1_258", "ucum_2_2"],
+      "paths": [
+        "/preparation/protocol_reference_id",
+        "/preparation/protocol_digest",
+        "/preparation/input_tissue_mass",
+        "/preparation/extraction_method",
+        "/preparation/reduction_reagent",
+        "/preparation/alkylation_reagent",
+        "/preparation/cleavage_agent",
+        "/preparation/digestion_duration",
+        "/preparation/digestion_temperature",
+        "/preparation/fractionation_method"
+      ]
+    },
+    {
+      "group": "mass_spectrometry_acquisition",
+      "purpose": "Bind one analytical run to an explicit strategy, label, instrument, dissociation method, raw artifact, replicate, LC conditions, and fraction.",
+      "source_ids": ["miape_2007", "sdrf_proteomics_1_1_0", "psi_ms_cv_4_1_258", "pride_ontology_2026_06_19", "mzml_1_1_1", "ucum_2_2"],
+      "paths": [
+        "/acquisition/assay_id",
+        "/acquisition/method",
+        "/acquisition/label",
+        "/acquisition/instrument_model",
+        "/acquisition/dissociation_method",
+        "/acquisition/raw_data_reference_id",
+        "/acquisition/raw_data_digest",
+        "/acquisition/raw_data_format",
+        "/acquisition/fraction_identifier",
+        "/acquisition/technical_replicate",
+        "/acquisition/injection_volume",
+        "/acquisition/lc_gradient_duration",
+        "/acquisition/column_temperature"
+      ]
+    },
+    {
+      "group": "preanalytic_quality",
+      "purpose": "Retain the referenced quality review and quantitative tissue/protein observations without converting a declared value into a scientific quality claim.",
+      "source_ids": ["governing_dossier", "nci_best_practices_2026", "nci_gdc_biospecimen", "ucum_2_2"],
+      "paths": [
+        "/quality/report_reference_id",
+        "/quality/report_digest",
+        "/quality/pathology_review_status",
+        "/quality/tumor_cellularity",
+        "/quality/necrosis",
+        "/quality/extracted_protein_yield",
+        "/quality/protein_concentration"
+      ]
+    }
+  ],
+  "conditional_fields": [
+    {
+      "path": "/specimen/fixative",
+      "obligation": "Required for ffpe_tissue and prohibited for frozen_tissue.",
+      "enforced_by": ["ffpe_requires_fixative", "frozen_prohibits_fixative"]
+    },
+    {
+      "path": "/specimen/fixation_duration",
+      "obligation": "Required for ffpe_tissue and prohibited for frozen_tissue.",
+      "enforced_by": ["ffpe_requires_fixation_duration", "frozen_prohibits_fixation_duration"]
+    },
+    {
+      "path": "/quality/tumor_cellularity",
+      "obligation": "Required when pathology_review_status is completed; unresolved observations quarantine.",
+      "enforced_by": ["completed_pathology_requires_cellularity"]
+    },
+    {
+      "path": "/quality/necrosis",
+      "obligation": "Required when pathology_review_status is completed; unresolved observations quarantine.",
+      "enforced_by": ["completed_pathology_requires_necrosis"]
+    }
+  ],
+  "controlled_vocabulary_catalog": [
+    {"vocabulary_id": "glio.organism", "authority": "profile subset with NCBI Taxonomy accession", "version": "1.0.0"},
+    {"vocabulary_id": "glio.organism_part", "authority": "profile subset with UBERON accession", "version": "1.0.0"},
+    {"vocabulary_id": "glio.material_type", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.collection_method", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.preservation", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.fixative", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.extraction_method", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.reduction_reagent", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "glio.alkylation_reagent", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "psi_ms.cleavage_agent", "authority": "HUPO-PSI", "version": "4.1.258"},
+    {"vocabulary_id": "glio.fractionation_method", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"},
+    {"vocabulary_id": "pride.acquisition_method", "authority": "PRIDE Archive / EMBL-EBI", "version": "2026.6.19"},
+    {"vocabulary_id": "psi_ms.quantification_label", "authority": "HUPO-PSI", "version": "4.1.258"},
+    {"vocabulary_id": "psi_ms.instrument_model", "authority": "HUPO-PSI", "version": "4.1.258"},
+    {"vocabulary_id": "psi_ms.dissociation_method", "authority": "HUPO-PSI", "version": "4.1.258"},
+    {"vocabulary_id": "glio.raw_data_format", "authority": "GLIO-PROTEOGEN with HUPO-PSI mzML cross-reference", "version": "1.0.0"},
+    {"vocabulary_id": "glio.pathology_review_status", "authority": "GLIO-PROTEOGEN", "version": "1.0.0"}
+  ],
+  "unit_catalog": {
+    "system": "UCUM",
+    "system_version": "2.2",
+    "conformance_level": "closed_supported_subset_with_conversion",
+    "codes": ["%", "g", "mg", "ug", "uL", "mL", "min", "h", "d", "K", "Cel", "ug/uL", "mg/mL", "ug/mL"],
+    "bounds_policy": "Every numeric bound is expressed in the field's explicit reference_unit after deterministic affine conversion."
+  },
+  "privacy_and_identity_policy": {
+    "allowed": "Opaque, non-identifying identifiers and content digests.",
+    "prohibited": ["names", "medical-record identifiers", "contact data", "dates of birth", "free-text clinical narratives"],
+    "linkage": "Personal and clinical identity remain in separately governed upstream objects; the execution-context identity decision supplies the binding authority while this profile stores only opaque node identifiers and provenance digests."
+  },
+  "quality_reference_model": {
+    "model_file": "quality-model.json",
+    "reference_corpus_file": "quality-reference-corpus.json",
+    "development_status": "integrated_synthetic_reference_guard_not_fitted",
+    "reference_design": {
+      "data_class": "synthetic_non_clinical",
+      "factorial_clusters": ["frozen_dda", "frozen_dia", "ffpe_dda", "ffpe_dia"],
+      "profiles_per_cluster": 3,
+      "patient_records": 0,
+      "fitted_parameters": 0
+    },
+    "feature_policy": {
+      "allowed_schema_kinds": ["term", "boolean", "number"],
+      "numeric_representation": "protocol_reference_unit",
+      "excluded": ["identity keys", "identifiers", "text", "timestamps", "context pointers", "artifact references", "digests", "raw-data pointers"],
+      "missingness": "The engine may score a view only when observed features meet minimum_view_coverage; unresolved values are never imputed."
+    },
+    "integrated_guard": {
+      "algorithm": "deterministic per-view nearest medoid with Gower distance and consensus abstention",
+      "candidate_input": "A mapping from declared feature paths to already validated scalar values converted to protocol reference units.",
+      "result": "An aggregate in-domain, out-of-domain, indeterminate, unavailable, or not-applicable status with consensus, mean distance, evaluated-view count, versioned artifact digests, and a bounded reason code; cluster labels, neighbors, feature values, and per-view votes remain internal.",
+      "decision_authority": "The guard runs only after deterministic metadata conformance. It may preserve conformance or downgrade it to quarantine with human review; it can never promote, cure, or override a nonconformant, quarantined, or review-required result.",
+      "claim_ceiling": "Reference-domain proximity to a synthetic corpus is not a trained or calibrated model result, biological-quality claim, assay-fitness claim, diagnosis, prognosis, or clinical recommendation."
+    }
+  },
+  "output_boundary": {
+    "emits_only": ["versioned protocol schema", "conformance profile"],
+    "prohibited": ["kinase state", "generic omics fusion", "treatment recommendation", "diagnosis", "missing-to-negative inference"]
+  },
+  "agent_extension_rules": [
+    "A new accepted term requires a versioned vocabulary change, source review, conformance fixture, and explicit support-domain decision.",
+    "A new optional field must be listed in conditional_fields with executable compatibility rules; undocumented optionality is prohibited.",
+    "A new unit must be supported by the pinned UCUM implementation and must declare a reference unit before profile adoption.",
+    "External references remain immutable pointers; agents must not copy, relabel, fuse, or infer their scientific content in M01-01.",
+    "Clinical use, personal data, direct treatment claims, and kinase-state ownership require a different authorized module boundary."
+  ]
+}

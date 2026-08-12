@@ -1,0 +1,185 @@
+{
+  "operation": "register",
+  "context": {
+    "request_id": "request.synthetic.register.001",
+    "actor_id": "actor.synthetic",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "references": {
+      "approved_configuration": {
+        "decision_id": "configuration.synthetic",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "configuration.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "media_type": "application/json"
+        }
+      },
+      "identity_lineage": {
+        "decision_id": "identity.synthetic",
+        "state": "resolved",
+        "policy_version": "1.0.0",
+        "binding_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "evidence": {
+          "artifact_id": "identity.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "media_type": "application/json"
+        }
+      },
+      "provenance": {
+        "decision_id": "provenance.synthetic",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "provenance.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "media_type": "application/json"
+        }
+      },
+      "consent": {
+        "decision_id": "consent.synthetic",
+        "state": "granted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "consent_evidence.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "media_type": "application/json"
+        }
+      },
+      "quality": {
+        "decision_id": "quality.synthetic",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "quality.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "media_type": "application/json"
+        }
+      },
+      "support": {
+        "decision_id": "support.synthetic",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "support.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "media_type": "application/json"
+        }
+      },
+      "intended_use": {
+        "decision_id": "intended_use.synthetic",
+        "state": "accepted",
+        "policy_version": "1.0.0",
+        "evidence": {
+          "artifact_id": "intended_use.synthetic",
+          "version": "1.0.0",
+          "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "media_type": "application/json"
+        }
+      }
+    }
+  },
+  "protocol_schema": {
+    "schema_id": "protocol.synthetic",
+    "version": "1.0.0",
+    "title": "Synthetic protocol",
+    "description": "Non-clinical protocol used only for deterministic tests.",
+    "assay_versions": ["1.0.0"],
+    "specimen_versions": ["1.0.0"],
+    "fields": [
+      {
+        "path": "/sample/key",
+        "title": "Synthetic key",
+        "description": "Opaque synthetic identity key.",
+        "value_kind": "identifier",
+        "required": true,
+        "cardinality": {"minimum": 1, "maximum": 1},
+        "identity_key": true,
+        "pattern": "^SYN-[0-9]{3}$"
+      },
+      {
+        "path": "/assay/mode",
+        "title": "Synthetic mode",
+        "description": "Controlled synthetic processing mode.",
+        "value_kind": "term",
+        "required": true,
+        "cardinality": {"minimum": 1, "maximum": 1},
+        "vocabulary_id": "vocabulary.synthetic_mode"
+      },
+      {
+        "path": "/sample/input_mass",
+        "title": "Synthetic input mass",
+        "description": "Artificial quantity for validation tests.",
+        "value_kind": "number",
+        "required": false,
+        "cardinality": {"minimum": 0, "maximum": 1},
+        "unit_dimension": "mass",
+        "allowed_units": ["ug"],
+        "reference_unit": "ug",
+        "numeric_bounds": {"minimum": 0.1, "maximum": 10000.0}
+      },
+      {
+        "path": "/sample/batch",
+        "title": "Synthetic batch",
+        "description": "Artificial batch marker with explicit unresolved states.",
+        "value_kind": "identifier",
+        "required": false,
+        "cardinality": {"minimum": 0, "maximum": 1},
+        "allowed_missingness": ["unknown", "redacted"],
+        "pattern": "^BATCH-[A-Z]{2}$"
+      }
+    ],
+    "vocabularies": [
+      {
+        "vocabulary_id": "vocabulary.synthetic_mode",
+        "version": "1.0.0",
+        "terms": [
+          {
+            "code": "direct",
+            "label": "Direct",
+            "definition": "Synthetic direct mode."
+          },
+          {
+            "code": "enriched",
+            "label": "Enriched",
+            "definition": "Synthetic enriched mode."
+          }
+        ]
+      }
+    ],
+    "units": [
+      {
+        "code": "ug",
+        "system": "UCUM",
+        "system_version": "2.2",
+        "dimension": "mass",
+        "definition": "Synthetic microgram-scale test unit."
+      }
+    ],
+    "compatibility_rules": [
+      {
+        "rule_id": "rule.synthetic.enriched_input",
+        "description": "Synthetic enriched mode requires an input quantity.",
+        "when_all": [
+          {"path": "/assay/mode", "operator": "equals", "values": ["enriched"]}
+        ],
+        "require_all": [
+          {"path": "/sample/input_mass", "operator": "present", "values": []}
+        ],
+        "on_failure": "quarantine"
+      }
+    ],
+    "limitations": [
+      {
+        "code": "synthetic_only",
+        "statement": "This fixture contains no clinical observations and supports testing only."
+      }
+    ]
+  }
+}

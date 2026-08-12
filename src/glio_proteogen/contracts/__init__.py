@@ -1,0 +1,1 @@
+"""Versioned public module contracts."""

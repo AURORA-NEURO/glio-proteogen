@@ -1,0 +1,786 @@
+{
+  "schema_id": "glio_preanalytic_proteomics",
+  "version": "1.0.0",
+  "title": "GLIO preanalytic proteomics protocol profile",
+  "description": "Research-use-only metadata profile for traceable human brain tissue proteomics preanalytics; it validates declared metadata and never infers biology, identity, consent, diagnosis, kinase state, or treatment.",
+  "assay_versions": [
+    "1.0.0"
+  ],
+  "specimen_versions": [
+    "1.0.0"
+  ],
+  "fields": [
+    {
+      "path": "/identity/analytical_sample_id",
+      "title": "Analytical sample identifier",
+      "description": "Opaque identifier for the exact analytical sample; it must not encode a name, clinical identifier, diagnosis, location, or treatment.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "identity_key": true
+    },
+    {
+      "path": "/identity/source_specimen_id",
+      "title": "Source specimen identifier",
+      "description": "Opaque identifier for the immediate source specimen from which the analytical sample was derived.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/identity/lineage_node_id",
+      "title": "Lineage node identifier",
+      "description": "Opaque node identifier resolved inside the separately governed identity-lineage artifact supplied in execution context.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/identity/lineage_artifact_digest",
+      "title": "Lineage artifact digest",
+      "description": "SHA-256 digest of the separately governed identity-lineage artifact retained as provenance; execution-context binding is authoritative.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/context/treatment_history/reference_id",
+      "title": "Treatment history reference identifier",
+      "description": "Opaque reference to an upstream treatment-history object; treatment facts remain outside this module and are never inferred here.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"]
+    },
+    {
+      "path": "/context/treatment_history/reference_digest",
+      "title": "Treatment history reference digest",
+      "description": "SHA-256 digest of the referenced treatment-history object.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/context/genomic_context/reference_id",
+      "title": "Genomic context reference identifier",
+      "description": "Opaque reference to an upstream genomic-context object; variants and genomic conclusions remain owned upstream.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"]
+    },
+    {
+      "path": "/context/genomic_context/reference_digest",
+      "title": "Genomic context reference digest",
+      "description": "SHA-256 digest of the referenced genomic-context object.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/context/transcriptome_context/reference_id",
+      "title": "Transcriptome context reference identifier",
+      "description": "Opaque reference to upstream transcriptome evidence retained for later discordance analysis without fusion in this module.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"]
+    },
+    {
+      "path": "/context/transcriptome_context/reference_digest",
+      "title": "Transcriptome context reference digest",
+      "description": "SHA-256 digest of the referenced transcriptome-context object.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/context/ptm_annotations/reference_id",
+      "title": "PTM annotation reference identifier",
+      "description": "Opaque reference to upstream PTM annotations; this profile neither localizes nor scores modifications.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"]
+    },
+    {
+      "path": "/context/ptm_annotations/reference_digest",
+      "title": "PTM annotation reference digest",
+      "description": "SHA-256 digest of the referenced PTM-annotation object.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted", "unsupported"],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/specimen/organism",
+      "title": "Specimen organism",
+      "description": "Declared organism for the source specimen using the profile's pinned NCBI Taxonomy subset.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.organism"
+    },
+    {
+      "path": "/specimen/organism_part",
+      "title": "Specimen organism part",
+      "description": "Declared anatomical origin using the profile's pinned UBERON subset.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.organism_part"
+    },
+    {
+      "path": "/specimen/material_type",
+      "title": "Specimen material type",
+      "description": "Physical material class presented to the preanalytic workflow.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.material_type"
+    },
+    {
+      "path": "/specimen/collection_method",
+      "title": "Specimen collection method",
+      "description": "Procedure class by which the tissue specimen was collected; procedural details remain in the lineage artifact.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.collection_method"
+    },
+    {
+      "path": "/specimen/preservation",
+      "title": "Specimen preservation",
+      "description": "Preservation class controlling the fixation compatibility rules in this profile.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.preservation"
+    },
+    {
+      "path": "/specimen/biological_replicate",
+      "title": "Biological replicate index",
+      "description": "One-based replicate index within the declared experimental condition; pooling requires a distinct lineage node rather than a sentinel integer.",
+      "value_kind": "integer",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "numeric_bounds": {"minimum": 1, "maximum": 100000}
+    },
+    {
+      "path": "/specimen/warm_ischemia_time",
+      "title": "Warm ischemia time",
+      "description": "Elapsed warm-ischemia interval reported by the source process; bounds are expressed in the reference unit minute.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["min", "h"],
+      "reference_unit": "min",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": 0, "maximum": 1440}
+    },
+    {
+      "path": "/specimen/cold_ischemia_time",
+      "title": "Cold ischemia time",
+      "description": "Elapsed cold-ischemia interval before stabilization; bounds are expressed in the reference unit minute.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["min", "h"],
+      "reference_unit": "min",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": 0, "maximum": 10080}
+    },
+    {
+      "path": "/specimen/stabilization_timestamp",
+      "title": "Specimen stabilization timestamp",
+      "description": "Offset-aware timestamp at which freezing or fixation began; time-zone omission is prohibited.",
+      "value_kind": "timestamp",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "allowed_missingness": ["unknown", "redacted"]
+    },
+    {
+      "path": "/specimen/storage_temperature",
+      "title": "Specimen storage temperature",
+      "description": "Declared storage temperature; bounds are expressed in the reference unit degree Celsius and do not assert stability.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "temperature",
+      "allowed_units": ["Cel", "K"],
+      "reference_unit": "Cel",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": -196, "maximum": 25}
+    },
+    {
+      "path": "/specimen/storage_duration",
+      "title": "Specimen storage duration",
+      "description": "Elapsed duration from stabilization to analytical preparation; bounds are expressed in the reference unit hour.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["h", "d"],
+      "reference_unit": "h",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": 0, "maximum": 175200}
+    },
+    {
+      "path": "/specimen/fixative",
+      "title": "Specimen fixative",
+      "description": "Conditionally required for FFPE tissue and prohibited for frozen tissue in profile version 1.0.0.",
+      "value_kind": "term",
+      "required": false,
+      "cardinality": {"minimum": 0, "maximum": 1},
+      "vocabulary_id": "glio.fixative",
+      "allowed_missingness": ["unknown"]
+    },
+    {
+      "path": "/specimen/fixation_duration",
+      "title": "Specimen fixation duration",
+      "description": "Conditionally required for FFPE tissue and prohibited for frozen tissue; bounds are expressed in the reference unit hour.",
+      "value_kind": "number",
+      "required": false,
+      "cardinality": {"minimum": 0, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["h", "d"],
+      "reference_unit": "h",
+      "allowed_missingness": ["unknown"],
+      "numeric_bounds": {"minimum": 0.5, "maximum": 336}
+    },
+    {
+      "path": "/preparation/protocol_reference_id",
+      "title": "Sample-preparation protocol reference identifier",
+      "description": "Opaque reference to the immutable, approved sample-preparation procedure used for this analytical sample.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/preparation/protocol_digest",
+      "title": "Sample-preparation protocol digest",
+      "description": "SHA-256 digest of the referenced sample-preparation procedure.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/preparation/input_tissue_mass",
+      "title": "Input tissue mass",
+      "description": "Tissue mass entering extraction; bounds are expressed in the reference unit milligram.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "mass",
+      "allowed_units": ["ug", "mg", "g"],
+      "reference_unit": "mg",
+      "allowed_missingness": ["unknown"],
+      "numeric_bounds": {"minimum": 0.01, "maximum": 10000}
+    },
+    {
+      "path": "/preparation/extraction_method",
+      "title": "Protein extraction method",
+      "description": "Controlled extraction workflow class; complete reagent and equipment details remain in the referenced protocol.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.extraction_method"
+    },
+    {
+      "path": "/preparation/reduction_reagent",
+      "title": "Reduction reagent",
+      "description": "Controlled reduction reagent used before proteolysis.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.reduction_reagent"
+    },
+    {
+      "path": "/preparation/alkylation_reagent",
+      "title": "Alkylation reagent",
+      "description": "Controlled alkylation reagent used before proteolysis.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.alkylation_reagent"
+    },
+    {
+      "path": "/preparation/cleavage_agent",
+      "title": "Cleavage agent",
+      "description": "Proteolytic cleavage agent selected from the pinned HUPO-PSI MS controlled-vocabulary subset.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "psi_ms.cleavage_agent"
+    },
+    {
+      "path": "/preparation/digestion_duration",
+      "title": "Digestion duration",
+      "description": "Elapsed proteolysis duration; bounds are expressed in the reference unit hour.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["min", "h"],
+      "reference_unit": "h",
+      "numeric_bounds": {"minimum": 0.1, "maximum": 72}
+    },
+    {
+      "path": "/preparation/digestion_temperature",
+      "title": "Digestion temperature",
+      "description": "Declared digestion temperature; bounds are expressed in the reference unit degree Celsius.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "temperature",
+      "allowed_units": ["Cel", "K"],
+      "reference_unit": "Cel",
+      "numeric_bounds": {"minimum": 0, "maximum": 70}
+    },
+    {
+      "path": "/preparation/fractionation_method",
+      "title": "Fractionation method",
+      "description": "Controlled peptide fractionation method; the value none requires fraction identifier 1.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.fractionation_method"
+    },
+    {
+      "path": "/acquisition/assay_id",
+      "title": "Mass-spectrometry assay identifier",
+      "description": "Opaque identifier for the exact acquisition run represented by the raw-data artifact.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/acquisition/method",
+      "title": "Proteomics acquisition method",
+      "description": "Acquisition strategy selected from the pinned PRIDE ontology subset supported for discovery proteomics.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "pride.acquisition_method"
+    },
+    {
+      "path": "/acquisition/label",
+      "title": "Quantification label",
+      "description": "Quantification label from the pinned HUPO-PSI MS subset; version 1.0.0 supports label-free samples only.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "psi_ms.quantification_label"
+    },
+    {
+      "path": "/acquisition/instrument_model",
+      "title": "Mass-spectrometer model",
+      "description": "Instrument model selected from the explicitly supported HUPO-PSI MS subset.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "psi_ms.instrument_model"
+    },
+    {
+      "path": "/acquisition/dissociation_method",
+      "title": "Dissociation method",
+      "description": "MS/MS dissociation method selected from the pinned HUPO-PSI MS subset.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "psi_ms.dissociation_method"
+    },
+    {
+      "path": "/acquisition/raw_data_reference_id",
+      "title": "Raw-data artifact reference identifier",
+      "description": "Opaque artifact identifier for the canonical acquisition file or bundle; no file content is copied into this profile.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/acquisition/raw_data_digest",
+      "title": "Raw-data artifact digest",
+      "description": "SHA-256 digest of the canonical acquisition file or bundle.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/acquisition/raw_data_format",
+      "title": "Raw-data artifact format",
+      "description": "Declared canonical data representation; conformance does not parse or verify the referenced file.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.raw_data_format"
+    },
+    {
+      "path": "/acquisition/fraction_identifier",
+      "title": "Fraction identifier",
+      "description": "One-based fraction index; use 1 when the preparation is not fractionated.",
+      "value_kind": "integer",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "numeric_bounds": {"minimum": 1, "maximum": 1000}
+    },
+    {
+      "path": "/acquisition/technical_replicate",
+      "title": "Technical replicate index",
+      "description": "One-based index for repeated acquisitions of the same prepared sample; use 1 when no repeat was performed.",
+      "value_kind": "integer",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "numeric_bounds": {"minimum": 1, "maximum": 100000}
+    },
+    {
+      "path": "/acquisition/injection_volume",
+      "title": "Injection volume",
+      "description": "Volume injected into the LC-MS system; bounds are expressed in the reference unit microlitre.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "volume",
+      "allowed_units": ["uL", "mL"],
+      "reference_unit": "uL",
+      "numeric_bounds": {"minimum": 0.01, "maximum": 1000}
+    },
+    {
+      "path": "/acquisition/lc_gradient_duration",
+      "title": "LC gradient duration",
+      "description": "Programmed liquid-chromatography gradient duration; bounds are expressed in the reference unit minute.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "time",
+      "allowed_units": ["min", "h"],
+      "reference_unit": "min",
+      "numeric_bounds": {"minimum": 1, "maximum": 1440}
+    },
+    {
+      "path": "/acquisition/column_temperature",
+      "title": "LC column temperature",
+      "description": "Declared chromatographic column temperature; bounds are expressed in the reference unit degree Celsius.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "temperature",
+      "allowed_units": ["Cel", "K"],
+      "reference_unit": "Cel",
+      "numeric_bounds": {"minimum": 0, "maximum": 100}
+    },
+    {
+      "path": "/quality/report_reference_id",
+      "title": "Preanalytic quality report reference identifier",
+      "description": "Opaque reference to the separately governed pathology and laboratory quality report.",
+      "value_kind": "identifier",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1}
+    },
+    {
+      "path": "/quality/report_digest",
+      "title": "Preanalytic quality report digest",
+      "description": "SHA-256 digest of the referenced preanalytic quality report.",
+      "value_kind": "text",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    {
+      "path": "/quality/pathology_review_status",
+      "title": "Pathology review status",
+      "description": "Declared review state for the solid-tissue quality report; any state other than completed requires human review.",
+      "value_kind": "term",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "vocabulary_id": "glio.pathology_review_status"
+    },
+    {
+      "path": "/quality/tumor_cellularity",
+      "title": "Tumor cellularity",
+      "description": "Conditionally required when pathology review is completed; numeric percentage points reported by the referenced quality process.",
+      "value_kind": "number",
+      "required": false,
+      "cardinality": {"minimum": 0, "maximum": 1},
+      "unit_dimension": "dimensionless",
+      "allowed_units": ["%"],
+      "reference_unit": "%",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": 0, "maximum": 100}
+    },
+    {
+      "path": "/quality/necrosis",
+      "title": "Necrosis",
+      "description": "Conditionally required when pathology review is completed; numeric percentage points reported by the referenced quality process.",
+      "value_kind": "number",
+      "required": false,
+      "cardinality": {"minimum": 0, "maximum": 1},
+      "unit_dimension": "dimensionless",
+      "allowed_units": ["%"],
+      "reference_unit": "%",
+      "allowed_missingness": ["unknown", "redacted"],
+      "numeric_bounds": {"minimum": 0, "maximum": 100}
+    },
+    {
+      "path": "/quality/extracted_protein_yield",
+      "title": "Extracted protein yield",
+      "description": "Total extracted protein mass reported by the preparation process; bounds are expressed in the reference unit microgram.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "mass",
+      "allowed_units": ["ug", "mg"],
+      "reference_unit": "ug",
+      "allowed_missingness": ["unknown"],
+      "numeric_bounds": {"minimum": 0.01, "maximum": 100000}
+    },
+    {
+      "path": "/quality/protein_concentration",
+      "title": "Extracted protein concentration",
+      "description": "Protein concentration reported by the preparation process; bounds are expressed in the reference unit microgram per microlitre.",
+      "value_kind": "number",
+      "required": true,
+      "cardinality": {"minimum": 1, "maximum": 1},
+      "unit_dimension": "mass_concentration",
+      "allowed_units": ["ug/uL", "mg/mL", "ug/mL"],
+      "reference_unit": "ug/uL",
+      "allowed_missingness": ["unknown"],
+      "numeric_bounds": {"minimum": 0.001, "maximum": 100}
+    }
+  ],
+  "vocabularies": [
+    {
+      "vocabulary_id": "glio.organism",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "NCBITaxon:9606", "label": "Homo sapiens", "definition": "Human organism term pinned from NCBI Taxonomy for this research profile."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.organism_part",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "UBERON:0000955", "label": "brain", "definition": "Brain anatomical structure term pinned from UBERON for this research profile."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.material_type",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "solid_tissue", "label": "Solid tissue", "definition": "A physically traceable solid-tissue specimen or derived analytical portion."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.collection_method",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "surgical_resection", "label": "Surgical resection", "definition": "Tissue collected during a surgical resection procedure."},
+        {"code": "stereotactic_biopsy", "label": "Stereotactic biopsy", "definition": "Tissue collected by a stereotactically guided biopsy procedure."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.preservation",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "frozen_tissue", "label": "Frozen tissue", "definition": "Tissue stabilized by freezing without fixation in this profile."},
+        {"code": "ffpe_tissue", "label": "Formalin-fixed paraffin-embedded tissue", "definition": "Tissue fixed in neutral buffered formalin and embedded in paraffin."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.fixative",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "neutral_buffered_formalin", "label": "Neutral buffered formalin", "definition": "Neutral buffered formalin used before paraffin embedding."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.extraction_method",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "urea_lysis", "label": "Urea lysis", "definition": "Protein extraction using a urea-based denaturing workflow."},
+        {"code": "sds_s_trap", "label": "SDS S-Trap", "definition": "SDS extraction followed by suspension-trapping cleanup and digestion."},
+        {"code": "sp3", "label": "SP3", "definition": "Single-pot solid-phase-enhanced sample preparation."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.reduction_reagent",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "dtt", "label": "Dithiothreitol", "definition": "Dithiothreitol used as a disulfide-reduction reagent."},
+        {"code": "tcep", "label": "TCEP", "definition": "Tris(2-carboxyethyl)phosphine used as a disulfide-reduction reagent."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.alkylation_reagent",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "iodoacetamide", "label": "Iodoacetamide", "definition": "Iodoacetamide used for cysteine alkylation."},
+        {"code": "chloroacetamide", "label": "Chloroacetamide", "definition": "Chloroacetamide used for cysteine alkylation."}
+      ]
+    },
+    {
+      "vocabulary_id": "psi_ms.cleavage_agent",
+      "version": "4.1.258",
+      "terms": [
+        {"code": "MS:1001251", "label": "Trypsin", "definition": "Trypsin cleavage-agent term from the HUPO-PSI MS controlled vocabulary."},
+        {"code": "MS:1001309", "label": "Lys-C", "definition": "Lys-C cleavage-agent term from the HUPO-PSI MS controlled vocabulary."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.fractionation_method",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "none", "label": "No fractionation", "definition": "No offline peptide fractionation was performed."},
+        {"code": "high_ph_reversed_phase", "label": "High-pH reversed-phase fractionation", "definition": "Offline high-pH reversed-phase peptide fractionation."},
+        {"code": "strong_cation_exchange", "label": "Strong cation-exchange fractionation", "definition": "Offline strong cation-exchange peptide fractionation."}
+      ]
+    },
+    {
+      "vocabulary_id": "pride.acquisition_method",
+      "version": "2026.6.19",
+      "terms": [
+        {"code": "PRIDE:0000627", "label": "Data-dependent acquisition", "definition": "Data-dependent acquisition term from the PRIDE ontology."},
+        {"code": "PRIDE:0000450", "label": "Data-independent acquisition", "definition": "Data-independent acquisition term from the PRIDE ontology."}
+      ]
+    },
+    {
+      "vocabulary_id": "psi_ms.quantification_label",
+      "version": "4.1.258",
+      "terms": [
+        {"code": "MS:1002038", "label": "label free sample", "definition": "Label-free sample term from the HUPO-PSI MS controlled vocabulary."}
+      ]
+    },
+    {
+      "vocabulary_id": "psi_ms.instrument_model",
+      "version": "4.1.258",
+      "terms": [
+        {"code": "MS:1002523", "label": "Q Exactive HF", "definition": "Q Exactive HF instrument-model term from the HUPO-PSI MS controlled vocabulary."},
+        {"code": "MS:1002732", "label": "Orbitrap Fusion Lumos", "definition": "Orbitrap Fusion Lumos instrument-model term from the HUPO-PSI MS controlled vocabulary."},
+        {"code": "MS:1003005", "label": "timsTOF Pro", "definition": "timsTOF Pro instrument-model term from the HUPO-PSI MS controlled vocabulary."}
+      ]
+    },
+    {
+      "vocabulary_id": "psi_ms.dissociation_method",
+      "version": "4.1.258",
+      "terms": [
+        {"code": "MS:1000422", "label": "beam-type collision-induced dissociation", "definition": "Beam-type collision-induced dissociation, commonly called HCD, from the HUPO-PSI MS controlled vocabulary."},
+        {"code": "MS:1000133", "label": "collision-induced dissociation", "definition": "Collision-induced dissociation term from the HUPO-PSI MS controlled vocabulary."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.raw_data_format",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "vendor_native", "label": "Vendor-native acquisition data", "definition": "Canonical vendor-native acquisition file or logically complete bundle."},
+        {"code": "mzml_1_1_1", "label": "mzML 1.1.1", "definition": "HUPO-PSI mzML version 1.1.1 representation of mass-spectrometry data."}
+      ]
+    },
+    {
+      "vocabulary_id": "glio.pathology_review_status",
+      "version": "1.0.0",
+      "terms": [
+        {"code": "completed", "label": "Completed", "definition": "A qualified review was completed and its report is referenced."},
+        {"code": "review_required", "label": "Review required", "definition": "Review is explicitly pending or a discrepancy requires review."},
+        {"code": "not_performed", "label": "Not performed", "definition": "No qualified pathology review was performed; human review is required before promotion."}
+      ]
+    }
+  ],
+  "units": [
+    {"code": "%", "system": "UCUM", "system_version": "2.2", "dimension": "dimensionless", "definition": "UCUM percent; numeric inputs are percentage points and are converted against reference unit percent."},
+    {"code": "g", "system": "UCUM", "system_version": "2.2", "dimension": "mass", "definition": "UCUM gram."},
+    {"code": "mg", "system": "UCUM", "system_version": "2.2", "dimension": "mass", "definition": "UCUM milligram."},
+    {"code": "ug", "system": "UCUM", "system_version": "2.2", "dimension": "mass", "definition": "UCUM microgram using the ASCII u prefix."},
+    {"code": "uL", "system": "UCUM", "system_version": "2.2", "dimension": "volume", "definition": "UCUM microlitre using the ASCII u prefix."},
+    {"code": "mL", "system": "UCUM", "system_version": "2.2", "dimension": "volume", "definition": "UCUM millilitre."},
+    {"code": "min", "system": "UCUM", "system_version": "2.2", "dimension": "time", "definition": "UCUM minute."},
+    {"code": "h", "system": "UCUM", "system_version": "2.2", "dimension": "time", "definition": "UCUM hour."},
+    {"code": "d", "system": "UCUM", "system_version": "2.2", "dimension": "time", "definition": "UCUM day."},
+    {"code": "K", "system": "UCUM", "system_version": "2.2", "dimension": "temperature", "definition": "UCUM kelvin."},
+    {"code": "Cel", "system": "UCUM", "system_version": "2.2", "dimension": "temperature", "definition": "UCUM degree Celsius with affine conversion semantics."},
+    {"code": "ug/uL", "system": "UCUM", "system_version": "2.2", "dimension": "mass_concentration", "definition": "UCUM microgram per microlitre."},
+    {"code": "mg/mL", "system": "UCUM", "system_version": "2.2", "dimension": "mass_concentration", "definition": "UCUM milligram per millilitre."},
+    {"code": "ug/mL", "system": "UCUM", "system_version": "2.2", "dimension": "mass_concentration", "definition": "UCUM microgram per millilitre."}
+  ],
+  "compatibility_rules": [
+    {
+      "rule_id": "ffpe_requires_fixative",
+      "description": "FFPE tissue requires an explicit supported fixative.",
+      "when_all": [{"path": "/specimen/preservation", "operator": "equals", "values": ["ffpe_tissue"]}],
+      "require_all": [{"path": "/specimen/fixative", "operator": "present", "values": []}],
+      "on_failure": "quarantine"
+    },
+    {
+      "rule_id": "ffpe_requires_fixation_duration",
+      "description": "FFPE tissue requires an explicit fixation duration.",
+      "when_all": [{"path": "/specimen/preservation", "operator": "equals", "values": ["ffpe_tissue"]}],
+      "require_all": [{"path": "/specimen/fixation_duration", "operator": "present", "values": []}],
+      "on_failure": "quarantine"
+    },
+    {
+      "rule_id": "frozen_prohibits_fixative",
+      "description": "Frozen-tissue records cannot declare a fixative under this profile.",
+      "when_all": [{"path": "/specimen/preservation", "operator": "equals", "values": ["frozen_tissue"]}],
+      "require_all": [{"path": "/specimen/fixative", "operator": "absent", "values": []}],
+      "on_failure": "reject"
+    },
+    {
+      "rule_id": "frozen_prohibits_fixation_duration",
+      "description": "Frozen-tissue records cannot declare a fixation duration under this profile.",
+      "when_all": [{"path": "/specimen/preservation", "operator": "equals", "values": ["frozen_tissue"]}],
+      "require_all": [{"path": "/specimen/fixation_duration", "operator": "absent", "values": []}],
+      "on_failure": "reject"
+    },
+    {
+      "rule_id": "pathology_review_must_be_complete",
+      "description": "A non-completed pathology-review state is retained and escalated to human review.",
+      "when_all": [{"path": "/quality/pathology_review_status", "operator": "present", "values": []}],
+      "require_all": [{"path": "/quality/pathology_review_status", "operator": "equals", "values": ["completed"]}],
+      "on_failure": "human_review"
+    },
+    {
+      "rule_id": "completed_pathology_requires_cellularity",
+      "description": "Completed pathology review requires reported tumor cellularity.",
+      "when_all": [{"path": "/quality/pathology_review_status", "operator": "equals", "values": ["completed"]}],
+      "require_all": [{"path": "/quality/tumor_cellularity", "operator": "present", "values": []}],
+      "on_failure": "quarantine"
+    },
+    {
+      "rule_id": "completed_pathology_requires_necrosis",
+      "description": "Completed pathology review requires reported necrosis.",
+      "when_all": [{"path": "/quality/pathology_review_status", "operator": "equals", "values": ["completed"]}],
+      "require_all": [{"path": "/quality/necrosis", "operator": "present", "values": []}],
+      "on_failure": "quarantine"
+    },
+    {
+      "rule_id": "unfractionated_uses_fraction_one",
+      "description": "An unfractionated preparation uses the SDRF-compatible fraction identifier 1.",
+      "when_all": [{"path": "/preparation/fractionation_method", "operator": "equals", "values": ["none"]}],
+      "require_all": [{"path": "/acquisition/fraction_identifier", "operator": "equals", "values": [1]}],
+      "on_failure": "reject"
+    }
+  ],
+  "limitations": [
+    {"code": "research_use_only", "statement": "This profile is for research metadata conformance only and is not a clinical device, diagnosis, prognosis, or medical record."},
+    {"code": "declared_metadata_only", "statement": "Conformance establishes that declared metadata satisfies this profile; it does not verify laboratory truth, specimen quality, or referenced file content."},
+    {"code": "no_kinase_state", "statement": "This module does not estimate, own, or relabel kinase activity or kinase state."},
+    {"code": "no_treatment_recommendation", "statement": "Treatment history is represented only by an opaque upstream reference; no treatment recommendation or response inference is produced."},
+    {"code": "no_generic_omics_fusion", "statement": "Genomic, transcriptomic, and PTM objects remain separate upstream references; this module performs no cross-omics fusion."},
+    {"code": "brain_tissue_scope", "statement": "Version 1.0.0 supports human brain solid tissue only; fluids, cultured models, single cells, and non-human specimens are outside support."},
+    {"code": "bottom_up_ms_scope", "statement": "Version 1.0.0 supports label-free bottom-up DDA or DIA using the explicitly enumerated instruments, cleavage agents, and dissociation methods only."},
+    {"code": "controlled_subset_only", "statement": "External ontologies are pinned to reviewed subsets; live ontology membership and newly added terms are not accepted implicitly."},
+    {"code": "opaque_identity_only", "statement": "Identifiers must be opaque and non-identifying; direct identifiers and clinical narratives are outside this artifact."},
+    {"code": "no_missing_to_negative", "statement": "Unknown, redacted, unsupported, or absent evidence remains unresolved and cannot be interpreted as a negative biological finding."}
+  ]
+}

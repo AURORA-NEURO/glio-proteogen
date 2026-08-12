@@ -1,0 +1,19 @@
+{
+  "request_id": "request.synthetic.naive_time",
+  "actor_id": "actor.synthetic",
+  "occurred_at": "2026-01-01T00:00:00",
+  "references": {
+    "approved_configuration": {"decision_id": "configuration.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "configuration.synthetic", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}},
+    "identity_lineage": {"decision_id": "identity.synthetic", "state": "resolved", "policy_version": "1.0.0", "binding_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "evidence": {"artifact_id": "identity.synthetic", "version": "1.0.0", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "media_type": "application/json"}},
+    "provenance": {"decision_id": "provenance.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "provenance.synthetic", "version": "1.0.0", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "media_type": "application/json"}},
+    "consent": {
+      "decision_id": "consent.synthetic",
+      "state": "granted",
+      "policy_version": "1.0.0",
+      "evidence": {"artifact_id": "consent_evidence.synthetic", "version": "1.0.0", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "media_type": "application/json"}
+    },
+    "quality": {"decision_id": "quality.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "quality.synthetic", "version": "1.0.0", "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "media_type": "application/json"}},
+    "support": {"decision_id": "support.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "support.synthetic", "version": "1.0.0", "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "media_type": "application/json"}},
+    "intended_use": {"decision_id": "intended_use.synthetic", "state": "accepted", "policy_version": "1.0.0", "evidence": {"artifact_id": "intended_use.synthetic", "version": "1.0.0", "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "media_type": "application/json"}}
+  }
+}

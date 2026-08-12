@@ -1,0 +1,9 @@
+{
+  "document_id": "document.synthetic.extra",
+  "schema_id": "protocol.synthetic",
+  "schema_version": "1.0.0",
+  "assay_version": "1.0.0",
+  "specimen_version": "1.0.0",
+  "entries": [],
+  "unexpected": "must not be ignored"
+}
