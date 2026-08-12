@@ -20,6 +20,7 @@ from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.service import 
     RawIngestionInputErrorCode,
     RawInputSource,
     preflight_raw_ingestion_authorization,
+    reconcile_raw_input_admission,
 )
 
 __all__ = [
@@ -38,4 +39,5 @@ __all__ = [
     "ValidatedM0103Request",
     "parse_raw_input",
     "preflight_raw_ingestion_authorization",
+    "reconcile_raw_input_admission",
 ]

@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m01_03 import (
     DiagnosticSeverity,
     IngestRawInputsRequest,
     ParseDiagnostic,
+    RawIngestionPolicy,
     RawIngestionResult,
     RawInputDisposition,
     RawSourceDescriptor,
@@ -202,7 +203,7 @@ class M0103Service:
             limits=limits,
             registry=self._registry,
         )
-        return _reconcile_admission(parsed, source, request)
+        return reconcile_raw_input_admission(parsed, source, request.policy)
 
 
 def preflight_raw_ingestion_authorization(request: object) -> None:
@@ -268,12 +269,14 @@ def _validated_filename(filename: object) -> str:
     return filename
 
 
-def _reconcile_admission(
+def reconcile_raw_input_admission(
     parsed: ValidatedRawInputDescriptor,
     declared: RawSourceDescriptor,
-    request: IngestRawInputsRequest,
+    policy: RawIngestionPolicy,
 ) -> ValidatedRawInputDescriptor:
-    admission = _admission_diagnostics(parsed, declared, request)
+    """Apply one M01-03 declaration/policy to a structurally parsed descriptor."""
+
+    admission = _admission_diagnostics(parsed, declared, policy)
     if not admission:
         return parsed
 
@@ -285,7 +288,7 @@ def _reconcile_admission(
     else:
         diagnostics = (*parsed.diagnostics, *admission)
         disposition = parsed.disposition
-    diagnostics = diagnostics[: request.policy.max_diagnostics_per_source]
+    diagnostics = diagnostics[: policy.max_diagnostics_per_source]
     return _RAW_INPUT_ADAPTER.validate_python(
         {
             **parsed.model_dump(mode="python"),
@@ -300,14 +303,14 @@ def _reconcile_admission(
 def _admission_diagnostics(
     parsed: ValidatedRawInputDescriptor,
     declared: RawSourceDescriptor,
-    request: IngestRawInputsRequest,
+    policy: RawIngestionPolicy,
 ) -> tuple[ParseDiagnostic, ...]:
     codes: list[str] = []
     detected = parsed.detected
     if detected is not None:
-        if detected.format not in request.policy.allowed_formats:
+        if detected.format not in policy.allowed_formats:
             codes.append("detected_format_disabled")
-        if detected.compression not in request.policy.allowed_compressions:
+        if detected.compression not in policy.allowed_compressions:
             codes.append("detected_compression_disabled")
     if parsed.source_size_bytes != declared.byte_length:
         codes.append("declared_size_mismatch")
@@ -639,4 +642,5 @@ __all__ = [
     "RawIngestionInputErrorCode",
     "RawInputSource",
     "preflight_raw_ingestion_authorization",
+    "reconcile_raw_input_admission",
 ]

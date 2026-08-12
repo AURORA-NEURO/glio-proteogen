@@ -108,6 +108,12 @@ from glio_proteogen.contracts.m02_02.v1 import (
     IdentityBindingEvaluation,
     ValidateIdentityBindingsRequest,
 )
+from glio_proteogen.contracts.m02_03.schema import (
+    ContractName as M0203ContractName,
+)
+from glio_proteogen.contracts.m02_03.schema import (
+    contract_json_schema as m0203_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -250,6 +256,10 @@ def _identification_contract_schema(name: M0201ContractName) -> dict[str, object
 
 def _identity_binding_contract_schema(name: M0202ContractName) -> dict[str, object]:
     return m0202_contract_json_schema(name)
+
+
+def _identification_raw_contract_schema(name: M0203ContractName) -> dict[str, object]:
+    return m0203_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -586,6 +596,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M02-02/{name}/schema", tags=["contracts"])
     def identity_binding_contract_schema(name: M0202ContractName) -> dict[str, object]:
         return _identity_binding_contract_schema(name)
+
+    @app.get("/v1/contracts/M02-03/{name}/schema", tags=["contracts"])
+    def identification_raw_contract_schema(name: M0203ContractName) -> dict[str, object]:
+        return _identification_raw_contract_schema(name)
 
     @app.post(
         "/v1/modules/M02-02/audit-bindings",

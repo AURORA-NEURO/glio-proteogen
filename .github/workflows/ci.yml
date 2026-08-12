@@ -54,6 +54,7 @@ jobs:
       - run: uv run python -m evals.m01_08.run --output m01_08-eval.json
       - run: uv run python -m evals.m02_01.run --output m02_01-eval.json
       - run: uv run python -m evals.m02_02.run --output m02_02-eval.json
+      - run: uv run python -m evals.m02_03.run --output m02_03-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -104,6 +105,11 @@ jobs:
         with:
           name: m02-02-eval
           path: m02_02-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-03-eval
+          path: m02_03-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -128,6 +134,7 @@ jobs:
       - run: uv run pytest benchmarks/m01_08_release_packaging.py --benchmark-only --benchmark-json=m01_08-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_01_metadata_validation.py --benchmark-only --benchmark-json=m02_01-benchmark.json --no-cov
       - run: uv run pytest benchmarks/m02_02_identity_bindings.py --benchmark-only --benchmark-json=m02_02-benchmark.json --no-cov
+      - run: uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --benchmark-json=m02_03-benchmark.json --no-cov
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -178,6 +185,11 @@ jobs:
         with:
           name: m02-02-benchmark
           path: m02_02-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m02-03-benchmark
+          path: m02_03-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

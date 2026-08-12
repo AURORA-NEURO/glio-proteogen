@@ -1,0 +1,55 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-03",
+  "contract_version": "1.0.0",
+  "claims_ceiling": "deterministic_synthetic_ingestion_regression_only",
+  "scenarios": [
+    {
+      "id": "conformant_required_bundle",
+      "mutation": "none",
+      "expected_disposition": "accepted",
+      "expected_code": null
+    },
+    {
+      "id": "gzip_magic_over_extension",
+      "mutation": "gzip_sequence_database_with_generic_filename",
+      "expected_disposition": "accepted",
+      "expected_code": "extension_content_mismatch"
+    },
+    {
+      "id": "extension_content_mismatch",
+      "mutation": "mzml_named_as_fasta",
+      "expected_disposition": "accepted",
+      "expected_code": "extension_content_mismatch"
+    },
+    {
+      "id": "checksum_mismatch_rejected",
+      "mutation": "wrong_transport_digest",
+      "expected_disposition": "rejected",
+      "expected_code": "checksum_mismatch"
+    },
+    {
+      "id": "malformed_content_quarantined",
+      "mutation": "truncated_mzml",
+      "expected_disposition": "quarantined",
+      "expected_code": "malformed_content"
+    },
+    {
+      "id": "required_role_missing",
+      "mutation": "remove_peptide_identifications",
+      "expected_disposition": "quarantined",
+      "expected_code": "required_role_missing"
+    },
+    {
+      "id": "role_format_mismatch",
+      "mutation": "assign_vcf_to_spectra_role",
+      "expected_disposition": "quarantined",
+      "expected_code": "role_format_mismatch"
+    },
+    {
+      "id": "consent_denied_preflight",
+      "mutation": "withheld_consent_and_unreadable_sources",
+      "expected_disposition": "boundary_rejected",
+      "expected_code": "authorization_denied"
+    }
+  ]
+}

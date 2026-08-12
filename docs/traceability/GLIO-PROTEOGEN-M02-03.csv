@@ -1,0 +1,12 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-03-R01,"Authorize before traversing or hashing source bytes","raw authorization preflight","consent-denied hostile mapping",G0
+M02-03-R02,"Bind the request to an exact role and byte policy","configuration digest binding","conformant scenario",G0
+M02-03-R03,"Verify exact transport checksum and declared length","shared bounded parser and source admission","checksum and length cases",G0
+M02-03-R04,"Detect format and version from content","shared M01-03 content parser","format fixture cases",G0
+M02-03-R05,"Treat filename extensions as advisory","extension diagnostic","extension mismatch case",G0
+M02-03-R06,"Reject or quarantine malformed critical content without coercion","typed parser diagnostics","malformed case",G0
+M02-03-R07,"Require every policy-declared mandatory role","bundle role validation","missing-role case",G0
+M02-03-R08,"Enforce role-specific cardinality and format","bundle role validation","role-format case",G0
+M02-03-R09,"Preserve source results and unsupported states without biological inference","nested M01-03 descriptor","all scenario results",G0
+M02-03-R10,"Emit canonical metadata-only results","closed result schema and canonical digests","order and privacy replay",G0
+M02-03-R11,"Meet a broad representative batch latency budget","bounded deterministic wrapper","public batch benchmark",G0

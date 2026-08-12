@@ -55,8 +55,11 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   This module checks opaque artifact bindings against an immutable M01-02 lineage resolution,
   detects swaps, scoped-token collisions, duplicate content, and cross-patient links, and
   preserves unresolved or unsupported bindings as abstentions without re-solving identity.
+- `GLIO-PROTEOGEN-M02-03` — deterministic identification raw-input ingestion. This module
+  reuses the shared bounded M01-03 parser, then applies explicit identification roles,
+  cardinality, and role-to-format rules without retaining bytes or interpreting biology.
 
-All ten modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All eleven modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -81,6 +84,7 @@ uv run python -m evals.m01_07.run
 uv run python -m evals.m01_08.run
 uv run python -m evals.m02_01.run
 uv run python -m evals.m02_02.run
+uv run python -m evals.m02_03.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -91,6 +95,7 @@ uv run pytest benchmarks/m01_07_support_routing.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_08_release_packaging.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_01_metadata_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_02_identity_bindings.py --benchmark-only --no-cov
+uv run pytest benchmarks/m02_03_identification_ingestion.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -99,7 +104,8 @@ evaluate, retrieve, and ledger-verification operations plus M01-02 reconcile, re
 ledger-verification operations, M01-03 bounded file inspection, M01-04 quality computation,
 M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, M01-08
 directory-backed release package build and verification, and M02-01 peptide-identification
-metadata conformance plus M02-02 immutable identity-binding audit.
+metadata conformance, M02-02 immutable identity-binding audit, and M02-03 directory-backed
+identification raw-input ingestion.
 For example:
 
 ```bash
@@ -124,6 +130,8 @@ glio-proteogen identification export-schema request
 glio-proteogen identification validate-metadata conformance-request.json
 glio-proteogen binding export-schema request
 glio-proteogen binding audit identity-binding-request.json
+glio-proteogen identification-raw export-schema request
+glio-proteogen identification-raw ingest ingestion-request.json source-directory
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -133,6 +141,8 @@ artifact detection, M01-06 harmonization, M01-07 support routing, M01-08 release
 M02-01 metadata conformance are stateless. M01-08 publishes package bytes only for a released
 result; quarantined results remain metadata-only. M02-02 is also stateless and consumes only an
 already-issued M01-02 resolution plus opaque content-addressed binding claims.
+M02-03 is also stateless: byte content stays at the library or safe directory-backed CLI
+boundary, while its result contains only digests, format metadata, and typed diagnostics.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
