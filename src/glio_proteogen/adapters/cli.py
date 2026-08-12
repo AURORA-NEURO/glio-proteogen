@@ -15,6 +15,7 @@ from glio_proteogen.adapters.api import (
     _contract_schema,
     _harmonization_contract_schema,
     _identification_contract_schema,
+    _identification_raw_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
@@ -40,6 +41,7 @@ from glio_proteogen.contracts.m01_08.v1 import (
 )
 from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
 from glio_proteogen.contracts.m02_02.v1 import ValidateIdentityBindingsRequest
+from glio_proteogen.contracts.m02_03.v1 import IngestIdentificationRawInputsRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -101,6 +103,11 @@ from glio_proteogen.modules.c02_identification_qc.m02_02_identity_lineage import
     evaluate_identity_bindings,
     preflight_identity_binding_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_03_raw_ingestion import (
+    IdentificationRawIngestionInputError,
+    M0203Service,
+    preflight_identification_raw_ingestion_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -141,6 +148,11 @@ binding_audit_app = typer.Typer(
     help="M02-02 peptide-identification identity-binding audit.",
 )
 app.add_typer(binding_audit_app, name="binding")
+identification_raw_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-03 role-aware peptide-identification raw ingestion.",
+)
+app.add_typer(identification_raw_app, name="identification-raw")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -196,6 +208,34 @@ class _ReleaseFileError(ValueError):
     @classmethod
     def output_unavailable(cls) -> _ReleaseFileError:
         return cls("package output must be a new writable file")
+
+
+class _IdentificationRawFileError(ValueError):
+    """A declared M02-03 source cannot be read through the safe directory boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _IdentificationRawFileError:
+        return cls("source directory is unavailable")
+
+    @classmethod
+    def symlink_source(cls) -> _IdentificationRawFileError:
+        return cls("raw source cannot traverse a symbolic link")
+
+    @classmethod
+    def invalid_source_name(cls) -> _IdentificationRawFileError:
+        return cls("raw source identifier is not a safe filename")
+
+    @classmethod
+    def non_regular_source(cls) -> _IdentificationRawFileError:
+        return cls("raw source must be a regular file below source directory")
+
+    @classmethod
+    def source_size_mismatch(cls) -> _IdentificationRawFileError:
+        return cls("raw source size contradicts its declaration")
+
+    @classmethod
+    def source_unavailable(cls) -> _IdentificationRawFileError:
+        return cls("raw source is unavailable")
 
 
 def _emit(value: object) -> None:
@@ -297,6 +337,60 @@ def _write_release_package(path: Path, package_bytes: bytes) -> None:
             stream.write(package_bytes)
     except OSError as error:
         raise _ReleaseFileError.output_unavailable() from error
+
+
+def _load_identification_raw_files(
+    request: IngestIdentificationRawInputsRequest,
+    source_directory: Path,
+) -> tuple[dict[str, bytes], dict[str, str]]:
+    """Map each exact source identifier to one same-named regular file below a directory."""
+
+    root = _resolve_identification_raw_directory(source_directory)
+    payloads: dict[str, bytes] = {}
+    filenames: dict[str, str] = {}
+    for item in request.sources:
+        descriptor = item.source
+        payloads[descriptor.source_id] = _read_identification_raw_source(
+            root,
+            descriptor.source_id,
+            descriptor.byte_length,
+        )
+        filenames[descriptor.source_id] = descriptor.source_id
+    return payloads, filenames
+
+
+def _resolve_identification_raw_directory(source_directory: Path) -> Path:
+    try:
+        if source_directory.is_symlink():
+            raise _IdentificationRawFileError.symlink_source()
+        root = source_directory.resolve(strict=True)
+    except OSError as error:
+        raise _IdentificationRawFileError.source_not_directory() from error
+    if not root.is_dir():
+        raise _IdentificationRawFileError.source_not_directory()
+    return root
+
+
+def _read_identification_raw_source(root: Path, source_id: str, expected_size: int) -> bytes:
+    if ":" in source_id or Path(source_id).name != source_id or source_id in {".", ".."}:
+        raise _IdentificationRawFileError.invalid_source_name()
+    candidate = root / source_id
+    if candidate.is_symlink():
+        raise _IdentificationRawFileError.symlink_source()
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise _IdentificationRawFileError.source_unavailable() from error
+    if not resolved.is_relative_to(root) or not resolved.is_file():
+        raise _IdentificationRawFileError.non_regular_source()
+    try:
+        with resolved.open("rb") as stream:
+            payload = stream.read(expected_size + 1)
+    except OSError as error:
+        raise _IdentificationRawFileError.source_unavailable() from error
+    if len(payload) != expected_size:
+        raise _IdentificationRawFileError.source_size_mismatch()
+    return payload
 
 
 @protocol_app.command("register")
@@ -644,6 +738,48 @@ def export_identity_binding_schema(
     typer.echo(
         json.dumps(_identity_binding_contract_schema(contract), indent=2, sort_keys=True)
     )
+
+
+@identification_raw_app.command("ingest")
+def ingest_identification_raw_inputs(
+    request: RequestArgument,
+    source_directory: SourceDirectoryArgument,
+) -> None:
+    """Ingest exact same-named source files from one symlink-free directory."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(IngestIdentificationRawInputsRequest),
+        preflight_identification_raw_ingestion_authorization,
+    )
+    try:
+        sources, filenames = _load_identification_raw_files(parsed, source_directory)
+        result = M0203Service().execute(parsed, sources, filenames)
+    except (IdentificationRawIngestionInputError, _IdentificationRawFileError) as error:
+        typer.echo(f"identification raw ingestion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    _emit(result)
+    if result.disposition.value != "accepted":
+        raise typer.Exit(code=1)
+
+
+@identification_raw_app.command("export-schema")
+def export_identification_raw_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "source",
+            "role_requirement",
+            "bundle_diagnostic",
+        ],
+        typer.Argument(help="M02-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-03 contract for agents and tools."""
+
+    typer.echo(json.dumps(_identification_raw_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @release_packaging_app.command("build")
