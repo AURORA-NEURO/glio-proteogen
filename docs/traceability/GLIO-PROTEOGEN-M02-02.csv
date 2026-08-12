@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-02-R01,"Bind every audit to an exact upstream identity resolution and policy","resolution and configuration digest contracts","canonical conformant fixture",G0
+M02-02-R02,"Reuse upstream entity and subject components without re-solving identity","closed graph-reference validation","conformant and upstream-unresolved fixtures",G0
+M02-02-R03,"Detect observed subject components that contradict upstream components","deterministic subject-set comparison","swap fixture",G0
+M02-02-R04,"Detect same-scope opaque token assignment across distinct components","scope-plus-token-digest grouping","scoped-token-collision fixture",G0
+M02-02-R05,"Never compare opaque token digests across scopes","scope-isolated grouping","different-scope control in token-collision fixture",G0
+M02-02-R06,"Detect identical content assigned through distinct bindings","content-digest grouping","duplicate-content fixture",G0
+M02-02-R07,"Detect a run or derived object linked to multiple patient components","subject-component cardinality check","cross-patient fixture",G0
+M02-02-R08,"Preserve unresolved bindings as explicit abstentions","typed unresolved state","unresolved-binding fixture",G0
+M02-02-R09,"Preserve unsupported bindings as explicit abstentions","typed unsupported state","unsupported-binding fixture",G0
+M02-02-R10,"Abstain when upstream identity is unresolved","upstream-resolution decision check","paired upstream-unresolved fixture",G0
+M02-02-R11,"Reject denied consent before binding traversal","authorization preflight","paired consent-denial unreadable-bindings check",G0
+M02-02-R12,"Return canonical privacy-minimized output with no raw identity or token material","canonical digests and closed result schema","determinism and recursive privacy eval",G0
+M02-02-R13,"Meet a broad representative batch latency budget","bounded deterministic binding audit","public batch-audit microbenchmark",G0

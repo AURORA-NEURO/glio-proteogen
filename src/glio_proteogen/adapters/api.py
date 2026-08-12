@@ -98,6 +98,16 @@ from glio_proteogen.contracts.m02_01.v1 import (
     ConformanceEvaluation as M0201ConformanceEvaluation,
 )
 from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
+from glio_proteogen.contracts.m02_02.schema import (
+    ContractName as M0202ContractName,
+)
+from glio_proteogen.contracts.m02_02.schema import (
+    contract_json_schema as m0202_contract_json_schema,
+)
+from glio_proteogen.contracts.m02_02.v1 import (
+    IdentityBindingEvaluation,
+    ValidateIdentityBindingsRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -175,6 +185,11 @@ from glio_proteogen.modules.c02_identification_qc.m02_01_protocol_metadata impor
     M0201ConformanceEvaluator,
     preflight_conformance_authorization,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_02_identity_lineage import (
+    IdentityBindingAuthorizationError,
+    M0202IdentityBindingEvaluator,
+    preflight_identity_binding_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -184,6 +199,7 @@ _ARTIFACT_ADAPTER: Final = TypeAdapter(DetectArtifactsRequest)
 _HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeObservationsRequest)
 _SUPPORT_ROUTING_ADAPTER: Final = TypeAdapter(RouteSupportRequest)
 _M0201_CONFORMANCE_ADAPTER: Final = TypeAdapter(EvaluateConformanceRequest)
+_M0202_BINDING_ADAPTER: Final = TypeAdapter(ValidateIdentityBindingsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -230,6 +246,10 @@ def _release_packaging_contract_schema(name: M0108ContractName) -> dict[str, obj
 
 def _identification_contract_schema(name: M0201ContractName) -> dict[str, object]:
     return m0201_contract_json_schema(name)
+
+
+def _identity_binding_contract_schema(name: M0202ContractName) -> dict[str, object]:
+    return m0202_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -307,6 +327,17 @@ def _identification_request_body() -> dict[str, object]:
     }
 
 
+def _identity_binding_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0202_contract_json_schema("request")}
+            },
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
@@ -377,6 +408,14 @@ async def _identification_body(request: Request) -> EvaluateConformanceRequest:
     )
 
 
+async def _identity_binding_body(request: Request) -> ValidateIdentityBindingsRequest:
+    return await _strict_json_body(
+        request,
+        _M0202_BINDING_ADAPTER,
+        preflight_identity_binding_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -389,6 +428,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     harmonization_service = M0106Service()
     support_routing_service = M0107Service()
     identification_evaluator = M0201ConformanceEvaluator()
+    identity_binding_evaluator = M0202IdentityBindingEvaluator()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -421,6 +461,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(UpstreamControlAuthorizationError)
     @app.exception_handler(SupportRoutingAuthorizationError)
     @app.exception_handler(ConformanceAuthorizationError)
+    @app.exception_handler(IdentityBindingAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -541,6 +582,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         request: Annotated[EvaluateConformanceRequest, Depends(_identification_body)],
     ) -> M0201ConformanceEvaluation:
         return identification_evaluator.evaluate(request)
+
+    @app.get("/v1/contracts/M02-02/{name}/schema", tags=["contracts"])
+    def identity_binding_contract_schema(name: M0202ContractName) -> dict[str, object]:
+        return _identity_binding_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M02-02/audit-bindings",
+        response_model=IdentityBindingEvaluation,
+        tags=["M02-02"],
+        openapi_extra=_identity_binding_request_body(),
+    )
+    def audit_identification_bindings(
+        request: Annotated[ValidateIdentityBindingsRequest, Depends(_identity_binding_body)],
+    ) -> IdentityBindingEvaluation:
+        return identity_binding_evaluator.evaluate(request)
 
     @app.post(
         "/v1/modules/M01-07/route",

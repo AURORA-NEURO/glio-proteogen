@@ -1,0 +1,71 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M02-02",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical_opaque_digests",
+  "claims_ceiling": "deterministic_synthetic_binding_audit_against_one_pinned_upstream_resolution_not_real_identity_biological_validity_or_clinical_readiness",
+  "policy_id": "policy.synthetic.peptide-identification-bindings",
+  "policy_version": "1.0.0",
+  "scenarios": [
+    {
+      "case_id": "canonical_conformant_bindings",
+      "request_case": "canonical",
+      "outcome": "result",
+      "expected_disposition": "conformant",
+      "expected_finding_codes": []
+    },
+    {
+      "case_id": "declared_observed_component_swap",
+      "request_case": "swap",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["swap"]
+    },
+    {
+      "case_id": "same_scope_token_collision",
+      "request_case": "token_collision",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["token_collision"],
+      "different_scope_control_must_not_find": "token_collision"
+    },
+    {
+      "case_id": "duplicate_content_assignment",
+      "request_case": "duplicate_content",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["duplicate_content_assignment"]
+    },
+    {
+      "case_id": "cross_patient_run_binding",
+      "request_case": "cross_patient",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": ["cross_patient_link"]
+    },
+    {
+      "case_id": "explicit_unresolved_binding",
+      "request_case": "unresolved",
+      "outcome": "result",
+      "expected_disposition": "abstained",
+      "expected_finding_codes": ["unresolved_binding"],
+      "must_not_emit_finding_codes": ["negative_identity_finding"]
+    },
+    {
+      "case_id": "explicit_unsupported_binding",
+      "request_case": "unsupported",
+      "outcome": "result",
+      "expected_disposition": "abstained",
+      "expected_finding_codes": ["unsupported_binding"],
+      "must_not_emit_finding_codes": ["negative_identity_finding"]
+    },
+    {
+      "case_id": "upstream_unresolved_and_consent_preflight",
+      "request_case": "upstream_unresolved",
+      "outcome": "paired_result_and_authorization",
+      "expected_disposition": "abstained",
+      "expected_finding_codes": ["upstream_identity_unresolved"],
+      "consent_denied_before_binding_traversal": true,
+      "expected_authorization_reason": "authorization_denied"
+    }
+  ]
+}
