@@ -1,0 +1,15 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-05-R01,"Evaluate all seven declared artifact classes","closed artifact-class contract and rule coverage","seven-class seeded synthetic batch",G1
+M01-05-R02,"Evaluate rules only for their bound target and artifact class","target/class keyed deterministic engine","exact seeded target/class flag expectations",G1
+M01-05-R03,"Never turn missing required signal into a clear finding","typed non-evaluable state","missing-required-signal review scenario",G1
+M01-05-R04,"Aggregate triggered posteriors conservatively by maximum","maximum triggered-rule posterior","multiple-trigger exact posterior test",G1
+M01-05-R05,"Apply reviewed clear review and exclusion thresholds","closed flag decision policy","clear review and exclusion fixture expectations",G1
+M01-05-R06,"Exclude only when every triggered maximum-posterior rule is eligible","maximum-source eligibility gate","ineligible maximum and untriggered eligible-rule invariants",G1
+M01-05-R07,"Deduplicate targets in the exclusion mask","set-derived sorted mask","multi-class target mask expectation",G1
+M01-05-R08,"Meet the preregistered seeded sensitivity minimum of 0.95","locked seven-pair scorer","eval sensitivity check expects 7/7",G1
+M01-05-R09,"Keep clean-target false exclusions at or below 0.05","locked clean-target scorer","eval false-exclusion check expects zero",G1
+M01-05-R10,"Reject unauthorized consent before detection","strict request context validation","consent-denial scenario",G1
+M01-05-R11,"Produce canonical results independent of input order","sorted target rule signal and output semantics","reordered request replay",G1
+M01-05-R12,"Emit artifact evidence only within ownership and privacy boundaries","closed result plus exact limitations","recursive output-boundary check",G1
+M01-05-R13,"Bind flags and result to rules signals policy configuration and controls","flag-level and envelope provenance","contract invariants and exact replay",G1
+M01-05-R14,"Meet bounded near-linear evaluation cost","indexed rule evaluation and deduplicated mask","representative public-engine microbenchmark",G1

@@ -11,6 +11,7 @@ import uvicorn
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.adapters.api import (
+    _artifact_contract_schema,
     _contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
@@ -24,6 +25,7 @@ from glio_proteogen.contracts.m01_01.v1 import (
 )
 from glio_proteogen.contracts.m01_02.v1 import ReconcileIdentityLineageRequest
 from glio_proteogen.contracts.m01_04.v1 import ComputeQualityMetricsRequest
+from glio_proteogen.contracts.m01_05.v1 import DetectArtifactsRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -56,6 +58,9 @@ from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.parser import (
 from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics.service import (
     M0104Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_05_artifact_detection.service import (
+    M0105Service,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -69,6 +74,8 @@ raw_app = typer.Typer(no_args_is_help=True, help="M01-03 bounded raw-format inge
 app.add_typer(raw_app, name="raw")
 quality_app = typer.Typer(no_args_is_help=True, help="M01-04 deterministic quality metrics.")
 app.add_typer(quality_app, name="quality")
+artifact_app = typer.Typer(no_args_is_help=True, help="M01-05 deterministic artifact detection.")
+app.add_typer(artifact_app, name="artifact")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -319,6 +326,26 @@ def export_quality_schema(
     """Export a machine-readable M01-04 contract for agents and tools."""
 
     typer.echo(json.dumps(_quality_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@artifact_app.command("detect")
+def detect_artifacts(request: RequestArgument) -> None:
+    """Run one configured deterministic artifact screen."""
+
+    parsed = _load_request(request, TypeAdapter(DetectArtifactsRequest))
+    _emit(M0105Service().execute(parsed))
+
+
+@artifact_app.command("export-schema")
+def export_artifact_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "profile", "rule", "signal", "flag"],
+        typer.Argument(help="M01-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M01-05 contract for agents and tools."""
+
+    typer.echo(json.dumps(_artifact_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @app.command("export-schema")

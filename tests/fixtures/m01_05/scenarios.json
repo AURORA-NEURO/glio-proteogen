@@ -1,0 +1,81 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M01-05",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "criteria": {
+    "seeded_sensitivity_minimum": 0.95,
+    "clean_false_exclusion_maximum": 0.05
+  },
+  "scenarios": [
+    {
+      "case_id": "seven_class_seeded_batch",
+      "request_case": "seeded_batch",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_support": "review_required",
+      "expected_flag_count": 56,
+      "seeded_pairs": [
+        ["target.seeded.alpha", "technical"],
+        ["target.seeded.alpha", "contamination"],
+        ["target.seeded.beta", "barcode_index"],
+        ["target.seeded.beta", "batch"],
+        ["target.seeded.gamma", "low_complexity"],
+        ["target.seeded.gamma", "mapping"],
+        ["target.seeded.delta", "context_false_positive"]
+      ],
+      "clean_target_ids": [
+        "target.clean.01",
+        "target.clean.02",
+        "target.clean.03",
+        "target.clean.04"
+      ],
+      "not_evaluable_pairs": [],
+      "excluded_target_ids": [
+        "target.seeded.alpha",
+        "target.seeded.beta",
+        "target.seeded.delta",
+        "target.seeded.gamma"
+      ],
+      "review_target_ids": []
+    },
+    {
+      "case_id": "clean_target",
+      "request_case": "clean",
+      "outcome": "result",
+      "expected_disposition": "accepted",
+      "expected_support": "limited",
+      "expected_flag_count": 7,
+      "seeded_pairs": [],
+      "clean_target_ids": ["target.clean.single"],
+      "not_evaluable_pairs": [],
+      "excluded_target_ids": [],
+      "review_target_ids": []
+    },
+    {
+      "case_id": "missing_required_signal",
+      "request_case": "missing_required",
+      "outcome": "result",
+      "expected_disposition": "quarantined",
+      "expected_support": "review_required",
+      "expected_flag_count": 7,
+      "seeded_pairs": [],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [["target.missing", "technical"]],
+      "excluded_target_ids": [],
+      "review_target_ids": ["target.missing"]
+    },
+    {
+      "case_id": "consent_denied",
+      "request_case": "consent_denied",
+      "outcome": "validation_rejected",
+      "expected_disposition": null,
+      "expected_support": null,
+      "expected_flag_count": 0,
+      "seeded_pairs": [],
+      "clean_target_ids": [],
+      "not_evaluable_pairs": [],
+      "excluded_target_ids": [],
+      "review_target_ids": []
+    }
+  ]
+}

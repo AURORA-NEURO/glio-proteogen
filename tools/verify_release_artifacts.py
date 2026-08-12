@@ -51,6 +51,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         ("quality", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-04:1.0.0:request",
     ),
+    (
+        ("artifact", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-05:1.0.0:request",
+    ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {
@@ -246,7 +250,7 @@ def _installed_distribution(
         raise ReleaseArtifactError("installed distribution does not match the candidate wheel")
 
     environment = Path(sys.prefix).resolve()
-    distribution_root = Path(distribution.locate_file("")).resolve()
+    distribution_root = Path(str(distribution.locate_file(""))).resolve()
     if not distribution_root.is_relative_to(environment):
         raise ReleaseArtifactError("candidate distribution is outside the clean environment")
     return distribution, environment
@@ -296,7 +300,7 @@ def _verify_installed_files(
                 if member.filename.endswith(".dist-info/RECORD"):
                     continue
                 installed_path = Path(
-                    distribution.locate_file(Path(*wheel_path.parts))
+                    str(distribution.locate_file(Path(*wheel_path.parts)))
                 ).resolve()
                 if not installed_path.is_relative_to(environment):
                     raise ReleaseArtifactError("candidate wheel member escaped the environment")

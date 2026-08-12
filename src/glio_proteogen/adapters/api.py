@@ -52,6 +52,16 @@ from glio_proteogen.contracts.m01_04.v1 import (
     ComputeQualityMetricsRequest,
     QualityProfile,
 )
+from glio_proteogen.contracts.m01_05.schema import (
+    ContractName as M0105ContractName,
+)
+from glio_proteogen.contracts.m01_05.schema import (
+    contract_json_schema as m0105_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_05.v1 import (
+    ArtifactDetectionResult,
+    DetectArtifactsRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -107,11 +117,15 @@ from glio_proteogen.modules.c01_preanalytic.m01_03_raw_ingestion.parser import (
 from glio_proteogen.modules.c01_preanalytic.m01_04_quality_metrics.service import (
     M0104Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_05_artifact_detection.service import (
+    M0105Service,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
 _RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
 _QUALITY_ADAPTER: Final = TypeAdapter(ComputeQualityMetricsRequest)
+_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectArtifactsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -140,6 +154,10 @@ def _quality_contract_schema(name: M0104ContractName) -> dict[str, object]:
     return m0104_contract_json_schema(name)
 
 
+def _artifact_contract_schema(name: M0105ContractName) -> dict[str, object]:
+    return m0105_contract_json_schema(name)
+
+
 def _request_body(name: M0101ContractName) -> dict[str, object]:
     return {
         "requestBody": {
@@ -166,6 +184,17 @@ def _quality_request_body() -> dict[str, object]:
             "required": True,
             "content": {
                 "application/json": {"schema": m0104_contract_json_schema("request")}
+            },
+        }
+    }
+
+
+def _artifact_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0105_contract_json_schema("request")}
             },
         }
     }
@@ -213,6 +242,10 @@ async def _quality_body(request: Request) -> ComputeQualityMetricsRequest:
     return await _strict_json_body(request, _QUALITY_ADAPTER)
 
 
+async def _artifact_body(request: Request) -> DetectArtifactsRequest:
+    return await _strict_json_body(request, _ARTIFACT_ADAPTER)
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -221,6 +254,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     identity_store = M0102EventStore(database_path)
     identity_service = M0102Service(identity_store)
     quality_service = M0104Service()
+    artifact_service = M0105Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -333,6 +367,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-04/{name}/schema", tags=["contracts"])
     def quality_contract_schema(name: M0104ContractName) -> dict[str, object]:
         return _quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M01-05/{name}/schema", tags=["contracts"])
+    def artifact_contract_schema(name: M0105ContractName) -> dict[str, object]:
+        return _artifact_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M01-05/detect",
+        response_model=ArtifactDetectionResult,
+        tags=["M01-05"],
+        openapi_extra=_artifact_request_body(),
+    )
+    def detect_artifacts(
+        request: Annotated[DetectArtifactsRequest, Depends(_artifact_body)],
+    ) -> ArtifactDetectionResult:
+        return artifact_service.execute(request)
 
     @app.post(
         "/v1/modules/M01-04/quality",
