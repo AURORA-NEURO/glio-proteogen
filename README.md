@@ -18,13 +18,22 @@ GLIO-PROTEOGEN may emit a proteogenomic state, proteotype, or protein-level subt
 It does **not** own kinase-state inference, generic all-omics fusion, or treatment
 recommendations. Missing or unsupported evidence is never converted into a negative finding.
 
-## Current module
+## Current modules
 
-`GLIO-PROTEOGEN-M01-01` — protocol and metadata specification.
+- `GLIO-PROTEOGEN-M01-01` — protocol and metadata specification. This vertical slice
+  provides versioned protocol schemas, strict metadata conformance, explicit unresolved
+  states, compatibility rules, provenance, uncertainty, and deterministic audit events.
+- `GLIO-PROTEOGEN-M01-02` — sample identity and lineage reconciliation. This module
+  resolves only explicit authority-bound identity assertions, validates the closed lineage
+  transition graph, preserves pooling and demultiplexing semantics, and quarantines
+  contradictions without relabeling upstream records.
 
-The first vertical slice provides versioned protocol schemas, strict metadata conformance,
-explicit unresolved states, compatibility rules, provenance, uncertainty, deterministic
-audit events, a typed API, and a command-line interface.
+Both modules expose strict JSON Schema 2020-12 contracts, typed HTTP routes, command-line
+operations, and deterministic append-only event-chain verification. The database hash chains
+are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
+only scoped opaque identity tokens and privacy-minimized concordance summaries; raw direct
+identifiers, genotypes, reads, and molecular measurements are outside its public and persisted
+outputs.
 
 ## Development
 
@@ -34,14 +43,26 @@ uv run ruff check .
 uv run mypy src
 uv run pytest
 uv run python -m evals.m01_01.run
+uv run python -m evals.m01_02.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
+uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
-The `glio-proteogen` command exports the versioned JSON Schema 2020-12 contracts and exposes
-M01-01 register, evaluate, retrieve, and ledger-verification operations. `glio-proteogen serve`
-provides the same strict byte-validated operations over HTTP. Both surfaces use the same service,
-canonical digest rules, and append-only event ledger.
+The `glio-proteogen` command exports both modules' contracts and exposes M01-01 register,
+evaluate, retrieve, and ledger-verification operations plus M01-02 reconcile, retrieve, and
+ledger-verification operations. For example:
+
+```bash
+glio-proteogen export-schema protocol-schema
+glio-proteogen identity export-schema request
+glio-proteogen identity reconcile request.json --database evidence.sqlite3
+glio-proteogen identity verify-ledger --database evidence.sqlite3
+```
+
+`glio-proteogen serve` provides the same strict byte-validated operations over HTTP. The CLI
+and API enter the same module services, canonical digest rules, and event ledgers.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
-is independently satisfied.
+is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
+they never issue reviewer approval or qualify a module.

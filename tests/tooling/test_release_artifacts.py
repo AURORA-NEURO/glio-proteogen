@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
+from tools import verify_release_artifacts
 from tools.verify_release_artifacts import (
     ReleaseArtifactError,
     verify_runtime_sbom,
@@ -119,7 +121,91 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "full-environment-dependency-audit.json" in workflow
     assert "runtime-dependency-audit.json" in workflow
     assert "release-candidate-evidence" in workflow
+    assert "evals.m01_01.run --output evidence/m01-01-eval.json" in workflow
+    assert "evals.m01_02.run --output evidence/m01-02-eval.json" in workflow
+    assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
+    assert "reviewer approval" not in workflow.casefold()
+
+
+def test_ci_records_eval_and_benchmark_evidence_for_both_modules() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    for module in ("m01_01", "m01_02"):
+        artifact = module.replace("_", "-")
+        assert f"evals.{module}.run --output {module}-eval.json" in workflow
+        assert f"name: {artifact}-eval" in workflow
+        assert f"name: {artifact}-benchmark" in workflow
+    assert "benchmarks/m01_01_validation.py" in workflow
+    assert "benchmark-json=m01_01-benchmark.json" in workflow
+    assert "benchmarks/m01_02_identity_lineage.py" in workflow
+    assert "benchmark-json=m01_02-benchmark.json" in workflow
+
+
+def test_clean_wheel_smoke_checks_both_module_cli_schema_routes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    schema_ids = {
+        ("export-schema", "protocol-schema"): (
+            "urn:aurora-neuro:glio-proteogen:"
+            "GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"
+        ),
+        ("identity", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-02:1.0.0:request"
+        ),
+    }
+
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        arguments = tuple(command[1:])
+        calls.append(arguments)
+        payload = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": schema_ids[arguments],
+        }
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(payload), stderr="")
+
+    monkeypatch.setattr(
+        verify_release_artifacts,
+        "_installed_console_script",
+        lambda: Path("/clean-environment/bin/glio-proteogen"),
+    )
+    monkeypatch.setattr(verify_release_artifacts.subprocess, "run", run)
+
+    verify_release_artifacts._verify_console_script()
+
+    assert calls == list(schema_ids)
+
+
+def test_clean_wheel_smoke_rejects_wrong_m01_02_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wrong_schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": (
+            "urn:aurora-neuro:glio-proteogen:"
+            "GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema"
+        ),
+    }
+
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(wrong_schema),
+            stderr="",
+        )
+
+    monkeypatch.setattr(
+        verify_release_artifacts,
+        "_installed_console_script",
+        lambda: Path("/clean-environment/bin/glio-proteogen"),
+    )
+    monkeypatch.setattr(verify_release_artifacts.subprocess, "run", run)
+
+    with pytest.raises(ReleaseArtifactError, match="wrong contract"):
+        verify_release_artifacts._verify_console_script()
 
 
 def test_workflow_actions_are_commit_pinned_and_checkout_drops_credentials() -> None:

@@ -34,6 +34,16 @@ _PACKAGE_NAME = "glio_proteogen"
 _CONSOLE_SCRIPT = "glio-proteogen"
 _CONSOLE_ENTRY_POINT = "glio_proteogen.adapters.cli:app"
 _SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema"
+_CLI_SCHEMA_SMOKE_TESTS = (
+    (
+        ("export-schema", "protocol-schema"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-01:1.0.0:protocol-schema",
+    ),
+    (
+        ("identity", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M01-02:1.0.0:request",
+    ),
+)
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {
         "cyclonedx-bom",
@@ -312,24 +322,31 @@ def _verify_console_script() -> None:
     )
     if len(entry_points) != 1 or entry_points[0].value != _CONSOLE_ENTRY_POINT:
         raise ReleaseArtifactError("candidate wheel has an unexpected console entry point")
-    completed = subprocess.run(  # noqa: S603 - path is derived from this trusted interpreter.
-        [str(_installed_console_script()), "export-schema", "protocol-schema"],
-        cwd=Path.cwd(),
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if completed.returncode != 0:
-        raise ReleaseArtifactError("installed console-script smoke test failed")
-    try:
-        schema: object = json.loads(completed.stdout)
-    except json.JSONDecodeError as error:
-        raise ReleaseArtifactError(
-            "installed console script emitted invalid schema JSON"
-        ) from error
-    if _mapping(schema, "exported schema").get("$schema") != _SCHEMA_URI:
-        raise ReleaseArtifactError("installed console script emitted the wrong schema dialect")
+    executable = str(_installed_console_script())
+    for arguments, expected_schema_id in _CLI_SCHEMA_SMOKE_TESTS:
+        completed = subprocess.run(  # noqa: S603 - path is from this trusted interpreter.
+            [executable, *arguments],
+            cwd=Path.cwd(),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if completed.returncode != 0:
+            raise ReleaseArtifactError("installed console-script smoke test failed")
+        try:
+            schema: object = json.loads(completed.stdout)
+        except json.JSONDecodeError as error:
+            raise ReleaseArtifactError(
+                "installed console script emitted invalid schema JSON"
+            ) from error
+        exported = _mapping(schema, "exported schema")
+        if exported.get("$schema") != _SCHEMA_URI:
+            raise ReleaseArtifactError(
+                "installed console script emitted the wrong schema dialect"
+            )
+        if exported.get("$id") != expected_schema_id:
+            raise ReleaseArtifactError("installed console script emitted the wrong contract")
 
 
 def verify_installed_wheel(wheel: Path) -> WheelIdentity:
@@ -349,6 +366,13 @@ def _write_install_report(path: Path, identity: WheelIdentity) -> None:
         "distribution": identity.name,
         "schema_dialect": _SCHEMA_URI,
         "version": identity.version,
+        "verified_cli_schema_routes": [
+            {
+                "arguments": list(arguments),
+                "schema_id": schema_id,
+            }
+            for arguments, schema_id in _CLI_SCHEMA_SMOKE_TESTS
+        ],
         "wheel": {"filename": identity.filename, "sha256": identity.sha256},
     }
     path.write_text(

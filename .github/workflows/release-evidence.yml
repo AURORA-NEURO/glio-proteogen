@@ -38,10 +38,12 @@ jobs:
         run: |
           mkdir -p evidence
           uv run pytest tests --junitxml=evidence/tests.junit.xml --cov-report=xml:evidence/coverage.xml
-      - name: Execute M01-01 evaluation and benchmarks
+      - name: Execute module evaluations and benchmarks
         run: |
           uv run python -m evals.m01_01.run --output evidence/m01-01-eval.json
+          uv run python -m evals.m01_02.run --output evidence/m01-02-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
+          uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json

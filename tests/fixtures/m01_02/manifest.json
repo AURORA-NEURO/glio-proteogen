@@ -1,0 +1,127 @@
+{
+  "manifest_version": "1.0.0",
+  "module_id": "GLIO-PROTEOGEN-M01-02",
+  "data_classification": "synthetic_non_clinical",
+  "strict_json": true,
+  "data_inventory": {
+    "source": "repository_locked_synthetic_fixtures",
+    "clinical_records": false,
+    "external_datasets": []
+  },
+  "model_inventory": [
+    {
+      "model_id": "deterministic_identity_lineage_reconciler",
+      "model_version": "1.0.0",
+      "algorithm": "sorted_authorized_dsu_plus_iterative_kahn_lineage_and_provenance_deduplicated_concordance",
+      "trained": false,
+      "calibrated": false,
+      "runtime_fetch": false,
+      "clinical_claim": false,
+      "identity_promotion": false,
+      "output_effect": "retain_quarantine_or_human_review_never_relabel"
+    }
+  ],
+  "runtime_reference_inventory": [
+    {
+      "name": "W3C PROV-DM, PROV-O, and PROV-CONSTRAINTS",
+      "version": "2013-04-30 Recommendation",
+      "source": "https://www.w3.org/TR/2013/REC-prov-dm-20130430/",
+      "purpose": "Optional provenance export adapter; never internal identity authority.",
+      "runtime_fetch": false
+    },
+    {
+      "name": "SDRF-Proteomics",
+      "version": "1.0.1",
+      "source": "https://github.com/bigbio/proteomics-sample-metadata/releases/tag/v1.0.1",
+      "purpose": "Proteomics sample-to-assay-to-file import/export adapter; independently implemented without GPL code reuse.",
+      "runtime_fetch": false
+    },
+    {
+      "name": "GA4GH Phenopacket schema",
+      "version": "2.0.0",
+      "source": "https://github.com/ga4gh/phenopacket-schema/releases/tag/2.0.0",
+      "purpose": "Privacy-filtered biosample projection adapter; never internal graph authority.",
+      "runtime_fetch": false
+    },
+    {
+      "name": "GA4GH Variation Representation Specification",
+      "version": "2.0.1",
+      "source": "https://github.com/ga4gh/vrs/releases/tag/2.0.1",
+      "purpose": "Variant-evidence adapter using normalized allele references; never person identity.",
+      "runtime_fetch": false
+    },
+    {
+      "name": "DICOM PS3",
+      "version": "2026c",
+      "source": "https://dicom.nema.org/medical/dicom/current/",
+      "purpose": "Pathology specimen import/export adapter with scoped issuer and specimen identifiers.",
+      "runtime_fetch": false
+    },
+    {
+      "name": "ISA Model and Serialization Specifications",
+      "version": "1.0 (2016-10-28)",
+      "source": "https://isa-specs.readthedocs.io/",
+      "purpose": "Study/assay process-chain import/export adapter; never internal identity authority.",
+      "runtime_fetch": false
+    }
+  ],
+  "locked_semantics": {
+    "entity_kinds": [
+      "aliquot",
+      "analyte",
+      "derived_object",
+      "patient",
+      "run",
+      "section",
+      "specimen"
+    ],
+    "ordinary_transitions": [
+      ["acquired_from", "analyte", "run"],
+      ["collected_from", "patient", "specimen"],
+      ["computed_from", "derived_object", "derived_object"],
+      ["computed_from", "run", "derived_object"],
+      ["extracted_from", "aliquot", "analyte"],
+      ["extracted_from", "section", "analyte"],
+      ["extracted_from", "specimen", "analyte"],
+      ["sectioned_from", "aliquot", "section"],
+      ["sectioned_from", "specimen", "section"],
+      ["subdivided_from", "aliquot", "aliquot"],
+      ["subdivided_from", "specimen", "aliquot"],
+      ["subdivided_from", "specimen", "specimen"]
+    ],
+    "special_transitions": {
+      "pooled_from": {
+        "cardinality": "N_to_1",
+        "same_kind_only": ["aliquot", "analyte"],
+        "policy_required": true
+      },
+      "demultiplexed_from": {
+        "cardinality": "1_to_N",
+        "same_kind_only": ["aliquot", "analyte"],
+        "policy_required": true,
+        "complete_unique_authoritative_channels_required": true
+      }
+    },
+    "caps": {
+      "request_bytes": 4194304,
+      "nodes": 10000,
+      "lineage_edges": 40000,
+      "identity_assertions": 20000,
+      "component_nodes": 256,
+      "evidence_total": 50000,
+      "evidence_per_assertion": 64,
+      "lineage_depth_policy_ceiling": 64,
+      "reported_issues": 1000
+    }
+  },
+  "cases": [
+    {
+      "case_id": "algorithm_scenarios",
+      "file": "scenarios.json",
+      "target": "SolverScenarioCorpus",
+      "expected": "mixed_contract_accept_and_reject",
+      "phase": "algorithm",
+      "invariant": "Locked positive and hostile synthetic scenarios exercise identity components, lineage, pooling, demultiplexing, concordance, and missingness without a clinical record. Every scenario declares whether the public contract accepts or rejects it and, for rejection, the stable boundary reason."
+    }
+  ]
+}

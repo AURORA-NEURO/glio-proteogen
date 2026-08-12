@@ -1,8 +1,8 @@
-"""FastAPI surface for the active M01-01 vertical slice."""
+"""FastAPI surface for the active pre-analytic module slices."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Final
@@ -13,18 +13,34 @@ from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES, RequestSizeLimitMiddleware
-from glio_proteogen.contracts.m01_01.schema import ContractName, contract_json_schema
+from glio_proteogen.contracts.m01_01.schema import (
+    ContractName as M0101ContractName,
+)
+from glio_proteogen.contracts.m01_01.schema import (
+    contract_json_schema as m0101_contract_json_schema,
+)
 from glio_proteogen.contracts.m01_01.v1 import (
     ConformanceProfile,
     EvaluateMetadataRequest,
     ProtocolSchemaReceipt,
     RegisterProtocolRequest,
 )
+from glio_proteogen.contracts.m01_02.schema import (
+    ContractName as M0102ContractName,
+)
+from glio_proteogen.contracts.m01_02.schema import (
+    contract_json_schema as m0102_contract_json_schema,
+)
+from glio_proteogen.contracts.m01_02.v1 import (
+    IdentityLineageResolution,
+    ReconcileIdentityLineageRequest,
+)
+from glio_proteogen.kernel.models import Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
-    assert_strict_json,
     sanitized_validation_errors,
     strict_json_error_detail,
+    strict_json_loads,
 )
 from glio_proteogen.modules.c01_preanalytic.m01_01_protocol_metadata.event_store import (
     ChainVerification,
@@ -42,20 +58,64 @@ from glio_proteogen.modules.c01_preanalytic.m01_01_protocol_metadata.service imp
     ProtocolVersionConflictError,
     UpstreamControlAuthorizationError,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    ChainIntegrityError as M0102ChainIntegrityError,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    ChainVerification as M0102ChainVerification,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    EventStoreError as M0102EventStoreError,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    IdempotencyConflictError as M0102IdempotencyConflictError,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    M0102EventStore,
+    ResolutionNotFoundError,
+    ResolutionSupersessionConflictError,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.event_store import (
+    PayloadTooLargeError as M0102PayloadTooLargeError,
+)
+from glio_proteogen.modules.c01_preanalytic.m01_02_identity_lineage.service import (
+    IdentityLineageAuthorizationError,
+    M0102Service,
+    preflight_identity_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
+_RECONCILE_ADAPTER: Final = TypeAdapter(ReconcileIdentityLineageRequest)
+_RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 
 
-def _contract_schema(name: ContractName) -> dict[str, object]:
-    return contract_json_schema(name)
+def _contract_schema(name: M0101ContractName) -> dict[str, object]:
+    """Retain the original M01-01 schema helper used by the CLI."""
+
+    return m0101_contract_json_schema(name)
 
 
-def _request_body(name: ContractName) -> dict[str, object]:
+def _identity_contract_schema(name: M0102ContractName) -> dict[str, object]:
+    return m0102_contract_json_schema(name)
+
+
+def _request_body(name: M0101ContractName) -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
-            "content": {"application/json": {"schema": contract_json_schema(name)}},
+            "content": {"application/json": {"schema": m0101_contract_json_schema(name)}},
+        }
+    }
+
+
+def _identity_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0102_contract_json_schema("request")}
+            },
         }
     }
 
@@ -63,13 +123,16 @@ def _request_body(name: ContractName) -> dict[str, object]:
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
+    preflight: Callable[[object], None] | None = None,
 ) -> ModelT:
     media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
     if media_type != "application/json":
         raise HTTPException(status_code=415, detail="content-type must be application/json")
     try:
         body = await request.body()
-        assert_strict_json(body, max_bytes=MAX_REQUEST_BYTES)
+        decoded = strict_json_loads(body, max_bytes=MAX_REQUEST_BYTES)
+        if preflight is not None:
+            preflight(decoded)
         return adapter.validate_json(body, strict=True)
     except StrictJsonError as error:
         details = [strict_json_error_detail(error, location_prefix=("body",))]
@@ -87,15 +150,26 @@ async def _evaluate_body(request: Request) -> EvaluateMetadataRequest:
     return await _strict_json_body(request, _EVALUATE_ADAPTER)
 
 
+async def _reconcile_body(request: Request) -> ReconcileIdentityLineageRequest:
+    return await _strict_json_body(
+        request,
+        _RECONCILE_ADAPTER,
+        preflight_identity_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:
     """Create an isolated API instance backed by one append-only event database."""
 
     store = M0101EventStore(database_path)
     service = M0101Service(store)
+    identity_store = M0102EventStore(database_path)
+    identity_service = M0102Service(identity_store)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
+        identity_service.close()
         service.close()
 
     app = FastAPI(
@@ -148,17 +222,53 @@ def create_app(database_path: Path) -> FastAPI:
     def integrity_handler(_request: Request, error: ChainIntegrityError) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(error)})
 
+    @app.exception_handler(ResolutionNotFoundError)
+    def identity_not_found_handler(
+        _request: Request,
+        error: ResolutionNotFoundError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": str(error)})
+
+    @app.exception_handler(M0102IdempotencyConflictError)
+    @app.exception_handler(ResolutionSupersessionConflictError)
+    def identity_conflict_handler(_request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": str(error)})
+
+    @app.exception_handler(M0102PayloadTooLargeError)
+    def identity_payload_handler(
+        _request: Request,
+        error: M0102PayloadTooLargeError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=413, content={"detail": str(error)})
+
+    @app.exception_handler(IdentityLineageAuthorizationError)
+    def identity_authorization_handler(
+        _request: Request,
+        error: IdentityLineageAuthorizationError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(error)})
+
+    @app.exception_handler(M0102ChainIntegrityError)
+    @app.exception_handler(M0102EventStoreError)
+    def identity_integrity_handler(_request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(error)})
+
     @app.get("/healthz", tags=["operations"])
     def health() -> dict[str, str]:
         return {"status": "alive", "module": "GLIO-PROTEOGEN-M01-01"}
 
     @app.get("/readyz", response_model=ChainVerification, tags=["operations"])
     def readiness() -> ChainVerification:
+        _require_valid_identity_chain(identity_service.verify_event_chain())
         return _require_valid_chain(service.verify_event_chain())
 
     @app.get("/v1/contracts/M01-01/{name}/schema", tags=["contracts"])
-    def contract_schema(name: ContractName) -> dict[str, object]:
+    def contract_schema(name: M0101ContractName) -> dict[str, object]:
         return _contract_schema(name)
+
+    @app.get("/v1/contracts/M01-02/{name}/schema", tags=["contracts"])
+    def identity_contract_schema(name: M0102ContractName) -> dict[str, object]:
+        return _identity_contract_schema(name)
 
     @app.post(
         "/v1/modules/M01-01/protocols",
@@ -201,10 +311,59 @@ def create_app(database_path: Path) -> FastAPI:
     def verify_events() -> ChainVerification:
         return _require_valid_chain(service.verify_event_chain())
 
+    @app.post(
+        "/v1/modules/M01-02/reconcile",
+        response_model=IdentityLineageResolution,
+        tags=["M01-02"],
+        openapi_extra=_identity_request_body(),
+    )
+    def reconcile_identity_lineage(
+        request: Annotated[ReconcileIdentityLineageRequest, Depends(_reconcile_body)],
+    ) -> IdentityLineageResolution:
+        return identity_service.execute(request)
+
+    @app.get(
+        "/v1/modules/M01-02/resolutions/{resolution_digest}",
+        response_model=IdentityLineageResolution,
+        tags=["M01-02"],
+    )
+    def get_identity_resolution(
+        resolution_digest: str,
+    ) -> IdentityLineageResolution:
+        try:
+            validated_digest = _RESOLUTION_DIGEST_ADAPTER.validate_python(
+                resolution_digest,
+                strict=True,
+            )
+        except ValidationError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="resolution digest is invalid",
+            ) from error
+        return identity_service.get_resolution(validated_digest)
+
+    @app.get(
+        "/v1/modules/M01-02/events/verify",
+        response_model=M0102ChainVerification,
+        tags=["operations"],
+    )
+    def verify_identity_events() -> M0102ChainVerification:
+        return _require_valid_identity_chain(identity_service.verify_event_chain())
+
     return app
 
 
 def _require_valid_chain(verification: ChainVerification) -> ChainVerification:
     if not verification.valid:
         raise ChainIntegrityError(verification.reason or "event chain verification failed")
+    return verification
+
+
+def _require_valid_identity_chain(
+    verification: M0102ChainVerification,
+) -> M0102ChainVerification:
+    if not verification.valid:
+        raise M0102ChainIntegrityError(
+            verification.reason or "identity event chain verification failed"
+        )
     return verification
