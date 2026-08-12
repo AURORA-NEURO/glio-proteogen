@@ -88,6 +88,16 @@ from glio_proteogen.contracts.m01_08.schema import (
 from glio_proteogen.contracts.m01_08.schema import (
     contract_json_schema as m0108_contract_json_schema,
 )
+from glio_proteogen.contracts.m02_01.schema import (
+    ContractName as M0201ContractName,
+)
+from glio_proteogen.contracts.m02_01.schema import (
+    contract_json_schema as m0201_contract_json_schema,
+)
+from glio_proteogen.contracts.m02_01.v1 import (
+    ConformanceEvaluation as M0201ConformanceEvaluation,
+)
+from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -160,6 +170,11 @@ from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.engine import 
 from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.service import (
     M0107Service,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_01_protocol_metadata import (
+    ConformanceAuthorizationError,
+    M0201ConformanceEvaluator,
+    preflight_conformance_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -168,6 +183,7 @@ _QUALITY_ADAPTER: Final = TypeAdapter(ComputeQualityMetricsRequest)
 _ARTIFACT_ADAPTER: Final = TypeAdapter(DetectArtifactsRequest)
 _HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeObservationsRequest)
 _SUPPORT_ROUTING_ADAPTER: Final = TypeAdapter(RouteSupportRequest)
+_M0201_CONFORMANCE_ADAPTER: Final = TypeAdapter(EvaluateConformanceRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -210,6 +226,10 @@ def _support_routing_contract_schema(name: M0107ContractName) -> dict[str, objec
 
 def _release_packaging_contract_schema(name: M0108ContractName) -> dict[str, object]:
     return m0108_contract_json_schema(name)
+
+
+def _identification_contract_schema(name: M0201ContractName) -> dict[str, object]:
+    return m0201_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -271,6 +291,17 @@ def _support_routing_request_body() -> dict[str, object]:
             "required": True,
             "content": {
                 "application/json": {"schema": m0107_contract_json_schema("request")}
+            },
+        }
+    }
+
+
+def _identification_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": m0201_contract_json_schema("request")}
             },
         }
     }
@@ -338,6 +369,14 @@ async def _support_routing_body(request: Request) -> RouteSupportRequest:
     )
 
 
+async def _identification_body(request: Request) -> EvaluateConformanceRequest:
+    return await _strict_json_body(
+        request,
+        _M0201_CONFORMANCE_ADAPTER,
+        preflight_conformance_authorization,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -349,6 +388,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     artifact_service = M0105Service()
     harmonization_service = M0106Service()
     support_routing_service = M0107Service()
+    identification_evaluator = M0201ConformanceEvaluator()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -380,6 +420,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ConsentAuthorizationError)
     @app.exception_handler(UpstreamControlAuthorizationError)
     @app.exception_handler(SupportRoutingAuthorizationError)
+    @app.exception_handler(ConformanceAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -485,6 +526,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.get("/v1/contracts/M01-08/{name}/schema", tags=["contracts"])
     def release_packaging_contract_schema(name: M0108ContractName) -> dict[str, object]:
         return _release_packaging_contract_schema(name)
+
+    @app.get("/v1/contracts/M02-01/{name}/schema", tags=["contracts"])
+    def identification_contract_schema(name: M0201ContractName) -> dict[str, object]:
+        return _identification_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M02-01/conformance",
+        response_model=M0201ConformanceEvaluation,
+        tags=["M02-01"],
+        openapi_extra=_identification_request_body(),
+    )
+    def evaluate_identification_metadata(
+        request: Annotated[EvaluateConformanceRequest, Depends(_identification_body)],
+    ) -> M0201ConformanceEvaluation:
+        return identification_evaluator.evaluate(request)
 
     @app.post(
         "/v1/modules/M01-07/route",

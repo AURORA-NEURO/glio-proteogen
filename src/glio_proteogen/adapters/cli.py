@@ -14,6 +14,7 @@ from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
     _contract_schema,
     _harmonization_contract_schema,
+    _identification_contract_schema,
     _identity_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -36,6 +37,7 @@ from glio_proteogen.contracts.m01_08.v1 import (
     ReleaseDisposition,
     ReleasePackagingResult,
 )
+from glio_proteogen.contracts.m02_01.v1 import EvaluateConformanceRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -89,6 +91,10 @@ from glio_proteogen.modules.c01_preanalytic.m01_08_release_packaging import (
     preflight_release_packaging_authorization,
     verify_release_package,
 )
+from glio_proteogen.modules.c02_identification_qc.m02_01_protocol_metadata import (
+    evaluate_conformance,
+    preflight_conformance_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -119,6 +125,11 @@ release_packaging_app = typer.Typer(
     help="M01-08 deterministic provenance and release packaging.",
 )
 app.add_typer(release_packaging_app, name="release")
+identification_app = typer.Typer(
+    no_args_is_help=True,
+    help="M02-01 peptide-identification protocol metadata conformance.",
+)
+app.add_typer(identification_app, name="identification")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -572,6 +583,30 @@ def export_release_packaging_schema(
     """Export a machine-readable M01-08 contract for agents and tools."""
 
     typer.echo(json.dumps(_release_packaging_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@identification_app.command("validate-metadata")
+def validate_identification_metadata(request: RequestArgument) -> None:
+    """Validate metadata against one exact protocol schema and conformance profile."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(EvaluateConformanceRequest),
+        preflight_conformance_authorization,
+    )
+    _emit(evaluate_conformance(parsed))
+
+
+@identification_app.command("export-schema")
+def export_identification_schema(
+    contract: Annotated[
+        Literal["request", "output", "schema", "profile", "observation"],
+        typer.Argument(help="M02-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M02-01 contract for agents and tools."""
+
+    typer.echo(json.dumps(_identification_contract_schema(contract), indent=2, sort_keys=True))
 
 
 @release_packaging_app.command("build")

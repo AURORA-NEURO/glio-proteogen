@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M02-01-R01,"Bind validation to one exact versioned protocol profile","closed profile identifier/version contract","canonical pinned-profile fixture",G0
+M02-01-R02,"Require all mandatory metadata without silent defaults","strict mandatory-field rules","missing-mandatory-field fixture",G0
+M02-01-R03,"Accept only pinned controlled-vocabulary terms","closed term-set validation","unsupported-term fixture",G0
+M02-01-R04,"Require compatible declared units without coercion","field-specific unit rule","incompatible-unit fixture",G0
+M02-01-R05,"Enforce declared field cardinality","bounded cardinality rule","scalar-over-cardinality fixture",G0
+M02-01-R06,"Enforce pinned assay and specimen version compatibility","compatibility matrix","focused compatibility contract tests",G0
+M02-01-R07,"Evaluate conditional applicability explicitly","conditional field rule","label-free/isobaric not-applicable paired fixture",G0
+M02-01-R08,"Preserve unresolved mandatory values and quarantine","typed unresolved-state semantics","unresolved-mandatory fixture",G0
+M02-01-R09,"Never convert missing unsupported or unresolved evidence into a negative finding","closed finding/disposition semantics","negative and unresolved fixture assertions",G0
+M02-01-R10,"Reject denied consent before metadata traversal","authorization preflight","unreadable-metadata consent-denial fixture",G0
+M02-01-R11,"Bind output to configuration and upstream controls","canonical digests and provenance envelope","contract invariants and exact replay",G0
+M02-01-R12,"Stay inside the protocol/conformance output and privacy ceiling","closed result and limitations","recursive output-boundary eval",G0
+M02-01-R13,"Meet a broad representative batch latency budget","deterministic bounded rule evaluation","representative public batch-validator microbenchmark",G0
