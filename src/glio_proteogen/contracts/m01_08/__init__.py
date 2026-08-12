@@ -1,0 +1,55 @@
+"""Public M01-08 release-packaging contract surface."""
+
+from glio_proteogen.contracts.m01_08.canonical import (
+    canonical_request_digest,
+    configuration_digest,
+    manifest_digest,
+    policy_digest,
+    result_payload_digest,
+)
+from glio_proteogen.contracts.m01_08.schema import contract_json_schema
+from glio_proteogen.contracts.m01_08.v1 import (
+    BuildReleasePackageRequest,
+    DecisionKind,
+    DecisionReceipt,
+    DecisionState,
+    ExternalSignatureReceipt,
+    NumericalTolerance,
+    NumericalToleranceMode,
+    PackageVerification,
+    ReferenceVersionRecord,
+    ReleaseArtifact,
+    ReleaseDisposition,
+    ReleasePackageDescriptor,
+    ReleasePackagingPolicy,
+    ReleasePackagingResult,
+    ReproducibilityManifest,
+    SoftwareVersionRecord,
+    TransformationRecord,
+)
+
+__all__ = [
+    "BuildReleasePackageRequest",
+    "DecisionKind",
+    "DecisionReceipt",
+    "DecisionState",
+    "ExternalSignatureReceipt",
+    "NumericalTolerance",
+    "NumericalToleranceMode",
+    "PackageVerification",
+    "ReferenceVersionRecord",
+    "ReleaseArtifact",
+    "ReleaseDisposition",
+    "ReleasePackageDescriptor",
+    "ReleasePackagingPolicy",
+    "ReleasePackagingResult",
+    "ReproducibilityManifest",
+    "SoftwareVersionRecord",
+    "TransformationRecord",
+    "canonical_request_digest",
+    "configuration_digest",
+    "contract_json_schema",
+    "manifest_digest",
+    "policy_digest",
+    "result_payload_digest",
+]

@@ -42,10 +42,14 @@ recommendations. Missing or unsupported evidence is never converted into a negat
 - `GLIO-PROTEOGEN-M01-07` — deterministic support-domain and abstention routing. This module
   evaluates eight closed support dimensions and emits typed abstention reasons and remediation
   paths without converting missing or unsupported evidence into a negative finding.
+- `GLIO-PROTEOGEN-M01-08` — deterministic provenance and release packaging. This module
+  builds canonical USTAR packages from exact content-addressed artifacts, records reproducibility
+  metadata and quality/support decisions, and quarantines packages without a digest-bound external
+  signature receipt. It does not authenticate the external signer or validate scientific results.
 
-All seven modules expose strict JSON Schema 2020-12 contracts and typed library, HTTP, and
-command-line boundaries. M01-01 and M01-02 additionally provide deterministic append-only
-event-chain verification. The database hash chains
+All eight modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
+additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
 only scoped opaque identity tokens and privacy-minimized concordance summaries; raw direct
 identifiers, genotypes, reads, and molecular measurements are outside its public and persisted
@@ -65,6 +69,7 @@ uv run python -m evals.m01_04.run
 uv run python -m evals.m01_05.run
 uv run python -m evals.m01_06.run
 uv run python -m evals.m01_07.run
+uv run python -m evals.m01_08.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -72,13 +77,15 @@ uv run pytest benchmarks/m01_04_quality_metrics.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_06_harmonization.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_07_support_routing.py --benchmark-only --no-cov
+uv run pytest benchmarks/m01_08_release_packaging.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
 The `glio-proteogen` command exports each module's contracts and exposes M01-01 register,
 evaluate, retrieve, and ledger-verification operations plus M01-02 reconcile, retrieve, and
 ledger-verification operations, M01-03 bounded file inspection, M01-04 quality computation,
-M01-05 artifact detection, M01-06 technical harmonization, and M01-07 support routing.
+M01-05 artifact detection, M01-06 technical harmonization, M01-07 support routing, and M01-08
+directory-backed release package build and verification.
 For example:
 
 ```bash
@@ -96,11 +103,17 @@ glio-proteogen harmonize export-schema request
 glio-proteogen harmonize run harmonization-request.json
 glio-proteogen support export-schema request
 glio-proteogen support route support-request.json
+glio-proteogen release export-schema request
+glio-proteogen release build release-request.json release-source --output release.tar
+glio-proteogen release verify release-result.json release.tar
 ```
 
-`glio-proteogen serve` provides the same strict byte-validated operations over HTTP. M01-03
-inspection, M01-04 quality computation, M01-05 artifact detection, and M01-06 harmonization are
-deliberately stateless. M01-07 support routing is also stateless.
+`glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
+routes. M01-08 intentionally keeps artifact bytes at its library and directory-backed CLI boundary;
+it does not invent an HTTP upload protocol. M01-03 inspection, M01-04 quality computation, M01-05
+artifact detection, M01-06 harmonization, M01-07 support routing, and M01-08 release packaging are
+stateless. M01-08 publishes package bytes only for a released result; quarantined results remain
+metadata-only.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import typer
@@ -17,6 +17,7 @@ from glio_proteogen.adapters.api import (
     _identity_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
+    _release_packaging_contract_schema,
     _support_routing_contract_schema,
     create_app,
 )
@@ -30,6 +31,11 @@ from glio_proteogen.contracts.m01_04.v1 import ComputeQualityMetricsRequest
 from glio_proteogen.contracts.m01_05.v1 import DetectArtifactsRequest
 from glio_proteogen.contracts.m01_06.v1 import HarmonizeObservationsRequest
 from glio_proteogen.contracts.m01_07.v1 import RouteSupportRequest
+from glio_proteogen.contracts.m01_08.v1 import (
+    BuildReleasePackageRequest,
+    ReleaseDisposition,
+    ReleasePackagingResult,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -77,6 +83,12 @@ from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.engine import 
 from glio_proteogen.modules.c01_preanalytic.m01_07_support_router.service import (
     M0107Service,
 )
+from glio_proteogen.modules.c01_preanalytic.m01_08_release_packaging import (
+    M0108Service,
+    ReleasePackagingInputError,
+    preflight_release_packaging_authorization,
+    verify_release_package,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -102,6 +114,11 @@ support_routing_app = typer.Typer(
     help="M01-07 deterministic support and abstention routing.",
 )
 app.add_typer(support_routing_app, name="support")
+release_packaging_app = typer.Typer(
+    no_args_is_help=True,
+    help="M01-08 deterministic provenance and release packaging.",
+)
+app.add_typer(release_packaging_app, name="release")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 
@@ -113,6 +130,50 @@ RequestArgument = Annotated[
     Path,
     typer.Argument(exists=True, file_okay=True, dir_okay=False, readable=True),
 ]
+SourceDirectoryArgument = Annotated[
+    Path,
+    typer.Argument(exists=True, file_okay=False, dir_okay=True, readable=True),
+]
+OutputOption = Annotated[
+    Path,
+    typer.Option("--output", "-o", help="New canonical USTAR package path."),
+]
+
+
+class _ReleaseFileError(ValueError):
+    """A CLI filesystem boundary could not be read or written safely."""
+
+    @classmethod
+    def source_not_directory(cls) -> _ReleaseFileError:
+        return cls("source is not a directory")
+
+    @classmethod
+    def symlink_source(cls) -> _ReleaseFileError:
+        return cls("artifact source cannot traverse a symbolic link")
+
+    @classmethod
+    def non_regular_source(cls) -> _ReleaseFileError:
+        return cls("artifact source must be a regular file below source")
+
+    @classmethod
+    def source_size_mismatch(cls) -> _ReleaseFileError:
+        return cls("artifact source size contradicts its declaration")
+
+    @classmethod
+    def source_unavailable(cls) -> _ReleaseFileError:
+        return cls("artifact source closure is unavailable")
+
+    @classmethod
+    def package_unavailable(cls) -> _ReleaseFileError:
+        return cls("package is unavailable")
+
+    @classmethod
+    def package_size_mismatch(cls) -> _ReleaseFileError:
+        return cls("package size contradicts its descriptor")
+
+    @classmethod
+    def output_unavailable(cls) -> _ReleaseFileError:
+        return cls("package output must be a new writable file")
 
 
 def _emit(value: object) -> None:
@@ -151,6 +212,69 @@ def _service(database: Path) -> M0101Service:
 
 def _identity_service(database: Path) -> M0102Service:
     return M0102Service(M0102EventStore(database))
+
+
+def _load_release_files(
+    request: BuildReleasePackageRequest,
+    source_directory: Path,
+) -> dict[str, bytes]:
+    """Resolve declared POSIX paths beneath one directory and read their exact bytes."""
+
+    root = _resolve_release_source(source_directory)
+    if not root.is_dir():
+        raise _ReleaseFileError.source_not_directory()
+    files: dict[str, bytes] = {}
+    for artifact in request.artifacts:
+        parts = PurePosixPath(artifact.path).parts
+        candidate = root.joinpath(*parts)
+        cursor = root
+        for part in parts:
+            cursor /= part
+            if cursor.is_symlink():
+                raise _ReleaseFileError.symlink_source()
+        resolved = _resolve_release_source(candidate)
+        if not resolved.is_relative_to(root) or not resolved.is_file():
+            raise _ReleaseFileError.non_regular_source()
+        content = _read_release_source(resolved, artifact.byte_size)
+        files[artifact.path] = content
+    return files
+
+
+def _resolve_release_source(path: Path) -> Path:
+    try:
+        return path.resolve(strict=True)
+    except OSError as error:
+        raise _ReleaseFileError.source_unavailable() from error
+
+
+def _read_release_source(path: Path, expected_size: int) -> bytes:
+    try:
+        with path.open("rb") as stream:
+            content = stream.read(expected_size + 1)
+    except OSError as error:
+        raise _ReleaseFileError.source_unavailable() from error
+    if len(content) != expected_size:
+        raise _ReleaseFileError.source_size_mismatch()
+    return content
+
+
+def _read_release_package(path: Path, expected_size: int) -> bytes:
+    try:
+        with path.open("rb") as stream:
+            package_bytes = stream.read(expected_size + 1)
+    except OSError as error:
+        raise _ReleaseFileError.package_unavailable() from error
+    if len(package_bytes) != expected_size:
+        raise _ReleaseFileError.package_size_mismatch()
+    return package_bytes
+
+
+def _write_release_package(path: Path, package_bytes: bytes) -> None:
+    try:
+        with path.open("xb") as stream:
+            stream.write(package_bytes)
+    except OSError as error:
+        raise _ReleaseFileError.output_unavailable() from error
 
 
 @protocol_app.command("register")
@@ -436,6 +560,66 @@ def export_support_routing_schema(
     """Export a machine-readable M01-07 contract for agents and tools."""
 
     typer.echo(json.dumps(_support_routing_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@release_packaging_app.command("export-schema")
+def export_release_packaging_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "manifest"],
+        typer.Argument(help="M01-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M01-08 contract for agents and tools."""
+
+    typer.echo(json.dumps(_release_packaging_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@release_packaging_app.command("build")
+def build_release_archive(
+    request: RequestArgument,
+    source_directory: SourceDirectoryArgument,
+    output: OutputOption,
+) -> None:
+    """Build and publish one externally authorized canonical release package."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(BuildReleasePackageRequest),
+        preflight_release_packaging_authorization,
+    )
+    try:
+        built = M0108Service().execute(parsed, _load_release_files(parsed, source_directory))
+        if built.result.disposition is ReleaseDisposition.RELEASED:
+            _write_release_package(output, built.package_bytes)
+    except (ReleasePackagingInputError, _ReleaseFileError) as error:
+        typer.echo(f"release build failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    _emit(built.result)
+    if built.result.disposition is not ReleaseDisposition.RELEASED:
+        raise typer.Exit(code=1)
+
+
+@release_packaging_app.command("verify")
+def verify_release_archive(
+    result: RequestArgument,
+    package: Annotated[
+        Path,
+        typer.Argument(exists=True, file_okay=True, dir_okay=False, readable=True),
+    ],
+) -> None:
+    """Verify package bytes against one typed M01-08 release result."""
+
+    parsed = _load_request(result, TypeAdapter(ReleasePackagingResult))
+    try:
+        package_bytes = _read_release_package(package, parsed.package.byte_size)
+    except _ReleaseFileError as error:
+        typer.echo(f"release verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    verification = verify_release_package(parsed, package_bytes)
+    _emit(verification)
+    if not verification.verified:
+        raise typer.Exit(code=1)
 
 
 @app.command("export-schema")

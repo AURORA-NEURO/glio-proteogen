@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M01-08-R01,"Package exactly declared artifacts","closed artifact declaration set","three-artifact canonical package fixture",G1
+M01-08-R02,"Verify exact artifact byte length and SHA-256 digest","bounded byte verifier","tampered-byte and wrong-digest fixtures",G1
+M01-08-R03,"Reject unsafe absolute traversal and duplicate canonical paths","canonical relative path contract","traversal and duplicate-path fixtures",G1
+M01-08-R04,"Produce bit-identical package and manifest independent of input order","semantic canonical ordering","reversed declaration and byte-map replay",G1
+M01-08-R05,"Record exact software and reference versions","closed reproducibility manifest","exact software/reference expectations",G1
+M01-08-R06,"Record exact transformations and quality/support decisions","closed reproducibility manifest","exact transformation/decision expectations",G1
+M01-08-R07,"Record the declared numerical tolerance manifest exactly","closed tolerance contract","exact tolerance-manifest expectation",G1
+M01-08-R08,"Require an external receipt bound to the package digest","receipt binding verifier","missing and mismatched receipt fixtures",G1
+M01-08-R09,"Never generate a signature, key, or reviewer approval","external-authority-only boundary","closed output and receipt-source checks",G1
+M01-08-R10,"Reject unauthorized consent before any byte read or hash","raw preflight authorization","unreadable-source consent-denial fixture",G1
+M01-08-R11,"Bind result to request policy configuration inputs and upstream controls","canonical digests and provenance envelope","contract invariants and exact replay",G1
+M01-08-R12,"Stay inside the package/manifest output and privacy ceiling","closed result and limitations","recursive output-boundary eval",G1
+M01-08-R13,"Meet a broad representative latency budget","bounded artifact verification and canonical assembly","representative public-engine microbenchmark",G1
