@@ -68,6 +68,7 @@ jobs:
       - run: uv run python -m evals.m03_06.run --output m03_06-eval.json
       - run: uv run python -m evals.m03_07.run --output m03_07-eval.json
       - run: uv run python -m evals.m03_08.run --output m03_08-eval.json
+      - run: uv run python -m evals.m04_01.run --output m04_01-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -188,6 +189,11 @@ jobs:
         with:
           name: m03-08-eval
           path: m03_08-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-01-eval
+          path: m04_01-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -226,6 +232,7 @@ jobs:
       - run: uv run python -m evals.m03_06.benchmark --output m03_06-benchmark.json
       - run: uv run python -m evals.m03_07.benchmark --output m03_07-benchmark.json
       - run: uv run python -m evals.m03_08.benchmark --output m03_08-benchmark.json
+      - run: uv run python -m evals.m04_01.benchmark --output m04_01-benchmark.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -346,6 +353,11 @@ jobs:
         with:
           name: m03-08-benchmark
           path: m03_08-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-01-benchmark
+          path: m04_01-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest
