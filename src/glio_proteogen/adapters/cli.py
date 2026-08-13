@@ -33,6 +33,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_raw_contract_schema,
     _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
+    _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -135,6 +136,10 @@ from glio_proteogen.contracts.m03_08 import (
 from glio_proteogen.contracts.m04_01 import (
     M0401_MAX_CANONICAL_REQUEST_BYTES,
     EvaluateProteoformProtocolRequest,
+)
+from glio_proteogen.contracts.m04_02 import (
+    M0402_MAX_CANONICAL_REQUEST_BYTES,
+    ReconcileProteoformIdentityLineageRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -263,6 +268,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_01_protocol_metadata impo
     M0401Service,
     preflight_proteoform_protocol_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_02_identity_lineage import (
+    M0402Service,
+    preflight_proteoform_identity_lineage_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -381,6 +390,11 @@ proteoform_protocol_app = typer.Typer(
     help="M04-01 proteoform/isoform protocol conformance.",
 )
 app.add_typer(proteoform_protocol_app, name="proteoform-protocol")
+proteoform_lineage_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-02 proteoform artifact identity-lineage reconciliation.",
+)
+app.add_typer(proteoform_lineage_app, name="proteoform-lineage")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -2308,6 +2322,46 @@ def validate_proteoform_protocol(request: RequestArgument) -> None:
         M0401_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0401Service().execute(parsed))
+
+
+@proteoform_lineage_app.command("export-schema")
+def export_proteoform_lineage_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact-claim",
+            "derivation",
+            "graph",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M04-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform identity-lineage contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_lineage_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_lineage_app.command("reconcile")
+def reconcile_proteoform_lineage(request: RequestArgument) -> None:
+    """Reconcile one authorized proteoform artifact-lineage request."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ReconcileProteoformIdentityLineageRequest),
+        preflight_proteoform_identity_lineage_authorization,
+        M0402_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0402Service().execute(parsed))
 
 
 @protein_inference_release_app.command("build")
