@@ -107,6 +107,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         ("protein-inference-lineage", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-02:1.0.0:request",
     ),
+    (
+        ("protein-inference-raw", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-03:1.0.0:request",
+    ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {

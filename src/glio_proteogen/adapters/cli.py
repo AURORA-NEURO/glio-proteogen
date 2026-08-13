@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -25,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identity_contract_schema,
     _protein_inference_lineage_contract_schema,
     _protein_inference_protocol_contract_schema,
+    _protein_inference_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -83,6 +86,9 @@ from glio_proteogen.contracts.m02_08 import (
 from glio_proteogen.contracts.m03_01.v1 import EvaluateProteinInferenceProtocolRequest
 from glio_proteogen.contracts.m03_02.v1 import (
     ReconcileProteinInferenceIdentityLineageRequest,
+)
+from glio_proteogen.contracts.m03_03 import (
+    IngestProteinInferenceRawInputsRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -180,6 +186,11 @@ from glio_proteogen.modules.c03_protein_inference.m03_02_identity_lineage import
     M0302Service,
     preflight_protein_identity_lineage_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_03_raw_ingestion import (
+    M0303Service,
+    ProteinInferenceRawIngestionInputError,
+    preflight_protein_inference_raw_ingestion_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -260,6 +271,11 @@ protein_inference_lineage_app = typer.Typer(
     help="M03-02 protein-inference artifact identity-lineage reconciliation.",
 )
 app.add_typer(protein_inference_lineage_app, name="protein-inference-lineage")
+protein_inference_raw_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-03 bounded protein-inference raw-source admission.",
+)
+app.add_typer(protein_inference_raw_app, name="protein-inference-raw")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -380,6 +396,38 @@ class _IdentificationRawFileError(ValueError):
     @classmethod
     def source_unavailable(cls) -> _IdentificationRawFileError:
         return cls("raw source is unavailable")
+
+
+class _ProteinInferenceRawFileError(ValueError):
+    """A declared M03-03 source violates the directory-backed CLI boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference source directory is unavailable")
+
+    @classmethod
+    def linked_or_reparse_source(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference raw source cannot be a link or reparse point")
+
+    @classmethod
+    def invalid_source_name(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference source identifier is not a safe filename")
+
+    @classmethod
+    def non_regular_source(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference raw source must be a regular file")
+
+    @classmethod
+    def source_changed(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference raw source changed during admission")
+
+    @classmethod
+    def source_size_mismatch(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference raw source size contradicts its declaration")
+
+    @classmethod
+    def source_unavailable(cls) -> _ProteinInferenceRawFileError:
+        return cls("protein-inference raw source is unavailable")
 
 
 class _IdentificationReleaseFileError(ValueError):
@@ -710,6 +758,119 @@ def _read_identification_raw_source(root: Path, source_id: str, expected_size: i
     if len(payload) != expected_size:
         raise _IdentificationRawFileError.source_size_mismatch()
     return payload
+
+
+def _load_protein_inference_raw_files(
+    request: IngestProteinInferenceRawInputsRequest,
+    source_directory: Path,
+) -> dict[str, bytes]:
+    """Validate the complete literal-basename mapping, then read each file exactly once."""
+
+    root = _resolve_protein_inference_raw_directory(source_directory)
+    candidates: list[tuple[str, Path, os.stat_result]] = []
+    for declaration in sorted(request.sources, key=lambda item: item.source_id):
+        _validate_protein_inference_source_name(declaration.source_id)
+        candidate = root / declaration.source_id
+        before = _protein_inference_source_stat(candidate)
+        if before.st_size != declaration.byte_length:
+            raise _ProteinInferenceRawFileError.source_size_mismatch()
+        candidates.append((declaration.source_id, candidate, before))
+
+    payloads: dict[str, bytes] = {}
+    for source_id, candidate, before in candidates:
+        try:
+            with candidate.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+                if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                    raise _ProteinInferenceRawFileError.source_changed()
+                payload = stream.read(before.st_size + 1)
+                after = os.fstat(stream.fileno())
+        except _ProteinInferenceRawFileError:
+            raise
+        except OSError as error:
+            raise _ProteinInferenceRawFileError.source_unavailable() from error
+        if not _same_file_receipt(opened, after):
+            raise _ProteinInferenceRawFileError.source_changed()
+        if len(payload) != before.st_size:
+            raise _ProteinInferenceRawFileError.source_size_mismatch()
+        payloads[source_id] = payload
+    return payloads
+
+
+def _resolve_protein_inference_raw_directory(source_directory: Path) -> Path:
+    try:
+        if _is_reparse_path(source_directory):
+            raise _ProteinInferenceRawFileError.linked_or_reparse_source()
+        root = source_directory.resolve(strict=True)
+    except _ProteinInferenceRawFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceRawFileError.source_not_directory() from error
+    if not root.is_dir():
+        raise _ProteinInferenceRawFileError.source_not_directory()
+    return root
+
+
+def _validate_protein_inference_source_name(source_id: str) -> None:
+    if (
+        not source_id
+        or source_id in {".", ".."}
+        or ":" in source_id
+        or "/" in source_id
+        or "\\" in source_id
+        or Path(source_id).name != source_id
+        or source_id.rstrip(" .") != source_id
+        or _is_windows_device_name(source_id)
+    ):
+        raise _ProteinInferenceRawFileError.invalid_source_name()
+
+
+def _is_windows_device_name(source_id: str) -> bool:
+    stem = source_id.split(".", 1)[0].casefold()
+    return stem in {
+        "con",
+        "prn",
+        "aux",
+        "nul",
+        *(f"com{index}" for index in range(1, 10)),
+        *(f"lpt{index}" for index in range(1, 10)),
+    }
+
+
+def _is_reparse_path(path: Path) -> bool:
+    try:
+        attributes = path.lstat()
+    except OSError as error:
+        raise _ProteinInferenceRawFileError.source_unavailable() from error
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    file_attributes = getattr(attributes, "st_file_attributes", 0)
+    return path.is_symlink() or path.is_junction() or bool(file_attributes & reparse_flag)
+
+
+def _protein_inference_source_stat(path: Path) -> os.stat_result:
+    if _is_reparse_path(path):
+        raise _ProteinInferenceRawFileError.linked_or_reparse_source()
+    try:
+        received = path.stat(follow_symlinks=False)
+    except OSError as error:
+        raise _ProteinInferenceRawFileError.source_unavailable() from error
+    if not stat.S_ISREG(received.st_mode):
+        raise _ProteinInferenceRawFileError.non_regular_source()
+    return received
+
+
+def _same_file_receipt(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        left.st_dev,
+        left.st_ino,
+        left.st_size,
+        left.st_mtime_ns,
+    ) == (
+        right.st_dev,
+        right.st_ino,
+        right.st_size,
+        right.st_mtime_ns,
+    )
 
 
 @protocol_app.command("register")
@@ -1447,6 +1608,59 @@ def reconcile_protein_inference_lineage(request: RequestArgument) -> None:
         preflight_protein_identity_lineage_authorization,
     )
     _emit(M0302Service().execute(parsed))
+
+
+@protein_inference_raw_app.command("export-schema")
+def export_protein_inference_raw_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "source",
+            "protocol-receipt",
+            "lineage-receipt",
+            "raw-input",
+            "receipt",
+        ],
+        typer.Argument(help="M03-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference raw-admission contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_raw_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_raw_app.command("ingest")
+def ingest_protein_inference_raw_inputs(
+    request: RequestArgument,
+    source_directory: SourceDirectoryArgument,
+) -> None:
+    """Ingest exact same-named, non-reparse source files from one directory."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(IngestProteinInferenceRawInputsRequest),
+        preflight_protein_inference_raw_ingestion_authorization,
+    )
+    try:
+        sources = _load_protein_inference_raw_files(parsed, source_directory)
+        result = M0303Service().execute(parsed, sources)
+    except (
+        ProteinInferenceRawIngestionInputError,
+        _ProteinInferenceRawFileError,
+    ) as error:
+        typer.echo(f"protein-inference raw ingestion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    _emit(result)
+    if result.disposition.value != "validated":
+        raise typer.Exit(code=1)
 
 
 @app.command("export-schema")
