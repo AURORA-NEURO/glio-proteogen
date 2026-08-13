@@ -1,0 +1,415 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-02",
+  "schema_version": "1.0.0",
+  "operation": "reconcile_proteoform_identity_lineage",
+  "parent_target": "protein_rna_discordance",
+  "owner": "Quality engineering",
+  "safety_class": "S2",
+  "evidence_gate": "G0",
+  "data_classification": "synthetic_nonclinical_opaque_identity_and_categorical_lineage",
+  "claims_ceiling": "deterministic_identity_and_lineage_reconciliation_only_no_identity_protein_proteoform_copy_number_discordance_kinase_fusion_treatment_or_clinical_inference",
+  "upstream_outputs_must_be_genuine": [
+    "GLIO-PROTEOGEN-M01-02",
+    "GLIO-PROTEOGEN-M04-01"
+  ],
+  "schema_names": [
+    "request",
+    "output",
+    "policy",
+    "artifact-claim",
+    "derivation",
+    "graph",
+    "finding",
+    "receipt"
+  ],
+  "physical_entity_kinds": [
+    "patient",
+    "specimen",
+    "aliquot",
+    "section",
+    "analyte",
+    "run",
+    "derived_object"
+  ],
+  "artifact_roles": [
+    "mass_spectrometry_proteome_manifest",
+    "genome_manifest",
+    "transcriptome_manifest",
+    "ptm_annotation_manifest",
+    "protein_rna_discordance_input_bundle"
+  ],
+  "evidence_states": [
+    "observed",
+    "missing",
+    "indeterminate",
+    "unsupported",
+    "redacted"
+  ],
+  "dispositions": [
+    "reconciled",
+    "quarantined",
+    "abstained"
+  ],
+  "finding_actions": [
+    "record",
+    "quarantine",
+    "abstain"
+  ],
+  "finding_action_by_code": {
+    "upstream_identity_unresolved": "abstain",
+    "upstream_protocol_nonconformant": "quarantine",
+    "identity_not_evaluable": "abstain",
+    "identity_swap": "quarantine",
+    "cross_patient_link": "quarantine",
+    "artifact_lineage_collision": "quarantine",
+    "artifact_identity_collision": "quarantine",
+    "binding_scope_collision": "quarantine",
+    "duplicate_content_retained": "record",
+    "producer_identity_drift": "quarantine",
+    "producer_protocol_drift": "quarantine",
+    "producer_reference_bundle_drift": "quarantine",
+    "producer_coordinate_policy_drift": "quarantine",
+    "artifact_evidence_not_evaluable": "abstain"
+  },
+  "finding_codes": [
+    "upstream_identity_unresolved",
+    "upstream_protocol_nonconformant",
+    "identity_not_evaluable",
+    "identity_swap",
+    "cross_patient_link",
+    "artifact_lineage_collision",
+    "artifact_identity_collision",
+    "binding_scope_collision",
+    "duplicate_content_retained",
+    "producer_identity_drift",
+    "producer_protocol_drift",
+    "producer_reference_bundle_drift",
+    "producer_coordinate_policy_drift",
+    "artifact_evidence_not_evaluable"
+  ],
+  "policy_required_true_controls": [
+    "quarantine_on_swap",
+    "quarantine_on_collision",
+    "retain_duplicate_content",
+    "quarantine_on_cross_patient_link",
+    "abstain_on_indeterminate_identity",
+    "require_all_seven_entity_kinds"
+  ],
+  "exact_limitations": [
+    "deterministic_identity_lineage_reconciliation_only",
+    "caller_declared_authority_not_authenticated",
+    "no_identity_protein_discordance_or_clinical_inference"
+  ],
+  "full_upstream_result_types": [
+    "IdentityLineageResolution",
+    "ProteoformProtocolConformanceResult"
+  ],
+  "opaque_identifier_namespaces": [
+    "request",
+    "actor",
+    "decision",
+    "policy",
+    "method",
+    "claim",
+    "derivation",
+    "evidence",
+    "reviewer"
+  ],
+  "opaque_identifier_pattern": "^(request|actor|decision|policy|method|claim|derivation|evidence|reviewer)\\.[0-9a-f]{64}$",
+  "generated_identifier_prefixes": [
+    "result.m0402",
+    "activity.m0402"
+  ],
+  "artifact_media_type_allowlist": [
+    "application/vnd.glio-proteogen.m04-02.policy+json",
+    "application/vnd.glio-proteogen.m04-02.derivation+json",
+    "application/vnd.glio-proteogen.m04-02.mass-spectrometry-proteome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.genome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.transcriptome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.ptm-annotation-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.protein-rna-discordance-input-bundle+json"
+  ],
+  "installed_capacity": {
+    "physical_entity_kinds": 7,
+    "artifact_roles": 5,
+    "minimum_artifact_claims": 5,
+    "maximum_artifact_claims": 256,
+    "derivations": 1,
+    "minimum_derivation_sources": 4,
+    "maximum_derivation_sources": 255,
+    "maximum_subject_components": 256,
+    "maximum_approved_methods": 64,
+    "canonical_request_bytes": 4194304,
+    "limitations": 3,
+    "minimum_evidence": 15,
+    "maximum_evidence": 329,
+    "finding_codes": 14,
+    "maximum_findings": 2435
+  },
+  "output_ceiling": {
+    "immutable_identity_resolution_object": true,
+    "immutable_physical_and_artifact_lineage_graph": true,
+    "typed_uncertainty": true,
+    "support_status": true,
+    "receipt_finding_codes": "canonical_exact_unique_set",
+    "provenance": true,
+    "evidence": true,
+    "limitations": true,
+    "parent_context_only": "protein_rna_discordance",
+    "emits_protein_rna_discordance": false,
+    "emits_proteogenomic_state": false,
+    "emits_proteotype": false,
+    "emits_protein_level_subtype": false,
+    "infers_identity": false,
+    "infers_consent": false,
+    "infers_protein": false,
+    "infers_proteoform": false,
+    "infers_kinase_activity": false,
+    "performs_cn_to_protein_regression": false,
+    "performs_all_omics_fusion": false,
+    "recommends_treatment": false,
+    "mutates_upstream": false
+  },
+  "fixture_prohibitions": [
+    "direct_identifier",
+    "raw_identity_token",
+    "sequence",
+    "accession",
+    "raw_copy_number",
+    "raw_rna_abundance",
+    "raw_protein_abundance",
+    "ptm_site",
+    "activity_claim",
+    "subtype_claim",
+    "proteotype_claim",
+    "treatment_recommendation",
+    "clinical_claim"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "canonical_reconciliation",
+      "case_ids": [
+        "canonical_all_seven_entity_chain",
+        "canonical_all_five_artifact_roles",
+        "exact_single_four_role_assembly",
+        "physical_and_artifact_graphs_remain_distinct",
+        "exact_m0102_m0401_bindings",
+        "immutable_nonsecret_graph_retention"
+      ],
+      "case_expectations": {
+        "canonical_all_seven_entity_chain": "reconciled",
+        "canonical_all_five_artifact_roles": "reconciled",
+        "exact_single_four_role_assembly": "reconciled",
+        "physical_and_artifact_graphs_remain_distinct": "reconciled_graph_distinction",
+        "exact_m0102_m0401_bindings": "reconciled_exact_upstream_bindings",
+        "immutable_nonsecret_graph_retention": "reconciled_immutable_retention"
+      },
+      "expected_case_count": 6
+    },
+    {
+      "group_id": "swap_detection_and_nonmutation",
+      "case_ids": [
+        "specimen_subject_swap",
+        "aliquot_subject_swap",
+        "run_subject_swap",
+        "derived_object_subject_swap",
+        "swap_does_not_relabel",
+        "swap_does_not_rewrite_edges"
+      ],
+      "case_expectations": {
+        "specimen_subject_swap": "quarantined:identity_swap",
+        "aliquot_subject_swap": "quarantined:identity_swap",
+        "run_subject_swap": "quarantined:identity_swap",
+        "derived_object_subject_swap": "quarantined:identity_swap",
+        "swap_does_not_relabel": "quarantined:identity_swap:no_relabel",
+        "swap_does_not_rewrite_edges": "quarantined:identity_swap:no_edge_rewrite"
+      },
+      "expected_case_count": 6
+    },
+    {
+      "group_id": "collision_and_duplicate_detection",
+      "case_ids": [
+        "same_binding_scope_collision",
+        "artifact_identity_digest_collision",
+        "duplicate_content_same_scope_retained",
+        "duplicate_content_different_scope_retained",
+        "all_collision_participants_retained",
+        "duplicate_has_no_authoritative_copy",
+        "collision_and_duplicate_coexist"
+      ],
+      "case_expectations": {
+        "same_binding_scope_collision": "quarantined:binding_scope_collision",
+        "artifact_identity_digest_collision": "quarantined:artifact_identity_collision",
+        "duplicate_content_same_scope_retained": "quarantined:binding_scope_collision+duplicate_content_retained:retention",
+        "duplicate_content_different_scope_retained": "reconciled:duplicate_content_retained:retention",
+        "all_collision_participants_retained": "quarantined:retention",
+        "duplicate_has_no_authoritative_copy": "reconciled:duplicate_content_retained:no_authority_selection",
+        "collision_and_duplicate_coexist": "quarantined:collision+duplicate_content_retained:retention"
+      },
+      "expected_case_count": 7
+    },
+    {
+      "group_id": "cross_patient_detection",
+      "case_ids": [
+        "physical_cross_patient_link",
+        "mass_spec_cross_patient_binding",
+        "genome_transcript_source_mismatch",
+        "bundle_mixed_subject",
+        "propagation_reaches_bundle_only",
+        "no_patient_assignment_inferred"
+      ],
+      "case_expectations": {
+        "physical_cross_patient_link": "quarantined:cross_patient_link",
+        "mass_spec_cross_patient_binding": "quarantined:cross_patient_link",
+        "genome_transcript_source_mismatch": "quarantined:cross_patient_link",
+        "bundle_mixed_subject": "quarantined:cross_patient_link",
+        "propagation_reaches_bundle_only": "quarantined:cross_patient_link:target_only_propagation",
+        "no_patient_assignment_inferred": "quarantined:cross_patient_link:no_assignment_synthesis"
+      },
+      "expected_case_count": 6
+    },
+    {
+      "group_id": "malformed_lineage_shape",
+      "case_ids": [
+        "missing_required_entity_kind",
+        "unknown_artifact_role",
+        "missing_required_source_role",
+        "multiple_bundle_targets",
+        "derivation_self_dependency",
+        "dangling_endpoint",
+        "disconnected_source",
+        "unapproved_derivation_method"
+      ],
+      "case_expectations": {
+        "missing_required_entity_kind": "validation_rejected",
+        "unknown_artifact_role": "validation_rejected",
+        "missing_required_source_role": "validation_rejected",
+        "multiple_bundle_targets": "validation_rejected",
+        "derivation_self_dependency": "validation_rejected",
+        "dangling_endpoint": "validation_rejected",
+        "disconnected_source": "validation_rejected",
+        "unapproved_derivation_method": "validation_rejected"
+      },
+      "expected_case_count": 8
+    },
+    {
+      "group_id": "upstream_and_producer_drift",
+      "case_ids": [
+        "stale_context_identity_binding",
+        "self_inconsistent_identity_result",
+        "valid_unresolved_identity_abstains",
+        "valid_quarantined_m0401_quarantines",
+        "resigned_m0401_forgery_rejected",
+        "m0401_identity_receipt_mismatch",
+        "m0401_intended_use_mismatch",
+        "producer_identity_and_protocol_drift",
+        "producer_reference_and_coordinate_drift"
+      ],
+      "case_expectations": {
+        "stale_context_identity_binding": "validation_rejected",
+        "self_inconsistent_identity_result": "validation_rejected",
+        "valid_unresolved_identity_abstains": "abstained:upstream_identity_unresolved",
+        "valid_quarantined_m0401_quarantines": "quarantined:upstream_protocol_nonconformant",
+        "resigned_m0401_forgery_rejected": "validation_rejected",
+        "m0401_identity_receipt_mismatch": "validation_rejected",
+        "m0401_intended_use_mismatch": "validation_rejected",
+        "producer_identity_and_protocol_drift": "quarantined:producer_identity_drift+producer_protocol_drift",
+        "producer_reference_and_coordinate_drift": "quarantined:producer_reference_bundle_drift+producer_coordinate_policy_drift"
+      },
+      "expected_case_count": 9
+    },
+    {
+      "group_id": "evidence_and_authority_ceiling",
+      "case_ids": [
+        "observed_reconciles",
+        "missing_abstains",
+        "indeterminate_abstains",
+        "unsupported_abstains",
+        "redacted_abstains",
+        "all_states_preserve_components",
+        "no_protein_presence_or_absence",
+        "no_cn_or_discordance_inference"
+      ],
+      "case_expectations": {
+        "observed_reconciles": "reconciled",
+        "missing_abstains": "abstained:artifact_evidence_not_evaluable",
+        "indeterminate_abstains": "abstained:artifact_evidence_not_evaluable",
+        "unsupported_abstains": "abstained:artifact_evidence_not_evaluable",
+        "redacted_abstains": "abstained:artifact_evidence_not_evaluable",
+        "all_states_preserve_components": "all_evidence_states_preserve_components",
+        "no_protein_presence_or_absence": "recursive_authority_ceiling",
+        "no_cn_or_discordance_inference": "recursive_authority_ceiling"
+      },
+      "expected_case_count": 8
+    },
+    {
+      "group_id": "strict_boundary_and_replay",
+      "case_ids": [
+        "approved_configuration_denied_zero_traversal",
+        "identity_lineage_unresolved_zero_traversal",
+        "provenance_denied_zero_traversal",
+        "consent_denied_zero_traversal",
+        "quality_denied_zero_traversal",
+        "support_denied_zero_traversal",
+        "intended_use_denied_zero_traversal",
+        "arbitrary_mapping_denied_zero_traversal",
+        "dict_subclass_firewall_exception_and_baseexception_boundary",
+        "duplicate_json_rejected",
+        "unknown_field_rejected",
+        "scalar_coercion_rejected",
+        "maximum_shape_accepted",
+        "first_excess_rejected",
+        "request_4mib_plus_one_rejected",
+        "semantic_reorder_full_result_equality",
+        "recursive_privacy_canary_absent",
+        "stale_result_digest_rejected",
+        "resigned_graph_finding_provenance_evidence_forgery_rejected",
+        "recursive_authority_ceiling"
+      ],
+      "case_expectations": {
+        "approved_configuration_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "identity_lineage_unresolved_zero_traversal": "authorization_rejected:zero_traversal",
+        "provenance_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "consent_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "quality_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "support_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "intended_use_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "arbitrary_mapping_denied_zero_traversal": "authorization_rejected:zero_traversal",
+        "dict_subclass_firewall_exception_and_baseexception_boundary": "hostile_dict_equality+exception_authorization_rejected+baseexception_propagates",
+        "duplicate_json_rejected": "validation_rejected",
+        "unknown_field_rejected": "validation_rejected",
+        "scalar_coercion_rejected": "validation_rejected",
+        "maximum_shape_accepted": "strict_valid_executable:quarantined_capacity_totality",
+        "first_excess_rejected": "validation_rejected",
+        "request_4mib_plus_one_rejected": "validation_rejected",
+        "semantic_reorder_full_result_equality": "complete_result_equality",
+        "recursive_privacy_canary_absent": "recursive_privacy_ceiling",
+        "stale_result_digest_rejected": "validation_rejected",
+        "resigned_graph_finding_provenance_evidence_forgery_rejected": "validation_rejected",
+        "recursive_authority_ceiling": "recursive_authority_ceiling"
+      },
+      "expected_case_count": 20
+    }
+  ],
+  "expected_group_count": 8,
+  "expected_total_case_count": 70,
+  "expected_case_allocation": [
+    6,
+    6,
+    7,
+    6,
+    8,
+    9,
+    8,
+    20
+  ],
+  "benchmark": {
+    "workload": "representative_genuine_seven_kind_five_claim_single_assembly",
+    "upstream_setup_timed": false,
+    "warmup_count": 1,
+    "timed_public_calls": 25,
+    "timed_boundary": "reconcile_proteoform_identity_lineage_only",
+    "mean_budget_ns": 400000000,
+    "p95_budget_ns": 600000000
+  }
+}

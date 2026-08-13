@@ -122,8 +122,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   module closes a reviewed reference bundle, coordinate conventions, evidence eligibility,
   isoform discrimination, modification localization, quantification, and discordance handoff
   declaration without inferring proteoforms, discordance, activity, subtype, or treatment.
+- `GLIO-PROTEOGEN-M04-02` — deterministic proteoform/isoform identity and lineage
+  reconciliation. This stateless module closes genuine full M01-02 and M04-01 results over seven
+  physical kinds, five opaque artifact roles, and one four-role assembly while retaining swaps,
+  collisions, duplicates, cross-patient links, and non-observed evidence without identity repair
+  or biological inference.
 
-The twenty-four published module slices and the M04-01 release candidate expose strict JSON Schema
+The twenty-five published module slices and the M04-02 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -164,6 +169,7 @@ uv run python -m evals.m03_06.run
 uv run python -m evals.m03_07.run
 uv run python -m evals.m03_08.run
 uv run python -m evals.m04_01.run
+uv run python -m evals.m04_02.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -189,6 +195,7 @@ uv run python -m evals.m03_06.benchmark
 uv run python -m evals.m03_07.benchmark
 uv run python -m evals.m03_08.benchmark
 uv run python -m evals.m04_01.benchmark
+uv run python -m evals.m04_02.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -207,7 +214,8 @@ protein-inference raw-source admission, M03-04 metadata-only quality computation
 categorical artifact detection over an authorized evidence ledger, and M03-06 fixed-point support
 harmonization, M03-07 protein-inference support and abstention routing, M03-08 local,
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
-proteoform/isoform protocol conformance.
+proteoform/isoform protocol conformance, plus M04-02 stateless proteoform/isoform identity and
+lineage reconciliation.
 For example:
 
 ```bash
@@ -264,6 +272,8 @@ glio-proteogen protein-inference-release build protein-inference-release-request
 glio-proteogen protein-inference-release verify protein-inference-release-result.json protein-inference-release.tar
 glio-proteogen proteoform-protocol export-schema request
 glio-proteogen proteoform-protocol validate proteoform-protocol-request.json
+glio-proteogen proteoform-lineage export-schema request
+glio-proteogen proteoform-lineage reconcile proteoform-lineage-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -359,6 +369,12 @@ one reviewed conformance profile. It preserves exact reference, coordinate, elig
 discrimination, localization, quantification, unresolved-state, and protein-RNA-discordance
 handoff semantics. It does not inspect assay observations, infer proteoforms or discordance,
 localize modifications, fuse omics, score kinase activity, emit subtypes, or recommend treatment.
+M04-02 is stateless and consumes exact full M01-02 and M04-01 results plus opaque, role-compatible
+artifact claims and one reviewed derivation policy. It preserves the seven-kind physical lineage
+separately from the five-role artifact graph, retains duplicate content, and quarantines swaps,
+collisions, cross-patient links, and producer drift while abstaining on non-observed evidence. It
+does not repair or infer identity, inspect artifact bytes, execute CN-to-protein regression, infer
+protein, proteoform, discordance, or kinase state, fuse omics, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
