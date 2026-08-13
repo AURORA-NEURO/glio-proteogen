@@ -230,6 +230,12 @@ from glio_proteogen.contracts.m03_07.v1 import (
     ProteinInferenceSupportRouteResult,
     RouteProteinInferenceSupportRequest,
 )
+from glio_proteogen.contracts.m03_08.schema import (
+    ContractName as M0308ContractName,
+)
+from glio_proteogen.contracts.m03_08.schema import (
+    contract_json_schema as m0308_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -504,6 +510,12 @@ def _protein_inference_support_contract_schema(
     name: M0307ContractName,
 ) -> dict[str, object]:
     return m0307_contract_json_schema(name)
+
+
+def _protein_inference_release_contract_schema(
+    name: M0308ContractName,
+) -> dict[str, object]:
+    return m0308_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1141,6 +1153,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0307ContractName,
     ) -> dict[str, object]:
         return _protein_inference_support_contract_schema(name)
+
+    @app.get("/v1/contracts/M03-08/{name}/schema", tags=["contracts"])
+    def protein_inference_release_contract_schema(
+        name: M0308ContractName,
+    ) -> dict[str, object]:
+        return _protein_inference_release_contract_schema(name)
 
     @app.post(
         "/v1/modules/M03-07/support-route",

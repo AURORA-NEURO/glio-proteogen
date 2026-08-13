@@ -63,6 +63,7 @@ jobs:
           uv run python -m evals.m03_05.run --output evidence/m03-05-eval.json
           uv run python -m evals.m03_06.run --output evidence/m03-06-eval.json
           uv run python -m evals.m03_07.run --output evidence/m03-07-eval.json
+          uv run python -m evals.m03_08.run --output evidence/m03-08-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
           uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
           uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=evidence/m01-03-benchmark.json --no-cov
@@ -86,6 +87,7 @@ jobs:
           uv run python -m evals.m03_05.benchmark --output evidence/m03-05-benchmark.json
           uv run python -m evals.m03_06.benchmark --output evidence/m03-06-benchmark.json
           uv run python -m evals.m03_07.benchmark --output evidence/m03-07-benchmark.json
+          uv run python -m evals.m03_08.benchmark --output evidence/m03-08-benchmark.json
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json
