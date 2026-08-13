@@ -97,8 +97,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   protein-group/ambiguity/bundle JSON, five governed FASTA component roles, PSI-MOD OBO, VCF, and
   GFF3 sources. It verifies transport and decoded integrity, structure, cross-references, builds,
   controlled vocabularies, and units without retaining raw bytes or inferring proteins or activity.
+- `GLIO-PROTEOGEN-M03-04` — deterministic protein-inference quality computation. This stateless
+  module evaluates eight exact rational metrics from one authorized aggregate fact ledger, preserves
+  censored, missing, not-applicable, and unsupported states, and binds every result to the selected
+  assay profile, controls, references, and compact M03-03 projection. That caller-declared projection
+  proves internal content consistency, not independent M03-03 execution or issuer authenticity.
 
-The eighteen published module slices and the M03-03 release candidate expose strict JSON Schema
+The nineteen published module slices and the M03-04 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -133,6 +138,7 @@ uv run python -m evals.m02_08.run
 uv run python -m evals.m03_01.run
 uv run python -m evals.m03_02.run
 uv run python -m evals.m03_03.run
+uv run python -m evals.m03_04.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -152,6 +158,7 @@ uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --no-cov
 uv run pytest benchmarks/m03_01_protocol_metadata.py --benchmark-only --no-cov
 uv run python -m evals.m03_02.benchmark
 uv run python -m evals.m03_03.benchmark
+uv run python -m evals.m03_04.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -165,8 +172,9 @@ identification raw-input ingestion, M02-04 stateless identification-quality comp
 stateless identification-artifact detection, M02-06 identification harmonization, M02-07
 identification support routing, and M02-08 directory-backed identification release packaging and
 verification, plus M03-01 stateless protein-inference protocol conformance and M03-02 stateless
-protein-inference artifact identity-lineage reconciliation. The M03-03 candidate adds bounded,
-directory-backed protein-inference raw-source admission.
+protein-inference artifact identity-lineage reconciliation, plus M03-03 bounded, directory-backed
+protein-inference raw-source admission. The M03-04 candidate adds metadata-only protein-inference
+quality computation over an authorized aggregate fact ledger.
 For example:
 
 ```bash
@@ -210,6 +218,8 @@ glio-proteogen protein-inference-lineage export-schema request
 glio-proteogen protein-inference-lineage reconcile protein-inference-lineage-request.json
 glio-proteogen protein-inference-raw export-schema request
 glio-proteogen protein-inference-raw ingest protein-inference-raw-request.json source-directory
+glio-proteogen protein-inference-quality export-schema request
+glio-proteogen protein-inference-quality compute protein-inference-quality-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -265,6 +275,14 @@ surface exports schemas only and deliberately has no raw-ingestion POST route. I
 transport, decompression, structural references, search-space/PTM closure, and build/CV/unit
 coherence without retaining source bytes, assigning peptides, inferring proteins or complexes,
 scoring activity, or making treatment or clinical claims.
+M03-04 is stateless and consumes one authorization-checked, caller-declared compact M03-03 receipt,
+one aggregate fact ledger, and one reviewed assay-quality policy. It computes exact integer-rational
+source completeness, peptide assignment, ambiguity, proteoform discrimination, detection support,
+competition closure, control recovery, and sample-context coherence metrics while retaining typed
+unresolved states. The compact receipt and ledger establish self-consistency under their digests;
+they do not independently attest that M03-03 executed or authenticate an issuer. M03-04 does not
+parse raw sources, traverse peptide rows, redo protein inference, score complex activity, infer a
+proteotype, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

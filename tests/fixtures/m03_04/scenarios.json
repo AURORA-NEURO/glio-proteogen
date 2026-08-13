@@ -1,0 +1,178 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-04",
+  "schema_version": "1.0.0",
+  "operation": "compute_protein_inference_quality",
+  "parent_target": "complex_activity_workflow_support_only",
+  "data_classification": "synthetic_nonclinical_content_addressed_quality_facts",
+  "claims_ceiling": "deterministic_evidence_graph_quality_metrics_not_protein_inference_proteoform_resolution_complex_activity_biological_validity_or_clinical_readiness",
+  "metric_codes": [
+    "admitted_source_completeness",
+    "peptide_assignment_coverage",
+    "protein_group_ambiguity_burden",
+    "proteoform_discrimination_coverage",
+    "protein_group_detection_support",
+    "protein_group_competition_closure",
+    "control_group_recovery",
+    "sample_context_binding_coherence"
+  ],
+  "observation_states": [
+    "observed",
+    "censored",
+    "missing",
+    "not_applicable",
+    "unsupported"
+  ],
+  "fixture_prohibitions": [
+    "direct_patient_identifier",
+    "raw_identity_token",
+    "observed_peptide_sequence",
+    "protein_accession",
+    "protein_presence_or_absence_claim",
+    "proteoform_assignment",
+    "protein_abundance",
+    "complex_activity_score",
+    "protein_subtype",
+    "proteotype",
+    "kinase_activity",
+    "treatment_recommendation",
+    "clinical_decision"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "genuine_handoff_and_evidence_graph_closure",
+      "case_ids": [
+        "genuine_public_m0102_m0301_m0302_m0303_handoff",
+        "canonical_raw_quality_receipt_binds_exact_m0303_result",
+        "source_and_claim_projections_close_over_complete_upstream_handoff",
+        "aggregate_fact_ledger_binds_sources_claims_counts_states_and_provenance",
+        "fact_ledger_receipt_and_graph_bindings_are_non_circular",
+        "qualified_result_retains_complex_activity_parent_without_inference",
+        "canonical_result_emits_exactly_eight_quality_metrics"
+      ],
+      "expected_case_count": 7,
+      "closure_rule": "execute the genuine public M01-02 through M03-03 chain and bind the exact admission receipt, source summaries, lineage claims, fact ledger, graph, and metric provenance without handwritten upstream result envelopes"
+    },
+    {
+      "group_id": "exact_rational_metric_calculations_and_thresholds",
+      "case_ids": [
+        "admitted_source_completeness_uses_exact_integer_ratio",
+        "peptide_assignment_coverage_uses_exact_integer_ratio",
+        "protein_group_ambiguity_burden_uses_exact_integer_ratio",
+        "proteoform_discrimination_coverage_uses_exact_integer_ratio",
+        "protein_group_detection_support_uses_exact_integer_ratio",
+        "protein_group_competition_closure_uses_exact_integer_ratio",
+        "control_group_recovery_uses_exact_integer_ratio",
+        "sample_context_binding_coherence_uses_exact_integer_ratio",
+        "at_least_at_most_threshold_boundaries_and_first_excess_are_exact"
+      ],
+      "expected_case_count": 9,
+      "calculation_rule": "derive every metric from bounded integer fact counts on the locked rate scale; do not use binary floating point or caller-supplied precomputed rates",
+      "threshold_rule": "evaluate exact at-least and at-most directions at below, equal, above, and first-excess boundaries"
+    },
+    {
+      "group_id": "ambiguity_proteoform_censoring_and_zero_denominators",
+      "case_ids": [
+        "shared_peptide_and_group_ambiguity_are_not_double_counted",
+        "ambiguity_burden_retains_competing_explanations_without_resolution",
+        "detection_censored_observation_is_retained_outside_quantifiable_numerator",
+        "missing_proteoform_evidence_is_not_negative_evidence",
+        "not_applicable_metric_is_distinct_from_missing_or_unsupported",
+        "zero_denominator_metric_is_typed_not_evaluable",
+        "not_evaluable_required_metric_cannot_satisfy_required_threshold"
+      ],
+      "expected_case_count": 7,
+      "ambiguity_rule": "measure graph-supported ambiguity without selecting a representative protein or proteoform",
+      "missingness_rule": "censored, missing, not-applicable, unsupported, and zero-denominator states remain distinct and never become biological absence"
+    },
+    {
+      "group_id": "assay_profile_control_and_reference_coherence",
+      "case_ids": [
+        "exact_assay_profile_is_selected_by_protocol_cv_and_unit_versions",
+        "no_matching_assay_profile_abstains_as_unsupported",
+        "ambiguous_multiple_profile_match_is_rejected_by_policy_validation",
+        "control_group_reference_and_expected_counts_close_exactly",
+        "missing_required_control_group_is_not_evaluable",
+        "search_space_protocol_or_reference_drift_is_quarantined",
+        "sample_context_build_cv_and_unit_disagreement_is_retained"
+      ],
+      "expected_case_count": 7,
+      "profile_rule": "one exact approved assay profile must close over protocol, controlled-vocabulary, unit-system, search-space, control, and sample-context declarations",
+      "authority_rule": "labels and profile names cannot override content digests or governed version disagreement"
+    },
+    {
+      "group_id": "safe_failure_precedence_and_zero_ledger_traversal",
+      "case_ids": [
+        "genuine_m0303_rejected_handoff_propagates_without_ledger_traversal",
+        "genuine_m0303_quarantined_handoff_propagates_without_ledger_traversal",
+        "genuine_m0303_abstained_handoff_propagates_without_ledger_traversal",
+        "receipt_ledger_binding_mismatch_fails_before_metric_evaluation",
+        "unsupported_lineage_shape_abstains_without_metric_evaluation",
+        "reject_quarantine_abstain_warning_precedence_is_deterministic",
+        "safe_failure_emits_no_graph_or_metric_success_claims"
+      ],
+      "expected_case_count": 7,
+      "precedence": [
+        "authorization",
+        "strict_request_reconstruction",
+        "upstream_disposition",
+        "receipt_and_ledger_closure",
+        "profile_support",
+        "metric_evaluation",
+        "threshold_reduction"
+      ],
+      "safe_failure_rule": "a non-admissible genuine M03-03 handoff returns the corresponding typed outcome with zero fact-ledger traversal and no successful graph or metric claim"
+    },
+    {
+      "group_id": "strict_ingress_capacity_and_hostile_authorization",
+      "case_ids": [
+        "seven_control_authorization_matrix_precedes_hostile_request_traversal",
+        "duplicate_json_object_key_is_rejected",
+        "scalar_coercion_nonfinite_and_unknown_field_are_rejected",
+        "exact_installed_source_lineage_metric_finding_evidence_profile_and_count_caps_are_accepted",
+        "first_excess_source_lineage_metric_finding_evidence_profile_or_count_is_rejected",
+        "canonical_request_exact_byte_cap_and_first_excess_are_enforced",
+        "hostile_fact_ledger_is_not_traversed_before_request_and_authorization_closure"
+      ],
+      "expected_case_count": 7,
+      "authorization_controls": [
+        "configuration",
+        "identity_lineage",
+        "provenance",
+        "consent",
+        "quality",
+        "support",
+        "intended_use"
+      ],
+      "strictness_rule": "forbid duplicate keys, coercion, non-finite numbers, unknown fields or terms, silent defaults, excess collections, and excess canonical request bytes"
+    },
+    {
+      "group_id": "canonical_privacy_and_resigned_forgery_resistance",
+      "case_ids": [
+        "semantic_reordering_preserves_complete_result_equality",
+        "typed_dict_and_strict_json_requests_produce_equal_results",
+        "canonical_request_policy_profile_ledger_and_result_digests_are_stable",
+        "recursive_privacy_and_ownership_canaries_are_absent",
+        "derived_metric_threshold_and_disposition_forgery_matrix_is_rejected",
+        "resigned_nested_receipt_without_ledger_rebinding_is_quarantined"
+      ],
+      "expected_case_count": 6,
+      "canonical_rule": "sort only semantically unordered sets and preserve ordered graph semantics; equivalent requests produce completely equal results",
+      "forgery_rule": "recompute every derived ratio, threshold status, finding, disposition, digest, and nested binding; an attacker cannot legitimize forged inner content by recomputing an outer digest"
+    },
+    {
+      "group_id": "interfaces_recovery_evidence_and_benchmark",
+      "case_ids": [
+        "public_library_engine_service_and_plugin_results_match",
+        "api_compute_result_matches_public_library_operation",
+        "cli_compute_result_matches_public_library_operation",
+        "schema_api_and_cli_export_exact_installed_contracts",
+        "recovery_requires_new_superseding_quality_result",
+        "evidence_artifacts_and_benchmark_time_only_public_m0304_operation"
+      ],
+      "expected_case_count": 6,
+      "schema_urn_template": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-04:1.0.0:{name}",
+      "recovery_rule": "prior results remain immutable; corrected facts or policy produce a new content-addressed result with explicit supersession provenance",
+      "benchmark_rule": "construct the genuine M01-02 through M03-03 handoff, fact ledger, graph inputs, and policy before timing; time only compute_protein_inference_quality"
+    }
+  ]
+}
