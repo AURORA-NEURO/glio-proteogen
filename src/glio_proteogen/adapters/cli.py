@@ -33,6 +33,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_raw_contract_schema,
     _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
+    _proteoform_protocol_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -130,6 +131,10 @@ from glio_proteogen.contracts.m03_08 import (
     ProteinInferenceReleaseArtifactRole,
     ProteinInferenceReleaseDisposition,
     ProteinInferenceReleaseResult,
+)
+from glio_proteogen.contracts.m04_01 import (
+    M0401_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluateProteoformProtocolRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -254,6 +259,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_08_release_packaging impor
     ProteinInferenceReleaseInputError,
     preflight_protein_inference_release_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_01_protocol_metadata import (
+    M0401Service,
+    preflight_proteoform_protocol_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -367,6 +376,11 @@ protein_inference_release_app = typer.Typer(
     help="M03-08 protein-inference provenance and release packaging.",
 )
 app.add_typer(protein_inference_release_app, name="protein-inference-release")
+proteoform_protocol_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-01 proteoform/isoform protocol conformance.",
+)
+app.add_typer(proteoform_protocol_app, name="proteoform-protocol")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -2249,6 +2263,51 @@ def export_protein_inference_release_schema(
             sort_keys=True,
         )
     )
+
+
+@proteoform_protocol_app.command("export-schema")
+def export_proteoform_protocol_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "protocol",
+            "profile",
+            "reference-bundle",
+            "reference-cardinality",
+            "coordinate-policy",
+            "evidence-eligibility-policy",
+            "isoform-discrimination-policy",
+            "modification-localization-policy",
+            "quantification-policy",
+            "discordance-handoff",
+            "receipt",
+        ],
+        typer.Argument(help="M04-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform protocol contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_protocol_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_protocol_app.command("validate")
+def validate_proteoform_protocol(request: RequestArgument) -> None:
+    """Validate one authorized proteoform protocol against its reviewed profile."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(EvaluateProteoformProtocolRequest),
+        preflight_proteoform_protocol_authorization,
+        M0401_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0401Service().execute(parsed))
 
 
 @protein_inference_release_app.command("build")

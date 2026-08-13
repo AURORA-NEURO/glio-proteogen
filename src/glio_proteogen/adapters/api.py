@@ -236,6 +236,17 @@ from glio_proteogen.contracts.m03_08.schema import (
 from glio_proteogen.contracts.m03_08.schema import (
     contract_json_schema as m0308_contract_json_schema,
 )
+from glio_proteogen.contracts.m04_01.schema import (
+    ContractName as M0401ContractName,
+)
+from glio_proteogen.contracts.m04_01.schema import (
+    contract_json_schema as m0401_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_01.v1 import (
+    M0401_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluateProteoformProtocolRequest,
+    ProteoformProtocolConformanceResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -368,6 +379,11 @@ from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     ProteinInferenceSupportAuthorizationError,
     preflight_protein_inference_support_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_01_protocol_metadata import (
+    M0401Service,
+    ProteoformProtocolAuthorizationError,
+    preflight_proteoform_protocol_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -388,6 +404,7 @@ _M0304_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteinInferenceQualityReques
 _M0305_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteinInferenceArtifactsRequest)
 _M0306_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
+_M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -516,6 +533,12 @@ def _protein_inference_release_contract_schema(
     name: M0308ContractName,
 ) -> dict[str, object]:
     return m0308_contract_json_schema(name)
+
+
+def _proteoform_protocol_contract_schema(
+    name: M0401ContractName,
+) -> dict[str, object]:
+    return m0401_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -676,6 +699,15 @@ def _protein_inference_support_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0307_contract_json_schema("request")}},
+        }
+    }
+
+
+def _proteoform_protocol_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0401_contract_json_schema("request")}},
         }
     }
 
@@ -863,6 +895,17 @@ async def _protein_inference_support_body(
     )
 
 
+async def _proteoform_protocol_body(
+    request: Request,
+) -> EvaluateProteoformProtocolRequest:
+    return await _strict_json_body(
+        request,
+        _M0401_PROTOCOL_ADAPTER,
+        preflight_proteoform_protocol_authorization,
+        M0401_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -886,6 +929,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     protein_inference_artifact_service = M0305Service()
     protein_inference_harmonization_service = M0306Service()
     protein_inference_support_service = M0307Service()
+    proteoform_protocol_service = M0401Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -929,6 +973,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteinInferenceArtifactAuthorizationError)
     @app.exception_handler(ProteinInferenceHarmonizationAuthorizationError)
     @app.exception_handler(ProteinInferenceSupportAuthorizationError)
+    @app.exception_handler(ProteoformProtocolAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1159,6 +1204,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0308ContractName,
     ) -> dict[str, object]:
         return _protein_inference_release_contract_schema(name)
+
+    @app.get("/v1/contracts/M04-01/{name}/schema", tags=["contracts"])
+    def proteoform_protocol_contract_schema(
+        name: M0401ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_protocol_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M04-01/protocol-conformance",
+        response_model=ProteoformProtocolConformanceResult,
+        tags=["M04-01"],
+        openapi_extra=_proteoform_protocol_request_body(),
+    )
+    def evaluate_proteoform_protocol_conformance(
+        request: Annotated[
+            EvaluateProteoformProtocolRequest,
+            Depends(_proteoform_protocol_body),
+        ],
+    ) -> ProteoformProtocolConformanceResult:
+        return proteoform_protocol_service.execute(request)
 
     @app.post(
         "/v1/modules/M03-07/support-route",

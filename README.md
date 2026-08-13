@@ -118,8 +118,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   This stateless module closes genuine strict M03-01 through M03-07 results over eight exact
   caller artifacts, emits a canonical ten-member USTAR archive, and verifies externally supplied
   statements through an injected boundary without signing, key custody, or release authority.
+- `GLIO-PROTEOGEN-M04-01` — deterministic proteoform/isoform protocol conformance. This stateless
+  module closes a reviewed reference bundle, coordinate conventions, evidence eligibility,
+  isoform discrimination, modification localization, quantification, and discordance handoff
+  declaration without inferring proteoforms, discordance, activity, subtype, or treatment.
 
-The twenty-three published module slices and the M03-08 release candidate expose strict JSON Schema
+The twenty-four published module slices and the M04-01 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -159,6 +163,7 @@ uv run python -m evals.m03_05.run
 uv run python -m evals.m03_06.run
 uv run python -m evals.m03_07.run
 uv run python -m evals.m03_08.run
+uv run python -m evals.m04_01.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -183,6 +188,7 @@ uv run python -m evals.m03_05.benchmark
 uv run python -m evals.m03_06.benchmark
 uv run python -m evals.m03_07.benchmark
 uv run python -m evals.m03_08.benchmark
+uv run python -m evals.m04_01.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -199,8 +205,9 @@ verification, plus M03-01 stateless protein-inference protocol conformance and M
 protein-inference artifact identity-lineage reconciliation, plus M03-03 bounded, directory-backed
 protein-inference raw-source admission, M03-04 metadata-only quality computation, M03-05
 categorical artifact detection over an authorized evidence ledger, and M03-06 fixed-point support
-harmonization, M03-07 protein-inference support and abstention routing, and M03-08 local,
-directory-backed protein-inference release packaging and verification.
+harmonization, M03-07 protein-inference support and abstention routing, M03-08 local,
+directory-backed protein-inference release packaging and verification, and M04-01 stateless
+proteoform/isoform protocol conformance.
 For example:
 
 ```bash
@@ -255,6 +262,8 @@ glio-proteogen protein-inference-support route protein-inference-support-request
 glio-proteogen protein-inference-release export-schema request
 glio-proteogen protein-inference-release build protein-inference-release-request.json release-source --output protein-inference-release.tar
 glio-proteogen protein-inference-release verify protein-inference-release-result.json protein-inference-release.tar
+glio-proteogen proteoform-protocol export-schema request
+glio-proteogen proteoform-protocol validate proteoform-protocol-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -345,6 +354,11 @@ USTAR form. The result contract rederives descriptor byte size, while the verify
 descriptor digest/content equality and authenticity against supplied bytes. M03-08 does not sign,
 hold keys, authenticate a signer, establish release authority, mutate upstream evidence, infer
 protein or activity, or make treatment or clinical claims.
+M04-01 is stateless and validates one content-bound proteoform/isoform protocol declaration against
+one reviewed conformance profile. It preserves exact reference, coordinate, eligibility,
+discrimination, localization, quantification, unresolved-state, and protein-RNA-discordance
+handoff semantics. It does not inspect assay observations, infer proteoforms or discordance,
+localize modifications, fuse omics, score kinase activity, emit subtypes, or recommend treatment.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
