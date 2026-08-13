@@ -13,6 +13,7 @@ import hashlib
 import importlib
 import importlib.metadata
 import json
+import math
 import os
 import re
 import subprocess
@@ -34,6 +35,12 @@ _PACKAGE_NAME = "glio_proteogen"
 _CONSOLE_SCRIPT = "glio-proteogen"
 _CONSOLE_ENTRY_POINT = "glio_proteogen.adapters.cli:app"
 _SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema"
+_M0403_MODULE_ID = "GLIO-PROTEOGEN-M04-03"
+_M0403_CASE_COUNT = 72
+_M0403_BENCHMARK_ITERATIONS = 25
+_M0403_BENCHMARK_WARMUPS = 1
+_M0403_MEAN_BUDGET_NS = 500_000_000
+_M0403_P95_BUDGET_NS = 750_000_000
 _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("export-schema", "protocol-schema"),
@@ -139,6 +146,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         ("proteoform-lineage", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-02:1.0.0:request",
     ),
+    (
+        ("proteoform-raw", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-03:1.0.0:request",
+    ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {
@@ -240,6 +251,99 @@ def _load_sbom(path: Path) -> Mapping[str, object]:
     except (json.JSONDecodeError, OSError, UnicodeDecodeError) as error:
         raise ReleaseArtifactError("runtime SBOM is not valid UTF-8 JSON") from error
     return _mapping(payload, "document")
+
+
+def _load_json_evidence(path: Path, label: str) -> Mapping[str, object]:
+    try:
+        payload: object = json.loads(path.read_bytes())
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as error:
+        raise ReleaseArtifactError(f"{label} is not valid UTF-8 JSON") from error
+    return _mapping(payload, label)
+
+
+def _require_exact_integer(
+    document: Mapping[str, object],
+    field: str,
+    expected: int,
+    label: str,
+) -> None:
+    value = document.get(field)
+    if type(value) is not int or value != expected:
+        raise ReleaseArtifactError(f"{label} has an unexpected {field}")
+
+
+def _require_empty_array(document: Mapping[str, object], field: str, label: str) -> None:
+    if _sequence(document.get(field), f"{label} {field}"):
+        raise ReleaseArtifactError(f"{label} has nonempty {field}")
+
+
+def _verify_m0403_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M0403_MODULE_ID:
+        raise ReleaseArtifactError("M04-03 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M04-03 evaluation report did not pass")
+    _require_exact_integer(
+        evaluation_report,
+        "declared_case_count",
+        _M0403_CASE_COUNT,
+        "M04-03 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "executed_case_count",
+        _M0403_CASE_COUNT,
+        "M04-03 evaluation report",
+    )
+    for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
+        _require_empty_array(evaluation_report, field, "M04-03 evaluation report")
+    checks = _sequence(evaluation_report.get("checks"), "M04-03 evaluation checks")
+    if any(
+        _mapping(check, "M04-03 evaluation check").get("passed") is not True for check in checks
+    ):
+        raise ReleaseArtifactError("M04-03 evaluation report contains a failed check")
+    scenario_names = tuple(
+        name
+        for check in checks
+        if isinstance((name := _mapping(check, "M04-03 evaluation check").get("name")), str)
+        and name.startswith("scenario.")
+    )
+    if len(scenario_names) != _M0403_CASE_COUNT or len(set(scenario_names)) != len(scenario_names):
+        raise ReleaseArtifactError("M04-03 evaluation report lacks exact scenario closure")
+
+
+def _verify_m0403_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M0403_MODULE_ID:
+        raise ReleaseArtifactError("M04-03 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M04-03 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M0403_BENCHMARK_ITERATIONS),
+        ("warmup_count", _M0403_BENCHMARK_WARMUPS),
+        ("mean_budget_ns", _M0403_MEAN_BUDGET_NS),
+        ("p95_budget_ns", _M0403_P95_BUDGET_NS),
+    ):
+        _require_exact_integer(benchmark_report, field, expected, "M04-03 benchmark report")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M04-03 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M04-03 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M0403_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M0403_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M04-03 benchmark report exceeds its timing budgets")
+
+
+def verify_m0403_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify the archived M04-03 corpus closure and benchmark budgets."""
+
+    _verify_m0403_evaluation(_load_json_evidence(evaluation, "M04-03 evaluation report"))
+    _verify_m0403_benchmark(_load_json_evidence(benchmark, "M04-03 benchmark report"))
 
 
 def _verify_reproducible_cyclonedx_header(
@@ -493,6 +597,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     runtime_sbom.add_argument("sbom", type=Path)
     runtime_sbom.add_argument("wheel", type=Path)
+    m0403_evidence = commands.add_parser(
+        "m04-03-evidence", help="verify M04-03 evaluation and benchmark evidence"
+    )
+    m0403_evidence.add_argument("evaluation", type=Path)
+    m0403_evidence.add_argument("benchmark", type=Path)
     return parser
 
 
@@ -506,8 +615,10 @@ def main() -> int:
             _verify_expected_tag(identity, arguments.expected_tag)
             if arguments.report is not None:
                 _write_install_report(arguments.report, identity)
-        else:
+        elif arguments.command == "runtime-sbom":
             verify_runtime_sbom(arguments.sbom, arguments.wheel)
+        else:
+            verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
     except ReleaseArtifactError as error:
         sys.stderr.write(f"release artifact verification failed: {error}\n")
         return 1
