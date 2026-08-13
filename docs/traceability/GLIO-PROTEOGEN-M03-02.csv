@@ -1,0 +1,21 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M03-02-R01,"Authorize configuration identity provenance consent quality support and intended use before protected traversal","raw authorization preflight","authorization_privacy_strict_caps_order_forgery group hostile sentinel",G0
+M03-02-R02,"Bind exact self-consistent M01-02 and M03-01 results while preserving valid upstream safe-failure states","strict embedded upstream objects exact context bindings typed upstream disposition mapping","stale_upstream_protocol_search_drift group",G0
+M03-02-R03,"Support patient specimen aliquot section analyte run and derived object without inferred identity while permitting governed upstream path shapes","seven-kind vocabulary upstream graph reuse and complete canonical route","canonical_complete_chain_and_artifact_dag group",G0
+M03-02-R04,"Keep physical lineage distinct from the closed exact-four-role protein-inference artifact DAG","separate graph contracts role-aware bindings and exact dependency topology","canonical full-DAG case and malformed_dag group",G0
+M03-02-R05,"Detect swaps without relabelling or graph mutation","declared-versus-bound component comparison","swap_detection_and_nonmutation group",G0
+M03-02-R06,"Detect scoped collisions while preserving different-scope controls","scope-aware opaque identifier index","collision_duplicate_retention group",G0
+M03-02-R07,"Retain every duplicate-content assignment without selecting an authority","content digest multimap and immutable submitted bindings","collision_duplicate_retention group",G0
+M03-02-R08,"Detect cross-patient links and propagate quarantine only through reachable artifact descendants","subject-component taint propagation over canonical DAG order","cross_patient_propagation group",G0
+M03-02-R09,"Leave disconnected artifact branches unaffected by cross-patient propagation","reachability-bounded propagation","cross-patient unaffected-branch control",G0
+M03-02-R10,"Reject malformed artifact DAG structure without repair","endpoint closure acyclicity role and producer invariants","malformed_dag group",G0
+M03-02-R11,"Keep upstream identity protocol search-space and graph drift distinct","exact digest and semantic binding checks","stale_upstream_protocol_search_drift group",G0
+M03-02-R12,"Represent concordant discordant missing indeterminate and unsupported CN controls separately","closed categorical CN-concordance contract","cn_concordance_without_identity_merge group",G0
+M03-02-R13,"Never let CN concordance create an identity edge merge a component or assert protein presence or absence","concordance non-union and claims ceiling invariant","all five CN cases plus no-merge oracle",G0
+M03-02-R14,"Preserve complete result equality under semantic input reordering","canonical normalization and content-derived digests","semantic-reorder case",G0
+M03-02-R15,"Reject unknown fields coercion unknown terms omissions duplicates excess capacity and stale derived values","strict reconstruction caps and self-consistency validators","authorization_privacy_strict_caps_order_forgery group",G0
+M03-02-R16,"Retain typed uncertainty support provenance evidence limitations disposition and review state","closed reconciliation result envelope","canonical and every safe-failure result case",G0
+M03-02-R17,"Exclude raw identifiers observed peptides protein accessions raw CN values activity treatment and clinical claims","closed input/output schemas and recursive forbidden-key/value oracle","recursive privacy and ownership boundary case",G0
+M03-02-R18,"Use genuine public M01-02 and M03-01 operations in executable evidence","public upstream result construction","eval upstream reconstruction checks",G0
+M03-02-R19,"Reject inconsistent inner content even when an outer declaration is changed","nested semantic validation and canonical result digest","forgery matrix cases",G0
+M03-02-R20,"Meet a representative complete-graph public-operation latency tripwire","bounded deterministic graph reconciliation","m03_02_identity_lineage benchmark",G0

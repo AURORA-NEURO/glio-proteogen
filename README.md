@@ -85,11 +85,19 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   seven-role complex-activity handoff declarations. It validates those declarations without
   searching spectra, assigning peptides, inferring proteins or complexes, estimating error rates,
   or scoring activity.
+- `GLIO-PROTEOGEN-M03-02` — deterministic protein-inference identity and lineage
+  reconciliation. This schema-first module binds exact M01-02 and M03-01 results to a closed
+  content-addressed artifact DAG spanning peptide-evidence, protein-group, ambiguity, and
+  complex-activity-input manifests. It detects swaps, collisions, duplicate assignments,
+  cross-patient propagation, malformed derivations, and stale producer bindings while preserving
+  categorical copy-number concordance as control evidence only. It never relabels upstream
+  identity, infers proteins or identity, consumes raw molecular values, or scores complex activity.
 
-All seventeen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
-schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
-additionally provide deterministic append-only event-chain verification. The database hash chains
-are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
+The seventeen published module slices and the M03-02 release candidate expose strict JSON Schema
+2020-12 contracts through HTTP and command-line schema routes, plus typed library and
+module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
+append-only event-chain verification. The database hash chains are integrity evidence, not
+signatures or standalone external trust anchors. M01-02 accepts
 only scoped opaque identity tokens and privacy-minimized concordance summaries; raw direct
 identifiers, genotypes, reads, and molecular measurements are outside its public and persisted
 outputs.
@@ -118,6 +126,7 @@ uv run python -m evals.m02_06.run
 uv run python -m evals.m02_07.run
 uv run python -m evals.m02_08.run
 uv run python -m evals.m03_01.run
+uv run python -m evals.m03_02.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -135,6 +144,7 @@ uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --no-cov
 uv run pytest benchmarks/m03_01_protocol_metadata.py --benchmark-only --no-cov
+uv run python -m evals.m03_02.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -148,6 +158,7 @@ identification raw-input ingestion, M02-04 stateless identification-quality comp
 stateless identification-artifact detection, M02-06 identification harmonization, M02-07
 identification support routing, and M02-08 directory-backed identification release packaging and
 verification, plus M03-01 stateless protein-inference protocol conformance.
+The M03-02 candidate adds stateless protein-inference artifact identity-lineage reconciliation.
 For example:
 
 ```bash
@@ -187,6 +198,8 @@ glio-proteogen identification-release build identification-release-request.json 
 glio-proteogen identification-release verify identification-release-result.json identification-release.tar
 glio-proteogen protein-inference-protocol export-schema request
 glio-proteogen protein-inference-protocol validate protein-inference-protocol-request.json
+glio-proteogen protein-inference-lineage export-schema request
+glio-proteogen protein-inference-lineage reconcile protein-inference-lineage-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -227,6 +240,14 @@ shared/razor evidence restrictions, indistinguishable group members, and the exa
 handoff semantics. It does not authenticate issuers or references, inspect observations, run
 protein inference, estimate false-discovery rates, infer complex activity, or make treatment or
 clinical claims.
+M03-02 is stateless and consumes exact, self-validating M01-02 and M03-01 results plus opaque,
+content-addressed artifact claims, a reviewed lineage policy, and categorical copy-number
+concordance receipts. It preserves the physical lineage graph separately from the artifact DAG,
+quarantines swaps, collisions, duplicate assignments, cross-patient propagation, and producer
+drift, and abstains when governed upstream identity or concordance evidence is unresolved. It does
+not repair or infer identity, inspect peptide sequences or protein accessions, consume raw
+copy-number or abundance values, infer proteins or complexes, score activity, fuse omics, or make
+treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
