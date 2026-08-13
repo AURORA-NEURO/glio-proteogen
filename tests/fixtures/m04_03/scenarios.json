@@ -1,0 +1,460 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-03",
+  "schema_version": "1.0.0",
+  "operation": "ingest_proteoform_raw_inputs",
+  "parent_target": "protein_rna_discordance",
+  "owner": "Clinical science",
+  "safety_class": "S2",
+  "evidence_gate": "G0",
+  "data_classification": "synthetic_nonclinical_opaque_raw_manifest_metadata_only",
+  "claims_ceiling": "deterministic_raw_manifest_validation_only_no_external_scientific_payload_model_identity_protein_proteoform_ptm_discordance_kinase_fusion_treatment_or_clinical_inference",
+  "upstream_outputs_must_be_genuine": [
+    "GLIO-PROTEOGEN-M01-02",
+    "GLIO-PROTEOGEN-M04-01",
+    "GLIO-PROTEOGEN-M04-02"
+  ],
+  "schema_names": [
+    "request",
+    "output",
+    "policy",
+    "parser-profile",
+    "input-artifact",
+    "proteome-document",
+    "genome-document",
+    "transcriptome-document",
+    "ptm-document",
+    "validated-input",
+    "diagnostic",
+    "receipt"
+  ],
+  "raw_input_roles": [
+    "mass_spectrometry_proteome",
+    "genome",
+    "transcriptome",
+    "ptm_annotations"
+  ],
+  "upstream_role_projection": {
+    "mass_spectrometry_proteome": "mass_spectrometry_proteome_manifest",
+    "genome": "genome_manifest",
+    "transcriptome": "transcriptome_manifest",
+    "ptm_annotations": "ptm_annotation_manifest"
+  },
+  "document_formats": [
+    "proteome_manifest_json",
+    "genome_manifest_json",
+    "transcriptome_manifest_json",
+    "ptm_annotation_manifest_json"
+  ],
+  "evidence_states": [
+    "available",
+    "missing",
+    "indeterminate",
+    "unsupported",
+    "redacted"
+  ],
+  "completeness_states": [
+    "complete",
+    "incomplete",
+    "not_evaluable"
+  ],
+  "assay_support_states": [
+    "supported",
+    "unsupported",
+    "not_evaluable"
+  ],
+  "parent_quality_states": [
+    "accepted",
+    "rejected",
+    "not_evaluable"
+  ],
+  "dispositions": [
+    "validated",
+    "quarantined",
+    "abstained"
+  ],
+  "diagnostic_actions": [
+    "record",
+    "quarantine",
+    "abstain"
+  ],
+  "diagnostic_action_by_code": {
+    "upstream_lineage_quarantined": "quarantine",
+    "upstream_lineage_abstained": "abstain",
+    "artifact_not_evaluable": "abstain",
+    "manifest_claim_mismatch": "quarantine",
+    "identity_binding_mismatch": "quarantine",
+    "protocol_binding_mismatch": "quarantine",
+    "reference_bundle_mismatch": "quarantine",
+    "coordinate_policy_mismatch": "quarantine",
+    "unsupported_media_type": "quarantine",
+    "unsupported_format_version": "quarantine",
+    "unit_mismatch": "quarantine",
+    "assay_protocol_mismatch": "quarantine",
+    "specimen_processing_mismatch": "quarantine",
+    "incomplete_manifest": "quarantine",
+    "assay_unsupported": "quarantine",
+    "parent_quality_unacceptable": "quarantine",
+    "duplicate_content_retained": "record"
+  },
+  "diagnostic_codes": [
+    "upstream_lineage_quarantined",
+    "upstream_lineage_abstained",
+    "artifact_not_evaluable",
+    "manifest_claim_mismatch",
+    "identity_binding_mismatch",
+    "protocol_binding_mismatch",
+    "reference_bundle_mismatch",
+    "coordinate_policy_mismatch",
+    "unsupported_media_type",
+    "unsupported_format_version",
+    "unit_mismatch",
+    "assay_protocol_mismatch",
+    "specimen_processing_mismatch",
+    "incomplete_manifest",
+    "assay_unsupported",
+    "parent_quality_unacceptable",
+    "duplicate_content_retained"
+  ],
+  "policy_required_true_controls": [
+    "require_canonical_json",
+    "require_exact_role_mapping",
+    "reject_duplicate_json_keys",
+    "quarantine_on_semantic_mismatch",
+    "abstain_on_not_evaluable",
+    "retain_duplicate_content"
+  ],
+  "exact_limitations": [
+    "deterministic_raw_manifest_validation_only",
+    "external_content_and_authority_not_authenticated",
+    "no_protein_discordance_or_clinical_inference"
+  ],
+  "full_upstream_result_types": [
+    "ProteoformIdentityLineageResolution"
+  ],
+  "opaque_identifier_namespaces": [
+    "request",
+    "actor",
+    "decision",
+    "policy",
+    "parser",
+    "input",
+    "evidence",
+    "reviewer"
+  ],
+  "opaque_identifier_pattern": "^(request|actor|decision|policy|parser|input|evidence|reviewer)\\.[0-9a-f]{64}$",
+  "generated_identifier_prefixes": [
+    "result.m0403",
+    "activity.m0403"
+  ],
+  "owned_media_type_allowlist": [
+    "application/vnd.glio-proteogen.m04-03.policy+json",
+    "application/vnd.glio-proteogen.m04-03.parser+json",
+    "application/vnd.glio-proteogen.m04-03.proteome-input+json",
+    "application/vnd.glio-proteogen.m04-03.genome-input+json",
+    "application/vnd.glio-proteogen.m04-03.transcriptome-input+json",
+    "application/vnd.glio-proteogen.m04-03.ptm-annotation-input+json"
+  ],
+  "submitted_manifest_media_types": [
+    "application/vnd.glio-proteogen.m04-02.mass-spectrometry-proteome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.genome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.transcriptome-manifest+json",
+    "application/vnd.glio-proteogen.m04-02.ptm-annotation-manifest+json"
+  ],
+  "cli_source_filenames": [
+    "mass-spectrometry-proteome.json",
+    "genome.json",
+    "transcriptome.json",
+    "ptm-annotations.json"
+  ],
+  "installed_capacity": {
+    "raw_input_roles": 4,
+    "documents": 4,
+    "minimum_approved_parser_profiles": 4,
+    "maximum_approved_parser_profiles": 32,
+    "maximum_declared_record_count": 9223372036854775807,
+    "canonical_request_bytes": 4194304,
+    "maximum_document_bytes": 8388608,
+    "maximum_total_document_bytes": 33554432,
+    "maximum_diagnostics": 60,
+    "minimum_evidence": 20,
+    "maximum_evidence": 48,
+    "diagnostic_codes": 17,
+    "limitations": 3
+  },
+  "output_ceiling": {
+    "validated_input_count": "zero_or_exactly_four",
+    "canonical_documents_embedded": true,
+    "raw_bytes_or_rows_embedded": false,
+    "external_content_opened": false,
+    "typed_uncertainty": true,
+    "support_status": true,
+    "provenance": true,
+    "evidence": true,
+    "limitations": true,
+    "parent_context_only": "protein_rna_discordance",
+    "emits_protein_rna_discordance": false,
+    "emits_proteogenomic_state": false,
+    "emits_proteotype": false,
+    "emits_protein_level_subtype": false,
+    "infers_identity": false,
+    "infers_consent": false,
+    "infers_protein": false,
+    "infers_proteoform": false,
+    "infers_kinase_activity": false,
+    "performs_cn_to_protein_regression": false,
+    "performs_all_omics_fusion": false,
+    "recommends_treatment": false,
+    "mutates_upstream": false,
+    "executes_model": false
+  },
+  "fixture_prohibitions": [
+    "direct_identifier",
+    "raw_identity_token",
+    "sequence",
+    "accession",
+    "raw_spectrum",
+    "raw_copy_number",
+    "raw_rna_abundance",
+    "raw_protein_abundance",
+    "ptm_site",
+    "scientific_row",
+    "activity_claim",
+    "subtype_claim",
+    "proteotype_claim",
+    "treatment_recommendation",
+    "clinical_claim"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "canonical_ingestion",
+      "case_ids": [
+        "canonical_four_role_documents_validated",
+        "exact_m0402_full_result_replay",
+        "exact_m0401_transitive_protocol_bindings",
+        "exact_role_claim_manifest_bindings",
+        "canonical_document_byte_projection",
+        "deterministic_full_result_equality",
+        "parent_context_preserved_without_emission"
+      ],
+      "case_expectations": {
+        "canonical_four_role_documents_validated": "validated:four_inputs",
+        "exact_m0402_full_result_replay": "validated:exact_full_upstream_replay",
+        "exact_m0401_transitive_protocol_bindings": "validated:exact_transitive_protocol_bindings",
+        "exact_role_claim_manifest_bindings": "validated:exact_role_claim_manifest_projection",
+        "canonical_document_byte_projection": "validated:canonical_bytes_match_embedded_documents",
+        "deterministic_full_result_equality": "complete_result_equality",
+        "parent_context_preserved_without_emission": "validated:parent_context_only"
+      },
+      "expected_case_count": 7
+    },
+    {
+      "group_id": "mapping_integrity_and_caps",
+      "case_ids": [
+        "missing_role_mapping_rejected",
+        "extra_role_mapping_rejected",
+        "bytearray_rejected",
+        "bytes_subclass_rejected",
+        "declared_size_mismatch_rejected",
+        "manifest_digest_mismatch_rejected",
+        "largest_constructible_document_accepted",
+        "per_document_8mib_plus_one_rejected",
+        "aggregate_32mib_plus_one_rejected"
+      ],
+      "case_expectations": {
+        "missing_role_mapping_rejected": "ingress_rejected:artifact_mapping_mismatch",
+        "extra_role_mapping_rejected": "ingress_rejected:artifact_mapping_mismatch",
+        "bytearray_rejected": "ingress_rejected:artifact_type_invalid",
+        "bytes_subclass_rejected": "ingress_rejected:artifact_type_invalid",
+        "declared_size_mismatch_rejected": "ingress_rejected:artifact_size_mismatch",
+        "manifest_digest_mismatch_rejected": "ingress_rejected:artifact_digest_mismatch",
+        "largest_constructible_document_accepted": "validated:largest_strict_metadata_document",
+        "per_document_8mib_plus_one_rejected": "ingress_rejected:artifact_size_mismatch",
+        "aggregate_32mib_plus_one_rejected": "ingress_rejected:artifact_size_mismatch"
+      },
+      "expected_case_count": 9
+    },
+    {
+      "group_id": "version_unit_and_reference_validation",
+      "case_ids": [
+        "proteome_unit_mismatch_quarantines",
+        "transcript_unit_mismatch_quarantines",
+        "reference_bundle_mismatch_quarantines",
+        "coordinate_policy_mismatch_quarantines",
+        "assay_protocol_mismatch_quarantines",
+        "specimen_processing_mismatch_quarantines",
+        "unsupported_format_version_quarantines",
+        "role_document_type_mismatch_rejected"
+      ],
+      "case_expectations": {
+        "proteome_unit_mismatch_quarantines": "quarantined:unit_mismatch",
+        "transcript_unit_mismatch_quarantines": "quarantined:unit_mismatch",
+        "reference_bundle_mismatch_quarantines": "quarantined:reference_bundle_mismatch",
+        "coordinate_policy_mismatch_quarantines": "quarantined:coordinate_policy_mismatch",
+        "assay_protocol_mismatch_quarantines": "quarantined:assay_protocol_mismatch",
+        "specimen_processing_mismatch_quarantines": "quarantined:specimen_processing_mismatch",
+        "unsupported_format_version_quarantines": "quarantined:unsupported_format_version",
+        "role_document_type_mismatch_rejected": "ingress_rejected:document_type_mismatch"
+      },
+      "expected_case_count": 8
+    },
+    {
+      "group_id": "completeness_assay_and_parent_quality",
+      "case_ids": [
+        "proteome_incomplete_quarantines",
+        "genome_incomplete_quarantines",
+        "transcriptome_incomplete_quarantines",
+        "ptm_annotations_incomplete_quarantines",
+        "assay_unsupported_quarantines",
+        "parent_quality_rejected_quarantines",
+        "artifact_not_evaluable_abstains",
+        "quarantine_precedes_abstention"
+      ],
+      "case_expectations": {
+        "proteome_incomplete_quarantines": "quarantined:incomplete_manifest",
+        "genome_incomplete_quarantines": "quarantined:incomplete_manifest",
+        "transcriptome_incomplete_quarantines": "quarantined:incomplete_manifest",
+        "ptm_annotations_incomplete_quarantines": "quarantined:incomplete_manifest",
+        "assay_unsupported_quarantines": "quarantined:assay_unsupported",
+        "parent_quality_rejected_quarantines": "quarantined:parent_quality_unacceptable",
+        "artifact_not_evaluable_abstains": "abstained:artifact_not_evaluable",
+        "quarantine_precedes_abstention": "quarantined:quarantine_precedence"
+      },
+      "expected_case_count": 8
+    },
+    {
+      "group_id": "upstream_closure_and_safe_failure",
+      "case_ids": [
+        "reconciled_upstream_permits_artifact_traversal",
+        "quarantined_upstream_zero_artifact_traversal",
+        "abstained_upstream_zero_artifact_traversal",
+        "stale_identity_binding_rejected",
+        "stale_quality_result_binding_rejected",
+        "stale_support_receipt_binding_rejected",
+        "stale_intended_use_binding_rejected",
+        "resigned_m0402_full_result_forgery_rejected"
+      ],
+      "case_expectations": {
+        "reconciled_upstream_permits_artifact_traversal": "validated:artifact_traversal",
+        "quarantined_upstream_zero_artifact_traversal": "quarantined:upstream_lineage_quarantined:zero_artifact_traversal",
+        "abstained_upstream_zero_artifact_traversal": "abstained:upstream_lineage_abstained:zero_artifact_traversal",
+        "stale_identity_binding_rejected": "validation_rejected",
+        "stale_quality_result_binding_rejected": "validation_rejected",
+        "stale_support_receipt_binding_rejected": "validation_rejected",
+        "stale_intended_use_binding_rejected": "validation_rejected",
+        "resigned_m0402_full_result_forgery_rejected": "validation_rejected"
+      },
+      "expected_case_count": 8
+    },
+    {
+      "group_id": "diagnostics_and_nonmutation",
+      "case_ids": [
+        "diagnostic_code_action_closure",
+        "diagnostics_unique_and_canonically_ordered",
+        "content_references_preserved_exactly",
+        "duplicate_content_retained_without_deduplication",
+        "quarantine_preserves_validated_documents",
+        "abstention_never_infers_negative",
+        "exact_compact_receipt_projection"
+      ],
+      "case_expectations": {
+        "diagnostic_code_action_closure": "all_17_codes_have_exact_actions",
+        "diagnostics_unique_and_canonically_ordered": "canonical_unique_diagnostics",
+        "content_references_preserved_exactly": "immutable_content_reference_retention",
+        "duplicate_content_retained_without_deduplication": "validated:duplicate_content_retained:record_only",
+        "quarantine_preserves_validated_documents": "quarantined:four_validated_inputs_retained",
+        "abstention_never_infers_negative": "abstained:no_negative_inference",
+        "exact_compact_receipt_projection": "receipt_exact_rederived_projection"
+      },
+      "expected_case_count": 7
+    },
+    {
+      "group_id": "evidence_uncertainty_and_authority",
+      "case_ids": [
+        "minimum_20_evidence_entries",
+        "maximum_48_evidence_entries",
+        "all_seven_uncertainty_not_estimable",
+        "result_contains_no_raw_bytes_or_rows",
+        "recursive_canary_absent_from_result",
+        "zero_model_event_persistence_authority",
+        "exact_three_limitations_and_all_authority_flags_false"
+      ],
+      "case_expectations": {
+        "minimum_20_evidence_entries": "validated:evidence_count_20",
+        "maximum_48_evidence_entries": "validated:evidence_count_48",
+        "all_seven_uncertainty_not_estimable": "seven_dimensions_not_estimable",
+        "result_contains_no_raw_bytes_or_rows": "recursive_raw_content_ceiling",
+        "recursive_canary_absent_from_result": "recursive_privacy_ceiling",
+        "zero_model_event_persistence_authority": "zero_model_and_persistence_authority",
+        "exact_three_limitations_and_all_authority_flags_false": "exact_limitations_and_recursive_authority_ceiling"
+      },
+      "expected_case_count": 7
+    },
+    {
+      "group_id": "strict_boundary_interface_and_replay",
+      "case_ids": [
+        "approved_configuration_denial_zero_traversal",
+        "identity_denial_zero_traversal",
+        "provenance_denial_zero_traversal",
+        "consent_denial_zero_traversal",
+        "quality_denial_zero_traversal",
+        "support_denial_zero_traversal",
+        "intended_use_denial_zero_traversal",
+        "arbitrary_mapping_rejected_without_access",
+        "dict_subclass_exception_baseexception_firewall",
+        "duplicate_json_key_rejected",
+        "unknown_field_rejected",
+        "coercion_rejected",
+        "request_4mib_plus_one_rejected",
+        "semantic_reorder_full_equality",
+        "embedded_upstream_forgery_rejected",
+        "result_derived_regions_forgery_rejected",
+        "privacy_and_authority_ceiling",
+        "cli_symlink_nonregular_toctou_and_existing_output_refused"
+      ],
+      "case_expectations": {
+        "approved_configuration_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "identity_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "provenance_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "consent_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "quality_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "support_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "intended_use_denial_zero_traversal": "authorization_rejected:zero_traversal",
+        "arbitrary_mapping_rejected_without_access": "authorization_rejected:zero_access",
+        "dict_subclass_exception_baseexception_firewall": "hostile_dict_equality+exception_authorization_rejected+baseexception_propagates",
+        "duplicate_json_key_rejected": "ingress_rejected:document_json_invalid",
+        "unknown_field_rejected": "ingress_rejected:document_json_invalid",
+        "coercion_rejected": "ingress_rejected:document_json_invalid",
+        "request_4mib_plus_one_rejected": "validation_rejected",
+        "semantic_reorder_full_equality": "complete_result_equality",
+        "embedded_upstream_forgery_rejected": "validation_rejected",
+        "result_derived_regions_forgery_rejected": "validation_rejected",
+        "privacy_and_authority_ceiling": "recursive_privacy_and_authority_ceiling",
+        "cli_symlink_nonregular_toctou_and_existing_output_refused": "cli_filesystem_boundary_all_assertions"
+      },
+      "expected_case_count": 18
+    }
+  ],
+  "expected_group_count": 8,
+  "expected_total_case_count": 72,
+  "expected_case_allocation": [
+    7,
+    9,
+    8,
+    8,
+    8,
+    7,
+    7,
+    18
+  ],
+  "benchmark": {
+    "workload": "representative_genuine_four_role_modest_canonical_documents",
+    "upstream_setup_timed": false,
+    "request_build_timed": false,
+    "serialization_timed": false,
+    "warmup_count": 1,
+    "timed_public_calls": 25,
+    "timed_boundary": "ingest_proteoform_raw_inputs_only",
+    "mean_budget_ns": 500000000,
+    "p95_budget_ns": 750000000
+  }
+}

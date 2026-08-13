@@ -30,9 +30,26 @@ jobs:
       - run: uv run python -m tools.scan_secrets
       - run: uv run pip-audit
 
+  windows-m04-03-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m04_03_interfaces.py
+
   test-and-eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -70,6 +87,7 @@ jobs:
       - run: uv run python -m evals.m03_08.run --output m03_08-eval.json
       - run: uv run python -m evals.m04_01.run --output m04_01-eval.json
       - run: uv run python -m evals.m04_02.run --output m04_02-eval.json
+      - run: uv run python -m evals.m04_03.run --output m04_03-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -200,6 +218,11 @@ jobs:
         with:
           name: m04-02-eval
           path: m04_02-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-03-eval
+          path: m04_03-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -240,6 +263,7 @@ jobs:
       - run: uv run python -m evals.m03_08.benchmark --output m03_08-benchmark.json
       - run: uv run python -m evals.m04_01.benchmark --output m04_01-benchmark.json
       - run: uv run python -m evals.m04_02.benchmark --output m04_02-benchmark.json
+      - run: uv run python -m evals.m04_03.benchmark --output m04_03-benchmark.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -370,6 +394,11 @@ jobs:
         with:
           name: m04-02-benchmark
           path: m04_02-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-03-benchmark
+          path: m04_03-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

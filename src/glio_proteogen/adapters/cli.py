@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import stat
+from ctypes import wintypes
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal, Never
 
 import typer
 import uvicorn
@@ -35,6 +37,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_support_contract_schema,
     _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
+    _proteoform_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -140,6 +143,13 @@ from glio_proteogen.contracts.m04_01 import (
 from glio_proteogen.contracts.m04_02 import (
     M0402_MAX_CANONICAL_REQUEST_BYTES,
     ReconcileProteoformIdentityLineageRequest,
+)
+from glio_proteogen.contracts.m04_03 import (
+    M0403_MAX_CANONICAL_REQUEST_BYTES,
+    M0403_MAX_DOCUMENT_BYTES,
+    M0403_MAX_TOTAL_DOCUMENT_BYTES,
+    IngestProteoformRawInputsRequest,
+    ProteoformRawInputRole,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -272,6 +282,12 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_02_identity_lineage impor
     M0402Service,
     preflight_proteoform_identity_lineage_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_03_raw_ingestion import (
+    M0403Service,
+    ProteoformRawInputAuthorizationError,
+    ProteoformRawInputError,
+    preflight_proteoform_raw_input_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -395,6 +411,11 @@ proteoform_lineage_app = typer.Typer(
     help="M04-02 proteoform artifact identity-lineage reconciliation.",
 )
 app.add_typer(proteoform_lineage_app, name="proteoform-lineage")
+proteoform_raw_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-03 deterministic proteoform raw-manifest ingestion.",
+)
+app.add_typer(proteoform_raw_app, name="proteoform-raw")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -491,6 +512,14 @@ OutputOption = Annotated[
 UncheckedSourceDirectoryArgument = Annotated[
     Path,
     typer.Argument(file_okay=False, help="Closed directory containing declared artifacts."),
+]
+ProteoformRawSourceArgument = Annotated[
+    str,
+    typer.Argument(help="Unchecked directory containing four locked manifest files."),
+]
+ProteoformRawOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M04-03 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -592,6 +621,38 @@ class _ProteinInferenceRawFileError(ValueError):
     @classmethod
     def source_unavailable(cls) -> _ProteinInferenceRawFileError:
         return cls("protein-inference raw source is unavailable")
+
+
+class _ProteoformRawFileError(ValueError):
+    """An M04-03 CLI path violates the exact snapshot-once filesystem boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source directory is unavailable")
+
+    @classmethod
+    def linked_or_reparse_source(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source cannot be a link or reparse point")
+
+    @classmethod
+    def unexpected_entry(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source must contain exactly four locked filenames")
+
+    @classmethod
+    def non_regular_source(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source must contain only regular files")
+
+    @classmethod
+    def source_changed(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source changed during ingestion")
+
+    @classmethod
+    def source_unavailable(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw source is unavailable")
+
+    @classmethod
+    def output_unavailable(cls) -> _ProteoformRawFileError:
+        return cls("proteoform raw output must be a new regular file")
 
 
 class _IdentificationReleaseFileError(ValueError):
@@ -720,6 +781,8 @@ def _load_request[RequestT](
         details = canonical_json_bytes(sanitized_validation_errors(error)).decode("utf-8")
         typer.echo(f"invalid request: {details}", err=True)
         raise typer.Exit(code=2) from error
+    except ProteoformRawInputAuthorizationError:
+        raise
     except (OSError, ValueError) as error:
         typer.echo("invalid request: unable to read or decode request document", err=True)
         raise typer.Exit(code=2) from error
@@ -1283,6 +1346,810 @@ def _same_file_receipt(left: os.stat_result, right: os.stat_result) -> bool:
         right.st_size,
         right.st_mtime_ns,
     )
+
+
+_PROTEOFORM_RAW_FILENAMES = {
+    ProteoformRawInputRole.MASS_SPECTROMETRY_PROTEOME: ("mass-spectrometry-proteome.json"),
+    ProteoformRawInputRole.GENOME: "genome.json",
+    ProteoformRawInputRole.TRANSCRIPTOME: "transcriptome.json",
+    ProteoformRawInputRole.PTM_ANNOTATIONS: "ptm-annotations.json",
+}
+
+
+def _load_proteoform_raw_files(  # noqa: C901, PLR0912, PLR0915 - explicit firewall.
+    source_directory: Path,
+    request: IngestProteoformRawInputsRequest,
+) -> dict[ProteoformRawInputRole, bytes]:
+    """Snapshot the four locked M04-03 manifest files exactly once."""
+
+    try:
+        lexical = source_directory.absolute()
+        for component in (lexical, *lexical.parents):
+            if component.exists() and _is_protein_inference_release_reparse(component):
+                raise _ProteoformRawFileError.linked_or_reparse_source()
+        root = source_directory.resolve(strict=True)
+    except _ProteoformRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _ProteoformRawFileError.source_not_directory() from error
+    try:
+        root_before = root.stat(follow_symlinks=False)
+    except (OSError, ValueError) as error:
+        raise _ProteoformRawFileError.source_not_directory() from error
+    if not stat.S_ISDIR(root_before.st_mode):
+        raise _ProteoformRawFileError.source_not_directory()
+
+    expected_names = set(_PROTEOFORM_RAW_FILENAMES.values())
+    try:
+        entries = tuple(root.iterdir())
+    except (OSError, ValueError) as error:
+        raise _ProteoformRawFileError.source_unavailable() from error
+    if {entry.name for entry in entries} != expected_names:
+        raise _ProteoformRawFileError.unexpected_entry()
+
+    artifacts_by_role = {artifact.role: artifact for artifact in request.artifacts}
+    if set(artifacts_by_role) != set(ProteoformRawInputRole):
+        raise _ProteoformRawFileError.unexpected_entry()
+
+    receipts: dict[ProteoformRawInputRole, tuple[Path, os.stat_result]] = {}
+    total_size = 0
+    for role, filename in _PROTEOFORM_RAW_FILENAMES.items():
+        candidate = root / filename
+        if _is_protein_inference_release_reparse(candidate):
+            raise _ProteoformRawFileError.linked_or_reparse_source()
+        try:
+            before = candidate.stat(follow_symlinks=False)
+            if not stat.S_ISREG(before.st_mode):
+                raise _ProteoformRawFileError.non_regular_source()
+            artifact = artifacts_by_role[role]
+            matching_parser = next(
+                (
+                    parser
+                    for parser in request.policy.approved_parsers
+                    if parser.role is role
+                    and parser.format is artifact.format
+                    and parser.format_version == artifact.format_version
+                    and parser.parser_version == artifact.parser_version
+                ),
+                None,
+            )
+            active_limit = min(
+                request.policy.max_document_bytes,
+                M0403_MAX_DOCUMENT_BYTES,
+                *((matching_parser.max_document_bytes,) if matching_parser is not None else ()),
+            )
+            total_size += before.st_size
+            if (
+                before.st_size != artifact.declared_size_bytes
+                or before.st_size > active_limit
+                or total_size > min(request.policy.max_total_bytes, M0403_MAX_TOTAL_DOCUMENT_BYTES)
+            ):
+                raise _ProteoformRawFileError.source_unavailable()
+            receipts[role] = (candidate, before)
+        except _ProteoformRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _ProteoformRawFileError.source_unavailable() from error
+
+    snapshots: dict[ProteoformRawInputRole, bytes] = {}
+    for role, (candidate, before) in receipts.items():
+        try:
+            with candidate.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+                if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                    raise _ProteoformRawFileError.source_changed()
+                payload = stream.read(before.st_size + 1)
+                after = os.fstat(stream.fileno())
+            current = candidate.stat(follow_symlinks=False)
+        except _ProteoformRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _ProteoformRawFileError.source_unavailable() from error
+        if not _same_file_receipt(opened, after) or not _same_file_receipt(after, current):
+            raise _ProteoformRawFileError.source_changed()
+        if len(payload) != before.st_size:
+            raise _ProteoformRawFileError.source_changed()
+        snapshots[role] = payload
+
+    try:
+        root_after = root.stat(follow_symlinks=False)
+        final_entries = tuple(root.iterdir())
+        final_tree_is_closed = {entry.name for entry in final_entries} == expected_names and all(
+            not _is_protein_inference_release_reparse(entry)
+            and stat.S_ISREG(entry.stat(follow_symlinks=False).st_mode)
+            for entry in final_entries
+        )
+        final_members_are_unchanged = all(
+            not _is_protein_inference_release_reparse(candidate)
+            and _same_file_receipt(before, candidate.stat(follow_symlinks=False))
+            for candidate, before in receipts.values()
+        )
+    except (OSError, ValueError) as error:
+        raise _ProteoformRawFileError.source_unavailable() from error
+    if (
+        not _same_file_receipt(root_before, root_after)
+        or not final_tree_is_closed
+        or not final_members_are_unchanged
+    ):
+        raise _ProteoformRawFileError.source_changed()
+    return snapshots
+
+
+_WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
+_WINDOWS_FILE_ATTRIBUTE_NORMAL = 0x80
+_WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+_WINDOWS_FILE_LIST_DIRECTORY = 0x0001
+_WINDOWS_FILE_READ_DATA = 0x0001
+_WINDOWS_FILE_WRITE_DATA = 0x0002
+_WINDOWS_FILE_TRAVERSE = 0x0020
+_WINDOWS_FILE_READ_ATTRIBUTES = 0x0080
+_WINDOWS_DELETE = 0x00010000
+_WINDOWS_SYNCHRONIZE = 0x00100000
+_WINDOWS_DIRECTORY_ACCESS = (
+    _WINDOWS_FILE_LIST_DIRECTORY
+    | _WINDOWS_FILE_TRAVERSE
+    | _WINDOWS_FILE_READ_ATTRIBUTES
+    | _WINDOWS_SYNCHRONIZE
+)
+_WINDOWS_OUTPUT_ACCESS = (
+    _WINDOWS_FILE_READ_DATA
+    | _WINDOWS_FILE_WRITE_DATA
+    | _WINDOWS_FILE_READ_ATTRIBUTES
+    | _WINDOWS_DELETE
+    | _WINDOWS_SYNCHRONIZE
+)
+_WINDOWS_SHARE_ALL = 0x0007
+_WINDOWS_SHARE_READ_DELETE = 0x0005
+_WINDOWS_FILE_OPEN = 0x0001
+_WINDOWS_FILE_CREATE = 0x0002
+_WINDOWS_FILE_DIRECTORY_FILE = 0x0001
+_WINDOWS_FILE_NON_DIRECTORY_FILE = 0x0040
+_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT = 0x0020
+_WINDOWS_FILE_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_DIRECTORY_OPTIONS = (
+    _WINDOWS_FILE_DIRECTORY_FILE
+    | _WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT
+    | _WINDOWS_FILE_OPEN_REPARSE_POINT
+)
+_WINDOWS_FILE_OPTIONS = (
+    _WINDOWS_FILE_NON_DIRECTORY_FILE
+    | _WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT
+    | _WINDOWS_FILE_OPEN_REPARSE_POINT
+)
+_WINDOWS_OBJECT_CASE_INSENSITIVE = 0x0040
+_WINDOWS_OPEN_EXISTING = 0x0003
+_WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_FILE_RENAME_INFORMATION = 10
+_WINDOWS_FILE_DISPOSITION_INFO = 4
+_WINDOWS_MAX_WRITE = 0xFFFFFFFF
+_WINDOWS_MAX_COMPONENT_BYTES = 0xFFFC
+_PROTEOFORM_RAW_POSIX_DIR_FD_SUPPORTED = all(
+    call in os.supports_dir_fd for call in (os.open, os.stat, os.link, os.unlink)
+)
+
+
+class _WindowsUnicodeString(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.USHORT),
+        ("maximum_length", wintypes.USHORT),
+        ("buffer", wintypes.LPWSTR),
+    ]
+
+
+class _WindowsObjectAttributes(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.ULONG),
+        ("root_directory", wintypes.HANDLE),
+        ("object_name", ctypes.POINTER(_WindowsUnicodeString)),
+        ("attributes", wintypes.ULONG),
+        ("security_descriptor", wintypes.LPVOID),
+        ("security_quality_of_service", wintypes.LPVOID),
+    ]
+
+
+class _WindowsIoStatusBlock(ctypes.Structure):
+    _fields_ = [
+        ("status_or_pointer", ctypes.c_void_p),
+        ("information", ctypes.c_size_t),
+    ]
+
+
+class _WindowsRenameInformation(ctypes.Structure):
+    _fields_ = [
+        ("replace_if_exists", wintypes.BOOLEAN),
+        ("root_directory", wintypes.HANDLE),
+        ("file_name_length", wintypes.ULONG),
+    ]
+
+
+class _WindowsDispositionInformation(ctypes.Structure):
+    _fields_ = [
+        ("delete_file", wintypes.BOOLEAN),
+    ]
+
+
+class _WindowsByHandleFileInformation(ctypes.Structure):
+    _fields_ = [
+        ("file_attributes", wintypes.DWORD),
+        ("creation_time", wintypes.FILETIME),
+        ("last_access_time", wintypes.FILETIME),
+        ("last_write_time", wintypes.FILETIME),
+        ("volume_serial_number", wintypes.DWORD),
+        ("file_size_high", wintypes.DWORD),
+        ("file_size_low", wintypes.DWORD),
+        ("number_of_links", wintypes.DWORD),
+        ("file_index_high", wintypes.DWORD),
+        ("file_index_low", wintypes.DWORD),
+    ]
+
+
+_WINDOWS_RENAME_NAME_OFFSET = _WindowsRenameInformation.file_name_length.offset + ctypes.sizeof(
+    wintypes.ULONG
+)
+
+
+def _write_proteoform_raw_result(path: Path, payload: bytes) -> None:
+    """Atomically publish one new file through a non-reparse directory anchor."""
+
+    try:
+        absolute = path.absolute()
+        if not absolute.name or absolute.name in {".", ".."}:
+            raise _ProteoformRawFileError.output_unavailable()
+        if os.name == "nt":
+            _write_proteoform_raw_result_windows(absolute, payload)
+        else:
+            _write_proteoform_raw_result_posix(absolute, payload)
+    except _ProteoformRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _ProteoformRawFileError.output_unavailable() from error
+
+
+def _write_proteoform_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish with openat-style operations rooted in the opened parent inode."""
+
+    if not _PROTEOFORM_RAW_POSIX_DIR_FD_SUPPORTED:
+        _raise_anchored_output_error()
+    parent_descriptor, final_name = _open_proteoform_raw_posix_parent(path)
+    temporary_name = f".m0403-{os.urandom(16).hex()}.tmp"
+    temporary_descriptor: int | None = None
+    written: os.stat_result | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        try:
+            os.stat(final_name, dir_fd=parent_descriptor, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise _ProteoformRawFileError.output_unavailable()
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | _required_posix_open_flag("O_NOFOLLOW")
+            | _required_posix_open_flag("O_CLOEXEC")
+        )
+        temporary_descriptor = os.open(
+            temporary_name,
+            flags,
+            0o600,
+            dir_fd=parent_descriptor,
+        )
+        opened = os.fstat(temporary_descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            _raise_anchored_output_error()
+        written = opened
+        _write_proteoform_raw_descriptor(temporary_descriptor, payload)
+        written = os.fstat(temporary_descriptor)
+        if not _same_file_identity(opened, written):
+            _raise_anchored_output_error()
+        named_temporary = os.stat(
+            temporary_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, named_temporary):
+            _raise_anchored_output_error()
+        os.link(
+            temporary_name,
+            final_name,
+            src_dir_fd=parent_descriptor,
+            dst_dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _proteoform_raw_posix_parent_is_current(path, parent_descriptor):
+            _raise_anchored_output_error()
+        received = os.stat(
+            final_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, received):
+            _raise_anchored_output_error()
+        os.unlink(temporary_name, dir_fd=parent_descriptor)
+        os.fsync(parent_descriptor)
+        committed = True
+    finally:
+        if not committed and written is not None:
+            try:
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    final_name,
+                    written,
+                )
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    temporary_name,
+                    written,
+                )
+                os.fsync(parent_descriptor)
+            except OSError as error:
+                cleanup_error = error
+        if temporary_descriptor is not None:
+            try:
+                os.close(temporary_descriptor)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            os.close(parent_descriptor)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _open_proteoform_raw_posix_parent(path: Path) -> tuple[int, str]:
+    directory_flags = (
+        os.O_RDONLY
+        | _required_posix_open_flag("O_DIRECTORY")
+        | _required_posix_open_flag("O_NOFOLLOW")
+        | _required_posix_open_flag("O_CLOEXEC")
+    )
+    current = os.open(path.anchor, directory_flags)
+    try:
+        for component in path.parts[1:-1]:
+            candidate = os.open(
+                component,
+                directory_flags,
+                dir_fd=current,
+            )
+            try:
+                received = os.fstat(candidate)
+                if not stat.S_ISDIR(received.st_mode):
+                    _raise_anchored_output_error()
+            except BaseException:
+                os.close(candidate)
+                raise
+            os.close(current)
+            current = candidate
+        parent = os.fstat(current)
+        if not stat.S_ISDIR(parent.st_mode):
+            _raise_anchored_output_error()
+        return current, path.name  # noqa: TRY300
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _proteoform_raw_posix_parent_is_current(path: Path, expected: int) -> bool:
+    try:
+        received, _ = _open_proteoform_raw_posix_parent(path)
+    except OSError:
+        return False
+    try:
+        return _same_file_identity(os.fstat(expected), os.fstat(received))
+    finally:
+        os.close(received)
+
+
+def _unlink_proteoform_raw_posix_name_if_owned(
+    parent_descriptor: int,
+    name: str,
+    expected: os.stat_result,
+) -> None:
+    try:
+        received = os.stat(
+            name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        return
+    if _same_file_identity(expected, received):
+        os.unlink(name, dir_fd=parent_descriptor)
+
+
+def _write_proteoform_raw_descriptor(descriptor: int, payload: bytes) -> None:
+    remaining = memoryview(payload)
+    while remaining:
+        written = os.write(descriptor, remaining)
+        if written <= 0:
+            _raise_anchored_output_error()
+        remaining = remaining[written:]
+    os.fsync(descriptor)
+
+
+def _same_file_identity(left: os.stat_result, right: os.stat_result) -> bool:
+    return (left.st_dev, left.st_ino) == (right.st_dev, right.st_ino)
+
+
+def _required_posix_open_flag(name: str) -> int:
+    received = vars(os).get(name)
+    if not isinstance(received, int):
+        _raise_anchored_output_error()
+    return received
+
+
+def _raise_anchored_output_error() -> Never:
+    raise OSError
+
+
+# The aggregate coverage gate runs on Ubuntu. This native publisher is exercised by the
+# dedicated Windows M04-03 interface job, so its function suites are excluded from that
+# single-platform aggregate instead of being reported as structurally unreachable misses.
+def _write_proteoform_raw_result_windows(  # pragma: no cover
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish by native handle-relative create and rename under one parent handle."""
+
+    parent_handle, final_name = _open_proteoform_raw_windows_parent(path)
+    parent_receipt = _windows_file_receipt(parent_handle, directory=True)
+    temporary_name = f".m0403-{os.urandom(16).hex()}.tmp"
+    output_handle: int | None = None
+    output_receipt: tuple[int, int] | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        output_handle = _windows_nt_create_relative(
+            parent_handle,
+            temporary_name,
+            desired_access=_WINDOWS_OUTPUT_ACCESS,
+            share_access=_WINDOWS_SHARE_READ_DELETE,
+            disposition=_WINDOWS_FILE_CREATE,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        output_receipt = _windows_file_receipt(output_handle, directory=False)
+        _write_proteoform_raw_windows_handle(output_handle, payload)
+        if _windows_file_receipt(output_handle, directory=False) != output_receipt:
+            _raise_anchored_output_error()
+        _windows_rename_proteoform_raw_output(
+            output_handle,
+            parent_handle,
+            final_name,
+        )
+        received_parent, received_name = _open_proteoform_raw_windows_parent(path)
+        try:
+            if (
+                received_name != final_name
+                or _windows_file_receipt(received_parent, directory=True) != parent_receipt
+            ):
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_parent)
+        received_output = _windows_nt_create_relative(
+            parent_handle,
+            final_name,
+            desired_access=_WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_SYNCHRONIZE,
+            disposition=_WINDOWS_FILE_OPEN,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        try:
+            if _windows_file_receipt(received_output, directory=False) != output_receipt:
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_output)
+        committed = True
+    finally:
+        if output_handle is not None and not committed:
+            try:
+                _windows_mark_output_for_deletion(output_handle)
+            except OSError as error:
+                cleanup_error = error
+        if output_handle is not None:
+            try:
+                _windows_close_handle(output_handle)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            _windows_close_handle(parent_handle)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _open_proteoform_raw_windows_parent(  # pragma: no cover
+    path: Path,
+) -> tuple[int, str]:
+    current = _windows_open_root(path.anchor)
+    try:
+        for component in path.parts[1:-1]:
+            candidate = _windows_nt_create_relative(
+                current,
+                component,
+                desired_access=_WINDOWS_DIRECTORY_ACCESS,
+                disposition=_WINDOWS_FILE_OPEN,
+                options=_WINDOWS_DIRECTORY_OPTIONS,
+            )
+            try:
+                _windows_file_receipt(candidate, directory=True)
+            except BaseException:
+                _windows_close_handle(candidate)
+                raise
+            _windows_close_handle(current)
+            current = candidate
+        _windows_file_receipt(current, directory=True)
+        return current, path.name  # noqa: TRY300
+    except BaseException:
+        _windows_close_handle(current)
+        raise
+
+
+def _windows_open_root(anchor: str) -> int:  # pragma: no cover
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    create_file.restype = wintypes.HANDLE
+    received = create_file(
+        _windows_extended_path(anchor),
+        _WINDOWS_DIRECTORY_ACCESS,
+        _WINDOWS_SHARE_ALL,
+        None,
+        _WINDOWS_OPEN_EXISTING,
+        _WINDOWS_FILE_FLAG_BACKUP_SEMANTICS | _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    invalid_handle = ctypes.c_void_p(-1).value
+    if received in {None, invalid_handle}:
+        raise _windows_last_error()
+    handle = int(received)
+    try:
+        _windows_file_receipt(handle, directory=True)
+    except BaseException:
+        _windows_close_handle(handle)
+        raise
+    return handle
+
+
+def _windows_nt_create_relative(  # noqa: PLR0913 - mirrors NtCreateFile policy.  # pragma: no cover
+    root_handle: int,
+    name: str,
+    *,
+    desired_access: int,
+    share_access: int = _WINDOWS_SHARE_ALL,
+    disposition: int,
+    options: int,
+) -> int:
+    if (
+        not name
+        or name in {".", ".."}
+        or "\\" in name
+        or "/" in name
+        or ":" in name
+        or "\x00" in name
+    ):
+        _raise_anchored_output_error()
+    encoded_length = len(name.encode("utf-16-le"))
+    if encoded_length > _WINDOWS_MAX_COMPONENT_BYTES:
+        _raise_anchored_output_error()
+    name_buffer = ctypes.create_unicode_buffer(name)
+    unicode_name = _WindowsUnicodeString(
+        encoded_length,
+        encoded_length + ctypes.sizeof(wintypes.WCHAR),
+        ctypes.cast(name_buffer, wintypes.LPWSTR),
+    )
+    attributes = _WindowsObjectAttributes(
+        ctypes.sizeof(_WindowsObjectAttributes),
+        wintypes.HANDLE(root_handle),
+        ctypes.pointer(unicode_name),
+        _WINDOWS_OBJECT_CASE_INSENSITIVE,
+        None,
+        None,
+    )
+    io_status = _WindowsIoStatusBlock()
+    received = wintypes.HANDLE()
+    ntdll = ctypes.WinDLL("ntdll")
+    nt_create_file = ntdll.NtCreateFile
+    nt_create_file.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE),
+        wintypes.DWORD,
+        ctypes.POINTER(_WindowsObjectAttributes),
+        ctypes.POINTER(_WindowsIoStatusBlock),
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    nt_create_file.restype = wintypes.LONG
+    status = int(
+        nt_create_file(
+            ctypes.byref(received),
+            desired_access,
+            ctypes.byref(attributes),
+            ctypes.byref(io_status),
+            None,
+            _WINDOWS_FILE_ATTRIBUTE_NORMAL,
+            share_access,
+            disposition,
+            options,
+            None,
+            0,
+        )
+    )
+    if status < 0:
+        raise _windows_ntstatus_error(status)
+    if received.value is None:
+        _raise_anchored_output_error()
+    return int(received.value)
+
+
+def _windows_rename_proteoform_raw_output(  # pragma: no cover
+    output_handle: int,
+    parent_handle: int,
+    final_name: str,
+) -> None:
+    encoded_name = final_name.encode("utf-16-le")
+    buffer = ctypes.create_string_buffer(_WINDOWS_RENAME_NAME_OFFSET + len(encoded_name))
+    rename = _WindowsRenameInformation.from_buffer(buffer)
+    rename.replace_if_exists = False
+    rename.root_directory = wintypes.HANDLE(parent_handle)
+    rename.file_name_length = len(encoded_name)
+    ctypes.memmove(
+        ctypes.addressof(buffer) + _WINDOWS_RENAME_NAME_OFFSET,
+        encoded_name,
+        len(encoded_name),
+    )
+    io_status = _WindowsIoStatusBlock()
+    ntdll = ctypes.WinDLL("ntdll")
+    nt_set_information_file = ntdll.NtSetInformationFile
+    nt_set_information_file.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_WindowsIoStatusBlock),
+        ctypes.c_void_p,
+        wintypes.ULONG,
+        wintypes.ULONG,
+    ]
+    nt_set_information_file.restype = wintypes.LONG
+    status = int(
+        nt_set_information_file(
+            wintypes.HANDLE(output_handle),
+            ctypes.byref(io_status),
+            buffer,
+            len(buffer),
+            _WINDOWS_FILE_RENAME_INFORMATION,
+        )
+    )
+    if status < 0:
+        raise _windows_ntstatus_error(status)
+
+
+def _write_proteoform_raw_windows_handle(  # pragma: no cover
+    handle: int,
+    payload: bytes,
+) -> None:
+    if len(payload) > _WINDOWS_MAX_WRITE:
+        _raise_anchored_output_error()
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    write_file = kernel32.WriteFile
+    write_file.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+        wintypes.LPVOID,
+    ]
+    write_file.restype = wintypes.BOOL
+    if payload:
+        buffer = ctypes.create_string_buffer(payload, len(payload))
+        written = wintypes.DWORD()
+        if not write_file(
+            wintypes.HANDLE(handle),
+            buffer,
+            len(payload),
+            ctypes.byref(written),
+            None,
+        ):
+            raise _windows_last_error()
+        if written.value != len(payload):
+            _raise_anchored_output_error()
+    flush_file = kernel32.FlushFileBuffers
+    flush_file.argtypes = [wintypes.HANDLE]
+    flush_file.restype = wintypes.BOOL
+    if not flush_file(wintypes.HANDLE(handle)):
+        raise _windows_last_error()
+
+
+def _windows_mark_output_for_deletion(handle: int) -> None:  # pragma: no cover
+    disposition = _WindowsDispositionInformation()
+    disposition.delete_file = True
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    set_information = kernel32.SetFileInformationByHandle
+    set_information.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    set_information.restype = wintypes.BOOL
+    if not set_information(
+        wintypes.HANDLE(handle),
+        _WINDOWS_FILE_DISPOSITION_INFO,
+        ctypes.byref(disposition),
+        ctypes.sizeof(disposition),
+    ):
+        raise _windows_last_error()
+
+
+def _windows_file_receipt(  # pragma: no cover
+    handle: int,
+    *,
+    directory: bool,
+) -> tuple[int, int]:
+    information = _WindowsByHandleFileInformation()
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_information = kernel32.GetFileInformationByHandle
+    get_information.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_WindowsByHandleFileInformation),
+    ]
+    get_information.restype = wintypes.BOOL
+    if not get_information(wintypes.HANDLE(handle), ctypes.byref(information)):
+        raise _windows_last_error()
+    attributes = int(information.file_attributes)
+    received_directory = bool(attributes & _WINDOWS_FILE_ATTRIBUTE_DIRECTORY)
+    if received_directory is not directory or attributes & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT:
+        _raise_anchored_output_error()
+    identifier = (int(information.file_index_high) << 32) | int(information.file_index_low)
+    return int(information.volume_serial_number), identifier
+
+
+def _windows_close_handle(handle: int) -> None:  # pragma: no cover
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = [wintypes.HANDLE]
+    close_handle.restype = wintypes.BOOL
+    if not close_handle(wintypes.HANDLE(handle)):
+        raise _windows_last_error()
+
+
+def _windows_extended_path(path: str) -> str:  # pragma: no cover
+    if path.startswith("\\\\?\\"):
+        return path
+    if path.startswith("\\\\"):
+        return f"\\\\?\\UNC\\{path[2:]}"
+    return f"\\\\?\\{path}"
+
+
+def _windows_last_error() -> OSError:  # pragma: no cover
+    received = ctypes.get_last_error()
+    code = int(received)
+    return OSError(code, f"Windows error {code}")
+
+
+def _windows_ntstatus_error(status: int) -> OSError:  # pragma: no cover
+    ntdll = ctypes.WinDLL("ntdll")
+    convert = ntdll.RtlNtStatusToDosError
+    convert.argtypes = [wintypes.LONG]
+    convert.restype = wintypes.ULONG
+    code = int(convert(status))
+    return OSError(code, f"Windows error {code}")
 
 
 @protocol_app.command("register")
@@ -2362,6 +3229,72 @@ def reconcile_proteoform_lineage(request: RequestArgument) -> None:
         M0402_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0402Service().execute(parsed))
+
+
+@proteoform_raw_app.command("export-schema")
+def export_proteoform_raw_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "parser-profile",
+            "input-artifact",
+            "proteome-document",
+            "genome-document",
+            "transcriptome-document",
+            "ptm-document",
+            "validated-input",
+            "diagnostic",
+            "receipt",
+        ],
+        typer.Argument(help="M04-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform raw-ingestion contract."""
+
+    typer.echo(json.dumps(_proteoform_raw_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@proteoform_raw_app.command("ingest")
+def ingest_proteoform_raw_inputs(
+    request: RequestArgument,
+    source_directory: ProteoformRawSourceArgument,
+    output: ProteoformRawOutputOption,
+) -> None:
+    """Ingest four locked canonical manifest files and publish one new result."""
+
+    try:
+        try:
+            parsed = _load_request(
+                request,
+                TypeAdapter(IngestProteoformRawInputsRequest),
+                preflight_proteoform_raw_input_authorization,
+                M0403_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            source_path = Path(source_directory)
+            output_path = Path(output)
+        except ProteoformRawInputAuthorizationError as error:
+            typer.echo(f"proteoform raw ingestion failed: {error}", err=True)
+            raise typer.Exit(code=2) from error
+        sources = (
+            _load_proteoform_raw_files(source_path, parsed)
+            if parsed.lineage_result.disposition.value == "reconciled"
+            else {}
+        )
+        result = M0403Service().execute(parsed, sources)
+        _write_proteoform_raw_result(
+            output_path, canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except (
+        ProteoformRawInputAuthorizationError,
+        ProteoformRawInputError,
+        _ProteoformRawFileError,
+    ) as error:
+        typer.echo(f"proteoform raw ingestion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    if result.disposition.value != "validated":
+        raise typer.Exit(code=1)
 
 
 @protein_inference_release_app.command("build")
