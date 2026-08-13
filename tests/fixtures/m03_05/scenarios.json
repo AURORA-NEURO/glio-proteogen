@@ -1,0 +1,206 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-05",
+  "schema_version": "1.0.0",
+  "operation": "detect_protein_inference_artifacts",
+  "parent_target": "complex_activity",
+  "data_classification": "synthetic_nonclinical_content_addressed_artifact_evidence_counts",
+  "claims_ceiling": "deterministic_categorical_artifact_evidence_scores_contamination_flags_and_exclusion_mask_not_calibrated_probability_protein_inference_biology_complex_activity_or_clinical_readiness",
+  "signal_codes": [
+    "contaminant_reference_support",
+    "decoy_competition_failure",
+    "low_complexity_evidence",
+    "nonunique_mapping",
+    "batch_inconsistency",
+    "barcode_index_collision",
+    "technical_carryover",
+    "sample_context_discordance"
+  ],
+  "unit_kinds": [
+    "peptide_evidence",
+    "protein_group",
+    "ambiguity_class",
+    "proteoform_claim",
+    "control_group",
+    "sample_context_binding"
+  ],
+  "observation_states": [
+    "observed",
+    "missing",
+    "not_applicable",
+    "unsupported"
+  ],
+  "locked_acceptance": {
+    "seeded_critical_artifact_sensitivity": "8_of_8_signal_classes_detected_at_or_above_exact_exclusion_threshold",
+    "clean_unit_false_exclusion_ceiling": "0_of_all_canonical_clean_units_excluded",
+    "probability_claim": "forbidden"
+  },
+  "installed_capacity": {
+    "sources": 64,
+    "claims": 48,
+    "upstream_claims": 256,
+    "unit_source_references": 8,
+    "unit_claim_references": 8,
+    "units": 512,
+    "signal_scores": 4096,
+    "contamination_flags": 1536,
+    "profiles": 16,
+    "approved_versions_per_domain": 32,
+    "reachable_result_evidence": 18,
+    "findings": 35,
+    "count": 10000000,
+    "canonical_request_bytes": 4194304
+  },
+  "fixture_prohibitions": [
+    "direct_patient_identifier",
+    "raw_identity_token",
+    "observed_peptide_sequence",
+    "protein_accession",
+    "protein_presence_or_absence_claim",
+    "proteoform_assignment",
+    "protein_abundance",
+    "complex_activity_score",
+    "protein_subtype",
+    "proteotype",
+    "kinase_activity",
+    "treatment_recommendation",
+    "clinical_decision"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "genuine_handoff_and_artifact_evidence_closure",
+      "case_ids": [
+        "genuine_public_m0102_through_m0304_handoff",
+        "compact_quality_receipt_binds_exact_m0304_result",
+        "artifact_ledger_binds_quality_sources_claims_and_metrics",
+        "unit_source_and_claim_roles_close_over_compact_receipt",
+        "every_evidence_unit_carries_the_exact_eight_signal_domain",
+        "canonical_clean_evidence_is_clear_and_retained",
+        "result_preserves_complex_activity_parent_without_emitting_activity"
+      ],
+      "expected_case_count": 7,
+      "closure_rule": "execute the genuine public M01-02 through M03-04 chain, project its exact compact quality receipt, and bind role-compatible synthetic artifact units without handwritten upstream result envelopes"
+    },
+    {
+      "group_id": "exact_integer_signal_scoring_and_thresholds",
+      "case_ids": [
+        "contaminant_reference_support_uses_exact_integer_evidence_fraction",
+        "decoy_competition_failure_uses_exact_integer_evidence_fraction",
+        "low_complexity_evidence_uses_exact_integer_evidence_fraction",
+        "nonunique_mapping_uses_exact_integer_evidence_fraction",
+        "batch_inconsistency_uses_exact_integer_evidence_fraction",
+        "barcode_index_collision_uses_exact_integer_evidence_fraction",
+        "technical_carryover_uses_exact_integer_evidence_fraction",
+        "sample_context_discordance_uses_exact_integer_evidence_fraction",
+        "review_and_exclusion_threshold_equal_adjacent_and_first_excess_boundaries_are_exact"
+      ],
+      "expected_case_count": 9,
+      "calculation_rule": "derive every score from bounded supporting and evaluated integer counts on the 1000000 scale with locked half-up rounding; never accept caller-supplied scores",
+      "threshold_rule": "below review is clear, review through immediately below exclusion is suspected, and exclusion or higher is detected"
+    },
+    {
+      "group_id": "contamination_masks_and_seeded_acceptance",
+      "case_ids": [
+        "all_eight_seeded_critical_signal_classes_are_detected",
+        "canonical_clean_units_have_zero_false_exclusions",
+        "suspected_contamination_flags_review_without_exclusion",
+        "detected_contamination_flags_and_excludes",
+        "noncontamination_artifact_never_emits_contamination_flag",
+        "detected_artifact_precedes_coexisting_indeterminate_signal",
+        "artifact_scores_posteriors_and_flags_are_never_calibrated_probabilities"
+      ],
+      "expected_case_count": 7,
+      "acceptance_rule": "detect 8 of 8 preregistered synthetic critical signal classes and exclude 0 canonical clean units; these are finite corpus checks rather than estimates of assay or clinical performance",
+      "mask_rule": "clear required evidence retains, suspected or indeterminate evidence reviews, and detected evidence excludes"
+    },
+    {
+      "group_id": "missingness_domains_profiles_and_disagreement",
+      "case_ids": [
+        "missing_required_signal_abstains_without_becoming_clear",
+        "unsupported_required_signal_abstains_without_becoming_negative",
+        "zero_denominator_observed_signal_is_indeterminate",
+        "out_of_domain_signal_is_exactly_not_applicable",
+        "all_six_unit_kinds_apply_only_the_locked_signal_matrix",
+        "no_matching_artifact_profile_abstains_before_scoring",
+        "sample_context_discordance_is_retained_without_biological_resolution"
+      ],
+      "expected_case_count": 7,
+      "missingness_rule": "missing, unsupported, zero-denominator, indeterminate, and not-applicable states remain distinct and cannot satisfy a required clear decision",
+      "profile_rule": "exactly one pairwise-disjoint profile must match applicability, assay protocol, controlled vocabulary, and unit-system versions"
+    },
+    {
+      "group_id": "safe_failure_precedence_and_zero_ledger_traversal",
+      "case_ids": [
+        "m0304_rejected_receipt_propagates_without_ledger_traversal",
+        "m0304_quarantined_receipt_propagates_without_ledger_traversal",
+        "m0304_abstained_receipt_propagates_without_ledger_traversal",
+        "unsupported_compact_quality_shape_abstains_without_scoring",
+        "receipt_ledger_binding_mismatch_quarantines_before_scoring",
+        "reject_quarantine_abstain_and_clear_precedence_is_deterministic",
+        "safe_failure_emits_no_score_posterior_flag_or_successful_mask_claim"
+      ],
+      "expected_case_count": 7,
+      "precedence": [
+        "authorization",
+        "strict_request_reconstruction",
+        "upstream_quality_disposition_and_shape",
+        "quality_receipt_and_artifact_ledger_closure",
+        "profile_support",
+        "unit_binding_validation",
+        "signal_scoring_and_mask_reduction"
+      ],
+      "safe_failure_rule": "non-qualified M03-04 state or unsupported shape is reduced before ledger traversal and cannot emit an artifact-success claim"
+    },
+    {
+      "group_id": "strict_ingress_capacity_and_hostile_authorization",
+      "case_ids": [
+        "seven_control_authorization_matrix_precedes_hostile_ledger_traversal",
+        "duplicate_json_object_key_is_rejected",
+        "scalar_coercion_nonfinite_and_unknown_field_are_rejected",
+        "exact_installed_source_claim_unit_score_flag_profile_evidence_and_count_caps_are_accepted",
+        "first_excess_source_claim_unit_score_flag_profile_evidence_or_count_is_rejected",
+        "canonical_request_exact_byte_cap_and_first_excess_are_enforced",
+        "hostile_artifact_ledger_is_not_traversed_before_authorization_and_shape_closure"
+      ],
+      "expected_case_count": 7,
+      "authorization_controls": [
+        "configuration",
+        "identity_lineage",
+        "provenance",
+        "consent",
+        "quality",
+        "support",
+        "intended_use"
+      ],
+      "strictness_rule": "forbid duplicate keys, coercion, non-finite numbers, unknown fields or terms, silent defaults, stale derived values, and every first excess"
+    },
+    {
+      "group_id": "canonical_privacy_and_resigned_forgery_resistance",
+      "case_ids": [
+        "semantic_reordering_preserves_complete_result_equality",
+        "typed_dictionary_and_strict_json_requests_produce_equal_results",
+        "canonical_request_policy_receipt_ledger_and_result_digests_are_stable",
+        "recursive_privacy_ownership_and_probability_canaries_are_absent",
+        "derived_score_posterior_flag_mask_finding_and_disposition_forgery_matrix_is_rejected",
+        "resigned_nested_quality_projection_without_ledger_rebinding_is_quarantined"
+      ],
+      "expected_case_count": 6,
+      "canonical_rule": "sort only semantically unordered collections and preserve complete equality across equivalent requests",
+      "forgery_rule": "recompute every evidence fraction, state, flag, posterior, mask, finding, disposition, nested binding, and digest; an outer re-sign cannot legitimize contradictory inner content"
+    },
+    {
+      "group_id": "interfaces_recovery_evidence_and_benchmark",
+      "case_ids": [
+        "public_library_engine_service_and_plugin_results_match",
+        "api_detection_result_matches_public_library_operation",
+        "cli_detection_result_matches_public_library_operation",
+        "schema_api_and_cli_export_exact_installed_contracts",
+        "recovery_requires_new_superseding_artifact_result",
+        "evidence_artifacts_and_benchmark_time_only_public_m0305_operation"
+      ],
+      "expected_case_count": 6,
+      "schema_urn_template": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-05:1.0.0:{name}",
+      "recovery_rule": "prior results remain immutable; corrected evidence or policy produces a new content-addressed result with explicit supersession provenance",
+      "benchmark_rule": "construct the genuine M01-02 through M03-04 handoff, compact quality receipt, artifact ledger, and policy before timing; time only detect_protein_inference_artifacts"
+    }
+  ]
+}

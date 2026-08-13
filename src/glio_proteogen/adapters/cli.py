@@ -25,6 +25,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _protein_inference_artifact_contract_schema,
     _protein_inference_lineage_contract_schema,
     _protein_inference_protocol_contract_schema,
     _protein_inference_quality_contract_schema,
@@ -98,6 +99,10 @@ from glio_proteogen.contracts.m03_03 import (
 from glio_proteogen.contracts.m03_04 import (
     M0304_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteinInferenceQualityRequest,
+)
+from glio_proteogen.contracts.m03_05 import (
+    M0305_MAX_CANONICAL_REQUEST_BYTES,
+    DetectProteinInferenceArtifactsRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -204,6 +209,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import 
     M0304Service,
     preflight_protein_inference_quality_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection import (
+    M0305Service,
+    preflight_protein_inference_artifact_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -294,6 +303,11 @@ protein_inference_quality_app = typer.Typer(
     help="M03-04 deterministic protein-inference evidence quality.",
 )
 app.add_typer(protein_inference_quality_app, name="protein-inference-quality")
+protein_inference_artifacts_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-05 deterministic protein-inference artifact detection.",
+)
+app.add_typer(protein_inference_artifacts_app, name="protein-inference-artifacts")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1725,6 +1739,51 @@ def compute_protein_inference_quality(request: RequestArgument) -> None:
         M0304_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0304Service().execute(parsed))
+
+
+@protein_inference_artifacts_app.command("export-schema")
+def export_protein_inference_artifact_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "threshold",
+            "quality-receipt",
+            "evidence-ledger",
+            "evidence-unit",
+            "signal-score",
+            "posterior",
+            "contamination-flag",
+            "exclusion-mask",
+            "finding",
+        ],
+        typer.Argument(help="M03-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference artifact contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_artifact_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_artifacts_app.command("detect")
+def detect_protein_inference_artifacts(request: RequestArgument) -> None:
+    """Detect exact categorical artifacts from one metadata-only evidence ledger."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(DetectProteinInferenceArtifactsRequest),
+        preflight_protein_inference_artifact_authorization,
+        M0305_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0305Service().execute(parsed))
 
 
 @app.command("export-schema")
