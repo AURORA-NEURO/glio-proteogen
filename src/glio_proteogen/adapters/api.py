@@ -186,6 +186,17 @@ from glio_proteogen.contracts.m03_03.schema import (
 from glio_proteogen.contracts.m03_03.schema import (
     contract_json_schema as m0303_contract_json_schema,
 )
+from glio_proteogen.contracts.m03_04.schema import (
+    ContractName as M0304ContractName,
+)
+from glio_proteogen.contracts.m03_04.schema import (
+    contract_json_schema as m0304_contract_json_schema,
+)
+from glio_proteogen.contracts.m03_04.v1 import (
+    M0304_MAX_CANONICAL_REQUEST_BYTES,
+    ComputeProteinInferenceQualityRequest,
+    ProteinInferenceQualityResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -298,6 +309,11 @@ from glio_proteogen.modules.c03_protein_inference.m03_02_identity_lineage import
     ProteinIdentityLineageAuthorizationError,
     preflight_protein_identity_lineage_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
+    M0304Service,
+    ProteinInferenceQualityAuthorizationError,
+    preflight_protein_inference_quality_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -314,6 +330,7 @@ _M0206_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeIdentificationEvidenc
 _M0207_SUPPORT_ADAPTER: Final = TypeAdapter(RouteIdentificationSupportRequest)
 _M0301_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteinInferenceProtocolRequest)
 _M0302_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteinInferenceIdentityLineageRequest)
+_M0304_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteinInferenceQualityRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -412,6 +429,12 @@ def _protein_inference_raw_contract_schema(
     name: M0303ContractName,
 ) -> dict[str, object]:
     return m0303_contract_json_schema(name)
+
+
+def _protein_inference_quality_contract_schema(
+    name: M0304ContractName,
+) -> dict[str, object]:
+    return m0304_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -540,17 +563,27 @@ def _protein_inference_lineage_request_body() -> dict[str, object]:
     }
 
 
+def _protein_inference_quality_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0304_contract_json_schema("request")}},
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
     preflight: Callable[[object], None] | None = None,
+    max_bytes: int = MAX_REQUEST_BYTES,
 ) -> ModelT:
     media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
     if media_type != "application/json":
         raise HTTPException(status_code=415, detail="content-type must be application/json")
     try:
         body = await request.body()
-        decoded = strict_json_loads(body, max_bytes=MAX_REQUEST_BYTES)
+        decoded = strict_json_loads(body, max_bytes=max_bytes)
         if preflight is not None:
             preflight(decoded)
         return adapter.validate_json(body, strict=True)
@@ -678,6 +711,17 @@ async def _protein_inference_lineage_body(
     )
 
 
+async def _protein_inference_quality_body(
+    request: Request,
+) -> ComputeProteinInferenceQualityRequest:
+    return await _strict_json_body(
+        request,
+        _M0304_QUALITY_ADAPTER,
+        preflight_protein_inference_quality_authorization,
+        M0304_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -697,6 +741,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     identification_support_service = M0207Service()
     protein_inference_protocol_service = M0301Service()
     protein_inference_lineage_service = M0302Service()
+    protein_inference_quality_service = M0304Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -736,6 +781,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(IdentificationSupportAuthorizationError)
     @app.exception_handler(ProteinInferenceProtocolAuthorizationError)
     @app.exception_handler(ProteinIdentityLineageAuthorizationError)
+    @app.exception_handler(ProteinInferenceQualityAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -908,6 +954,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0303ContractName,
     ) -> dict[str, object]:
         return _protein_inference_raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M03-04/{name}/schema", tags=["contracts"])
+    def protein_inference_quality_contract_schema(
+        name: M0304ContractName,
+    ) -> dict[str, object]:
+        return _protein_inference_quality_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M03-04/quality",
+        response_model=ProteinInferenceQualityResult,
+        tags=["M03-04"],
+        openapi_extra=_protein_inference_quality_request_body(),
+    )
+    def compute_protein_inference_quality(
+        request: Annotated[
+            ComputeProteinInferenceQualityRequest,
+            Depends(_protein_inference_quality_body),
+        ],
+    ) -> ProteinInferenceQualityResult:
+        return protein_inference_quality_service.execute(request)
 
     @app.post(
         "/v1/modules/M03-02/identity-lineage-reconciliation",

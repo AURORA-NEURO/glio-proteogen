@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identity_contract_schema,
     _protein_inference_lineage_contract_schema,
     _protein_inference_protocol_contract_schema,
+    _protein_inference_quality_contract_schema,
     _protein_inference_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -34,7 +35,11 @@ from glio_proteogen.adapters.api import (
     _support_routing_contract_schema,
     create_app,
 )
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    MAX_REQUEST_BYTES,
+    RequestBodyTooLargeError,
+    read_bounded,
+)
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
     RegisterProtocolRequest,
@@ -89,6 +94,10 @@ from glio_proteogen.contracts.m03_02.v1 import (
 )
 from glio_proteogen.contracts.m03_03 import (
     IngestProteinInferenceRawInputsRequest,
+)
+from glio_proteogen.contracts.m03_04 import (
+    M0304_MAX_CANONICAL_REQUEST_BYTES,
+    ComputeProteinInferenceQualityRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -191,6 +200,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_03_raw_ingestion import (
     ProteinInferenceRawIngestionInputError,
     preflight_protein_inference_raw_ingestion_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
+    M0304Service,
+    preflight_protein_inference_quality_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -276,6 +289,11 @@ protein_inference_raw_app = typer.Typer(
     help="M03-03 bounded protein-inference raw-source admission.",
 )
 app.add_typer(protein_inference_raw_app, name="protein-inference-raw")
+protein_inference_quality_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-04 deterministic protein-inference evidence quality.",
+)
+app.add_typer(protein_inference_quality_app, name="protein-inference-quality")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -482,10 +500,15 @@ def _load_request[RequestT](
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
+    max_bytes: int = MAX_REQUEST_BYTES,
 ) -> RequestT:
     try:
-        payload = read_bounded(path)
-        decoded = strict_json_loads(payload)
+        payload = (
+            read_bounded(path)
+            if max_bytes == MAX_REQUEST_BYTES
+            else read_bounded(path, max_bytes=max_bytes)
+        )
+        decoded = strict_json_loads(payload, max_bytes=max_bytes)
         if preflight is not None:
             preflight(decoded)
         return adapter.validate_json(payload, strict=True)
@@ -1661,6 +1684,47 @@ def ingest_protein_inference_raw_inputs(
     _emit(result)
     if result.disposition.value != "validated":
         raise typer.Exit(code=1)
+
+
+@protein_inference_quality_app.command("export-schema")
+def export_protein_inference_quality_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "threshold",
+            "raw-quality-receipt",
+            "fact-ledger",
+            "metric",
+            "finding",
+        ],
+        typer.Argument(help="M03-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference quality contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_quality_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_quality_app.command("compute")
+def compute_protein_inference_quality(request: RequestArgument) -> None:
+    """Compute one authorized metadata-only protein-inference quality result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ComputeProteinInferenceQualityRequest),
+        preflight_protein_inference_quality_authorization,
+        M0304_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0304Service().execute(parsed))
 
 
 @app.command("export-schema")
