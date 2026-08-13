@@ -1,0 +1,18 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M03-01-R01,"Authorize configuration identity provenance consent quality support and intended use before protocol traversal","raw authorization preflight","authorization_preflight group with hostile protocol sentinel",G0
+M03-01-R02,"Bind one exact protocol and reviewed profile version without fallback","strict protocol/profile identifiers and derived digests","search_space_composition_and_build plus alias_unresolved_missing groups",G0
+M03-01-R03,"Require exact search-space composition and build receipts","digest-bound search-space declaration and relational closure","search_space_composition_and_build group",G0
+M03-01-R04,"Keep target-decoy construction compatible with declared competition and error control","closed strategy compatibility rules","target_decoy_error_control_compatibility group",G0
+M03-01-R05,"Distinguish uniqueness-relative shared-group-only and razor non-promotion declarations","closed eligibility and assignment-policy contracts","peptide_assignment_and_group_closure group",G0
+M03-01-R06,"Never promote shared or razor evidence to a unique member claim","assignment-to-member relational invariant","shared and razor non-promotion cases",G0
+M03-01-R07,"Preserve all indistinguishable group members","group membership and ambiguity invariant","indistinguishable-group preservation case",G0
+M03-01-R08,"Treat the representative as display and handoff metadata only","representative non-promotion invariant","representative display-only case",G0
+M03-01-R09,"Require pinned reference plus eligible discriminating peptide for isoform or variant claims","variant-reference and discriminating-evidence closure","isoform_variant_discrimination group",G0
+M03-01-R10,"Require versioned aliases collision-preserving resolution policy mandatory references and all six unresolved states","closed alias and unresolved-state declarations plus strict required fields","alias_unresolved_missing group",G0
+M03-01-R11,"Never convert unresolved or missing evidence to a negative biological finding","closed finding and claims semantics","explicit unresolved-not-negative oracle",G0
+M03-01-R12,"Produce complete equality under semantic input reordering","canonical normalization and digests","semantic_reorder_and_strictness group",G0
+M03-01-R13,"Reject coercion unknown fields stale digests duplicates and unsafe ownership claims","strict reconstruction and structural invariants","semantic_reorder_and_strictness group",G0
+M03-01-R14,"Emit exactly seven complex-handoff roles without activity inference","closed handoff-role cardinality and receipt","handoff_privacy_ownership group",G0
+M03-01-R15,"Exclude subtype proteotype kinase fusion treatment and clinical claims","closed result plus recursive forbidden-key oracle","handoff_privacy_ownership group",G0
+M03-01-R16,"Provide typed quarantine recovery provenance support uncertainty limitations and review state","standard result envelope","all quarantined scenario assertions",G0
+M03-01-R17,"Meet a representative public-evaluator latency tripwire","bounded deterministic section and relationship validation","m03_01_protocol_metadata benchmark",G0

@@ -1,0 +1,168 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-01",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_protocol_conformance_not_observed_peptide_assignment_protein_inference_error_rate_calibration_biological_validity_or_clinical_readiness",
+  "protocol_sections": [
+    "applicability",
+    "search_space",
+    "error_control",
+    "peptide_eligibility",
+    "assignment",
+    "grouping",
+    "ambiguity",
+    "complex_handoff"
+  ],
+  "handoff_role_count": 7,
+  "scenario_groups": [
+    {
+      "group_id": "search_space_composition_and_build",
+      "case_ids": [
+        "canonical_exact_build",
+        "applicability_not_approved",
+        "assay_protocol_version_not_approved",
+        "specimen_processing_version_not_approved",
+        "controlled_vocabulary_version_not_approved",
+        "unit_system_version_not_approved",
+        "search_space_build_digest_mismatch",
+        "missing_declared_component_rejected"
+      ],
+      "canonical_expected_status": "conformant",
+      "noncanonical_expected_disposition": "quarantined",
+      "required_closure": [
+        "canonical_sequence_reference",
+        "contaminant_reference",
+        "decoy_reference",
+        "build_identifier",
+        "build_version",
+        "build_digest"
+      ]
+    },
+    {
+      "group_id": "peptide_assignment_and_group_closure",
+      "case_ids": [
+        "uniqueness_relative_to_exact_search_space_declared",
+        "shared_group_only_policy_declared",
+        "razor_member_nonpromotion_declared",
+        "indistinguishable_group_preservation_declared",
+        "representative_display_only_declared"
+      ],
+      "declared_evidence_semantics": [
+        "unique_relative_to_exact_search_space",
+        "shared_group_claim_only",
+        "razor_never_member_specific"
+      ],
+      "must_preserve_all_indistinguishable_members": true,
+      "representative_semantics": "display_and_handoff_only",
+      "forbidden_promotions": [
+        "shared_to_unique",
+        "razor_to_unique",
+        "representative_to_exclusive_observation"
+      ]
+    },
+    {
+      "group_id": "isoform_variant_discrimination",
+      "case_ids": [
+        "pinned_variant_reference_and_discrimination_rule",
+        "variant_reference_missing_rejected",
+        "missing_discriminator_remains_unresolved_by_policy",
+        "ineligible_discriminator_nonpromotion_declared",
+        "shared_discriminator_nonpromotion_declared"
+      ],
+      "claim_requirements": [
+        "pinned_variant_reference",
+        "eligible_discriminating_peptide"
+      ],
+      "unreviewed_domain_expected_disposition": "quarantined",
+      "missing_required_reference_outcome": "validation_rejected",
+      "must_not_infer_variant_presence": true
+    },
+    {
+      "group_id": "target_decoy_error_control_compatibility",
+      "case_ids": [
+        "compatible_target_decoy_strategy",
+        "target_decoy_strategy_not_reviewed",
+        "search_error_strategy_mismatch_rejected",
+        "competition_scope_mismatch",
+        "error_threshold_unit_mismatch"
+      ],
+      "canonical_expected_status": "conformant",
+      "reviewed_domain_mismatch_expected_disposition": "quarantined",
+      "structural_mismatch_outcome": "validation_rejected",
+      "must_not_claim": [
+        "estimated_false_discovery_rate",
+        "calibrated_probability",
+        "controlled_real_world_error"
+      ]
+    },
+    {
+      "group_id": "alias_unresolved_missing",
+      "case_ids": [
+        "exact_versioned_accession_policy_declared",
+        "alias_collision_unresolved_policy_declared",
+        "unversioned_guess_forbidden_policy_declared",
+        "mandatory_reference_missing_rejected",
+        "all_six_unresolved_states_declared"
+      ],
+      "semantics": "required_protocol_declarations_not_observed_accession_resolution",
+      "unreviewed_domain_expected_disposition": "quarantined",
+      "structural_omission_outcome": "validation_rejected",
+      "forbidden_resolution": "infer_nearest_accession_or_version",
+      "must_not_emit": [
+        "negative_protein_finding",
+        "protein_absence",
+        "variant_absence"
+      ]
+    },
+    {
+      "group_id": "semantic_reorder_and_strictness",
+      "case_ids": [
+        "semantic_reorder_complete_equality",
+        "unknown_field_rejected",
+        "coerced_scalar_rejected",
+        "mandatory_field_missing_rejected",
+        "unknown_controlled_term_rejected",
+        "stale_derived_digest_rejected",
+        "duplicate_identifier_rejected",
+        "unsafe_activity_claim_rejected",
+        "maximum_profile_shape_accepted",
+        "first_profile_excess_rejected"
+      ],
+      "reorder_expected_relation": "complete_result_equality",
+      "structural_failure_outcome": "validation_rejected",
+      "silent_repair_forbidden": true
+    },
+    {
+      "group_id": "authorization_preflight",
+      "case_ids": [
+        "consent_denied_before_hostile_protocol",
+        "identity_unresolved_before_hostile_protocol"
+      ],
+      "expected_outcome": "authorization_rejected",
+      "hostile_protocol_traversal_count": 0,
+      "must_not_infer_authorization": true
+    },
+    {
+      "group_id": "handoff_privacy_ownership",
+      "case_ids": [
+        "exact_seven_role_receipt",
+        "missing_handoff_role_rejected",
+        "extra_handoff_role_rejected",
+        "recursive_output_boundary"
+      ],
+      "expected_handoff_role_count": 7,
+      "parent_target": "complex_activity",
+      "parent_semantics": "workflow_support_only",
+      "forbidden_outputs": [
+        "activity_score",
+        "complex_activity_inference",
+        "protein_subtype",
+        "proteotype",
+        "kinase_activity",
+        "omics_fusion",
+        "treatment_recommendation",
+        "clinical_decision"
+      ]
+    }
+  ]
+}

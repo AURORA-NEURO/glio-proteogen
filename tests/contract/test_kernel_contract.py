@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -44,6 +44,14 @@ def test_canonical_json_rejects_nonfinite_numbers(value: float) -> None:
 def test_canonical_json_rejects_unsupported_python_objects() -> None:
     with pytest.raises(TypeError, match="unsupported canonical JSON value"):
         canonical_json_bytes({1, 2})
+
+
+def test_canonical_json_normalizes_equivalent_instants_and_signed_zero() -> None:
+    utc_instant = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    offset_instant = utc_instant.astimezone(timezone(-timedelta(hours=5)))
+
+    assert canonical_json_bytes(utc_instant) == canonical_json_bytes(offset_instant)
+    assert canonical_json_bytes(-0.0) == canonical_json_bytes(0.0) == b"0.0"
 
 
 @pytest.mark.parametrize(
