@@ -23,6 +23,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _protein_inference_lineage_contract_schema,
     _protein_inference_protocol_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -80,6 +81,9 @@ from glio_proteogen.contracts.m02_08 import (
     IdentificationReleaseDisposition,
 )
 from glio_proteogen.contracts.m03_01.v1 import EvaluateProteinInferenceProtocolRequest
+from glio_proteogen.contracts.m03_02.v1 import (
+    ReconcileProteinInferenceIdentityLineageRequest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -172,6 +176,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_01_protocol_metadata impor
     M0301Service,
     preflight_protein_inference_protocol_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_02_identity_lineage import (
+    M0302Service,
+    preflight_protein_identity_lineage_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -247,6 +255,11 @@ protein_inference_protocol_app = typer.Typer(
     help="M03-01 protein-inference protocol conformance.",
 )
 app.add_typer(protein_inference_protocol_app, name="protein-inference-protocol")
+protein_inference_lineage_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-02 protein-inference artifact identity-lineage reconciliation.",
+)
+app.add_typer(protein_inference_lineage_app, name="protein-inference-lineage")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1395,6 +1408,45 @@ def validate_protein_inference_protocol(request: RequestArgument) -> None:
         preflight_protein_inference_protocol_authorization,
     )
     _emit(M0301Service().execute(parsed))
+
+
+@protein_inference_lineage_app.command("export-schema")
+def export_protein_inference_lineage_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact-claim",
+            "derivation",
+            "cn-receipt",
+            "graph",
+            "receipt",
+        ],
+        typer.Argument(help="M03-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference lineage contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_lineage_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_lineage_app.command("reconcile")
+def reconcile_protein_inference_lineage(request: RequestArgument) -> None:
+    """Reconcile governed protein-inference artifact lineage without relabeling."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ReconcileProteinInferenceIdentityLineageRequest),
+        preflight_protein_identity_lineage_authorization,
+    )
+    _emit(M0302Service().execute(parsed))
 
 
 @app.command("export-schema")

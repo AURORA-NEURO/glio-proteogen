@@ -1,0 +1,239 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-02",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical_opaque_graph_and_categorical_controls",
+  "claims_ceiling": "deterministic_identity_lineage_and_artifact_dag_reconciliation_not_observed_peptide_or_protein_identity_truth_copy_number_calibration_activity_inference_or_clinical_readiness",
+  "canonical_entity_kinds": [
+    "patient",
+    "specimen",
+    "aliquot",
+    "section",
+    "analyte",
+    "run",
+    "derived_object"
+  ],
+  "cn_concordance_states": [
+    "concordant",
+    "discordant",
+    "missing",
+    "indeterminate",
+    "unsupported"
+  ],
+  "artifact_roles": [
+    "peptide_evidence_manifest",
+    "protein_group_manifest",
+    "ambiguity_manifest",
+    "complex_activity_input_bundle"
+  ],
+  "canonical_artifact_dependencies": [
+    "peptide_evidence_manifest->protein_group_manifest",
+    "protein_group_manifest->ambiguity_manifest",
+    "protein_group_manifest->complex_activity_input_bundle",
+    "ambiguity_manifest->complex_activity_input_bundle"
+  ],
+  "fixture_prohibitions": [
+    "direct_patient_identifier",
+    "raw_identity_token",
+    "observed_peptide",
+    "peptide_sequence",
+    "protein_accession",
+    "raw_copy_number_value",
+    "raw_protein_abundance",
+    "activity_score",
+    "treatment_recommendation"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "canonical_complete_chain_and_artifact_dag",
+      "case_ids": [
+        "canonical_all_seven_entity_chain",
+        "canonical_full_artifact_dag",
+        "physical_and_artifact_graphs_remain_distinct",
+        "all_declared_nonsecret_nodes_edges_and_bindings_retained",
+        "exact_upstream_and_protocol_bindings"
+      ],
+      "canonical_expected_disposition": "reconciled",
+      "required_entity_kind_count": 7,
+      "required_entity_kinds": [
+        "patient",
+        "specimen",
+        "aliquot",
+        "section",
+        "analyte",
+        "run",
+        "derived_object"
+      ],
+      "required_artifact_role_count": 4,
+      "complex_activity_input_parent_roles": [
+        "protein_group_manifest",
+        "ambiguity_manifest"
+      ],
+      "upstream_outputs_must_be_genuine": [
+        "GLIO-PROTEOGEN-M01-02",
+        "GLIO-PROTEOGEN-M03-01"
+      ]
+    },
+    {
+      "group_id": "swap_detection_and_nonmutation",
+      "case_ids": [
+        "specimen_component_swap_detected",
+        "run_component_swap_detected",
+        "derived_object_subject_swap_detected",
+        "swap_does_not_relabel_upstream_entity",
+        "swap_does_not_rewrite_physical_or_artifact_edge"
+      ],
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": [
+        "identity_swap"
+      ],
+      "forbidden_recovery_actions": [
+        "relabel",
+        "merge",
+        "delete",
+        "infer_replacement_identity"
+      ]
+    },
+    {
+      "group_id": "collision_duplicate_retention",
+      "case_ids": [
+        "same_scope_identifier_collision",
+        "different_scope_digest_control_not_collision",
+        "duplicate_content_distinct_bindings_retained",
+        "collision_participants_all_retained",
+        "duplicate_has_no_authoritative_copy",
+        "collision_and_duplicate_coexist_without_collapse"
+      ],
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": [
+        "artifact_lineage_collision",
+        "duplicate_content_retained"
+      ],
+      "must_preserve_all_submitted_bindings": true,
+      "must_not_select_authority": true
+    },
+    {
+      "group_id": "cross_patient_propagation",
+      "case_ids": [
+        "cross_patient_physical_link_detected",
+        "run_cross_patient_binding_detected",
+        "direct_artifact_binding_quarantined",
+        "reachable_artifact_descendants_quarantined",
+        "disconnected_artifact_branch_unaffected",
+        "propagation_does_not_create_patient_assignment"
+      ],
+      "expected_disposition": "quarantined",
+      "expected_finding_codes": [
+        "cross_patient_link",
+        "identity_swap"
+      ],
+      "propagation_scope": "reachable_artifact_descendants_only",
+      "unaffected_control": "upstream_single_subject_peptide_roots_before_mixed_subject_join",
+      "must_not_infer_identity": true
+    },
+    {
+      "group_id": "malformed_artifact_dag",
+      "case_ids": [
+        "artifact_cycle_rejected",
+        "artifact_self_dependency_rejected",
+        "dangling_artifact_endpoint_rejected",
+        "unknown_artifact_role_rejected",
+        "duplicate_artifact_node_identifier_rejected",
+        "duplicate_artifact_edge_identifier_rejected",
+        "unapproved_multiple_producers_rejected",
+        "missing_required_artifact_root_rejected"
+      ],
+      "expected_outcome": "validation_rejected",
+      "silent_repair_forbidden": true,
+      "must_not_drop_edge_to_recover": true
+    },
+    {
+      "group_id": "stale_upstream_protocol_search_drift",
+      "case_ids": [
+        "stale_identity_resolution_context_binding",
+        "stale_embedded_identity_resolution_digest",
+        "valid_unresolved_identity_result_abstains",
+        "valid_nonconformant_protocol_result_quarantines",
+        "stale_protocol_result_context_binding",
+        "protocol_identity_drift_quarantined",
+        "search_space_build_drift_quarantined",
+        "artifact_graph_digest_stale_rejected",
+        "display_label_match_does_not_override_digest_drift"
+      ],
+      "reviewed_domain_drift_expected_disposition": "quarantined",
+      "valid_upstream_safe_failure_semantics": {
+        "identity_not_resolved": "abstained",
+        "protocol_not_conformant": "quarantined"
+      },
+      "self_inconsistent_digest_outcome": "validation_rejected",
+      "version_fallback_forbidden": true
+    },
+    {
+      "group_id": "cn_concordance_without_identity_merge",
+      "case_ids": [
+        "cn_concordant_corroborates_only",
+        "cn_discordant_preserves_disagreement",
+        "cn_missing_abstains",
+        "cn_indeterminate_abstains",
+        "cn_unsupported_abstains",
+        "all_cn_states_preserve_identity_components",
+        "all_cn_states_exclude_raw_measurements",
+        "all_cn_states_make_no_protein_presence_or_absence_claim"
+      ],
+      "state_expectations": {
+        "concordant": "corroborated",
+        "discordant": "quarantined",
+        "missing": "not_evaluable",
+        "indeterminate": "not_evaluable",
+        "unsupported": "not_evaluable"
+      },
+      "expected_finding_codes": {
+        "discordant": "cn_discordant",
+        "indeterminate": "cn_not_evaluable"
+      },
+      "must_not_merge_components": true,
+      "must_not_emit": [
+        "raw_copy_number_value",
+        "raw_protein_abundance",
+        "protein_accession",
+        "protein_presence",
+        "protein_absence"
+      ]
+    },
+    {
+      "group_id": "authorization_privacy_strict_caps_order_forgery",
+      "case_ids": [
+        "consent_denied_before_hostile_lineage_traversal",
+        "unresolved_identity_before_hostile_artifact_traversal",
+        "unknown_field_rejected",
+        "coerced_scalar_rejected",
+        "unknown_controlled_term_rejected",
+        "mandatory_field_missing_rejected",
+        "maximum_supported_graph_shape_accepted",
+        "first_graph_excess_rejected",
+        "semantic_reorder_complete_result_equality",
+        "privacy_canary_absent_recursively",
+        "stale_result_digest_rejected",
+        "mutated_finding_with_recomputed_outer_digest_rejected",
+        "mutated_provenance_with_recomputed_outer_digest_rejected",
+        "mutated_evidence_with_recomputed_outer_digest_rejected",
+        "recursive_output_ownership_boundary"
+      ],
+      "authorization_failure_outcome": "authorization_rejected",
+      "hostile_traversal_count": 0,
+      "structural_failure_outcome": "validation_rejected",
+      "reorder_expected_relation": "complete_result_equality",
+      "forbidden_output_claims": [
+        "observed_peptide",
+        "protein_accession",
+        "raw_copy_number_value",
+        "complex_activity_inference",
+        "protein_subtype",
+        "proteotype",
+        "kinase_activity",
+        "omics_fusion",
+        "treatment_recommendation",
+        "clinical_decision"
+      ]
+    }
+  ]
+}
