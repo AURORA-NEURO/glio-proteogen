@@ -1,0 +1,216 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-03",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical_content_addressed_admission_sources",
+  "claims_ceiling": "deterministic_raw_source_admission_and_parse_diagnostics_not_protein_inference_complex_activity_biological_validity_or_clinical_readiness",
+  "operation": "ingest_protein_inference_raw_inputs",
+  "parent_target": "complex_activity_workflow_support_only",
+  "source_profiles": [
+    "spectra/mzML",
+    "peptide_evidence/mzIdentML",
+    "protein_group_manifest/JSON",
+    "ambiguity_manifest/JSON",
+    "complex_activity_input_bundle/JSON",
+    "search_space_component/FASTA",
+    "ptm_ontology/PSI-MOD_OBO",
+    "variant_calls/VCF",
+    "transcript_annotations/GFF3"
+  ],
+  "search_space_component_roles": [
+    "canonical",
+    "decoy",
+    "conditional_isoform",
+    "variant",
+    "contaminant"
+  ],
+  "unsupported_v1_profiles": [
+    "mzTab",
+    "mzTab-M"
+  ],
+  "source_name_policy": "each declared source name is one exact portable basename; directories, traversal, alternate data streams, links, junctions, and reparse points are forbidden",
+  "source_read_policy": "authorization and mapping validation precede I/O; each admitted regular file is opened and read exactly once",
+  "fixture_prohibitions": [
+    "direct_patient_identifier",
+    "raw_identity_token",
+    "observed_peptide_sequence",
+    "protein_presence_or_absence_claim",
+    "protein_inference_result",
+    "complex_activity_score",
+    "protein_subtype",
+    "proteotype",
+    "kinase_activity",
+    "treatment_recommendation",
+    "clinical_decision"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "genuine_chain_and_admission_capsule",
+      "case_ids": [
+        "genuine_public_m0102_m0301_m0302_chain",
+        "canonical_supported_source_set_is_admitted",
+        "source_manifest_binds_exact_bytes_lengths_and_digests",
+        "bundle_source_manifest_binding_is_non_circular",
+        "admission_capsule_retains_exact_parent_receipt",
+        "capsule_supports_complex_activity_workflow_without_inference",
+        "canonical_result_emits_no_protein_or_activity_claim"
+      ],
+      "expected_case_count": 7,
+      "upstream_outputs_must_be_genuine": [
+        "GLIO-PROTEOGEN-M01-02",
+        "GLIO-PROTEOGEN-M03-01",
+        "GLIO-PROTEOGEN-M03-02"
+      ],
+      "expected_disposition": "admitted",
+      "bundle_manifest_rule": "the bundle bytes declare the digest of a source manifest computed from every other admitted source; the source manifest then binds the bundle bytes and is carried outside the bundle",
+      "parent_receipt_rule": "retain the exact upstream reconciliation receipt and admission capsule without issuing a complex-activity or protein-inference result"
+    },
+    {
+      "group_id": "role_format_and_cross_reference_parsing",
+      "case_ids": [
+        "mzml_structure_and_internal_references_validated",
+        "mzidentml_structure_and_internal_references_validated",
+        "protein_group_json_structure_and_references_validated",
+        "ambiguity_json_structure_and_references_validated",
+        "bundle_json_structure_and_references_validated",
+        "all_fasta_component_roles_parsed_separately",
+        "psi_mod_obo_terms_and_identifiers_validated",
+        "vcf_header_records_and_references_validated",
+        "gff3_directives_records_and_references_validated",
+        "gzip_is_detected_by_magic_bytes_not_filename_suffix",
+        "malformed_content_or_dangling_reference_fails_closed"
+      ],
+      "expected_case_count": 11,
+      "v1_format_boundary": "mzTab and mzTab-M are not accepted or silently treated as another profile",
+      "parse_output_ceiling": "typed source admission and parse diagnostics only; parsed biological observations are not emitted"
+    },
+    {
+      "group_id": "m0301_search_space_and_ptm_closure",
+      "case_ids": [
+        "canonical_fasta_component_matches_m0301_exactly",
+        "decoy_fasta_component_matches_m0301_exactly",
+        "conditional_isoform_fasta_component_matches_m0301_exactly",
+        "variant_fasta_component_matches_m0301_exactly",
+        "contaminant_fasta_component_matches_m0301_exactly",
+        "missing_or_unexpected_search_component_fails_closed",
+        "search_component_role_swap_is_quarantined",
+        "ptm_ontology_digest_must_match_and_labels_cannot_override"
+      ],
+      "expected_case_count": 8,
+      "binding_rule": "component role, content digest, and PTM ontology digest must close exactly over the genuine M03-01 protocol result",
+      "display_label_rule": "a matching filename, display label, or version string cannot override a digest or role mismatch"
+    },
+    {
+      "group_id": "m0302_identity_graph_and_manifest_binding",
+      "case_ids": [
+        "exact_m0302_graph_result_and_every_claim_are_bound",
+        "stale_bundle_source_manifest_binding_is_rejected",
+        "stale_protocol_binding_is_rejected",
+        "stale_identity_binding_is_rejected",
+        "valid_m0302_quarantine_propagates_without_source_parse",
+        "valid_m0302_abstention_propagates_without_source_parse",
+        "upstream_identifiers_components_and_labels_are_never_rewritten",
+        "recomputed_outer_digest_cannot_mask_inner_binding_forgery"
+      ],
+      "expected_case_count": 8,
+      "closure_rule": "the exact self-validating M03-02 result, graph digest, result digest, and complete submitted claim set are retained and bound",
+      "safe_failure_rule": "a genuine non-admissible upstream disposition is propagated before source traversal and is not converted into malformed input"
+    },
+    {
+      "group_id": "build_cv_unit_and_context_coherence",
+      "case_ids": [
+        "search_space_build_identity_matches_protocol",
+        "vcf_declared_assembly_matches_approved_context",
+        "gff3_declared_assembly_matches_approved_context",
+        "vcf_gff3_or_protocol_assembly_mismatch_is_quarantined",
+        "required_build_cv_or_unit_context_missing_abstains",
+        "unsupported_build_cv_or_unit_context_abstains",
+        "cv_term_or_unit_mismatch_is_quarantined"
+      ],
+      "expected_case_count": 7,
+      "missingness_rule": "missing or unsupported context remains typed missing or unsupported and is never converted into a negative biological finding",
+      "coherence_rule": "search-space build, genome assembly, controlled vocabulary, and unit declarations must agree at their exact governed boundaries"
+    },
+    {
+      "group_id": "typed_failure_precedence_and_disagreement",
+      "case_ids": [
+        "transport_checksum_mismatch_is_rejected",
+        "declared_raw_size_mismatch_is_rejected",
+        "declared_decoded_size_mismatch_is_rejected",
+        "corrupt_gzip_stream_is_rejected",
+        "unsupported_format_or_version_is_abstained",
+        "failure_precedence_is_deterministic_and_retains_later_disagreement",
+        "cross_source_disagreement_is_retained_without_prohibited_claim"
+      ],
+      "expected_case_count": 7,
+      "precedence": [
+        "authorization",
+        "source_mapping",
+        "transport_integrity",
+        "decompression",
+        "format_structure",
+        "cross_reference",
+        "governed_context"
+      ],
+      "disagreement_rule": "diagnostics preserve conflicting admissible declarations; the module does not choose biological truth or infer absence"
+    },
+    {
+      "group_id": "authorization_strictness_capacity_and_filesystem",
+      "case_ids": [
+        "configuration_denial_precedes_hostile_source_mapping",
+        "identity_denial_precedes_hostile_source_mapping",
+        "provenance_denial_precedes_hostile_source_mapping",
+        "consent_denial_precedes_hostile_source_mapping",
+        "quality_denial_precedes_hostile_source_mapping",
+        "support_denial_precedes_hostile_source_mapping",
+        "intended_use_denial_precedes_hostile_source_mapping",
+        "source_set_roles_and_declared_basenames_must_match_exactly",
+        "duplicate_json_object_key_is_rejected",
+        "scalar_coercion_is_rejected",
+        "unknown_field_or_controlled_term_is_rejected",
+        "maximum_sixty_four_sources_is_accepted",
+        "sixty_fifth_source_is_rejected_before_any_read",
+        "every_admitted_regular_file_is_read_exactly_once",
+        "symlink_junction_or_other_reparse_source_is_rejected",
+        "directory_traversal_or_alternate_data_stream_name_is_rejected"
+      ],
+      "expected_case_count": 16,
+      "authorization_controls": [
+        "configuration",
+        "identity_lineage",
+        "provenance",
+        "consent",
+        "quality",
+        "support",
+        "intended_use"
+      ],
+      "hostile_mapping_traversal_count_on_denial": 0,
+      "maximum_source_count": 64,
+      "first_excess_source_count": 65
+    },
+    {
+      "group_id": "canonical_privacy_interfaces_recovery",
+      "case_ids": [
+        "semantic_source_reordering_preserves_complete_result_equality",
+        "bytes_and_read_once_stream_inputs_produce_equal_results",
+        "typed_dict_and_strict_json_requests_produce_equal_results",
+        "public_library_operation_matches_engine_result",
+        "service_and_plugin_results_match_public_library_operation",
+        "cli_ingest_result_matches_public_library_operation",
+        "schema_api_get_returns_exact_installed_contract",
+        "schema_cli_export_returns_exact_installed_contract",
+        "raw_ingestion_post_route_is_deliberately_absent",
+        "recursive_privacy_and_ownership_canaries_are_absent",
+        "derived_digest_and_nested_content_forgery_matrix_is_rejected",
+        "recovery_requires_a_new_superseding_admission_capsule",
+        "representative_benchmark_times_only_the_public_m0303_operation"
+      ],
+      "expected_case_count": 13,
+      "cli_surface": "protein-inference-raw ingest REQUEST SOURCE_DIRECTORY and protein-inference-raw export-schema NAME",
+      "schema_api_surface": "GET /v1/contracts/M03-03/{name}/schema only",
+      "schema_urn_template": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-03:1.0.0:{name}",
+      "raw_post_surface": "absent",
+      "recovery_rule": "prior capsules remain immutable; correction creates a newly digested capsule with explicit supersession provenance",
+      "benchmark_rule": "construct genuine M01-02, M03-01, and M03-02 outputs and source bytes before timing; time M03-03 only"
+    }
+  ]
+}

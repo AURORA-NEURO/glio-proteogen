@@ -92,8 +92,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   cross-patient propagation, malformed derivations, and stale producer bindings while preserving
   categorical copy-number concordance as control evidence only. It never relabels upstream
   identity, infers proteins or identity, consumes raw molecular values, or scores complex activity.
+- `GLIO-PROTEOGEN-M03-03` — deterministic protein-inference raw-source admission. This bounded
+  module closes genuine M01-02, M03-01, and M03-02 receipts over exact mzML, mzIdentML, strict
+  protein-group/ambiguity/bundle JSON, five governed FASTA component roles, PSI-MOD OBO, VCF, and
+  GFF3 sources. It verifies transport and decoded integrity, structure, cross-references, builds,
+  controlled vocabularies, and units without retaining raw bytes or inferring proteins or activity.
 
-The seventeen published module slices and the M03-02 release candidate expose strict JSON Schema
+The eighteen published module slices and the M03-03 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -127,6 +132,7 @@ uv run python -m evals.m02_07.run
 uv run python -m evals.m02_08.run
 uv run python -m evals.m03_01.run
 uv run python -m evals.m03_02.run
+uv run python -m evals.m03_03.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -145,6 +151,7 @@ uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --no-cov
 uv run pytest benchmarks/m03_01_protocol_metadata.py --benchmark-only --no-cov
 uv run python -m evals.m03_02.benchmark
+uv run python -m evals.m03_03.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -157,8 +164,9 @@ metadata conformance, M02-02 immutable identity-binding audit, and M02-03 direct
 identification raw-input ingestion, M02-04 stateless identification-quality computation, M02-05
 stateless identification-artifact detection, M02-06 identification harmonization, M02-07
 identification support routing, and M02-08 directory-backed identification release packaging and
-verification, plus M03-01 stateless protein-inference protocol conformance.
-The M03-02 candidate adds stateless protein-inference artifact identity-lineage reconciliation.
+verification, plus M03-01 stateless protein-inference protocol conformance and M03-02 stateless
+protein-inference artifact identity-lineage reconciliation. The M03-03 candidate adds bounded,
+directory-backed protein-inference raw-source admission.
 For example:
 
 ```bash
@@ -200,6 +208,8 @@ glio-proteogen protein-inference-protocol export-schema request
 glio-proteogen protein-inference-protocol validate protein-inference-protocol-request.json
 glio-proteogen protein-inference-lineage export-schema request
 glio-proteogen protein-inference-lineage reconcile protein-inference-lineage-request.json
+glio-proteogen protein-inference-raw export-schema request
+glio-proteogen protein-inference-raw ingest protein-inference-raw-request.json source-directory
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -248,6 +258,13 @@ drift, and abstains when governed upstream identity or concordance evidence is u
 not repair or infer identity, inspect peptide sequences or protein accessions, consume raw
 copy-number or abundance values, infer proteins or complexes, score activity, fuse omics, or make
 treatment or clinical claims.
+M03-03 is stateless and binds genuine M01-02, M03-01, and M03-02 receipts to one bounded,
+content-addressed raw-source capsule. Its library surface consumes bytes or read-once streams; its
+CLI maps exact safe source identifiers to regular non-reparse files beneath one directory. The HTTP
+surface exports schemas only and deliberately has no raw-ingestion POST route. It validates
+transport, decompression, structural references, search-space/PTM closure, and build/CV/unit
+coherence without retaining source bytes, assigning peptides, inferring proteins or complexes,
+scoring activity, or making treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

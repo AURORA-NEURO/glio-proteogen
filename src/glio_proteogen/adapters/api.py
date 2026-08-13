@@ -180,6 +180,12 @@ from glio_proteogen.contracts.m03_02.v1 import (
     ProteinInferenceIdentityLineageResolution,
     ReconcileProteinInferenceIdentityLineageRequest,
 )
+from glio_proteogen.contracts.m03_03.schema import (
+    ContractName as M0303ContractName,
+)
+from glio_proteogen.contracts.m03_03.schema import (
+    contract_json_schema as m0303_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -400,6 +406,12 @@ def _protein_inference_lineage_contract_schema(
     name: M0302ContractName,
 ) -> dict[str, object]:
     return m0302_contract_json_schema(name)
+
+
+def _protein_inference_raw_contract_schema(
+    name: M0303ContractName,
+) -> dict[str, object]:
+    return m0303_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -890,6 +902,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0302ContractName,
     ) -> dict[str, object]:
         return _protein_inference_lineage_contract_schema(name)
+
+    @app.get("/v1/contracts/M03-03/{name}/schema", tags=["contracts"])
+    def protein_inference_raw_contract_schema(
+        name: M0303ContractName,
+    ) -> dict[str, object]:
+        return _protein_inference_raw_contract_schema(name)
 
     @app.post(
         "/v1/modules/M03-02/identity-lineage-reconciliation",
