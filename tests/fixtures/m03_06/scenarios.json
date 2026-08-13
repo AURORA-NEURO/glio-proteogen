@@ -1,0 +1,227 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-06",
+  "schema_version": "1.0.0",
+  "operation": "harmonize_protein_inference_support",
+  "parent_target": "complex_activity",
+  "data_classification": "synthetic_nonclinical_content_addressed_fixed_point_support_coordinates",
+  "claims_ceiling": "deterministic_technical_support_coordinate_harmonization_not_abundance_probability_protein_identity_biology_complex_activity_or_clinical_readiness",
+  "normalization_factors": [
+    "platform",
+    "batch",
+    "laboratory",
+    "build",
+    "depth",
+    "purity",
+    "composition",
+    "preanalytic"
+  ],
+  "observation_states": [
+    "observed",
+    "missing",
+    "censored",
+    "not_applicable",
+    "unsupported"
+  ],
+  "protected_invariant_kinds": [
+    "support_direction",
+    "support_rank",
+    "ambiguity_fraction"
+  ],
+  "opaque_identifier_namespaces": [
+    "request",
+    "policy",
+    "profile",
+    "ledger",
+    "unit",
+    "anchor",
+    "group",
+    "level",
+    "invariant",
+    "stage",
+    "evidence",
+    "reviewer"
+  ],
+  "opaque_identifier_pattern": "^(request|policy|profile|ledger|unit|anchor|group|level|invariant|stage|evidence|reviewer)\\.[0-9a-f]{64}$",
+  "locked_acceptance": {
+    "technical_factor_count": 8,
+    "heldout_technical_residual_must_reduce": true,
+    "protected_invariant_count": 3,
+    "artifact_review_or_exclusion_adjustment_count": 0,
+    "calibrated_probability_claim": "forbidden"
+  },
+  "installed_capacity": {
+    "stages": 8,
+    "units": 512,
+    "observations": 512,
+    "levels_per_factor": 64,
+    "level_shifts": 512,
+    "stage_estimation_anchors": 128,
+    "stage_validation_anchors": 128,
+    "invariants": 256,
+    "invariant_unit_references": 64,
+    "evidence_per_observation": 8,
+    "applied_adjustments": 4096,
+    "profiles": 16,
+    "approved_versions_per_domain": 32,
+    "result_evidence": 16,
+    "findings": 15,
+    "support_coordinate_ppm": 1000000,
+    "post_validation_residual_ppm": 2000000,
+    "canonical_request_bytes": 4194304
+  },
+  "fixture_prohibitions": [
+    "direct_patient_identifier",
+    "raw_identity_token",
+    "observed_peptide_sequence",
+    "protein_accession",
+    "protein_presence_or_absence_claim",
+    "proteoform_assignment",
+    "protein_abundance",
+    "calibrated_probability",
+    "complex_activity_score",
+    "protein_subtype",
+    "proteotype",
+    "kinase_activity",
+    "treatment_recommendation",
+    "clinical_decision"
+  ],
+  "scenario_groups": [
+    {
+      "group_id": "genuine_handoff_and_support_ledger_closure",
+      "case_ids": [
+        "genuine_public_m0102_through_m0305_handoff",
+        "compact_artifact_receipt_binds_exact_m0305_result",
+        "support_ledger_binds_exact_artifact_unit_projection",
+        "every_observation_binds_m0305_posterior_and_mask_action",
+        "every_support_observation_carries_exact_eight_factor_shape",
+        "canonical_clean_harmonization_is_accepted",
+        "result_preserves_complex_activity_parent_without_emitting_activity"
+      ],
+      "expected_case_count": 7,
+      "closure_rule": "execute the genuine public M01-02 through M03-05 chain, project the exact compact artifact receipt, and close every support observation and protected invariant over the projected artifact-unit graph"
+    },
+    {
+      "group_id": "exact_fixed_point_factor_normalization",
+      "case_ids": [
+        "platform_lower_median_signed_integer_shift_is_exact",
+        "batch_lower_median_signed_integer_shift_is_exact",
+        "laboratory_lower_median_signed_integer_shift_is_exact",
+        "build_lower_median_signed_integer_shift_is_exact",
+        "depth_lower_median_signed_integer_shift_is_exact",
+        "purity_lower_median_signed_integer_shift_is_exact",
+        "composition_lower_median_signed_integer_shift_is_exact",
+        "preanalytic_lower_median_signed_integer_shift_is_exact",
+        "sequential_replay_shift_cap_and_coordinate_clamp_boundaries_are_exact"
+      ],
+      "expected_case_count": 9,
+      "calculation_rule": "derive each non-reference level shift as the exact signed lower median of paired fixed-point support-coordinate differences, apply all eight stages in declared order, cap shifts and clamp coordinates only at reviewed integer boundaries",
+      "numeric_rule": "support coordinates are bounded integers on the 1000000 scale and are never abundance values or calibrated probabilities"
+    },
+    {
+      "group_id": "artifact_firewall_and_typed_state_fidelity",
+      "case_ids": [
+        "excluded_artifact_unit_never_trains_or_receives_correction",
+        "review_artifact_unit_never_trains_or_receives_correction",
+        "missing_support_state_is_preserved",
+        "censored_support_bound_is_preserved",
+        "not_applicable_support_state_is_preserved",
+        "unsupported_support_state_is_preserved",
+        "observed_zero_support_is_numeric_zero_not_missing"
+      ],
+      "expected_case_count": 7,
+      "firewall_rule": "only M03-05-retained observations may train or receive a technical shift; review and excluded observations receive no adjustment and cannot be silently repaired",
+      "state_rule": "missing, censored, not-applicable, unsupported, and observed zero remain distinct through the complete result"
+    },
+    {
+      "group_id": "heldout_technical_and_biological_invariants",
+      "case_ids": [
+        "heldout_technical_residual_is_reduced_within_tolerance",
+        "support_direction_invariant_is_preserved",
+        "support_rank_invariant_is_preserved",
+        "ambiguity_fraction_invariant_is_preserved",
+        "unreduced_heldout_technical_effect_quarantines",
+        "support_direction_or_rank_violation_quarantines",
+        "ambiguity_fraction_drift_quarantines"
+      ],
+      "expected_case_count": 7,
+      "technical_rule": "stage acceptance is measured on held-out validation anchors that are disjoint from estimation anchors and requires residual reduction within the reviewed tolerance",
+      "invariant_rule": "direction, rank, and ambiguity-fraction controls are replayed before and after all eight stages and cannot be promoted when missing or violated"
+    },
+    {
+      "group_id": "safe_failure_profiles_and_precedence",
+      "case_ids": [
+        "m0305_rejected_receipt_propagates_without_ledger_traversal",
+        "m0305_quarantined_receipt_propagates_without_ledger_traversal",
+        "m0305_abstained_receipt_propagates_without_ledger_traversal",
+        "complete_artifact_receipt_with_excluded_unit_quarantines",
+        "complete_artifact_receipt_with_review_unit_abstains",
+        "support_ledger_binding_mismatch_quarantines_before_normalization",
+        "unsupported_profile_abstains_with_deterministic_precedence"
+      ],
+      "expected_case_count": 7,
+      "precedence": [
+        "authorization",
+        "strict_request_reconstruction",
+        "upstream_artifact_disposition_and_shape",
+        "artifact_receipt_and_support_ledger_closure",
+        "artifact_action_firewall",
+        "profile_support",
+        "fixed_point_normalization_and_diagnostics"
+      ],
+      "safe_failure_rule": "a non-qualified M03-05 state, artifact review or exclusion, unsupported profile, or binding mismatch cannot emit accepted harmonization or adjusted support coordinates"
+    },
+    {
+      "group_id": "strict_ingress_capacity_and_hostile_authorization",
+      "case_ids": [
+        "seven_control_authorization_matrix_precedes_hostile_ledger_traversal",
+        "duplicate_json_object_key_is_rejected",
+        "scalar_coercion_nonfinite_and_unknown_field_are_rejected",
+        "exact_installed_collection_and_integer_caps_are_accepted",
+        "first_excess_collection_or_integer_cap_is_rejected",
+        "canonical_request_exact_4mib_cap_and_first_excess_are_enforced",
+        "hostile_support_ledger_accessors_are_not_traversed_before_authorization"
+      ],
+      "expected_case_count": 7,
+      "authorization_controls": [
+        "configuration",
+        "identity_lineage",
+        "provenance",
+        "consent",
+        "quality",
+        "support",
+        "intended_use"
+      ],
+      "strictness_rule": "forbid duplicate keys, coercion, non-finite numbers, unknown fields or terms, silent defaults, stale derived values, and every first excess"
+    },
+    {
+      "group_id": "canonical_privacy_and_resigned_forgery_resistance",
+      "case_ids": [
+        "semantic_reordering_preserves_complete_result_equality",
+        "typed_dictionary_and_strict_json_requests_produce_equal_results",
+        "all_field_owned_request_policy_profile_receipt_ledger_finding_and_result_digests_are_stable",
+        "recursive_privacy_ownership_and_probability_canaries_are_absent",
+        "nested_derived_forgery_matrix_is_rejected",
+        "resigned_artifact_receipt_without_support_ledger_rebind_is_rejected"
+      ],
+      "expected_case_count": 6,
+      "canonical_rule": "semantic collection ordering cannot change complete typed results or field-owned digests",
+      "forgery_rule": "recomputing an outer digest cannot conceal a contradictory M03-05 projection, unit binding, stage trace, diagnostic, invariant, finding, or result member"
+    },
+    {
+      "group_id": "interfaces_recovery_evidence_and_benchmark",
+      "case_ids": [
+        "library_engine_service_and_plugin_outputs_match",
+        "api_operation_and_schema_exports_match_installed_contracts",
+        "cli_operation_and_schema_exports_match_installed_contracts",
+        "supersession_recovery_is_append_only_and_immutable",
+        "evidence_inventory_executes_every_declared_case",
+        "representative_public_operation_benchmark_times_only_harmonization"
+      ],
+      "expected_case_count": 6,
+      "interface_rule": "library, engine, service, plugin, API, CLI, and installed schemas expose one strict operation with equal successful output and sanitized typed failure behavior",
+      "recovery_rule": "correction creates a new immutable result whose request explicitly cites the superseded digest"
+    }
+  ],
+  "expected_group_count": 8,
+  "expected_total_case_count": 56
+}
