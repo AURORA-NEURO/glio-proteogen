@@ -31,6 +31,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_protocol_contract_schema,
     _protein_inference_quality_contract_schema,
     _protein_inference_raw_contract_schema,
+    _protein_inference_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -108,6 +109,10 @@ from glio_proteogen.contracts.m03_05 import (
 from glio_proteogen.contracts.m03_06 import (
     M0306_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizeProteinInferenceSupportRequest,
+)
+from glio_proteogen.contracts.m03_07 import (
+    M0307_MAX_CANONICAL_REQUEST_BYTES,
+    RouteProteinInferenceSupportRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -222,6 +227,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
     M0306Service,
     preflight_protein_inference_harmonization_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
+    M0307Service,
+    preflight_protein_inference_support_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -325,6 +334,11 @@ app.add_typer(
     protein_inference_harmonization_app,
     name="protein-inference-harmonization",
 )
+protein_inference_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-07 deterministic protein-inference joint support routing.",
+)
+app.add_typer(protein_inference_support_app, name="protein-inference-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1847,6 +1861,52 @@ def harmonize_protein_inference_support(request: RequestArgument) -> None:
         M0306_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0306Service().execute(parsed))
+
+
+@protein_inference_support_app.command("export-schema")
+def export_protein_inference_support_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "prerequisites",
+            "quality-receipt",
+            "harmonization-receipt",
+            "fact",
+            "context-receipt",
+            "profile",
+            "policy",
+            "envelope",
+            "remediation",
+            "dimension-assessment",
+            "envelope-assessment",
+            "abstention",
+        ],
+        typer.Argument(help="M03-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference support contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_support_app.command("route")
+def route_protein_inference_support(request: RequestArgument) -> None:
+    """Route one authorized protein-inference declaration against joint envelopes."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(RouteProteinInferenceSupportRequest),
+        preflight_protein_inference_support_authorization,
+        M0307_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0307Service().execute(parsed))
 
 
 @app.command("export-schema")

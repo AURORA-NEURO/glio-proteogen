@@ -1,0 +1,25 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M03-07-R01,"Authorize all seven controls before prerequisite declaration context envelope or evidence traversal","raw authorization preflight","consent_denied_hostile_evidence",G1
+M03-07-R02,"Preserve full strict M03-04 and M03-06 results solely to rederive and prove their exact compact receipts","public quality harmonization and prerequisite helpers","joint_supported and prerequisite cases",G1
+M03-07-R03,"Require both prerequisite receipts to be releasable content-closed and lineage-consistent","closed prerequisite validator","m0304_unreleasable and m0306_unreleasable",G1
+M03-07-R04,"Evaluate exactly assay specimen disease_class quality completeness platform reference and intended_use while preserving the reachable completeness domain","closed eight-dimension declaration and completeness reachability rule","joint_supported and eight dimension cases",G1
+M03-07-R05,"Require one reviewed envelope to admit the complete joint declaration","envelope-local conjunction","joint_supported and cross_envelope_composite",G1
+M03-07-R06,"Route each reachable outside-envelope dimension to an exact typed reason and reviewed remediation while proving the structural completeness boundary","dimension-local assessment projection and completeness reachability","outside_assay through outside_intended_use",G1
+M03-07-R07,"Preserve missing and unknown caller evidence as distinct indeterminate states","typed declared-state union","missing_declared_fact and unknown_declared_fact",G1
+M03-07-R08,"Require all declared platform and reference members to be admitted by one envelope","set-subset all-member matching","platform_extra_member and reference_extra_member",G1
+M03-07-R09,"Reject cross-envelope combinations even when every value is supported somewhere","single-envelope coherence invariant","cross_envelope_composite",G1
+M03-07-R10,"Aggregate all failures and remediations in canonical dimension order","deterministic reason aggregation","eight outside-dimension cases and focused replay tests",G1
+M03-07-R11,"Use only the four fixed abstention codes and five reviewed remediation paths","closed enums and assessment validator","all abstained cases",G1
+M03-07-R12,"Produce complete canonical results independent of semantic declaration ordering","canonical set envelope receipt and evidence ordering","canonical_order and semantic_reorder",G1
+M03-07-R13,"Bind request profile policy configuration prerequisites declarations contexts evidence and controls to field-owned digests","canonical digest and provenance closure","joint_supported and forgery tests",G1
+M03-07-R14,"Derive every owned graph reviewer evidence and route identifier as exact namespaced 64-hex content","opaque identifier helper and field validators","privacy and canonical-equality evidence",G1
+M03-07-R15,"Preserve exact upstream level identifiers for projected M03-06 platforms","harmonization-receipt platform binding","joint_supported and platform_extra_member",G1
+M03-07-R16,"Enforce exact installed collection integer fixed-point and 4 MiB request ceilings plus every first excess","bounded strict models and ingress reader","capacity and strict-ingress tests",G1
+M03-07-R17,"Reject duplicate keys coercion non-finite values unknown members stale derivations and re-signed contradiction","strict JSON plus recursive semantic replay","strict ingress and forgery tests",G1
+M03-07-R18,"Expose identical library engine service plugin API CLI and all 14 schema surfaces","one public route with adapter parity","interface parity tests",G1
+M03-07-R19,"Emit only support decision typed reasons reviewed remediation and governed metadata","closed result schema and exact limitations","joint_supported and every abstained case",G1
+M03-07-R20,"Preserve complex_activity only as parent context with all identity protein proteoform kinase and activity inference flags false","literal output ceiling","joint_supported and recursive ownership checks",G1
+M03-07-R21,"Recover only through a new immutable result carrying explicit supersession provenance","append-only recovery contract","supersession recovery test",G1
+M03-07-R22,"Execute exactly 19 declared cases in eight groups allocated 1/8/2/2/2/1/2/1","declared-versus-executed corpus oracle","locked executable eval",G1
+M03-07-R23,"Time only public route_protein_inference_support after genuine upstream and request construction","request construction outside timed region","representative public-operation benchmark",G1
+M03-07-R24,"Keep support-domain transport assay biological probability activity and clinical qualification outside this evidence package","claims ceiling and exact limitations","evidence inventory and recursive output oracle",G1
