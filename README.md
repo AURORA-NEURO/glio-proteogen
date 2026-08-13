@@ -106,8 +106,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   This stateless module evaluates eight locked technical signals across six role-closed evidence
   unit kinds and emits categorical evidence scores, artifact states, contamination flags, and a
   retain/review/exclude mask. Its evidence scores are explicitly not calibrated probabilities.
+- `GLIO-PROTEOGEN-M03-06` — deterministic protein-inference support harmonization. This stateless
+  module applies eight exact lower-median fixed-point technical stages to retained support units,
+  verifies held-out residual reduction plus direction, rank, and ambiguity invariants, and emits
+  replayable transformations without abundance, probability, identity, or activity inference.
 
-The twenty published module slices and the M03-05 release candidate expose strict JSON Schema
+The twenty-one published module slices and the M03-06 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -144,6 +148,7 @@ uv run python -m evals.m03_02.run
 uv run python -m evals.m03_03.run
 uv run python -m evals.m03_04.run
 uv run python -m evals.m03_05.run
+uv run python -m evals.m03_06.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -165,6 +170,7 @@ uv run python -m evals.m03_02.benchmark
 uv run python -m evals.m03_03.benchmark
 uv run python -m evals.m03_04.benchmark
 uv run python -m evals.m03_05.benchmark
+uv run python -m evals.m03_06.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -179,8 +185,9 @@ stateless identification-artifact detection, M02-06 identification harmonization
 identification support routing, and M02-08 directory-backed identification release packaging and
 verification, plus M03-01 stateless protein-inference protocol conformance and M03-02 stateless
 protein-inference artifact identity-lineage reconciliation, plus M03-03 bounded, directory-backed
-protein-inference raw-source admission, M03-04 metadata-only quality computation, and M03-05
-categorical artifact detection over an authorized evidence ledger.
+protein-inference raw-source admission, M03-04 metadata-only quality computation, M03-05
+categorical artifact detection over an authorized evidence ledger, and M03-06 fixed-point support
+harmonization.
 For example:
 
 ```bash
@@ -228,6 +235,8 @@ glio-proteogen protein-inference-quality export-schema request
 glio-proteogen protein-inference-quality compute protein-inference-quality-request.json
 glio-proteogen protein-inference-artifacts export-schema request
 glio-proteogen protein-inference-artifacts detect protein-inference-artifact-request.json
+glio-proteogen protein-inference-harmonization export-schema request
+glio-proteogen protein-inference-harmonization harmonize protein-inference-harmonization-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -296,6 +305,13 @@ content-addressed role-compatible artifact ledger, and one reviewed detector pol
 exact integer supporting/evaluated counts into categorical evidence scores and technical masks;
 it does not parse raw sources, assign proteins, estimate calibrated probabilities, score complex
 activity, authenticate an external issuer, or make treatment or clinical claims.
+M03-06 is stateless and consumes the exact compact M03-05 artifact projection plus a bounded,
+content-addressed support ledger and reviewed eight-stage profile. It derives signed lower-median
+fixed-point shifts, applies them sequentially only to retained observed units, and replays held-out
+technical residuals plus direction, rank, and ambiguity-fraction invariants. It preserves typed
+missingness and the artifact firewall; it does not estimate abundance or calibrated probability,
+infer protein, proteoform, complex activity, or kinase state, authenticate an external issuer, or
+make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

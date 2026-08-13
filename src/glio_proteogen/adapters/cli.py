@@ -26,6 +26,7 @@ from glio_proteogen.adapters.api import (
     _identity_binding_contract_schema,
     _identity_contract_schema,
     _protein_inference_artifact_contract_schema,
+    _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
     _protein_inference_protocol_contract_schema,
     _protein_inference_quality_contract_schema,
@@ -103,6 +104,10 @@ from glio_proteogen.contracts.m03_04 import (
 from glio_proteogen.contracts.m03_05 import (
     M0305_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteinInferenceArtifactsRequest,
+)
+from glio_proteogen.contracts.m03_06 import (
+    M0306_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizeProteinInferenceSupportRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -213,6 +218,10 @@ from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection impo
     M0305Service,
     preflight_protein_inference_artifact_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
+    M0306Service,
+    preflight_protein_inference_harmonization_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -308,6 +317,14 @@ protein_inference_artifacts_app = typer.Typer(
     help="M03-05 deterministic protein-inference artifact detection.",
 )
 app.add_typer(protein_inference_artifacts_app, name="protein-inference-artifacts")
+protein_inference_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-06 deterministic protein-inference support harmonization.",
+)
+app.add_typer(
+    protein_inference_harmonization_app,
+    name="protein-inference-harmonization",
+)
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1784,6 +1801,52 @@ def detect_protein_inference_artifacts(request: RequestArgument) -> None:
         M0305_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0305Service().execute(parsed))
+
+
+@protein_inference_harmonization_app.command("export-schema")
+def export_protein_inference_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "stage",
+            "artifact-receipt",
+            "unit-receipt",
+            "support-ledger",
+            "observation",
+            "invariant",
+            "analysis",
+            "value",
+            "transformation-manifest",
+            "finding",
+        ],
+        typer.Argument(help="M03-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference harmonization contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_harmonization_app.command("harmonize")
+def harmonize_protein_inference_support(request: RequestArgument) -> None:
+    """Harmonize one authorized metadata-only protein-inference support ledger."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(HarmonizeProteinInferenceSupportRequest),
+        preflight_protein_inference_harmonization_authorization,
+        M0306_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M0306Service().execute(parsed))
 
 
 @app.command("export-schema")
