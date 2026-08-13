@@ -102,8 +102,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   censored, missing, not-applicable, and unsupported states, and binds every result to the selected
   assay profile, controls, references, and compact M03-03 projection. That caller-declared projection
   proves internal content consistency, not independent M03-03 execution or issuer authenticity.
+- `GLIO-PROTEOGEN-M03-05` — deterministic protein-inference artifact and contamination detection.
+  This stateless module evaluates eight locked technical signals across six role-closed evidence
+  unit kinds and emits categorical evidence scores, artifact states, contamination flags, and a
+  retain/review/exclude mask. Its evidence scores are explicitly not calibrated probabilities.
 
-The nineteen published module slices and the M03-04 release candidate expose strict JSON Schema
+The twenty published module slices and the M03-05 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -139,6 +143,7 @@ uv run python -m evals.m03_01.run
 uv run python -m evals.m03_02.run
 uv run python -m evals.m03_03.run
 uv run python -m evals.m03_04.run
+uv run python -m evals.m03_05.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -159,6 +164,7 @@ uv run pytest benchmarks/m03_01_protocol_metadata.py --benchmark-only --no-cov
 uv run python -m evals.m03_02.benchmark
 uv run python -m evals.m03_03.benchmark
 uv run python -m evals.m03_04.benchmark
+uv run python -m evals.m03_05.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -173,8 +179,8 @@ stateless identification-artifact detection, M02-06 identification harmonization
 identification support routing, and M02-08 directory-backed identification release packaging and
 verification, plus M03-01 stateless protein-inference protocol conformance and M03-02 stateless
 protein-inference artifact identity-lineage reconciliation, plus M03-03 bounded, directory-backed
-protein-inference raw-source admission. The M03-04 candidate adds metadata-only protein-inference
-quality computation over an authorized aggregate fact ledger.
+protein-inference raw-source admission, M03-04 metadata-only quality computation, and M03-05
+categorical artifact detection over an authorized evidence ledger.
 For example:
 
 ```bash
@@ -220,6 +226,8 @@ glio-proteogen protein-inference-raw export-schema request
 glio-proteogen protein-inference-raw ingest protein-inference-raw-request.json source-directory
 glio-proteogen protein-inference-quality export-schema request
 glio-proteogen protein-inference-quality compute protein-inference-quality-request.json
+glio-proteogen protein-inference-artifacts export-schema request
+glio-proteogen protein-inference-artifacts detect protein-inference-artifact-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -283,6 +291,11 @@ unresolved states. The compact receipt and ledger establish self-consistency und
 they do not independently attest that M03-03 executed or authenticate an issuer. M03-04 does not
 parse raw sources, traverse peptide rows, redo protein inference, score complex activity, infer a
 proteotype, or make treatment or clinical claims.
+M03-05 is stateless and consumes one authorization-checked compact M03-04 quality receipt, one
+content-addressed role-compatible artifact ledger, and one reviewed detector policy. It reduces
+exact integer supporting/evaluated counts into categorical evidence scores and technical masks;
+it does not parse raw sources, assign proteins, estimate calibrated probabilities, score complex
+activity, authenticate an external issuer, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
