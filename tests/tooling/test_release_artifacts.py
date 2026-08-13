@@ -19,11 +19,29 @@ from tools.verify_release_artifacts import (
 ROOT = Path(__file__).parents[2]
 RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release-evidence.yml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+PYPROJECT = ROOT / "pyproject.toml"
 SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 23
+EXPECTED_MODULE_COUNT = 24
+
+
+def test_sdist_excludes_generated_release_and_coverage_outputs() -> None:
+    configuration = PYPROJECT.read_text(encoding="utf-8")
+    sdist = configuration.split("[tool.hatch.build.targets.sdist]", maxsplit=1)[1].split(
+        "[tool.pytest.ini_options]", maxsplit=1
+    )[0]
+
+    for generated_path in (
+        '"/.coverage*"',
+        '"/.tmp-*"',
+        '"/dist-*"',
+        '"/evidence"',
+        '"/glio-proteogen-evidence.tar.gz"',
+        '"/release-build-*"',
+    ):
+        assert generated_path in sdist
 
 
 def _wheel(tmp_path: Path, *, name: str = "glio-proteogen", version: str = "0.1.0") -> Path:
@@ -145,6 +163,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m03_05.run --output evidence/m03-05-eval.json" in workflow
     assert "evals.m03_06.run --output evidence/m03-06-eval.json" in workflow
     assert "evals.m03_07.run --output evidence/m03-07-eval.json" in workflow
+    assert "evals.m03_08.run --output evidence/m03-08-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -162,24 +181,13 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "benchmark-json=evidence/m02-07-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-08-benchmark.json" in workflow
     assert "benchmark-json=evidence/m03-01-benchmark.json" in workflow
-    assert (
-        "evals.m03_02.benchmark --output evidence/m03-02-benchmark.json" in workflow
-    )
-    assert (
-        "evals.m03_03.benchmark --output evidence/m03-03-benchmark.json" in workflow
-    )
-    assert (
-        "evals.m03_04.benchmark --output evidence/m03-04-benchmark.json" in workflow
-    )
-    assert (
-        "evals.m03_05.benchmark --output evidence/m03-05-benchmark.json" in workflow
-    )
-    assert (
-        "evals.m03_06.benchmark --output evidence/m03-06-benchmark.json" in workflow
-    )
-    assert (
-        "evals.m03_07.benchmark --output evidence/m03-07-benchmark.json" in workflow
-    )
+    assert "evals.m03_02.benchmark --output evidence/m03-02-benchmark.json" in workflow
+    assert "evals.m03_03.benchmark --output evidence/m03-03-benchmark.json" in workflow
+    assert "evals.m03_04.benchmark --output evidence/m03-04-benchmark.json" in workflow
+    assert "evals.m03_05.benchmark --output evidence/m03-05-benchmark.json" in workflow
+    assert "evals.m03_06.benchmark --output evidence/m03-06-benchmark.json" in workflow
+    assert "evals.m03_07.benchmark --output evidence/m03-07-benchmark.json" in workflow
+    assert "evals.m03_08.benchmark --output evidence/m03-08-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -211,6 +219,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m03_05",
         "m03_06",
         "m03_07",
+        "m03_08",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -258,6 +267,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "evals.m03_05.benchmark --output m03_05-benchmark.json" in workflow
     assert "evals.m03_06.benchmark --output m03_06-benchmark.json" in workflow
     assert "evals.m03_07.benchmark --output m03_07-benchmark.json" in workflow
+    assert "evals.m03_08.benchmark --output m03_08-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -334,6 +344,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ("protein-inference-support", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-07:1.0.0:request"
         ),
+        ("protein-inference-release", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-08:1.0.0:request"
+        ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT
 
@@ -351,7 +364,7 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         "_installed_console_script",
         lambda: Path("/clean-environment/bin/glio-proteogen"),
     )
-    monkeypatch.setattr(verify_release_artifacts.subprocess, "run", run)
+    monkeypatch.setattr(subprocess, "run", run)
 
     verify_release_artifacts._verify_console_script()
 
@@ -380,7 +393,7 @@ def test_clean_wheel_smoke_rejects_wrong_m01_02_contract(
         "_installed_console_script",
         lambda: Path("/clean-environment/bin/glio-proteogen"),
     )
-    monkeypatch.setattr(verify_release_artifacts.subprocess, "run", run)
+    monkeypatch.setattr(subprocess, "run", run)
 
     with pytest.raises(ReleaseArtifactError, match="wrong contract"):
         verify_release_artifacts._verify_console_script()

@@ -31,6 +31,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_protocol_contract_schema,
     _protein_inference_quality_contract_schema,
     _protein_inference_raw_contract_schema,
+    _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -91,28 +92,44 @@ from glio_proteogen.contracts.m02_08 import (
     IdentificationReleaseArtifactRole,
     IdentificationReleaseDisposition,
 )
-from glio_proteogen.contracts.m03_01.v1 import EvaluateProteinInferenceProtocolRequest
+from glio_proteogen.contracts.m03_01.v1 import (
+    EvaluateProteinInferenceProtocolRequest,
+    ProteinInferenceProtocolConformanceResult,
+)
 from glio_proteogen.contracts.m03_02.v1 import (
+    ProteinInferenceIdentityLineageResolution,
     ReconcileProteinInferenceIdentityLineageRequest,
 )
 from glio_proteogen.contracts.m03_03 import (
     IngestProteinInferenceRawInputsRequest,
+    ProteinInferenceRawAdmissionResult,
 )
 from glio_proteogen.contracts.m03_04 import (
     M0304_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteinInferenceQualityRequest,
+    ProteinInferenceQualityResult,
 )
 from glio_proteogen.contracts.m03_05 import (
     M0305_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteinInferenceArtifactsRequest,
+    ProteinInferenceArtifactDetectionResult,
 )
 from glio_proteogen.contracts.m03_06 import (
     M0306_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizeProteinInferenceSupportRequest,
+    ProteinInferenceHarmonizationResult,
 )
 from glio_proteogen.contracts.m03_07 import (
     M0307_MAX_CANONICAL_REQUEST_BYTES,
+    ProteinInferenceSupportRouteResult,
     RouteProteinInferenceSupportRequest,
+)
+from glio_proteogen.contracts.m03_08 import (
+    M0308_MAX_CANONICAL_REQUEST_BYTES,
+    BuildProteinInferenceReleaseRequest,
+    ProteinInferenceReleaseArtifactRole,
+    ProteinInferenceReleaseDisposition,
+    ProteinInferenceReleaseResult,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -231,6 +248,12 @@ from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     M0307Service,
     preflight_protein_inference_support_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_08_release_packaging import (
+    M0308Service,
+    ProteinInferenceReleaseAuthorizationError,
+    ProteinInferenceReleaseInputError,
+    preflight_protein_inference_release_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -339,6 +362,11 @@ protein_inference_support_app = typer.Typer(
     help="M03-07 deterministic protein-inference joint support routing.",
 )
 app.add_typer(protein_inference_support_app, name="protein-inference-support")
+protein_inference_release_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-08 protein-inference provenance and release packaging.",
+)
+app.add_typer(protein_inference_release_app, name="protein-inference-release")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -378,6 +406,43 @@ _IDENTIFICATION_RELEASE_STAGES = (
         TypeAdapter(IdentificationSupportRouteResult),
     ),
 )
+_PROTEIN_INFERENCE_RELEASE_STAGES = (
+    (
+        ProteinInferenceReleaseArtifactRole.M03_01_PROTOCOL_CONFORMANCE,
+        "GLIO-PROTEOGEN-M03-01",
+        TypeAdapter(ProteinInferenceProtocolConformanceResult),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_02_IDENTITY_LINEAGE,
+        "GLIO-PROTEOGEN-M03-02",
+        TypeAdapter(ProteinInferenceIdentityLineageResolution),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_03_RAW_INGESTION,
+        "GLIO-PROTEOGEN-M03-03",
+        TypeAdapter(ProteinInferenceRawAdmissionResult),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_04_QUALITY,
+        "GLIO-PROTEOGEN-M03-04",
+        TypeAdapter(ProteinInferenceQualityResult),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_05_ARTIFACT_DETECTION,
+        "GLIO-PROTEOGEN-M03-05",
+        TypeAdapter(ProteinInferenceArtifactDetectionResult),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_06_HARMONIZATION,
+        "GLIO-PROTEOGEN-M03-06",
+        TypeAdapter(ProteinInferenceHarmonizationResult),
+    ),
+    (
+        ProteinInferenceReleaseArtifactRole.M03_07_SUPPORT_ROUTE,
+        "GLIO-PROTEOGEN-M03-07",
+        TypeAdapter(ProteinInferenceSupportRouteResult),
+    ),
+)
 
 DatabaseOption = Annotated[
     Path,
@@ -394,6 +459,14 @@ SourceDirectoryArgument = Annotated[
 OutputOption = Annotated[
     Path,
     typer.Option("--output", "-o", help="New canonical USTAR package path."),
+]
+UncheckedSourceDirectoryArgument = Annotated[
+    Path,
+    typer.Argument(file_okay=False, help="Closed directory containing declared artifacts."),
+]
+UncheckedPackageArgument = Annotated[
+    Path,
+    typer.Argument(file_okay=True, dir_okay=False, help="Canonical USTAR package."),
 ]
 
 
@@ -535,6 +608,58 @@ class _IdentificationReleaseFileError(ValueError):
     @classmethod
     def output_unavailable(cls) -> _IdentificationReleaseFileError:
         return cls("identification release output must be a new writable file")
+
+
+class _ProteinInferenceReleaseFileError(ValueError):
+    """An M03-08 CLI path violates the closed binary-safe filesystem boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release source directory is unavailable")
+
+    @classmethod
+    def linked_source(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release source cannot contain links or reparse points")
+
+    @classmethod
+    def unexpected_entry(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release source must contain exactly declared paths")
+
+    @classmethod
+    def non_regular_source(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release artifacts must be regular files")
+
+    @classmethod
+    def source_changed(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release artifact changed during admission")
+
+    @classmethod
+    def source_size_mismatch(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release artifact size contradicts its declaration")
+
+    @classmethod
+    def source_unavailable(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release artifact source is unavailable")
+
+    @classmethod
+    def stage_invalid(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release stage is not its exact strict result contract")
+
+    @classmethod
+    def package_unavailable(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release package is unavailable")
+
+    @classmethod
+    def package_size_mismatch(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release package size contradicts its descriptor")
+
+    @classmethod
+    def package_changed(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release package changed during verification admission")
+
+    @classmethod
+    def output_unavailable(cls) -> _ProteinInferenceReleaseFileError:
+        return cls("protein-inference release output must be a new unlinked writable file")
 
 
 def _emit(value: object) -> None:
@@ -772,6 +897,197 @@ def _write_identification_release_package(path: Path, package_bytes: bytes) -> N
             stream.write(package_bytes)
     except OSError as error:
         raise _IdentificationReleaseFileError.output_unavailable() from error
+
+
+def _load_protein_inference_release_inputs(
+    request: BuildProteinInferenceReleaseRequest,
+    source_directory: Path,
+) -> tuple[dict[str, bytes], dict[str, object]]:
+    """Read the exact declared tree once and reconstruct all seven strict stage results."""
+
+    root = _resolve_protein_inference_release_directory(source_directory)
+    expected_paths = {item.path for item in request.artifacts}
+    _validate_protein_inference_release_tree(root, expected_paths)
+    artifacts: dict[str, bytes] = {}
+    by_role = {item.role: item for item in request.artifacts}
+    for declaration in request.artifacts:
+        candidate = root.joinpath(*PurePosixPath(declaration.path).parts)
+        artifacts[declaration.path] = _read_protein_inference_release_artifact(
+            root,
+            candidate,
+            declaration.declared_size,
+        )
+    _validate_protein_inference_release_tree(root, expected_paths)
+
+    stages: dict[str, object] = {}
+    for role, module_id, adapter in _PROTEIN_INFERENCE_RELEASE_STAGES:
+        declaration = by_role[role]
+        try:
+            stages[module_id] = adapter.validate_json(
+                artifacts[declaration.path],
+                strict=True,
+            )
+        except ValidationError as error:
+            raise _ProteinInferenceReleaseFileError.stage_invalid() from error
+    return artifacts, stages
+
+
+def _resolve_protein_inference_release_directory(source_directory: Path) -> Path:
+    try:
+        if _is_protein_inference_release_reparse(source_directory):
+            raise _ProteinInferenceReleaseFileError.linked_source()
+        root = source_directory.resolve(strict=True)
+    except _ProteinInferenceReleaseFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.source_not_directory() from error
+    if not root.is_dir():
+        raise _ProteinInferenceReleaseFileError.source_not_directory()
+    return root
+
+
+def _validate_protein_inference_release_tree(  # noqa: C901 - ordered hostile-tree checks.
+    root: Path,
+    expected_paths: set[str],
+) -> None:
+    expected_directories = {
+        parent.as_posix()
+        for path in expected_paths
+        for parent in PurePosixPath(path).parents
+        if parent != PurePosixPath(".")
+    }
+    actual_paths: set[str] = set()
+    try:
+        entries = tuple(root.rglob("*"))
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+    for entry in entries:
+        relative = entry.relative_to(root).as_posix()
+        try:
+            linked = _is_protein_inference_release_reparse(entry)
+        except OSError as error:
+            raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+        if linked:
+            raise _ProteinInferenceReleaseFileError.linked_source()
+        if entry.is_dir():
+            if relative not in expected_directories:
+                raise _ProteinInferenceReleaseFileError.unexpected_entry()
+            continue
+        try:
+            received = entry.stat(follow_symlinks=False)
+        except OSError as error:
+            raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+        if not stat.S_ISREG(received.st_mode):
+            raise _ProteinInferenceReleaseFileError.non_regular_source()
+        if relative not in expected_paths:
+            raise _ProteinInferenceReleaseFileError.unexpected_entry()
+        actual_paths.add(relative)
+    if actual_paths != expected_paths:
+        raise _ProteinInferenceReleaseFileError.unexpected_entry()
+
+
+def _read_protein_inference_release_artifact(  # noqa: C901,PLR0912 - TOCTOU boundary.
+    root: Path,
+    candidate: Path,
+    expected_size: int,
+) -> bytes:
+    if not candidate.is_relative_to(root):
+        raise _ProteinInferenceReleaseFileError.non_regular_source()
+    cursor = root
+    for part in candidate.relative_to(root).parts[:-1]:
+        cursor /= part
+        try:
+            if _is_protein_inference_release_reparse(cursor) or not cursor.is_dir():
+                raise _ProteinInferenceReleaseFileError.linked_source()
+        except OSError as error:
+            raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+    try:
+        if _is_protein_inference_release_reparse(candidate):
+            raise _ProteinInferenceReleaseFileError.linked_source()
+        before = candidate.stat(follow_symlinks=False)
+    except _ProteinInferenceReleaseFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+    if not stat.S_ISREG(before.st_mode):
+        raise _ProteinInferenceReleaseFileError.non_regular_source()
+    if before.st_size != expected_size:
+        raise _ProteinInferenceReleaseFileError.source_size_mismatch()
+    try:
+        with candidate.open("rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                raise _ProteinInferenceReleaseFileError.source_changed()
+            content = stream.read(expected_size + 1)
+            after = os.fstat(stream.fileno())
+        current = candidate.stat(follow_symlinks=False)
+    except _ProteinInferenceReleaseFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.source_unavailable() from error
+    if not _same_file_receipt(opened, after) or not _same_file_receipt(after, current):
+        raise _ProteinInferenceReleaseFileError.source_changed()
+    if len(content) != expected_size:
+        raise _ProteinInferenceReleaseFileError.source_size_mismatch()
+    return content
+
+
+def _read_protein_inference_release_package(
+    path: Path,
+    result: ProteinInferenceReleaseResult,
+) -> bytes:
+    descriptor = result.package_descriptor
+    if descriptor is None:
+        raise _ProteinInferenceReleaseFileError.package_unavailable()
+    try:
+        if _is_protein_inference_release_reparse(path):
+            raise _ProteinInferenceReleaseFileError.package_unavailable()
+        before = path.stat(follow_symlinks=False)
+        if not stat.S_ISREG(before.st_mode):
+            raise _ProteinInferenceReleaseFileError.package_unavailable()
+        if before.st_size != descriptor.byte_size:
+            raise _ProteinInferenceReleaseFileError.package_size_mismatch()
+        with path.open("rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                raise _ProteinInferenceReleaseFileError.package_changed()
+            content = stream.read(descriptor.byte_size + 1)
+            after = os.fstat(stream.fileno())
+        current = path.stat(follow_symlinks=False)
+    except _ProteinInferenceReleaseFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.package_unavailable() from error
+    if not _same_file_receipt(opened, after) or not _same_file_receipt(after, current):
+        raise _ProteinInferenceReleaseFileError.package_changed()
+    if len(content) != descriptor.byte_size:
+        raise _ProteinInferenceReleaseFileError.package_size_mismatch()
+    return content
+
+
+def _write_protein_inference_release_package(path: Path, package_bytes: bytes) -> None:
+    try:
+        if path.exists() or _is_protein_inference_release_reparse(path):
+            raise _ProteinInferenceReleaseFileError.output_unavailable()
+        for parent in (path.parent, *path.parent.parents):
+            if parent.exists() and _is_protein_inference_release_reparse(parent):
+                raise _ProteinInferenceReleaseFileError.output_unavailable()
+        with path.open("xb") as stream:
+            stream.write(package_bytes)
+    except _ProteinInferenceReleaseFileError:
+        raise
+    except OSError as error:
+        raise _ProteinInferenceReleaseFileError.output_unavailable() from error
+
+
+def _is_protein_inference_release_reparse(path: Path) -> bool:
+    try:
+        received = path.lstat()
+    except FileNotFoundError:
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    file_attributes = getattr(received, "st_file_attributes", 0)
+    return path.is_symlink() or path.is_junction() or bool(file_attributes & reparse_flag)
 
 
 def _load_identification_raw_files(
@@ -1907,6 +2223,87 @@ def route_protein_inference_support(request: RequestArgument) -> None:
         M0307_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0307Service().execute(parsed))
+
+
+@protein_inference_release_app.command("export-schema")
+def export_protein_inference_release_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact",
+            "manifest",
+            "verification",
+            "signature",
+        ],
+        typer.Argument(help="M03-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export a machine-readable M03-08 protein-inference release contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_release_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_release_app.command("build")
+def build_protein_inference_release_archive(
+    request: RequestArgument,
+    source_directory: UncheckedSourceDirectoryArgument,
+    output: OutputOption,
+) -> None:
+    """Validate a closed release; the default verifier-free CLI quarantines safely."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(BuildProteinInferenceReleaseRequest),
+            preflight_protein_inference_release_authorization,
+            M0308_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        artifacts, stages = _load_protein_inference_release_inputs(parsed, source_directory)
+        built = M0308Service().build(parsed, artifacts, stages)
+        if built.package_bytes is not None:
+            _write_protein_inference_release_package(output, built.package_bytes)
+    except (
+        ProteinInferenceReleaseAuthorizationError,
+        ProteinInferenceReleaseInputError,
+        _ProteinInferenceReleaseFileError,
+    ) as error:
+        typer.echo(f"protein-inference release build failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    _emit(built.result)
+    if built.result.disposition is not ProteinInferenceReleaseDisposition.RELEASED:
+        raise typer.Exit(code=1)
+
+
+@protein_inference_release_app.command("verify")
+def verify_protein_inference_release_archive(
+    result: RequestArgument,
+    package: UncheckedPackageArgument,
+) -> None:
+    """Verify archive content; authenticity remains unavailable without injection."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteinInferenceReleaseResult),
+        max_bytes=M0308_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    try:
+        package_bytes = _read_protein_inference_release_package(package, parsed)
+        verification = M0308Service().verify(parsed, package_bytes)
+    except _ProteinInferenceReleaseFileError as error:
+        typer.echo(f"protein-inference release verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    _emit(verification)
+    if not verification.verified:
+        raise typer.Exit(code=1)
 
 
 @app.command("export-schema")

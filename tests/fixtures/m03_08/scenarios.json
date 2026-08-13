@@ -1,0 +1,141 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-08",
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "deterministic_protein_inference_package_replay_not_scientific_reproducibility_cryptographic_assurance_release_authority_supply_chain_assay_biological_or_clinical_validation",
+  "caller_artifact_count": 8,
+  "archive_member_count": 10,
+  "scenario_count": 38,
+  "scenario_groups": [
+    {
+      "group_id": "canonical_release_and_semantic_reorder",
+      "case_count": 2,
+      "case_ids": [
+        "canonical_release",
+        "semantic_reorder_replay"
+      ],
+      "expected_disposition": "released",
+      "expected_archive_member_count": 10,
+      "expected_relation": "complete_result_and_archive_byte_equality"
+    },
+    {
+      "group_id": "seven_stage_disposition_matrix",
+      "case_count": 7,
+      "case_ids": [
+        "m03_01_quarantined",
+        "m03_02_unreleasable",
+        "m03_03_unreleasable",
+        "m03_04_quarantined",
+        "m03_05_quarantined",
+        "m03_06_quarantined",
+        "m03_07_abstained"
+      ],
+      "expected_stage_modules": [
+        "GLIO-PROTEOGEN-M03-01",
+        "GLIO-PROTEOGEN-M03-02",
+        "GLIO-PROTEOGEN-M03-03",
+        "GLIO-PROTEOGEN-M03-04",
+        "GLIO-PROTEOGEN-M03-05",
+        "GLIO-PROTEOGEN-M03-06",
+        "GLIO-PROTEOGEN-M03-07"
+      ],
+      "must_not_release": true
+    },
+    {
+      "group_id": "cross_chain_closure",
+      "case_count": 3,
+      "case_ids": [
+        "identity_lineage_substitution",
+        "predecessor_digest_substitution",
+        "harmonization_support_substitution"
+      ],
+      "expected_outcome": "rejected",
+      "expected_reasons": [
+        "identity_lineage_mismatch",
+        "predecessor_digest_mismatch",
+        "analysis_lineage_mismatch"
+      ]
+    },
+    {
+      "group_id": "integrity_and_archive_safety",
+      "case_count": 8,
+      "case_ids": [
+        "artifact_byte_digest_mismatch",
+        "artifact_declared_digest_mismatch",
+        "artifact_size_mismatch",
+        "missing_artifact_member",
+        "undeclared_artifact_member",
+        "duplicate_canonical_member",
+        "unsafe_member_path",
+        "archive_member_alias"
+      ],
+      "expected_outcome": "rejected"
+    },
+    {
+      "group_id": "signature_binding_and_replay",
+      "case_count": 6,
+      "case_ids": [
+        "verified_statement_releases",
+        "statement_digest_mismatch_quarantines",
+        "unsupported_signature_algorithm_rejected",
+        "verifier_unavailable_quarantines",
+        "verifier_rejected_quarantines",
+        "malformed_signature_value_rejected"
+      ],
+      "expected_statement_target": "canonical_manifest_digest",
+      "verified_or_rejected_verifier_calls": 1,
+      "pre_verifier_failure_calls": 0,
+      "released_archive_receipt_member": true,
+      "forbidden_circular_dependency": "verification_receipt_in_signed_manifest"
+    },
+    {
+      "group_id": "strict_canonical_reconstruction",
+      "case_count": 6,
+      "case_ids": [
+        "coerced_integer_rejected",
+        "coerced_boolean_rejected",
+        "unknown_field_rejected",
+        "invalid_enumeration_rejected",
+        "stale_derived_digest_rejected",
+        "semantic_duplicate_rejected"
+      ],
+      "expected_outcome": "validation_rejected"
+    },
+    {
+      "group_id": "privacy_and_ownership_closure",
+      "case_count": 1,
+      "case_ids": [
+        "recursive_output_boundary"
+      ],
+      "expected_disposition": "released",
+      "forbidden_outputs": [
+        "artifact_bytes",
+        "raw_spectra",
+        "peptide_rows",
+        "protein_or_isoform_assignments",
+        "complex_activity_score",
+        "protein_subtype_score",
+        "proteotype",
+        "kinase_activity",
+        "omics_fusion",
+        "treatment_recommendation",
+        "private_key",
+        "signing_secret",
+        "upstream_mutations"
+      ]
+    },
+    {
+      "group_id": "authorization_recovery_and_maximum_shape",
+      "case_count": 5,
+      "case_ids": [
+        "consent_denied_before_hostile_chain",
+        "consent_denied_before_hostile_artifacts",
+        "typed_blocked_recovery",
+        "maximum_accepted_shape",
+        "first_excess_rejected_before_archive"
+      ],
+      "maximum_software_versions": 64,
+      "maximum_reference_versions": 64
+    }
+  ]
+}

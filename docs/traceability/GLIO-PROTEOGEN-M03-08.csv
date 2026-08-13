@@ -1,0 +1,21 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M03-08-R01,"Authorize all seven controls before upstream result or byte traversal","raw authorization preflight","withheld-consent hostile-chain and hostile-artifact cases",G1
+M03-08-R02,"Bind genuine exact M03-01 through M03-07 outputs","strict full-result seven-stage chain","canonical release and seven-stage disposition matrix",G1
+M03-08-R03,"Reject independently valid results from a different chain","identity predecessor and analysis-lineage closure","three cross-chain substitution cases",G1
+M03-08-R04,"Preserve each upstream disposition without relabeling or repair","stage-specific release-eligibility aggregation","seven-stage disposition matrix",G1
+M03-08-R05,"Admit exactly eight caller artifacts with exact bytes sizes digests media types and roles","closed release-member declarations","canonical and integrity cases",G1
+M03-08-R06,"Reject unsafe aliased duplicate missing or undeclared archive members","canonical relative path and inventory closure","archive-safety matrix",G1
+M03-08-R07,"Construct the manifest before verification without circular receipt inclusion","pre-receipt canonical manifest digest","signature-binding and non-circular replay cases",G1
+M03-08-R08,"Verify an external statement through an injected boundary without signing or authority inference","typed verifier protocol and verification receipt","verified mismatch unsupported unavailable rejected and one-call cases",G1
+M03-08-R09,"Emit exactly ten deterministic archive members","fixed canonical archive assembly","canonical ten-member oracle",G1
+M03-08-R10,"Produce complete result and byte equality under semantic reordering","canonical set ordering and deterministic archive metadata","semantic-reorder replay case",G1
+M03-08-R11,"Reject strict-schema coercion unknown fields invalid enums duplicates and stale derived values","strict public contract reconstruction","six strict-canonical cases",G1
+M03-08-R12,"Bind software references transformations quality decisions support decisions and reproduction evidence","canonical reproducibility manifest","manifest exactness replay and maximum-shape cases",G1
+M03-08-R13,"Emit only packaging metadata beneath complex_activity","closed output schema fixed ownership flags and limitations","recursive privacy and ownership case",G1
+M03-08-R14,"Provide typed recovery and governed review for blocked releases","immutable quarantine and superseding recovery envelope","typed blocked recovery case",G1
+M03-08-R15,"Enforce exact maximum request shape and reject first excess","64 software plus 64 reference ceiling before archive construction","maximum-shape and first-excess cases",G1
+M03-08-R16,"Keep artifact bytes and release archives off HTTP","schema-only HTTP surface","integration absent-route check",G1
+M03-08-R17,"Meet the representative public-packager latency budget","bounded deterministic public build with injected verifier","25-run 64+64 benchmark",G1
+M03-08-R18,"Preserve typed uncertainty support provenance evidence limitations review and rollback metadata","relationally closed result envelope","canonical result replay and evidence inventory",G1
+M03-08-R19,"Do not infer protein proteoform complex activity subtype proteotype kinase activity treatment or clinical claims","fixed authority ceiling and recursive privacy oracle","ownership case module documentation and schema metadata",G4
+M03-08-R20,"Recover from critical failure without mutation or evidence erasure","new immutable superseding request only","authorization recovery and rollback evidence",G4

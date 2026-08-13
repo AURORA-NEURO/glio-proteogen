@@ -114,8 +114,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   stateless module rederives compact M03-04/M03-06 receipts from their full strict results, then
   requires one reviewed envelope to admit the complete eight-dimension declaration without
   combining partial matches or inferring protein, proteoform, activity, or clinical meaning.
+- `GLIO-PROTEOGEN-M03-08` — deterministic protein-inference provenance and release packaging.
+  This stateless module closes genuine strict M03-01 through M03-07 results over eight exact
+  caller artifacts, emits a canonical ten-member USTAR archive, and verifies externally supplied
+  statements through an injected boundary without signing, key custody, or release authority.
 
-The twenty-two published module slices and the M03-07 release candidate expose strict JSON Schema
+The twenty-three published module slices and the M03-08 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -154,6 +158,7 @@ uv run python -m evals.m03_04.run
 uv run python -m evals.m03_05.run
 uv run python -m evals.m03_06.run
 uv run python -m evals.m03_07.run
+uv run python -m evals.m03_08.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -177,6 +182,7 @@ uv run python -m evals.m03_04.benchmark
 uv run python -m evals.m03_05.benchmark
 uv run python -m evals.m03_06.benchmark
 uv run python -m evals.m03_07.benchmark
+uv run python -m evals.m03_08.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -193,7 +199,8 @@ verification, plus M03-01 stateless protein-inference protocol conformance and M
 protein-inference artifact identity-lineage reconciliation, plus M03-03 bounded, directory-backed
 protein-inference raw-source admission, M03-04 metadata-only quality computation, M03-05
 categorical artifact detection over an authorized evidence ledger, and M03-06 fixed-point support
-harmonization, plus M03-07 protein-inference support and abstention routing.
+harmonization, M03-07 protein-inference support and abstention routing, and M03-08 local,
+directory-backed protein-inference release packaging and verification.
 For example:
 
 ```bash
@@ -245,6 +252,9 @@ glio-proteogen protein-inference-harmonization export-schema request
 glio-proteogen protein-inference-harmonization harmonize protein-inference-harmonization-request.json
 glio-proteogen protein-inference-support export-schema request
 glio-proteogen protein-inference-support route protein-inference-support-request.json
+glio-proteogen protein-inference-release export-schema request
+glio-proteogen protein-inference-release build protein-inference-release-request.json release-source --output protein-inference-release.tar
+glio-proteogen protein-inference-release verify protein-inference-release-result.json protein-inference-release.tar
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -327,6 +337,14 @@ declaration against one reviewed joint envelope, preserving missing/unknown stat
 only support or typed abstention with governed remediation. It does not reinterpret or mutate
 upstream results, combine partial envelopes, infer protein, proteoform, complex activity, or kinase
 state, authenticate an external issuer, or make treatment or clinical claims.
+M03-08 is stateless and consumes exact canonical bytes plus separately supplied strict full
+M03-01 through M03-07 result objects. It closes stage identity, predecessor, quality, artifact,
+harmonization, support, intended-use, and parent bindings before signature verification; then it
+emits eight caller members plus one generated manifest and one verification receipt in canonical
+USTAR form. The result contract rederives descriptor byte size, while the verify API establishes
+descriptor digest/content equality and authenticity against supplied bytes. M03-08 does not sign,
+hold keys, authenticate a signer, establish release authority, mutate upstream evidence, infer
+protein or activity, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;
