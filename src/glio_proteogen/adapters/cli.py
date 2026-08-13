@@ -23,6 +23,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _protein_inference_protocol_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -78,6 +79,7 @@ from glio_proteogen.contracts.m02_08 import (
     IdentificationReleaseArtifactRole,
     IdentificationReleaseDisposition,
 )
+from glio_proteogen.contracts.m03_01.v1 import EvaluateProteinInferenceProtocolRequest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -166,6 +168,10 @@ from glio_proteogen.modules.c02_identification_qc.m02_08_release_packaging impor
     M0208Service,
     preflight_identification_release_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_01_protocol_metadata import (
+    M0301Service,
+    preflight_protein_inference_protocol_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -236,6 +242,11 @@ identification_release_app = typer.Typer(
     help="M02-08 peptide-identification provenance and release packaging.",
 )
 app.add_typer(identification_release_app, name="identification-release")
+protein_inference_protocol_app = typer.Typer(
+    no_args_is_help=True,
+    help="M03-01 protein-inference protocol conformance.",
+)
+app.add_typer(protein_inference_protocol_app, name="protein-inference-protocol")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1346,6 +1357,44 @@ def verify_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@protein_inference_protocol_app.command("export-schema")
+def export_protein_inference_protocol_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "protocol",
+            "profile",
+            "search-space",
+            "ambiguity",
+            "receipt",
+        ],
+        typer.Argument(help="M03-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable protein-inference protocol contract."""
+
+    typer.echo(
+        json.dumps(
+            _protein_inference_protocol_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@protein_inference_protocol_app.command("validate")
+def validate_protein_inference_protocol(request: RequestArgument) -> None:
+    """Validate one authorized protein-inference protocol against its reviewed profile."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(EvaluateProteinInferenceProtocolRequest),
+        preflight_protein_inference_protocol_authorization,
+    )
+    _emit(M0301Service().execute(parsed))
 
 
 @app.command("export-schema")

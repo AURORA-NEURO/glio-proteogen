@@ -79,8 +79,14 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   stateless module closes the exact M02-01 through M02-07 result bytes, one minimal typed parent
   protein-subtype receipt, reviewed software/reference/reproduction evidence, and an externally
   verified signature statement into a canonical ten-member USTAR candidate package.
+- `GLIO-PROTEOGEN-M03-01` — deterministic protein-inference protocol and metadata
+  conformance. This schema-first module binds one reviewed protocol to exact search-space,
+  target-decoy, peptide-eligibility, assignment, protein-grouping, ambiguity-preservation, and
+  seven-role complex-activity handoff declarations. It validates those declarations without
+  searching spectra, assigning peptides, inferring proteins or complexes, estimating error rates,
+  or scoring activity.
 
-All sixteen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
+All seventeen modules expose strict JSON Schema 2020-12 contracts through HTTP and command-line
 schema routes, plus typed library and module-specific command boundaries. M01-01 and M01-02
 additionally provide deterministic append-only event-chain verification. The database hash chains
 are integrity evidence, not signatures or standalone external trust anchors. M01-02 accepts
@@ -111,6 +117,7 @@ uv run python -m evals.m02_05.run
 uv run python -m evals.m02_06.run
 uv run python -m evals.m02_07.run
 uv run python -m evals.m02_08.run
+uv run python -m evals.m03_01.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -127,6 +134,7 @@ uv run pytest benchmarks/m02_05_artifact_detection.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_06_harmonization.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_07_support_router.py --benchmark-only --no-cov
 uv run pytest benchmarks/m02_08_release_packaging.py --benchmark-only --no-cov
+uv run pytest benchmarks/m03_01_protocol_metadata.py --benchmark-only --no-cov
 uv run python -m tools.scan_secrets
 ```
 
@@ -139,7 +147,7 @@ metadata conformance, M02-02 immutable identity-binding audit, and M02-03 direct
 identification raw-input ingestion, M02-04 stateless identification-quality computation, M02-05
 stateless identification-artifact detection, M02-06 identification harmonization, M02-07
 identification support routing, and M02-08 directory-backed identification release packaging and
-verification.
+verification, plus M03-01 stateless protein-inference protocol conformance.
 For example:
 
 ```bash
@@ -177,6 +185,8 @@ glio-proteogen identification-support route identification-support-request.json
 glio-proteogen identification-release export-schema request
 glio-proteogen identification-release build identification-release-request.json release-source --output identification-release.tar
 glio-proteogen identification-release verify identification-release-result.json identification-release.tar
+glio-proteogen protein-inference-protocol export-schema request
+glio-proteogen protein-inference-protocol validate protein-inference-protocol-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -211,6 +221,12 @@ while verification can establish canonical structure and content but not authent
 release remains a library/service/plugin operation with an explicitly injected verifier. M02-08
 does not inspect the parent subtype artifact for biological meaning, own signing keys, authenticate
 release authority, infer kinase state, fuse omics, or make treatment or clinical claims.
+M03-01 is stateless and validates only a caller-declared, content-bound protein-inference protocol
+and reviewed profile. Its conformance receipt preserves search-space-relative uniqueness,
+shared/razor evidence restrictions, indistinguishable group members, and the exact downstream
+handoff semantics. It does not authenticate issuers or references, inspect observations, run
+protein inference, estimate false-discovery rates, infer complex activity, or make treatment or
+clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

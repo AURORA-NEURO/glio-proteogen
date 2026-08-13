@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Any
 
@@ -21,14 +21,15 @@ def _json_ready(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, datetime):
-        normalized = value.isoformat(timespec="microseconds")
+        instant = value.astimezone(UTC) if value.utcoffset() is not None else value
+        normalized = instant.isoformat(timespec="microseconds")
         return normalized.replace("+00:00", "Z")
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, float):
         if not math.isfinite(value):
             raise ValueError("canonical JSON forbids NaN and infinity")
-        return value
+        return 0.0 if value == 0.0 else value
     if isinstance(value, Mapping):
         return _json_ready_mapping(value)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):

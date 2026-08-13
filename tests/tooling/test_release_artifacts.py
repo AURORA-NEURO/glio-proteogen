@@ -23,7 +23,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 16
+EXPECTED_MODULE_COUNT = 17
 
 
 def _wheel(tmp_path: Path, *, name: str = "glio-proteogen", version: str = "0.1.0") -> Path:
@@ -138,6 +138,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m02_06.run --output evidence/m02-06-eval.json" in workflow
     assert "evals.m02_07.run --output evidence/m02-07-eval.json" in workflow
     assert "evals.m02_08.run --output evidence/m02-08-eval.json" in workflow
+    assert "evals.m03_01.run --output evidence/m03-01-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -154,6 +155,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "benchmark-json=evidence/m02-06-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-07-benchmark.json" in workflow
     assert "benchmark-json=evidence/m02-08-benchmark.json" in workflow
+    assert "benchmark-json=evidence/m03-01-benchmark.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -178,6 +180,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m02_06",
         "m02_07",
         "m02_08",
+        "m03_01",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -217,6 +220,8 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "benchmark-json=m02_07-benchmark.json" in workflow
     assert "benchmarks/m02_08_release_packaging.py" in workflow
     assert "benchmark-json=m02_08-benchmark.json" in workflow
+    assert "benchmarks/m03_01_protocol_metadata.py" in workflow
+    assert "benchmark-json=m03_01-benchmark.json" in workflow
 
 
 def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
@@ -271,6 +276,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("identification-release", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M02-08:1.0.0:request"
+        ),
+        ("protein-inference-protocol", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-01:1.0.0:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT
