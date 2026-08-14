@@ -1,0 +1,92 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-02",
+  "contract_version": "1.0.0",
+  "groups": {
+    "identity_and_lineage": [
+      "canonical_reconciled",
+      "all_seven_physical_entity_kinds_preserved",
+      "exact_identity_resolution_embedded",
+      "physical_graph_digest_bound",
+      "exact_subject_propagation",
+      "upstream_identity_unresolved_abstains",
+      "two_patient_cross_link_quarantined",
+      "identity_swap_quarantined",
+      "immutable_resolution_roundtrip"
+    ],
+    "artifact_anomaly_detection": [
+      "duplicate_content_retained",
+      "artifact_identity_collision_quarantined",
+      "binding_scope_collision_quarantined",
+      "artifact_lineage_collision_quarantined",
+      "producer_identity_drift_quarantined",
+      "producer_protocol_drift_quarantined",
+      "producer_reference_bundle_drift_quarantined",
+      "producer_configuration_drift_quarantined",
+      "producer_assay_policy_drift_quarantined"
+    ],
+    "safe_failure_and_support": [
+      "unsupported_configuration_abstains",
+      "upstream_protocol_quarantines",
+      "evidence_missing_abstains",
+      "evidence_indeterminate_abstains",
+      "evidence_unsupported_abstains",
+      "evidence_redacted_abstains",
+      "missing_not_negative",
+      "unsupported_not_negative",
+      "quarantine_precedes_abstain"
+    ],
+    "authorization_firewall": [
+      "configuration_control_denied",
+      "identity_control_denied",
+      "provenance_control_denied",
+      "consent_control_denied",
+      "quality_control_denied",
+      "support_control_denied",
+      "intended_use_control_denied",
+      "authorization_before_claim_traversal",
+      "authorization_error_sanitized"
+    ],
+    "strict_contract": [
+      "unknown_field_rejected",
+      "scalar_coercion_rejected",
+      "duplicate_json_rejected",
+      "request_context_id_mismatch_rejected",
+      "policy_chronology_rejected",
+      "quality_result_binding_rejected",
+      "intended_use_binding_rejected",
+      "policy_configuration_binding_rejected",
+      "nine_schemas_closed"
+    ],
+    "dag_invariants": [
+      "minimum_claim_shape_rejected",
+      "missing_derivation_rejected",
+      "duplicate_claim_identifier_rejected",
+      "duplicate_derivation_source_rejected",
+      "unknown_identity_anchor_rejected",
+      "nonderived_identity_anchor_rejected",
+      "unknown_derivation_claim_rejected",
+      "unapproved_derivation_method_rejected",
+      "wrong_derivation_target_rejected"
+    ],
+    "replay_and_privacy": [
+      "deterministic_result_equality",
+      "semantic_reorder_equality",
+      "result_digest_forgery_rejected",
+      "finding_forgery_rejected",
+      "receipt_forgery_rejected",
+      "graph_forgery_rejected",
+      "provenance_forgery_rejected",
+      "biological_canary_absent"
+    ],
+    "uncertainty_recovery_interfaces": [
+      "uncertainty_support_domain_narrowed",
+      "authority_flags_all_false",
+      "variant_peptide_parent_context_only",
+      "superseding_recovery_is_append_only",
+      "plugin_public_parity",
+      "copied_token_forgery_rejected",
+      "strict_json_roundtrip",
+      "maximum_request_within_byte_cap"
+    ]
+  }
+}

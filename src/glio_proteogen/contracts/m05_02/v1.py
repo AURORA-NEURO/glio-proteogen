@@ -61,6 +61,9 @@ M0502_MODULE_ID: Final = "GLIO-PROTEOGEN-M05-02"
 M0502_OPERATION: Final = "reconcile_ptm_localization_identity_lineage"
 M0502_PARENT: Final = "variant_peptide"
 M0502_CONTRACT_VERSION: Final = "1.0.0"
+M0502_OWNER: Final = "Clinical science"
+M0502_SAFETY_CLASS: Final = "S2"
+M0502_GATE: Final = "G0"
 M0502_PHYSICAL_ENTITY_KIND_COUNT: Final = 7
 M0502_ARTIFACT_ROLE_COUNT: Final = 5
 M0502_MIN_ARTIFACT_CLAIMS: Final = 5
@@ -106,6 +109,8 @@ M0502_SENSITIVITY_NOTES: Final = (
     "Missing, unsupported, indeterminate, conflicting, or redacted evidence never becomes "
     "negative.",
     "Lineage discrepancies are retained without relabeling, merging, or selecting authority.",
+    "Support is narrowed to exact reviewed M01-02/M05-01 bindings and declared artifact "
+    "lineage; no population coverage is claimed.",
 )
 
 _OPAQUE_IDENTIFIER = re.compile(
@@ -119,6 +124,20 @@ _CONFIGURATION_MEDIA_TYPE: Final = (
     "application/vnd.glio-proteogen.m05-02.approved-configuration+json"
 )
 _DERIVATION_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m05-02.derivation+json"
+_REQUEST_STORAGE_FIELDS: Final = frozenset(
+    {
+        "operation",
+        "contract_version",
+        "request_id",
+        "context",
+        "identity_resolution",
+        "protocol_result",
+        "policy",
+        "artifact_claims",
+        "derivations",
+        "supersedes_result_digest",
+    }
+)
 
 type PtmLocalizationLineageOpaqueNamespace = Literal[
     "request",
@@ -470,6 +489,7 @@ class ReconcilePtmLocalizationIdentityLineageRequest(FrozenModel):
     def request_is_closed(  # noqa: PLR0912 - explicit fail-closed invariant matrix.
         self,
     ) -> ReconcilePtmLocalizationIdentityLineageRequest:
+        _validate_exact_request_storage(self)
         _require_authorized_context(self.context)
         opaque_ptm_localization_lineage_identifier("request", self.request_id)
         if self.request_id != self.context.request_id:
@@ -541,6 +561,19 @@ class ReconcilePtmLocalizationIdentityLineageRequest(FrozenModel):
         if len(canonical_json_bytes(normalized_request(self))) > M0502_MAX_CANONICAL_REQUEST_BYTES:
             raise ValueError("canonical M05-02 request exceeds the 4 MiB ingress bound")
         return self
+
+
+def _validate_exact_request_storage(value: object) -> None:
+    if type(value) is not ReconcilePtmLocalizationIdentityLineageRequest:
+        raise ValueError("M05-02 request must use the exact installed request type")
+    storage = object.__getattribute__(value, "__dict__")
+    if type(storage) is not dict or dict.__len__(storage) != len(_REQUEST_STORAGE_FIELDS):
+        raise ValueError("M05-02 request storage does not match its closed contract")
+    keys = dict.keys(storage)
+    if any(type(key) is not str for key in keys):
+        raise ValueError("M05-02 request storage keys must be exact strings")
+    if frozenset(cast("str", key) for key in keys) != _REQUEST_STORAGE_FIELDS:
+        raise ValueError("M05-02 request storage does not match its closed contract")
 
 
 def ptm_localization_configuration_is_supported(
@@ -1810,6 +1843,7 @@ class PtmLocalizationIdentityLineageResolution(FrozenModel):
 
     @model_validator(mode="after")
     def result_is_relationally_closed(self) -> PtmLocalizationIdentityLineageResolution:
+        _validate_exact_request_storage(self.request)
         request_hash = canonical_request_digest(self.request)
         active_policy_hash = policy_digest(self.request.policy)
         config_hash = configuration_digest(self.request.policy)

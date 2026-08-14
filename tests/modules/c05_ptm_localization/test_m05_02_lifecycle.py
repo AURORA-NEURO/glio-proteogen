@@ -6,10 +6,20 @@ import copy
 from typing import TYPE_CHECKING, cast
 
 import pytest
-from evals.m05_02.run import build_scenario_request, build_scenario_result
+from evals.m05_02.benchmark import MEAN_BUDGET_NS, P95_BUDGET_NS, run_benchmark
+from evals.m05_02.run import (
+    build_scenario_request,
+    build_scenario_result,
+    run_evaluation,
+)
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m05_02 import (
+    M0502_MAX_ARTIFACT_CLAIMS,
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    M0502_MAX_DERIVATION_SOURCES,
+    M0502_MIN_DERIVATION_SOURCES,
+    M0502_PHYSICAL_ENTITY_KIND_COUNT,
     PtmLocalizationIdentityLineageFindingCode,
     PtmLocalizationIdentityLineageResolution,
     PtmLocalizationLineageDisposition,
@@ -39,6 +49,8 @@ class _TraversalCanary:
 
 
 _EXPECTED_ARTIFACT_COUNT = 5
+_EXPECTED_GROUP_COUNT = 8
+_EXPECTED_CASE_COUNT = 70
 
 
 def test_canonical_result_is_replayable_immutable_and_scope_closed() -> None:
@@ -211,3 +223,44 @@ def test_stale_upstream_digest_and_resigned_result_forgery_fail_replay() -> None
     result_payload["result_digest"] = result_payload_digest(result_payload)
     with pytest.raises(ValidationError):
         PtmLocalizationIdentityLineageResolution.model_validate(result_payload, strict=True)
+
+
+def test_maximum_admitted_shape_is_total_and_within_the_request_cap() -> None:
+    request = build_scenario_request("maximum_admitted_shape_quarantined")
+    result = reconcile_ptm_localization_identity_lineage(request)
+
+    assert len(request.artifact_claims) == M0502_MAX_ARTIFACT_CLAIMS
+    assert len(request.derivations) == 1
+    assert len(request.derivations[0].source_claim_ids) == M0502_MAX_DERIVATION_SOURCES
+    assert len(result.graph.artifacts) == M0502_MAX_ARTIFACT_CLAIMS
+    assert result.disposition is PtmLocalizationLineageDisposition.QUARANTINED
+    assert len(canonical_json_bytes(request)) <= M0502_MAX_CANONICAL_REQUEST_BYTES
+
+
+def test_one_iteration_benchmark_smoke_locks_public_shape_and_budgets() -> None:
+    report = run_benchmark(1)
+
+    assert report.physical_entity_kind_count == M0502_PHYSICAL_ENTITY_KIND_COUNT
+    assert report.artifact_role_count == report.artifact_claim_count == _EXPECTED_ARTIFACT_COUNT
+    assert report.derivation_count == 1
+    assert report.derivation_source_count == M0502_MIN_DERIVATION_SOURCES
+    assert report.finding_count == 0
+    assert report.warmup_count == 1
+    assert report.mean_budget_ns == MEAN_BUDGET_NS
+    assert report.p95_budget_ns == P95_BUDGET_NS
+    assert report.timed_boundary == "reconcile_ptm_localization_identity_lineage_only"
+
+
+def test_locked_evaluation_executes_all_seventy_unique_cases() -> None:
+    report = run_evaluation()
+
+    assert report.passed is True
+    assert report.declared_groups == _EXPECTED_GROUP_COUNT
+    assert (
+        report.declared_cases
+        == report.executed_cases
+        == report.passed_cases
+        == _EXPECTED_CASE_COUNT
+    )
+    assert report.failed_cases == ()
+    assert sum(report.group_case_counts.values()) == _EXPECTED_CASE_COUNT
