@@ -55,6 +55,18 @@ _LEDGER_BINDING_ADAPTER: Final = TypeAdapter(ProteoformArtifactEvidenceLedgerBin
 _MAX_PLAIN_DEPTH: Final = 64
 _MAX_PLAIN_DICT_ITEMS: Final = 512
 _MAX_PLAIN_NODES: Final = 250_000
+_REQUEST_FIELDS: Final = frozenset(
+    {
+        "operation",
+        "contract_version",
+        "request_id",
+        "context",
+        "quality_result",
+        "policy",
+        "evidence_ledger",
+        "supersedes_result_digest",
+    }
+)
 
 
 class ProteoformArtifactAuthorizationError(PermissionError):
@@ -62,6 +74,13 @@ class ProteoformArtifactAuthorizationError(PermissionError):
 
     def __init__(self) -> None:
         super().__init__(_AUTHORIZATION_MESSAGE)
+
+
+class ProteoformArtifactInputError(ValueError):
+    """An authorized request failed closed without reflecting caller content."""
+
+    def __init__(self) -> None:
+        super().__init__("M04-05 request failed strict validation")
 
 
 class _InvalidPlainValueError(TypeError):
@@ -136,6 +155,18 @@ def _prepare_artifact_request_candidate(
     """Authorize, replay M04-04, select support, then and only then materialize the ledger."""
 
     preflight_proteoform_artifact_authorization(candidate)
+    try:
+        return _prepare_authorized_artifact_request_candidate(candidate)
+    except (_ForbiddenEvidenceLedgerError, _InvalidPlainValueError):
+        raise
+    except Exception:  # noqa: BLE001 - caller content must never escape the library boundary.
+        raise ProteoformArtifactInputError from None
+
+
+def _prepare_authorized_artifact_request_candidate(
+    candidate: object,
+) -> tuple[dict[str, object], _ReplayedM0404Capability]:
+    _validate_outer_request_shape(candidate)
     quality_raw = _member(candidate, "quality_result")
     policy_raw = _member(candidate, "policy")
     quality = _QUALITY_ADAPTER.validate_json(
@@ -211,11 +242,14 @@ def _validate_prepared_request(
     prepared: tuple[dict[str, object], _ReplayedM0404Capability],
 ) -> DetectProteoformArtifactsRequest:
     payload, quality_capability = prepared
-    return _REQUEST_ADAPTER.validate_python(
-        payload,
-        strict=True,
-        context={_QUALITY_CAPABILITY_CONTEXT_KEY: quality_capability},
-    )
+    try:
+        return _REQUEST_ADAPTER.validate_python(
+            payload,
+            strict=True,
+            context={_QUALITY_CAPABILITY_CONTEXT_KEY: quality_capability},
+        )
+    except Exception:  # noqa: BLE001 - never reflect nested caller content.
+        raise ProteoformArtifactInputError from None
 
 
 def _validate_json_request(
@@ -307,6 +341,14 @@ def _member(candidate: object, field: str) -> object:
             raise _InvalidPlainValueError
         return dict.__getitem__(storage, field) if dict.__contains__(storage, field) else _MISSING
     return _MISSING
+
+
+def _validate_outer_request_shape(candidate: object) -> None:
+    if type(candidate) is DetectProteoformArtifactsRequest:
+        return
+    mapping = cast("dict[object, object]", candidate)
+    if any(key not in _REQUEST_FIELDS for key in dict.keys(mapping)):
+        raise ProteoformArtifactInputError
 
 
 def _optional_plain_member(candidate: object, field: str) -> object:
@@ -456,6 +498,7 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
 __all__ = [
     "M0405ProteoformArtifactEngine",
     "ProteoformArtifactAuthorizationError",
+    "ProteoformArtifactInputError",
     "detect_proteoform_artifacts",
     "preflight_proteoform_artifact_authorization",
 ]

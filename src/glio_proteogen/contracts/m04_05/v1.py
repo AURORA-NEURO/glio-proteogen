@@ -87,7 +87,7 @@ M0405_EVIDENCE_CLAIM: Final = (
 )
 
 _OPAQUE_ID = re.compile(
-    r"^(?:(?:event|flag|ledger|policy|profile|request|reviewer|target)\."
+    r"^(?:(?:event|evidence|flag|ledger|policy|profile|request|reviewer|target)\."
     r"|(?:activity|finding|result)\.m0405\.)[0-9a-f]{64}$"
 )
 _POLICY_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.policy+json"
@@ -95,6 +95,8 @@ _PROFILE_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.profile+json
 _THRESHOLD_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.threshold+json"
 _LEDGER_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.event-ledger+json"
 _EVENT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.event+json"
+_CONFIGURATION_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.configuration+json"
+_QUALITY_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-04.result+json"
 _VALIDATION_CAPABILITY_SEAL: Final = object()
 _QUALITY_CAPABILITY_CONTEXT_KEY: Final = "_m0405_quality_replay_capability"
 _REQUEST_CAPABILITY_CONTEXT_KEY: Final = "_m0405_validated_request_capability"
@@ -171,6 +173,12 @@ def opaque_proteoform_artifact_identifier(value: Identifier, namespace: str) -> 
     if _OPAQUE_ID.fullmatch(value) is None or not value.startswith(f"{namespace}."):
         raise ValueError("M04-05 identifiers require their exact opaque local namespace")
     return value
+
+
+def _require_owned_evidence(reference: ArtifactReference, media_type: str) -> None:
+    opaque_proteoform_artifact_identifier(reference.artifact_id, "evidence")
+    if reference.media_type != media_type:
+        raise ValueError("M04-05 evidence must use its exact owned media type")
 
 
 class ProteoformArtifactDetectorClass(StrEnum):
@@ -276,8 +284,7 @@ class ProteoformArtifactThreshold(FrozenModel):
     def threshold_is_closed(self) -> ProteoformArtifactThreshold:
         if self.review_threshold_ppm > self.exclusion_threshold_ppm:
             raise ValueError("review threshold cannot exceed exclusion threshold")
-        if self.evidence.media_type != _THRESHOLD_MEDIA_TYPE:
-            raise ValueError("threshold evidence must use the owned media type")
+        _require_owned_evidence(self.evidence, _THRESHOLD_MEDIA_TYPE)
         return self
 
 
@@ -328,8 +335,7 @@ class ProteoformArtifactProfile(FrozenModel):
             ProteoformArtifactDetectorClass
         ):
             raise ValueError("profile requires every detector class exactly once")
-        if self.evidence.media_type != _PROFILE_MEDIA_TYPE:
-            raise ValueError("profile evidence must use the owned media type")
+        _require_owned_evidence(self.evidence, _PROFILE_MEDIA_TYPE)
         return self
 
 
@@ -358,8 +364,7 @@ class ProteoformArtifactPolicy(FrozenModel):
     def policy_is_closed(self) -> ProteoformArtifactPolicy:
         opaque_proteoform_artifact_identifier(self.policy_id, "policy")
         opaque_proteoform_artifact_identifier(self.reviewed_by, "reviewer")
-        if self.evidence.media_type != _POLICY_MEDIA_TYPE:
-            raise ValueError("policy evidence must use the owned media type")
+        _require_owned_evidence(self.evidence, _POLICY_MEDIA_TYPE)
         identities = {(item.profile_id, item.version) for item in self.profiles}
         if len(identities) != len(self.profiles):
             raise ValueError("profile identities must be unique")
@@ -407,8 +412,8 @@ class ProteoformArtifactEvidenceEvent(FrozenModel):
             raise ValueError("only observed events carry a positive denominator")
         if not observed and (self.supporting_count != 0 or self.evaluated_count != 0):
             raise ValueError("non-observed events require exact zero counts")
-        if any(item.media_type != _EVENT_MEDIA_TYPE for item in self.evidence):
-            raise ValueError("event evidence must use the owned media type")
+        for item in self.evidence:
+            _require_owned_evidence(item, _EVENT_MEDIA_TYPE)
         return self
 
 
@@ -434,8 +439,7 @@ class ProteoformArtifactEvidenceLedger(FrozenModel):
     @model_validator(mode="after")
     def ledger_is_closed(self) -> ProteoformArtifactEvidenceLedger:
         opaque_proteoform_artifact_identifier(self.ledger_id, "ledger")
-        if self.evidence.media_type != _LEDGER_MEDIA_TYPE:
-            raise ValueError("ledger evidence must use the owned media type")
+        _require_owned_evidence(self.evidence, _LEDGER_MEDIA_TYPE)
         if tuple(item.sequence for item in self.events) != tuple(range(1, len(self.events) + 1)):
             raise ValueError("event sequence must be contiguous from one")
         event_ids = tuple(item.event_id for item in self.events)
@@ -473,8 +477,7 @@ class ProteoformArtifactEvidenceLedgerBinding(FrozenModel):
         opaque_proteoform_artifact_identifier(self.ledger_id, "ledger")
         if self.ledger_digest == _M0405_ZERO_DIGEST:
             raise ValueError("ledger binding requires a final caller-declared digest")
-        if self.evidence.media_type != _LEDGER_MEDIA_TYPE:
-            raise ValueError("ledger evidence must use the owned media type")
+        _require_owned_evidence(self.evidence, _LEDGER_MEDIA_TYPE)
         return self
 
 
@@ -564,6 +567,11 @@ class DetectProteoformArtifactsRequest(FrozenModel):
             raise ValueError("identity control does not bind the M04-04 receipt")
         if self.context.references.quality.evidence.digest != self.quality_result.result_digest:
             raise ValueError("quality authority evidence must bind the M04-04 result")
+        _require_owned_evidence(
+            refs.approved_configuration.evidence,
+            _CONFIGURATION_MEDIA_TYPE,
+        )
+        _require_owned_evidence(refs.quality.evidence, _QUALITY_RESULT_MEDIA_TYPE)
         if refs.approved_configuration.evidence.digest != configuration_digest(self.policy):
             raise ValueError("approved configuration must bind the detector policy")
         if (
