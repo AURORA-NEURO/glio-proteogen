@@ -14,6 +14,7 @@ from tools.verify_release_artifacts import (
     verify_m0403_evidence,
     verify_m0404_evidence,
     verify_m0405_evidence,
+    verify_m0406_evidence,
     verify_runtime_sbom,
     wheel_identity,
 )
@@ -28,7 +29,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 29
+EXPECTED_MODULE_COUNT = 30
 
 
 def test_sdist_excludes_generated_release_and_coverage_outputs() -> None:
@@ -275,6 +276,67 @@ def test_m0405_evidence_verifier_locks_narrowed_support_and_maximum_shape(
         verify_m0405_evidence(evaluation, benchmark)
 
 
+def test_m0406_evidence_verifier_locks_corpus_shape_and_installed_maximum(
+    tmp_path: Path,
+) -> None:
+    evaluation = tmp_path / "m04-06-eval.json"
+    benchmark = tmp_path / "m04-06-benchmark.json"
+    checks = [{"name": f"scenario.case_{index}", "passed": True} for index in range(56)]
+    checks.extend(
+        (
+            {"name": "corpus.locked_inventory", "passed": True},
+            {"name": "corpus.executable_coverage", "passed": True},
+        )
+    )
+    evaluation_report = {
+        "module_id": "GLIO-PROTEOGEN-M04-06",
+        "passed": True,
+        "phase": "locked_executable_corpus",
+        "declared_case_count": 56,
+        "executed_case_count": 56,
+        "missing_case_ids": [],
+        "extra_case_ids": [],
+        "checks": checks,
+    }
+    benchmark_report = {
+        "module_id": "GLIO-PROTEOGEN-M04-06",
+        "contract_version": "1.0.0",
+        "workload": "genuine_m0401_through_m0405_installed_max32_fixed_point_support_ledger",
+        "timed_boundary": "harmonize_proteoform_analysis_only",
+        "passed": True,
+        "iterations": 25,
+        "warmup_count": 1,
+        "target_count": 32,
+        "observation_count": 32,
+        "stage_count": 8,
+        "invariant_count": 3,
+        "mean_ns": 1_500_000_000.0,
+        "p50_ns": 1_400_000_000.0,
+        "p95_ns": 2_500_000_000,
+        "maximum_ns": 2_750_000_000,
+        "mean_budget_ns": 2_000_000_000,
+        "p95_budget_ns": 3_000_000_000,
+        "request_digest": f"sha256:{'3' * 64}",
+        "result_digest": f"sha256:{'4' * 64}",
+    }
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+
+    verify_m0406_evidence(evaluation, benchmark)
+
+    evaluation_report["phase"] = "unlocked"
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="wrong phase"):
+        verify_m0406_evidence(evaluation, benchmark)
+
+    evaluation_report["phase"] = "locked_executable_corpus"
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    benchmark_report["target_count"] = 31
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="target_count"):
+        verify_m0406_evidence(evaluation, benchmark)
+
+
 def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:  # noqa: PLR0915
     workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
@@ -327,6 +389,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m04_03.run --output evidence/m04-03-eval.json" in workflow
     assert "evals.m04_04.run --output evidence/m04-04-eval.json" in workflow
     assert "evals.m04_05.run --output evidence/m04-05-eval.json" in workflow
+    assert "evals.m04_06.run --output evidence/m04-06-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -359,6 +422,8 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "verify_release_artifacts.py m04-04-evidence" in workflow
     assert "evals.m04_05.benchmark --output evidence/m04-05-benchmark.json" in workflow
     assert "verify_release_artifacts.py m04-05-evidence" in workflow
+    assert "evals.m04_06.benchmark --output evidence/m04-06-benchmark.json" in workflow
+    assert "verify_release_artifacts.py m04-06-evidence" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -396,6 +461,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m04_03",
         "m04_04",
         "m04_05",
+        "m04_06",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -444,7 +510,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "evals.m03_06.benchmark --output m03_06-benchmark.json" in workflow
     assert "evals.m03_07.benchmark --output m03_07-benchmark.json" in workflow
     assert "evals.m03_08.benchmark --output m03_08-benchmark.json" in workflow
-    for module in ("m04_01", "m04_02", "m04_03", "m04_04", "m04_05"):
+    for module in ("m04_01", "m04_02", "m04_03", "m04_04", "m04_05", "m04_06"):
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
 
@@ -469,6 +535,14 @@ def test_ci_exercises_the_native_m04_05_windows_interface() -> None:
 
     assert "windows-m04-05-interface" in workflow
     assert "tests/integration/test_m04_05_interfaces.py" in workflow
+    assert "--no-cov" in workflow
+
+
+def test_ci_exercises_the_native_m04_06_windows_interface() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "windows-m04-06-interface" in workflow
+    assert "tests/integration/test_m04_06_interfaces.py" in workflow
     assert "--no-cov" in workflow
 
 
@@ -563,6 +637,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("proteoform-artifacts", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-05:1.0.0:request"
+        ),
+        ("proteoform-harmonization", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-06:1.0.0:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT

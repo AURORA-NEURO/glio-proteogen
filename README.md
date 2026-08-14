@@ -140,8 +140,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   artifact classes under a version-and-configuration-bound profile, and emits only explicit
   categorical posteriors, triggered contamination flags, and excluded-only mask entries. Its ppm
   fractions are not calibrated probabilities, and missing or unsupported evidence abstains.
+- `GLIO-PROTEOGEN-M04-06` — deterministic proteoform/isoform harmonization and normalization.
+  This stateless module replays the exact full M04-05 result, applies eight reviewed fixed-point
+  technical-factor stages to at most 32 retained support targets, and emits only a harmonized
+  analysis object plus an auditable transformation manifest. It preserves missingness, artifact
+  actions, support direction, rank, and composition without inferring abundance or biology.
 
-The twenty-eight published module slices and the M04-05 release candidate expose strict JSON Schema
+The twenty-nine published module slices and the M04-06 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -186,6 +191,7 @@ uv run python -m evals.m04_02.run
 uv run python -m evals.m04_03.run
 uv run python -m evals.m04_04.run
 uv run python -m evals.m04_05.run
+uv run python -m evals.m04_06.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -215,6 +221,7 @@ uv run python -m evals.m04_02.benchmark
 uv run python -m evals.m04_03.benchmark
 uv run python -m evals.m04_04.benchmark
 uv run python -m evals.m04_05.benchmark
+uv run python -m evals.m04_06.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -235,7 +242,8 @@ harmonization, M03-07 protein-inference support and abstention routing, M03-08 l
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
 proteoform/isoform protocol conformance, M04-02 stateless proteoform/isoform identity and lineage
 reconciliation, M04-03 directory-backed raw-manifest ingestion, and M04-04 metadata-only fixed-point
-quality metric computation, plus M04-05 aggregate artifact and contamination detection.
+quality metric computation, M04-05 aggregate artifact and contamination detection, and M04-06
+fixed-point support harmonization and normalization.
 For example:
 
 ```bash
@@ -298,6 +306,8 @@ glio-proteogen proteoform-raw export-schema request
 glio-proteogen proteoform-raw ingest proteoform-raw-request.json proteoform-raw-source --output proteoform-raw-result.json
 glio-proteogen proteoform-quality export-schema request
 glio-proteogen proteoform-quality compute proteoform-quality-request.json --output proteoform-quality-result.json
+glio-proteogen proteoform-harmonization export-schema request
+glio-proteogen proteoform-harmonization harmonize proteoform-harmonization-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
