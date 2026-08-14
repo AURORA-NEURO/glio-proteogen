@@ -42,6 +42,7 @@ from glio_proteogen.adapters.api import (
     _proteoform_raw_contract_schema,
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
+    _ptm_localization_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -170,6 +171,13 @@ from glio_proteogen.contracts.m05_01 import (
 from glio_proteogen.contracts.m05_02 import (
     M0502_MAX_CANONICAL_REQUEST_BYTES,
     ReconcilePtmLocalizationIdentityLineageRequest,
+)
+from glio_proteogen.contracts.m05_03 import (
+    M0503_MAX_CANONICAL_REQUEST_BYTES,
+    M0503_MAX_DOCUMENT_BYTES,
+    M0503_MAX_TOTAL_DOCUMENT_BYTES,
+    IngestPtmLocalizationRawInputsRequest,
+    PtmLocalizationRawInputRole,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -330,6 +338,12 @@ from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import 
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
     _validate_json_request as _validate_m0502_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
+    M0503Service,
+    PtmLocalizationRawInputAuthorizationError,
+    PtmLocalizationRawInputError,
+    preflight_ptm_localization_raw_input_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -468,6 +482,11 @@ proteoform_artifacts_app = typer.Typer(
     help="M04-05 deterministic aggregate proteoform artifact detection.",
 )
 app.add_typer(proteoform_artifacts_app, name="proteoform-artifacts")
+ptm_localization_raw_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-03 deterministic PTM-localization raw-manifest ingestion.",
+)
+app.add_typer(ptm_localization_raw_app, name="ptm-localization-raw")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -572,6 +591,14 @@ ProteoformRawSourceArgument = Annotated[
 ProteoformRawOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-03 canonical result JSON path."),
+]
+PtmLocalizationRawSourceArgument = Annotated[
+    str,
+    typer.Argument(help="Unchecked directory containing four locked manifest files."),
+]
+PtmLocalizationRawOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-03 canonical result JSON path."),
 ]
 ProteoformQualityOutputOption = Annotated[
     str,
@@ -715,6 +742,38 @@ class _ProteoformRawFileError(ValueError):
         return cls("proteoform raw output must be a new regular file")
 
 
+class _PtmLocalizationRawFileError(ValueError):
+    """An M05-03 CLI path violates the exact snapshot-once filesystem boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source directory is unavailable")
+
+    @classmethod
+    def linked_or_reparse_source(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source cannot be a link or reparse point")
+
+    @classmethod
+    def unexpected_entry(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source must contain exactly four locked filenames")
+
+    @classmethod
+    def non_regular_source(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source must contain only regular files")
+
+    @classmethod
+    def source_changed(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source changed during ingestion")
+
+    @classmethod
+    def source_unavailable(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source is unavailable")
+
+    @classmethod
+    def output_unavailable(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw output must be a new regular file")
+
+
 class _IdentificationReleaseFileError(ValueError):
     """A CLI path violates the closed M02-08 file or archive boundary."""
 
@@ -850,6 +909,7 @@ def _load_request[RequestT](
         ProteoformArtifactAuthorizationError,
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
+        PtmLocalizationRawInputAuthorizationError,
     ):
         raise
     except (TypeError, ValueError):
@@ -1549,6 +1609,133 @@ def _load_proteoform_raw_files(  # noqa: C901, PLR0912, PLR0915 - explicit firew
     return snapshots
 
 
+_PTM_LOCALIZATION_RAW_FILENAMES = {
+    PtmLocalizationRawInputRole.MASS_SPECTROMETRY_PROTEOME: ("mass-spectrometry-proteome.json"),
+    PtmLocalizationRawInputRole.GENOME: "genome.json",
+    PtmLocalizationRawInputRole.TRANSCRIPTOME: "transcriptome.json",
+    PtmLocalizationRawInputRole.PTM_ANNOTATIONS: "ptm-annotations.json",
+}
+
+
+def _load_ptm_localization_raw_files(  # noqa: C901, PLR0912, PLR0915
+    source_directory: Path,
+    request: IngestPtmLocalizationRawInputsRequest,
+) -> dict[PtmLocalizationRawInputRole, bytes]:
+    """Snapshot the four locked M05-03 manifest files exactly once."""
+
+    try:
+        lexical = source_directory.absolute()
+        for component in (lexical, *lexical.parents):
+            if component.exists() and _is_protein_inference_release_reparse(component):
+                raise _PtmLocalizationRawFileError.linked_or_reparse_source()
+        root = source_directory.resolve(strict=True)
+    except _PtmLocalizationRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_not_directory() from error
+    try:
+        root_before = root.stat(follow_symlinks=False)
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_not_directory() from error
+    if not stat.S_ISDIR(root_before.st_mode):
+        raise _PtmLocalizationRawFileError.source_not_directory()
+
+    expected_names = set(_PTM_LOCALIZATION_RAW_FILENAMES.values())
+    try:
+        entries = tuple(root.iterdir())
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_unavailable() from error
+    if {entry.name for entry in entries} != expected_names:
+        raise _PtmLocalizationRawFileError.unexpected_entry()
+
+    artifacts_by_role = {artifact.role: artifact for artifact in request.artifacts}
+    if set(artifacts_by_role) != set(PtmLocalizationRawInputRole):
+        raise _PtmLocalizationRawFileError.unexpected_entry()
+
+    receipts: dict[PtmLocalizationRawInputRole, tuple[Path, os.stat_result]] = {}
+    total_size = 0
+    for role, filename in _PTM_LOCALIZATION_RAW_FILENAMES.items():
+        candidate = root / filename
+        if _is_protein_inference_release_reparse(candidate):
+            raise _PtmLocalizationRawFileError.linked_or_reparse_source()
+        try:
+            before = candidate.stat(follow_symlinks=False)
+            if not stat.S_ISREG(before.st_mode):
+                raise _PtmLocalizationRawFileError.non_regular_source()
+            artifact = artifacts_by_role[role]
+            matching_parser = next(
+                (
+                    parser
+                    for parser in request.policy.approved_parsers
+                    if parser.role is role
+                    and parser.format is artifact.format
+                    and parser.format_version == artifact.format_version
+                    and parser.parser_version == artifact.parser_version
+                ),
+                None,
+            )
+            active_limit = min(
+                request.policy.max_document_bytes,
+                M0503_MAX_DOCUMENT_BYTES,
+                *((matching_parser.max_document_bytes,) if matching_parser is not None else ()),
+            )
+            total_size += before.st_size
+            if (
+                before.st_size != artifact.declared_size_bytes
+                or before.st_size > active_limit
+                or total_size > min(request.policy.max_total_bytes, M0503_MAX_TOTAL_DOCUMENT_BYTES)
+            ):
+                raise _PtmLocalizationRawFileError.source_unavailable()
+            receipts[role] = (candidate, before)
+        except _PtmLocalizationRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _PtmLocalizationRawFileError.source_unavailable() from error
+
+    snapshots: dict[PtmLocalizationRawInputRole, bytes] = {}
+    for role, (candidate, before) in receipts.items():
+        try:
+            with candidate.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+                if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                    raise _PtmLocalizationRawFileError.source_changed()
+                payload = stream.read(before.st_size + 1)
+                after = os.fstat(stream.fileno())
+            current = candidate.stat(follow_symlinks=False)
+        except _PtmLocalizationRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _PtmLocalizationRawFileError.source_unavailable() from error
+        if not _same_file_receipt(opened, after) or not _same_file_receipt(after, current):
+            raise _PtmLocalizationRawFileError.source_changed()
+        if len(payload) != before.st_size:
+            raise _PtmLocalizationRawFileError.source_changed()
+        snapshots[role] = payload
+
+    try:
+        root_after = root.stat(follow_symlinks=False)
+        final_entries = tuple(root.iterdir())
+        final_tree_is_closed = {entry.name for entry in final_entries} == expected_names and all(
+            not _is_protein_inference_release_reparse(entry)
+            and stat.S_ISREG(entry.stat(follow_symlinks=False).st_mode)
+            for entry in final_entries
+        )
+        final_members_are_unchanged = all(
+            not _is_protein_inference_release_reparse(candidate)
+            and _same_file_receipt(before, candidate.stat(follow_symlinks=False))
+            for candidate, before in receipts.values()
+        )
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_unavailable() from error
+    if (
+        not _same_file_receipt(root_before, root_after)
+        or not final_tree_is_closed
+        or not final_members_are_unchanged
+    ):
+        raise _PtmLocalizationRawFileError.source_changed()
+    return snapshots
+
+
 _WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
 _WINDOWS_FILE_ATTRIBUTE_NORMAL = 0x80
 _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
@@ -1775,6 +1962,200 @@ def _write_proteoform_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
             cleanup_error = cleanup_error or error
         if cleanup_error is not None:
             raise cleanup_error
+
+
+def _write_ptm_localization_raw_result(path: Path, payload: bytes) -> None:
+    """Atomically publish one new M05-03 file through a non-reparse anchor."""
+
+    try:
+        absolute = path.absolute()
+        if not absolute.name or absolute.name in {".", ".."}:
+            raise _PtmLocalizationRawFileError.output_unavailable()
+        if os.name == "nt":
+            _write_ptm_localization_raw_result_windows(absolute, payload)
+        else:
+            _write_ptm_localization_raw_result_posix(absolute, payload)
+    except _PtmLocalizationRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.output_unavailable() from error
+
+
+def _write_ptm_localization_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish through openat-style operations rooted in the opened parent inode."""
+
+    if not _PROTEOFORM_RAW_POSIX_DIR_FD_SUPPORTED:
+        _raise_anchored_output_error()
+    parent_descriptor, final_name = _open_proteoform_raw_posix_parent(path)
+    temporary_name = f".m0503-{os.urandom(16).hex()}.tmp"
+    temporary_descriptor: int | None = None
+    written: os.stat_result | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        try:
+            os.stat(final_name, dir_fd=parent_descriptor, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise _PtmLocalizationRawFileError.output_unavailable()
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | _required_posix_open_flag("O_NOFOLLOW")
+            | _required_posix_open_flag("O_CLOEXEC")
+        )
+        temporary_descriptor = os.open(
+            temporary_name,
+            flags,
+            0o600,
+            dir_fd=parent_descriptor,
+        )
+        opened = os.fstat(temporary_descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            _raise_anchored_output_error()
+        written = opened
+        _write_proteoform_raw_descriptor(temporary_descriptor, payload)
+        written = os.fstat(temporary_descriptor)
+        if not _same_file_identity(opened, written):
+            _raise_anchored_output_error()
+        named_temporary = os.stat(
+            temporary_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, named_temporary):
+            _raise_anchored_output_error()
+        os.link(
+            temporary_name,
+            final_name,
+            src_dir_fd=parent_descriptor,
+            dst_dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _proteoform_raw_posix_parent_is_current(path, parent_descriptor):
+            _raise_anchored_output_error()
+        received = os.stat(
+            final_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, received):
+            _raise_anchored_output_error()
+        os.unlink(temporary_name, dir_fd=parent_descriptor)
+        os.fsync(parent_descriptor)
+        committed = True
+    finally:
+        if not committed and written is not None:
+            try:
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    final_name,
+                    written,
+                )
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    temporary_name,
+                    written,
+                )
+                os.fsync(parent_descriptor)
+            except OSError as error:
+                cleanup_error = error
+        if temporary_descriptor is not None:
+            try:
+                os.close(temporary_descriptor)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            os.close(parent_descriptor)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _write_ptm_localization_raw_result_windows(  # pragma: no cover
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish by native handle-relative create and rename under one parent handle."""
+
+    parent_handle, final_name = _open_proteoform_raw_windows_parent(path)
+    parent_receipt = _windows_file_receipt(parent_handle, directory=True)
+    temporary_name = f".m0503-{os.urandom(16).hex()}.tmp"
+    output_handle: int | None = None
+    output_receipt: tuple[int, int] | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        output_handle = _windows_nt_create_relative(
+            parent_handle,
+            temporary_name,
+            desired_access=_WINDOWS_OUTPUT_ACCESS,
+            share_access=_WINDOWS_SHARE_READ_DELETE,
+            disposition=_WINDOWS_FILE_CREATE,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        output_receipt = _windows_file_receipt(output_handle, directory=False)
+        _write_proteoform_raw_windows_handle(output_handle, payload)
+        if _windows_file_receipt(output_handle, directory=False) != output_receipt:
+            _raise_anchored_output_error()
+        _windows_rename_ptm_localization_raw_output(
+            output_handle,
+            parent_handle,
+            final_name,
+        )
+        received_parent, received_name = _open_proteoform_raw_windows_parent(path)
+        try:
+            if (
+                received_name != final_name
+                or _windows_file_receipt(received_parent, directory=True) != parent_receipt
+            ):
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_parent)
+        received_output = _windows_nt_create_relative(
+            parent_handle,
+            final_name,
+            desired_access=_WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_SYNCHRONIZE,
+            disposition=_WINDOWS_FILE_OPEN,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        try:
+            if _windows_file_receipt(received_output, directory=False) != output_receipt:
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_output)
+        committed = True
+    finally:
+        if output_handle is not None and not committed:
+            try:
+                _windows_mark_output_for_deletion(output_handle)
+            except OSError as error:
+                cleanup_error = error
+        if output_handle is not None:
+            try:
+                _windows_close_handle(output_handle)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            _windows_close_handle(parent_handle)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _windows_rename_ptm_localization_raw_output(  # pragma: no cover
+    output_handle: int,
+    parent_handle: int,
+    final_name: str,
+) -> None:
+    _windows_rename_proteoform_raw_output(output_handle, parent_handle, final_name)
 
 
 def _open_proteoform_raw_posix_parent(path: Path) -> tuple[int, str]:
@@ -3357,6 +3738,79 @@ def reconcile_ptm_localization_identity_lineage(request: RequestArgument) -> Non
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"invalid M05-02 request: {error}", err=True)
         raise typer.Exit(code=2) from error
+
+
+@ptm_localization_raw_app.command("export-schema")
+def export_ptm_localization_raw_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "parser-profile",
+            "input-artifact",
+            "proteome-document",
+            "genome-document",
+            "transcriptome-document",
+            "ptm-document",
+            "validated-input",
+            "diagnostic",
+            "receipt",
+        ],
+        typer.Argument(help="M05-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization raw-ingestion contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_raw_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_raw_app.command("ingest")
+def ingest_ptm_localization_raw_inputs_cli(
+    request: RequestArgument,
+    source_directory: PtmLocalizationRawSourceArgument,
+    output: PtmLocalizationRawOutputOption,
+) -> None:
+    """Ingest four locked canonical manifests and publish one new result."""
+
+    try:
+        try:
+            parsed = _load_request(
+                request,
+                TypeAdapter(IngestPtmLocalizationRawInputsRequest),
+                preflight_ptm_localization_raw_input_authorization,
+                M0503_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            source_path = Path(source_directory)
+            output_path = Path(output)
+        except PtmLocalizationRawInputAuthorizationError as error:
+            typer.echo(f"PTM-localization raw ingestion failed: {error}", err=True)
+            raise typer.Exit(code=2) from error
+        sources = (
+            _load_ptm_localization_raw_files(source_path, parsed)
+            if parsed.lineage_result.disposition.value == "reconciled"
+            else {}
+        )
+        result = M0503Service().execute(parsed, sources)
+        _write_ptm_localization_raw_result(
+            output_path,
+            canonical_json_bytes(result.model_dump(mode="json")),
+        )
+    except (
+        PtmLocalizationRawInputAuthorizationError,
+        PtmLocalizationRawInputError,
+        _PtmLocalizationRawFileError,
+    ) as error:
+        typer.echo(f"PTM-localization raw ingestion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    if result.disposition.value != "validated":
+        raise typer.Exit(code=1)
 
 
 @proteoform_lineage_app.command("export-schema")

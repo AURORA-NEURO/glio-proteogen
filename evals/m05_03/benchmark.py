@@ -14,11 +14,13 @@ from typing import Final
 from evals.m05_03.run import build_scenario
 from glio_proteogen.contracts.m05_03 import (
     M0503_LIMITATION_COUNT,
+    M0503_MAX_CANONICAL_REQUEST_BYTES,
     M0503_MIN_RECONCILED_EVIDENCE,
     M0503_MODULE_ID,
     M0503_ROLE_COUNT,
     PtmLocalizationRawInputDisposition,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
     ingest_ptm_localization_raw_inputs,
 )
@@ -43,6 +45,8 @@ class BenchmarkReport:
     diagnostic_count: int
     evidence_count: int
     limitation_count: int
+    request_bytes: int
+    result_bytes: int
     request_digest: str
     result_digest: str
     mean_ns: float
@@ -107,6 +111,8 @@ def run_benchmark() -> BenchmarkReport:
         diagnostic_count=len(warmup.diagnostics),
         evidence_count=len(warmup.evidence),
         limitation_count=len(warmup.limitations),
+        request_bytes=len(canonical_json_bytes(scenario.request)),
+        result_bytes=len(canonical_json_bytes(warmup)),
         request_digest=warmup.request_digest,
         result_digest=warmup.result_digest,
         mean_ns=mean,
@@ -115,7 +121,11 @@ def run_benchmark() -> BenchmarkReport:
         maximum_ns=max(samples),
         mean_budget_ns=MEAN_BUDGET_NS,
         p95_budget_ns=P95_BUDGET_NS,
-        passed=mean <= MEAN_BUDGET_NS and p95 <= P95_BUDGET_NS,
+        passed=(
+            len(canonical_json_bytes(scenario.request)) <= M0503_MAX_CANONICAL_REQUEST_BYTES
+            and mean <= MEAN_BUDGET_NS
+            and p95 <= P95_BUDGET_NS
+        ),
     )
 
 
