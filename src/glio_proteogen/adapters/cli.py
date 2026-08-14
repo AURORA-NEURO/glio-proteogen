@@ -1084,7 +1084,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](  # noqa: C901
+def _load_request[RequestT](
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -1115,13 +1115,14 @@ def _load_request[RequestT](  # noqa: C901
         details = canonical_json_bytes(sanitized_validation_errors(error)).decode("utf-8")
         typer.echo(f"invalid request: {details}", err=True)
         raise typer.Exit(code=2) from error
-    except ProteoformRawInputAuthorizationError:
-        raise
-    except ProteoformQualityAuthorizationError:
-        raise
-    except ProteoformArtifactAuthorizationError:
-        raise
     except m1502_module.M1502AuthorizationError:
+        raise
+    except (
+        ProteoformArtifactAuthorizationError,
+        ProteoformHarmonizationAuthorizationError,
+        ProteoformQualityAuthorizationError,
+        ProteoformRawInputAuthorizationError,
+    ):
         raise
     except (TypeError, ValueError):
         if json_validator is not None:

@@ -55,9 +55,10 @@ _MAX_PLAIN_DEPTH: Final = 96
 _MAX_PLAIN_DICT_ITEMS: Final = 512
 _MAX_PLAIN_SEQUENCE_ITEMS: Final = 4096
 _MAX_PLAIN_NODES: Final = 500_000
+_REQUEST_FIELDS: Final = frozenset(HarmonizeProteoformAnalysisRequest.model_fields)
 
 
-class ProteoformHarmonizationAuthorizationError(ValueError):
+class ProteoformHarmonizationAuthorizationError(PermissionError):
     """Denied controls detected before receipt or support-ledger traversal."""
 
     def __init__(self) -> None:
@@ -143,6 +144,7 @@ def _prepare_harmonization_request_candidate(candidate: object) -> dict[str, obj
     """Replay M04-05 and policy metadata before materializing the support ledger."""
 
     preflight_proteoform_harmonization_authorization(candidate)
+    _validate_request_members(candidate)
     artifact_result = _ARTIFACT_RESULT_ADAPTER.validate_json(
         canonical_json_bytes(_plain_value(_member(candidate, "artifact_result"))),
         strict=True,
@@ -222,6 +224,26 @@ def _member(candidate: object, field: str) -> object:
 def _optional_plain_member(candidate: object, field: str) -> object:
     value = _member(candidate, field)
     return None if value is _MISSING else _plain_value(value)
+
+
+def _validate_request_members(candidate: object) -> None:
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if dict in candidate_mro:
+        mapping = cast("dict[object, object]", candidate)
+    elif BaseModel in candidate_mro:
+        mapping = cast(
+            "dict[object, object]",
+            object.__getattribute__(candidate, "__dict__"),
+        )
+    else:
+        raise _InvalidPlainValueError
+    if (
+        type(mapping) is not dict
+        or dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS
+        or any(type(key) is not str for key in dict.keys(mapping))
+        or not set(dict.keys(mapping)).issubset(_REQUEST_FIELDS)
+    ):
+        raise _InvalidPlainValueError
 
 
 def _state_text(candidate: object) -> object:

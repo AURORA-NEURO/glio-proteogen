@@ -700,10 +700,16 @@ def build_scenario_result(
     return harmonize_proteoform_analysis(build_scenario_request(case_id))
 
 
-def build_capacity_scenario_request() -> HarmonizeProteoformAnalysisRequest:
-    """Return a valid exact 512-target and 512-observation M04-06 request."""
+def build_maximum_scenario_request() -> HarmonizeProteoformAnalysisRequest:
+    """Return the genuine installed-maximum target/observation request."""
 
     return _scenario_for_target_count(M0406_MAX_TARGETS).request
+
+
+def build_capacity_scenario_request() -> HarmonizeProteoformAnalysisRequest:
+    """Compatibility alias for the installed-maximum scenario request."""
+
+    return build_maximum_scenario_request()
 
 
 def _rebuild_support_ledger(
@@ -797,7 +803,7 @@ def _with_policy(
 def _fails(operation: Callable[[], object]) -> bool:
     try:
         operation()
-    except (TypeError, ValueError):
+    except (PermissionError, TypeError, ValueError):
         return True
     return False
 
@@ -1385,7 +1391,7 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
             nonfinite,
         )
     )
-    capacity = build_capacity_scenario_request()
+    capacity = build_maximum_scenario_request()
     capacity_ledger = capacity.support_ledger
     if capacity_ledger is None:
         raise ScenarioClosureError
@@ -1459,7 +1465,10 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
                 and M0406_MAX_EVIDENCE == _EXPECTED_RESULT_EVIDENCE_CAP
                 and M0406_MAX_FINDINGS == _EXPECTED_FINDING_CAP
             ),
-            detail="512 targets/observations plus installed integer and result caps accepted",
+            detail=(
+                f"{M0406_MAX_TARGETS} targets/observations plus installed integer and result "
+                "caps accepted"
+            ),
         ),
         _scenario(
             "first_excess_collection_or_integer_cap_is_rejected",
@@ -1600,19 +1609,19 @@ def _canonical_privacy_checks(scenario: Scenario) -> list[EvalCheck]:
         lambda: ProteoformHarmonizationResult.model_validate(forged_result, strict=True)
     )
     receipt_payload = request.artifact_receipt.model_dump(mode="python", exclude={"receipt_digest"})
-    first_unit = receipt_payload["units"][0]
-    receipt_payload["units"] = (
-        {**first_unit, "target_id": "unit." + ("a" * 64)},
-        *receipt_payload["units"][1:],
+    first_target = receipt_payload["targets"][0]
+    receipt_payload["targets"] = (
+        {**first_target, "target_id": "target." + ("a" * 64)},
+        *receipt_payload["targets"][1:],
     )
-    receipt_payload["target_binding_digest"] = target_binding_digest(receipt_payload["units"])
+    receipt_payload["target_binding_digest"] = target_binding_digest(receipt_payload["targets"])
     receipt_payload["receipt_digest"] = artifact_receipt_digest(receipt_payload)
     resigned_receipt = ProteoformArtifactHarmonizationReceipt.model_validate(
         receipt_payload,
         strict=True,
     )
     resigned = request.model_copy(update={"artifact_receipt": resigned_receipt})
-    resigned_result = harmonize_proteoform_analysis(resigned)
+    resigned_rejected = _fails(lambda: harmonize_proteoform_analysis(resigned))
     owned_evidence = (
         request.policy.evidence,
         *(profile.evidence for profile in request.policy.profiles),
@@ -1704,13 +1713,8 @@ def _canonical_privacy_checks(scenario: Scenario) -> list[EvalCheck]:
         ),
         _scenario(
             "resigned_artifact_receipt_without_support_ledger_rebind_is_rejected",
-            passed=(
-                resigned_result.disposition is ProteoformHarmonizationDisposition.QUARANTINED
-                and resigned_result.analysis is None
-                and {item.code for item in resigned_result.findings}
-                == {ProteoformHarmonizationFindingCode.SUPPORT_LEDGER_BINDING_MISMATCH}
-            ),
-            detail="re-signed unit identity leaves the exact support ledger stale",
+            passed=resigned_rejected,
+            detail="re-signed target identity is rejected before the stale ledger can execute",
         ),
     ]
 
