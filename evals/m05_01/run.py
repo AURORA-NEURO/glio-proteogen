@@ -11,11 +11,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
+from pydantic import ValidationError
+
 from glio_proteogen.contracts.m05_01 import (
     M0501_CONTRACT_VERSION,
     M0501_MAX_APPROVED_REFERENCE_BUNDLES,
     M0501_MAX_APPROVED_VERSIONS,
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
     M0501_MAX_COMPATIBILITY_RULES,
+    M0501_MAX_VOCABULARY_TERMS,
     ApprovedPtmLocalizationReferenceBundle,
     ApprovedPtmLocalizationVocabulary,
     EvaluatePtmLocalizationProtocolRequest,
@@ -31,6 +35,7 @@ from glio_proteogen.contracts.m05_01 import (
     PtmLocalizationMetadataFieldName,
     PtmLocalizationMetadataFieldPolicy,
     PtmLocalizationProtocolConformanceDisposition,
+    PtmLocalizationProtocolConformanceResult,
     PtmLocalizationProtocolSchema,
     PtmLocalizationQuantity,
     PtmLocalizationReferenceBundle,
@@ -49,9 +54,14 @@ from glio_proteogen.contracts.m05_01 import (
     VariantPeptideHandoffRole,
     assay_specimen_policy_digest,
     configuration_digest,
+    contract_json_schema,
+    contract_json_schemas,
     protocol_digest,
+    receipt_digest,
     reference_bundle_digest,
+    result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -64,11 +74,37 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
+    M0501Plugin,
+    M0501Service,
+    PtmLocalizationProtocolAuthorizationError,
+    ValidatedM0501Request,
     evaluate_ptm_localization_protocol,
 )
 
 _OCCURRED_AT: Final = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
 _VERSION: Final = "1.0.0"
+_SCHEMA_COUNT: Final = 13
+_GROUP_COUNT: Final = 8
+_CASES_PER_GROUP: Final = 5
+_CASE_COUNT: Final = _GROUP_COUNT * _CASES_PER_GROUP
+_FIXTURE_PATH: Final = (
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "m05_01" / "scenarios.json"
+)
+
+
+class _InvalidFixtureIdentityError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("M05-01 locked fixture identity is inconsistent")
+
+
+class _InvalidFixtureShapeError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("M05-01 fixture requires exactly eight groups of five cases")
+
+
+class _DuplicateFixtureCaseError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("M05-01 fixture case identifiers must be unique")
 
 
 def _hex(label: str) -> str:
@@ -504,6 +540,8 @@ def build_scenario_request(
 class EvaluationReport:
     module_id: str
     contract_version: str
+    declared_groups: int
+    group_case_counts: dict[str, int]
     declared_cases: int
     executed_cases: int
     passed_cases: int
@@ -511,46 +549,327 @@ class EvaluationReport:
     passed: bool
 
 
-def run_evaluation() -> EvaluationReport:
-    """Run the compact locked corpus through the public operation."""
+def _request_rejected(payload: object) -> bool:
+    try:
+        EvaluatePtmLocalizationProtocolRequest.model_validate(payload, strict=True)
+    except ValidationError:
+        return True
+    return False
 
-    cases = {
-        "canonical_conformant": PtmLocalizationProtocolConformanceDisposition.CONFORMANT,
-        "maximum_profile_shape_conforms": (
-            PtmLocalizationProtocolConformanceDisposition.CONFORMANT
-        ),
-        "unsupported_ood_abstains": PtmLocalizationProtocolConformanceDisposition.ABSTAINED,
-        "unsupported_version_abstains": (PtmLocalizationProtocolConformanceDisposition.ABSTAINED),
-        "unit_incompatibility_quarantined": (
-            PtmLocalizationProtocolConformanceDisposition.QUARANTINED
-        ),
-        "metadata_incomplete_quarantined": (
-            PtmLocalizationProtocolConformanceDisposition.QUARANTINED
-        ),
-        "compatibility_failure_quarantined": (
-            PtmLocalizationProtocolConformanceDisposition.QUARANTINED
-        ),
-        "unresolved_semantics_quarantined": (
-            PtmLocalizationProtocolConformanceDisposition.QUARANTINED
-        ),
-        "identity_incomplete_quarantined": (
-            PtmLocalizationProtocolConformanceDisposition.QUARANTINED
-        ),
-        "superseding_recovery_conforms": (PtmLocalizationProtocolConformanceDisposition.CONFORMANT),
+
+def _result_rejected(payload: object) -> bool:
+    try:
+        PtmLocalizationProtocolConformanceResult.model_validate(payload, strict=True)
+    except ValidationError:
+        return True
+    return False
+
+
+def _authorization_denied(control: str, state: str) -> bool:
+    payload = build_scenario_request().model_dump(mode="python")
+    payload["context"]["references"][control]["state"] = state
+    try:
+        evaluate_ptm_localization_protocol(payload)
+    except PtmLocalizationProtocolAuthorizationError:
+        return True
+    return False
+
+
+def _semantic_reorder_is_equal() -> bool:
+    request = build_scenario_request()
+    payload = request.model_dump(mode="json")
+    for path in (
+        ("protocol_schema", "required_identity_keys"),
+        ("protocol_schema", "unresolved_rules"),
+        ("protocol_schema", "controlled_vocabularies"),
+        ("protocol_schema", "unit_policies"),
+        ("protocol_schema", "metadata_fields"),
+        ("protocol_schema", "compatibility_rules"),
+        ("conformance_profile", "approved_protocol_versions"),
+    ):
+        cursor: object = payload
+        for segment in path:
+            if not isinstance(cursor, dict):
+                return False
+            cursor = cursor[segment]
+        if not isinstance(cursor, list):
+            return False
+        cursor.reverse()
+    reordered = EvaluatePtmLocalizationProtocolRequest.model_validate_json(
+        canonical_json_bytes(payload), strict=True
+    )
+    return evaluate_ptm_localization_protocol(request) == evaluate_ptm_localization_protocol(
+        reordered
+    )
+
+
+def _nested_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        return {
+            *(str(key) for key in value),
+            *(nested for item in value.values() for nested in _nested_keys(item)),
+        }
+    if isinstance(value, list | tuple):
+        return {nested for item in value for nested in _nested_keys(item)}
+    return set()
+
+
+def _case_succeeds(case_id: str) -> bool:  # noqa: C901, PLR0911, PLR0912, PLR0915
+    conformant = {
+        "canonical_conformant": "canonical_conformant",
+        "maximum_profile_shape_conforms": "maximum_profile_shape_conforms",
+        "superseding_recovery_conforms": "superseding_recovery_conforms",
     }
-    failures: list[str] = []
-    for name, expected in cases.items():
-        first = evaluate_ptm_localization_protocol(build_scenario_request(name))
-        second = evaluate_ptm_localization_protocol(build_scenario_request(name))
-        if first.disposition is not expected or first != second:
-            failures.append(name)
+    quarantined = {
+        "unit_incompatibility_quarantined": "unit_incompatibility_quarantined",
+        "metadata_incomplete_quarantined": "metadata_incomplete_quarantined",
+        "identity_incomplete_quarantined": "identity_incomplete_quarantined",
+        "compatibility_failure_quarantined": "compatibility_failure_quarantined",
+        "unresolved_semantics_quarantined": "unresolved_semantics_quarantined",
+    }
+    abstained = {
+        "unsupported_version_abstains": "unsupported_version_abstains",
+        "unsupported_ood_abstains": "unsupported_ood_abstains",
+    }
+    if case_id in conformant:
+        result = evaluate_ptm_localization_protocol(build_scenario_request(conformant[case_id]))
+        if case_id == "superseding_recovery_conforms":
+            return (
+                result.disposition is PtmLocalizationProtocolConformanceDisposition.CONFORMANT
+                and result.request.supersedes_result_digest in result.provenance.input_digests
+            )
+        return result.disposition is PtmLocalizationProtocolConformanceDisposition.CONFORMANT
+    if case_id in quarantined:
+        result = evaluate_ptm_localization_protocol(build_scenario_request(quarantined[case_id]))
+        return result.disposition is PtmLocalizationProtocolConformanceDisposition.QUARANTINED
+    if case_id in abstained:
+        result = evaluate_ptm_localization_protocol(build_scenario_request(abstained[case_id]))
+        return (
+            result.disposition is PtmLocalizationProtocolConformanceDisposition.ABSTAINED
+            and result.support.status.value == "unsupported"
+            and {item.state.value for item in result.findings} == {"indeterminate"}
+        )
+    if case_id == "unknown_field_rejected":
+        payload = build_scenario_request().model_dump(mode="python")
+        payload["unknown"] = True
+        return _request_rejected(payload)
+    if case_id == "scalar_coercion_rejected":
+        payload = build_scenario_request().model_dump(mode="python")
+        payload["contract_version"] = 1
+        return _request_rejected(payload)
+    if case_id == "duplicate_json_rejected":
+        plugin = M0501Plugin(M0501Service())
+        serialized = (
+            build_scenario_request()
+            .model_dump_json()
+            .replace(
+                '"operation":"evaluate_ptm_localization_protocol"',
+                (
+                    '"operation":"evaluate_ptm_localization_protocol",'
+                    '"operation":"evaluate_ptm_localization_protocol"'
+                ),
+                1,
+            )
+        )
+        try:
+            plugin.validate(serialized)
+        except ValueError:
+            return True
+        return False
+    if case_id == "thirteen_schemas_closed":
+        return len(contract_json_schemas()) == _SCHEMA_COUNT
+    denial = {
+        "configuration_denial_zero_traversal": ("approved_configuration", "rejected"),
+        "identity_denial_zero_traversal": ("identity_lineage", "unresolved"),
+        "consent_denial_zero_traversal": ("consent", "withheld"),
+        "quality_denial_zero_traversal": ("quality", "rejected"),
+    }
+    if case_id in denial:
+        return _authorization_denied(*denial[case_id])
+    if case_id == "remaining_controls_denied":
+        return all(
+            _authorization_denied(control, "rejected")
+            for control in ("provenance", "support", "intended_use")
+        )
+    if case_id == "profile_pin_forgery_rejected":
+        payload = build_scenario_request().model_dump(mode="python")
+        payload["conformance_profile"]["protocol_schema_digest"] = "sha256:" + ("f" * 64)
+        return _request_rejected(payload)
+    if case_id == "configuration_forgery_rejected":
+        payload = build_scenario_request().model_dump(mode="python")
+        payload["context"]["references"]["approved_configuration"]["evidence"]["digest"] = (
+            "sha256:" + ("f" * 64)
+        )
+        return _request_rejected(payload)
+    if case_id == "vocabulary_cap_excess_rejected":
+        payload = build_scenario_request().model_dump(mode="python")
+        vocabulary = payload["protocol_schema"]["controlled_vocabularies"][0]
+        vocabulary["terms"] = tuple(vocabulary["terms"]) + tuple(
+            vocabulary["terms"][0] for _ in range(M0501_MAX_VOCABULARY_TERMS)
+        )
+        return _request_rejected(payload)
+    if case_id == "missing_not_detected_below_lod_distinct":
+        rules = {
+            item.state: item.action
+            for item in build_scenario_request().protocol_schema.unresolved_rules
+        }
+        return (
+            rules[PtmLocalizationUnresolvedState.MISSING]
+            is PtmLocalizationUnresolvedAction.QUARANTINE
+            and rules[PtmLocalizationUnresolvedState.NOT_DETECTED]
+            is PtmLocalizationUnresolvedAction.PRESERVE
+            and rules[PtmLocalizationUnresolvedState.BELOW_DETECTION_LIMIT]
+            is PtmLocalizationUnresolvedAction.PRESERVE
+        )
+    if case_id == "variant_peptide_parent_context_only":
+        result = evaluate_ptm_localization_protocol(build_scenario_request())
+        return result.parent_target == "variant_peptide" and not result.emits_variant_peptide
+    if case_id == "authority_flags_all_false":
+        result = evaluate_ptm_localization_protocol(build_scenario_request())
+        return not any(
+            (
+                result.emits_variant_peptide,
+                result.emits_proteogenomic_state,
+                result.emits_proteotype,
+                result.emits_protein_level_subtype,
+                result.localizes_ptm,
+                result.infers_kinase_activity,
+                result.performs_all_omics_fusion,
+                result.recommends_treatment,
+                result.mutates_upstream_evidence,
+                result.infers_identity_or_consent,
+            )
+        )
+    if case_id == "uncertainty_support_domain_narrowed":
+        result = evaluate_ptm_localization_protocol(build_scenario_request())
+        estimates = (
+            result.uncertainty.measurement,
+            result.uncertainty.sampling,
+            result.uncertainty.parameter,
+            result.uncertainty.model_form,
+            result.uncertainty.identification,
+            result.uncertainty.support,
+            result.uncertainty.transport,
+        )
+        return all(
+            item.state.value == "not_estimable" and item.probability is None for item in estimates
+        ) and any("narrowed" in note for note in result.uncertainty.sensitivity_notes)
+    if case_id == "deterministic_result_equality":
+        request = build_scenario_request()
+        return evaluate_ptm_localization_protocol(request) == evaluate_ptm_localization_protocol(
+            request
+        )
+    if case_id == "semantic_reorder_equality":
+        return _semantic_reorder_is_equal()
+    if case_id in {
+        "result_digest_forgery_rejected",
+        "finding_forgery_rejected",
+        "receipt_forgery_rejected",
+    }:
+        payload = evaluate_ptm_localization_protocol(build_scenario_request()).model_dump(
+            mode="python"
+        )
+        if case_id == "result_digest_forgery_rejected":
+            payload["result_digest"] = "sha256:" + ("f" * 64)
+        elif case_id == "finding_forgery_rejected":
+            payload["findings"][0]["message"] = "forged"
+            payload["result_digest"] = result_payload_digest(payload)
+        else:
+            payload["receipt"]["sections"][0]["state"] = "fail"
+            payload["receipt"]["receipt_digest"] = receipt_digest(payload["receipt"])
+            payload["result_digest"] = result_payload_digest(payload)
+        return _result_rejected(payload)
+    if case_id in {"evidence_alias_mismatch_rejected", "evidence_media_type_rejected"}:
+        payload = build_scenario_request().model_dump(mode="python")
+        reference = payload["protocol_schema"]["reference_bundle"]["references"][0]["reference"]
+        if case_id == "evidence_alias_mismatch_rejected":
+            reference["artifact_id"] = "evidence." + ("f" * 64)
+        else:
+            reference["media_type"] = "application/octet-stream"
+        return _request_rejected(payload)
+    if case_id == "biological_canary_not_reflected":
+        rendered = evaluate_ptm_localization_protocol(build_scenario_request()).model_dump_json()
+        return all(
+            canary not in rendered
+            for canary in ("MPEPTIDEK", "P12345", "EGFRvIII", "patient-raw-001")
+        )
+    if case_id == "unknown_schema_name_rejected":
+        try:
+            contract_json_schema("not-a-contract")  # type: ignore[arg-type]
+        except KeyError:
+            return True
+        return False
+    if case_id == "raw_payload_fields_absent":
+        keys = _nested_keys(
+            evaluate_ptm_localization_protocol(build_scenario_request()).model_dump(mode="json")
+        )
+        return not {"spectrum", "sequence", "abundance", "clinical_decision"}.intersection(keys)
+    if case_id == "plugin_public_parity":
+        request = build_scenario_request()
+        plugin = M0501Plugin(M0501Service())
+        return plugin.run(plugin.validate(canonical_json_bytes(request))) == (
+            evaluate_ptm_localization_protocol(request)
+        )
+    if case_id == "copied_token_forgery_rejected":
+        plugin = M0501Plugin(M0501Service())
+        token = plugin.validate(build_scenario_request())
+        forged = ValidatedM0501Request(token.request.model_copy(deep=True), token._seal)
+        try:
+            plugin.run(forged)
+        except TypeError:
+            return True
+        return False
+    if case_id == "strict_json_roundtrip":
+        result = evaluate_ptm_localization_protocol(build_scenario_request())
+        return (
+            PtmLocalizationProtocolConformanceResult.model_validate_json(
+                result.model_dump_json(), strict=True
+            )
+            == result
+        )
+    if case_id == "maximum_request_within_byte_cap":
+        return (
+            len(canonical_json_bytes(build_scenario_request("maximum_profile_shape_conforms")))
+            <= M0501_MAX_CANONICAL_REQUEST_BYTES
+        )
+    return False
+
+
+def _locked_inventory() -> tuple[dict[str, int], tuple[str, ...]]:
+    payload = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
+    if (
+        payload["module_id"] != "GLIO-PROTEOGEN-M05-01"
+        or payload["contract_version"] != M0501_CONTRACT_VERSION
+    ):
+        raise _InvalidFixtureIdentityError
+    groups = payload["groups"]
+    counts = {name: len(cases) for name, cases in groups.items()}
+    cases = tuple(case for group in groups.values() for case in group)
+    if (
+        len(groups) != _GROUP_COUNT
+        or set(counts.values()) != {_CASES_PER_GROUP}
+        or len(cases) != _CASE_COUNT
+    ):
+        raise _InvalidFixtureShapeError
+    if len(set(cases)) != len(cases):
+        raise _DuplicateFixtureCaseError
+    return counts, cases
+
+
+def run_evaluation() -> EvaluationReport:
+    """Execute every declared locked case exactly once."""
+
+    group_counts, cases = _locked_inventory()
+    failures = tuple(case for case in cases if not _case_succeeds(case))
     return EvaluationReport(
         module_id="GLIO-PROTEOGEN-M05-01",
         contract_version=M0501_CONTRACT_VERSION,
+        declared_groups=len(group_counts),
+        group_case_counts=group_counts,
         declared_cases=len(cases),
         executed_cases=len(cases),
         passed_cases=len(cases) - len(failures),
-        failed_cases=tuple(failures),
+        failed_cases=failures,
         passed=not failures,
     )
 
