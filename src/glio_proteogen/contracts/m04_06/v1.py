@@ -10,10 +10,20 @@ protein-RNA discordance, treatment, identity, or consent.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Final, Literal, cast
+from weakref import WeakKeyDictionary
 
-from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    Field,
+    ValidationInfo,
+    ValidatorFunctionWrapHandler,
+    field_validator,
+    model_validator,
+)
 
 from glio_proteogen.contracts.m04_01 import (  # noqa: TC001 - Pydantic resolves at runtime
     ProteoformApplicability,
@@ -27,6 +37,9 @@ from glio_proteogen.contracts.m04_05 import (
     ProteoformArtifactPosterior,
     ProteoformArtifactPosteriorState,
     ProteoformEvidenceUnitKind,
+)
+from glio_proteogen.contracts.m04_05 import (
+    normalized_result as normalized_m0405_result,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
@@ -83,6 +96,11 @@ _M0406_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _M0406_MAX_SHALLOW_MAPPING_FIELDS: Final = 512
 _MIN_FACTOR_LEVELS: Final = 2
 _M0405_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05+json"
+_VALIDATION_CAPABILITY_SEAL: Final = object()
+_ARTIFACT_CAPABILITY_CONTEXT_KEY: Final = "_m0406_artifact_replay_capability"
+_ARTIFACT_CAPABILITY_VERIFIED_KEY: Final = "_m0406_artifact_replay_verified"
+_REQUEST_CAPABILITY_CONTEXT_KEY: Final = "_m0406_validated_request_capability"
+_REQUEST_CAPABILITY_VERIFIED_KEY: Final = "_m0406_validated_request_verified"
 ProteoformHarmonizationIdentifierNamespace = Literal[
     "request",
     "policy",
@@ -1013,6 +1031,246 @@ def matching_harmonization_profile(
     return matches[0] if len(matches) == 1 else None
 
 
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class _ReplayedM0405Capability:
+    seal: object
+    result: ProteoformArtifactDetectionResult
+    result_digest: Sha256Digest
+    normalized_snapshot_digest: Sha256Digest
+    model_snapshot_digest: Sha256Digest
+    receipt: ProteoformArtifactHarmonizationReceipt
+
+
+@dataclass(frozen=True, slots=True)
+class _ExpectedHarmonizationBundle:
+    request_digest: Sha256Digest
+    policy_digest: Sha256Digest
+    configuration_digest: Sha256Digest
+    analysis: ProteoformHarmonizedAnalysis | None
+    transformation_manifest: ProteoformTransformationManifest | None
+    technical_effect_diagnostics: tuple[ProteoformTechnicalEffectDiagnostic, ...]
+    invariant_diagnostics: tuple[ProteoformInvariantDiagnostic, ...]
+    findings: tuple[ProteoformHarmonizationFinding, ...]
+    disposition: ProteoformHarmonizationDisposition
+    receipt: ProteoformHarmonizationComputationReceipt
+    support: SupportDecision
+    uncertainty: UncertaintyProfile
+    provenance: ProvenanceRecord
+    evidence: tuple[EvidenceReference, ...]
+    limitations: tuple[Limitation, ...]
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class _ValidatedM0406RequestCapability:
+    seal: object
+    request: HarmonizeProteoformAnalysisRequest
+    request_digest: Sha256Digest
+    request_snapshot_digest: Sha256Digest
+    policy_digest: Sha256Digest
+    configuration_digest: Sha256Digest
+    artifact_result: ProteoformArtifactDetectionResult
+    artifact_snapshot_digest: Sha256Digest
+    bundle: _ExpectedHarmonizationBundle
+    expected_result_digest: Sha256Digest
+
+
+_ISSUED_ARTIFACT_CAPABILITIES: Final[
+    WeakKeyDictionary[
+        _ReplayedM0405Capability,
+        tuple[
+            ProteoformArtifactDetectionResult,
+            Sha256Digest,
+            Sha256Digest,
+            Sha256Digest,
+            ProteoformArtifactHarmonizationReceipt,
+        ],
+    ]
+] = WeakKeyDictionary()
+_ISSUED_REQUEST_CAPABILITIES: Final[
+    WeakKeyDictionary[
+        _ValidatedM0406RequestCapability,
+        tuple[
+            HarmonizeProteoformAnalysisRequest,
+            Sha256Digest,
+            Sha256Digest,
+            Sha256Digest,
+            Sha256Digest,
+            ProteoformArtifactDetectionResult,
+            Sha256Digest,
+            _ExpectedHarmonizationBundle,
+            Sha256Digest,
+        ],
+    ]
+] = WeakKeyDictionary()
+
+
+def _exact_artifact_capability(value: object) -> _ReplayedM0405Capability | None:
+    return (
+        value
+        if isinstance(value, _ReplayedM0405Capability) and type(value) is _ReplayedM0405Capability
+        else None
+    )
+
+
+def _exact_request_capability(value: object) -> _ValidatedM0406RequestCapability | None:
+    return (
+        value
+        if isinstance(value, _ValidatedM0406RequestCapability)
+        and type(value) is _ValidatedM0406RequestCapability
+        else None
+    )
+
+
+def _artifact_capability_is_issued(capability: _ReplayedM0405Capability) -> bool:
+    snapshot = _ISSUED_ARTIFACT_CAPABILITIES.get(capability)
+    return (
+        snapshot is not None
+        and type(capability) is _ReplayedM0405Capability
+        and capability.seal is _VALIDATION_CAPABILITY_SEAL
+        and snapshot[0] is capability.result
+        and snapshot[1] == capability.result_digest
+        and snapshot[2] == capability.normalized_snapshot_digest
+        and snapshot[3] == capability.model_snapshot_digest
+        and snapshot[4] is capability.receipt
+        and capability.result.result_digest == capability.result_digest
+        and sha256_digest(normalized_m0405_result(capability.result))
+        == capability.normalized_snapshot_digest
+        and sha256_digest(capability.result) == capability.model_snapshot_digest
+    )
+
+
+def _request_capability_is_issued(capability: _ValidatedM0406RequestCapability) -> bool:
+    from glio_proteogen.contracts.m04_06.canonical import (  # noqa: PLC0415
+        canonical_request_digest,
+    )
+
+    snapshot = _ISSUED_REQUEST_CAPABILITIES.get(capability)
+    return (
+        snapshot is not None
+        and type(capability) is _ValidatedM0406RequestCapability
+        and capability.seal is _VALIDATION_CAPABILITY_SEAL
+        and snapshot[0] is capability.request
+        and snapshot[1] == capability.request_digest
+        and snapshot[2] == capability.request_snapshot_digest
+        and snapshot[3] == capability.policy_digest
+        and snapshot[4] == capability.configuration_digest
+        and snapshot[5] is capability.artifact_result
+        and snapshot[6] == capability.artifact_snapshot_digest
+        and snapshot[7] is capability.bundle
+        and snapshot[8] == capability.expected_result_digest
+        and capability.request.artifact_result is capability.artifact_result
+        and canonical_request_digest(capability.request) == capability.request_digest
+        and sha256_digest(capability.request) == capability.request_snapshot_digest
+    )
+
+
+def _issue_artifact_replay_capability(
+    result: ProteoformArtifactDetectionResult,
+    receipt: ProteoformArtifactHarmonizationReceipt,
+) -> _ReplayedM0405Capability:
+    normalized_snapshot_digest = sha256_digest(normalized_m0405_result(result))
+    model_snapshot_digest = sha256_digest(result)
+    capability = _ReplayedM0405Capability(
+        seal=_VALIDATION_CAPABILITY_SEAL,
+        result=result,
+        result_digest=result.result_digest,
+        normalized_snapshot_digest=normalized_snapshot_digest,
+        model_snapshot_digest=model_snapshot_digest,
+        receipt=receipt,
+    )
+    _ISSUED_ARTIFACT_CAPABILITIES[capability] = (
+        result,
+        result.result_digest,
+        normalized_snapshot_digest,
+        model_snapshot_digest,
+        receipt,
+    )
+    return capability
+
+
+def _issue_validated_request_capability(
+    request: HarmonizeProteoformAnalysisRequest,
+    bundle: _ExpectedHarmonizationBundle,
+    expected_result_digest: Sha256Digest,
+) -> _ValidatedM0406RequestCapability:
+    artifact_snapshot_digest = sha256_digest(normalized_m0405_result(request.artifact_result))
+    request_snapshot_digest = sha256_digest(request)
+    capability = _ValidatedM0406RequestCapability(
+        seal=_VALIDATION_CAPABILITY_SEAL,
+        request=request,
+        request_digest=bundle.request_digest,
+        request_snapshot_digest=request_snapshot_digest,
+        policy_digest=bundle.policy_digest,
+        configuration_digest=bundle.configuration_digest,
+        artifact_result=request.artifact_result,
+        artifact_snapshot_digest=artifact_snapshot_digest,
+        bundle=bundle,
+        expected_result_digest=expected_result_digest,
+    )
+    _ISSUED_REQUEST_CAPABILITIES[capability] = (
+        request,
+        bundle.request_digest,
+        request_snapshot_digest,
+        bundle.policy_digest,
+        bundle.configuration_digest,
+        request.artifact_result,
+        artifact_snapshot_digest,
+        bundle,
+        expected_result_digest,
+    )
+    return capability
+
+
+def _validate_request_with_artifact_capability(
+    value: object,
+    capability: _ReplayedM0405Capability,
+) -> HarmonizeProteoformAnalysisRequest:
+    """Validate one request while reusing only an exact replayed M04-05 identity."""
+
+    embedded_result = (
+        dict.get(cast("dict[object, object]", value), "artifact_result")
+        if type(value) is dict
+        else value.artifact_result
+        if type(value) is HarmonizeProteoformAnalysisRequest
+        else None
+    )
+    if not _artifact_capability_is_issued(capability) or embedded_result is not capability.result:
+        raise TypeError("invalid M04-06 artifact-result replay capability")
+    return HarmonizeProteoformAnalysisRequest.model_validate(
+        value,
+        strict=True,
+        context={
+            _ARTIFACT_CAPABILITY_CONTEXT_KEY: capability,
+            _ARTIFACT_CAPABILITY_VERIFIED_KEY: capability,
+        },
+    )
+
+
+def _validate_result_with_capability(
+    value: object,
+    capability: _ValidatedM0406RequestCapability,
+) -> ProteoformHarmonizationResult:
+    """Validate one owned result against its exact sealed request and derived bundle."""
+
+    embedded_request = (
+        dict.get(cast("dict[object, object]", value), "request")
+        if type(value) is dict
+        else value.request
+        if type(value) is ProteoformHarmonizationResult
+        else None
+    )
+    if not _request_capability_is_issued(capability) or embedded_request is not capability.request:
+        raise TypeError("invalid M04-06 request-validation capability")
+    return ProteoformHarmonizationResult.model_validate(
+        value,
+        strict=True,
+        context={
+            _REQUEST_CAPABILITY_CONTEXT_KEY: capability,
+            _REQUEST_CAPABILITY_VERIFIED_KEY: capability,
+        },
+    )
+
+
 class HarmonizeProteoformAnalysisRequest(FrozenModel):
     operation: Literal["harmonize_proteoform_analysis"] = M0406_OPERATION
     contract_version: Literal["1.0.0"] = M0406_CONTRACT_VERSION
@@ -1023,21 +1281,40 @@ class HarmonizeProteoformAnalysisRequest(FrozenModel):
     policy: ProteoformHarmonizationPolicy
     supersedes_result_digest: Sha256Digest | None = None
 
-    @field_validator("artifact_result", mode="before")
+    @field_validator("artifact_result", mode="wrap")
     @classmethod
     def artifact_result_is_strict_and_canonical(
         cls,
         value: object,
+        _handler: ValidatorFunctionWrapHandler,
+        info: ValidationInfo,
     ) -> ProteoformArtifactDetectionResult:
         """Seal even already-instantiated upstream models at boundary ingress."""
 
+        context = info.context if type(info.context) is dict else None
+        capability = context.get(_ARTIFACT_CAPABILITY_CONTEXT_KEY) if context is not None else None
+        verified = (
+            context is not None and context.get(_ARTIFACT_CAPABILITY_VERIFIED_KEY) is capability
+        )
+        if (
+            type(capability) is _ReplayedM0405Capability
+            and capability.seal is _VALIDATION_CAPABILITY_SEAL
+            and (verified or _artifact_capability_is_issued(capability))
+            and value is capability.result
+        ):
+            if context is not None:
+                context[_ARTIFACT_CAPABILITY_VERIFIED_KEY] = capability
+            return capability.result
         return ProteoformArtifactDetectionResult.model_validate_json(
             canonical_json_bytes(value),
             strict=True,
         )
 
     @model_validator(mode="after")
-    def request_is_authorized_and_closed(self) -> HarmonizeProteoformAnalysisRequest:
+    def request_is_authorized_and_closed(  # noqa: PLR0912 - explicit authority closure.
+        self,
+        info: ValidationInfo,
+    ) -> HarmonizeProteoformAnalysisRequest:
         from glio_proteogen.contracts.m04_06.canonical import configuration_digest  # noqa: PLC0415
 
         _require_authorized_context(self.context)
@@ -1047,7 +1324,24 @@ class HarmonizeProteoformAnalysisRequest(FrozenModel):
             "harmonization request identifier",
         )
         receipt = self.artifact_receipt
-        if receipt != _artifact_harmonization_receipt(self.artifact_result):
+        context = info.context if type(info.context) is dict else None
+        capability = context.get(_ARTIFACT_CAPABILITY_CONTEXT_KEY) if context is not None else None
+        typed_capability = _exact_artifact_capability(capability)
+        capability_is_verified = False
+        if typed_capability is not None:
+            capability_result = typed_capability.result
+            capability_is_verified = (
+                typed_capability.seal is _VALIDATION_CAPABILITY_SEAL
+                and context is not None
+                and context.get(_ARTIFACT_CAPABILITY_VERIFIED_KEY) is typed_capability
+                and self.artifact_result is capability_result
+            )
+        replayed_receipt = (
+            typed_capability.receipt
+            if typed_capability is not None and capability_is_verified
+            else _artifact_harmonization_receipt(self.artifact_result)
+        )
+        if receipt != replayed_receipt:
             raise ValueError("artifact receipt must replay the exact embedded M04-05 result")
         refs = self.context.references
         upstream_refs = self.artifact_result.request.context.references
@@ -2089,6 +2383,35 @@ class ProteoformHarmonizationResult(FrozenModel):
     human_review_required: bool
     completed_at: AwareDatetime
 
+    @field_validator("request", mode="wrap")
+    @classmethod
+    def request_may_reuse_sealed_validation(
+        cls,
+        value: object,
+        handler: ValidatorFunctionWrapHandler,
+        info: ValidationInfo,
+    ) -> HarmonizeProteoformAnalysisRequest:
+        context = info.context if type(info.context) is dict else None
+        capability = context.get(_REQUEST_CAPABILITY_CONTEXT_KEY) if context is not None else None
+        verified = (
+            context is not None and context.get(_REQUEST_CAPABILITY_VERIFIED_KEY) is capability
+        )
+        if (
+            type(capability) is _ValidatedM0406RequestCapability
+            and capability.seal is _VALIDATION_CAPABILITY_SEAL
+            and (verified or _request_capability_is_issued(capability))
+            and value is capability.request
+        ):
+            if context is not None:
+                context[_REQUEST_CAPABILITY_VERIFIED_KEY] = capability
+            return capability.request
+        if info.mode == "json":
+            return HarmonizeProteoformAnalysisRequest.model_validate_json(
+                canonical_json_bytes(value),
+                strict=True,
+            )
+        return cast("HarmonizeProteoformAnalysisRequest", handler(value))
+
     @field_validator(
         "technical_effect_diagnostics",
         "invariant_diagnostics",
@@ -2120,34 +2443,47 @@ class ProteoformHarmonizationResult(FrozenModel):
         )
 
     @model_validator(mode="after")
-    def result_is_relationally_closed(  # noqa: PLR0912 - ordered closure audit
+    def result_is_relationally_closed(  # noqa: PLR0912, PLR0915 - ordered closure audit
         self,
+        info: ValidationInfo,
     ) -> ProteoformHarmonizationResult:
         from glio_proteogen.contracts.m04_06.canonical import (  # noqa: PLC0415
-            canonical_request_digest,
-            configuration_digest,
             normalized_request,
-            policy_digest,
             result_payload_digest,
         )
 
-        canonical_request = HarmonizeProteoformAnalysisRequest.model_validate_json(
-            canonical_json_bytes(normalized_request(self.request)),
-            strict=True,
-        )
-        if self.request != canonical_request:
-            raise ValueError("M04-06 embedded request is not in canonical semantic order")
-        analysis, manifest, technical, invariants = derive_harmonization(self.request)
-        findings = expected_harmonization_findings(
-            self.request,
-            manifest,
-            technical,
-            invariants,
-        )
-        disposition = expected_disposition(self.request, findings)
-        request_hash = canonical_request_digest(self.request)
-        policy_hash = policy_digest(self.request.policy)
-        config_hash = configuration_digest(self.request.policy)
+        context = info.context if type(info.context) is dict else None
+        capability = context.get(_REQUEST_CAPABILITY_CONTEXT_KEY) if context is not None else None
+        typed_capability = _exact_request_capability(capability)
+        sealed = False
+        if typed_capability is not None:
+            capability_request = typed_capability.request
+            sealed = (
+                typed_capability.seal is _VALIDATION_CAPABILITY_SEAL
+                and context is not None
+                and context.get(_REQUEST_CAPABILITY_VERIFIED_KEY) is typed_capability
+                and self.request is capability_request
+            )
+        if not sealed:
+            canonical_request = HarmonizeProteoformAnalysisRequest.model_validate_json(
+                canonical_json_bytes(normalized_request(self.request)),
+                strict=True,
+            )
+            if self.request != canonical_request:
+                raise ValueError("M04-06 embedded request is not in canonical semantic order")
+        if sealed and typed_capability is not None:
+            bundle = typed_capability.bundle
+        else:
+            bundle = _expected_harmonization_bundle(self.request)
+        analysis = bundle.analysis
+        manifest = bundle.transformation_manifest
+        technical = bundle.technical_effect_diagnostics
+        invariants = bundle.invariant_diagnostics
+        findings = bundle.findings
+        disposition = bundle.disposition
+        request_hash = bundle.request_digest
+        policy_hash = bundle.policy_digest
+        config_hash = bundle.configuration_digest
         if self.analysis != analysis or self.transformation_manifest != manifest:
             raise ValueError("M04-06 analysis or transformation manifest does not replay")
         if not _semantic_tuple_equal(self.technical_effect_diagnostics, technical):
@@ -2161,25 +2497,19 @@ class ProteoformHarmonizationResult(FrozenModel):
             or self.request_digest != request_hash
             or self.policy_digest != policy_hash
             or self.configuration_digest != config_hash
-            or self.receipt
-            != expected_computation_receipt(
-                self.request,
-                disposition,
-                analysis,
-                manifest,
-            )
+            or self.receipt != bundle.receipt
             or self.disposition is not disposition
         ):
             raise ValueError("M04-06 output envelope contradicts its replayed request")
-        if self.support != expected_support(disposition):
+        if self.support != bundle.support:
             raise ValueError("M04-06 support is not deterministic")
-        if not _uncertainty_equal(self.uncertainty, expected_uncertainty(disposition)):
+        if not _uncertainty_equal(self.uncertainty, bundle.uncertainty):
             raise ValueError("M04-06 uncertainty is not deterministic")
-        if not _provenance_equal(self.provenance, expected_provenance(self.request)):
+        if not _provenance_equal(self.provenance, bundle.provenance):
             raise ValueError("M04-06 provenance does not close")
-        if not _semantic_tuple_equal(self.evidence, harmonization_evidence_index(self.request)):
+        if not _semantic_tuple_equal(self.evidence, bundle.evidence):
             raise ValueError("M04-06 evidence index does not close")
-        if not _semantic_tuple_equal(self.limitations, expected_limitations()):
+        if not _semantic_tuple_equal(self.limitations, bundle.limitations):
             raise ValueError("M04-06 limitations do not close")
         if self.human_review_required != (
             disposition is not ProteoformHarmonizationDisposition.ACCEPTED
@@ -2187,7 +2517,12 @@ class ProteoformHarmonizationResult(FrozenModel):
             raise ValueError("M04-06 human-review flag contradicts disposition")
         if self.completed_at != self.request.context.occurred_at:
             raise ValueError("M04-06 completion time must equal execution time")
-        if self.result_digest != result_payload_digest(self):
+        expected_result_digest = (
+            typed_capability.expected_result_digest
+            if typed_capability is not None and sealed
+            else result_payload_digest(self)
+        )
+        if self.result_digest != expected_result_digest:
             raise ValueError("M04-06 result digest does not match its canonical payload")
         return self
 
@@ -2502,6 +2837,10 @@ def _invariant_diagnostics(
 
 def derive_harmonization(
     request: HarmonizeProteoformAnalysisRequest,
+    *,
+    _request_digest: Sha256Digest | None = None,
+    _policy_digest: Sha256Digest | None = None,
+    _configuration_digest: Sha256Digest | None = None,
 ) -> tuple[
     ProteoformHarmonizedAnalysis | None,
     ProteoformTransformationManifest | None,
@@ -2553,15 +2892,15 @@ def derive_harmonization(
         transformation_manifest_digest,
     )
 
-    request_hash = canonical_request_digest(request)
+    request_hash = _request_digest or canonical_request_digest(request)
     active_profile_digest = profile_digest(active)
-    active_policy_digest = policy_digest(request.policy)
+    active_policy_digest = _policy_digest or policy_digest(request.policy)
     manifest_payload: dict[str, object] = {
         "artifact_receipt_digest": request.artifact_receipt.receipt_digest,
         "support_ledger_digest": ledger.ledger_digest,
         "profile_digest": active_profile_digest,
         "policy_digest": active_policy_digest,
-        "configuration_digest": configuration_digest(request.policy),
+        "configuration_digest": _configuration_digest or configuration_digest(request.policy),
         "stages": tuple(transformations),
         "manifest_digest": _M0406_ZERO_DIGEST,
     }
@@ -2858,6 +3197,9 @@ def expected_computation_receipt(
     disposition: ProteoformHarmonizationDisposition,
     analysis: ProteoformHarmonizedAnalysis | None = None,
     manifest: ProteoformTransformationManifest | None = None,
+    *,
+    _policy_digest: Sha256Digest | None = None,
+    _configuration_digest: Sha256Digest | None = None,
 ) -> ProteoformHarmonizationComputationReceipt:
     from glio_proteogen.contracts.m04_06.canonical import (  # noqa: PLC0415
         configuration_digest,
@@ -2881,8 +3223,8 @@ def expected_computation_receipt(
         support_ledger_digest=(
             request.support_ledger.ledger_digest if request.support_ledger is not None else None
         ),
-        policy_digest=policy_digest(request.policy),
-        configuration_digest=configuration_digest(request.policy),
+        policy_digest=_policy_digest or policy_digest(request.policy),
+        configuration_digest=(_configuration_digest or configuration_digest(request.policy)),
         profile_digest=profile_digest(active) if active is not None else None,
         analysis_digest=analysis.analysis_digest if analysis is not None else None,
         analysis_platform_level_ids=(analysis.platform_level_ids if analysis is not None else ()),
@@ -3039,13 +3381,19 @@ def harmonization_evidence_index(
     )
 
 
-def expected_provenance(request: HarmonizeProteoformAnalysisRequest) -> ProvenanceRecord:
+def expected_provenance(
+    request: HarmonizeProteoformAnalysisRequest,
+    *,
+    _request_digest: Sha256Digest | None = None,
+    _configuration_digest: Sha256Digest | None = None,
+) -> ProvenanceRecord:
     from glio_proteogen.contracts.m04_06.canonical import (  # noqa: PLC0415
         canonical_request_digest,
         configuration_digest,
     )
 
-    request_hash = canonical_request_digest(request)
+    request_hash = _request_digest or canonical_request_digest(request)
+    config_hash = _configuration_digest or configuration_digest(request.policy)
     digests = [request.artifact_receipt.receipt_digest, request_hash]
     if request.support_ledger is not None:
         digests.append(request.support_ledger.ledger_digest)
@@ -3058,7 +3406,7 @@ def expected_provenance(request: HarmonizeProteoformAnalysisRequest) -> Provenan
         module_version=M0406_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
         input_digests=tuple(sorted(digests)),
-        configuration_digest=configuration_digest(request.policy),
+        configuration_digest=config_hash,
         consent_decision_id=request.context.references.consent.decision_id,
         consent_state=request.context.references.consent.state,
         consent_policy_version=request.context.references.consent.policy_version,
@@ -3096,6 +3444,74 @@ def expected_limitations() -> tuple[Limitation, ...]:
             ),
             key=canonical_json_bytes,
         )
+    )
+
+
+def _expected_harmonization_bundle(
+    request: HarmonizeProteoformAnalysisRequest,
+    derived: tuple[
+        ProteoformHarmonizedAnalysis | None,
+        ProteoformTransformationManifest | None,
+        tuple[ProteoformTechnicalEffectDiagnostic, ...],
+        tuple[ProteoformInvariantDiagnostic, ...],
+    ]
+    | None = None,
+    *,
+    _digests: tuple[Sha256Digest, Sha256Digest, Sha256Digest] | None = None,
+) -> _ExpectedHarmonizationBundle:
+    """Derive every mutually dependent output region once from one sealed request."""
+
+    from glio_proteogen.contracts.m04_06.canonical import (  # noqa: PLC0415
+        canonical_request_digest,
+        configuration_digest,
+        policy_digest,
+    )
+
+    request_hash, policy_hash, config_hash = _digests or (
+        canonical_request_digest(request),
+        policy_digest(request.policy),
+        configuration_digest(request.policy),
+    )
+    analysis, manifest, technical, invariants = derived or derive_harmonization(
+        request,
+        _request_digest=request_hash,
+        _policy_digest=policy_hash,
+        _configuration_digest=config_hash,
+    )
+    findings = expected_harmonization_findings(
+        request,
+        manifest,
+        technical,
+        invariants,
+    )
+    disposition = expected_disposition(request, findings)
+    return _ExpectedHarmonizationBundle(
+        request_digest=request_hash,
+        policy_digest=policy_hash,
+        configuration_digest=config_hash,
+        analysis=analysis,
+        transformation_manifest=manifest,
+        technical_effect_diagnostics=technical,
+        invariant_diagnostics=invariants,
+        findings=findings,
+        disposition=disposition,
+        receipt=expected_computation_receipt(
+            request,
+            disposition,
+            analysis,
+            manifest,
+            _policy_digest=policy_hash,
+            _configuration_digest=config_hash,
+        ),
+        support=expected_support(disposition),
+        uncertainty=expected_uncertainty(disposition),
+        provenance=expected_provenance(
+            request,
+            _request_digest=request_hash,
+            _configuration_digest=config_hash,
+        ),
+        evidence=harmonization_evidence_index(request),
+        limitations=expected_limitations(),
     )
 
 
