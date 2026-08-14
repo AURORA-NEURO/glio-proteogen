@@ -531,12 +531,6 @@ class VariantPeptideHandoffRequirements(FrozenModel):
             media_types=frozenset({"application/vnd.glio-proteogen.m05-01.policy+json"}),
         )
 
-    @model_validator(mode="after")
-    def roles_are_exact(self) -> VariantPeptideHandoffRequirements:
-        if set(self.required_receipt_roles) != set(VariantPeptideHandoffRole):
-            raise ValueError("variant-peptide handoff requires every receipt role exactly once")
-        return self
-
 
 class PtmLocalizationProtocolSchema(FrozenModel):
     schema_id: Identifier
@@ -868,18 +862,14 @@ def preflight_authorized(value: object) -> None:
         "intended_use": "accepted",
     }
     reference_mapping = cast("dict[object, object]", references)
-    states: dict[str, object] = {}
     for role, expected_state in expected.items():
         control = dict.get(reference_mapping, role)
         if type(control) is not dict:
             raise ValueError("authorization preflight requires every exact control object")
         control_mapping = cast("dict[object, object]", control)
         state = dict.get(control_mapping, "state")
-        states[role] = state
         if state != expected_state:
             raise ValueError("PTM-localization protocol evaluation is not authorized")
-    if len(states) != len(expected):
-        raise ValueError("authorization preflight requires exactly seven controls")
 
 
 def _profile_supports_protocol(
