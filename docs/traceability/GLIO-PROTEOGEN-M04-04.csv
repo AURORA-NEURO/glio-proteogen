@@ -1,0 +1,39 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M04-04-R01,dossier:1248-1250,Own quality metric computation beneath C04 Proteoform/isoform inference,literal module identity operation and typed result,canonical_four_role_quality_qualified,G1
+M04-04-R02,dossier:1250,Compute assay-specific coverage detection completeness control and context quality,eight closed metric codes and exact fixed-point projections,canonical and fact_ledger_and_metric_math groups,G1
+M04-04-R03,dossier:1250-1252,Emit only typed quality profile and preserve parent context,closed result authority flags and parent target,parent_context_preserved_without_emission and all_authority_flags_false,G1
+M04-04-R04,dossier:1252,Exclude kinase ownership all-omics fusion and treatment recommendation,literal false authority flags and exact limitations,all_authority_flags_false and exact_three_limitations,G1
+M04-04-R05,dossier:1252,Do not mutate relabel erase disagreement infer identity or consent or infer negative from missing,frozen upstream and no-negative semantics,nonmutation_evidence_and_authority group,G1
+M04-04-R06,dossier:1254,Accept four raw-input roles and seven controls,full M04-03 request plus exact role ledger and raw preflight,canonical and strict_boundary groups,G1
+M04-04-R07,dossier:1256,Return quality profile provenance support uncertainty evidence limitations and parent context,fully replayed result envelope,canonical and uncertainty_provenance groups,G1
+M04-04-R08,dossier:1258-1262,Record architecture options while narrowing runtime to deterministic schema-first computation,model manifest zero executed models,manifest inspection and dependency audit,G1
+M04-04-R09,dossier:1264,Validate identity version units completeness assay support and parent quality,exact upstream profile fact and threshold bindings,profiles_versions_and_units and thresholds_support groups,G1
+M04-04-R10,dossier:1266,Represent seven uncertainty dimensions sensitivity and abstention,not-estimable uncertainty and closed safe failure,uncertainty group and required_metric_not_evaluable_abstains,G1
+M04-04-R11,dossier:1268,Require external review for critical discrepancy OOD override promotion exception or conflict,review required for nonqualified and optional warning,threshold disposition and review evidence,G1
+M04-04-R12,dossier:1270,Match quality references within deterministic locked rules and complete every supported profile,exact integer math 4 roles and 32 metrics,canonical metric math profile and benchmark evidence,G1
+M04-04-R13,dossier:1270,Provide versioned implementation declared uncertainty locked tests benchmark and safe failure,strict schemas public interfaces eval and benchmark,focused suites eval and benchmark reports,G1
+M04-04-R14,dossier:1272,Provide tests benchmark traceability risk data model reference review and rollback evidence,fixture docs eval benchmark and governed plans,static publication audit,G1
+M04-04-R15,dossier:1274,Bind owner safety and evidence gate to Data engineering S2 G1,literal contract plugin manifest and fixture fields,module identity assertions,G1
+M04-04-R16,dossier:1278-1280,Do not install registry object store event log anomaly model evidence graph probabilistic model or quantification model,stateless zero-model implementation and manifest,authority and dependency audits,G1
+M04-04-R17,dossier:1284,Require zero silent coercions,strict Pydantic and duplicate-free JSON reconstruction,strict JSON interface and contract cases,G1
+M04-04-R18,dossier:1285,Close hard invariants and preregistered deterministic tolerance,exact count partitions integer ratios threshold bands and result replay,G1 metric math threshold and result replay groups,G1
+M04-04-R19,dossier:1286,Narrow unsupported perturbations through abstention,closed unsupported profile and required metric abstention,profiles and thresholds groups,G1
+M04-04-R20,dossier:1287,Do not claim future calibration coverage from fixed-point aggregates,seven not-estimable dimensions and narrowed support,uncertainty and claims audits,G1
+M04-04-R21,dossier:1288,Prevent ownership consent violations and preserve audit and recovery,seven-control preflight immutable provenance and append-only supersession,strict boundary privacy authority and rollback evidence,G1
+M04-04-R22,locked-risk:upstream,Require exact full M04-03 result transitively containing genuine prior modules,FrozenModel replay and public genuine builders,exact_m0403_full_result_replay and transitive binding cases,G1
+M04-04-R23,locked-risk:safe-failure,Require ledger only for validated upstream and zero ledger traversal otherwise,disposition branch before ledger access,validated ledger requirement and two zero-traversal cases,G1
+M04-04-R24,locked-risk:ledger,Bind sealed ledger and four role facts exactly to validated inputs,self-digest structural closure plus semantic binding finding,fact ledger digest and binding cases,G1
+M04-04-R25,locked-risk:arithmetic,Use integer round-half-up at 1000000 ppm and never float,exact numerator denominator projection,ratio_round_half_up_exact and benchmark determinism,G1
+M04-04-R26,locked-risk:counts,Close all count partitions under signed 64-bit cap,strict count model validators,count_partitions_close and numerator_exceeds_denominator_rejected,G1
+M04-04-R27,locked-risk:states,Never map zero denominator missing unsupported indeterminate censored to negative,closed observation state and optional-value shapes,zero denominator censoring and no-negative cases,G1
+M04-04-R28,locked-risk:censoring,Permit censoring only for detection burden and retain ratio and count,exact detection state-count equivalence,censored_detection_state_retained and detection_censoring_shape_rejected,G1
+M04-04-R29,locked-risk:profiles,Require 4-32 profiles all roles disjoint domains and eight thresholds,closed reviewed profile and policy validators,profiles_versions_and_units group,G1
+M04-04-R30,locked-risk:thresholds,Close at-least and at-most pass warning fail bands,directional threshold model and deterministic status,threshold and disposition group,G1
+M04-04-R31,locked-risk:disposition,Quarantine over abstain over record and preserve optional warning,closed 14-code action map and precedence,thresholds_support_and_disposition group,G1
+M04-04-R32,locked-risk:totality,Emit four role objects and 32 metrics or zero on safe failures,closed result shape and replay,exact_eight_metrics_per_role and safe failure cases,G1
+M04-04-R33,locked-risk:evidence,Return exactly 12-45 current-layer evidence records without duplicating upstream,canonical evidence index,safe_failure_minimum_12_evidence and maximum_45_evidence,G1
+M04-04-R34,locked-risk:privacy,Exclude raw rows filenames secrets canaries and biological identifiers,closed typed aggregate output and recursive audit,recursive_canary_absent_from_result,G1
+M04-04-R35,locked-risk:interfaces,Expose 13 schema GET metadata-only POST and strict CLI with atomic new output,API CLI adapters with cap-before-decode and output checks,interface parity and boundary cases,G1
+M04-04-R36,locked-risk:replay,Recompute every derived metric finding receipt evidence provenance and result digest,canonical semantic helpers and result validator,result forgery and reorder cases,G1
+M04-04-R37,locked-risk:benchmark,Time exactly 25 maximum-shape public calls after one warmup,benchmark report with 500ms mean and 750ms p95 budgets,evals.m04_04.benchmark and release verifier,G1
+M04-04-R38,locked-risk:corpus,Lock eight groups 72 cases allocated 8 9 9 9 8 8 8 13,fixture declared executed exact closure,evals.m04_04.run report and release verifier,G1
