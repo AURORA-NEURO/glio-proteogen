@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from datetime import date, datetime
+from enum import Enum
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel
 
@@ -19,21 +20,52 @@ _ZERO_DIGEST = "sha256:" + ("0" * 64)
 
 
 def _python(value: Any) -> Any:  # noqa: ANN401 - recursive canonical JSON shape.
-    if isinstance(value, BaseModel):
-        return _python(value.model_dump(mode="python", exclude_none=False))
-    if isinstance(value, dict):
-        return {key: _python(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return tuple(_python(item) for item in value)
-    return deepcopy(value)
+    """Copy one semantic value without invoking caller-overridable traversal hooks."""
+
+    value_type = type(value)
+    value_mro = type.__getattribute__(value_type, "__mro__")
+    if BaseModel in value_mro:
+        storage = object.__getattribute__(value, "__dict__")
+        if type(storage) is not dict or any(type(key) is not str for key in dict.keys(storage)):
+            raise TypeError("M05-03 model storage must use exact string keys")
+        return {key: _python(dict.__getitem__(storage, key)) for key in dict.keys(storage)}
+    if value_type is dict:
+        mapping = cast("dict[object, object]", value)
+        if any(type(key) is not str for key in dict.keys(mapping)):
+            raise TypeError("M05-03 canonical objects require exact string keys")
+        return {
+            cast("str", key): _python(dict.__getitem__(mapping, key)) for key in dict.keys(mapping)
+        }
+    if value_type is list:
+        return tuple(_python(item) for item in list.__iter__(value))
+    if value_type is tuple:
+        return tuple(_python(item) for item in tuple.__iter__(value))
+    if Enum in value_mro:
+        return _python(object.__getattribute__(value, "_value_"))
+    if value is None or value_type in {bool, int, float, str, bytes, date, datetime}:
+        return value
+    if dict in value_mro or list in value_mro or tuple in value_mro:
+        raise TypeError("M05-03 canonical collections must be exact built-ins")
+    raise TypeError(f"unsupported M05-03 canonical value: {value_type.__name__}")
 
 
 def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    return dict(_python(value))
+    data = _python(value)
+    if type(data) is not dict:
+        raise TypeError("M05-03 canonical model payload must be an object")
+    return cast("dict[str, Any]", data)
+
+
+def _sequence(values: list[Any] | tuple[Any, ...]) -> tuple[Any, ...]:
+    if type(values) is list:
+        return tuple(list.__iter__(values))
+    if type(values) is tuple:
+        return tuple.__getitem__(values, slice(None))
+    raise TypeError("M05-03 canonical collections must be exact lists or tuples")
 
 
 def _sorted(values: list[Any] | tuple[Any, ...]) -> tuple[Any, ...]:
-    return tuple(sorted(values, key=canonical_json_bytes))
+    return tuple(sorted(_sequence(values), key=canonical_json_bytes))
 
 
 def normalized_parser(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
@@ -73,13 +105,13 @@ def artifact_mapping_digest(
 ) -> Sha256Digest:
     """Bind the complete canonical four-role artifact mapping."""
 
-    return sha256_digest(_sorted(tuple(normalized_artifact(item) for item in values)))
+    return sha256_digest(_sorted(tuple(normalized_artifact(item) for item in _sequence(values))))
 
 
 def normalized_document(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data = _dump(value)
-    if "localization_states" in data:
-        data["localization_states"] = _sorted(data["localization_states"])
+    if "vocabularies" in data:
+        data["vocabularies"] = _sorted(data["vocabularies"])
     return data
 
 
@@ -88,8 +120,9 @@ def document_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 
 def normalized_lineage_result(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    data = normalized_m0502_result_payload(value)
-    data["result_digest"] = _dump(value)["result_digest"]
+    source = _dump(value)
+    data = normalized_m0502_result_payload(source)
+    data["result_digest"] = source["result_digest"]
     return data
 
 
@@ -127,7 +160,9 @@ def validated_inputs_digest(
 ) -> Sha256Digest:
     """Bind the canonical zero-or-four validated-input region."""
 
-    return sha256_digest(_sorted(tuple(normalized_validated_input(item) for item in values)))
+    return sha256_digest(
+        _sorted(tuple(normalized_validated_input(item) for item in _sequence(values)))
+    )
 
 
 def normalized_diagnostic(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
@@ -151,7 +186,7 @@ def receipt_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     source = _dump(value)
-    data = deepcopy(source)
+    data = source
     data["result_digest"] = _ZERO_DIGEST
     data["request"] = normalized_request(data["request"])
     data["receipt"] = normalized_receipt(data["receipt"])
