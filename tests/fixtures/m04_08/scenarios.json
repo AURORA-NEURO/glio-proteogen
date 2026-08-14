@@ -1,0 +1,32 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-08",
+  "phase": "abi_independent_scaffold",
+  "dependency": {
+    "module_id": "GLIO-PROTEOGEN-M04-07",
+    "state": "public_abi_not_frozen",
+    "genuine_e2e_allowed": false
+  },
+  "cases": [
+    {"case_id": "schema_inventory", "kind": "owned_contract"},
+    {"case_id": "canonical_digest_helpers", "kind": "owned_contract"},
+    {"case_id": "fixed_archive_paths", "kind": "owned_contract"},
+    {"case_id": "bounded_archive_shape", "kind": "owned_contract"},
+    {"case_id": "external_signature_boundary", "kind": "owned_contract"},
+    {"case_id": "reproduction_evidence_inventory", "kind": "owned_contract"},
+    {"case_id": "authority_ceiling", "kind": "owned_contract"},
+    {"case_id": "parent_context_only", "kind": "owned_contract"},
+    {"case_id": "m0407_artifact_binding_fails_closed", "kind": "dependency_firewall"},
+    {"case_id": "runtime_build_fails_closed", "kind": "dependency_firewall"},
+    {"case_id": "runtime_manifest_fails_closed", "kind": "dependency_firewall"},
+    {"case_id": "runtime_verify_fails_closed", "kind": "dependency_firewall"}
+  ],
+  "deferred_evidence": [
+    "genuine_m0401_through_m0407_chain",
+    "signed_package_replay",
+    "clean_environment_bit_reproduction",
+    "locked_benchmark",
+    "weighted_coverage",
+    "api_cli_plugin_parity",
+    "rollback_recovery_drill"
+  ]
+}
