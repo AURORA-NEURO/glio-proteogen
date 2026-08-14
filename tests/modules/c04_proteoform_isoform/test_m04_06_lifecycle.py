@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from copy import copy
 from datetime import timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 
 import pytest
-from evals.m04_06.run import build_scenario_request
+from evals.m04_06.run import (
+    build_first_excess_scenario_request,
+    build_maximum_scenario_request,
+    build_scenario_request,
+)
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
@@ -17,9 +21,15 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m04_05 import result_payload_digest as m0405_result_digest
 from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_OBSERVATIONS,
+    M0406_MAX_TARGETS,
+    M0406_UPSTREAM_DETECTOR_COUNT,
     HarmonizeProteoformAnalysisRequest,
     ProteoformHarmonizationDisposition,
+    ProteoformHarmonizationFindingCode,
     ProteoformHarmonizationResult,
+    ProteoformSupportLedger,
+    support_ledger_digest,
 )
 from glio_proteogen.contracts.m04_06 import (
     result_payload_digest as m0406_result_digest,
@@ -41,10 +51,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
     M0406Service,
     ProteoformHarmonizationAuthorizationError,
     ValidatedM0406Request,
+    execute_proteoform_harmonization,
     harmonize_proteoform_analysis,
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
     engine as m0406_engine,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    plugin as m0406_plugin,
 )
 
 if TYPE_CHECKING:
@@ -84,6 +98,54 @@ class _CollidingKey:
         return other == "context"
 
 
+class _DictSubclass(dict[str, object]):
+    pass
+
+
+class _HostileList(list[object]):
+    touched = False
+
+    def __iter__(self) -> Iterator[object]:
+        type(self).touched = True
+        raise AssertionError
+
+    def __len__(self) -> int:
+        type(self).touched = True
+        raise AssertionError
+
+
+class _HostileTuple(tuple[object, ...]):
+    __slots__ = ()
+    touched = False
+
+    def __iter__(self) -> Iterator[object]:
+        type(self).touched = True
+        raise AssertionError
+
+    def __len__(self) -> int:
+        type(self).touched = True
+        raise AssertionError
+
+
+class _HostileSequence(Sequence[object]):
+    def __init__(self) -> None:
+        self.touched = False
+
+    @overload
+    def __getitem__(self, index: int) -> object: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[object]: ...
+
+    def __getitem__(self, index: int | slice) -> object | Sequence[object]:
+        self.touched = True
+        raise AssertionError(index)
+
+    def __len__(self) -> int:
+        self.touched = True
+        raise AssertionError
+
+
 @pytest.fixture(scope="module")
 def accepted_request() -> HarmonizeProteoformAnalysisRequest:
     return build_scenario_request("accepted")
@@ -102,6 +164,46 @@ def test_engine_service_plugin_and_json_model_paths_are_identical(
 
     assert direct == engine == serviced == plugin.run(model_token) == plugin.run(json_token)
     assert direct.disposition is ProteoformHarmonizationDisposition.ACCEPTED
+
+
+def test_installed_maximum_and_first_excess_are_total_without_truncation() -> None:
+    maximum = build_maximum_scenario_request()
+    maximum_ledger = maximum.support_ledger
+    assert maximum_ledger is not None
+    maximum_result = harmonize_proteoform_analysis(maximum)
+    assert maximum.artifact_receipt.target_count == M0406_MAX_TARGETS
+    assert len(maximum_ledger.observations) == M0406_MAX_OBSERVATIONS
+    assert maximum_result.disposition is ProteoformHarmonizationDisposition.ACCEPTED
+    assert maximum_result.analysis is not None
+    assert maximum_result.analysis.target_count == M0406_MAX_TARGETS
+    assert maximum_result.transformation_manifest is not None
+
+    first_excess = build_first_excess_scenario_request()
+    first_excess_count = M0406_MAX_TARGETS + 1
+    first_excess_result = harmonize_proteoform_analysis(first_excess)
+    assert first_excess.artifact_receipt.target_count == first_excess_count
+    assert len(first_excess.artifact_receipt.targets) == first_excess_count
+    assert len(first_excess.artifact_result.artifact_posteriors) == (
+        first_excess_count * M0406_UPSTREAM_DETECTOR_COUNT
+    )
+    assert first_excess.support_ledger is None
+    assert first_excess_result.disposition is ProteoformHarmonizationDisposition.ABSTAINED
+    assert first_excess_result.analysis is None
+    assert first_excess_result.transformation_manifest is None
+    assert {item.code for item in first_excess_result.findings} == {
+        ProteoformHarmonizationFindingCode.UPSTREAM_SHAPE_UNSUPPORTED
+    }
+    assert first_excess_result.request.artifact_result == first_excess.artifact_result
+    assert first_excess_result.request.artifact_receipt == first_excess.artifact_receipt
+
+    owned_excess_payload = maximum_ledger.model_dump(mode="python", exclude={"ledger_digest"})
+    owned_excess_payload["observations"] = (
+        *maximum_ledger.observations,
+        maximum_ledger.observations[0],
+    )
+    owned_excess_payload["ledger_digest"] = support_ledger_digest(owned_excess_payload)
+    with pytest.raises(ValidationError):
+        ProteoformSupportLedger.model_validate(owned_excess_payload, strict=True)
 
 
 def test_api_and_cli_parse_once_then_execute_validated(
@@ -269,6 +371,7 @@ def test_private_request_capability_rejects_copies_and_post_issue_mutation() -> 
         artifact_result=capability.artifact_result,
         artifact_snapshot_digest=capability.artifact_snapshot_digest,
         bundle=capability.bundle,
+        bundle_snapshot_digest=capability.bundle_snapshot_digest,
         expected_result_digest=capability.expected_result_digest,
     )
     model_copy_result = result.model_copy(update={"request": request.model_copy()})
@@ -279,6 +382,16 @@ def test_private_request_capability_rejects_copies_and_post_issue_mutation() -> 
     ):
         with pytest.raises(TypeError, match="request-validation capability"):
             _validate_result_with_capability(candidate, forged_capability)
+
+    original_support = bundle.support
+    object.__setattr__(
+        bundle,
+        "support",
+        original_support.model_copy(update={"rationale": "Forged cached support."}),
+    )
+    with pytest.raises(TypeError, match="request-validation capability"):
+        _validate_result_with_capability(result, capability)
+    object.__setattr__(bundle, "support", original_support)
 
     object.__setattr__(request, "supersedes_result_digest", "sha256:" + ("f" * 64))
     with pytest.raises(TypeError, match="request-validation capability"):
@@ -373,3 +486,103 @@ def test_oversized_shallow_mapping_fails_without_upstream_access() -> None:
     with pytest.raises(ProteoformHarmonizationAuthorizationError):
         harmonize_proteoform_analysis(candidate)
     assert upstream.accesses == ledger.accesses == 0
+
+
+def test_engine_plain_value_firewall_closes_every_container_limit(
+    accepted_request: HarmonizeProteoformAnalysisRequest,
+) -> None:
+    with pytest.raises(ProteoformHarmonizationAuthorizationError):
+        m0406_engine.preflight_proteoform_harmonization_authorization(object())
+    assert m0406_engine._member(object(), "context") is m0406_engine._MISSING
+    with pytest.raises(m0406_engine._InvalidPlainValueError):
+        m0406_engine._validate_request_members(object())
+    assert m0406_engine._state_text(object()) is None
+
+    corrupted = accepted_request.model_copy()
+    storage = cast(
+        "dict[object, object]",
+        object.__getattribute__(corrupted, "__dict__"),
+    )
+    storage[object()] = None
+    with pytest.raises(m0406_engine._InvalidPlainValueError):
+        m0406_engine._plain_value({}, _depth=97)
+    with pytest.raises(m0406_engine._InvalidPlainValueError):
+        m0406_engine._plain_value({}, _budget=[0])
+    for candidate in (
+        corrupted,
+        _DictSubclass(),
+        [None] * 4097,
+        (None,) * 4097,
+    ):
+        with pytest.raises(m0406_engine._InvalidPlainValueError):
+            m0406_engine._plain_value(candidate)
+
+    hostile = _HostileValue()
+    with pytest.raises(m0406_engine._InvalidPlainValueError):
+        m0406_engine._plain_value(hostile)
+    assert hostile.accesses == 0
+
+
+def test_engine_rejects_container_subclasses_and_sequences_without_access() -> None:
+    _HostileList.touched = False
+    _HostileTuple.touched = False
+    hostile_list = _HostileList([None])
+    hostile_tuple = _HostileTuple((None,))
+    hostile_sequence = _HostileSequence()
+
+    for candidate in (hostile_list, hostile_tuple, hostile_sequence):
+        with pytest.raises(m0406_engine._InvalidPlainValueError):
+            m0406_engine._plain_value({"nested": candidate})
+
+    assert _HostileList.touched is False
+    assert _HostileTuple.touched is False
+    assert hostile_sequence.touched is False
+
+
+def test_plugin_mutated_request_exception_fails_closed() -> None:
+    plugin = M0406Plugin(M0406Service())
+    token = plugin.validate(build_scenario_request("accepted"))
+    storage = cast(
+        "dict[str, object]",
+        object.__getattribute__(token.request, "__dict__"),
+    )
+    del storage["context"]
+
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
+def test_plugin_digest_exception_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plugin = M0406Plugin(M0406Service())
+    token = plugin.validate(build_scenario_request("accepted"))
+
+    def digest_failure(_request: object) -> str:
+        raise RuntimeError
+
+    monkeypatch.setattr(m0406_plugin, "canonical_request_digest", digest_failure)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
+def test_preparation_preserves_missing_defaults_without_ledger_traversal(
+    accepted_request: HarmonizeProteoformAnalysisRequest,
+) -> None:
+    payload = accepted_request.model_dump(mode="python")
+    payload.pop("operation")
+    payload["support_ledger"] = None
+
+    prepared, _capability = m0406_engine._prepare_harmonization_request_candidate(payload)
+
+    assert "operation" not in prepared
+    assert prepared["support_ledger"] is None
+
+
+def test_public_kernel_wrapper_executes_the_validated_contract(
+    accepted_request: HarmonizeProteoformAnalysisRequest,
+) -> None:
+    execution = execute_proteoform_harmonization(accepted_request)
+    assert execution.analysis is not None
+    assert execution.analysis.target_count == len(accepted_request.artifact_receipt.targets)
+    assert execution.transformation_manifest is not None

@@ -30,13 +30,20 @@ from glio_proteogen.contracts.m04_05 import (
     evidence_ledger_digest,
 )
 from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_APPLIED_ADJUSTMENTS,
     M0406_MAX_CANONICAL_REQUEST_BYTES,
     M0406_MAX_EVIDENCE,
     M0406_MAX_FINDINGS,
+    M0406_MAX_INVARIANT_TARGET_REFS,
     M0406_MAX_INVARIANTS,
+    M0406_MAX_LEVEL_SHIFTS,
+    M0406_MAX_LEVELS_PER_FACTOR,
     M0406_MAX_OBSERVATIONS,
     M0406_MAX_PROFILES,
+    M0406_MAX_STAGE_ESTIMATION_ANCHORS,
+    M0406_MAX_STAGE_VALIDATION_ANCHORS,
     M0406_MAX_TARGETS,
+    M0406_MAX_UPSTREAM_TARGETS,
     M0406_RATE_SCALE,
     M0406_UPSTREAM_DETECTOR_COUNT,
     ContractName,
@@ -100,7 +107,8 @@ ROOT: Final = Path(__file__).parents[2]
 SCENARIO_PATH: Final = ROOT / "tests" / "fixtures" / "m04_06" / "scenarios.json"
 _EXPECTED_GROUP_COUNT: Final = 8
 _EXPECTED_CASE_COUNT: Final = 56
-_CANONICAL_TARGET_COUNT: Final = 38
+_CANONICAL_TARGET_COUNT: Final = M0406_MAX_TARGETS
+_FIRST_EXCESS_TARGET_COUNT: Final = M0406_MAX_TARGETS + 1
 _REFERENCE_COORDINATE_PPM: Final = 500_000
 _INVARIANT_SCORE_PPM: Final = 200_000
 _FACTOR_COUNT: Final = 8
@@ -108,8 +116,20 @@ _CENSORING_BOUND_PPM: Final = 321_000
 _RANK_LEFT_COORDINATE_PPM: Final = 650_000
 _EXPECTED_RESULT_EVIDENCE_CAP: Final = 16
 _EXPECTED_FINDING_CAP: Final = 14
+_EXPECTED_BENCHMARK_WARMUPS: Final = 1
+_EXPECTED_BENCHMARK_ITERATIONS: Final = 25
+_EXPECTED_BENCHMARK_MEAN_BUDGET_NS: Final = 2_000_000_000
+_EXPECTED_BENCHMARK_P95_BUDGET_NS: Final = 3_000_000_000
 _HTTP_OK: Final = 200
 _OPAQUE_DIGEST_LENGTH: Final = 64
+_INVARIANT_TARGET_LABELS: Final[dict[str, str]] = {
+    "invariant.composition.left": "technical.platform.estimation.reference",
+    "invariant.composition.right": "technical.batch.estimation.reference",
+    "invariant.direction.left": "technical.laboratory.estimation.reference",
+    "invariant.direction.right": "technical.build.estimation.reference",
+    "invariant.rank.left": "technical.depth.estimation.reference",
+    "invariant.rank.right": "technical.purity.estimation.reference",
+}
 _OPAQUE_GRAPH_ID_FIELDS: Final[dict[str, ProteoformHarmonizationIdentifierNamespace]] = {
     "request_id": "request",
     "policy_id": "policy",
@@ -158,8 +178,32 @@ class ScenarioGroup(TypedDict):
     case_ids: list[str]
 
 
+class InstalledCapacity(TypedDict):
+    upstream_receipt_targets: int
+    targets: int
+    observations: int
+    levels_per_factor: int
+    level_shifts: int
+    stage_estimation_anchors: int
+    stage_validation_anchors: int
+    invariant_target_references: int
+    applied_adjustments: int
+
+
+class RepresentativeBenchmark(TypedDict):
+    warmup_calls: int
+    timed_calls: int
+    targets: int
+    observations: int
+    mean_budget_ns: int
+    p95_budget_ns: int
+    timed_boundary: str
+
+
 class Corpus(TypedDict):
     module_id: str
+    installed_capacity: InstalledCapacity
+    representative_benchmark: RepresentativeBenchmark
     scenario_groups: list[ScenarioGroup]
 
 
@@ -225,33 +269,15 @@ def _canonical_labels() -> tuple[tuple[str, ProteoformEvidenceUnitKind], ...]:
         labels.extend(
             (
                 f"technical.{factor.value}.{phase}.{side}",
-                ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
+                (
+                    ProteoformEvidenceUnitKind.PROTEOFORM_CANDIDATE
+                    if factor is ProteoformNormalizationFactor.PLATFORM and phase == "estimation"
+                    else ProteoformEvidenceUnitKind.SPECTRAL_FEATURE
+                ),
             )
             for phase in ("estimation", "validation")
             for side in ("reference", "comparison")
         )
-    labels.extend(
-        (
-            (
-                "invariant.direction.left",
-                ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
-            ),
-            (
-                "invariant.direction.right",
-                ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
-            ),
-            ("invariant.rank.left", ProteoformEvidenceUnitKind.SPECTRAL_FEATURE),
-            ("invariant.rank.right", ProteoformEvidenceUnitKind.SPECTRAL_FEATURE),
-            (
-                "invariant.composition.left",
-                ProteoformEvidenceUnitKind.PROTEOFORM_CANDIDATE,
-            ),
-            (
-                "invariant.composition.right",
-                ProteoformEvidenceUnitKind.SPECTRAL_FEATURE,
-            ),
-        )
-    )
     return tuple(labels)
 
 
@@ -266,7 +292,7 @@ def _upstream_id(namespace: str, value: object) -> str:
 def _expanded_artifact_request(
     target_count: int,
 ) -> tuple[DetectProteoformArtifactsRequest, dict[str, str]]:
-    if not _CANONICAL_TARGET_COUNT <= target_count <= M0406_MAX_TARGETS:
+    if not _CANONICAL_TARGET_COUNT <= target_count <= M0406_MAX_UPSTREAM_TARGETS:
         raise ScenarioClosureError
     base = build_m0405_request("canonical_clear")
     ledger = base.evidence_ledger
@@ -281,6 +307,12 @@ def _expanded_artifact_request(
         for index in range(target_count - len(labels))
     )
     target_ids = {label: _target_id(label, kind) for label, kind in labels}
+    target_ids.update(
+        {
+            invariant_label: target_ids[technical_label]
+            for invariant_label, technical_label in _INVARIANT_TARGET_LABELS.items()
+        }
+    )
     events: list[ProteoformArtifactEvidenceEvent] = []
     for label, kind in labels:
         target_id = target_ids[label]
@@ -306,7 +338,7 @@ def _expanded_artifact_request(
     payload = ledger.model_dump(mode="python", exclude={"ledger_digest"})
     payload["ledger_id"] = _upstream_id(
         "ledger",
-        {"m0406_targets": tuple(sorted(target_ids.values()))},
+        {"m0406_targets": tuple(sorted(set(target_ids.values())))},
     )
     payload["events"] = tuple(events)
     payload["ledger_digest"] = evidence_ledger_digest(payload)
@@ -366,6 +398,57 @@ def _observation(  # noqa: PLR0913 - explicit receipt-bound observation builder.
     )
 
 
+def _technical_anchor(
+    factor: ProteoformNormalizationFactor,
+    phase: str,
+) -> str:
+    if phase == "estimation":
+        if factor in {
+            ProteoformNormalizationFactor.PLATFORM,
+            ProteoformNormalizationFactor.BATCH,
+        }:
+            return _oid("anchor", {"invariant": "composition"})
+        if factor in {
+            ProteoformNormalizationFactor.LABORATORY,
+            ProteoformNormalizationFactor.BUILD,
+        }:
+            return _oid("anchor", {"invariant": "direction"})
+    return _oid("anchor", {"purpose": phase, "factor": factor.value})
+
+
+def _technical_group(
+    factor: ProteoformNormalizationFactor,
+    phase: str,
+) -> str:
+    if phase == "estimation":
+        if factor in {
+            ProteoformNormalizationFactor.PLATFORM,
+            ProteoformNormalizationFactor.BATCH,
+        }:
+            return _oid("group", {"invariant": "composition"})
+        if factor is ProteoformNormalizationFactor.LABORATORY:
+            return _oid("group", {"invariant": "direction", "side": "left"})
+        if factor is ProteoformNormalizationFactor.BUILD:
+            return _oid("group", {"invariant": "direction", "side": "right"})
+    return _oid("group", {"purpose": "technical"})
+
+
+def _technical_reference_coordinate(
+    factor: ProteoformNormalizationFactor,
+    phase: str,
+) -> int:
+    if phase != "estimation":
+        return _REFERENCE_COORDINATE_PPM
+    return {
+        ProteoformNormalizationFactor.PLATFORM: 200_000,
+        ProteoformNormalizationFactor.BATCH: 800_000,
+        ProteoformNormalizationFactor.LABORATORY: 600_000,
+        ProteoformNormalizationFactor.BUILD: 400_000,
+        ProteoformNormalizationFactor.DEPTH: 650_000,
+        ProteoformNormalizationFactor.PURITY: 450_000,
+    }.get(factor, _REFERENCE_COORDINATE_PPM)
+
+
 def _canonical_observations(
     receipt: ProteoformArtifactHarmonizationReceipt,
     target_ids: dict[str, str],
@@ -375,14 +458,16 @@ def _canonical_observations(
     for index, factor in enumerate(ProteoformNormalizationFactor, start=1):
         delta = index * 1_000
         for phase in ("estimation", "validation"):
-            anchor_id = _oid("anchor", {"purpose": phase, "factor": factor.value})
+            anchor_id = _technical_anchor(factor, phase)
+            biological_group_id = _technical_group(factor, phase)
+            reference_coordinate = _technical_reference_coordinate(factor, phase)
             observations.extend(
                 (
                     _observation(
                         label=f"technical.{factor.value}.{phase}.reference",
                         anchor_id=anchor_id,
-                        biological_group_id=_oid("group", {"purpose": "technical"}),
-                        coordinate_ppm=_REFERENCE_COORDINATE_PPM,
+                        biological_group_id=biological_group_id,
+                        coordinate_ppm=reference_coordinate,
                         comparison_factor=None,
                         target_ids=target_ids,
                         receipt_units=receipt_units,
@@ -390,72 +475,14 @@ def _canonical_observations(
                     _observation(
                         label=f"technical.{factor.value}.{phase}.comparison",
                         anchor_id=anchor_id,
-                        biological_group_id=_oid("group", {"purpose": "technical"}),
-                        coordinate_ppm=_REFERENCE_COORDINATE_PPM + delta,
+                        biological_group_id=biological_group_id,
+                        coordinate_ppm=reference_coordinate + delta,
                         comparison_factor=factor,
                         target_ids=target_ids,
                         receipt_units=receipt_units,
                     ),
                 )
             )
-    observations.extend(
-        (
-            _observation(
-                label="invariant.direction.left",
-                anchor_id=_oid("anchor", {"invariant": "direction"}),
-                biological_group_id=_oid("group", {"invariant": "direction", "side": "left"}),
-                coordinate_ppm=600_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-            _observation(
-                label="invariant.direction.right",
-                anchor_id=_oid("anchor", {"invariant": "direction"}),
-                biological_group_id=_oid("group", {"invariant": "direction", "side": "right"}),
-                coordinate_ppm=400_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-            _observation(
-                label="invariant.rank.left",
-                anchor_id=_oid("anchor", {"invariant": "rank", "side": "left"}),
-                biological_group_id=_oid("group", {"invariant": "rank"}),
-                coordinate_ppm=650_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-            _observation(
-                label="invariant.rank.right",
-                anchor_id=_oid("anchor", {"invariant": "rank", "side": "right"}),
-                biological_group_id=_oid("group", {"invariant": "rank"}),
-                coordinate_ppm=450_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-            _observation(
-                label="invariant.composition.left",
-                anchor_id=_oid("anchor", {"invariant": "composition"}),
-                biological_group_id=_oid("group", {"invariant": "composition"}),
-                coordinate_ppm=200_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-            _observation(
-                label="invariant.composition.right",
-                anchor_id=_oid("anchor", {"invariant": "composition"}),
-                biological_group_id=_oid("group", {"invariant": "composition"}),
-                coordinate_ppm=800_000,
-                comparison_factor=None,
-                target_ids=target_ids,
-                receipt_units=receipt_units,
-            ),
-        )
-    )
     for label, target_id in target_ids.items():
         if not label.startswith("capacity."):
             continue
@@ -510,7 +537,10 @@ def _support_ledger(
     target_ids: dict[str, str],
 ) -> ProteoformSupportLedger:
     payload: dict[str, object] = {
-        "ledger_id": _oid("ledger", {"target_ids": tuple(sorted(target_ids.values()))}),
+        "ledger_id": _oid(
+            "ledger",
+            {"target_ids": tuple(sorted(set(target_ids.values())))},
+        ),
         "version": "1.0.0",
         "artifact_result_digest": receipt.artifact_result_digest,
         "artifact_receipt_digest": receipt.receipt_digest,
@@ -535,12 +565,8 @@ def _profile(
             ordinal=index,
             factor=factor,
             reference_level_id=_oid("level", {"factor": factor.value, "side": "reference"}),
-            estimation_anchor_ids=(
-                _oid("anchor", {"purpose": "estimation", "factor": factor.value}),
-            ),
-            validation_anchor_ids=(
-                _oid("anchor", {"purpose": "validation", "factor": factor.value}),
-            ),
+            estimation_anchor_ids=(_technical_anchor(factor, "estimation"),),
+            validation_anchor_ids=(_technical_anchor(factor, "validation"),),
         )
         for index, factor in enumerate(ProteoformNormalizationFactor, start=1)
     )
@@ -706,6 +732,19 @@ def build_maximum_scenario_request() -> HarmonizeProteoformAnalysisRequest:
     return _scenario_for_target_count(M0406_MAX_TARGETS).request
 
 
+def build_first_excess_scenario_request() -> HarmonizeProteoformAnalysisRequest:
+    """Return a genuine cleared 33-target M04-05 chain as typed M04-06 safe failure."""
+
+    artifact_request, _target_ids = _expanded_artifact_request(_FIRST_EXCESS_TARGET_COUNT)
+    return _request_for_artifact_result(detect_proteoform_artifacts(artifact_request))
+
+
+def build_first_excess_scenario_result() -> ProteoformHarmonizationResult:
+    """Return the deterministic no-truncation result for the first excess target count."""
+
+    return harmonize_proteoform_analysis(build_first_excess_scenario_request())
+
+
 def build_capacity_scenario_request() -> HarmonizeProteoformAnalysisRequest:
     """Compatibility alias for the installed-maximum scenario request."""
 
@@ -860,7 +899,9 @@ def _genuine_closure_checks(scenario: Scenario) -> list[EvalCheck]:
                 and ledger.artifact_target_binding_digest
                 == target_binding_digest(request.artifact_receipt.targets)
             ),
-            detail="support ledger closes over all 38 projected artifact targets",
+            detail=(
+                f"support ledger closes over all {M0406_MAX_TARGETS} projected artifact targets"
+            ),
         ),
         _scenario(
             "every_observation_binds_all_seven_m0405_posteriors_and_mask_action",
@@ -896,7 +937,7 @@ def _genuine_closure_checks(scenario: Scenario) -> list[EvalCheck]:
                     for item in ledger.observations
                 )
             ),
-            detail="all 38 observations carry exactly all eight factors",
+            detail=(f"all {M0406_MAX_OBSERVATIONS} observations carry exactly all eight factors"),
         ),
         _scenario(
             "canonical_clean_harmonization_is_accepted",
@@ -1184,11 +1225,10 @@ def _invariant_checks(scenario: Scenario) -> list[EvalCheck]:
     )
     direction_failure = harmonize_proteoform_analysis(direction_request)
 
-    composition_target = scenario.target_ids["invariant.composition.left"]
+    composition_target = scenario.target_ids["invariant.composition.right"]
     composition_request = _with_observation(
         scenario.request,
         composition_target,
-        support_coordinate_ppm=200_000,
         factor_levels=_factor_levels(ProteoformNormalizationFactor.PLATFORM),
     )
     composition_failure = harmonize_proteoform_analysis(composition_request)
@@ -1395,14 +1435,38 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
     capacity_ledger = capacity.support_ledger
     if capacity_ledger is None:
         raise ScenarioClosureError
-    first_excess = _fails(
+    capacity_result = harmonize_proteoform_analysis(capacity)
+    first_excess_ledger_payload = capacity_ledger.model_dump(
+        mode="python", exclude={"ledger_digest"}
+    )
+    first_excess_ledger_payload["observations"] = (
+        *capacity_ledger.observations,
+        capacity_ledger.observations[0],
+    )
+    first_excess_ledger_payload["ledger_digest"] = support_ledger_digest(
+        first_excess_ledger_payload
+    )
+    first_excess_collection = _fails(
         lambda: ProteoformSupportLedger.model_validate(
-            {
-                **capacity_ledger.model_dump(mode="python"),
-                "observations": (*capacity_ledger.observations, capacity_ledger.observations[0]),
-            },
+            first_excess_ledger_payload,
             strict=True,
         )
+    )
+    first_excess_request = build_first_excess_scenario_request()
+    first_excess_result = harmonize_proteoform_analysis(first_excess_request)
+    first_excess_upstream = first_excess_request.artifact_result
+    first_excess_totality = (
+        first_excess_request.artifact_receipt.target_count == _FIRST_EXCESS_TARGET_COUNT
+        and len(first_excess_request.artifact_receipt.targets) == _FIRST_EXCESS_TARGET_COUNT
+        and len(first_excess_upstream.artifact_posteriors)
+        == _FIRST_EXCESS_TARGET_COUNT * M0406_UPSTREAM_DETECTOR_COUNT
+        and first_excess_request.support_ledger is None
+        and first_excess_result.disposition is ProteoformHarmonizationDisposition.ABSTAINED
+        and first_excess_result.analysis is None
+        and first_excess_result.transformation_manifest is None
+        and {item.code for item in first_excess_result.findings}
+        == {ProteoformHarmonizationFindingCode.UPSTREAM_SHAPE_UNSUPPORTED}
+        and first_excess_result.request.artifact_receipt.target_count == _FIRST_EXCESS_TARGET_COUNT
     )
     schemas = {name: contract_json_schema(name) for name in _SCHEMA_NAMES}
     request_meta = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
@@ -1460,6 +1524,8 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
             passed=(
                 capacity.artifact_receipt.target_count == M0406_MAX_TARGETS
                 and len(capacity_ledger.observations) == M0406_MAX_OBSERVATIONS
+                and capacity_result.analysis is not None
+                and capacity_result.analysis.target_count == M0406_MAX_TARGETS
                 and len(capacity.policy.profiles) <= M0406_MAX_PROFILES
                 and capacity.policy.max_absolute_shift_ppm <= M0406_RATE_SCALE
                 and M0406_MAX_EVIDENCE == _EXPECTED_RESULT_EVIDENCE_CAP
@@ -1473,7 +1539,8 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "first_excess_collection_or_integer_cap_is_rejected",
             passed=(
-                first_excess
+                first_excess_collection
+                and first_excess_totality
                 and _fails(
                     lambda: request.policy.model_copy(
                         update={"max_absolute_shift_ppm": M0406_RATE_SCALE + 1}
@@ -1486,7 +1553,11 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
                     )
                 )
             ),
-            detail="513th observation and first coordinate-scale excess reject",
+            detail=(
+                f"target {_FIRST_EXCESS_TARGET_COUNT} upstream is preserved and abstains without "
+                f"truncation; owned observation {_FIRST_EXCESS_TARGET_COUNT} and the first "
+                "coordinate-scale excess reject"
+            ),
         ),
         _scenario(
             "canonical_request_exact_4mib_cap_and_first_excess_are_enforced",
@@ -1777,9 +1848,33 @@ def _interface_recovery_checks(scenario: Scenario) -> list[EvalCheck]:
         == f"urn:aurora-neuro:glio-proteogen:{MODULE_ID}:1.0.0:{name}"
         for name in _SCHEMA_NAMES
     )
-    declared_ids = {
-        case_id for group in _corpus()["scenario_groups"] for case_id in group["case_ids"]
-    }
+    corpus = _corpus()
+    declared_ids = {case_id for group in corpus["scenario_groups"] for case_id in group["case_ids"]}
+    installed_capacity = corpus["installed_capacity"]
+    benchmark_lock = corpus["representative_benchmark"]
+    benchmark_source = Path(__file__).with_name("benchmark.py").read_text(encoding="utf-8")
+    capacity_and_benchmark_are_locked = (
+        installed_capacity["upstream_receipt_targets"] == M0406_MAX_UPSTREAM_TARGETS
+        and installed_capacity["targets"] == M0406_MAX_TARGETS
+        and installed_capacity["observations"] == M0406_MAX_OBSERVATIONS
+        and installed_capacity["levels_per_factor"] == M0406_MAX_LEVELS_PER_FACTOR
+        and installed_capacity["level_shifts"] == M0406_MAX_LEVEL_SHIFTS
+        and installed_capacity["stage_estimation_anchors"] == M0406_MAX_STAGE_ESTIMATION_ANCHORS
+        and installed_capacity["stage_validation_anchors"] == M0406_MAX_STAGE_VALIDATION_ANCHORS
+        and installed_capacity["invariant_target_references"] == M0406_MAX_INVARIANT_TARGET_REFS
+        and installed_capacity["applied_adjustments"] == M0406_MAX_APPLIED_ADJUSTMENTS
+        and benchmark_lock["warmup_calls"] == _EXPECTED_BENCHMARK_WARMUPS
+        and benchmark_lock["timed_calls"] == _EXPECTED_BENCHMARK_ITERATIONS
+        and benchmark_lock["targets"] == M0406_MAX_TARGETS
+        and benchmark_lock["observations"] == M0406_MAX_OBSERVATIONS
+        and benchmark_lock["mean_budget_ns"] == _EXPECTED_BENCHMARK_MEAN_BUDGET_NS
+        and benchmark_lock["p95_budget_ns"] == _EXPECTED_BENCHMARK_P95_BUDGET_NS
+        and benchmark_lock["timed_boundary"] == "harmonize_proteoform_analysis_only"
+        and "build_maximum_scenario_request" in benchmark_source
+        and "DEFAULT_ITERATIONS = 25" in benchmark_source
+        and "MEAN_BUDGET_NS = 2_000_000_000" in benchmark_source
+        and "P95_BUDGET_NS = 3_000_000_000" in benchmark_source
+    )
     evidence_files = (
         ROOT / "docs" / "modules" / "GLIO-PROTEOGEN-M04-06.md",
         ROOT / "docs" / "modules" / "M04-06.manifest.md",
@@ -1835,10 +1930,15 @@ def _interface_recovery_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "representative_public_operation_benchmark_times_only_harmonization",
             passed=(
-                "harmonize_proteoform_analysis_only"
-                in Path(__file__).with_name("benchmark.py").read_text(encoding="utf-8")
+                "harmonize_proteoform_analysis_only" in benchmark_source
+                and capacity_and_benchmark_are_locked
             ),
-            detail="genuine upstream and request construction are outside timed boundary",
+            detail=(
+                f"shape={M0406_MAX_TARGETS}/{M0406_MAX_OBSERVATIONS};"
+                f"warmups={_EXPECTED_BENCHMARK_WARMUPS};"
+                f"timed={_EXPECTED_BENCHMARK_ITERATIONS};"
+                "genuine upstream and request construction are outside timed boundary"
+            ),
         ),
     ]
 

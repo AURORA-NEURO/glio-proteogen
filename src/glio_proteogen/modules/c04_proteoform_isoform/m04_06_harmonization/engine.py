@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from typing import Final, cast
 
@@ -315,7 +315,7 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
         }
     if list in candidate_mro:
         list_values = cast("list[object]", candidate)
-        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+        if type(list_values) is not list or list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
             raise _InvalidPlainValueError
         return [
             _plain_value(item, _depth=_depth + 1, _budget=budget)
@@ -323,13 +323,18 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
         ]
     if tuple in candidate_mro:
         tuple_values = cast("tuple[object, ...]", candidate)
-        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+        if (
+            type(tuple_values) is not tuple
+            or tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS
+        ):
             raise _InvalidPlainValueError
         return tuple(
             _plain_value(item, _depth=_depth + 1, _budget=budget)
             for item in tuple.__iter__(tuple_values)
         )
-    if Mapping in candidate_mro:
+    if isinstance(candidate, Mapping) or (
+        isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes, bytearray))
+    ):
         raise _InvalidPlainValueError
     return candidate
 

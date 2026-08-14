@@ -51,16 +51,17 @@
   },
   "installed_capacity": {
     "stages": 8,
-    "targets": 64,
-    "observations": 64,
-    "levels_per_factor": 64,
-    "level_shifts": 512,
-    "stage_estimation_anchors": 128,
-    "stage_validation_anchors": 128,
+    "upstream_receipt_targets": 64,
+    "targets": 32,
+    "observations": 32,
+    "levels_per_factor": 32,
+    "level_shifts": 256,
+    "stage_estimation_anchors": 32,
+    "stage_validation_anchors": 32,
     "invariants": 256,
-    "invariant_target_references": 64,
+    "invariant_target_references": 32,
     "evidence_per_observation": 8,
-    "applied_adjustments": 512,
+    "applied_adjustments": 256,
     "profiles": 16,
     "approved_versions_per_domain": 32,
     "result_evidence": 16,
@@ -68,6 +69,15 @@
     "support_coordinate_ppm": 1000000,
     "post_validation_residual_ppm": 2000000,
     "canonical_request_bytes": 4194304
+  },
+  "representative_benchmark": {
+    "warmup_calls": 1,
+    "timed_calls": 25,
+    "targets": 32,
+    "observations": 32,
+    "mean_budget_ns": 2000000000,
+    "p95_budget_ns": 3000000000,
+    "timed_boundary": "harmonize_proteoform_analysis_only"
   },
   "fixture_prohibitions": [
     "direct_patient_identifier",
@@ -191,7 +201,7 @@
         "support",
         "intended_use"
       ],
-      "strictness_rule": "forbid duplicate keys, coercion, non-finite numbers, unknown fields or terms, silent defaults, stale derived values, and every first excess"
+      "strictness_rule": "forbid duplicate keys, coercion, non-finite numbers, unknown fields or terms, silent defaults, stale derived values, and every first excess; preserve a genuine 33-target M04-05 receipt and abstain without truncation while rejecting a 33rd owned support observation"
     },
     {
       "group_id": "canonical_privacy_and_resigned_forgery_resistance",
