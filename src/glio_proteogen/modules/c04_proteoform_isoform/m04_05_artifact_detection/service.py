@@ -1,14 +1,13 @@
 """Stateless application boundary for M04-05 artifact detection."""
 
-from pydantic import TypeAdapter
-
 from glio_proteogen.contracts.m04_05 import (
     DetectProteoformArtifactsRequest,
     ProteoformArtifactDetectionResult,
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     M0405ProteoformArtifactEngine,
-    prepare_artifact_request_candidate,
+    _prepare_artifact_request_candidate,
+    _validate_prepared_request,
 )
 
 
@@ -22,8 +21,14 @@ class M0405Service:
 
     @staticmethod
     def validate_request(request: object) -> DetectProteoformArtifactsRequest:
-        candidate = prepare_artifact_request_candidate(request)
-        return TypeAdapter(DetectProteoformArtifactsRequest).validate_python(candidate, strict=True)
+        candidate = _prepare_artifact_request_candidate(request)
+        return _validate_prepared_request(candidate)
+
+    def _execute_validated(
+        self,
+        request: DetectProteoformArtifactsRequest,
+    ) -> ProteoformArtifactDetectionResult:
+        return self._engine._detect_validated(request)
 
     def execute(self, request: object) -> ProteoformArtifactDetectionResult:
         return self._engine.detect(request)

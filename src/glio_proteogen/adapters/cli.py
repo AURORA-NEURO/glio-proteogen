@@ -35,6 +35,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_raw_contract_schema,
     _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
+    _proteoform_artifact_contract_schema,
     _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
     _proteoform_quality_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m04_05 import (
+    M0405_MAX_CANONICAL_REQUEST_BYTES,
+    DetectProteoformArtifactsRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection import (
+    M0405Service,
+    ProteoformArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0405_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +445,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+proteoform_artifacts_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-05 deterministic aggregate proteoform artifact detection.",
+)
+app.add_typer(proteoform_artifacts_app, name="proteoform-artifacts")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -541,6 +558,10 @@ ProteoformRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+ProteoformArtifactOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M04-05 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -807,9 +828,11 @@ def _load_request[RequestT](
         details = canonical_json_bytes(sanitized_validation_errors(error)).decode("utf-8")
         typer.echo(f"invalid request: {details}", err=True)
         raise typer.Exit(code=2) from error
-    except ProteoformRawInputAuthorizationError:
-        raise
-    except ProteoformQualityAuthorizationError:
+    except (
+        ProteoformArtifactAuthorizationError,
+        ProteoformQualityAuthorizationError,
+        ProteoformRawInputAuthorizationError,
+    ):
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3380,6 +3403,59 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_artifacts_app.command("export-schema")
+def export_proteoform_artifact_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "profile",
+            "evidence-event",
+            "evidence-ledger",
+            "evidence-ledger-binding",
+            "artifact-posterior",
+            "contamination-flag",
+            "exclusion-mask-entry",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M04-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform artifact contract."""
+
+    typer.echo(json.dumps(_proteoform_artifact_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@proteoform_artifacts_app.command("detect")
+def detect_proteoform_artifacts(
+    request: RequestArgument,
+    output: ProteoformArtifactOutputOption,
+) -> None:
+    """Detect reviewed aggregate artifacts and publish one new result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(DetectProteoformArtifactsRequest),
+            None,
+            M0405_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0405_json_request,
+        )
+        result = M0405Service()._execute_validated(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except ProteoformArtifactAuthorizationError as error:
+        typer.echo(f"proteoform artifact detection failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform artifact detection failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 

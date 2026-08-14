@@ -4,14 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
+from weakref import WeakKeyDictionary
 
 from glio_proteogen.contracts.m04_05 import (
     M0405_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteoformArtifactsRequest,
     ProteoformArtifactDetectionResult,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
+from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
+    _validate_json_request,
+)
 
 if TYPE_CHECKING:
     from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.service import (
@@ -36,10 +41,27 @@ _DESCRIPTOR: Final = ModuleDescriptor(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM0405Request:
     request: DetectProteoformArtifactsRequest
     _seal: object
+
+
+_ISSUED_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM0405Request,
+        tuple[DetectProteoformArtifactsRequest, str],
+    ]
+] = WeakKeyDictionary()
+
+
+def _token_is_issued(token: ValidatedM0405Request) -> bool:
+    snapshot = _ISSUED_TOKENS.get(token)
+    return (
+        snapshot is not None
+        and snapshot[0] is token.request
+        and snapshot[1] == canonical_request_digest(token.request)
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -66,13 +88,21 @@ class M0405Plugin(ModulePlugin[object, ValidatedM0405Request, ProteoformArtifact
                 serialized,
                 max_bytes=M0405_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(candidate)
-        return ValidatedM0405Request(request=typed, _seal=_TOKEN_SEAL)
+            typed = _validate_json_request(candidate, serialized)
+        else:
+            typed = self._service.validate_request(candidate)
+        token = ValidatedM0405Request(request=typed, _seal=_TOKEN_SEAL)
+        _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
+        return token
 
     def run(self, request: ValidatedM0405Request) -> ProteoformArtifactDetectionResult:
-        if type(request) is not ValidatedM0405Request or request._seal is not _TOKEN_SEAL:
+        if (
+            type(request) is not ValidatedM0405Request
+            or request._seal is not _TOKEN_SEAL
+            or not _token_is_issued(request)
+        ):
             raise _InvalidExecutionTokenError
-        return self._service.execute(request.request)
+        return self._service._execute_validated(request.request)
 
 
 __all__ = ["M0405Plugin", "ValidatedM0405Request"]

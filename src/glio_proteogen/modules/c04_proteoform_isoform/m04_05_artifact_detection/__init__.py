@@ -5,7 +5,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.eng
     ProteoformArtifactAuthorizationError,
     detect_proteoform_artifacts,
     preflight_proteoform_artifact_authorization,
-    prepare_artifact_request_candidate,
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.plugin import (
     M0405Plugin,
@@ -23,5 +22,4 @@ __all__ = [
     "ValidatedM0405Request",
     "detect_proteoform_artifacts",
     "preflight_proteoform_artifact_authorization",
-    "prepare_artifact_request_candidate",
 ]

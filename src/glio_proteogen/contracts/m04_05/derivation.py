@@ -26,6 +26,7 @@ from glio_proteogen.contracts.m04_05.v1 import (
     ProteoformArtifactComputationReceipt,
     ProteoformArtifactDetectorClass,
     ProteoformArtifactDisposition,
+    ProteoformArtifactEvidenceLedger,
     ProteoformArtifactFinding,
     ProteoformArtifactFindingAction,
     ProteoformArtifactFindingCode,
@@ -106,7 +107,11 @@ def matching_artifact_profile(
     matches = tuple(
         profile
         for profile in request.policy.profiles
-        if request.quality_result.result_version in profile.approved_quality_contract_versions
+        if (
+            request.quality_result.result_version in profile.approved_quality_contract_versions
+            and request.quality_result.configuration_digest
+            in profile.approved_quality_configuration_digests
+        )
     )
     return matches[0] if len(matches) == 1 else None
 
@@ -116,7 +121,7 @@ def _traversable(request: DetectProteoformArtifactsRequest) -> bool:
     return (
         request.quality_result.disposition is ProteoformQualityDisposition.QUALIFIED
         and matching_artifact_profile(request) is not None
-        and ledger is not None
+        and type(ledger) is ProteoformArtifactEvidenceLedger
         and ledger.quality_result_digest == request.quality_result.result_digest
     )
 
@@ -171,7 +176,7 @@ def expected_artifact_posteriors(
         return ()
     profile = matching_artifact_profile(request)
     ledger = request.evidence_ledger
-    if profile is None or ledger is None:  # pragma: no cover - narrowed by _traversable.
+    if profile is None or type(ledger) is not ProteoformArtifactEvidenceLedger:
         return ()
     thresholds = {item.detector_class: item for item in profile.thresholds}
     output: list[ProteoformArtifactPosterior] = []
@@ -354,7 +359,9 @@ def expected_artifact_findings(
     ledger = request.evidence_ledger
     if ledger is None:  # pragma: no cover - exact request traversal closure rejects this.
         return ()
-    if ledger.quality_result_digest != request.quality_result.result_digest:
+    if type(ledger) is not ProteoformArtifactEvidenceLedger or (
+        ledger.quality_result_digest != request.quality_result.result_digest
+    ):
         return (finding_for(ProteoformArtifactFindingCode.EVIDENCE_LEDGER_BINDING_MISMATCH),)
     active = posteriors if posteriors is not None else expected_artifact_posteriors(request)
     active_flags = flags if flags is not None else expected_contamination_flags(request, active)
@@ -422,7 +429,9 @@ def expected_disposition(  # noqa: PLR0911 - explicit safe-failure precedence.
     ledger = request.evidence_ledger
     if ledger is None:  # pragma: no cover - exact request traversal closure rejects this.
         return ProteoformArtifactDisposition.ABSTAINED
-    if ledger.quality_result_digest != request.quality_result.result_digest:
+    if type(ledger) is not ProteoformArtifactEvidenceLedger or (
+        ledger.quality_result_digest != request.quality_result.result_digest
+    ):
         return ProteoformArtifactDisposition.QUARANTINED
     active = posteriors if posteriors is not None else expected_artifact_posteriors(request)
     if any(
@@ -713,7 +722,7 @@ def expected_receipt(  # noqa: PLR0913 - every exact result region closes the re
         "evidence_ledger_digest": ledger.ledger_digest if ledger is not None else None,
         "event_digests": (
             tuple(sorted(event_digest(item) for item in ledger.events))
-            if traversed and ledger is not None
+            if traversed and type(ledger) is ProteoformArtifactEvidenceLedger
             else ()
         ),
         "posterior_digests": tuple(item.posterior_digest for item in posteriors),

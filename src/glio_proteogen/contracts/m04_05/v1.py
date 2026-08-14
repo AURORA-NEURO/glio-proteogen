@@ -8,10 +8,20 @@ identity material, or clinical claims.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Final, Literal, cast
+from weakref import WeakKeyDictionary
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    TypeAdapter,
+    ValidationInfo,
+    ValidatorFunctionWrapHandler,
+    field_validator,
+    model_validator,
+)
 
 from glio_proteogen.contracts.m04_04 import (
     M0404_CONTRACT_VERSION,
@@ -55,7 +65,7 @@ M0405_SAFETY_CLASS: Final = "S2"
 M0405_GATE: Final = "G1"
 M0405_RATE_SCALE: Final = 1_000_000
 M0405_DETECTOR_CLASS_COUNT: Final = 7
-M0405_MAX_TARGETS: Final = 512
+M0405_MAX_TARGETS: Final = 64
 M0405_MAX_EVENTS: Final = M0405_MAX_TARGETS * M0405_DETECTOR_CLASS_COUNT
 M0405_MAX_FLAGS: Final = 2 * M0405_MAX_TARGETS
 M0405_MAX_FINDINGS: Final = 10
@@ -85,6 +95,74 @@ _PROFILE_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.profile+json
 _THRESHOLD_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.threshold+json"
 _LEDGER_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.event-ledger+json"
 _EVENT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.event+json"
+_VALIDATION_CAPABILITY_SEAL: Final = object()
+_QUALITY_CAPABILITY_CONTEXT_KEY: Final = "_m0405_quality_replay_capability"
+_REQUEST_CAPABILITY_CONTEXT_KEY: Final = "_m0405_validated_request_capability"
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class _ReplayedM0404Capability:
+    seal: object
+    result: ProteoformQualityResult
+    result_digest: Sha256Digest
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class _ValidatedM0405RequestCapability:
+    seal: object
+    request: DetectProteoformArtifactsRequest
+    request_digest: Sha256Digest
+
+
+_ISSUED_QUALITY_CAPABILITIES: Final[
+    WeakKeyDictionary[
+        _ReplayedM0404Capability,
+        tuple[ProteoformQualityResult, Sha256Digest, Sha256Digest],
+    ]
+] = WeakKeyDictionary()
+_ISSUED_REQUEST_CAPABILITIES: Final[
+    WeakKeyDictionary[
+        _ValidatedM0405RequestCapability,
+        tuple[DetectProteoformArtifactsRequest, Sha256Digest],
+    ]
+] = WeakKeyDictionary()
+
+
+def _quality_capability_is_issued(capability: _ReplayedM0404Capability) -> bool:
+    snapshot = _ISSUED_QUALITY_CAPABILITIES.get(capability)
+    return (
+        snapshot is not None
+        and snapshot[0] is capability.result
+        and snapshot[1] == capability.result_digest
+        and capability.result.result_digest == capability.result_digest
+        and snapshot[2] == sha256_digest(capability.result)
+    )
+
+
+def _request_capability_is_issued(capability: _ValidatedM0405RequestCapability) -> bool:
+    snapshot = _ISSUED_REQUEST_CAPABILITIES.get(capability)
+    return (
+        snapshot is not None
+        and snapshot[0] is capability.request
+        and snapshot[1] == capability.request_digest
+        and canonical_request_digest(capability.request) == capability.request_digest
+    )
+
+
+def _issue_quality_replay_capability(
+    result: ProteoformQualityResult,
+) -> _ReplayedM0404Capability:
+    capability = _ReplayedM0404Capability(
+        seal=_VALIDATION_CAPABILITY_SEAL,
+        result=result,
+        result_digest=result.result_digest,
+    )
+    _ISSUED_QUALITY_CAPABILITIES[capability] = (
+        result,
+        result.result_digest,
+        sha256_digest(result),
+    )
+    return capability
 
 
 def opaque_proteoform_artifact_identifier(value: Identifier, namespace: str) -> Identifier:
@@ -209,6 +287,9 @@ class ProteoformArtifactProfile(FrozenModel):
     approved_quality_contract_versions: tuple[SemanticVersion, ...] = Field(
         min_length=1, max_length=M0405_MAX_APPROVED_VERSIONS
     )
+    approved_quality_configuration_digests: tuple[Sha256Digest, ...] = Field(
+        min_length=1, max_length=M0405_MAX_APPROVED_VERSIONS
+    )
     thresholds: tuple[ProteoformArtifactThreshold, ...] = Field(
         min_length=M0405_DETECTOR_CLASS_COUNT,
         max_length=M0405_DETECTOR_CLASS_COUNT,
@@ -222,6 +303,15 @@ class ProteoformArtifactProfile(FrozenModel):
     ) -> tuple[SemanticVersion, ...]:
         if len(values) != len(set(values)):
             raise ValueError("approved quality contract versions must be unique")
+        return tuple(sorted(values))
+
+    @field_validator("approved_quality_configuration_digests")
+    @classmethod
+    def configurations_are_canonical(
+        cls, values: tuple[Sha256Digest, ...]
+    ) -> tuple[Sha256Digest, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("approved quality configuration digests must be unique")
         return tuple(sorted(values))
 
     @field_validator("thresholds")
@@ -273,11 +363,15 @@ class ProteoformArtifactPolicy(FrozenModel):
         identities = {(item.profile_id, item.version) for item in self.profiles}
         if len(identities) != len(self.profiles):
             raise ValueError("profile identities must be unique")
-        domains: set[SemanticVersion] = set()
+        domains: set[tuple[SemanticVersion, Sha256Digest]] = set()
         for profile in self.profiles:
-            current = set(profile.approved_quality_contract_versions)
+            current = {
+                (version, configuration)
+                for version in profile.approved_quality_contract_versions
+                for configuration in profile.approved_quality_configuration_digests
+            }
             if domains & current:
-                raise ValueError("profile quality-version match domains must be disjoint")
+                raise ValueError("profile quality version/configuration domains must be disjoint")
             domains.update(current)
         return self
 
@@ -364,6 +458,26 @@ class ProteoformArtifactEvidenceLedger(FrozenModel):
         return self
 
 
+class ProteoformArtifactEvidenceLedgerBinding(FrozenModel):
+    """Non-traversing receipt for a ledger bound to a different M04-04 result."""
+
+    ledger_id: Identifier
+    version: SemanticVersion
+    quality_result_digest: Sha256Digest
+    recorded_at: AwareDatetime
+    ledger_digest: Sha256Digest
+    evidence: ArtifactReference
+
+    @model_validator(mode="after")
+    def binding_is_closed(self) -> ProteoformArtifactEvidenceLedgerBinding:
+        opaque_proteoform_artifact_identifier(self.ledger_id, "ledger")
+        if self.ledger_digest == _M0405_ZERO_DIGEST:
+            raise ValueError("ledger binding requires a final caller-declared digest")
+        if self.evidence.media_type != _LEDGER_MEDIA_TYPE:
+            raise ValueError("ledger evidence must use the owned media type")
+        return self
+
+
 class DetectProteoformArtifactsRequest(FrozenModel):
     operation: Literal["detect_proteoform_artifacts"] = M0405_OPERATION
     contract_version: Literal["1.0.0"] = M0405_CONTRACT_VERSION
@@ -371,12 +485,36 @@ class DetectProteoformArtifactsRequest(FrozenModel):
     context: ExecutionContext
     quality_result: ProteoformQualityResult
     policy: ProteoformArtifactPolicy
-    evidence_ledger: ProteoformArtifactEvidenceLedger | None = None
+    evidence_ledger: (
+        ProteoformArtifactEvidenceLedger | ProteoformArtifactEvidenceLedgerBinding | None
+    ) = None
     supersedes_result_digest: Sha256Digest | None = None
 
-    @field_validator("quality_result", mode="before")
+    @field_validator("quality_result", mode="wrap")
     @classmethod
-    def quality_result_is_fully_replayed(cls, value: object) -> ProteoformQualityResult:
+    def quality_result_is_fully_replayed(
+        cls,
+        value: object,
+        _handler: ValidatorFunctionWrapHandler,
+        info: ValidationInfo,
+    ) -> ProteoformQualityResult:
+        capability = (
+            info.context.get(_QUALITY_CAPABILITY_CONTEXT_KEY)
+            if isinstance(info.context, dict)
+            else None
+        )
+        if (
+            isinstance(capability, _ReplayedM0404Capability)
+            and capability.seal is _VALIDATION_CAPABILITY_SEAL
+            and _quality_capability_is_issued(capability)
+            and value is capability.result
+        ):
+            return capability.result
+        if info.mode != "json" and type(value) is ProteoformQualityResult:
+            return ProteoformQualityResult.model_validate_json(
+                canonical_json_bytes(value),
+                strict=True,
+            )
         return ProteoformQualityResult.model_validate_json(
             canonical_json_bytes(value),
             strict=True,
@@ -436,7 +574,11 @@ class DetectProteoformArtifactsRequest(FrozenModel):
         matches = tuple(
             profile
             for profile in self.policy.profiles
-            if self.quality_result.result_version in profile.approved_quality_contract_versions
+            if (
+                self.quality_result.result_version in profile.approved_quality_contract_versions
+                and self.quality_result.configuration_digest
+                in profile.approved_quality_configuration_digests
+            )
         )
         traversable = (
             self.quality_result.disposition is ProteoformQualityDisposition.QUALIFIED
@@ -477,8 +619,9 @@ def _require_consistent_evidence_identities(
         artifacts.extend(item.evidence for item in profile.thresholds)
     if request.evidence_ledger is not None:
         artifacts.append(request.evidence_ledger.evidence)
-        for event in request.evidence_ledger.events:
-            artifacts.extend(event.evidence)
+        if isinstance(request.evidence_ledger, ProteoformArtifactEvidenceLedger):
+            for event in request.evidence_ledger.events:
+                artifacts.extend(event.evidence)
     seen: dict[tuple[Identifier, SemanticVersion], tuple[Sha256Digest, str]] = {}
     for artifact in artifacts:
         identity = (artifact.artifact_id, artifact.version)
@@ -486,6 +629,19 @@ def _require_consistent_evidence_identities(
         previous = seen.setdefault(identity, content)
         if previous != content:
             raise ValueError("one evidence identity cannot declare conflicting content")
+
+
+def _issue_validated_request_capability(
+    request: DetectProteoformArtifactsRequest,
+) -> _ValidatedM0405RequestCapability:
+    request_hash = canonical_request_digest(request)
+    capability = _ValidatedM0405RequestCapability(
+        seal=_VALIDATION_CAPABILITY_SEAL,
+        request=request,
+        request_digest=request_hash,
+    )
+    _ISSUED_REQUEST_CAPABILITIES[capability] = (request, request_hash)
+    return capability
 
 
 class ProteoformArtifactPosterior(FrozenModel):
@@ -742,6 +898,33 @@ class ProteoformArtifactDetectionResult(FrozenModel):
     human_review_required: bool
     completed_at: AwareDatetime
 
+    @field_validator("request", mode="wrap")
+    @classmethod
+    def request_may_reuse_sealed_validation(
+        cls,
+        value: object,
+        handler: ValidatorFunctionWrapHandler,
+        info: ValidationInfo,
+    ) -> DetectProteoformArtifactsRequest:
+        capability = (
+            info.context.get(_REQUEST_CAPABILITY_CONTEXT_KEY)
+            if isinstance(info.context, dict)
+            else None
+        )
+        if (
+            isinstance(capability, _ValidatedM0405RequestCapability)
+            and capability.seal is _VALIDATION_CAPABILITY_SEAL
+            and _request_capability_is_issued(capability)
+            and value is capability.request
+        ):
+            return capability.request
+        if info.mode == "json":
+            return TypeAdapter(DetectProteoformArtifactsRequest).validate_json(
+                canonical_json_bytes(value),
+                strict=True,
+            )
+        return cast("DetectProteoformArtifactsRequest", handler(value))
+
     @field_validator(
         "artifact_posteriors",
         "contamination_flags",
@@ -881,6 +1064,7 @@ __all__ = [
     "ProteoformArtifactDisposition",
     "ProteoformArtifactEvidenceEvent",
     "ProteoformArtifactEvidenceLedger",
+    "ProteoformArtifactEvidenceLedgerBinding",
     "ProteoformArtifactFinding",
     "ProteoformArtifactFindingAction",
     "ProteoformArtifactFindingCode",
