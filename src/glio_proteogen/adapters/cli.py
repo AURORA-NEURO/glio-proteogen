@@ -41,6 +41,7 @@ from glio_proteogen.adapters.api import (
     _proteoform_protocol_contract_schema,
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
+    _proteoform_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -165,6 +166,10 @@ from glio_proteogen.contracts.m04_05 import (
 from glio_proteogen.contracts.m04_06 import (
     M0406_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizeProteoformAnalysisRequest,
+)
+from glio_proteogen.contracts.m04_07 import (
+    M0407_MAX_CANONICAL_REQUEST_BYTES,
+    RouteProteoformSupportRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -325,6 +330,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
     _validate_json_request as _validate_m0406_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
+    M0407Service,
+    ProteoformSupportAuthorizationError,
+    preflight_proteoform_support_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
+    _validate_json_request as _validate_m0407_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -468,6 +481,11 @@ proteoform_harmonization_app = typer.Typer(
     help="M04-06 deterministic proteoform support harmonization and normalization.",
 )
 app.add_typer(proteoform_harmonization_app, name="proteoform-harmonization")
+proteoform_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-07 deterministic proteoform support and abstention routing.",
+)
+app.add_typer(proteoform_support_app, name="proteoform-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -851,6 +869,7 @@ def _load_request[RequestT](
         ProteoformHarmonizationAuthorizationError,
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
+        ProteoformSupportAuthorizationError,
     ):
         raise
     except (TypeError, ValueError):
@@ -3529,6 +3548,60 @@ def harmonize_proteoform_analysis(request: RequestArgument) -> None:
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform harmonization failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_support_app.command("export-schema")
+def export_proteoform_support_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "prerequisites",
+            "quality-receipt",
+            "harmonization-receipt",
+            "fact",
+            "context-receipt",
+            "profile",
+            "policy",
+            "envelope",
+            "remediation",
+            "dimension-assessment",
+            "envelope-assessment",
+            "abstention",
+        ],
+        typer.Argument(help="M04-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform support-routing contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_support_app.command("route")
+def route_proteoform_support(request: RequestArgument) -> None:
+    """Route one authorized request to support or a typed safe abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(RouteProteoformSupportRequest),
+            preflight_proteoform_support_authorization,
+            M0407_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0407_json_request,
+        )
+        _emit(M0407Service()._execute_validated(parsed))
+    except ProteoformSupportAuthorizationError as error:
+        typer.echo(f"proteoform support routing failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform support routing failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
