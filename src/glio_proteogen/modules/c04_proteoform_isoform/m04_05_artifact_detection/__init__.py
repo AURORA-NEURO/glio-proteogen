@@ -3,6 +3,7 @@
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     M0405ProteoformArtifactEngine,
     ProteoformArtifactAuthorizationError,
+    ProteoformArtifactInputError,
     detect_proteoform_artifacts,
     preflight_proteoform_artifact_authorization,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "M0405ProteoformArtifactEngine",
     "M0405Service",
     "ProteoformArtifactAuthorizationError",
+    "ProteoformArtifactInputError",
     "ValidatedM0405Request",
     "detect_proteoform_artifacts",
     "preflight_proteoform_artifact_authorization",
