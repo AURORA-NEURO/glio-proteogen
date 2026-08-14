@@ -77,14 +77,15 @@ M0406_MAX_RESIDUAL_PPM: Final = 2 * M0406_RATE_SCALE
 M0406_FACTOR_COUNT: Final = 8
 M0406_UPSTREAM_DETECTOR_COUNT: Final = 7
 M0406_MAX_STAGES: Final = 8
-M0406_MAX_TARGETS: Final = M0405_MAX_TARGETS
+M0406_MAX_UPSTREAM_TARGETS: Final = M0405_MAX_TARGETS
+M0406_MAX_TARGETS: Final = 32
 M0406_MAX_OBSERVATIONS: Final = M0406_MAX_TARGETS
-M0406_MAX_LEVELS_PER_FACTOR: Final = 64
+M0406_MAX_LEVELS_PER_FACTOR: Final = M0406_MAX_TARGETS
 M0406_MAX_LEVEL_SHIFTS: Final = M0406_MAX_STAGES * M0406_MAX_LEVELS_PER_FACTOR
-M0406_MAX_STAGE_ESTIMATION_ANCHORS: Final = 128
-M0406_MAX_STAGE_VALIDATION_ANCHORS: Final = 128
+M0406_MAX_STAGE_ESTIMATION_ANCHORS: Final = M0406_MAX_OBSERVATIONS
+M0406_MAX_STAGE_VALIDATION_ANCHORS: Final = M0406_MAX_OBSERVATIONS
 M0406_MAX_INVARIANTS: Final = 256
-M0406_MAX_INVARIANT_TARGET_REFS: Final = 64
+M0406_MAX_INVARIANT_TARGET_REFS: Final = M0406_MAX_TARGETS
 M0406_MAX_EVIDENCE_PER_OBSERVATION: Final = 8
 M0406_MAX_APPLIED_ADJUSTMENTS: Final = M0406_MAX_OBSERVATIONS * M0406_MAX_STAGES
 M0406_MAX_PROFILES: Final = 16
@@ -458,9 +459,9 @@ class ProteoformArtifactHarmonizationReceipt(FrozenModel):
     controlled_vocabulary_version: SemanticVersion
     unit_system_version: SemanticVersion
     evaluation_state: ProteoformArtifactEvaluationState
-    target_count: int = Field(ge=0, le=M0406_MAX_TARGETS)
+    target_count: int = Field(ge=0, le=M0406_MAX_UPSTREAM_TARGETS)
     targets: tuple[ProteoformArtifactTargetReceipt, ...] = Field(
-        default=(), max_length=M0406_MAX_TARGETS
+        default=(), max_length=M0406_MAX_UPSTREAM_TARGETS
     )
     target_binding_digest: Sha256Digest
     receipt_digest: Sha256Digest
@@ -1071,6 +1072,7 @@ class _ValidatedM0406RequestCapability:
     artifact_result: ProteoformArtifactDetectionResult
     artifact_snapshot_digest: Sha256Digest
     bundle: _ExpectedHarmonizationBundle
+    bundle_snapshot_digest: Sha256Digest
     expected_result_digest: Sha256Digest
 
 
@@ -1099,6 +1101,7 @@ _ISSUED_REQUEST_CAPABILITIES: Final[
             Sha256Digest,
             _ExpectedHarmonizationBundle,
             Sha256Digest,
+            Sha256Digest,
         ],
     ]
 ] = WeakKeyDictionary()
@@ -1118,6 +1121,30 @@ def _exact_request_capability(value: object) -> _ValidatedM0406RequestCapability
         if isinstance(value, _ValidatedM0406RequestCapability)
         and type(value) is _ValidatedM0406RequestCapability
         else None
+    )
+
+
+def _harmonization_bundle_snapshot_digest(
+    bundle: _ExpectedHarmonizationBundle,
+) -> Sha256Digest:
+    return sha256_digest(
+        {
+            "request_digest": bundle.request_digest,
+            "policy_digest": bundle.policy_digest,
+            "configuration_digest": bundle.configuration_digest,
+            "analysis": bundle.analysis,
+            "transformation_manifest": bundle.transformation_manifest,
+            "technical_effect_diagnostics": bundle.technical_effect_diagnostics,
+            "invariant_diagnostics": bundle.invariant_diagnostics,
+            "findings": bundle.findings,
+            "disposition": bundle.disposition,
+            "receipt": bundle.receipt,
+            "support": bundle.support,
+            "uncertainty": bundle.uncertainty,
+            "provenance": bundle.provenance,
+            "evidence": bundle.evidence,
+            "limitations": bundle.limitations,
+        }
     )
 
 
@@ -1157,10 +1184,13 @@ def _request_capability_is_issued(capability: _ValidatedM0406RequestCapability) 
         and snapshot[5] is capability.artifact_result
         and snapshot[6] == capability.artifact_snapshot_digest
         and snapshot[7] is capability.bundle
-        and snapshot[8] == capability.expected_result_digest
+        and snapshot[8] == capability.bundle_snapshot_digest
+        and snapshot[9] == capability.expected_result_digest
         and capability.request.artifact_result is capability.artifact_result
         and canonical_request_digest(capability.request) == capability.request_digest
         and sha256_digest(capability.request) == capability.request_snapshot_digest
+        and _harmonization_bundle_snapshot_digest(capability.bundle)
+        == capability.bundle_snapshot_digest
     )
 
 
@@ -1195,6 +1225,7 @@ def _issue_validated_request_capability(
 ) -> _ValidatedM0406RequestCapability:
     artifact_snapshot_digest = sha256_digest(normalized_m0405_result(request.artifact_result))
     request_snapshot_digest = sha256_digest(request)
+    bundle_snapshot_digest = _harmonization_bundle_snapshot_digest(bundle)
     capability = _ValidatedM0406RequestCapability(
         seal=_VALIDATION_CAPABILITY_SEAL,
         request=request,
@@ -1205,6 +1236,7 @@ def _issue_validated_request_capability(
         artifact_result=request.artifact_result,
         artifact_snapshot_digest=artifact_snapshot_digest,
         bundle=bundle,
+        bundle_snapshot_digest=bundle_snapshot_digest,
         expected_result_digest=expected_result_digest,
     )
     _ISSUED_REQUEST_CAPABILITIES[capability] = (
@@ -1216,6 +1248,7 @@ def _issue_validated_request_capability(
         request.artifact_result,
         artifact_snapshot_digest,
         bundle,
+        bundle_snapshot_digest,
         expected_result_digest,
     )
     return capability

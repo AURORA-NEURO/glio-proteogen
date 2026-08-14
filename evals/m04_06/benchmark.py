@@ -97,7 +97,7 @@ def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
     return BenchmarkReport(
         module_id="GLIO-PROTEOGEN-M04-06",
         contract_version="1.0.0",
-        workload="genuine_m0401_through_m0405_prepared_fixed_point_support_ledger",
+        workload="genuine_m0401_through_m0405_installed_max32_fixed_point_support_ledger",
         timed_boundary="harmonize_proteoform_analysis_only",
         iterations=iterations,
         target_count=request.artifact_receipt.target_count,

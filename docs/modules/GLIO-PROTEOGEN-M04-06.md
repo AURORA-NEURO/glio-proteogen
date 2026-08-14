@@ -59,11 +59,15 @@ governance metadata. A support coordinate is neither protein abundance nor a cal
     propagates before ledger traversal. Unsupported shape, receipt-ledger mismatch, an artifact
     exclusion or review action, unsupported profile, inadequate control pairs, capped shifts,
     clipping, held-out failure, or invariant failure cannot emit an accepted result.
-13. Enforce installed ceilings for stages, targets, observations, levels, shifts, estimation and
-    validation anchors, invariants, invariant members, per-observation evidence, adjustments,
-    profiles, approved versions, result evidence, findings, coordinates, the exact 2,000,000
-    post-validation-residual ceiling, and the 4 MiB canonical request. Exact maxima and every
-    first excess are executable.
+13. Preserve the complete embedded M04-05 receipt through its exact 64-target ceiling while
+    limiting installed M04-06 processing to 32 targets and 32 observations. A cleared 33- through
+    64-target upstream result is retained without truncation and produces a typed
+    `UPSTREAM_SHAPE_UNSUPPORTED` abstention with no support ledger, analysis, or manifest. Enforce
+    the remaining installed ceilings for stages, levels, shifts, estimation and validation
+    anchors, invariants, invariant members, per-observation evidence, adjustments, profiles,
+    approved versions, result evidence, findings, coordinates, the exact 2,000,000
+    post-validation-residual ceiling, and the 4 MiB canonical request. The exact 32-target maximum,
+    the genuine 33-target safe-failure boundary, and every owned first excess are executable.
 14. Accept strict immutable JSON only: reject duplicate keys, scalar coercion, non-finite values,
     unknown fields or terms, missing required fields, stale derived values, contradictory nested
     state, and re-signed forgery. Semantic reordering preserves complete result equality and
@@ -105,8 +109,10 @@ The executable builder calls public M04-05, whose builder executes the genuine p
 through M04-04 chain. It then adds only bounded synthetic fixed-point support coordinates,
 technical-factor levels, held-out anchors, and protected invariants before invoking public M04-06.
 Upstream construction occurs outside the representative benchmark clock; only
-`harmonize_proteoform_analysis` is timed. The broad latency ceiling is a regression tripwire,
-not performance qualification.
+`harmonize_proteoform_analysis` is timed. The representative installed-maximum workload contains
+32 receipt targets and 32 support observations. It executes exactly one untimed warmup followed by
+25 timed public calls under a 2-second mean and 3-second p95 regression ceiling. These latency
+ceilings are regression tripwires, not performance qualification.
 
 See the [module manifest](M04-06.manifest.md),
 [evidence inventory](../evidence/M04-06.md), and
