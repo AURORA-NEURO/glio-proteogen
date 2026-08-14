@@ -24,7 +24,6 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 _AUTHORIZATION_MESSAGE: Final = (
     "PTM-localization protocol conformance requires accepted upstream controls"
 )
-_MISSING: Final = object()
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluatePtmLocalizationProtocolRequest)
 _MAX_PLAIN_DEPTH: Final = 64
 _MAX_PLAIN_DICT_ITEMS: Final = 512
@@ -114,8 +113,6 @@ def _prepare_request_candidate(candidate: object) -> dict[str, object]:
     try:
         _validate_outer_request_shape(candidate)
         plain = _plain_value(candidate)
-        if type(plain) is not dict:
-            raise _InvalidPlainValueError  # noqa: TRY301
         return cast("dict[str, object]", plain)
     except _InvalidPlainValueError:
         raise
@@ -140,27 +137,6 @@ def _validate_json_request(
     if size > M0501_MAX_CANONICAL_REQUEST_BYTES:
         raise _SerializedRequestTooLargeError
     return _validate_prepared_request(_prepare_request_candidate(candidate))
-
-
-def _member(candidate: object, field: str) -> object:
-    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
-    if dict in candidate_mro:
-        mapping = cast("dict[object, object]", candidate)
-        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS or any(
-            type(key) is not str for key in dict.keys(mapping)
-        ):
-            raise _InvalidPlainValueError
-        return dict.__getitem__(mapping, field) if dict.__contains__(mapping, field) else _MISSING
-    if type(candidate) is EvaluatePtmLocalizationProtocolRequest:
-        storage = cast("dict[object, object]", object.__getattribute__(candidate, "__dict__"))
-        if (
-            type(storage) is not dict
-            or dict.__len__(storage) > _MAX_PLAIN_DICT_ITEMS
-            or any(type(key) is not str for key in dict.keys(storage))
-        ):
-            raise _InvalidPlainValueError
-        return dict.__getitem__(storage, field) if dict.__contains__(storage, field) else _MISSING
-    return _MISSING
 
 
 def _validate_outer_request_shape(candidate: object) -> None:

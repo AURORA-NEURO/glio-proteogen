@@ -15,17 +15,24 @@ from glio_proteogen.contracts.m05_01 import (
     M0501_MAX_METADATA_FIELDS,
     M0501_MAX_UNIT_POLICIES,
     M0501_MAX_VOCABULARY_TERMS,
+    EvaluatePtmLocalizationProtocolRequest,
     PtmLocalizationCompatibilityRule,
     PtmLocalizationControlledVocabulary,
     PtmLocalizationMetadataFieldPolicy,
     PtmLocalizationProtocolConformanceDisposition,
+    PtmLocalizationProtocolReceipt,
     PtmLocalizationProtocolSchema,
     PtmLocalizationReferenceBundle,
     PtmLocalizationUnitPolicy,
     ReviewedPtmLocalizationConformanceProfile,
     contract_json_schema,
     contract_json_schemas,
+    expected_protocol_receipt,
+    preflight_authorized,
+    protocol_evidence_index,
+    replay_ptm_localization_protocol_request,
 )
+from glio_proteogen.contracts.m05_01 import v1 as m0501_v1
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
     evaluate_ptm_localization_protocol,
@@ -185,3 +192,118 @@ def test_request_binding_forgery_is_rejected(path: tuple[str, ...]) -> None:
         cursor[leaf] = f"{namespace}." + ("f" * 64)
     with pytest.raises(ValidationError):
         type(request).model_validate(payload, strict=True)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "reference_media_type",
+        "duplicate_profile_identity",
+        "authorization_state",
+        "configuration_binding",
+        "control_evidence_identity",
+    ],
+)
+def test_closed_relational_request_mutations_reach_exact_invariant(
+    mutation: str,
+) -> None:
+    request = build_scenario_request()
+    payload = request.model_dump(mode="python")
+    if mutation == "reference_media_type":
+        payload["protocol_schema"]["reference_bundle"]["references"][0]["reference"][
+            "media_type"
+        ] = "application/vnd.glio-proteogen.m05-01.policy+json"
+    elif mutation == "duplicate_profile_identity":
+        profile = payload["conformance_profile"]
+        duplicate = dict(profile["approved_reference_bundles"][0])
+        duplicate["bundle_digest"] = "sha256:" + ("f" * 64)
+        profile["approved_reference_bundles"] = (
+            *profile["approved_reference_bundles"],
+            duplicate,
+        )
+    elif mutation == "authorization_state":
+        payload["context"]["references"]["quality"]["state"] = "rejected"
+    elif mutation == "configuration_binding":
+        evidence = payload["context"]["references"]["approved_configuration"]["evidence"]
+        evidence["digest"] = "sha256:" + ("f" * 64)
+        evidence["artifact_id"] = "evidence." + ("f" * 64)
+    else:
+        references = payload["context"]["references"]
+        references["provenance"]["evidence"] = references["quality"]["evidence"]
+
+    with pytest.raises(ValidationError):
+        EvaluatePtmLocalizationProtocolRequest.model_validate(payload, strict=True)
+
+
+def test_request_cap_and_replay_reject_semantically_mutated_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = build_scenario_request()
+    monkeypatch.setattr(
+        m0501_v1,
+        "M0501_MAX_CANONICAL_REQUEST_BYTES",
+        len(canonical_json_bytes(request)) - 1,
+    )
+    with pytest.raises(ValidationError, match="byte cap"):
+        EvaluatePtmLocalizationProtocolRequest.model_validate(
+            request.model_dump(mode="python"), strict=True
+        )
+
+    monkeypatch.undo()
+    request = build_scenario_request("maximum_profile_shape_conforms")
+    profile = request.conformance_profile.model_copy(
+        update={
+            "approved_protocol_versions": tuple(
+                reversed(request.conformance_profile.approved_protocol_versions)
+            )
+        }
+    )
+    forged = request.model_copy(update={"conformance_profile": profile})
+    with pytest.raises(ValueError, match="not equal to its strict replay"):
+        replay_ptm_localization_protocol_request(forged)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["non_string_key", "context", "references", "control"],
+)
+def test_authorization_preflight_rejects_malformed_builtin_shapes(mutation: str) -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    if mutation == "non_string_key":
+        payload[1] = "hostile-key"
+    elif mutation == "context":
+        payload["context"] = []
+    elif mutation == "references":
+        payload["context"]["references"] = []
+    else:
+        payload["context"]["references"]["quality"] = []
+    with pytest.raises(ValueError, match="authorization preflight"):
+        preflight_authorized(payload)
+
+
+def test_receipt_sections_digest_and_evidence_index_are_closed() -> None:
+    request = build_scenario_request()
+    receipt = expected_protocol_receipt(request)
+    sections = receipt.model_dump(mode="python")
+    sections["sections"][1]["section"] = sections["sections"][0]["section"]
+    with pytest.raises(ValidationError, match="every conformance section"):
+        PtmLocalizationProtocolReceipt.model_validate(sections, strict=True)
+
+    stale_digest = receipt.model_dump(mode="python")
+    stale_digest["receipt_digest"] = "sha256:" + ("f" * 64)
+    with pytest.raises(ValidationError, match="canonical receipt content"):
+        PtmLocalizationProtocolReceipt.model_validate(stale_digest, strict=True)
+
+    references = request.context.references
+    forged_references = references.model_copy(
+        update={
+            "provenance": references.provenance.model_copy(
+                update={"evidence": references.quality.evidence}
+            )
+        }
+    )
+    forged = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": forged_references})}
+    )
+    with pytest.raises(ValueError, match="15 distinct evidence"):
+        protocol_evidence_index(forged)

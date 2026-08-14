@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
+from datetime import timedelta
+from enum import StrEnum
 from typing import NoReturn
 
 import pytest
@@ -27,8 +29,12 @@ from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import
     M0501PtmLocalizationProtocolEngine,
     M0501Service,
     PtmLocalizationProtocolAuthorizationError,
+    PtmLocalizationProtocolInputError,
     ValidatedM0501Request,
     evaluate_ptm_localization_protocol,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
+    engine as m0501_engine,
 )
 
 
@@ -170,6 +176,18 @@ def test_copied_seal_and_copied_request_cannot_forge_plugin_token() -> None:
         plugin.run(forged)
 
 
+def test_mutated_issued_token_fails_closed_when_snapshot_cannot_be_canonicalized() -> None:
+    plugin = M0501Plugin(M0501Service())
+    token = plugin.validate(build_scenario_request())
+    object.__setattr__(token.request, "protocol_schema", object())
+
+    with (
+        pytest.warns(UserWarning, match="serialized value may not be as expected"),
+        pytest.raises(TypeError, match="validated request token"),
+    ):
+        plugin.run(token)
+
+
 @pytest.mark.parametrize(
     ("control", "denied_state"),
     [
@@ -233,6 +251,57 @@ def test_dict_subclass_overrides_are_not_invoked() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    ["mapping", "deep", "large_dict", "large_list", "large_tuple", "bad_enum"],
+)
+def test_authorized_hostile_container_shapes_fail_before_model_validation(
+    mutation: str,
+) -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    trap = _TraversalTrap()
+    if mutation == "mapping":
+        governed: object = trap
+    elif mutation == "deep":
+        governed = "leaf"
+        for _ in range(66):
+            governed = [governed]
+    elif mutation == "large_dict":
+        governed = {f"field_{index}": index for index in range(513)}
+    elif mutation == "large_list":
+        governed = [None] * 33
+    elif mutation == "large_tuple":
+        governed = (None,) * 33
+    else:
+
+        class InvalidStringEnum(StrEnum):
+            VALUE = "value"
+
+        object.__setattr__(InvalidStringEnum.VALUE, "_value_", 1)
+        governed = InvalidStringEnum.VALUE
+    payload["protocol_schema"] = governed
+
+    with pytest.raises(TypeError, match="exact built-in containers"):
+        evaluate_ptm_localization_protocol(payload)
+    assert trap.traversals == 0
+
+
+def test_request_subclass_and_raw_byte_cap_preserve_exact_boundary() -> None:
+    class RequestSubclass(EvaluatePtmLocalizationProtocolRequest):
+        pass
+
+    request = build_scenario_request()
+    subclass = RequestSubclass.model_validate(request.model_dump(mode="python"), strict=True)
+    with pytest.raises(PtmLocalizationProtocolInputError):
+        evaluate_ptm_localization_protocol(subclass)
+
+    with pytest.raises(ValueError, match="byte limit"):
+        m0501_engine._validate_json_request(
+            request.model_dump(mode="python"),
+            b" " * (M0501_MAX_CANONICAL_REQUEST_BYTES + 1),
+        )
+
+
 def test_semantic_reordering_has_full_result_equality() -> None:
     request = build_scenario_request()
     payload = request.model_dump(mode="json")
@@ -290,6 +359,8 @@ def test_strict_json_rejects_duplicate_unknown_coercion_and_oversize() -> None:
 @pytest.mark.parametrize(
     "field",
     [
+        "receipt",
+        "findings",
         "result_id",
         "request_digest",
         "protocol_digest",
@@ -303,12 +374,18 @@ def test_strict_json_rejects_duplicate_unknown_coercion_and_oversize() -> None:
         "evidence",
         "limitations",
         "completed_at",
+        "result_digest",
     ],
 )
 def test_resigned_result_derived_region_forgery_is_rejected(field: str) -> None:
     result = evaluate_ptm_localization_protocol(build_scenario_request())
+    alternate = evaluate_ptm_localization_protocol(
+        build_scenario_request("unsupported_version_abstains")
+    )
     payload = result.model_dump(mode="python")
     mutations: dict[str, object] = {
+        "receipt": alternate.receipt.model_dump(mode="python"),
+        "findings": tuple(item.model_dump(mode="python") for item in alternate.findings),
         "result_id": "result.m0501." + ("f" * 64),
         "request_digest": "sha256:" + ("f" * 64),
         "protocol_digest": "sha256:" + ("f" * 64),
@@ -325,13 +402,32 @@ def test_resigned_result_derived_region_forgery_is_rejected(field: str) -> None:
             **payload["provenance"],
             "input_digests": ("sha256:" + ("f" * 64),),
         },
-        "evidence": tuple(reversed(payload["evidence"]))[:-1],
-        "limitations": tuple(reversed(payload["limitations"]))[:-1],
-        "completed_at": "2026-01-15T12:00:01Z",
+        "evidence": (
+            {**payload["evidence"][0], "claim": "Forged caller claim."},
+            *payload["evidence"][1:],
+        ),
+        "limitations": (
+            {
+                **payload["limitations"][0],
+                "statement": "A forged but structurally valid limitation statement.",
+            },
+            *payload["limitations"][1:],
+        ),
+        "completed_at": result.completed_at + timedelta(seconds=1),
+        "result_digest": "sha256:" + ("f" * 64),
     }
     payload[field] = mutations[field]
-    payload["result_digest"] = result_payload_digest(payload)
+    if field != "result_digest":
+        payload["result_digest"] = result_payload_digest(payload)
     with pytest.raises(ValidationError):
+        PtmLocalizationProtocolConformanceResult.model_validate(payload, strict=True)
+
+
+def test_result_and_receipt_section_partitions_reject_duplicates() -> None:
+    result = evaluate_ptm_localization_protocol(build_scenario_request())
+    payload = result.model_dump(mode="python")
+    payload["findings"][1]["section"] = payload["findings"][0]["section"]
+    with pytest.raises(ValidationError, match="every conformance section"):
         PtmLocalizationProtocolConformanceResult.model_validate(payload, strict=True)
 
 
