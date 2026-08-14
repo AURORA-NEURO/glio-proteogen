@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, cast
@@ -186,7 +187,7 @@ def receipt_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     source = _dump(value)
-    data = source
+    data = deepcopy(source)
     data["result_digest"] = _ZERO_DIGEST
     data["request"] = normalized_request(data["request"])
     data["receipt"] = normalized_receipt(data["receipt"])

@@ -936,6 +936,12 @@ def test_public_m0503_builder_is_genuine_and_fully_replayable() -> None:
         strict=True,
     )
     assert replay == result
+    normalized_replay = PtmLocalizationRawInputValidationResult.model_validate_json(
+        canonical_json_bytes(normalized_result(result)),
+        strict=True,
+    )
+    assert normalized_replay == result
+    assert normalized_replay.receipt.receipt_digest == result.receipt.receipt_digest
 
 
 @pytest.mark.contract
