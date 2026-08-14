@@ -8,6 +8,7 @@ from typing import Annotated, Final, Literal, cast
 
 from pydantic import (
     AwareDatetime,
+    BaseModel,
     Field,
     StringConstraints,
     ValidatorFunctionWrapHandler,
@@ -76,11 +77,24 @@ M0503_MAX_DECLARED_RECORD_COUNT: Final = 9_223_372_036_854_775_807
 M0503_DIAGNOSTIC_CODE_COUNT: Final = 17
 M0503_MAX_DIAGNOSTICS: Final = 60
 M0503_LIMITATION_COUNT: Final = 3
-M0503_MIN_EVIDENCE: Final = 20
+M0503_MIN_EVIDENCE: Final = 12
+M0503_MIN_RECONCILED_EVIDENCE: Final = 20
 M0503_MAX_EVIDENCE: Final = 48
 _M0503_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 M0503_EVIDENCE_CLAIM: Final = (
     "Caller-declared content-addressed M05-03 raw-manifest validation evidence."
+)
+_REQUEST_STORAGE_FIELDS: Final = frozenset(
+    {
+        "operation",
+        "contract_version",
+        "request_id",
+        "context",
+        "lineage_result",
+        "policy",
+        "artifacts",
+        "supersedes_result_digest",
+    }
 )
 
 _OPAQUE_IDENTIFIER = re.compile(
@@ -438,42 +452,39 @@ class TranscriptomeInputDocument(_PtmLocalizationRawDocumentBase):
     annotation_build: Identifier
 
 
+class PtmLocalizationRawVocabularyBinding(FrozenModel):
+    """One inseparable M05-01 PTM vocabulary identifier/version projection."""
+
+    vocabulary_id: Identifier
+    version: SemanticVersion
+
+    @field_validator("vocabulary_id")
+    @classmethod
+    def vocabulary_identifier_is_upstream_owned(cls, value: Identifier) -> Identifier:
+        return opaque_ptm_localization_protocol_identifier("vocabulary", value)
+
+
 class PtmAnnotationInputDocument(_PtmLocalizationRawDocumentBase):
     document_type: Literal["ptm_annotation_input"] = "ptm_annotation_input"
     reference_role: Literal[PtmLocalizationRawReferenceRole.PTM_ANNOTATIONS] = (
         PtmLocalizationRawReferenceRole.PTM_ANNOTATIONS
     )
     reference_digest: Sha256Digest
-    vocabulary_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=32)
-    vocabulary_versions: tuple[SemanticVersion, ...] = Field(min_length=1, max_length=32)
+    vocabularies: tuple[PtmLocalizationRawVocabularyBinding, ...] = Field(
+        min_length=1,
+        max_length=32,
+    )
     vocabularies_digest: Sha256Digest
 
-    @field_validator("vocabulary_ids")
+    @field_validator("vocabularies")
     @classmethod
-    def vocabulary_identifiers_are_upstream_owned(
-        cls, values: tuple[Identifier, ...]
-    ) -> tuple[Identifier, ...]:
-        if len(values) != len(set(values)):
-            raise ValueError("PTM vocabulary identifiers must be unique")
-        return tuple(
-            sorted(
-                opaque_ptm_localization_protocol_identifier("vocabulary", value) for value in values
-            )
-        )
-
-    @field_validator("vocabulary_versions")
-    @classmethod
-    def vocabulary_versions_are_canonical(
+    def vocabulary_bindings_are_unique_and_canonical(
         cls,
-        values: tuple[SemanticVersion, ...],
-    ) -> tuple[SemanticVersion, ...]:
-        return tuple(sorted(values))
-
-    @model_validator(mode="after")
-    def vocabulary_projection_is_cardinality_closed(self) -> PtmAnnotationInputDocument:
-        if len(self.vocabulary_ids) != len(self.vocabulary_versions):
-            raise ValueError("PTM vocabulary identifiers and versions must have equal cardinality")
-        return self
+        values: tuple[PtmLocalizationRawVocabularyBinding, ...],
+    ) -> tuple[PtmLocalizationRawVocabularyBinding, ...]:
+        if len({item.vocabulary_id for item in values}) != len(values):
+            raise ValueError("PTM vocabulary identifiers must be unique")
+        return tuple(sorted(values, key=canonical_json_bytes))
 
 
 PtmLocalizationRawInputDocument = Annotated[
@@ -483,6 +494,13 @@ PtmLocalizationRawInputDocument = Annotated[
     | PtmAnnotationInputDocument,
     Field(discriminator="document_type"),
 ]
+
+_DOCUMENT_ROLE: Final = {
+    "mass_spectrometry_proteome_input": PtmLocalizationRawInputRole.MASS_SPECTROMETRY_PROTEOME,
+    "genome_input": PtmLocalizationRawInputRole.GENOME,
+    "transcriptome_input": PtmLocalizationRawInputRole.TRANSCRIPTOME,
+    "ptm_annotation_input": PtmLocalizationRawInputRole.PTM_ANNOTATIONS,
+}
 
 
 class IngestPtmLocalizationRawInputsRequest(FrozenModel):
@@ -495,7 +513,7 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
     lineage_result: PtmLocalizationIdentityLineageResolution
     policy: PtmLocalizationRawInputPolicy
     artifacts: tuple[PtmLocalizationRawInputArtifact, ...] = Field(
-        min_length=M0503_ROLE_COUNT,
+        min_length=0,
         max_length=M0503_ROLE_COUNT,
     )
     supersedes_result_digest: Sha256Digest | None = None
@@ -509,29 +527,51 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
     ) -> PtmLocalizationIdentityLineageResolution:
         result_digest: object
         receipt_digest_value: object
-        if isinstance(value, PtmLocalizationIdentityLineageResolution):
-            result_digest = value.result_digest
-            receipt_digest_value = value.receipt.receipt_digest
-        elif isinstance(value, dict):
-            result_digest = dict.get(value, "result_digest")
-            receipt = dict.get(value, "receipt")
+        if type(value) is PtmLocalizationIdentityLineageResolution:
+            storage = object.__getattribute__(value, "__dict__")
+            if type(storage) is not dict:
+                raise ValueError("embedded M05-02 result storage must be an exact object")
+            result_digest = dict.get(storage, "result_digest")
+            receipt = dict.get(storage, "receipt")
+            receipt_storage = (
+                object.__getattribute__(receipt, "__dict__")
+                if BaseModel in type.__getattribute__(type(receipt), "__mro__")
+                else None
+            )
             receipt_digest_value = (
-                dict.get(receipt, "receipt_digest") if isinstance(receipt, dict) else None
+                dict.get(receipt_storage, "receipt_digest")
+                if type(receipt_storage) is dict
+                else None
+            )
+        elif type(value) is dict:
+            mapping = cast("dict[object, object]", value)
+            if any(type(key) is not str for key in dict.keys(mapping)):
+                raise ValueError("embedded M05-02 result keys must be exact strings")
+            result_digest = dict.get(mapping, "result_digest")
+            receipt = dict.get(mapping, "receipt")
+            receipt_digest_value = (
+                dict.get(cast("dict[object, object]", receipt), "receipt_digest")
+                if type(receipt) is dict
+                else None
             )
         else:
-            return cast("PtmLocalizationIdentityLineageResolution", handler(value))
+            del handler
+            raise ValueError("embedded M05-02 result must be an exact model or built-in object")
         if _M0503_ZERO_DIGEST in (result_digest, receipt_digest_value):
             raise ValueError("embedded M05-02 derived digests must be final, not sentinels")
         parsed = (
             value
-            if isinstance(value, PtmLocalizationIdentityLineageResolution)
+            if type(value) is PtmLocalizationIdentityLineageResolution
             else PtmLocalizationIdentityLineageResolution.model_validate_json(
-                canonical_json_bytes(value), strict=True
+                canonical_json_bytes(normalized_lineage_result(value)), strict=True
             )
         )
-        return PtmLocalizationIdentityLineageResolution.model_validate_json(
+        replayed = PtmLocalizationIdentityLineageResolution.model_validate_json(
             canonical_json_bytes(normalized_lineage_result(parsed)), strict=True
         )
+        if type(replayed) is not PtmLocalizationIdentityLineageResolution:
+            raise ValueError("embedded M05-02 result must use the exact installed type")
+        return replayed
 
     @field_validator("artifacts")
     @classmethod
@@ -542,7 +582,10 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
         return tuple(sorted(values, key=canonical_json_bytes))
 
     @model_validator(mode="after")
-    def request_is_closed(self) -> IngestPtmLocalizationRawInputsRequest:
+    def request_is_closed(  # noqa: PLR0912 - explicit fail-closed invariant matrix.
+        self,
+    ) -> IngestPtmLocalizationRawInputsRequest:
+        _validate_exact_request_storage(self)
         _owned_identifier("request", self.request_id)
         _owned_identifier("request", self.context.request_id)
         _owned_identifier("actor", self.context.actor_id)
@@ -553,8 +596,32 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
         if self.lineage_result.completed_at > self.context.occurred_at:
             raise ValueError("M05-02 result cannot postdate raw-input ingestion")
         roles = tuple(item.role for item in self.artifacts)
-        if len(roles) != len(set(roles)) or set(roles) != set(PtmLocalizationRawInputRole):
-            raise ValueError("M05-03 requires every raw-input role exactly once")
+        upstream_reconciled = self.lineage_result.disposition.value == "reconciled"
+        if upstream_reconciled and (
+            len(roles) != len(set(roles)) or set(roles) != set(PtmLocalizationRawInputRole)
+        ):
+            raise ValueError("reconciled M05-03 requires every raw-input role exactly once")
+        if not upstream_reconciled and roles:
+            raise ValueError("non-reconciled M05-03 requests cannot submit raw-input artifacts")
+        declared_total = sum(item.declared_size_bytes for item in self.artifacts)
+        if declared_total > self.policy.max_total_bytes:
+            raise ValueError("declared raw-input bytes exceed the active aggregate policy cap")
+        for artifact in self.artifacts:
+            if artifact.declared_size_bytes > self.policy.max_document_bytes:
+                raise ValueError("declared raw-input bytes exceed the active document policy cap")
+            matching_parsers = tuple(
+                parser
+                for parser in self.policy.approved_parsers
+                if parser.role is artifact.role
+                and parser.format is artifact.format
+                and parser.format_version == artifact.format_version
+                and parser.parser_version == artifact.parser_version
+            )
+            if (
+                matching_parsers
+                and artifact.declared_size_bytes > matching_parsers[0].max_document_bytes
+            ):
+                raise ValueError("declared raw-input bytes exceed the matching parser cap")
         claim_ids = tuple(item.lineage_claim_id for item in self.artifacts)
         if len(claim_ids) != len(set(claim_ids)):
             raise ValueError("raw-input lineage claim identifiers must be unique")
@@ -582,7 +649,7 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
             for claim in self.lineage_result.request.artifact_claims
             if claim.role in projected_roles
         )
-        if (
+        if upstream_reconciled and (
             len(upstream_source_claims) != M0503_ROLE_COUNT
             or {claim.role for claim in upstream_source_claims} != projected_roles
         ):
@@ -636,6 +703,19 @@ class IngestPtmLocalizationRawInputsRequest(FrozenModel):
         if len(canonical_json_bytes(normalized_request(self))) > M0503_MAX_CANONICAL_REQUEST_BYTES:
             raise ValueError("canonical M05-03 request exceeds the 4 MiB ingress bound")
         return self
+
+
+def _validate_exact_request_storage(value: object) -> None:
+    if type(value) is not IngestPtmLocalizationRawInputsRequest:
+        raise ValueError("M05-03 request must use the exact installed request type")
+    storage = object.__getattribute__(value, "__dict__")
+    if type(storage) is not dict or dict.__len__(storage) != len(_REQUEST_STORAGE_FIELDS):
+        raise ValueError("M05-03 request storage does not match its closed contract")
+    keys = dict.keys(storage)
+    if any(type(key) is not str for key in keys):
+        raise ValueError("M05-03 request storage keys must be exact strings")
+    if frozenset(cast("str", key) for key in keys) != _REQUEST_STORAGE_FIELDS:
+        raise ValueError("M05-03 request storage does not match its closed contract")
 
 
 _DIAGNOSTIC_ACTION: Final[
@@ -718,8 +798,28 @@ class ValidatedPtmLocalizationRawInput(FrozenModel):
     @model_validator(mode="after")
     def document_projection_is_exact(self) -> ValidatedPtmLocalizationRawInput:
         opaque_ptm_localization_lineage_identifier("claim", self.lineage_claim_id)
-        if self.document_digest != document_digest(self.document):
-            raise ValueError("validated-input document digest does not match its content")
+        opaque_ptm_localization_lineage_identifier("evidence", self.manifest_reference.artifact_id)
+        if self.manifest_reference.media_type != _ROLE_MANIFEST_MEDIA_TYPES[self.role]:
+            raise ValueError("validated-input manifest media type contradicts its role")
+        _owned_identifier("input", self.content_reference.artifact_id)
+        document_role = _DOCUMENT_ROLE[self.document.document_type]
+        if document_role is not self.role:
+            raise ValueError("validated-input role contradicts its document type")
+        if self.format is not _ROLE_FORMATS[self.role]:
+            raise ValueError("validated-input format contradicts its role")
+        if (
+            self.document.lineage_claim_id != self.lineage_claim_id
+            or self.document.content_reference != self.content_reference
+            or self.document.input_id != self.content_reference.artifact_id
+        ):
+            raise ValueError("validated-input claims and content must match its document")
+        if (
+            self.document_digest != document_digest(self.document)
+            or self.document_digest != self.manifest_reference.digest
+        ):
+            raise ValueError(
+                "validated-input document digest must match its content and manifest claim"
+            )
         return self
 
 
@@ -931,14 +1031,6 @@ class PtmLocalizationRawInputValidationResult(FrozenModel):
         return _validate_result_replay(self)
 
 
-_DOCUMENT_ROLE: Final = {
-    "mass_spectrometry_proteome_input": PtmLocalizationRawInputRole.MASS_SPECTROMETRY_PROTEOME,
-    "genome_input": PtmLocalizationRawInputRole.GENOME,
-    "transcriptome_input": PtmLocalizationRawInputRole.TRANSCRIPTOME,
-    "ptm_annotation_input": PtmLocalizationRawInputRole.PTM_ANNOTATIONS,
-}
-
-
 def _diagnostic(
     code: PtmLocalizationRawDiagnosticCode,
     *,
@@ -1142,11 +1234,20 @@ def expected_diagnostics(  # noqa: PLR0912,PLR0915 - explicit closed diagnostic 
                 )
         if isinstance(document, PtmAnnotationInputDocument):
             vocabularies = tuple(protocol.controlled_vocabularies)
+            expected_vocabulary_bindings = tuple(
+                sorted(
+                    (
+                        PtmLocalizationRawVocabularyBinding(
+                            vocabulary_id=item.vocabulary_id,
+                            version=item.version,
+                        )
+                        for item in vocabularies
+                    ),
+                    key=canonical_json_bytes,
+                )
+            )
             if (
-                document.vocabulary_ids
-                != tuple(sorted(item.vocabulary_id for item in vocabularies))
-                or document.vocabulary_versions
-                != tuple(sorted(item.version for item in vocabularies))
+                document.vocabularies != expected_vocabulary_bindings
                 or document.vocabularies_digest != sha256_digest(vocabularies)
             ):
                 add(
@@ -1230,9 +1331,9 @@ def expected_validated_inputs(
         values.append(
             ValidatedPtmLocalizationRawInput(
                 role=role,
-                lineage_claim_id=artifact.lineage_claim_id,
+                lineage_claim_id=document.lineage_claim_id,
                 manifest_reference=artifact.manifest_reference,
-                content_reference=artifact.content_reference,
+                content_reference=document.content_reference,
                 document=cast("PtmLocalizationRawInputDocument", document),
                 document_digest=document_digest(document),
                 format=artifact.format,
@@ -1446,6 +1547,15 @@ def _normalized_uncertainty(value: UncertaintyProfile) -> dict[str, object]:
 def _validate_result_replay(
     self: PtmLocalizationRawInputValidationResult,
 ) -> PtmLocalizationRawInputValidationResult:
+    _validate_exact_request_storage(self.request)
+    replayed_request = IngestPtmLocalizationRawInputsRequest.model_validate_json(
+        canonical_json_bytes(normalized_request(self.request)),
+        strict=True,
+    )
+    if canonical_json_bytes(normalized_request(replayed_request)) != canonical_json_bytes(
+        normalized_request(self.request)
+    ):
+        raise ValueError("M05-03 result embeds a non-replayable ingestion request")
     request_hash = canonical_request_digest(self.request)
     active_policy_hash = policy_digest(self.request.policy)
     config_hash = configuration_digest(self.request.policy)
@@ -1518,6 +1628,7 @@ __all__ = [
     "M0503_MAX_TOTAL_DOCUMENT_BYTES",
     "M0503_MIN_APPROVED_PARSERS",
     "M0503_MIN_EVIDENCE",
+    "M0503_MIN_RECONCILED_EVIDENCE",
     "M0503_MODULE_ID",
     "M0503_OPERATION",
     "M0503_PARENT",
@@ -1543,6 +1654,7 @@ __all__ = [
     "PtmLocalizationRawParentQualityState",
     "PtmLocalizationRawParseDiagnostic",
     "PtmLocalizationRawReferenceRole",
+    "PtmLocalizationRawVocabularyBinding",
     "TranscriptomeInputDocument",
     "ValidatedPtmLocalizationRawInput",
     "expected_control_decisions",
