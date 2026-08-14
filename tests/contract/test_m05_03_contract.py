@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, ClassVar, NoReturn, cast
 
@@ -92,6 +93,7 @@ from glio_proteogen.contracts.m05_03 import (
     validated_input_digest,
     validated_inputs_digest,
 )
+from glio_proteogen.contracts.m05_03 import canonical as m0503_canonical
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -1533,3 +1535,156 @@ def test_parser_policy_and_artifact_role_constraints_reject_independently() -> N
     )
     with pytest.raises(ValidationError):
         PtmLocalizationRawInputArtifact.model_validate(wrong_artifact_format, strict=True)
+
+
+@pytest.mark.contract
+def test_canonical_firewall_rejects_nonsemantic_storage_and_collections() -> None:
+    class CanonicalProbe(BaseModel):
+        value: int
+
+    probe = CanonicalProbe(value=1)
+    storage = object.__getattribute__(probe, "__dict__")
+    storage[1] = "non-string-storage-key"
+    with pytest.raises(TypeError, match="model storage"):
+        m0503_canonical._python(probe)
+
+    with pytest.raises(TypeError, match="exact string keys"):
+        m0503_canonical._python({1: "non-string-object-key"})
+    with pytest.raises(TypeError, match="unsupported"):
+        m0503_canonical._python(object())
+    with pytest.raises(TypeError, match="must be an object"):
+        m0503_canonical._dump(cast("Any", []))
+    assert m0503_canonical._sequence(["a", "b"]) == ("a", "b")
+    with pytest.raises(TypeError, match="exact lists or tuples"):
+        m0503_canonical._sequence(cast("Any", {"not", "a", "sequence"}))
+
+
+@pytest.mark.contract
+def test_owned_identifiers_evidence_and_role_collections_reject_independently() -> None:
+    request = _genuine_request()
+    with pytest.raises(ValueError, match="opaque local namespace"):
+        m05_03.opaque_ptm_localization_raw_input_identifier(
+            "policy",
+            _opaque("actor", "wrong-owned-namespace"),
+        )
+
+    parser_payload = request.policy.approved_parsers[0].model_dump(
+        mode="python", exclude_none=False
+    )
+    parser_evidence = cast("dict[str, object]", parser_payload["evidence"])
+    parser_evidence["media_type"] = "application/json"
+    with pytest.raises(ValidationError, match="artifact media type"):
+        ApprovedPtmLocalizationRawParser.model_validate(parser_payload, strict=True)
+
+    missing_role = request.policy.model_dump(mode="python", exclude_none=False)
+    parsers = list(cast("tuple[dict[str, object], ...]", missing_role["approved_parsers"]))
+    replacement = deepcopy(parsers[-1])
+    replacement.update(
+        role=PtmLocalizationRawInputRole.GENOME,
+        format=PtmLocalizationRawDocumentFormat.GENOME_MANIFEST_JSON,
+        format_version="9.9.8",
+        parser_version="9.9.8",
+        media_type=ROLE_CONTENT_MEDIA_TYPES[PtmLocalizationRawInputRole.GENOME],
+    )
+    parsers[-1] = replacement
+    missing_role["approved_parsers"] = tuple(parsers)
+    with pytest.raises(ValidationError, match="cover all four"):
+        PtmLocalizationRawInputPolicy.model_validate(missing_role, strict=True)
+
+    duplicate_evidence = request.policy.model_dump(mode="python", exclude_none=False)
+    parsers = list(cast("tuple[dict[str, object], ...]", duplicate_evidence["approved_parsers"]))
+    parsers[-1] = deepcopy(parsers[-1])
+    parsers[-1]["evidence"] = deepcopy(parsers[0]["evidence"])
+    duplicate_evidence["approved_parsers"] = tuple(parsers)
+    with pytest.raises(ValidationError, match="evidence identities and digests"):
+        PtmLocalizationRawInputPolicy.model_validate(duplicate_evidence, strict=True)
+
+
+@pytest.mark.contract
+def test_document_local_media_and_bound_collection_validators_reject() -> None:
+    request = _genuine_request()
+    artifact_payload = request.artifacts[0].model_dump(mode="python", exclude_none=False)
+    artifact_content = cast("dict[str, object]", artifact_payload["content_reference"])
+    artifact_content["media_type"] = "Application/JSON"
+    with pytest.raises(ValidationError, match="lowercase"):
+        PtmLocalizationRawInputArtifact.model_validate(artifact_payload, strict=True)
+
+    documents = _documents(request)
+    proteome_payload = documents[0].model_dump(mode="python", exclude_none=False)
+    document_content = cast("dict[str, object]", proteome_payload["content_reference"])
+    document_content["media_type"] = "Application/JSON"
+    with pytest.raises(ValidationError, match="lowercase"):
+        MassSpectrometryProteomeInputDocument.model_validate(proteome_payload, strict=True)
+
+    proteome_payload = documents[0].model_dump(mode="python", exclude_none=False)
+    unit = cast("tuple[object, ...]", proteome_payload["declared_units"])[0]
+    proteome_payload["declared_units"] = (unit, unit)
+    with pytest.raises(ValidationError, match="unit declarations must be unique"):
+        MassSpectrometryProteomeInputDocument.model_validate(proteome_payload, strict=True)
+
+    ptm_payload = documents[-1].model_dump(mode="python", exclude_none=False)
+    vocabulary = cast("tuple[object, ...]", ptm_payload["vocabularies"])[0]
+    ptm_payload["vocabularies"] = (vocabulary, vocabulary)
+    with pytest.raises(ValidationError, match="vocabulary identifiers must be unique"):
+        PtmAnnotationInputDocument.model_validate(ptm_payload, strict=True)
+
+
+@pytest.mark.contract
+def test_request_chronology_identity_and_safe_shape_reject_independently() -> None:
+    request = _genuine_request()
+
+    mismatched_id = request.model_dump(mode="python", exclude_none=False)
+    context = cast("dict[str, object]", mismatched_id["context"])
+    context["request_id"] = _opaque("request", "mismatched-context-request")
+    with pytest.raises(ValidationError, match="identifier must equal"):
+        IngestPtmLocalizationRawInputsRequest.model_validate(mismatched_id, strict=True)
+
+    future_policy = request.model_dump(mode="python", exclude_none=False)
+    policy = cast("dict[str, object]", future_policy["policy"])
+    policy["reviewed_at"] = request.context.occurred_at + timedelta(microseconds=1)
+    with pytest.raises(ValidationError, match="policy cannot postdate"):
+        IngestPtmLocalizationRawInputsRequest.model_validate(future_policy, strict=True)
+
+    stale_context = request.model_dump(mode="python", exclude_none=False)
+    context = cast("dict[str, object]", stale_context["context"])
+    occurred_at = request.lineage_result.completed_at - timedelta(microseconds=1)
+    context["occurred_at"] = occurred_at
+    policy = cast("dict[str, object]", stale_context["policy"])
+    policy["reviewed_at"] = occurred_at - timedelta(microseconds=1)
+    with pytest.raises(ValidationError, match="result cannot postdate"):
+        IngestPtmLocalizationRawInputsRequest.model_validate(stale_context, strict=True)
+
+    safe_request = _genuine_request(_genuine_lineage("upstream_protocol_quarantined"))
+    safe_payload = safe_request.model_dump(mode="python", exclude_none=False)
+    safe_payload["artifacts"] = request.artifacts
+    with pytest.raises(ValidationError, match="cannot submit raw-input artifacts"):
+        IngestPtmLocalizationRawInputsRequest.model_validate(safe_payload, strict=True)
+
+
+@pytest.mark.contract
+def test_duplicate_derived_codes_and_resigned_digest_reject_independently() -> None:
+    result = _result(_genuine_request())
+    code = PtmLocalizationRawDiagnosticCode.DUPLICATE_CONTENT_RETAINED
+
+    validated_payload = result.validated_inputs[0].model_dump(mode="python", exclude_none=False)
+    validated_payload["diagnostic_codes"] = (code, code)
+    with pytest.raises(ValidationError, match="diagnostic codes must be unique"):
+        ValidatedPtmLocalizationRawInput.model_validate(validated_payload, strict=True)
+
+    receipt_payload = result.receipt.model_dump(mode="python", exclude_none=False)
+    receipt_payload["diagnostic_codes"] = (code, code)
+    with pytest.raises(ValidationError, match="diagnostic codes must be unique"):
+        PtmLocalizationRawInputReceipt.model_validate(receipt_payload, strict=True)
+
+    with pytest.raises(ValueError, match="disposition contradicts"):
+        expected_receipt(
+            result.request,
+            result.validated_inputs,
+            result.diagnostics,
+            PtmLocalizationRawInputDisposition.QUARANTINED,
+        )
+
+    forged = result.model_dump(mode="python", exclude_none=False)
+    forged["result_digest"] = _digest("resigned-result-digest")
+    with pytest.raises(ValidationError, match="result digest"):
+        PtmLocalizationRawInputValidationResult.model_validate(forged, strict=True)
