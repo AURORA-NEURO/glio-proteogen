@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m05_01.schema import (
+    ContractName as M0501ContractName,
+)
+from glio_proteogen.contracts.m05_01.schema import (
+    contract_json_schema as m0501_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_01.v1 import (
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluatePtmLocalizationProtocolRequest,
+    PtmLocalizationProtocolConformanceResult,
+)
 from glio_proteogen.contracts.m04_05.schema import (
     ContractName as M0405ContractName,
 )
@@ -639,6 +650,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
+    M0501Service,
+    PtmLocalizationProtocolAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
+    _validate_json_request as _validate_m0501_json_request,
+)
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection import (
     M0405Service,
     ProteoformArtifactAuthorizationError,
@@ -743,6 +761,7 @@ _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _M0405_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteoformArtifactsRequest)
+_M0501_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluatePtmLocalizationProtocolRequest)
 _M2702_REQUEST_ADAPTER: Final = TypeAdapter(ResolveComplexActivityLineageRequest)
 _M2702_RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityLineageResult)
 _M1908_REQUEST_ADAPTER: Final = TypeAdapter(MonitorProteotypeTranslationHealthRequest)
@@ -917,6 +936,12 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _ptm_localization_protocol_contract_schema(
+    name: M0501ContractName,
+) -> dict[str, object]:
+    return m0501_contract_json_schema(name)
 
 
 def _proteoform_artifact_contract_schema(
@@ -1197,6 +1222,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
     }
 
 
+def _ptm_localization_protocol_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0501_contract_json_schema("request")}},
+        }
+    }
+
+
 def _proteoform_artifact_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -1372,12 +1406,7 @@ async def _strict_json_body[ModelT](
     except (TypeError, ValueError) as error:
         if json_validator is None:
             raise
-        detail = (
-            "M04-04 request validation failed"
-            if adapter is _M0404_QUALITY_ADAPTER
-            else "request validation failed"
-        )
-        raise HTTPException(status_code=422, detail=detail) from error
+        raise HTTPException(status_code=422, detail="strict request validation failed") from error
 
 
 async def _register_body(request: Request) -> RegisterProtocolRequest:
@@ -1808,6 +1837,18 @@ async def _proteoform_harmonization_body(
     )
 
 
+async def _ptm_localization_protocol_body(
+    request: Request,
+) -> EvaluatePtmLocalizationProtocolRequest:
+    return await _strict_json_body(
+        request,
+        _M0501_PROTOCOL_ADAPTER,
+        None,
+        M0501_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0501_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1835,6 +1876,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
     proteoform_artifact_service = M0405Service()
+    ptm_localization_protocol_service = M0501Service()
     m1908_service = m1908_monitoring.M1908Service()
     m1906_service = m1906_adjudication.M1906Service()
     m1904_service = M1904Service()
@@ -1900,6 +1942,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(PtmLocalizationProtocolAuthorizationError)
     @app.exception_handler(ProteoformArtifactAuthorizationError)
     @app.exception_handler(m1906_adjudication.M1906AuthorizationError)
     @app.exception_handler(M1904AuthorizationError)
@@ -2199,6 +2242,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0405ContractName,
     ) -> dict[str, object]:
         return _proteoform_artifact_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-01/{name}/schema", tags=["contracts"])
+    def ptm_localization_protocol_contract_schema(
+        name: M0501ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_protocol_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-01/protocol-conformance",
+        response_model=PtmLocalizationProtocolConformanceResult,
+        tags=["M05-01"],
+        openapi_extra=_ptm_localization_protocol_request_body(),
+    )
+    def evaluate_ptm_localization_protocol_conformance(
+        request: Annotated[
+            EvaluatePtmLocalizationProtocolRequest,
+            Depends(_ptm_localization_protocol_body),
+        ],
+    ) -> PtmLocalizationProtocolConformanceResult:
+        return ptm_localization_protocol_service._execute_validated(request)
 
     @app.get("/v1/contracts/M18-08/{name}/schema", tags=["contracts"])
     def m1808_contract_schema(name: M1808ContractName) -> dict[str, object]:

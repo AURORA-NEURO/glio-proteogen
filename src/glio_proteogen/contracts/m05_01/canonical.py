@@ -56,7 +56,7 @@ def assay_specimen_policy_digest(value: BaseModel | dict[str, Any]) -> Sha256Dig
 def normalized_protocol(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data = _dump(value)
     data["required_identity_keys"] = tuple(sorted(data["required_identity_keys"]))
-    data["declared_unresolved_states"] = tuple(sorted(data["declared_unresolved_states"]))
+    data["unresolved_rules"] = _sorted(data["unresolved_rules"])
     data["controlled_vocabularies"] = _sorted(data["controlled_vocabularies"])
     data["unit_policies"] = _sorted(data["unit_policies"])
     data["metadata_fields"] = _sorted(data["metadata_fields"])
