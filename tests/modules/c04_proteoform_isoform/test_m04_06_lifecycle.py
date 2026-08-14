@@ -21,6 +21,19 @@ from glio_proteogen.contracts.m04_06 import (
     ProteoformHarmonizationDisposition,
     ProteoformHarmonizationResult,
 )
+from glio_proteogen.contracts.m04_06 import (
+    result_payload_digest as m0406_result_digest,
+)
+from glio_proteogen.contracts.m04_06.v1 import (
+    _artifact_harmonization_receipt,
+    _expected_harmonization_bundle,
+    _issue_artifact_replay_capability,
+    _issue_validated_request_capability,
+    _ReplayedM0405Capability,
+    _validate_request_with_artifact_capability,
+    _validate_result_with_capability,
+    _ValidatedM0406RequestCapability,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
     M0406Plugin,
@@ -99,7 +112,7 @@ def test_api_and_cli_parse_once_then_execute_validated(
     preparation_count = 0
     original = m0406_engine._prepare_harmonization_request_candidate
 
-    def counted(candidate: object) -> dict[str, object]:
+    def counted(candidate: object) -> object:
         nonlocal preparation_count
         preparation_count += 1
         return original(candidate)
@@ -193,6 +206,93 @@ def test_request_ingress_rejects_resigned_upstream_forgery(
 
     with pytest.raises(ValidationError):
         HarmonizeProteoformAnalysisRequest.model_validate(payload, strict=True)
+
+
+def test_private_artifact_capability_is_nominal_identity_bound_and_snapshot_sealed() -> None:
+    request = build_scenario_request("accepted")
+    artifact = request.artifact_result
+    receipt = _artifact_harmonization_receipt(artifact)
+    capability = _issue_artifact_replay_capability(artifact, receipt)
+    payload = request.model_dump(mode="python")
+    payload["artifact_result"] = artifact
+    assert _validate_request_with_artifact_capability(payload, capability) == request
+
+    reconstructed = _ReplayedM0405Capability(
+        seal=capability.seal,
+        result=capability.result,
+        result_digest=capability.result_digest,
+        normalized_snapshot_digest=capability.normalized_snapshot_digest,
+        model_snapshot_digest=capability.model_snapshot_digest,
+        receipt=capability.receipt,
+    )
+    model_copy_payload = dict(payload)
+    model_copy_payload["artifact_result"] = artifact.model_copy()
+    for candidate, forged_capability in (
+        (payload, copy(capability)),
+        (payload, reconstructed),
+        (model_copy_payload, capability),
+    ):
+        with pytest.raises(TypeError, match="artifact-result replay capability"):
+            _validate_request_with_artifact_capability(candidate, forged_capability)
+
+    object.__setattr__(artifact, "human_review_required", not artifact.human_review_required)
+    with pytest.raises(TypeError, match="artifact-result replay capability"):
+        _validate_request_with_artifact_capability(payload, capability)
+
+
+def test_private_request_capability_rejects_copies_and_post_issue_mutation() -> None:
+    result = harmonize_proteoform_analysis(build_scenario_request("accepted"))
+    request = result.request
+    bundle = _expected_harmonization_bundle(
+        request,
+        (
+            result.analysis,
+            result.transformation_manifest,
+            result.technical_effect_diagnostics,
+            result.invariant_diagnostics,
+        ),
+    )
+    capability = _issue_validated_request_capability(
+        request,
+        bundle,
+        result.result_digest,
+    )
+    assert _validate_result_with_capability(result, capability) == result
+
+    reconstructed = _ValidatedM0406RequestCapability(
+        seal=capability.seal,
+        request=capability.request,
+        request_digest=capability.request_digest,
+        request_snapshot_digest=capability.request_snapshot_digest,
+        policy_digest=capability.policy_digest,
+        configuration_digest=capability.configuration_digest,
+        artifact_result=capability.artifact_result,
+        artifact_snapshot_digest=capability.artifact_snapshot_digest,
+        bundle=capability.bundle,
+        expected_result_digest=capability.expected_result_digest,
+    )
+    model_copy_result = result.model_copy(update={"request": request.model_copy()})
+    for candidate, forged_capability in (
+        (result, copy(capability)),
+        (result, reconstructed),
+        (model_copy_result, capability),
+    ):
+        with pytest.raises(TypeError, match="request-validation capability"):
+            _validate_result_with_capability(candidate, forged_capability)
+
+    object.__setattr__(request, "supersedes_result_digest", "sha256:" + ("f" * 64))
+    with pytest.raises(TypeError, match="request-validation capability"):
+        _validate_result_with_capability(result, capability)
+
+
+def test_public_unsealed_result_validation_replays_and_rejects_forged_output() -> None:
+    result = harmonize_proteoform_analysis(build_scenario_request("accepted"))
+    forged = result.model_dump(mode="python")
+    forged["human_review_required"] = True
+    forged["result_digest"] = m0406_result_digest(forged)
+
+    with pytest.raises(ValidationError, match="human-review flag"):
+        ProteoformHarmonizationResult.model_validate(forged, strict=True)
 
 
 def test_plugin_rejects_constructed_copied_and_model_copy_tokens(

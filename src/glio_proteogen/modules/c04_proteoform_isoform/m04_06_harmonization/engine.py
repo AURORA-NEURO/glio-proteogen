@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from enum import StrEnum
-from typing import Any, Final, cast
+from typing import Final, cast
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -22,19 +21,19 @@ from glio_proteogen.contracts.m04_06 import (
     ProteoformHarmonizationPolicy,
     ProteoformHarmonizationResult,
     ProteoformSupportLedger,
-    artifact_harmonization_receipt,
     canonical_request_digest,
     configuration_digest,
-    expected_computation_receipt,
-    expected_disposition,
-    expected_harmonization_findings,
-    expected_limitations,
-    expected_provenance,
-    expected_support,
-    expected_uncertainty,
-    harmonization_evidence_index,
     policy_digest,
     result_payload_digest,
+)
+from glio_proteogen.contracts.m04_06.v1 import (
+    _artifact_harmonization_receipt,
+    _expected_harmonization_bundle,
+    _issue_artifact_replay_capability,
+    _issue_validated_request_capability,
+    _ReplayedM0405Capability,
+    _validate_request_with_artifact_capability,
+    _validate_result_with_capability,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ExecutionContext
@@ -42,8 +41,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.kernel i
     M0406ProteoformHarmonizationKernel,
 )
 
-_REQUEST_ADAPTER: Final = TypeAdapter(HarmonizeProteoformAnalysisRequest)
-_RESULT_ADAPTER: Final = TypeAdapter(ProteoformHarmonizationResult)
 _CONTEXT_ADAPTER: Final = TypeAdapter(ExecutionContext)
 _ARTIFACT_RESULT_ADAPTER: Final = TypeAdapter(ProteoformArtifactDetectionResult)
 _ARTIFACT_RECEIPT_ADAPTER: Final = TypeAdapter(ProteoformArtifactHarmonizationReceipt)
@@ -140,7 +137,9 @@ def _validate_json_request(
     return _validate_prepared_request(_prepare_harmonization_request_candidate(candidate))
 
 
-def _prepare_harmonization_request_candidate(candidate: object) -> dict[str, object]:
+def _prepare_harmonization_request_candidate(
+    candidate: object,
+) -> tuple[dict[str, object], _ReplayedM0405Capability]:
     """Replay M04-05 and policy metadata before materializing the support ledger."""
 
     preflight_proteoform_harmonization_authorization(candidate)
@@ -149,7 +148,11 @@ def _prepare_harmonization_request_candidate(candidate: object) -> dict[str, obj
         canonical_json_bytes(_plain_value(_member(candidate, "artifact_result"))),
         strict=True,
     )
-    derived_receipt = artifact_harmonization_receipt(artifact_result)
+    derived_receipt = _artifact_harmonization_receipt(artifact_result)
+    artifact_capability = _issue_artifact_replay_capability(
+        artifact_result,
+        derived_receipt,
+    )
     supplied_receipt = _ARTIFACT_RECEIPT_ADAPTER.validate_json(
         canonical_json_bytes(_plain_value(_member(candidate, "artifact_receipt"))),
         strict=True,
@@ -192,13 +195,14 @@ def _prepare_harmonization_request_candidate(candidate: object) -> dict[str, obj
         value = _member(candidate, field)
         if value is not _MISSING:
             payload[field] = _plain_value(value)
-    return payload
+    return payload, artifact_capability
 
 
 def _validate_prepared_request(
-    candidate: dict[str, object],
+    prepared: tuple[dict[str, object], _ReplayedM0405Capability],
 ) -> HarmonizeProteoformAnalysisRequest:
-    return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+    candidate, artifact_capability = prepared
+    return _validate_request_with_artifact_capability(candidate, artifact_capability)
 
 
 def _member(candidate: object, field: str) -> object:
@@ -334,17 +338,25 @@ def _harmonization_result(
     request: HarmonizeProteoformAnalysisRequest,
     kernel: M0406ProteoformHarmonizationKernel,
 ) -> ProteoformHarmonizationResult:
-    execution = kernel.harmonize(request)
-    findings = expected_harmonization_findings(
-        request,
-        execution.transformation_manifest,
-        execution.technical_effect_diagnostics,
-        execution.invariant_diagnostics,
-    )
-    disposition = expected_disposition(request, findings)
     request_hash = canonical_request_digest(request)
     policy_hash = policy_digest(request.policy)
     configuration_hash = configuration_digest(request.policy)
+    execution = kernel.harmonize(
+        request,
+        _request_digest=request_hash,
+        _policy_digest=policy_hash,
+        _configuration_digest=configuration_hash,
+    )
+    bundle = _expected_harmonization_bundle(
+        request,
+        (
+            execution.analysis,
+            execution.transformation_manifest,
+            execution.technical_effect_diagnostics,
+            execution.invariant_diagnostics,
+        ),
+        _digests=(request_hash, policy_hash, configuration_hash),
+    )
     payload: dict[str, object] = {
         "output_type": "proteoform_harmonized_analysis",
         "result_id": f"result.m0406.{request_hash.removeprefix('sha256:')}",
@@ -354,41 +366,39 @@ def _harmonization_result(
         "configuration_digest": configuration_hash,
         "result_digest": _ZERO_DIGEST,
         "request": request,
-        "receipt": expected_computation_receipt(
-            request,
-            disposition,
-            execution.analysis,
-            execution.transformation_manifest,
-        ),
-        "analysis": execution.analysis,
-        "transformation_manifest": execution.transformation_manifest,
-        "technical_effect_diagnostics": execution.technical_effect_diagnostics,
-        "invariant_diagnostics": execution.invariant_diagnostics,
-        "findings": findings,
-        "disposition": disposition,
+        "receipt": bundle.receipt,
+        "analysis": bundle.analysis,
+        "transformation_manifest": bundle.transformation_manifest,
+        "technical_effect_diagnostics": bundle.technical_effect_diagnostics,
+        "invariant_diagnostics": bundle.invariant_diagnostics,
+        "findings": bundle.findings,
+        "disposition": bundle.disposition,
         "parent_target": "protein_rna_discordance",
         "emits_protein_rna_discordance": False,
         "infers_identity": False,
         "infers_protein": False,
         "infers_proteoform": False,
         "infers_kinase_activity": False,
-        "support": expected_support(disposition),
-        "uncertainty": expected_uncertainty(disposition),
-        "provenance": expected_provenance(request),
-        "evidence": harmonization_evidence_index(request),
-        "limitations": expected_limitations(),
-        "human_review_required": (disposition is not ProteoformHarmonizationDisposition.ACCEPTED),
+        "support": bundle.support,
+        "uncertainty": bundle.uncertainty,
+        "provenance": bundle.provenance,
+        "evidence": bundle.evidence,
+        "limitations": bundle.limitations,
+        "human_review_required": (
+            bundle.disposition is not ProteoformHarmonizationDisposition.ACCEPTED
+        ),
         "completed_at": request.context.occurred_at,
     }
-    payload["result_digest"] = result_payload_digest(
+    expected_result_digest = result_payload_digest(
         ProteoformHarmonizationResult.model_construct(**payload)  # type: ignore[arg-type]
     )
-    materialized = cast(
-        "dict[str, Any]",
-        # Trusted output is bounded by the typed request and its closed collections.
-        json.loads(canonical_json_bytes(payload)),
+    payload["result_digest"] = expected_result_digest
+    capability = _issue_validated_request_capability(
+        request,
+        bundle,
+        expected_result_digest,
     )
-    return _RESULT_ADAPTER.validate_json(canonical_json_bytes(materialized), strict=True)
+    return _validate_result_with_capability(payload, capability)
 
 
 __all__ = [
