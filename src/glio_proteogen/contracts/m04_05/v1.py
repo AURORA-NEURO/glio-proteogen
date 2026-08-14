@@ -27,13 +27,15 @@ from glio_proteogen.contracts.m04_05.canonical import (
     receipt_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ConsentState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
     Identifier,
+    IdentityLineageState,
     Limitation,
     NonEmptyStr,
     ProvenanceRecord,
@@ -41,6 +43,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     UncertaintyProfile,
+    UpstreamDecisionState,
 )
 
 M0405_MODULE_ID: Final = "GLIO-PROTEOGEN-M04-05"
@@ -73,7 +76,10 @@ M0405_EVIDENCE_CLAIM: Final = (
     "Caller-declared content-addressed aggregate proteoform artifact evidence."
 )
 
-_OPAQUE_ID = re.compile(r"^(?:event|flag|ledger|policy|profile|reviewer|target)\.[0-9a-f]{64}$")
+_OPAQUE_ID = re.compile(
+    r"^(?:(?:event|flag|ledger|policy|profile|request|reviewer|target)\."
+    r"|(?:activity|finding|result)\.m0405\.)[0-9a-f]{64}$"
+)
 _POLICY_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.policy+json"
 _PROFILE_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.profile+json"
 _THRESHOLD_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05.threshold+json"
@@ -137,11 +143,11 @@ class ProteoformArtifactFindingAction(StrEnum):
 class ProteoformArtifactFindingCode(StrEnum):
     UPSTREAM_QUARANTINED = "upstream_quarantined"
     UPSTREAM_ABSTAINED = "upstream_abstained"
-    EVIDENCE_LEDGER_REQUIRED = "evidence_ledger_required"
     EVIDENCE_LEDGER_BINDING_MISMATCH = "evidence_ledger_binding_mismatch"
     DETECTOR_PROFILE_UNSUPPORTED = "detector_profile_unsupported"
-    REQUIRED_EVIDENCE_MISSING = "required_evidence_missing"
-    REQUIRED_EVIDENCE_UNSUPPORTED = "required_evidence_unsupported"
+    EVIDENCE_MISSING = "evidence_missing"
+    EVIDENCE_UNSUPPORTED = "evidence_unsupported"
+    EVIDENCE_NOT_EVALUABLE = "evidence_not_evaluable"
     ARTIFACT_SUSPECTED = "artifact_suspected"
     ARTIFACT_DETECTED = "artifact_detected"
     CONTAMINATION_FLAGGED = "contamination_flagged"
@@ -154,6 +160,31 @@ class ProteoformExclusionReasonCode(StrEnum):
 class ProteoformArtifactSeverity(StrEnum):
     REVIEW = "review"
     EXCLUDE = "exclude"
+
+
+_ACTION_BY_FINDING: Final = {
+    ProteoformArtifactFindingCode.UPSTREAM_QUARANTINED: (
+        ProteoformArtifactFindingAction.QUARANTINE
+    ),
+    ProteoformArtifactFindingCode.UPSTREAM_ABSTAINED: ProteoformArtifactFindingAction.ABSTAIN,
+    ProteoformArtifactFindingCode.EVIDENCE_LEDGER_BINDING_MISMATCH: (
+        ProteoformArtifactFindingAction.QUARANTINE
+    ),
+    ProteoformArtifactFindingCode.DETECTOR_PROFILE_UNSUPPORTED: (
+        ProteoformArtifactFindingAction.ABSTAIN
+    ),
+    ProteoformArtifactFindingCode.EVIDENCE_MISSING: (ProteoformArtifactFindingAction.ABSTAIN),
+    ProteoformArtifactFindingCode.EVIDENCE_UNSUPPORTED: (ProteoformArtifactFindingAction.ABSTAIN),
+    ProteoformArtifactFindingCode.EVIDENCE_NOT_EVALUABLE: (ProteoformArtifactFindingAction.ABSTAIN),
+    ProteoformArtifactFindingCode.ARTIFACT_SUSPECTED: (ProteoformArtifactFindingAction.QUARANTINE),
+    ProteoformArtifactFindingCode.ARTIFACT_DETECTED: (ProteoformArtifactFindingAction.QUARANTINE),
+    ProteoformArtifactFindingCode.CONTAMINATION_FLAGGED: (
+        ProteoformArtifactFindingAction.QUARANTINE
+    ),
+}
+_MESSAGE_BY_FINDING: Final = {
+    code: code.value.replace("_", " ").capitalize() + "." for code in ProteoformArtifactFindingCode
+}
 
 
 class ProteoformArtifactThreshold(FrozenModel):
@@ -295,6 +326,7 @@ class ProteoformArtifactEvidenceLedger(FrozenModel):
         min_length=M0405_DETECTOR_CLASS_COUNT,
         max_length=M0405_MAX_EVENTS,
     )
+    recorded_at: AwareDatetime
     ledger_digest: Sha256Digest
     evidence: ArtifactReference
 
@@ -333,34 +365,127 @@ class ProteoformArtifactEvidenceLedger(FrozenModel):
 
 
 class DetectProteoformArtifactsRequest(FrozenModel):
+    operation: Literal["detect_proteoform_artifacts"] = M0405_OPERATION
+    contract_version: Literal["1.0.0"] = M0405_CONTRACT_VERSION
+    request_id: Identifier
     context: ExecutionContext
     quality_result: ProteoformQualityResult
     policy: ProteoformArtifactPolicy
-    evidence_ledger: ProteoformArtifactEvidenceLedger | None
+    evidence_ledger: ProteoformArtifactEvidenceLedger | None = None
+    supersedes_result_digest: Sha256Digest | None = None
+
+    @field_validator("quality_result", mode="before")
+    @classmethod
+    def quality_result_is_fully_replayed(cls, value: object) -> ProteoformQualityResult:
+        return ProteoformQualityResult.model_validate_json(
+            canonical_json_bytes(value),
+            strict=True,
+        )
 
     @model_validator(mode="after")
-    def request_is_closed(self) -> DetectProteoformArtifactsRequest:
+    def request_is_closed(  # noqa: PLR0912 - explicit authority and traversal closure.
+        self,
+    ) -> DetectProteoformArtifactsRequest:
+        refs = self.context.references
+        upstream_refs = self.quality_result.request.context.references
+        opaque_proteoform_artifact_identifier(self.request_id, "request")
+        opaque_proteoform_artifact_identifier(self.context.request_id, "request")
+        if self.request_id != self.context.request_id:
+            raise ValueError("request identifier must equal authorized context identifier")
+        if (
+            any(
+                item.state is not UpstreamDecisionState.ACCEPTED
+                for item in (
+                    refs.approved_configuration,
+                    refs.provenance,
+                    refs.quality,
+                    refs.support,
+                    refs.intended_use,
+                )
+            )
+            or refs.identity_lineage.state is not IdentityLineageState.RESOLVED
+        ):
+            raise ValueError("M04-05 requires accepted and resolved upstream controls")
+        if refs.consent.state is not ConsentState.GRANTED:
+            raise ValueError("M04-05 requires caller-declared granted consent")
+        if refs.identity_lineage != upstream_refs.identity_lineage:
+            raise ValueError("identity-lineage authority must be preserved from M04-04")
+        if refs.consent != upstream_refs.consent:
+            raise ValueError("consent authority must be preserved from M04-04")
+        if refs.provenance != upstream_refs.provenance:
+            raise ValueError("provenance authority must be preserved from M04-04")
+        if refs.support != upstream_refs.support:
+            raise ValueError("support authority must be preserved from M04-04")
+        if refs.intended_use != upstream_refs.intended_use:
+            raise ValueError("intended-use authority must be preserved from M04-04")
         if self.quality_result.result_version != M0404_CONTRACT_VERSION:
             raise ValueError("M04-05 supports only the locked M04-04 contract version")
+        if refs.identity_lineage.binding_digest != (
+            self.quality_result.receipt.identity_resolution_digest
+        ):
+            raise ValueError("identity control does not bind the M04-04 receipt")
         if self.context.references.quality.evidence.digest != self.quality_result.result_digest:
             raise ValueError("quality authority evidence must bind the M04-04 result")
-        if self.quality_result.disposition is ProteoformQualityDisposition.QUALIFIED:
-            if self.evidence_ledger is None:
-                raise ValueError("qualified M04-04 input requires an evidence ledger")
-            if self.evidence_ledger.quality_result_digest != self.quality_result.result_digest:
-                raise ValueError("evidence ledger must bind the M04-04 result")
-        elif self.evidence_ledger is not None:
-            raise ValueError("nonqualified M04-04 input prohibits evidence-ledger traversal")
+        if refs.approved_configuration.evidence.digest != configuration_digest(self.policy):
+            raise ValueError("approved configuration must bind the detector policy")
+        if (
+            max(self.quality_result.completed_at, self.policy.reviewed_at)
+            > self.context.occurred_at
+        ):
+            raise ValueError("M04-05 inputs cannot postdate artifact detection")
         matches = tuple(
             profile
             for profile in self.policy.profiles
             if self.quality_result.result_version in profile.approved_quality_contract_versions
         )
-        if len(matches) != 1:
-            raise ValueError("request must select exactly one reviewed detector profile")
+        traversable = (
+            self.quality_result.disposition is ProteoformQualityDisposition.QUALIFIED
+            and len(matches) == 1
+        )
+        if traversable != (self.evidence_ledger is not None):
+            raise ValueError("evidence-ledger presence contradicts the traversal envelope")
+        if self.evidence_ledger is not None and not (
+            self.quality_result.completed_at
+            <= self.evidence_ledger.recorded_at
+            <= self.context.occurred_at
+        ):
+            raise ValueError("artifact events must follow M04-04 and precede detection")
+        if len(matches) > 1:
+            raise ValueError("request cannot select multiple detector profiles")
+        _require_consistent_evidence_identities(self)
         if len(canonical_json_bytes(self)) > M0405_MAX_CANONICAL_REQUEST_BYTES:
             raise ValueError("canonical M04-05 request exceeds the installed ceiling")
         return self
+
+
+def _require_consistent_evidence_identities(
+    request: DetectProteoformArtifactsRequest,
+) -> None:
+    refs = request.context.references
+    artifacts = [
+        refs.approved_configuration.evidence,
+        refs.identity_lineage.evidence,
+        refs.provenance.evidence,
+        refs.consent.evidence,
+        refs.quality.evidence,
+        refs.support.evidence,
+        refs.intended_use.evidence,
+        request.policy.evidence,
+    ]
+    for profile in request.policy.profiles:
+        artifacts.append(profile.evidence)
+        artifacts.extend(item.evidence for item in profile.thresholds)
+    if request.evidence_ledger is not None:
+        artifacts.append(request.evidence_ledger.evidence)
+        for event in request.evidence_ledger.events:
+            artifacts.extend(event.evidence)
+    seen: dict[tuple[Identifier, SemanticVersion], tuple[Sha256Digest, str]] = {}
+    for artifact in artifacts:
+        identity = (artifact.artifact_id, artifact.version)
+        content = (artifact.digest, artifact.media_type)
+        previous = seen.setdefault(identity, content)
+        if previous != content:
+            raise ValueError("one evidence identity cannot declare conflicting content")
 
 
 class ProteoformArtifactPosterior(FrozenModel):
@@ -471,6 +596,7 @@ class ProteoformExclusionMaskEntry(FrozenModel):
 
 
 class ProteoformArtifactFinding(FrozenModel):
+    finding_id: Identifier
     code: ProteoformArtifactFindingCode
     action: ProteoformArtifactFindingAction
     message: NonEmptyStr
@@ -486,6 +612,27 @@ class ProteoformArtifactFinding(FrozenModel):
             raise ValueError("finding values must be unique")
         return tuple(sorted(values, key=canonical_json_bytes))
 
+    @model_validator(mode="after")
+    def finding_is_closed(self) -> ProteoformArtifactFinding:
+        opaque_proteoform_artifact_identifier(self.finding_id, "finding.m0405")
+        expected_id = "finding.m0405." + sha256_digest(
+            {
+                "module_id": M0405_MODULE_ID,
+                "code": self.code,
+                "target_ids": self.target_ids,
+                "detector_classes": self.detector_classes,
+            }
+        ).removeprefix("sha256:")
+        if self.finding_id != expected_id:
+            raise ValueError("finding identifier does not bind its canonical content")
+        if self.action is not _ACTION_BY_FINDING[self.code]:
+            raise ValueError("finding action contradicts its code")
+        if self.message != _MESSAGE_BY_FINDING[self.code]:
+            raise ValueError("finding message contradicts its code")
+        for target_id in self.target_ids:
+            opaque_proteoform_artifact_identifier(target_id, "target")
+        return self
+
 
 class ProteoformArtifactComputationReceipt(FrozenModel):
     quality_result_digest: Sha256Digest
@@ -500,7 +647,7 @@ class ProteoformArtifactComputationReceipt(FrozenModel):
     intended_use_evidence_digest: Sha256Digest
     detector_policy_digest: Sha256Digest
     detector_configuration_digest: Sha256Digest
-    selected_profile_digest: Sha256Digest
+    selected_profile_digest: Sha256Digest | None
     evidence_ledger_digest: Sha256Digest | None
     event_digests: tuple[Sha256Digest, ...] = Field(default=(), max_length=M0405_MAX_EVENTS)
     posterior_digests: tuple[Sha256Digest, ...] = Field(default=(), max_length=M0405_MAX_EVENTS)
@@ -537,6 +684,8 @@ class ProteoformArtifactComputationReceipt(FrozenModel):
             (self.event_digests, self.posterior_digests, self.contamination_flag_digests)
         ):
             raise ValueError("safe-failure receipt cannot claim traversed detector output")
+        if self.event_digests and self.selected_profile_digest is None:
+            raise ValueError("traversed detector output requires one selected profile")
         if self.receipt_digest != receipt_digest(self):
             raise ValueError("receipt digest does not bind its canonical payload")
         return self
@@ -588,7 +737,7 @@ class ProteoformArtifactDetectionResult(FrozenModel):
     support: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord
-    evidence: tuple[EvidenceReference, ...] = Field(min_length=16, max_length=M0405_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=8, max_length=M0405_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=3, max_length=3)
     human_review_required: bool
     completed_at: AwareDatetime
@@ -604,6 +753,25 @@ class ProteoformArtifactDetectionResult(FrozenModel):
     @classmethod
     def semantic_collections_are_canonical(cls, values: tuple[object, ...]) -> tuple[object, ...]:
         return tuple(sorted(values, key=canonical_json_bytes))
+
+    @field_validator("provenance")
+    @classmethod
+    def provenance_is_canonical(cls, value: ProvenanceRecord) -> ProvenanceRecord:
+        return value.model_copy(
+            update={
+                "input_digests": tuple(sorted(value.input_digests)),
+                "control_decisions": tuple(
+                    sorted(value.control_decisions, key=canonical_json_bytes)
+                ),
+            }
+        )
+
+    @field_validator("uncertainty")
+    @classmethod
+    def uncertainty_is_canonical(cls, value: UncertaintyProfile) -> UncertaintyProfile:
+        return value.model_copy(
+            update={"sensitivity_notes": tuple(sorted(value.sensitivity_notes))}
+        )
 
     @model_validator(mode="after")
     def result_is_digest_closed(  # noqa: PLR0912 - explicit closure checks.
@@ -647,6 +815,36 @@ class ProteoformArtifactDetectionResult(FrozenModel):
                 raise ValueError("exclusion mask references an unknown contamination flag")
         if len(canonical_json_bytes(self)) > M0405_MAX_CANONICAL_RESULT_BYTES:
             raise ValueError("canonical M04-05 result exceeds the installed ceiling")
+        return self
+
+    @model_validator(mode="after")
+    def result_is_exactly_rederived(self) -> ProteoformArtifactDetectionResult:
+        from glio_proteogen.contracts.m04_05.derivation import (  # noqa: PLC0415
+            expected_detection_bundle,
+            expected_result_id,
+        )
+
+        bundle = expected_detection_bundle(self.request)
+        if self.result_id != expected_result_id(self.request):
+            raise ValueError("result identifier does not bind the canonical request")
+        regions: tuple[tuple[str, object, object], ...] = (
+            ("artifact posteriors", self.artifact_posteriors, bundle.artifact_posteriors),
+            ("contamination flags", self.contamination_flags, bundle.contamination_flags),
+            ("exclusion mask", self.exclusion_mask, bundle.exclusion_mask),
+            ("findings", self.findings, bundle.findings),
+            ("disposition", self.disposition, bundle.disposition),
+            ("receipt", self.receipt, bundle.receipt),
+            ("support", self.support, bundle.support),
+            ("uncertainty", self.uncertainty, bundle.uncertainty),
+            ("provenance", self.provenance, bundle.provenance),
+            ("evidence", self.evidence, bundle.evidence),
+            ("limitations", self.limitations, bundle.limitations),
+            ("review state", self.human_review_required, bundle.human_review_required),
+            ("completion time", self.completed_at, self.request.context.occurred_at),
+        )
+        for label, actual, expected in regions:
+            if actual != expected:
+                raise ValueError(f"result {label} contradicts exact deterministic derivation")
         return self
 
 
