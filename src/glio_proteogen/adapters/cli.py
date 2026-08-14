@@ -63,6 +63,7 @@ from glio_proteogen.adapters.api import (
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
     _proteoform_support_contract_schema,
+    _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -286,6 +287,10 @@ from glio_proteogen.contracts.m27_02 import (
     M2702_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
+)
+from glio_proteogen.contracts.m05_02 import (
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    ReconcilePtmLocalizationIdentityLineageRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -520,6 +525,10 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702Service,
     preflight_m2702_authorization,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import M0502Service
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
+    _validate_json_request as _validate_m0502_json_request,
 )
 
 if TYPE_CHECKING:
@@ -3657,6 +3666,51 @@ def validate_ptm_localization_protocol(request: RequestArgument) -> None:
         _emit(M0501Service()._execute_validated(parsed))
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"invalid M05-01 request: {error}", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@app.command("m05-02-export-schema")
+def export_ptm_localization_lineage_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "approved-configuration",
+            "artifact-claim",
+            "derivation",
+            "graph",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization identity-lineage contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_lineage_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.command("m05-02-reconcile")
+def reconcile_ptm_localization_identity_lineage(request: RequestArgument) -> None:
+    """Reconcile authorized PTM-localization artifact identity and lineage."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest),
+            max_bytes=M0502_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0502_json_request,
+        )
+        _emit(M0502Service()._execute_validated(parsed))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"invalid M05-02 request: {error}", err=True)
         raise typer.Exit(code=2) from error
 
 

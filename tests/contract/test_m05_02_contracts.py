@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -58,7 +59,7 @@ def test_schema_inventory_and_metadata_are_frozen() -> None:
         assert schema["$id"] == (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-02:1.0.0:" + name
         )
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["moduleId"] == "GLIO-PROTEOGEN-M05-02"
         assert metadata["contractVersion"] == "1.0.0"
         assert metadata["strict"] is True
@@ -67,7 +68,8 @@ def test_schema_inventory_and_metadata_are_frozen() -> None:
         assert metadata["kinaseActivityInference"] is False
         assert metadata["variantPeptideEmission"] is False
         json.dumps(schema)
-    assert contract_json_schema("request")["x-glio-contract"]["maxRequestBytes"] == 4 * 1024 * 1024
+    request_metadata = cast("dict[str, object]", contract_json_schema("request")["x-glio-contract"])
+    assert request_metadata["maxRequestBytes"] == 4 * 1024 * 1024
 
 
 def test_closed_enum_values_match_the_frozen_abi() -> None:
