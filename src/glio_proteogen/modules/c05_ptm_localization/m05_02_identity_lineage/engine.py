@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from typing import Final, cast
 
@@ -32,6 +32,7 @@ from glio_proteogen.contracts.m05_02 import (
     ptm_localization_lineage_evidence_index,
     result_payload_digest,
 )
+from glio_proteogen.contracts.m05_02.v1 import _validate_exact_request_storage
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState, IdentityLineageState, UpstreamDecisionState
 
@@ -173,10 +174,7 @@ def preflight_ptm_localization_identity_lineage_authorization(candidate: object)
     """Check seven controls before touching identity, protocol, policy, or claim material."""
 
     try:
-        candidate_mro = type.__getattribute__(type(candidate), "__mro__")
-        supported = (
-            ReconcilePtmLocalizationIdentityLineageRequest in candidate_mro or dict in candidate_mro
-        )
+        supported = type(candidate) in {ReconcilePtmLocalizationIdentityLineageRequest, dict}
         context = _member(candidate, "context") if supported else None
         references = _member(context, "references")
         expected = {
@@ -260,9 +258,13 @@ def _validate_json_request(
 
 
 def _validate_outer_request_shape(candidate: object) -> None:
-    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
-    if ReconcilePtmLocalizationIdentityLineageRequest in candidate_mro:
+    if type(candidate) is ReconcilePtmLocalizationIdentityLineageRequest:
+        try:
+            _validate_exact_request_storage(candidate)
+        except ValueError:
+            raise PtmLocalizationIdentityLineageInputError from None
         return
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
     if dict not in candidate_mro:
         raise PtmLocalizationIdentityLineageInputError
     mapping = cast("dict[object, object]", candidate)
@@ -330,7 +332,7 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
             key: _plain_value(dict.__getitem__(mapping, key), _depth=_depth + 1, _budget=budget)
             for key in dict.keys(mapping)
         }
-    if list in candidate_mro:
+    if type(candidate) is list:
         list_values = cast("list[object]", candidate)
         if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE:
             raise _InvalidPlainValueError
@@ -338,7 +340,7 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
             _plain_value(item, _depth=_depth + 1, _budget=budget)
             for item in list.__iter__(list_values)
         ]
-    if tuple in candidate_mro:
+    if type(candidate) is tuple:
         tuple_values = cast("tuple[object, ...]", candidate)
         if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE:
             raise _InvalidPlainValueError
@@ -346,13 +348,15 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
             _plain_value(item, _depth=_depth + 1, _budget=budget)
             for item in tuple.__iter__(tuple_values)
         )
-    if Mapping in candidate_mro:
-        raise _InvalidPlainValueError
     if StrEnum in candidate_mro:
         value = object.__getattribute__(candidate, "_value_")
         if type(value) is not str:
             raise _InvalidPlainValueError
         return value
+    if isinstance(candidate, Mapping) or (
+        not isinstance(candidate, str) and isinstance(candidate, Sequence)
+    ):
+        raise _InvalidPlainValueError
     return candidate
 
 

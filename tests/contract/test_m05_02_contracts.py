@@ -62,6 +62,9 @@ def test_schema_inventory_and_metadata_are_frozen() -> None:
         metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["moduleId"] == "GLIO-PROTEOGEN-M05-02"
         assert metadata["contractVersion"] == "1.0.0"
+        assert metadata["owner"] == "Clinical science"
+        assert metadata["safetyClass"] == "S2"
+        assert metadata["gate"] == "G0"
         assert metadata["strict"] is True
         assert metadata["identityInference"] is False
         assert metadata["consentInference"] is False

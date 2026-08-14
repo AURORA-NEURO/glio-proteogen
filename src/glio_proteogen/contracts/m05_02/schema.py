@@ -6,8 +6,11 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m05_02.v1 import (
     M0502_CONTRACT_VERSION,
+    M0502_GATE,
     M0502_MAX_CANONICAL_REQUEST_BYTES,
     M0502_MODULE_ID,
+    M0502_OWNER,
+    M0502_SAFETY_CLASS,
     ApprovedPtmLocalizationLineageConfiguration,
     PtmLocalizationIdentityLineageFinding,
     PtmLocalizationIdentityLineagePolicy,
@@ -54,6 +57,9 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     metadata: dict[str, object] = {
         "moduleId": M0502_MODULE_ID,
         "contractVersion": CONTRACT_VERSION,
+        "owner": M0502_OWNER,
+        "safetyClass": M0502_SAFETY_CLASS,
+        "gate": M0502_GATE,
         "strict": True,
         "rawPayload": False,
         "identityInference": False,
@@ -69,6 +75,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "kinaseActivityInference": False,
         "allOmicsFusion": False,
         "treatmentRecommendation": False,
+        "upstreamMutation": False,
         "parentTarget": "variant_peptide",
     }
     if name == "request":
