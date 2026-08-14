@@ -10,8 +10,12 @@ from pathlib import Path
 from statistics import fmean, median
 from time import perf_counter_ns
 
-from evals.m04_06.run import build_scenario
-from glio_proteogen.contracts.m04_06 import ProteoformHarmonizationDisposition
+from evals.m04_06.run import build_maximum_scenario_request
+from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_OBSERVATIONS,
+    M0406_MAX_TARGETS,
+    ProteoformHarmonizationDisposition,
+)
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
     harmonize_proteoform_analysis,
 )
@@ -30,6 +34,7 @@ class BenchmarkReport:
     workload: str
     timed_boundary: str
     iterations: int
+    target_count: int
     observation_count: int
     stage_count: int
     invariant_count: int
@@ -62,14 +67,18 @@ def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
 
     if iterations < 1:
         raise InvalidIterationCountError
-    request = build_scenario().request
+    request = build_maximum_scenario_request()
     ledger = request.support_ledger
     warmup = harmonize_proteoform_analysis(request)
     manifest = warmup.transformation_manifest
     if (
         ledger is None
         or manifest is None
+        or warmup.analysis is None
         or warmup.disposition is not ProteoformHarmonizationDisposition.ACCEPTED
+        or request.artifact_receipt.target_count != M0406_MAX_TARGETS
+        or len(ledger.observations) != M0406_MAX_OBSERVATIONS
+        or warmup.analysis.target_count != M0406_MAX_TARGETS
         or len(manifest.stages) != EXPECTED_STAGE_COUNT
         or len(warmup.invariant_diagnostics) != EXPECTED_INVARIANT_COUNT
     ):
@@ -91,6 +100,7 @@ def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
         workload="genuine_m0401_through_m0405_prepared_fixed_point_support_ledger",
         timed_boundary="harmonize_proteoform_analysis_only",
         iterations=iterations,
+        target_count=request.artifact_receipt.target_count,
         observation_count=len(ledger.observations),
         stage_count=len(manifest.stages),
         invariant_count=len(warmup.invariant_diagnostics),

@@ -5,16 +5,21 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from copy import copy
 from datetime import timedelta
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from evals.m04_06.run import build_scenario_request
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from typer.testing import CliRunner
 
+from glio_proteogen.adapters.api import create_app
+from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m04_05 import result_payload_digest as m0405_result_digest
 from glio_proteogen.contracts.m04_06 import (
     HarmonizeProteoformAnalysisRequest,
     ProteoformHarmonizationDisposition,
+    ProteoformHarmonizationResult,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
@@ -25,6 +30,16 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
     ValidatedM0406Request,
     harmonize_proteoform_analysis,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    engine as m0406_engine,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+_HTTP_OK = 200
+_HTTP_FORBIDDEN = 403
+_CLI_AUTHORIZATION_ERROR = 2
 
 
 class _HostileValue(Mapping[str, object]):
@@ -74,6 +89,80 @@ def test_engine_service_plugin_and_json_model_paths_are_identical(
 
     assert direct == engine == serviced == plugin.run(model_token) == plugin.run(json_token)
     assert direct.disposition is ProteoformHarmonizationDisposition.ACCEPTED
+
+
+def test_api_and_cli_parse_once_then_execute_validated(
+    accepted_request: HarmonizeProteoformAnalysisRequest,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    preparation_count = 0
+    original = m0406_engine._prepare_harmonization_request_candidate
+
+    def counted(candidate: object) -> dict[str, object]:
+        nonlocal preparation_count
+        preparation_count += 1
+        return original(candidate)
+
+    monkeypatch.setattr(
+        m0406_engine,
+        "_prepare_harmonization_request_candidate",
+        counted,
+    )
+    body = canonical_json_bytes(accepted_request)
+    with TestClient(create_app(tmp_path / "api.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M04-06/harmonization",
+            content=body,
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == _HTTP_OK
+    assert preparation_count == 1
+    api_result = ProteoformHarmonizationResult.model_validate_json(
+        response.content,
+        strict=True,
+    )
+
+    preparation_count = 0
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(body)
+    cli = CliRunner().invoke(
+        cli_app,
+        ["proteoform-harmonization", "harmonize", str(request_path)],
+    )
+    assert cli.exit_code == 0
+    assert preparation_count == 1
+    cli_result = ProteoformHarmonizationResult.model_validate_json(
+        cli.stdout,
+        strict=True,
+    )
+    expected = M0406Service()._execute_validated(accepted_request)
+    assert api_result == cli_result == expected
+
+
+def test_api_and_cli_authorization_denials_preserve_boundary_status(
+    accepted_request: HarmonizeProteoformAnalysisRequest,
+    tmp_path: Path,
+) -> None:
+    denied = accepted_request.model_dump(mode="json")
+    denied["context"]["references"]["consent"]["state"] = "withheld"
+    body = canonical_json_bytes(denied)
+    with TestClient(create_app(tmp_path / "denied-api.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M04-06/harmonization",
+            content=body,
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == _HTTP_FORBIDDEN
+
+    request_path = tmp_path / "denied-request.json"
+    request_path.write_bytes(body)
+    cli = CliRunner().invoke(
+        cli_app,
+        ["proteoform-harmonization", "harmonize", str(request_path)],
+    )
+    assert cli.exit_code == _CLI_AUTHORIZATION_ERROR
+    assert "upstream controls do not authorize" in cli.stderr
 
 
 def test_request_ingress_replaces_reordered_existing_upstream_model(

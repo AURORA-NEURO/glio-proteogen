@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m04_01 import (  # noqa: TC001 - Pydantic resolves
     ProteoformApplicability,
 )
 from glio_proteogen.contracts.m04_05 import (
+    M0405_MAX_TARGETS,
     ProteoformArtifactDetectionResult,
     ProteoformArtifactDetectorClass,
     ProteoformArtifactDisposition,
@@ -63,8 +64,8 @@ M0406_MAX_RESIDUAL_PPM: Final = 2 * M0406_RATE_SCALE
 M0406_FACTOR_COUNT: Final = 8
 M0406_UPSTREAM_DETECTOR_COUNT: Final = 7
 M0406_MAX_STAGES: Final = 8
-M0406_MAX_TARGETS: Final = 512
-M0406_MAX_OBSERVATIONS: Final = 512
+M0406_MAX_TARGETS: Final = M0405_MAX_TARGETS
+M0406_MAX_OBSERVATIONS: Final = M0406_MAX_TARGETS
 M0406_MAX_LEVELS_PER_FACTOR: Final = 64
 M0406_MAX_LEVEL_SHIFTS: Final = M0406_MAX_STAGES * M0406_MAX_LEVELS_PER_FACTOR
 M0406_MAX_STAGE_ESTIMATION_ANCHORS: Final = 128

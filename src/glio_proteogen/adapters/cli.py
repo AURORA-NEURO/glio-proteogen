@@ -848,6 +848,7 @@ def _load_request[RequestT](
         raise typer.Exit(code=2) from error
     except (
         ProteoformArtifactAuthorizationError,
+        ProteoformHarmonizationAuthorizationError,
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
     ):
