@@ -37,6 +37,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_support_contract_schema,
     _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
+    _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -150,6 +151,10 @@ from glio_proteogen.contracts.m04_03 import (
     M0403_MAX_TOTAL_DOCUMENT_BYTES,
     IngestProteoformRawInputsRequest,
     ProteoformRawInputRole,
+)
+from glio_proteogen.contracts.m04_04 import (
+    M0404_MAX_CANONICAL_REQUEST_BYTES,
+    ComputeProteoformQualityMetricsRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -288,6 +293,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_03_raw_ingestion import (
     ProteoformRawInputError,
     preflight_proteoform_raw_input_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import (
+    M0404Service,
+    ProteoformQualityAuthorizationError,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
+    _validate_json_request as _validate_m0404_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -416,6 +428,11 @@ proteoform_raw_app = typer.Typer(
     help="M04-03 deterministic proteoform raw-manifest ingestion.",
 )
 app.add_typer(proteoform_raw_app, name="proteoform-raw")
+proteoform_quality_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-04 deterministic aggregate proteoform quality metrics.",
+)
+app.add_typer(proteoform_quality_app, name="proteoform-quality")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -520,6 +537,10 @@ ProteoformRawSourceArgument = Annotated[
 ProteoformRawOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-03 canonical result JSON path."),
+]
+ProteoformQualityOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -760,6 +781,7 @@ def _load_request[RequestT](
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
     max_bytes: int = MAX_REQUEST_BYTES,
+    json_validator: Callable[[object, bytes], RequestT] | None = None,
 ) -> RequestT:
     try:
         payload = (
@@ -770,7 +792,11 @@ def _load_request[RequestT](
         decoded = strict_json_loads(payload, max_bytes=max_bytes)
         if preflight is not None:
             preflight(decoded)
-        return adapter.validate_json(payload, strict=True)
+        return (
+            json_validator(decoded, payload)
+            if json_validator is not None
+            else adapter.validate_json(payload, strict=True)
+        )
     except RequestBodyTooLargeError as error:
         typer.echo(f"invalid request: {error}", err=True)
         raise typer.Exit(code=2) from error
@@ -783,7 +809,14 @@ def _load_request[RequestT](
         raise typer.Exit(code=2) from error
     except ProteoformRawInputAuthorizationError:
         raise
-    except (OSError, ValueError) as error:
+    except ProteoformQualityAuthorizationError:
+        raise
+    except (TypeError, ValueError):
+        if json_validator is not None:
+            raise
+        typer.echo("invalid request: unable to read or decode request document", err=True)
+        raise typer.Exit(code=2) from None
+    except OSError as error:
         typer.echo("invalid request: unable to read or decode request document", err=True)
         raise typer.Exit(code=2) from error
 
@@ -3295,6 +3328,59 @@ def ingest_proteoform_raw_inputs(
         raise typer.Exit(code=1) from error
     if result.disposition.value != "validated":
         raise typer.Exit(code=1)
+
+
+@proteoform_quality_app.command("export-schema")
+def export_proteoform_quality_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "assay-profile",
+            "fact-counts",
+            "fact-states",
+            "role-facts",
+            "fact-ledger",
+            "metric",
+            "assay-quality",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M04-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform quality contract."""
+
+    typer.echo(json.dumps(_proteoform_quality_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@proteoform_quality_app.command("compute")
+def compute_proteoform_quality_metrics(
+    request: RequestArgument,
+    output: ProteoformQualityOutputOption,
+) -> None:
+    """Compute reviewed fixed-point quality metrics and publish one new result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ComputeProteoformQualityMetricsRequest),
+            None,
+            M0404_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0404_json_request,
+        )
+        result = M0404Service().execute(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except ProteoformQualityAuthorizationError as error:
+        typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @protein_inference_release_app.command("build")

@@ -131,8 +131,12 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   stateless module replays the exact full M04-02 result and validates four canonical manifest
   documents from immutable bytes while retaining typed diagnostics and never opening referenced
   scientific content, parsing measurement rows, executing models, or inferring biology.
+- `GLIO-PROTEOGEN-M04-04` — deterministic proteoform/isoform quality metric computation. This
+  stateless module replays the exact full M04-03 result and computes 32 fixed-point metrics from
+  four caller-declared aggregate fact records under reviewed assay profiles. It never opens
+  referenced content, authenticates measurements, executes models, or infers biology.
 
-The twenty-six published module slices and the M04-03 release candidate expose strict JSON Schema
+The twenty-seven published module slices and the M04-04 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -175,6 +179,7 @@ uv run python -m evals.m03_08.run
 uv run python -m evals.m04_01.run
 uv run python -m evals.m04_02.run
 uv run python -m evals.m04_03.run
+uv run python -m evals.m04_04.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -202,6 +207,7 @@ uv run python -m evals.m03_08.benchmark
 uv run python -m evals.m04_01.benchmark
 uv run python -m evals.m04_02.benchmark
 uv run python -m evals.m04_03.benchmark
+uv run python -m evals.m04_04.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -221,7 +227,8 @@ categorical artifact detection over an authorized evidence ledger, and M03-06 fi
 harmonization, M03-07 protein-inference support and abstention routing, M03-08 local,
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
 proteoform/isoform protocol conformance, M04-02 stateless proteoform/isoform identity and lineage
-reconciliation, plus M04-03 directory-backed raw-manifest ingestion.
+reconciliation, M04-03 directory-backed raw-manifest ingestion, and M04-04 metadata-only fixed-point
+quality metric computation.
 For example:
 
 ```bash
@@ -282,6 +289,8 @@ glio-proteogen proteoform-lineage export-schema request
 glio-proteogen proteoform-lineage reconcile proteoform-lineage-request.json
 glio-proteogen proteoform-raw export-schema request
 glio-proteogen proteoform-raw ingest proteoform-raw-request.json proteoform-raw-source --output proteoform-raw-result.json
+glio-proteogen proteoform-quality export-schema request
+glio-proteogen proteoform-quality compute proteoform-quality-request.json --output proteoform-quality-result.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -391,6 +400,13 @@ four regular non-reparse files and atomically creates a new result without rerea
 overwriting output. It does not parse spectra or scientific rows, compute quality metrics, execute
 models, mutate inputs, infer negatives, or make identity, protein, proteoform, PTM, discordance,
 kinase, subtype, treatment, or clinical claims.
+M04-04 is stateless and consumes the exact full M04-03 result plus a reviewed quality policy and,
+for validated upstream input, one sealed four-role aggregate fact ledger. It computes eight exact
+integer ppm metrics per role with deterministic threshold semantics, retains censoring and missing
+states, and emits typed findings without opening any referenced scientific content. Its HTTP and
+CLI boundaries are metadata-only and strict. It does not authenticate caller-declared aggregates,
+identify proteins, proteoforms, isoforms, or PTMs, localize modifications, compute protein-RNA
+discordance, execute a model, or make treatment or clinical claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

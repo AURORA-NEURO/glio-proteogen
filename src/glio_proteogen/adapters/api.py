@@ -264,6 +264,17 @@ from glio_proteogen.contracts.m04_03.schema import (
 from glio_proteogen.contracts.m04_03.schema import (
     contract_json_schema as m0403_contract_json_schema,
 )
+from glio_proteogen.contracts.m04_04.schema import (
+    ContractName as M0404ContractName,
+)
+from glio_proteogen.contracts.m04_04.schema import (
+    contract_json_schema as m0404_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_04.v1 import (
+    M0404_MAX_CANONICAL_REQUEST_BYTES,
+    ComputeProteoformQualityMetricsRequest,
+    ProteoformQualityResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -406,6 +417,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_02_identity_lineage impor
     ProteoformIdentityLineageAuthorizationError,
     preflight_proteoform_identity_lineage_authorization,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import (
+    M0404Service,
+    ProteoformQualityAuthorizationError,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
+    _validate_json_request as _validate_m0404_json_request,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -428,6 +446,7 @@ _M0306_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSuppo
 _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
+_M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -574,6 +593,12 @@ def _proteoform_raw_contract_schema(
     name: M0403ContractName,
 ) -> dict[str, object]:
     return m0403_contract_json_schema(name)
+
+
+def _proteoform_quality_contract_schema(
+    name: M0404ContractName,
+) -> dict[str, object]:
+    return m0404_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -756,11 +781,21 @@ def _proteoform_lineage_request_body() -> dict[str, object]:
     }
 
 
+def _proteoform_quality_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
     preflight: Callable[[object], None] | None = None,
     max_bytes: int = MAX_REQUEST_BYTES,
+    json_validator: Callable[[object, bytes], ModelT] | None = None,
 ) -> ModelT:
     media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
     if media_type != "application/json":
@@ -770,13 +805,21 @@ async def _strict_json_body[ModelT](
         decoded = strict_json_loads(body, max_bytes=max_bytes)
         if preflight is not None:
             preflight(decoded)
-        return adapter.validate_json(body, strict=True)
+        return (
+            json_validator(decoded, body)
+            if json_validator is not None
+            else adapter.validate_json(body, strict=True)
+        )
     except StrictJsonError as error:
         details = [strict_json_error_detail(error, location_prefix=("body",))]
         raise RequestValidationError(details) from error
     except ValidationError as error:
         details = sanitized_validation_errors(error, location_prefix=("body",))
         raise RequestValidationError(details) from error
+    except (TypeError, ValueError) as error:
+        if json_validator is None:
+            raise
+        raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
 
 
 async def _register_body(request: Request) -> RegisterProtocolRequest:
@@ -961,6 +1004,18 @@ async def _proteoform_lineage_body(
     )
 
 
+async def _proteoform_quality_body(
+    request: Request,
+) -> ComputeProteoformQualityMetricsRequest:
+    return await _strict_json_body(
+        request,
+        _M0404_QUALITY_ADAPTER,
+        None,
+        M0404_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0404_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -986,6 +1041,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     protein_inference_support_service = M0307Service()
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
+    proteoform_quality_service = M0404Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1031,6 +1087,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteinInferenceSupportAuthorizationError)
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
+    @app.exception_handler(ProteoformQualityAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1293,6 +1350,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0403ContractName,
     ) -> dict[str, object]:
         return _proteoform_raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M04-04/{name}/schema", tags=["contracts"])
+    def proteoform_quality_contract_schema(
+        name: M0404ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_quality_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M04-04/quality-metric-computation",
+        response_model=ProteoformQualityResult,
+        tags=["M04-04"],
+        openapi_extra=_proteoform_quality_request_body(),
+    )
+    def compute_proteoform_quality(
+        request: Annotated[
+            ComputeProteoformQualityMetricsRequest,
+            Depends(_proteoform_quality_body),
+        ],
+    ) -> ProteoformQualityResult:
+        return proteoform_quality_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",

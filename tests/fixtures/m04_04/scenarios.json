@@ -1,0 +1,368 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M04-04",
+    "schema_version": "1.0.0",
+    "operation": "compute_proteoform_quality_metrics",
+    "parent_target": "protein_rna_discordance",
+    "owner": "Data engineering",
+    "safety_class": "S2",
+    "evidence_gate": "G1",
+    "data_classification": "synthetic_nonclinical_opaque_aggregate_quality_metadata_only",
+    "claims_ceiling": "deterministic_fixed_point_aggregate_quality_metrics_only_no_external_content_identity_protein_proteoform_isoform_ptm_localization_discordance_kinase_fusion_treatment_or_clinical_inference",
+    "upstream_outputs_must_be_genuine": [
+        "GLIO-PROTEOGEN-M01-02",
+        "GLIO-PROTEOGEN-M04-01",
+        "GLIO-PROTEOGEN-M04-02",
+        "GLIO-PROTEOGEN-M04-03"
+    ],
+    "schema_names": [
+        "request",
+        "output",
+        "policy",
+        "threshold",
+        "assay-profile",
+        "fact-counts",
+        "fact-states",
+        "role-facts",
+        "fact-ledger",
+        "metric",
+        "assay-quality",
+        "finding",
+        "receipt"
+    ],
+    "raw_input_roles": ["mass_spectrometry_proteome", "genome", "transcriptome", "ptm_annotations"],
+    "metric_codes": [
+        "raw_input_completeness",
+        "valid_record_coverage",
+        "assay_feature_coverage",
+        "reference_mapping_coverage",
+        "detection_limit_burden",
+        "control_material_recovery",
+        "sample_context_binding_coherence",
+        "cross_input_consistency"
+    ],
+    "metric_directions": {
+        "raw_input_completeness": "at_least",
+        "valid_record_coverage": "at_least",
+        "assay_feature_coverage": "at_least",
+        "reference_mapping_coverage": "at_least",
+        "detection_limit_burden": "at_most",
+        "control_material_recovery": "at_least",
+        "sample_context_binding_coherence": "at_least",
+        "cross_input_consistency": "at_least"
+    },
+    "observation_states": [
+        "observed",
+        "censored",
+        "missing",
+        "indeterminate",
+        "unsupported",
+        "not_applicable"
+    ],
+    "metric_statuses": ["pass", "warning", "fail", "not_evaluable", "not_applicable"],
+    "dispositions": ["qualified", "quarantined", "abstained"],
+    "finding_actions": ["record", "quarantine", "abstain"],
+    "finding_action_by_code": {
+        "upstream_raw_inputs_quarantined": "quarantine",
+        "upstream_raw_inputs_abstained": "abstain",
+        "fact_ledger_binding_mismatch": "quarantine",
+        "assay_profile_unsupported": "abstain",
+        "assay_protocol_version_mismatch": "quarantine",
+        "specimen_processing_version_mismatch": "quarantine",
+        "unit_definition_version_mismatch": "quarantine",
+        "required_metric_missing": "abstain",
+        "required_metric_unsupported": "abstain",
+        "required_metric_not_evaluable": "abstain",
+        "required_metric_warning": "quarantine",
+        "metric_threshold_failed": "quarantine",
+        "optional_metric_warning": "record",
+        "cross_metric_inconsistency": "quarantine"
+    },
+    "exact_limitations": [
+        "deterministic_aggregate_quality_metrics_only",
+        "external_measurements_controls_and_authority_not_authenticated",
+        "no_proteoform_discordance_or_clinical_inference"
+    ],
+    "opaque_identifier_namespaces": [
+        "request",
+        "actor",
+        "decision",
+        "policy",
+        "profile",
+        "ledger",
+        "fact",
+        "evidence",
+        "reviewer"
+    ],
+    "opaque_identifier_pattern": "^(request|actor|decision|policy|profile|ledger|fact|evidence|reviewer)\\.[0-9a-f]{64}$",
+    "generated_identifier_prefixes": ["result.m0404", "activity.m0404", "finding.m0404"],
+    "privacy_and_replay_closure": {
+        "role_fact_input_ids": "exact_upstream_input_namespace_only",
+        "evidence_identity_version_conflicts": "rejected",
+        "receipt_disposition": "derived_from_canonical_finding_codes",
+        "zero_digest_sentinel_public": false
+    },
+    "owned_media_type_allowlist": [
+        "application/vnd.glio-proteogen.m04-04.policy+json",
+        "application/vnd.glio-proteogen.m04-04.assay-profile+json",
+        "application/vnd.glio-proteogen.m04-04.fact-ledger+json",
+        "application/vnd.glio-proteogen.m04-04.role-fact+json"
+    ],
+    "installed_capacity": {
+        "role_count": 4,
+        "metric_code_count": 8,
+        "computed_metric_count": 32,
+        "rate_scale_ppm": 1000000,
+        "maximum_count": 9223372036854775807,
+        "minimum_approved_profiles": 4,
+        "maximum_approved_profiles": 32,
+        "maximum_approved_versions_per_profile": 32,
+        "maximum_canonical_request_bytes": 4194304,
+        "maximum_findings": 48,
+        "minimum_evidence": 12,
+        "maximum_evidence": 45,
+        "limitation_count": 3
+    },
+    "output_ceiling": {
+        "assay_quality_count": "zero_or_exactly_four",
+        "metric_count": "zero_or_exactly_thirty_two",
+        "raw_payload": false,
+        "external_content_traversal": false,
+        "model_execution": false,
+        "identity_inference": false,
+        "consent_inference": false,
+        "protein_inference": false,
+        "proteoform_inference": false,
+        "isoform_inference": false,
+        "modification_localization": false,
+        "copy_number_regression": false,
+        "protein_rna_discordance_inference": false,
+        "kinase_activity_inference": false,
+        "all_omics_fusion": false,
+        "treatment_recommendation": false,
+        "upstream_mutation": false
+    },
+    "scenario_groups": [
+        {
+            "group_id": "canonical_quality_computation",
+            "case_ids": [
+                "canonical_four_role_quality_qualified",
+                "exact_m0403_full_result_replay",
+                "exact_m0402_transitive_lineage_binding",
+                "exact_m0401_transitive_protocol_binding",
+                "exact_eight_metrics_per_role",
+                "deterministic_full_result_equality",
+                "compact_receipt_projection_exact",
+                "parent_context_preserved_without_emission"
+            ],
+            "case_expectations": {
+                "canonical_four_role_quality_qualified": "qualified:four_roles_thirty_two_metrics",
+                "exact_m0403_full_result_replay": "qualified:exact_full_upstream_replay",
+                "exact_m0402_transitive_lineage_binding": "qualified:exact_transitive_lineage_binding",
+                "exact_m0401_transitive_protocol_binding": "qualified:exact_transitive_protocol_binding",
+                "exact_eight_metrics_per_role": "qualified:eight_metrics_per_role",
+                "deterministic_full_result_equality": "complete_result_equality",
+                "compact_receipt_projection_exact": "receipt_exact_rederived_projection",
+                "parent_context_preserved_without_emission": "qualified:parent_context_only"
+            },
+            "expected_case_count": 8
+        },
+        {
+            "group_id": "fact_ledger_and_metric_math",
+            "case_ids": [
+                "count_partitions_close",
+                "ratio_round_half_up_exact",
+                "zero_denominator_remains_not_evaluable",
+                "censored_detection_state_retained",
+                "detection_censoring_shape_rejected",
+                "numerator_exceeds_denominator_rejected",
+                "fact_ledger_digest_mismatch_rejected",
+                "role_fact_binding_mismatch_quarantines",
+                "semantic_role_order_full_equality"
+            ],
+            "case_expectations": {
+                "count_partitions_close": "qualified:count_partitions_exact",
+                "ratio_round_half_up_exact": "qualified:integer_round_half_up_exact",
+                "zero_denominator_remains_not_evaluable": "abstained:not_evaluable_not_zero",
+                "censored_detection_state_retained": "qualified:censored_ratio_and_count_retained",
+                "detection_censoring_shape_rejected": "validation_rejected",
+                "numerator_exceeds_denominator_rejected": "validation_rejected",
+                "fact_ledger_digest_mismatch_rejected": "validation_rejected",
+                "role_fact_binding_mismatch_quarantines": "quarantined:fact_ledger_binding_mismatch",
+                "semantic_role_order_full_equality": "complete_result_equality"
+            },
+            "expected_case_count": 9
+        },
+        {
+            "group_id": "profiles_versions_and_units",
+            "case_ids": [
+                "exact_profile_per_role_selected",
+                "overlapping_profile_domain_rejected",
+                "missing_role_profile_abstains",
+                "assay_protocol_version_mismatch_quarantines",
+                "specimen_processing_version_mismatch_quarantines",
+                "unit_definition_version_mismatch_quarantines",
+                "proteome_applicability_mismatch_abstains",
+                "threshold_direction_contradiction_rejected",
+                "each_profile_requires_exact_eight_thresholds"
+            ],
+            "case_expectations": {
+                "exact_profile_per_role_selected": "qualified:one_profile_per_role",
+                "overlapping_profile_domain_rejected": "validation_rejected",
+                "missing_role_profile_abstains": "abstained:assay_profile_unsupported",
+                "assay_protocol_version_mismatch_quarantines": "quarantined:assay_protocol_version_mismatch",
+                "specimen_processing_version_mismatch_quarantines": "quarantined:specimen_processing_version_mismatch",
+                "unit_definition_version_mismatch_quarantines": "quarantined:unit_definition_version_mismatch",
+                "proteome_applicability_mismatch_abstains": "abstained:assay_profile_unsupported",
+                "threshold_direction_contradiction_rejected": "validation_rejected",
+                "each_profile_requires_exact_eight_thresholds": "validation_rejected"
+            },
+            "expected_case_count": 9
+        },
+        {
+            "group_id": "thresholds_support_and_disposition",
+            "case_ids": [
+                "all_required_metrics_pass_qualifies",
+                "required_metric_warning_quarantines",
+                "required_metric_failure_quarantines",
+                "optional_metric_warning_limits_support",
+                "optional_metric_failure_quarantines",
+                "required_metric_missing_abstains",
+                "required_metric_unsupported_abstains",
+                "required_metric_not_evaluable_abstains",
+                "quarantine_precedes_abstention"
+            ],
+            "case_expectations": {
+                "all_required_metrics_pass_qualifies": "qualified:supported",
+                "required_metric_warning_quarantines": "quarantined:required_metric_warning",
+                "required_metric_failure_quarantines": "quarantined:metric_threshold_failed",
+                "optional_metric_warning_limits_support": "qualified:limited_optional_warning",
+                "optional_metric_failure_quarantines": "quarantined:metric_threshold_failed",
+                "required_metric_missing_abstains": "abstained:required_metric_missing",
+                "required_metric_unsupported_abstains": "abstained:required_metric_unsupported",
+                "required_metric_not_evaluable_abstains": "abstained:required_metric_not_evaluable",
+                "quarantine_precedes_abstention": "quarantined:precedence"
+            },
+            "expected_case_count": 9
+        },
+        {
+            "group_id": "upstream_closure_and_safe_failure",
+            "case_ids": [
+                "validated_upstream_requires_fact_ledger",
+                "quarantined_upstream_zero_ledger_traversal",
+                "abstained_upstream_zero_ledger_traversal",
+                "stale_identity_binding_rejected",
+                "stale_quality_result_binding_rejected",
+                "stale_support_receipt_binding_rejected",
+                "stale_intended_use_binding_rejected",
+                "resigned_m0403_full_result_forgery_rejected"
+            ],
+            "case_expectations": {
+                "validated_upstream_requires_fact_ledger": "validation_rejected",
+                "quarantined_upstream_zero_ledger_traversal": "quarantined:zero_ledger_traversal",
+                "abstained_upstream_zero_ledger_traversal": "abstained:zero_ledger_traversal",
+                "stale_identity_binding_rejected": "validation_rejected",
+                "stale_quality_result_binding_rejected": "validation_rejected",
+                "stale_support_receipt_binding_rejected": "validation_rejected",
+                "stale_intended_use_binding_rejected": "validation_rejected",
+                "resigned_m0403_full_result_forgery_rejected": "validation_rejected"
+            },
+            "expected_case_count": 8
+        },
+        {
+            "group_id": "nonmutation_evidence_and_authority",
+            "case_ids": [
+                "all_input_artifact_references_preserved",
+                "duplicate_content_retained_without_deduplication",
+                "missing_evidence_never_becomes_negative",
+                "safe_failure_minimum_12_evidence",
+                "maximum_45_evidence",
+                "recursive_canary_absent_from_result",
+                "exact_three_limitations",
+                "all_authority_flags_false"
+            ],
+            "case_expectations": {
+                "all_input_artifact_references_preserved": "retention:exact_upstream_references",
+                "duplicate_content_retained_without_deduplication": "retention:no_deduplication",
+                "missing_evidence_never_becomes_negative": "abstained:no_negative_inference",
+                "safe_failure_minimum_12_evidence": "abstained:evidence_count_12",
+                "maximum_45_evidence": "qualified:evidence_count_45",
+                "recursive_canary_absent_from_result": "privacy_ceiling",
+                "exact_three_limitations": "authority_ceiling",
+                "all_authority_flags_false": "authority_ceiling"
+            },
+            "expected_case_count": 8
+        },
+        {
+            "group_id": "uncertainty_provenance_and_result_replay",
+            "case_ids": [
+                "all_seven_uncertainty_dimensions_explicit_not_estimable",
+                "sensitivity_notes_exact",
+                "provenance_controls_exact_seven",
+                "provenance_input_digest_set_exact",
+                "findings_unique_and_canonical",
+                "result_metric_forgery_rejected",
+                "result_finding_forgery_rejected",
+                "receipt_and_result_digest_forgery_rejected"
+            ],
+            "case_expectations": {
+                "all_seven_uncertainty_dimensions_explicit_not_estimable": "uncertainty_ceiling",
+                "sensitivity_notes_exact": "uncertainty_ceiling",
+                "provenance_controls_exact_seven": "provenance_exact",
+                "provenance_input_digest_set_exact": "provenance_exact",
+                "findings_unique_and_canonical": "canonical_findings",
+                "result_metric_forgery_rejected": "validation_rejected",
+                "result_finding_forgery_rejected": "validation_rejected",
+                "receipt_and_result_digest_forgery_rejected": "validation_rejected"
+            },
+            "expected_case_count": 8
+        },
+        {
+            "group_id": "strict_boundary_interfaces_and_caps",
+            "case_ids": [
+                "approved_configuration_denial_zero_traversal",
+                "identity_denial_zero_traversal",
+                "provenance_denial_zero_traversal",
+                "consent_denial_zero_traversal",
+                "quality_denial_zero_traversal",
+                "support_denial_zero_traversal",
+                "intended_use_denial_zero_traversal",
+                "arbitrary_mapping_rejected_without_access",
+                "dict_subclass_exception_baseexception_firewall",
+                "duplicate_json_unknown_field_and_coercion_rejected",
+                "request_exact_4mib_and_first_excess",
+                "library_service_plugin_api_cli_schema_parity",
+                "api_cli_strict_json_symlink_and_existing_output_refused"
+            ],
+            "case_expectations": {
+                "approved_configuration_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "identity_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "provenance_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "consent_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "quality_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "support_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "intended_use_denial_zero_traversal": "authorization_rejected:zero_traversal",
+                "arbitrary_mapping_rejected_without_access": "authorization_rejected:zero_access",
+                "dict_subclass_exception_baseexception_firewall": "authorization_rejected_and_baseexception_propagates",
+                "duplicate_json_unknown_field_and_coercion_rejected": "ingress_rejected",
+                "request_exact_4mib_and_first_excess": "cap_ceiling",
+                "library_service_plugin_api_cli_schema_parity": "interface_equality",
+                "api_cli_strict_json_symlink_and_existing_output_refused": "interface_boundary"
+            },
+            "expected_case_count": 13
+        }
+    ],
+    "expected_group_count": 8,
+    "expected_total_case_count": 72,
+    "expected_case_allocation": [8, 9, 9, 9, 8, 8, 8, 13],
+    "benchmark": {
+        "workload": "genuine_maximum_supported_quality_metadata_shape",
+        "upstream_setup_timed": false,
+        "request_build_timed": false,
+        "serialization_timed": false,
+        "warmup_count": 1,
+        "timed_public_calls": 25,
+        "timed_boundary": "compute_proteoform_quality_metrics_only",
+        "mean_budget_ns": 500000000,
+        "p95_budget_ns": 750000000
+    }
+}

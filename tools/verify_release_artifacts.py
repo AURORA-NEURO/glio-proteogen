@@ -41,6 +41,21 @@ _M0403_BENCHMARK_ITERATIONS = 25
 _M0403_BENCHMARK_WARMUPS = 1
 _M0403_MEAN_BUDGET_NS = 500_000_000
 _M0403_P95_BUDGET_NS = 750_000_000
+_M0404_MODULE_ID = "GLIO-PROTEOGEN-M04-04"
+_M0404_CASE_COUNT = 72
+_M0404_BENCHMARK_ITERATIONS = 25
+_M0404_BENCHMARK_WARMUPS = 1
+_M0404_MEAN_BUDGET_NS = 500_000_000
+_M0404_P95_BUDGET_NS = 750_000_000
+_M0404_BENCHMARK_SHAPE = {
+    "role_count": 4,
+    "profile_count": 32,
+    "threshold_count": 256,
+    "fact_count": 4,
+    "metric_count": 32,
+    "evidence_count": 45,
+    "limitation_count": 3,
+}
 _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("export-schema", "protocol-schema"),
@@ -149,6 +164,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("proteoform-raw", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-03:1.0.0:request",
+    ),
+    (
+        ("proteoform-quality", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-04:1.0.0:request",
     ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
@@ -344,6 +363,72 @@ def verify_m0403_evidence(evaluation: Path, benchmark: Path) -> None:
 
     _verify_m0403_evaluation(_load_json_evidence(evaluation, "M04-03 evaluation report"))
     _verify_m0403_benchmark(_load_json_evidence(benchmark, "M04-03 benchmark report"))
+
+
+def _verify_m0404_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M0404_MODULE_ID:
+        raise ReleaseArtifactError("M04-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M04-04 evaluation report did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(
+            evaluation_report,
+            field,
+            _M0404_CASE_COUNT,
+            "M04-04 evaluation report",
+        )
+    for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
+        _require_empty_array(evaluation_report, field, "M04-04 evaluation report")
+    checks = _sequence(evaluation_report.get("checks"), "M04-04 evaluation checks")
+    if any(
+        _mapping(check, "M04-04 evaluation check").get("passed") is not True for check in checks
+    ):
+        raise ReleaseArtifactError("M04-04 evaluation report contains a failed check")
+    scenario_names = tuple(
+        name
+        for check in checks
+        if isinstance((name := _mapping(check, "M04-04 evaluation check").get("name")), str)
+        and name.startswith("scenario.")
+    )
+    if len(scenario_names) != _M0404_CASE_COUNT or len(set(scenario_names)) != len(scenario_names):
+        raise ReleaseArtifactError("M04-04 evaluation report lacks exact scenario closure")
+
+
+def _verify_m0404_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M0404_MODULE_ID:
+        raise ReleaseArtifactError("M04-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M04-04 benchmark report did not pass")
+    exact_fields = {
+        "iterations": _M0404_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0404_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0404_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0404_P95_BUDGET_NS,
+        **_M0404_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M04-04 benchmark report")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M04-04 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M04-04 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M0404_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M0404_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M04-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify the archived M04-04 corpus closure, maximum shape, and timing budgets."""
+
+    _verify_m0404_evaluation(_load_json_evidence(evaluation, "M04-04 evaluation report"))
+    _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
 
 
 def _verify_reproducible_cyclonedx_header(
@@ -602,6 +687,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0403_evidence.add_argument("evaluation", type=Path)
     m0403_evidence.add_argument("benchmark", type=Path)
+    m0404_evidence = commands.add_parser(
+        "m04-04-evidence", help="verify M04-04 evaluation and benchmark evidence"
+    )
+    m0404_evidence.add_argument("evaluation", type=Path)
+    m0404_evidence.add_argument("benchmark", type=Path)
     return parser
 
 
@@ -617,8 +707,10 @@ def main() -> int:
                 _write_install_report(arguments.report, identity)
         elif arguments.command == "runtime-sbom":
             verify_runtime_sbom(arguments.sbom, arguments.wheel)
-        else:
+        elif arguments.command == "m04-03-evidence":
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
+        else:
+            verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
     except ReleaseArtifactError as error:
         sys.stderr.write(f"release artifact verification failed: {error}\n")
         return 1
