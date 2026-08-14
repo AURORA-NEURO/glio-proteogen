@@ -114,13 +114,18 @@ def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 def normalized_posterior(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data = _dump(value)
-    data["posterior_digest"] = _ZERO_DIGEST
     data["evidence"] = _sorted(data["evidence"])
     return data
 
 
+def normalized_posterior_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    data = normalized_posterior(value)
+    data["posterior_digest"] = _ZERO_DIGEST
+    return data
+
+
 def posterior_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
-    return sha256_digest(normalized_posterior(value))
+    return sha256_digest(normalized_posterior_payload(value))
 
 
 def normalized_contamination_flag(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
@@ -217,6 +222,7 @@ __all__ = [
     "normalized_finding",
     "normalized_policy",
     "normalized_posterior",
+    "normalized_posterior_payload",
     "normalized_profile",
     "normalized_receipt",
     "normalized_request",
