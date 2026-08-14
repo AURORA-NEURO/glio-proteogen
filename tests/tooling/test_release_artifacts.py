@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -412,24 +413,41 @@ def test_m0502_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         verify_m0502_evidence(evaluation, benchmark)
 
 
-def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(
+def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noqa: PLR0915
     tmp_path: Path,
 ) -> None:
     evaluation = tmp_path / "m05-03-eval.json"
     benchmark = tmp_path / "m05-03-benchmark.json"
+    fixture = ROOT / "tests" / "fixtures" / "m05_03" / "scenarios.json"
+    fixture_bytes = fixture.read_bytes()
+    fixture_payload = json.loads(fixture_bytes)
+    case_ids = [
+        case_id for group in fixture_payload["scenario_groups"] for case_id in group["case_ids"]
+    ]
     evaluation_report = {
         "module_id": "GLIO-PROTEOGEN-M05-03",
+        "phase": "locked_executable_corpus",
+        "fixture_digest": f"sha256:{hashlib.sha256(fixture_bytes).hexdigest()}",
         "declared_case_count": 72,
         "executed_case_count": 72,
         "missing_case_ids": [],
         "extra_case_ids": [],
         "duplicated_case_ids": [],
         "checks": [
-            {"name": f"scenario.case_{index:02d}", "passed": True, "detail": "closed"}
-            for index in range(72)
+            {"name": "corpus.inventory", "passed": True, "detail": "locked inventory"},
+            *(
+                {"name": f"scenario.{case_id}", "passed": True, "detail": "substantive"}
+                for case_id in case_ids
+            ),
+            {
+                "name": "corpus.executable_coverage",
+                "passed": True,
+                "detail": "exact executable closure",
+            },
         ],
         "passed": True,
     }
+    samples = [200_000_000] * 25
     benchmark_report = {
         "module_id": "GLIO-PROTEOGEN-M05-03",
         "contract_version": "1.0.0",
@@ -444,39 +462,121 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         "diagnostic_count": 0,
         "evidence_count": 20,
         "limitation_count": 3,
-        "request_bytes": 50_000,
-        "result_bytes": 80_000,
-        "request_digest": "sha256:" + ("a" * 64),
-        "result_digest": "sha256:" + ("b" * 64),
+        "request_bytes": 83_113,
+        "result_bytes": 109_985,
+        "request_digest": "sha256:55d852052b12e741cafd94a206c57b43d5e4c67601b41673d8bb75d467bd679c",
+        "result_digest": "sha256:06b5f27a7cafa4e89d50579cc2600b14dc1c9d81caf6021cef872dd38460d93b",
+        "samples_ns": samples,
         "mean_ns": 200_000_000.0,
-        "p50_ns": 190_000_000.0,
-        "p95_ns": 300_000_000,
-        "maximum_ns": 350_000_000,
+        "p50_ns": 200_000_000,
+        "p95_ns": 200_000_000,
+        "maximum_ns": 200_000_000,
         "mean_budget_ns": 500_000_000,
         "p95_budget_ns": 750_000_000,
     }
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
 
-    verify_m0503_evidence(evaluation, benchmark)
+    verify_m0503_evidence(evaluation, benchmark, fixture)
 
     evaluation_report["executed_case_count"] = 71
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="executed_case_count"):
-        verify_m0503_evidence(evaluation, benchmark)
+        verify_m0503_evidence(evaluation, benchmark, fixture)
 
     evaluation_report["executed_case_count"] = 72
+    original_name = evaluation_report["checks"][1]["name"]
+    evaluation_report["checks"][1]["name"] = "scenario.substituted_but_still_unique"
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="fixture scenario closure"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+    evaluation_report["checks"][1]["name"] = original_name
+
+    evaluation_report["checks"].append(
+        {"name": "corpus.extra", "passed": True, "detail": "unlocked extra check"}
+    )
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="fixture scenario closure"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+    evaluation_report["checks"].pop()
+
+    evaluation_report["fixture_digest"] = "sha256:" + ("f" * 64)
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="locked fixture"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+    evaluation_report["fixture_digest"] = f"sha256:{hashlib.sha256(fixture_bytes).hexdigest()}"
+
+    drifted_fixture = tmp_path / "drifted-scenarios.json"
+    drifted_fixture.write_bytes(fixture_bytes + b"\n")
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="fixture digest"):
+        verify_m0503_evidence(evaluation, benchmark, drifted_fixture)
+
     benchmark_report["document_count"] = 3
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="document_count"):
-        verify_m0503_evidence(evaluation, benchmark)
+        verify_m0503_evidence(evaluation, benchmark, fixture)
 
     benchmark_report["document_count"] = 4
-    benchmark_report["mean_ns"] = 500_000_001
+    benchmark_report["samples_ns"] = samples[:-1]
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing samples"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["samples_ns"] = [0, *samples[1:]]
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing samples"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["samples_ns"] = [True, *samples[1:]]
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing samples"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["samples_ns"] = [*samples, samples[-1]]
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing samples"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["samples_ns"] = samples
+    benchmark_report["mean_ns"] = 200_000_001.0
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="disagrees with its samples"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["mean_ns"] = 200_000_000.0
+    benchmark_report["request_digest"] = "sha256:" + ("a" * 64)
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="request digest"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["request_digest"] = (
+        "sha256:55d852052b12e741cafd94a206c57b43d5e4c67601b41673d8bb75d467bd679c"
+    )
+    benchmark_report["result_digest"] = "sha256:" + ("b" * 64)
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="result digest"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["result_digest"] = (
+        "sha256:06b5f27a7cafa4e89d50579cc2600b14dc1c9d81caf6021cef872dd38460d93b"
+    )
+    benchmark_report["result_bytes"] = 109_984
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="result_bytes"):
+        verify_m0503_evidence(evaluation, benchmark, fixture)
+
+    benchmark_report["result_bytes"] = 109_985
+    benchmark_report.update(
+        samples_ns=[800_000_000] * 25,
+        mean_ns=800_000_000.0,
+        p50_ns=800_000_000,
+        p95_ns=800_000_000,
+        maximum_ns=800_000_000,
+    )
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="timing budgets"):
-        verify_m0503_evidence(evaluation, benchmark)
+        verify_m0503_evidence(evaluation, benchmark, fixture)
 
 
 def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:  # noqa: PLR0915
@@ -572,6 +672,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "verify_release_artifacts.py m05-02-evidence" in workflow
     assert "evals.m05_03.benchmark --output evidence/m05-03-benchmark.json" in workflow
     assert "verify_release_artifacts.py m05-03-evidence" in workflow
+    assert "tests/fixtures/m05_03/scenarios.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 

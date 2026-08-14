@@ -115,7 +115,8 @@ jobs:
           uv run python tools/verify_release_artifacts.py m05-02-evidence \
             evidence/m05-02-eval.json evidence/m05-02-benchmark.json
           uv run python tools/verify_release_artifacts.py m05-03-evidence \
-            evidence/m05-03-eval.json evidence/m05-03-benchmark.json
+            evidence/m05-03-eval.json evidence/m05-03-benchmark.json \
+            tests/fixtures/m05_03/scenarios.json
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json

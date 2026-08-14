@@ -119,6 +119,66 @@ def test_library_service_plugin_and_cli_emit_exact_parity(tmp_path: Path) -> Non
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M05-03"
 
 
+def test_cli_decodes_once_and_uses_private_validated_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_path, source_directory, output_path, expected = _write_capsule(tmp_path)
+    original_decoder = cli_module.strict_json_loads
+    original_validator = cli_module._validate_m0503_json_request
+    original_private_execute = M0503Service._execute_validated
+    calls = {"decode": 0, "validate": 0, "private_execute": 0}
+
+    def counting_decoder(payload: object, *, max_bytes: int) -> object:
+        calls["decode"] += 1
+        return original_decoder(cast("bytes | bytearray | str", payload), max_bytes=max_bytes)
+
+    def counting_validator(candidate: object, payload: bytes) -> object:
+        calls["validate"] += 1
+        return original_validator(candidate, payload)
+
+    def counting_private_execute(
+        service: M0503Service,
+        request: object,
+        artifacts_by_role: object,
+    ) -> object:
+        calls["private_execute"] += 1
+        return original_private_execute(service, cast("Any", request), artifacts_by_role)
+
+    def unexpected_public_execute(
+        _service: M0503Service,
+        _request: object,
+        _artifacts_by_role: object,
+    ) -> object:
+        raise AssertionError
+
+    monkeypatch.setattr(cli_module, "strict_json_loads", counting_decoder)
+    monkeypatch.setattr(cli_module, "_validate_m0503_json_request", counting_validator)
+    monkeypatch.setattr(M0503Service, "_execute_validated", counting_private_execute)
+    monkeypatch.setattr(M0503Service, "execute", unexpected_public_execute)
+
+    cli = CliRunner().invoke(
+        cli_app,
+        [
+            "ptm-localization-raw",
+            "ingest",
+            str(request_path),
+            str(source_directory),
+            "--output",
+            str(output_path),
+        ],
+    )
+
+    assert cli.exit_code == 0, cli.output
+    assert calls == {"decode": 1, "validate": 1, "private_execute": 1}
+    assert (
+        PtmLocalizationRawInputValidationResult.model_validate_json(
+            output_path.read_bytes(), strict=True
+        )
+        == expected
+    )
+
+
 def test_cli_rejects_missing_extra_linked_and_existing_output(tmp_path: Path) -> None:
     request_path, source_directory, output_path, _ = _write_capsule(tmp_path)
     (source_directory / SOURCE_FILENAMES[0]).unlink()

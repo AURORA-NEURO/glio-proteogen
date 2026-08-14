@@ -1353,12 +1353,12 @@ def test_maximum_discrepancy_diagnostics_are_aggregated_and_total() -> None:
         elif isinstance(document, GenomeInputDocument):
             payload.update(
                 reference_digest=_digest("maximum-discrepancy-genome-reference"),
-                reference_build=_opaque("input", "maximum-discrepancy-genome-build"),
+                reference_build=_opaque("bundle", "maximum-discrepancy-genome-build"),
             )
         elif isinstance(document, TranscriptomeInputDocument):
             payload.update(
                 reference_digest=_digest("maximum-discrepancy-transcript-reference"),
-                annotation_build=_opaque("input", "maximum-discrepancy-annotation-build"),
+                annotation_build=_opaque("bundle", "maximum-discrepancy-annotation-build"),
             )
         else:
             payload.update(
@@ -1627,6 +1627,18 @@ def test_document_local_media_and_bound_collection_validators_reject() -> None:
     ptm_payload["vocabularies"] = (vocabulary, vocabulary)
     with pytest.raises(ValidationError, match="vocabulary identifiers must be unique"):
         PtmAnnotationInputDocument.model_validate(ptm_payload, strict=True)
+
+    direct_identifier_canary = "Patient.SSN.123-45-6789"
+    for document_type, field_name in (
+        (GenomeInputDocument, "reference_build"),
+        (TranscriptomeInputDocument, "annotation_build"),
+    ):
+        build_payload = next(
+            item for item in documents if isinstance(item, document_type)
+        ).model_dump(mode="python", exclude_none=False)
+        build_payload[field_name] = direct_identifier_canary
+        with pytest.raises(ValidationError, match="bundle"):
+            document_type.model_validate(build_payload, strict=True)
 
 
 @pytest.mark.contract
