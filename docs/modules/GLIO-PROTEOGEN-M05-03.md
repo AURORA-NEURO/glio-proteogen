@@ -85,8 +85,8 @@ kinase activity, subtype, proteotype, treatment, or a clinical conclusion.
     validated-input, diagnostic, and receipt. Expose schema HTTP GET only. Deliberately expose no
     HTTP execution POST because raw-byte canonicalization and duplicate-key behavior belong to the
     explicit bytes boundary.
-20. Expose CLI `ptm_localization-raw export-schema NAME` and
-    `ptm_localization-raw ingest REQUEST SOURCE --output RESULT`. `SOURCE` must contain exactly four
+20. Expose CLI `ptm-localization-raw export-schema NAME` and
+    `ptm-localization-raw ingest REQUEST SOURCE --output RESULT`. `SOURCE` must contain exactly four
     named regular files and no extras: `mass-spectrometry-proteome.json`, `genome.json`,
     `transcriptome.json`, and `ptm-annotations.json`. Symlinks, junctions, reparse points,
     missing entries, and nonregular files reject. Snapshot each input once. The output must not
@@ -129,10 +129,12 @@ exactly.
 
 The representative benchmark prepares genuine M01-02, M05-01, and M05-02 results and four modest
 canonical documents outside measurement. After one untimed warm-up, it measures exactly 25
-public `ingest_ptm_localization_raw_inputs` calls. Mean latency must be at most 500 milliseconds and p95
-at most 750 milliseconds. The 8 MiB and 32 MiB capacity shapes belong to eval, not the
-representative benchmark. These limits are software regression tripwires, not scientific,
-biological, transportability, calibration, or clinical evidence.
+public `ingest_ptm_localization_raw_inputs` calls. Mean latency must be at most 500 milliseconds and
+p95 at most 750 milliseconds. The published report retains all 25 samples; release verification
+recomputes its statistics and binds its request/result digests and byte sizes. The 8 MiB and 32 MiB
+capacity shapes belong to eval, not the representative benchmark. These limits are software
+regression tripwires, not scientific, biological, transportability, calibration, or clinical
+evidence.
 
 See the [module manifest](M05-03.manifest.md),
 [evidence inventory](../evidence/M05-03.md), and

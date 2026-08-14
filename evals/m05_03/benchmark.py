@@ -49,6 +49,7 @@ class BenchmarkReport:
     result_bytes: int
     request_digest: str
     result_digest: str
+    samples_ns: tuple[int, ...]
     mean_ns: float
     p50_ns: float
     p95_ns: int
@@ -115,6 +116,7 @@ def run_benchmark() -> BenchmarkReport:
         result_bytes=len(canonical_json_bytes(warmup)),
         request_digest=warmup.request_digest,
         result_digest=warmup.result_digest,
+        samples_ns=tuple(samples),
         mean_ns=mean,
         p50_ns=median(samples),
         p95_ns=p95,

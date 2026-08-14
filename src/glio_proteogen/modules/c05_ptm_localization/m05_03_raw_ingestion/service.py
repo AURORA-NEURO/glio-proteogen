@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
-
-from pydantic import TypeAdapter
+from typing import TYPE_CHECKING
 
 from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
     M0503PtmLocalizationRawInputIngester,
-    _contracts,
-    _plain_value,
+    _prepare_ptm_localization_raw_inputs,
     _PreparedPtmLocalizationRawInputs,
-    _validate_outer_request_shape,
-    preflight_ptm_localization_raw_input_authorization,
+    _validate_request_candidate,
 )
 
 if TYPE_CHECKING:
@@ -32,18 +28,7 @@ class M0503Service:
 
     @staticmethod
     def validate_request(request: object) -> IngestPtmLocalizationRawInputsRequest:
-        preflight_ptm_localization_raw_input_authorization(request)
-        contracts = _contracts()
-        _validate_outer_request_shape(request, contracts)
-        return cast(
-            "IngestPtmLocalizationRawInputsRequest",
-            TypeAdapter(
-                cast("Any", contracts.IngestPtmLocalizationRawInputsRequest)
-            ).validate_python(
-                _plain_value(request),
-                strict=True,
-            ),
-        )
+        return _validate_request_candidate(request)
 
     def execute(
         self,
@@ -60,6 +45,20 @@ class M0503Service:
         """Consume a private once-read capability without revisiting caller data."""
 
         return self._ingester._ingest_prepared(request, prepared)
+
+    def _execute_validated(
+        self,
+        request: IngestPtmLocalizationRawInputsRequest,
+        artifacts_by_role: object,
+    ) -> PtmLocalizationRawInputValidationResult:
+        """Consume an adapter-validated request without replaying its JSON boundary."""
+
+        prepared = (
+            _prepare_ptm_localization_raw_inputs(request, artifacts_by_role)
+            if request.lineage_result.disposition.value == "reconciled"
+            else _PreparedPtmLocalizationRawInputs(snapshots=(), documents=())
+        )
+        return self._execute_prepared(request, prepared)
 
 
 __all__ = ["M0503Service"]

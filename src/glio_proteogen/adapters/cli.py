@@ -540,7 +540,9 @@ from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
     M0503Service,
     PtmLocalizationRawInputAuthorizationError,
     PtmLocalizationRawInputError,
-    preflight_ptm_localization_raw_input_authorization,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
+    _validate_json_request as _validate_m0503_json_request,
 )
 
 if TYPE_CHECKING:
@@ -4137,20 +4139,23 @@ def ingest_ptm_localization_raw_inputs_cli(
             parsed = _load_request(
                 request,
                 TypeAdapter(IngestPtmLocalizationRawInputsRequest),
-                preflight_ptm_localization_raw_input_authorization,
-                M0503_MAX_CANONICAL_REQUEST_BYTES,
+                max_bytes=M0503_MAX_CANONICAL_REQUEST_BYTES,
+                json_validator=_validate_m0503_json_request,
             )
             source_path = Path(source_directory)
             output_path = Path(output)
         except PtmLocalizationRawInputAuthorizationError as error:
             typer.echo(f"PTM-localization raw ingestion failed: {error}", err=True)
             raise typer.Exit(code=2) from error
+        except (OSError, TypeError, ValueError) as error:
+            typer.echo("invalid M05-03 request: strict request validation failed", err=True)
+            raise typer.Exit(code=2) from error
         sources = (
             _load_ptm_localization_raw_files(source_path, parsed)
             if parsed.lineage_result.disposition.value == "reconciled"
             else {}
         )
-        result = M0503Service().execute(parsed, sources)
+        result = M0503Service()._execute_validated(parsed, sources)
         _write_ptm_localization_raw_result(
             output_path,
             canonical_json_bytes(result.model_dump(mode="json")),

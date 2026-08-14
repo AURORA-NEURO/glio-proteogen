@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
 
-from pydantic import BaseModel, TypeAdapter
-
 from glio_proteogen.contracts.m05_02 import PtmLocalizationIdentityLineageResolution
 from glio_proteogen.contracts.m05_03 import PtmLocalizationRawInputValidationResult
 from glio_proteogen.contracts.m05_03.v1 import _validate_exact_request_storage
@@ -18,10 +16,12 @@ from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine imp
     _contracts,
     _prepare_ptm_localization_raw_inputs,
     _PreparedPtmLocalizationRawInputs,
-    preflight_ptm_localization_raw_input_authorization,
+    _validate_json_request,
 )
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from glio_proteogen.contracts.m05_03 import IngestPtmLocalizationRawInputsRequest
     from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.service import (
         M0503Service,
@@ -152,11 +152,9 @@ class M0503Plugin(
                 serialized,
                 max_bytes=contracts.M0503_MAX_CANONICAL_REQUEST_BYTES,
             )
-            preflight_ptm_localization_raw_input_authorization(decoded)
-            candidate = TypeAdapter(contracts.IngestPtmLocalizationRawInputsRequest).validate_json(
-                serialized, strict=True
-            )
-        request = self._service.validate_request(candidate)
+            request = _validate_json_request(decoded, serialized)
+        else:
+            request = self._service.validate_request(candidate)
         if request.lineage_result.disposition.value != "reconciled":
             prepared = _PreparedPtmLocalizationRawInputs(snapshots=(), documents=())
         else:

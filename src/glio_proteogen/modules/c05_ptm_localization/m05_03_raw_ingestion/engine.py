@@ -6,13 +6,19 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
+from threading import Lock
 from typing import TYPE_CHECKING, Any, Final, cast, get_args, get_origin
+from weakref import ReferenceType, ref
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from glio_proteogen.contracts import m05_03 as _m0503_contracts
 from glio_proteogen.contracts.m05_02 import PtmLocalizationIdentityLineageResolution
-from glio_proteogen.contracts.m05_03.v1 import _validate_exact_request_storage
+from glio_proteogen.contracts.m05_03.v1 import (
+    _issue_validated_request_capability,
+    _validate_exact_request_storage,
+    _validate_result_with_capability,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 
@@ -91,12 +97,35 @@ class _InvalidPlainValueError(TypeError):
         super().__init__("M05-03 strict request values require exact string keys")
 
 
+class _InvalidSerializedRequestError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("M05-03 serialized request violates its strict shape")
+
+
 @dataclass(frozen=True, slots=True)
 class _PreparedPtmLocalizationRawInputs:
     """Once-read immutable bytes and their strict parsed document projections."""
 
     snapshots: tuple[tuple[object, bytes], ...]
     documents: tuple[BaseModel, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _IssuedM0503RequestSnapshot:
+    """Weak admission memo bound to exact request and M05-02 object identities."""
+
+    source_ref: ReferenceType[object]
+    source_lineage_ref: ReferenceType[object]
+    source_bytes: bytes
+    source_lineage_bytes: bytes
+    validated_request: IngestPtmLocalizationRawInputsRequest
+    validated_bytes: bytes
+    validated_lineage_result: PtmLocalizationIdentityLineageResolution
+    validated_lineage_bytes: bytes
+
+
+_ISSUED_REQUESTS: Final[dict[int, _IssuedM0503RequestSnapshot]] = {}
+_ISSUED_REQUESTS_LOCK: Final = Lock()
 
 
 class M0503PtmLocalizationRawInputIngester:
@@ -111,20 +140,7 @@ class M0503PtmLocalizationRawInputIngester:
     ) -> PtmLocalizationRawInputValidationResult:
         """Authorize, replay, snapshot, validate, and seal one immutable result."""
 
-        contracts = _contracts()
-        preflight_ptm_localization_raw_input_authorization(request)
-        _validate_outer_request_shape(request, contracts)
-        adapter: TypeAdapter[Any] = TypeAdapter(contracts.IngestPtmLocalizationRawInputsRequest)
-        validated = adapter.validate_python(_plain_value(request), strict=True)
-        canonical = adapter.validate_json(
-            canonical_json_bytes(contracts.normalized_request(validated)),
-            strict=True,
-        )
-        # Revalidate the full public M05-02 envelope independently of compact projections.
-        TypeAdapter(PtmLocalizationIdentityLineageResolution).validate_json(
-            canonical_json_bytes(contracts.normalized_lineage_result(canonical.lineage_result)),
-            strict=True,
-        )
+        canonical = _validate_request_candidate(request)
         upstream_disposition = canonical.lineage_result.disposition.value
         if upstream_disposition != "reconciled":
             return _result(canonical, ())
@@ -180,6 +196,147 @@ def preflight_ptm_localization_raw_input_authorization(candidate: object) -> Non
         raise PtmLocalizationRawInputAuthorizationError from None
     if not authorized:
         raise PtmLocalizationRawInputAuthorizationError
+
+
+def _retire_issued_request(key: int, dead_ref: ReferenceType[object]) -> None:
+    with _ISSUED_REQUESTS_LOCK:
+        current = _ISSUED_REQUESTS.get(key)
+        if current is not None and current.source_ref is dead_ref:
+            _ISSUED_REQUESTS.pop(key, None)
+
+
+def _remember_validated_request(
+    source: object,
+    validated: IngestPtmLocalizationRawInputsRequest,
+) -> None:
+    contracts = _contracts()
+    if type(source) is not contracts.IngestPtmLocalizationRawInputsRequest:
+        return
+    _validate_exact_request_storage(source)
+    _validate_exact_request_storage(validated)
+    source_lineage = object.__getattribute__(source, "lineage_result")
+    validated_lineage = object.__getattribute__(validated, "lineage_result")
+    if (
+        type(source_lineage) is not PtmLocalizationIdentityLineageResolution
+        or type(validated_lineage) is not PtmLocalizationIdentityLineageResolution
+    ):
+        raise _InvalidPlainValueError
+    key = id(source)
+    source_ref = ref(source, lambda dead_ref: _retire_issued_request(key, dead_ref))
+    snapshot = _IssuedM0503RequestSnapshot(
+        source_ref=source_ref,
+        source_lineage_ref=ref(source_lineage),
+        source_bytes=canonical_json_bytes(contracts.normalized_request(source)),
+        source_lineage_bytes=canonical_json_bytes(
+            contracts.normalized_lineage_result(source_lineage)
+        ),
+        validated_request=validated,
+        validated_bytes=canonical_json_bytes(contracts.normalized_request(validated)),
+        validated_lineage_result=validated_lineage,
+        validated_lineage_bytes=canonical_json_bytes(
+            contracts.normalized_lineage_result(validated_lineage)
+        ),
+    )
+    with _ISSUED_REQUESTS_LOCK:
+        _ISSUED_REQUESTS[key] = snapshot
+
+
+def _reuse_validated_request(
+    candidate: object,
+) -> IngestPtmLocalizationRawInputsRequest | None:
+    contracts = _contracts()
+    if type(candidate) is not contracts.IngestPtmLocalizationRawInputsRequest:
+        return None
+    key = id(candidate)
+    with _ISSUED_REQUESTS_LOCK:
+        snapshot = _ISSUED_REQUESTS.get(key)
+    if snapshot is None or snapshot.source_ref() is not candidate:
+        return None
+    try:
+        _validate_exact_request_storage(candidate)
+        source_lineage = object.__getattribute__(candidate, "lineage_result")
+        validated = snapshot.validated_request
+        _validate_exact_request_storage(validated)
+        valid = (
+            snapshot.source_lineage_ref() is source_lineage
+            and type(source_lineage) is PtmLocalizationIdentityLineageResolution
+            and validated.lineage_result is snapshot.validated_lineage_result
+            and type(validated.lineage_result) is PtmLocalizationIdentityLineageResolution
+            and canonical_json_bytes(contracts.normalized_request(candidate))
+            == snapshot.source_bytes
+            and canonical_json_bytes(contracts.normalized_lineage_result(source_lineage))
+            == snapshot.source_lineage_bytes
+            and canonical_json_bytes(contracts.normalized_request(validated))
+            == snapshot.validated_bytes
+            and canonical_json_bytes(
+                contracts.normalized_lineage_result(snapshot.validated_lineage_result)
+            )
+            == snapshot.validated_lineage_bytes
+        )
+    except Exception:  # noqa: BLE001 - a stale private admission memo fails closed.
+        valid = False
+    if valid:
+        return validated
+    with _ISSUED_REQUESTS_LOCK:
+        if _ISSUED_REQUESTS.get(key) is snapshot:
+            _ISSUED_REQUESTS.pop(key, None)
+    return None
+
+
+def _validate_request_candidate(
+    candidate: object,
+) -> IngestPtmLocalizationRawInputsRequest:
+    """Strictly replay one typed request without permitting JSON-to-Python coercion."""
+
+    contracts = _contracts()
+    preflight_ptm_localization_raw_input_authorization(candidate)
+    _validate_outer_request_shape(candidate, contracts)
+    cached = _reuse_validated_request(candidate)
+    if cached is not None:
+        return cached
+    adapter: TypeAdapter[Any] = TypeAdapter(contracts.IngestPtmLocalizationRawInputsRequest)
+    validated = adapter.validate_python(_plain_value(candidate), strict=True)
+    canonical = adapter.validate_json(
+        canonical_json_bytes(contracts.normalized_request(validated)),
+        strict=True,
+    )
+    replayed = _replay_request_upstream(canonical, contracts)
+    _remember_validated_request(candidate, replayed)
+    return replayed
+
+
+def _replay_request_upstream(
+    request: Any,  # noqa: ANN401 - delayed exact contract model.
+    contracts: Any,  # noqa: ANN401 - delayed public contract module.
+) -> IngestPtmLocalizationRawInputsRequest:
+    # Replay the full public M05-02 result independently of compact projections.
+    TypeAdapter(PtmLocalizationIdentityLineageResolution).validate_json(
+        canonical_json_bytes(contracts.normalized_lineage_result(request.lineage_result)),
+        strict=True,
+    )
+    return cast("IngestPtmLocalizationRawInputsRequest", request)
+
+
+def _validate_json_request(
+    candidate: object,
+    serialized: bytes | bytearray | str,
+) -> IngestPtmLocalizationRawInputsRequest:
+    """Validate a once-decoded external JSON request through the sealed replay path."""
+
+    size = len(serialized.encode("utf-8")) if type(serialized) is str else len(serialized)
+    if size > _contracts().M0503_MAX_CANONICAL_REQUEST_BYTES:
+        raise _InvalidSerializedRequestError
+    try:
+        contracts = _contracts()
+        preflight_ptm_localization_raw_input_authorization(candidate)
+        _validate_outer_request_shape(candidate, contracts)
+        adapter: TypeAdapter[Any] = TypeAdapter(contracts.IngestPtmLocalizationRawInputsRequest)
+        canonical = adapter.validate_json(
+            canonical_json_bytes(_plain_value(candidate)), strict=True
+        )
+    except _InvalidPlainValueError:
+        raise _InvalidSerializedRequestError from None
+    return _replay_request_upstream(canonical, contracts)
 
 
 def _prepare_ptm_localization_raw_inputs(
@@ -491,13 +648,8 @@ def _result(
         "completed_at": request.context.occurred_at,
     }
     payload["result_digest"] = contracts.result_payload_digest(payload)
-    return cast(
-        "PtmLocalizationRawInputValidationResult",
-        TypeAdapter(contracts.PtmLocalizationRawInputValidationResult).validate_python(
-            payload,
-            strict=True,
-        ),
-    )
+    capability = _issue_validated_request_capability(request)
+    return _validate_result_with_capability(payload, capability)
 
 
 def _validate_outer_request_shape(candidate: object, contracts: Any) -> None:  # noqa: ANN401

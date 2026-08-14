@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Annotated, Final, Literal, cast
+from weakref import WeakKeyDictionary
 
 from pydantic import (
     AwareDatetime,
     BaseModel,
     Field,
     StringConstraints,
+    TypeAdapter,
+    ValidationInfo,
     ValidatorFunctionWrapHandler,
     field_validator,
     model_validator,
@@ -96,6 +100,38 @@ _REQUEST_STORAGE_FIELDS: Final = frozenset(
         "supersedes_result_digest",
     }
 )
+_VALIDATION_CAPABILITY_SEAL: Final = object()
+_REQUEST_CAPABILITY_CONTEXT_KEY: Final = "_m0503_validated_request_capability"
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class _ValidatedM0503RequestCapability:
+    """Private proof that one exact M05-03 request completed full admission."""
+
+    seal: object
+    request: IngestPtmLocalizationRawInputsRequest
+    request_bytes: bytes
+    lineage_result: PtmLocalizationIdentityLineageResolution
+    lineage_bytes: bytes
+    request_digest: Sha256Digest
+    policy_digest: Sha256Digest
+    configuration_digest: Sha256Digest
+
+
+_ISSUED_REQUEST_CAPABILITIES: Final[
+    WeakKeyDictionary[
+        _ValidatedM0503RequestCapability,
+        tuple[
+            IngestPtmLocalizationRawInputsRequest,
+            bytes,
+            PtmLocalizationIdentityLineageResolution,
+            bytes,
+            Sha256Digest,
+            Sha256Digest,
+            Sha256Digest,
+        ],
+    ]
+] = WeakKeyDictionary()
 
 _OPAQUE_IDENTIFIER = re.compile(
     r"^(?:request|actor|decision|policy|parser|input|evidence|reviewer)"
@@ -440,7 +476,15 @@ class GenomeInputDocument(_PtmLocalizationRawDocumentBase):
         PtmLocalizationRawReferenceRole.GENOME_TRANSCRIPTOME
     )
     reference_digest: Sha256Digest
-    reference_build: Identifier
+    reference_build: Annotated[
+        Identifier,
+        StringConstraints(pattern=r"^bundle\.[0-9a-f]{64}$"),
+    ]
+
+    @field_validator("reference_build")
+    @classmethod
+    def reference_build_is_upstream_opaque(cls, value: Identifier) -> Identifier:
+        return opaque_ptm_localization_protocol_identifier("bundle", value)
 
 
 class TranscriptomeInputDocument(_PtmLocalizationRawDocumentBase):
@@ -449,7 +493,15 @@ class TranscriptomeInputDocument(_PtmLocalizationRawDocumentBase):
         PtmLocalizationRawReferenceRole.GENOME_TRANSCRIPTOME
     )
     reference_digest: Sha256Digest
-    annotation_build: Identifier
+    annotation_build: Annotated[
+        Identifier,
+        StringConstraints(pattern=r"^bundle\.[0-9a-f]{64}$"),
+    ]
+
+    @field_validator("annotation_build")
+    @classmethod
+    def annotation_build_is_upstream_opaque(cls, value: Identifier) -> Identifier:
+        return opaque_ptm_localization_protocol_identifier("bundle", value)
 
 
 class PtmLocalizationRawVocabularyBinding(FrozenModel):
@@ -716,6 +768,83 @@ def _validate_exact_request_storage(value: object) -> None:
         raise ValueError("M05-03 request storage keys must be exact strings")
     if frozenset(cast("str", key) for key in keys) != _REQUEST_STORAGE_FIELDS:
         raise ValueError("M05-03 request storage does not match its closed contract")
+
+
+def _request_capability_is_issued(capability: _ValidatedM0503RequestCapability) -> bool:
+    snapshot = _ISSUED_REQUEST_CAPABILITIES.get(capability)
+    try:
+        return (
+            snapshot is not None
+            and capability.seal is _VALIDATION_CAPABILITY_SEAL
+            and type(capability.request) is IngestPtmLocalizationRawInputsRequest
+            and snapshot[0] is capability.request
+            and snapshot[1] == capability.request_bytes
+            and snapshot[2] is capability.lineage_result
+            and snapshot[3] == capability.lineage_bytes
+            and snapshot[4] == capability.request_digest
+            and snapshot[5] == capability.policy_digest
+            and snapshot[6] == capability.configuration_digest
+            and capability.request.lineage_result is capability.lineage_result
+            and type(capability.lineage_result) is PtmLocalizationIdentityLineageResolution
+            and canonical_json_bytes(normalized_request(capability.request))
+            == capability.request_bytes
+            and canonical_json_bytes(normalized_lineage_result(capability.lineage_result))
+            == capability.lineage_bytes
+            and canonical_request_digest(capability.request) == capability.request_digest
+            and policy_digest(capability.request.policy) == capability.policy_digest
+            and configuration_digest(capability.request.policy) == capability.configuration_digest
+        )
+    except Exception:  # noqa: BLE001 - a stale private capability fails closed.
+        return False
+
+
+def _issue_validated_request_capability(
+    request: IngestPtmLocalizationRawInputsRequest,
+) -> _ValidatedM0503RequestCapability:
+    """Issue a private result-validation capability after exact request admission."""
+
+    if type(request) is not IngestPtmLocalizationRawInputsRequest:
+        raise TypeError("M05-03 capabilities require the exact request type")
+    _validate_exact_request_storage(request)
+    if type(request.lineage_result) is not PtmLocalizationIdentityLineageResolution:
+        raise TypeError("M05-03 capabilities require the exact M05-02 result type")
+    request_bytes = canonical_json_bytes(normalized_request(request))
+    lineage_bytes = canonical_json_bytes(normalized_lineage_result(request.lineage_result))
+    capability = _ValidatedM0503RequestCapability(
+        seal=_VALIDATION_CAPABILITY_SEAL,
+        request=request,
+        request_bytes=request_bytes,
+        lineage_result=request.lineage_result,
+        lineage_bytes=lineage_bytes,
+        request_digest=canonical_request_digest(request),
+        policy_digest=policy_digest(request.policy),
+        configuration_digest=configuration_digest(request.policy),
+    )
+    _ISSUED_REQUEST_CAPABILITIES[capability] = (
+        capability.request,
+        capability.request_bytes,
+        capability.lineage_result,
+        capability.lineage_bytes,
+        capability.request_digest,
+        capability.policy_digest,
+        capability.configuration_digest,
+    )
+    return capability
+
+
+def _validate_result_with_capability(
+    value: object,
+    capability: _ValidatedM0503RequestCapability,
+) -> PtmLocalizationRawInputValidationResult:
+    """Perform final strict result replay against one exact admitted request."""
+
+    if not _request_capability_is_issued(capability):
+        raise TypeError("invalid M05-03 request-validation capability")
+    return TypeAdapter(PtmLocalizationRawInputValidationResult).validate_python(
+        value,
+        strict=True,
+        context={_REQUEST_CAPABILITY_CONTEXT_KEY: capability},
+    )
 
 
 _DIAGNOSTIC_ACTION: Final[
@@ -999,6 +1128,32 @@ class PtmLocalizationRawInputValidationResult(FrozenModel):
     human_review_required: bool
     completed_at: AwareDatetime
 
+    @field_validator("request", mode="wrap")
+    @classmethod
+    def request_may_reuse_sealed_validation(
+        cls,
+        value: object,
+        handler: ValidatorFunctionWrapHandler,
+        info: ValidationInfo,
+    ) -> IngestPtmLocalizationRawInputsRequest:
+        capability = (
+            info.context.get(_REQUEST_CAPABILITY_CONTEXT_KEY)
+            if type(info.context) is dict
+            else None
+        )
+        if (
+            type(capability) is _ValidatedM0503RequestCapability
+            and _request_capability_is_issued(capability)
+            and value is capability.request
+        ):
+            return capability.request
+        if info.mode == "json":
+            return TypeAdapter(IngestPtmLocalizationRawInputsRequest).validate_json(
+                canonical_json_bytes(value),
+                strict=True,
+            )
+        return cast("IngestPtmLocalizationRawInputsRequest", handler(value))
+
     @field_validator("validated_inputs", "diagnostics", "evidence", "limitations")
     @classmethod
     def semantic_collections_are_canonical(
@@ -1027,8 +1182,19 @@ class PtmLocalizationRawInputValidationResult(FrozenModel):
         )
 
     @model_validator(mode="after")
-    def result_is_exact_replay(self) -> PtmLocalizationRawInputValidationResult:
-        return _validate_result_replay(self)
+    def result_is_exact_replay(
+        self,
+        info: ValidationInfo,
+    ) -> PtmLocalizationRawInputValidationResult:
+        capability = (
+            info.context.get(_REQUEST_CAPABILITY_CONTEXT_KEY)
+            if type(info.context) is dict
+            else None
+        )
+        return _validate_result_replay(
+            self,
+            capability if type(capability) is _ValidatedM0503RequestCapability else None,
+        )
 
 
 def _diagnostic(
@@ -1349,6 +1515,17 @@ def raw_input_evidence_index(
     request: IngestPtmLocalizationRawInputsRequest,
 ) -> tuple[EvidenceReference, ...]:
     refs = request.context.references
+    parser_evidence = (
+        tuple(item.evidence for item in request.policy.approved_parsers)
+        if request.lineage_result.disposition.value == "reconciled"
+        else tuple(
+            min(
+                (item for item in request.policy.approved_parsers if item.role is role),
+                key=canonical_json_bytes,
+            ).evidence
+            for role in PtmLocalizationRawInputRole
+        )
+    )
     artifacts: tuple[ArtifactReference, ...] = (
         refs.approved_configuration.evidence,
         refs.identity_lineage.evidence,
@@ -1358,7 +1535,7 @@ def raw_input_evidence_index(
         refs.support.evidence,
         refs.intended_use.evidence,
         request.policy.evidence,
-        *(item.evidence for item in request.policy.approved_parsers),
+        *parser_evidence,
         *(item.manifest_reference for item in request.artifacts),
         *(item.content_reference for item in request.artifacts),
     )
@@ -1546,19 +1723,38 @@ def _normalized_uncertainty(value: UncertaintyProfile) -> dict[str, object]:
 
 def _validate_result_replay(
     self: PtmLocalizationRawInputValidationResult,
+    capability: _ValidatedM0503RequestCapability | None = None,
 ) -> PtmLocalizationRawInputValidationResult:
-    _validate_exact_request_storage(self.request)
-    replayed_request = IngestPtmLocalizationRawInputsRequest.model_validate_json(
-        canonical_json_bytes(normalized_request(self.request)),
-        strict=True,
+    sealed = (
+        capability is not None
+        and _request_capability_is_issued(capability)
+        and capability.request is self.request
     )
-    if canonical_json_bytes(normalized_request(replayed_request)) != canonical_json_bytes(
-        normalized_request(self.request)
-    ):
-        raise ValueError("M05-03 result embeds a non-replayable ingestion request")
-    request_hash = canonical_request_digest(self.request)
-    active_policy_hash = policy_digest(self.request.policy)
-    config_hash = configuration_digest(self.request.policy)
+    if not sealed:
+        _validate_exact_request_storage(self.request)
+        replayed_request = IngestPtmLocalizationRawInputsRequest.model_validate_json(
+            canonical_json_bytes(normalized_request(self.request)),
+            strict=True,
+        )
+        if canonical_json_bytes(normalized_request(replayed_request)) != canonical_json_bytes(
+            normalized_request(self.request)
+        ):
+            raise ValueError("M05-03 result embeds a non-replayable ingestion request")
+    request_hash = (
+        capability.request_digest
+        if sealed and capability is not None
+        else canonical_request_digest(self.request)
+    )
+    active_policy_hash = (
+        capability.policy_digest
+        if sealed and capability is not None
+        else policy_digest(self.request.policy)
+    )
+    config_hash = (
+        capability.configuration_digest
+        if sealed and capability is not None
+        else configuration_digest(self.request.policy)
+    )
     if self.request.lineage_result.disposition.value != "reconciled":
         replay_diagnostics = expected_diagnostics(self.request, ())
         replay_inputs: tuple[ValidatedPtmLocalizationRawInput, ...] = ()

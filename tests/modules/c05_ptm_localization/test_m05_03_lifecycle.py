@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m05_02 import (
 )
 from glio_proteogen.contracts.m05_03 import (
     M0503_LIMITATION_COUNT,
+    M0503_MAX_APPROVED_PARSERS,
     M0503_MAX_DIAGNOSTICS,
     M0503_MIN_EVIDENCE,
     M0503_MIN_RECONCILED_EVIDENCE,
@@ -49,6 +50,9 @@ from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
     engine as m0503_engine,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
+    plugin as m0503_plugin,
 )
 
 ROLE_PROJECTION = {
@@ -341,6 +345,42 @@ def test_library_engine_service_and_plugin_have_exact_parity(scenario: Scenario)
         plugin.run(scenario.request)  # type: ignore[arg-type]
 
 
+def test_plugin_json_boundary_decodes_once_and_skips_public_revalidation(
+    scenario: Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = ingest_ptm_localization_raw_inputs(scenario.request, scenario.artifacts_by_role)
+    with pytest.raises(ValidationError):
+        M0503Service.validate_request(scenario.request.model_dump(mode="json", exclude_none=False))
+    original_decoder = m0503_plugin.strict_json_loads
+    decode_calls = 0
+
+    def counting_decoder(payload: object, *, max_bytes: int) -> object:
+        nonlocal decode_calls
+        decode_calls += 1
+        return original_decoder(cast("bytes | bytearray | str", payload), max_bytes=max_bytes)
+
+    def unexpected_public_validation(_request: object) -> NoReturn:
+        raise AssertionError
+
+    monkeypatch.setattr(m0503_plugin, "strict_json_loads", counting_decoder)
+    monkeypatch.setattr(
+        M0503Service,
+        "validate_request",
+        staticmethod(unexpected_public_validation),
+    )
+    plugin = M0503Plugin(M0503Service())
+    token = plugin.validate(
+        M0503Submission(
+            request=canonical_json_bytes(scenario.request),
+            artifacts_by_role=scenario.artifacts_by_role,
+        )
+    )
+
+    assert decode_calls == 1
+    assert plugin.run(token) == expected
+
+
 @pytest.mark.parametrize(
     ("control", "denied_state"),
     [
@@ -507,12 +547,33 @@ def test_nonreleasable_upstream_returns_typed_zero_traversal_result(
     lineage = reconcile_ptm_localization_identity_lineage(build_m0502_request(case_id))
     assert lineage.disposition is expected_disposition
     request = _request_for_lineage(scenario, lineage)
+    policy_payload = request.policy.model_dump(mode="python", exclude_none=False)
+    parsers = list(cast("tuple[dict[str, Any], ...]", policy_payload["approved_parsers"]))
+    for index in range(M0503_MAX_APPROVED_PARSERS - len(parsers)):
+        seed = copy.deepcopy(parsers[index % len(parsers)])
+        seed["parser_version"] = f"2.{index + 1}.0"
+        evidence = cast("dict[str, object]", seed["evidence"])
+        identity = sha256(f"safe-parser-identity-{index}".encode()).hexdigest()
+        digest = sha256(f"safe-parser-content-{index}".encode()).hexdigest()
+        evidence.update(artifact_id=f"evidence.{identity}", digest=f"sha256:{digest}")
+        parsers.append(seed)
+    policy_payload["approved_parsers"] = tuple(parsers)
+    policy = type(request.policy).model_validate(policy_payload, strict=True)
+    request_payload = request.model_dump(mode="python", exclude_none=False)
+    context = cast("dict[str, Any]", request_payload["context"])
+    references = cast("dict[str, Any]", context["references"])
+    approved = cast("dict[str, Any]", references["approved_configuration"])
+    approved_evidence = cast("dict[str, object]", approved["evidence"])
+    approved_evidence["digest"] = configuration_digest(policy)
+    request_payload["policy"] = policy
+    request = IngestPtmLocalizationRawInputsRequest.model_validate(request_payload, strict=True)
     artifacts = _TraversalTrap()
 
     result = ingest_ptm_localization_raw_inputs(request, artifacts)
     assert request.artifacts == ()
     assert artifacts.traversals == 0
     assert result.validated_inputs == ()
+    assert len(request.policy.approved_parsers) == M0503_MAX_APPROVED_PARSERS
     assert len(result.evidence) == M0503_MIN_EVIDENCE
     assert tuple(item.code for item in result.diagnostics) == (expected_code,)
     assert result.disposition.value == expected_disposition.value
@@ -754,12 +815,12 @@ def test_maximum_semantic_discrepancy_is_typed_and_diagnostic_capped(
     genome = decoded[PtmLocalizationRawInputRole.GENOME]
     genome.update(
         reference_digest=stale_digest,
-        reference_build="input." + ("f" * 64),
+        reference_build="bundle." + ("f" * 64),
     )
     transcriptome = decoded[PtmLocalizationRawInputRole.TRANSCRIPTOME]
     transcriptome.update(
         reference_digest=stale_digest,
-        annotation_build="input." + ("e" * 64),
+        annotation_build="bundle." + ("e" * 64),
     )
     ptm = decoded[PtmLocalizationRawInputRole.PTM_ANNOTATIONS]
     ptm.update(
@@ -856,6 +917,111 @@ def test_plugin_rejects_copied_forged_and_stale_nested_capabilities(
     )
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(stale_upstream_token)
+
+
+def test_public_admission_memo_is_exact_identity_snapshot_and_never_skips_raw_replay(
+    scenario: Scenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_replay = m0503_engine._replay_request_upstream
+    replay_calls = 0
+
+    def counting_replay(request: object, contracts: object) -> object:
+        nonlocal replay_calls
+        replay_calls += 1
+        return original_replay(cast("Any", request), contracts)
+
+    monkeypatch.setattr(m0503_engine, "_replay_request_upstream", counting_replay)
+    admitted = ingest_ptm_localization_raw_inputs(
+        scenario.request,
+        scenario.artifacts_by_role,
+    )
+    assert replay_calls == 1
+    assert (
+        ingest_ptm_localization_raw_inputs(scenario.request, scenario.artifacts_by_role) == admitted
+    )
+    assert replay_calls == 1
+
+    independent_requests = (
+        copy.deepcopy(scenario.request),
+        IngestPtmLocalizationRawInputsRequest.model_validate_json(
+            canonical_json_bytes(scenario.request), strict=True
+        ),
+        scenario.request.model_copy(deep=True),
+    )
+    for index, independent in enumerate(independent_requests, start=2):
+        assert (
+            ingest_ptm_localization_raw_inputs(independent, scenario.artifacts_by_role) == admitted
+        )
+        assert replay_calls == index
+
+    replay_before_recovery = replay_calls
+    object.__setattr__(admitted.request, "request_id", "request." + ("e" * 64))
+    recovered = ingest_ptm_localization_raw_inputs(
+        scenario.request,
+        scenario.artifacts_by_role,
+    )
+    assert replay_calls == replay_before_recovery + 1
+    assert recovered.request.request_id == scenario.request.request_id
+    admitted = recovered
+
+    replay_before_upstream_recovery = replay_calls
+    cached_lineage = admitted.request.lineage_result
+    object.__setattr__(
+        cached_lineage,
+        "support",
+        cached_lineage.support.model_copy(update={"rationale": "mutated cached upstream"}),
+    )
+    recovered = ingest_ptm_localization_raw_inputs(
+        scenario.request,
+        scenario.artifacts_by_role,
+    )
+    assert replay_calls == replay_before_upstream_recovery + 1
+    assert recovered.result_digest == admitted.result_digest
+
+    stale_request = copy.deepcopy(scenario.request)
+    ingest_ptm_localization_raw_inputs(stale_request, scenario.artifacts_by_role)
+    object.__setattr__(stale_request, "request_id", "request." + ("f" * 64))
+    with pytest.raises(ValidationError):
+        ingest_ptm_localization_raw_inputs(stale_request, scenario.artifacts_by_role)
+
+    stale_upstream = copy.deepcopy(scenario.request)
+    ingest_ptm_localization_raw_inputs(stale_upstream, scenario.artifacts_by_role)
+    lineage = stale_upstream.lineage_result
+    object.__setattr__(
+        lineage,
+        "support",
+        lineage.support.model_copy(update={"rationale": "stale nested upstream"}),
+    )
+    with pytest.raises(ValidationError):
+        ingest_ptm_localization_raw_inputs(stale_upstream, scenario.artifacts_by_role)
+
+    raw_tamper = dict(scenario.artifacts_by_role)
+    first_role = next(iter(PtmLocalizationRawInputRole))
+    raw_tamper[first_role] += b"\n"
+    with pytest.raises(PtmLocalizationRawInputError):
+        ingest_ptm_localization_raw_inputs(scenario.request, raw_tamper)
+
+    bundle_documents = dict(scenario.artifacts_by_role)
+    genome_payload = cast(
+        "dict[str, object]",
+        json.loads(bundle_documents[PtmLocalizationRawInputRole.GENOME]),
+    )
+    genome_payload["reference_bundle_digest"] = "sha256:" + ("f" * 64)
+    bundle_documents[PtmLocalizationRawInputRole.GENOME] = canonical_json_bytes(genome_payload)
+    rebound = _scenario_with_bytes(scenario, bundle_documents)
+    bundle_result = ingest_ptm_localization_raw_inputs(
+        rebound.request,
+        rebound.artifacts_by_role,
+    )
+    assert bundle_result.disposition is PtmLocalizationRawInputDisposition.QUARANTINED
+    assert PtmLocalizationRawDiagnosticCode.REFERENCE_BUNDLE_MISMATCH in {
+        item.code for item in bundle_result.diagnostics
+    }
+    assert (
+        ingest_ptm_localization_raw_inputs(rebound.request, rebound.artifacts_by_role)
+        == bundle_result
+    )
 
 
 def test_plugin_requires_submission_and_prepared_capability_is_nominal(scenario: Scenario) -> None:

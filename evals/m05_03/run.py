@@ -43,6 +43,7 @@ from glio_proteogen.contracts.m05_03 import (
     M0503_MAX_DIAGNOSTICS,
     M0503_MAX_DOCUMENT_BYTES,
     M0503_MAX_EVIDENCE,
+    M0503_MIN_EVIDENCE,
     M0503_MIN_RECONCILED_EVIDENCE,
     M0503_ROLE_COUNT,
     ApprovedPtmLocalizationRawParser,
@@ -75,7 +76,7 @@ from glio_proteogen.contracts.m05_03 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import ArtifactReference, EstimateState, ExecutionContext
-from glio_proteogen.kernel.strict_json import StrictJsonError
+from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
     reconcile_ptm_localization_identity_lineage,
 )
@@ -1039,7 +1040,11 @@ def _upstream_checks() -> list[EvalCheck]:
         canonical.request,
         canonical.artifacts_by_role,
     )
-    quarantined = _genuine_scenario("upstream_protocol_quarantined")
+    quarantined = _with_artifact_updates(
+        _genuine_scenario("upstream_protocol_quarantined"),
+        {},
+        policy=_maximum_policy(),
+    )
     _TraversalTrap.touched = 0
     quarantined_result = ingest_ptm_localization_raw_inputs(quarantined.request, _TraversalTrap())
     quarantined_touches = _TraversalTrap.touched
@@ -1077,8 +1082,14 @@ def _upstream_checks() -> list[EvalCheck]:
             quarantined_result.disposition is PtmLocalizationRawInputDisposition.QUARANTINED
             and _codes(quarantined_result)
             == {PtmLocalizationRawDiagnosticCode.UPSTREAM_LINEAGE_QUARANTINED}
-            and quarantined_touches == 0,
-            f"disposition={quarantined_result.disposition.value};traversals={quarantined_touches}",
+            and quarantined_touches == 0
+            and len(quarantined_result.evidence) == M0503_MIN_EVIDENCE
+            and len(quarantined.request.policy.approved_parsers) == M0503_MAX_APPROVED_PARSERS,
+            (
+                f"disposition={quarantined_result.disposition.value};"
+                f"traversals={quarantined_touches};evidence={len(quarantined_result.evidence)};"
+                f"parsers={len(quarantined.request.policy.approved_parsers)}"
+            ),
         ),
         _check(
             "abstained_upstream_zero_artifact_traversal",
@@ -1419,6 +1430,16 @@ def _evidence_authority_checks() -> list[EvalCheck]:
         canary_scenario.artifacts_by_role,
     )
     canary_rendered = canonical_json_bytes(canary_result)
+    identifier_canary = "Patient.SSN.123-45-6789"
+    genome_document = _typed_documents(build_scenario())[PtmLocalizationRawInputRole.GENOME]
+    genome_payload = genome_document.model_dump(mode="python", exclude_none=False)
+    genome_payload["reference_build"] = identifier_canary
+    try:
+        GenomeInputDocument.model_validate(genome_payload, strict=True)
+    except ValidationError:
+        direct_identifier_rejected = True
+    else:
+        direct_identifier_rejected = False
     return [
         _check(
             "minimum_20_evidence_entries",
@@ -1452,8 +1473,10 @@ def _evidence_authority_checks() -> list[EvalCheck]:
         _check(
             "recursive_canary_absent_from_result",
             canary_bytes not in canary_rendered
-            and canary_reference.digest.encode() in canary_rendered,
-            "external canary represented only by its opaque content digest",
+            and canary_reference.digest.encode() in canary_rendered
+            and direct_identifier_rejected
+            and identifier_canary.encode() not in canary_rendered,
+            "external canary represented only by digest; direct build identifier rejected",
         ),
         _check(
             "zero_model_event_persistence_authority",
@@ -1870,12 +1893,18 @@ def _strict_boundary_checks() -> list[EvalCheck]:
     return checks
 
 
-def _corpus() -> dict[str, Any]:
-    return cast("dict[str, Any]", json.loads(SCENARIO_PATH.read_text(encoding="utf-8")))
+def _corpus() -> tuple[dict[str, Any], str]:
+    raw = SCENARIO_PATH.read_bytes()
+    parsed = strict_json_loads(raw, max_bytes=len(raw))
+    if type(parsed) is not dict:
+        raise _UnsupportedScenarioError
+    return (
+        cast("dict[str, Any]", parsed),
+        f"sha256:{hashlib.sha256(raw).hexdigest()}",
+    )
 
 
-def _inventory() -> tuple[list[str], tuple[int, ...], list[EvalCheck]]:
-    corpus = _corpus()
+def _inventory(corpus: dict[str, Any]) -> tuple[list[str], tuple[int, ...], list[EvalCheck]]:
     groups = cast("list[dict[str, Any]]", corpus["scenario_groups"])
     declared = [
         cast("str", case_id)
@@ -1910,7 +1939,8 @@ def _inventory() -> tuple[list[str], tuple[int, ...], list[EvalCheck]]:
 def run_evaluation() -> dict[str, object]:
     """Execute every locked case through a distinct substantive oracle."""
 
-    declared, _allocation, checks = _inventory()
+    corpus, fixture_digest = _corpus()
+    declared, _allocation, checks = _inventory(corpus)
     groups = (
         _canonical_checks(),
         _mapping_cap_checks(),
@@ -1945,6 +1975,7 @@ def run_evaluation() -> dict[str, object]:
         "module_id": MODULE_ID,
         "passed": all(check.passed for check in checks),
         "phase": "locked_executable_corpus",
+        "fixture_digest": fixture_digest,
         "declared_case_count": len(declared),
         "executed_case_count": len(executed),
         "missing_case_ids": missing,
