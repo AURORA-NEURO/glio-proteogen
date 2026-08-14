@@ -36,6 +36,7 @@ from glio_proteogen.adapters.api import (
     _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
     _proteoform_artifact_contract_schema,
+    _proteoform_harmonization_contract_schema,
     _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
     _proteoform_quality_contract_schema,
@@ -160,6 +161,10 @@ from glio_proteogen.contracts.m04_04 import (
 from glio_proteogen.contracts.m04_05 import (
     M0405_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteoformArtifactsRequest,
+)
+from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizeProteoformAnalysisRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -312,6 +317,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection imp
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0405_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    M0406Service,
+    ProteoformHarmonizationAuthorizationError,
+    preflight_proteoform_harmonization_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
+    _validate_json_request as _validate_m0406_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -450,6 +463,11 @@ proteoform_artifacts_app = typer.Typer(
     help="M04-05 deterministic aggregate proteoform artifact detection.",
 )
 app.add_typer(proteoform_artifacts_app, name="proteoform-artifacts")
+proteoform_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-06 deterministic proteoform support harmonization and normalization.",
+)
+app.add_typer(proteoform_harmonization_app, name="proteoform-harmonization")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3456,6 +3474,60 @@ def detect_proteoform_artifacts(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform artifact detection failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_harmonization_app.command("export-schema")
+def export_proteoform_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "stage",
+            "artifact-receipt",
+            "target-receipt",
+            "support-ledger",
+            "observation",
+            "invariant",
+            "analysis",
+            "value",
+            "transformation-manifest",
+            "finding",
+        ],
+        typer.Argument(help="M04-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform harmonization contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_harmonization_app.command("harmonize")
+def harmonize_proteoform_analysis(request: RequestArgument) -> None:
+    """Harmonize one authorized metadata-only proteoform support ledger."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(HarmonizeProteoformAnalysisRequest),
+            preflight_proteoform_harmonization_authorization,
+            M0406_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0406_json_request,
+        )
+        _emit(M0406Service()._execute_validated(parsed))
+    except ProteoformHarmonizationAuthorizationError as error:
+        typer.echo(f"proteoform harmonization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform harmonization failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 

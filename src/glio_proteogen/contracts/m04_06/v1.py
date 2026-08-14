@@ -10,11 +10,10 @@ protein-RNA discordance, treatment, identity, or consent.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m04_01 import (  # noqa: TC001 - Pydantic resolves at runtime
     ProteoformApplicability,
@@ -80,6 +79,7 @@ M0406_MAX_EVIDENCE: Final = 16
 M0406_MAX_FINDINGS: Final = 14
 M0406_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 _M0406_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
+_M0406_MAX_SHALLOW_MAPPING_FIELDS: Final = 512
 _MIN_FACTOR_LEVELS: Final = 2
 _M0405_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m04-05+json"
 ProteoformHarmonizationIdentifierNamespace = Literal[
@@ -1022,6 +1022,19 @@ class HarmonizeProteoformAnalysisRequest(FrozenModel):
     policy: ProteoformHarmonizationPolicy
     supersedes_result_digest: Sha256Digest | None = None
 
+    @field_validator("artifact_result", mode="before")
+    @classmethod
+    def artifact_result_is_strict_and_canonical(
+        cls,
+        value: object,
+    ) -> ProteoformArtifactDetectionResult:
+        """Seal even already-instantiated upstream models at boundary ingress."""
+
+        return ProteoformArtifactDetectionResult.model_validate_json(
+            canonical_json_bytes(value),
+            strict=True,
+        )
+
     @model_validator(mode="after")
     def request_is_authorized_and_closed(self) -> HarmonizeProteoformAnalysisRequest:
         from glio_proteogen.contracts.m04_06.canonical import configuration_digest  # noqa: PLC0415
@@ -1033,7 +1046,7 @@ class HarmonizeProteoformAnalysisRequest(FrozenModel):
             "harmonization request identifier",
         )
         receipt = self.artifact_receipt
-        if receipt != artifact_harmonization_receipt(self.artifact_result):
+        if receipt != _artifact_harmonization_receipt(self.artifact_result):
             raise ValueError("artifact receipt must replay the exact embedded M04-05 result")
         refs = self.context.references
         upstream_refs = self.artifact_result.request.context.references
@@ -1154,6 +1167,14 @@ def artifact_harmonization_receipt(
         canonical_json_bytes(value),
         strict=True,
     )
+    return _artifact_harmonization_receipt(result)
+
+
+def _artifact_harmonization_receipt(
+    result: ProteoformArtifactDetectionResult,
+) -> ProteoformArtifactHarmonizationReceipt:
+    """Project one strict, boundary-sealed M04-05 result."""
+
     quality = result.request.quality_result
     raw_input_result = quality.request.raw_input_result
     lineage_result = raw_input_result.request.lineage_result
@@ -1317,11 +1338,20 @@ def preflight_authorized(candidate: object) -> bool:
 
 
 def _member(candidate: object, field: str) -> object:
-    if isinstance(candidate, dict):
-        return dict.get(candidate, field)
-    if isinstance(candidate, Mapping):
-        return candidate.get(field)
-    return getattr(candidate, field, None)
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if dict in candidate_mro:
+        mapping = candidate
+    elif BaseModel in candidate_mro:
+        mapping = object.__getattribute__(candidate, "__dict__")
+    else:
+        return None
+    if (
+        type(mapping) is not dict
+        or dict.__len__(mapping) > _M0406_MAX_SHALLOW_MAPPING_FIELDS
+        or any(type(key) is not str for key in dict.keys(mapping))
+    ):
+        raise TypeError("M04-06 control objects require exact string keys")
+    return dict.__getitem__(mapping, field) if dict.__contains__(mapping, field) else None
 
 
 def _state(candidate: object) -> object:
