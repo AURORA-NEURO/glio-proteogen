@@ -50,10 +50,10 @@ M0501_GATE: Final = "G0"
 M0501_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0501_MAX_APPROVED_REFERENCE_BUNDLES: Final = 32
 M0501_MAX_APPROVED_VERSIONS: Final = 16
-M0501_MAX_METADATA_FIELDS: Final = 32
+M0501_MAX_METADATA_FIELDS: Final = 8
 M0501_MAX_COMPATIBILITY_RULES: Final = 32
-M0501_MAX_VOCABULARY_TERMS: Final = 64
-M0501_MAX_UNIT_POLICIES: Final = 32
+M0501_MAX_VOCABULARY_TERMS: Final = 12
+M0501_MAX_UNIT_POLICIES: Final = 6
 M0501_IDENTITY_KEY_COUNT: Final = 7
 M0501_UNRESOLVED_STATE_COUNT: Final = 10
 M0501_SECTION_COUNT: Final = 8
@@ -131,6 +131,8 @@ def _owned_artifact(
     media_types: frozenset[str] = _OWNED_MEDIA_TYPES,
 ) -> ArtifactReference:
     opaque_ptm_localization_protocol_identifier("evidence", value.artifact_id)
+    if value.artifact_id != f"evidence.{value.digest.removeprefix('sha256:')}":
+        raise ValueError("M05-01 evidence identity must equal its content digest alias")
     if (
         _LOWERCASE_MEDIA_TYPE.fullmatch(value.media_type) is None
         or value.media_type not in media_types
