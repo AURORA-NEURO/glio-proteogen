@@ -11,7 +11,7 @@
     "7ccbb48 Harden M08-08 evidence contract closure",
     "b7decfb Implement M08-08 replay-safe publisher runtime",
     "627a6ed Add M08-08 strict API CLI and plugin parity",
-    "(pending) evaluator, coverage, and release evidence"
+    "a8564c8 Add M08-08 evaluator coverage and release evidence"
   ],
   "focusedTests": {
     "count": 22,
@@ -42,9 +42,9 @@
   },
   "benchmark": {
     "iterations": 10,
-    "meanNs": 2093930,
-    "medianNs": 2083000,
-    "p95Ns": 2159200,
+    "meanNs": 2309300,
+    "medianNs": 2256850,
+    "p95Ns": 2646800,
     "meanBudgetNs": 2000000000,
     "p95BudgetNs": 3000000000,
     "passed": true
@@ -59,13 +59,13 @@
     "builder": "hatchling via uv build --wheel --sdist",
     "wheel": {
       "file": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 768904,
-      "sha256": "7a7857e1c8229d6cfd8898f532b314ae131490277e2ee90132a23f2a89afe968"
+      "bytes": 768825,
+      "sha256": "f660b0a7443bfaa6f81efc6a747cc0f9097fa3632a7f6846b6379e3f250e1acd"
     },
     "sdist": {
       "file": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 1437307,
-      "sha256": "2b58bb54de558bfecabdb0c3b2f286a47c163947581bd3755e0b3804342b8c3e"
+      "bytes": 1438328,
+      "sha256": "5867e0539131c02e30208ed51362ee8538c0f89adeb8437ab27801f1e17bd3d2"
     },
     "isolatedImport": "passed; installed wheel exposes 9 M08-08 schemas"
   }
