@@ -127,8 +127,8 @@ class SensitivityEnvelope(FrozenModel):
 
     status: SensitivityEnvelopeStatus
     nominal_coverage: float = Field(default=M0806_NOMINAL_COVERAGE, ge=0.0, le=1.0)
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0806_MAX_EVIDENCE)
@@ -201,6 +201,11 @@ class DecomposeTranscriptProteinUncertaintyRequest(FrozenModel):
     def request_is_bound(self) -> DecomposeTranscriptProteinUncertaintyRequest:
         if self.estimator_result.media_type != M0806_M0805_RESULT_MEDIA_TYPE:
             raise ValueError("uncertainty request must bind the provisional M08-05 result")
+        if self.estimator_result not in self.source_artifacts:
+            raise ValueError("source artifacts must include the bound estimator result")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifacts must not repeat artifact ids")
         return self
 
 
