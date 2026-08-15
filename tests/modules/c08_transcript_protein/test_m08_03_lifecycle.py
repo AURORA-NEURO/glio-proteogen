@@ -6,7 +6,11 @@ import pytest
 from evals.m08_03.evaluator import evaluate_all
 from evals.m08_03.fixtures import request
 
-from glio_proteogen.contracts.m08_03 import BaselineEstimateStatus, BaselineFeatureState
+from glio_proteogen.contracts.m08_03 import (
+    BaselineEstimateStatus,
+    BaselineFeatureState,
+    BaselineMethod,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
     M0803Plugin,
@@ -26,9 +30,7 @@ def test_transparent_baseline_estimates_and_replays() -> None:
 
 
 def test_missing_features_abstain_without_estimate() -> None:
-    result = M0803Service().execute(
-        request(feature_state=BaselineFeatureState.MISSING)
-    )
+    result = M0803Service().execute(request(feature_state=BaselineFeatureState.MISSING))
     assert result.status is BaselineEstimateStatus.ABSTAINED
     assert result.estimate is None
     assert result.human_review_required
@@ -38,6 +40,26 @@ def test_unsupported_source_abstains() -> None:
     result = M0803Service().execute(request(source_name="source.unsupported.ood"))
     assert result.status is BaselineEstimateStatus.ABSTAINED
     assert result.findings
+
+
+@pytest.mark.parametrize(
+    "method",
+    tuple(BaselineMethod),
+)
+def test_declared_architecture_changes_only_the_deterministic_signal(
+    method: BaselineMethod,
+) -> None:
+    candidate = request()
+    configured = candidate.configuration.model_copy(update={"method": method})
+    result = M0803Service().execute(candidate.model_copy(update={"configuration": configured}))
+    assert result.status is BaselineEstimateStatus.ESTIMATED
+    assert result.estimate is not None
+    assert 0.0 <= result.estimate.score <= 1.0
+    assert result.provenance.input_digests == (
+        candidate.representation_result.digest,
+        *(artifact.digest for artifact in candidate.source_artifacts),
+        result.request_digest,
+    )
 
 
 def test_plugin_json_and_typed_parity_and_forgery() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import statistics
 from collections.abc import Mapping
 from typing import Final
 
@@ -17,6 +18,7 @@ from glio_proteogen.contracts.m08_03 import (
     BaselineEstimateStatus,
     BaselineFeatureState,
     BaselineFindingCode,
+    BaselineMethod,
     EstimateProteinSubtypeBaselineRequest,
     ProteinSubtypeBaselineEstimate,
     ProteinSubtypeBaselineResult,
@@ -168,7 +170,11 @@ def _provenance(
         module_id="GLIO-PROTEOGEN-M08-03",
         module_version=M0803_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request_digest,),
+        input_digests=(
+            request.representation_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            request_digest,
+        ),
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -205,6 +211,31 @@ def _diagnostic(
     message: str,
 ) -> BaselineDiagnostic:
     return BaselineDiagnostic(diagnostic_id=diagnostic_id, status=status, message=message)
+
+
+def _bounded_signal(value: float) -> float:
+    """Map an observed signed feature to a stable signal in [-1, 1]."""
+
+    return value / (1.0 + abs(value))
+
+
+def _estimate_signal(request: EstimateProteinSubtypeBaselineRequest) -> float:
+    """Apply the declared transparent architecture without fitting or hidden state."""
+
+    signals = tuple(
+        _bounded_signal(feature.value)  # type: ignore[arg-type]
+        for feature in request.features
+    )
+    method = request.configuration.method
+    if method is BaselineMethod.STATISTICAL_RULE_BASED:
+        return statistics.fmean(signals)
+    if method is BaselineMethod.PATHWAY_ACTIVITY_NETWORK:
+        weights = tuple(range(1, len(signals) + 1))
+        return sum(signal * weight for signal, weight in zip(signals, weights, strict=True)) / sum(
+            weights
+        )
+    # The fallback ensemble uses the median as a deterministic disagreement-resistant center.
+    return statistics.median(signals)
 
 
 class M0803BaselineEngine:
@@ -305,9 +336,8 @@ class M0803BaselineEngine:
             "Baseline abstained because required inputs or support checks were not evaluable."
         )
         if not failed:
-            values = [feature.value for feature in request.features if feature.value is not None]
-            mean = sum(values) / len(values)
-            score = _MIDPOINT + mean / (2.0 * (1.0 + abs(mean)))
+            signal = _estimate_signal(request)
+            score = _MIDPOINT + signal / 2.0
             predicted = (
                 "protein-subtype-baseline-positive"
                 if score >= _MIDPOINT

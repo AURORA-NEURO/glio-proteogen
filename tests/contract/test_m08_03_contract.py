@@ -3,17 +3,17 @@
 import math
 
 import pytest
+from evals.m08_03.fixtures import request
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m08_03 import (
     M0803_OUTPUT_MEDIA_TYPE,
     M0803_PROVISIONAL_ABI,
-    BaselineMethod,
     BaselineFindingCode,
-    contract_json_schemas,
+    BaselineMethod,
     EstimateProteinSubtypeBaselineRequest,
+    contract_json_schemas,
 )
-from evals.m08_03.fixtures import request
 from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
     M0803Service,
 )
