@@ -8,8 +8,8 @@ here are provisional scaffolding pending owner review.
 
 from __future__ import annotations
 
-from enum import StrEnum
 import math
+from enum import StrEnum
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -52,9 +52,12 @@ M0901_MAX_MIGRATIONS: Final = 128
 M0901_MAX_EVIDENCE: Final = 64
 M0901_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0901_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0901_BENCHMARK_WARMUPS: Final = 3
+M0901_BENCHMARK_ITERATIONS: Final = 10
+M0901_MEAN_BUDGET_NS: Final = 2_000_000_000
+M0901_P95_BUDGET_NS: Final = 3_000_000_000
 M0901_EVIDENCE_CLAIM: Final = (
-    "Caller-declared complex-activity formal-state evidence; issuer authority "
-    "is not authenticated."
+    "Caller-declared complex-activity formal-state evidence; issuer authority is not authenticated."
 )
 
 
@@ -442,6 +445,8 @@ class ValidateComplexActivityStateResult(FrozenModel):
 
 
 __all__ = [
+    "M0901_BENCHMARK_ITERATIONS",
+    "M0901_BENCHMARK_WARMUPS",
     "M0901_CONTRACT_VERSION",
     "M0901_EVIDENCE_CLAIM",
     "M0901_GATE",
@@ -453,10 +458,12 @@ __all__ = [
     "M0901_MAX_FEATURES",
     "M0901_MAX_INVARIANTS",
     "M0901_MAX_MIGRATIONS",
+    "M0901_MEAN_BUDGET_NS",
     "M0901_MODULE_ID",
     "M0901_OPERATION",
     "M0901_OUTPUT_MEDIA_TYPE",
     "M0901_OWNER",
+    "M0901_P95_BUDGET_NS",
     "M0901_PARENT",
     "M0901_PROVISIONAL_ABI",
     "M0901_SAFETY_CLASS",
