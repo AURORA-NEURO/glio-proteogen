@@ -15,6 +15,7 @@ from glio_proteogen.adapters.m1105 import app, m1105_app
 from glio_proteogen.contracts.m11_05 import (
     M1105_M1104_RESULT_MEDIA_TYPE,
     ChangePoint,
+    ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
     ModelVariantPeptideLongitudinalEvolutionRequest,
@@ -40,6 +41,8 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportDecision,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
@@ -50,6 +53,13 @@ from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolu
     M1105ReplayVerificationError,
     M1105Service,
     ValidatedM1105Request,
+    infer_variant_peptide_longitudinal_evolution,
+)
+from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolution import (
+    engine as m1105_engine,
+)
+from glio_proteogen.modules.c11_protein_native_subtype.m11_05_longitudinal_evolution.engine import (
+    _limitations,
 )
 
 if TYPE_CHECKING:
@@ -306,8 +316,24 @@ def test_plugin_typed_path_forged_token_and_verify() -> None:
 def test_engine_malformed_and_replay_mismatch_paths() -> None:
     engine = M1105LongitudinalEngine()
     result = engine.infer(_request())
+    assert engine.verify(result, replay=False) == result
+    assert infer_variant_peptide_longitudinal_evolution(_request()).status.value == "modeled"
+    assert _limitations(supported=False)[-1].code == "safe_abstention"
     with pytest.raises(M1105ReplayVerificationError):
         engine.verify({}, replay=False)
+
+    module = cast("Any", m1105_engine)
+    original_digest = module.result_payload_digest
+
+    def wrong_digest(_value: object) -> str:
+        return _digest("8")
+
+    module.result_payload_digest = wrong_digest
+    try:
+        with pytest.raises(M1105ReplayVerificationError):
+            engine.verify(result, replay=False)
+    finally:
+        module.result_payload_digest = original_digest
 
     class DivergentEngine(M1105LongitudinalEngine):
         def infer(self, _request: object) -> VariantPeptideLongitudinalEvolutionResult:
@@ -316,8 +342,15 @@ def test_engine_malformed_and_replay_mismatch_paths() -> None:
     with pytest.raises(M1105ReplayVerificationError):
         DivergentEngine().verify(result)
 
+    class FailingEngine(M1105LongitudinalEngine):
+        def infer(self, _request: object) -> VariantPeptideLongitudinalEvolutionResult:
+            raise RuntimeError
 
-def test_contract_negative_shapes_and_result_closure() -> None:
+    with pytest.raises(M1105ReplayVerificationError):
+        FailingEngine().verify(result)
+
+
+def test_contract_negative_shapes_and_result_closure() -> None:  # noqa: PLR0915
     request = _request()
     duplicate_dimensions = request.model_dump(mode="json")
     duplicate_dimensions["policy"]["dimensions"] = ["time_course", "time_course"]
@@ -350,6 +383,15 @@ def test_contract_negative_shapes_and_result_closure() -> None:
             ),
             strict=True,
         )
+    assert (
+        ChangePoint(
+            change_point_id="change.none",
+            sequence=1,
+            status=ChangePointStatus.NOT_DETECTED,
+            rationale="no transition",
+        ).status
+        is ChangePointStatus.NOT_DETECTED
+    )
     request_payload = request.model_dump(mode="json")
     request_payload["policy"]["dimensions"] = ["time_course", "time_course"]
     with pytest.raises(ValueError, match="unique"):
@@ -392,6 +434,25 @@ def test_contract_negative_shapes_and_result_closure() -> None:
             "rationale": "safe failure",
         },
     )
+    abstained_model = result.model_copy(
+        update={
+            "status": TrajectoryStatus.ABSTAINED,
+            "trajectory": (),
+            "change_points": (),
+            "abstention_reason": "not evaluable",
+            "support_decision": SupportDecision(
+                status=SupportStatus.UNSUPPORTED,
+                reason_code="m1105_unsupported",
+                rationale="safe failure",
+            ),
+        }
+    )
+    valid_abstained = abstained_model.model_dump(mode="json")
+    valid_abstained["result_digest"] = result_payload_digest(abstained_model)
+    assert (
+        type(result).model_validate_json(canonical_json_bytes(valid_abstained), strict=True).status
+        is TrajectoryStatus.ABSTAINED
+    )
     duplicate_states = result.model_dump(mode="json")
     duplicate_states["trajectory"][1]["state_id"] = duplicate_states["trajectory"][0]["state_id"]
     with pytest.raises(ValueError, match="state identifiers"):
@@ -406,6 +467,12 @@ def test_contract_negative_shapes_and_result_closure() -> None:
     ]["diagnostic_id"]
     with pytest.raises(ValueError, match="diagnostic identifiers"):
         type(result).model_validate_json(canonical_json_bytes(duplicate_diagnostics), strict=True)
+    duplicate_change_points = result.model_dump(mode="json")
+    duplicate_change_points["change_points"].append(
+        duplicate_change_points["change_points"][0].copy()
+    )
+    with pytest.raises(ValueError, match="change-point identifiers"):
+        type(result).model_validate_json(canonical_json_bytes(duplicate_change_points), strict=True)
     too_many_change_points = result.model_dump(mode="json")
     base_change = too_many_change_points["change_points"][0]
     too_many_change_points["change_points"] = [
@@ -417,7 +484,7 @@ def test_contract_negative_shapes_and_result_closure() -> None:
     assert result_payload_digest(result) == result.result_digest
 
 
-def test_api_and_cli_negative_boundaries(tmp_path: Path) -> None:
+def test_api_and_cli_negative_boundaries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     request_payload = canonical_json_bytes(_request())
     client = TestClient(app)
     assert (
@@ -447,6 +514,21 @@ def test_api_and_cli_negative_boundaries(tmp_path: Path) -> None:
         ).status_code
         == _HTTP_FORBIDDEN
     )
+
+    class RaisingService:
+        def _execute_validated(self, _request: object) -> None:
+            raise M1105AuthorizationError
+
+    monkeypatch.setattr(m1105_adapter, "_SERVICE", RaisingService())
+    assert (
+        client.post(
+            "/v1/m11-05/evolve",
+            content=request_payload,
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_FORBIDDEN
+    )
+    monkeypatch.setattr(m1105_adapter, "_SERVICE", M1105Service())
     result = M1105LongitudinalEngine().infer(_request())
     result_payload = canonical_json_bytes(result)
     assert (
