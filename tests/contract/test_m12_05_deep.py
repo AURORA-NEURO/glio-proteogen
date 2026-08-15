@@ -249,6 +249,27 @@ def test_tampered_digest_is_rejected_and_replay_can_be_disabled() -> None:
         monkeypatch.undo()
     assert engine.verify(result, replay=False) == result
 
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(
+            engine_module, "result_payload_digest", lambda value: sha256_digest("other")
+        )
+        with pytest.raises(M1205ReplayVerificationError):
+            engine.verify(result)
+    finally:
+        monkeypatch.undo()
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(
+            engine_module.M1205LongitudinalEngine,
+            "infer",
+            lambda self, request: (_ for _ in ()).throw(ValueError("replay")),
+        )
+        with pytest.raises(M1205ReplayVerificationError):
+            engine.verify(result)
+    finally:
+        monkeypatch.undo()
+
 
 def test_plugin_requires_issued_parse_once_token_and_bytes_path() -> None:
     plugin = M1205Plugin(M1205Service())
@@ -263,6 +284,29 @@ def test_plugin_requires_issued_parse_once_token_and_bytes_path() -> None:
     assert plugin.run(bytes_token).status is TrajectoryStatus.MODELED
     with pytest.raises(StrictJsonError):
         plugin.validate('{"request_id":"x","request_id":"y"}')
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run({})  # type: ignore[arg-type]
+    assert plugin.verify(plugin.run(token)).status is TrajectoryStatus.MODELED
+
+
+def test_engine_internal_grammar_guards_are_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    observation = _request().observations[0]
+    with pytest.raises(engine_module.M1205InferenceError):
+        engine_module._label_for("change_point", observation, 0)
+    assert engine_module._objective_kind("change_point:not-a-number:before:after")[0] == ""
+    engine = M1205LongitudinalEngine()
+    monkeypatch.setattr(
+        engine_module,
+        "_objective_kind",
+        lambda objective: ("change_point", None, "before", "after"),
+    )
+    with pytest.raises(engine_module.M1205InferenceError):
+        engine.infer(_request())
+    monkeypatch.setattr(
+        engine_module, "_objective_kind", lambda objective: ("change_point", 2, None, None)
+    )
+    with pytest.raises(engine_module.M1205InferenceError):
+        engine.infer(_request())
 
 
 def test_request_and_result_contract_closure_rejects_forgery() -> None:
@@ -283,6 +327,10 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
         BiomarkerPanelLongitudinalEvolutionResult.model_validate(
             resigned(result_id="result.bad"), strict=True
         )
+    with pytest.raises(ValueError, match="request digest"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(
+            resigned(request_digest=sha256_digest("request-tampered")), strict=True
+        )
     with pytest.raises(ValueError, match="every result"):
         BiomarkerPanelLongitudinalEvolutionResult.model_validate(resigned(evidence=()), strict=True)
     duplicated = result.model_dump(mode="python")
@@ -295,6 +343,129 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
     bad_order["result_digest"] = result_payload_digest(bad_order)
     with pytest.raises(ValueError, match="trajectory states"):
         BiomarkerPanelLongitudinalEvolutionResult.model_validate(bad_order, strict=True)
+
+    duplicate_change = M1205LongitudinalEngine().infer(_request("change_point:2:before:after"))
+    change_payload = duplicate_change.model_dump(mode="python")
+    change_payload["change_points"] = change_payload["change_points"] * 2
+    change_payload["result_digest"] = result_payload_digest(change_payload)
+    with pytest.raises(ValueError, match="change-point identifiers"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(change_payload, strict=True)
+    duplicate_diagnostic = result.model_dump(mode="python")
+    duplicate_diagnostic["diagnostics"] = duplicate_diagnostic["diagnostics"] * 2
+    duplicate_diagnostic["result_digest"] = result_payload_digest(duplicate_diagnostic)
+    with pytest.raises(ValueError, match="diagnostic identifiers"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(duplicate_diagnostic, strict=True)
+    dangling_change = duplicate_change.model_dump(mode="python")
+    dangling_change["change_points"][0]["before_state_id"] = "state.missing"
+    dangling_change["result_digest"] = result_payload_digest(dangling_change)
+    with pytest.raises(ValueError, match="reference trajectory"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(dangling_change, strict=True)
+    extra_changes = duplicate_change.model_dump(mode="python")
+    extra_changes["change_points"] = tuple(
+        [item.model_dump(mode="python") for item in duplicate_change.change_points]
+        + [
+            {
+                **duplicate_change.change_points[0].model_dump(mode="python"),
+                "change_point_id": f"change-point.extra.{index}",
+                "sequence": index + 2,
+            }
+            for index in range(3)
+        ]
+    )
+    extra_changes["result_digest"] = result_payload_digest(extra_changes)
+    with pytest.raises(ValueError, match="count exceeds"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(extra_changes, strict=True)
+    unordered_changes = duplicate_change.model_dump(mode="python")
+    unordered_changes["change_points"] = tuple(
+        [
+            duplicate_change.change_points[0]
+            .model_copy(update={"change_point_id": "change-point.a", "sequence": 2})
+            .model_dump(mode="python"),
+            duplicate_change.change_points[0]
+            .model_copy(update={"change_point_id": "change-point.b", "sequence": 1})
+            .model_dump(mode="python"),
+        ]
+    )
+    unordered_changes["result_digest"] = result_payload_digest(unordered_changes)
+    with pytest.raises(ValueError, match="change points must be ordered"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(unordered_changes, strict=True)
+    bad_modeled = result.model_dump(mode="python")
+    bad_modeled["support_decision"]["status"] = SupportStatus.REVIEW_REQUIRED
+    bad_modeled["result_digest"] = result_payload_digest(bad_modeled)
+    with pytest.raises(ValueError, match="modeled result"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(bad_modeled, strict=True)
+    bad_abstained = M1205LongitudinalEngine().infer(_request("unknown"))
+    bad_abstained_payload = bad_abstained.model_dump(mode="python")
+    bad_abstained_payload["trajectory"] = result.model_dump(mode="python")["trajectory"]
+    bad_abstained_payload["result_digest"] = result_payload_digest(bad_abstained_payload)
+    with pytest.raises(ValueError, match="abstained result"):
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(bad_abstained_payload, strict=True)
+
+
+def test_contract_temporal_and_shape_adversarial_matrix() -> None:
+    request = _request()
+    duplicate_dimensions = request.policy.model_copy(
+        update={"dimensions": (TrajectoryDimension.TIME_COURSE, TrajectoryDimension.TIME_COURSE)}
+    )
+    with pytest.raises(ValueError, match="dimensions must be unique"):
+        TrajectoryPolicy.model_validate(duplicate_dimensions.model_dump(mode="python"), strict=True)
+    duplicate_ids = request.model_copy(
+        update={"observations": (request.observations[0], request.observations[0])}
+    )
+    with pytest.raises(ValueError, match="identifiers must be unique"):
+        ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate(
+            duplicate_ids.model_dump(mode="python"), strict=True
+        )
+    duplicate_sequences = request.model_dump(mode="python")
+    duplicate_sequences["observations"] = list(duplicate_sequences["observations"])
+    duplicate_sequences["observations"][1]["sequence"] = 0
+    duplicate_sequences["observations"] = tuple(duplicate_sequences["observations"])
+    with pytest.raises(ValueError, match="ordered by sequence"):
+        ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate(
+            duplicate_sequences, strict=True
+        )
+    duplicate_times = request.model_dump(mode="python")
+    duplicate_times["observations"] = list(duplicate_times["observations"])
+    duplicate_times["observations"][1]["observed_at"] = duplicate_times["observations"][0][
+        "observed_at"
+    ]
+    duplicate_times["observations"] = tuple(duplicate_times["observations"])
+    with pytest.raises(ValueError, match="ordered by observed_at"):
+        ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate(duplicate_times, strict=True)
+    too_short = request.model_dump(mode="python")
+    too_short["policy"]["minimum_observations"] = 4
+    with pytest.raises(ValueError, match="minimum"):
+        ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate(too_short, strict=True)
+
+    with pytest.raises(ValueError, match="detected change point"):
+        from glio_proteogen.contracts.m12_05 import ChangePoint
+
+        ChangePoint(
+            change_point_id="change-point.bad",
+            sequence=1,
+            status=ChangePointStatus.DETECTED,
+            before_state_id="state.before",
+            after_state_id="state.after",
+            posterior_probability=0.9,
+            rationale="A change was detected.",
+        )
+    with pytest.raises(ValueError, match="non-detected"):
+        ChangePoint(
+            change_point_id="change-point.bad",
+            sequence=1,
+            status=ChangePointStatus.NOT_DETECTED,
+            before_state_id="state.before",
+            rationale="No change point was detected.",
+        )
+    assert (
+        ChangePoint(
+            change_point_id="change-point.none",
+            sequence=1,
+            status=ChangePointStatus.NOT_DETECTED,
+            rationale="No change point was detected.",
+        ).status
+        is ChangePointStatus.NOT_DETECTED
+    )
 
 
 def test_uncertainty_and_canonical_projection_are_explicit() -> None:
