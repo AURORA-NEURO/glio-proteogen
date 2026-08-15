@@ -458,7 +458,7 @@ def verify_m1103_replay(
         if result.request != typed:
             return False
         return result.result_digest == result_payload_digest(result)
-    except (TypeError, ValueError, ValidationError):
+    except (AttributeError, TypeError, ValueError, ValidationError):
         return False
 
 
