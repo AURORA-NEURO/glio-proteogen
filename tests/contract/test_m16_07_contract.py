@@ -1,6 +1,6 @@
 """Contract and schema gates for provisional M16-07."""
 
-# ruff: noqa: E501, PLR2004
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 

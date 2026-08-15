@@ -1,15 +1,15 @@
 """Adversarial export contract and replay closure tests for M16-07."""
 
-# ruff: noqa: E501
-
 from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m16_07 import (
+    CompatibilityStatus,
     ExportProteinRnaDiscordanceDownstreamContractRequest,
     ProteinRnaDiscordanceDownstreamExportResult,
+    SignedDownstreamContract,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c16_kinophos_object_consumer.m16_07_downstream_typed_export import (
@@ -64,4 +64,44 @@ def test_signed_result_status_closure_rejects_review_mutations() -> None:
     with pytest.raises(ValidationError, match="abstained result requires"):
         ProteinRnaDiscordanceDownstreamExportResult.model_validate(
             abstained.model_dump(mode="python") | {"abstention_reason": None}
+        )
+
+
+def test_signed_contract_closure_rejects_duplicate_incompatible_and_partial_fields() -> None:
+    result = M1607ExportEngine().export(_request())
+    assert result.downstream_contract is not None
+    contract = result.downstream_contract
+    duplicate = contract.model_dump(mode="python") | {
+        "fields": (contract.fields[0], contract.fields[0]),
+        "compatibility": contract.compatibility.model_copy(
+            update={"accepted_field_ids": (contract.fields[0].field_id,)}
+        ),
+    }
+    with pytest.raises(ValidationError, match="field ids must be unique"):
+        SignedDownstreamContract.model_validate(duplicate)
+    with pytest.raises(ValidationError, match="requires compatible report"):
+        SignedDownstreamContract.model_validate(
+            contract.model_dump(mode="python")
+            | {
+                "compatibility": contract.compatibility.model_copy(
+                    update={"status": CompatibilityStatus.REVIEW_REQUIRED}
+                )
+            }
+        )
+    with pytest.raises(ValidationError, match="match compatibility"):
+        SignedDownstreamContract.model_validate(
+            contract.model_dump(mode="python")
+            | {
+                "compatibility": contract.compatibility.model_copy(
+                    update={"accepted_field_ids": ()}
+                )
+            }
+        )
+
+
+def test_result_request_digest_must_bind_exact_request() -> None:
+    result = M1607ExportEngine().export(_request())
+    with pytest.raises(ValidationError, match="request digest does not bind"):
+        ProteinRnaDiscordanceDownstreamExportResult.model_validate(
+            result.model_dump(mode="python") | {"request_digest": sha256_digest("wrong-request")}
         )

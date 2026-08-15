@@ -1,7 +1,7 @@
 """Run the locked synthetic M16-07 downstream export matrix."""
 
 # CLI evidence runner intentionally prints machine-readable JSON.
-# ruff: noqa: E501, PLR2004, T201, TRY003
+# ruff: noqa: PLR2004, T201, TRY003
 
 from __future__ import annotations
 

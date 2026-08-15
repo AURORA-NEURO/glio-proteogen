@@ -1,6 +1,6 @@
 """Focused runtime and replay tests for provisional M16-07."""
 
-# ruff: noqa: E501, PLR2004
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m16_07 import (
     ExportProteinRnaDiscordanceDownstreamContractRequest,
     ExportStatus,
     FieldSupportStatus,
+    ProteinRnaDiscordanceDownstreamExportResult,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -240,3 +241,43 @@ def test_mapping_preflight_is_fail_closed() -> None:
 
     with pytest.raises(M1607AuthorizationError):
         preflight_export_authorization(Hostile())
+
+
+def test_mapping_preflight_rejects_malformed_or_wrong_control_states() -> None:
+    with pytest.raises(M1607AuthorizationError):
+        preflight_export_authorization(
+            {"context": {"references": {"approved_configuration": {"state": 1}}}}
+        )
+    with pytest.raises(M1607AuthorizationError):
+        preflight_export_authorization(
+            {
+                "context": {
+                    "references": {
+                        "approved_configuration": {"state": "rejected"},
+                    }
+                }
+            }
+        )
+
+
+def test_replay_rejects_reconstruction_failure_and_mismatch() -> None:
+    request = _request()
+    result = M1607ExportEngine().export(request)
+
+    class FailingReplayEngine(M1607ExportEngine):
+        def export(self, _request: object) -> ProteinRnaDiscordanceDownstreamExportResult:
+            raise RuntimeError
+
+    with pytest.raises(M1607ReplayVerificationError):
+        FailingReplayEngine().verify(result)
+
+    class MismatchedReplayEngine(M1607ExportEngine):
+        def export(self, request: object) -> ProteinRnaDiscordanceDownstreamExportResult:
+            return (
+                M1607ExportEngine()
+                .export(request)
+                .model_copy(update={"result_digest": sha256_digest("different")})
+            )
+
+    with pytest.raises(M1607ReplayVerificationError):
+        MismatchedReplayEngine().verify(result)
