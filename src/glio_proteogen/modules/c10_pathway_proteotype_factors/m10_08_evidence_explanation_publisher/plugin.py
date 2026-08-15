@@ -13,9 +13,7 @@ from glio_proteogen.contracts.m10_08 import (
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import (
-    _validate_authorized_request,
-)
+from .engine import _validate_json_authorized_request
 
 if TYPE_CHECKING:
     from .service import (
@@ -71,7 +69,7 @@ class M1008EvidencePublisherPlugin(
                 serialized,
                 max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES,
             )
-            typed = _validate_authorized_request(decoded)
+            typed = _validate_json_authorized_request(serialized, decoded)
         else:
             typed = self._service.validate_request(request)
         return ValidatedM1008Request(request=typed, _seal=_TOKEN_SEAL)

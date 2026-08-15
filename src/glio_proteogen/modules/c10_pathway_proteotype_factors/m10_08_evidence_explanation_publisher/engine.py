@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, cast
+from typing import Any, Final, cast
 
 from pydantic import BaseModel, ValidationError
 
@@ -113,6 +113,19 @@ class _InvalidRequestError(ValueError):
 class _InvalidRequestTypeError(TypeError):
     def __init__(self) -> None:
         super().__init__("M10-08 request must be a typed request or plain object")
+
+
+def _validate_json_authorized_request(
+    serialized: bytes | bytearray | str,
+    decoded: object,
+) -> PublishProteinRnaEvidenceRequest:
+    """Validate a duplicate-free JSON document with JSON-native strict parsing."""
+
+    preflight_m1008_authorization(decoded)
+    try:
+        return PublishProteinRnaEvidenceRequest.model_validate_json(serialized, strict=True)
+    except ValidationError as error:
+        raise _InvalidRequestError from error
 
 
 def _publish(request: PublishProteinRnaEvidenceRequest) -> ProteinRnaEvidencePublicationResult:
@@ -263,7 +276,8 @@ def _assemble_result(  # noqa: PLR0913
         ),
         "human_review_required": human_review_required,
     }
-    payload["result_digest"] = result_payload_digest(payload)
+    partial = ProteinRnaEvidencePublicationResult.model_construct(**cast("dict[str, Any]", payload))
+    payload["result_digest"] = result_payload_digest(partial)
     return ProteinRnaEvidencePublicationResult.model_validate(payload, strict=True)
 
 
