@@ -1,5 +1,8 @@
 """Evaluator and benchmark regression tests for M10-04."""
 
+# Dossier check-count and iteration literals are deliberate assertions.
+# ruff: noqa: PLR2004
+
 from evals.m10_04.benchmark import run_benchmark
 from evals.m10_04.run import evaluate
 
