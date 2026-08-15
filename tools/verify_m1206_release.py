@@ -65,6 +65,7 @@ def _verify_evaluation(value: dict[str, object]) -> None:
     if (
         not isinstance(coverage, dict)
         or float(cast("float", coverage.get("total_percent", 0))) < 95.0
+        or float(cast("float", coverage.get("branch_percent", 0))) < 95.0
     ):
         raise M1206ReleaseVerificationError("scoped branch coverage is below 95 percent")
     checks = value.get("checks")

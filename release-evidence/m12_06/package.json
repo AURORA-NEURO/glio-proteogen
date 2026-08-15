@@ -5,7 +5,7 @@
   "wheel_path": "release-evidence/m12_06/artifacts/glio_proteogen-0.1.0-py3-none-any.whl",
   "sdist_path": "release-evidence/m12_06/artifacts/glio_proteogen-0.1.0.tar.gz",
   "wheel_sha256": "aa00db1bed060d815cec5556a62733c34ce5b8106912df51ff660705022f5f84",
-  "sdist_sha256": "bdccc6adf5c514f4fcee4ab8650ffe928ede1e7d3b44ec2332669da1879a8d29",
+  "sdist_sha256": "c1e61619e59ad3c5034a07707b2092760f937a22ac91583bddb65fa042035e17",
   "wheel_members": 327,
   "sdist_members": 794,
   "isolated_import": true,
