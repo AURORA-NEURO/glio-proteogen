@@ -105,10 +105,10 @@ def create_app(service: M0701Service | None = None) -> FastAPI:
         try:
             decoded = strict_json_loads(payload, max_bytes=M0701_MAX_CANONICAL_REQUEST_BYTES)
             if not isinstance(decoded, dict) or "result" not in decoded:
-                raise ValueError  # noqa: TRY301
+                raise TypeError  # noqa: TRY301
             canonical = decoded.get("canonical")
             if not isinstance(canonical, str):
-                raise ValueError  # noqa: TRY301
+                raise TypeError  # noqa: TRY301
             canonical_bytes = canonical.encode("utf-8")
             result = _RESULT_ADAPTER.validate_json(canonical_bytes, strict=True)
             verified = formal_state_service.verify(result, canonical_bytes)
