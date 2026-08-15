@@ -316,7 +316,7 @@ def _build_result(
                     evidence=evidence,
                 )
             )
-    status = (
+    integration_status = (
         ConstraintIntegratorStatus.ESTIMATED
         if not reasons
         else ConstraintIntegratorStatus.ABSTAINED
@@ -340,7 +340,7 @@ def _build_result(
         request_digest=canonical_request_digest(request),
         result_digest=_ZERO_DIGEST,
         request=request,
-        status=status,
+        status=integration_status,
         estimates=tuple(estimates),
         satisfaction_report=tuple(reports),
         abstention_reason=abstention_reason,

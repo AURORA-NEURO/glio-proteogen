@@ -12,7 +12,9 @@ from glio_proteogen.contracts.m09_05 import (
     ConstraintSatisfactionReport,
     ConstraintSeverity,
     IntegrateComplexActivityConstraintsVerification,
+    canonical_request_digest,
     contract_json_schemas,
+    normalized_result_payload,
 )
 
 _VIOLATION_SCORE = 0.75
@@ -53,6 +55,12 @@ def test_constraint_report_requires_explicit_violation_score() -> None:
     )
     assert report.status is ConstraintEvaluationStatus.VIOLATED
     assert report.violation_score == _VIOLATION_SCORE
+
+
+def test_canonical_projection_accepts_mapping_and_removes_result_digest() -> None:
+    document = {"value": 1, "result_digest": "discarded"}
+    assert canonical_request_digest(document).startswith("sha256:")
+    assert normalized_result_payload(document) == {"value": 1}
 
 
 def test_replay_verification_closes_success_and_failure_shapes() -> None:
