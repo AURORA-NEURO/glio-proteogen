@@ -9,9 +9,10 @@ source evidence, uncertainty, and safe abstention.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m15_03.canonical import (
     canonical_request_digest,
@@ -19,6 +20,9 @@ from glio_proteogen.contracts.m15_03.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +34,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -117,19 +122,26 @@ class MechanisticFeature(FrozenModel):
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1503_MAX_EVIDENCE)
 
+    @field_validator("numeric_value")
+    @classmethod
+    def numeric_value_is_finite(cls, value: float | None) -> float | None:
+        if value is not None and not isfinite(value):
+            raise ValueError("numeric mechanistic feature value must be finite")
+        return value
+
     @model_validator(mode="after")
     def supported_feature_has_evidence(self) -> MechanisticFeature:
         if self.support_status is FeatureSupportStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported mechanistic feature requires evidence")
+        if self.numeric_value is not None and not self.unit:
+            raise ValueError("numeric mechanistic feature requires a unit")
         return self
 
 
 class MechanisticFeatureObject(FrozenModel):
     feature_object_id: Identifier
     version: SemanticVersion
-    features: tuple[MechanisticFeature, ...] = Field(
-        min_length=1, max_length=M1503_MAX_FEATURES
-    )
+    features: tuple[MechanisticFeature, ...] = Field(min_length=1, max_length=M1503_MAX_FEATURES)
     material_assumptions: tuple[NonEmptyStr, ...] = Field(
         min_length=1, max_length=M1503_MAX_ASSUMPTIONS
     )
@@ -144,6 +156,8 @@ class MechanisticFeatureObject(FrozenModel):
         ids = tuple(item.feature_id for item in self.features)
         if len(ids) != len(set(ids)):
             raise ValueError("mechanistic feature ids must be unique")
+        if any(item.parent_component != M1503_PARENT for item in self.features):
+            raise ValueError("mechanistic features must bind the complex_activity parent")
         return self
 
 
@@ -213,6 +227,11 @@ class ComplexActivityMechanisticFeatureResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityMechanisticFeatureResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("result evidence must contain evidence-role references")
         if self.status is FeatureConstructorStatus.CONSTRUCTED:
             if (
                 self.feature_object is None
@@ -227,9 +246,121 @@ class ComplexActivityMechanisticFeatureResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no feature object and safe status")
+        if self.status is FeatureConstructorStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose every uncertainty dimension and preserve abstention semantics."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Units, topology, perturbation invariants, parent binding, and source evidence "
+            "are reconstructable within the declared support domain."
+            if supported
+            else "One or more feature inputs, invariants, controls, or upstream quality "
+            "conditions were not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Topology and perturbation sensitivity remain explicit and require external "
+            "validation.",
+            "Unsupported or missing evidence is never converted into a negative feature.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: ConstructComplexActivityMechanisticFeaturesRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller-declared controls into auditable provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1503_MODULE_ID,
+        module_version=M1503_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.longitudinal_recurrence_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -260,4 +391,6 @@ __all__ = [
     "FeatureSupportStatus",
     "MechanisticFeature",
     "MechanisticFeatureObject",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
