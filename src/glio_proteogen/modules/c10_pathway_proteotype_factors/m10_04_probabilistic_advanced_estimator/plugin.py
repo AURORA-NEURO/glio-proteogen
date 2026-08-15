@@ -83,7 +83,10 @@ class M1004Plugin(
         return token
 
     def run(self, request: ValidatedM1004Request) -> ProteinRnaDiscordanceProbabilisticResult:
-        snapshot = _ISSUED_TOKENS.get(request)
+        try:
+            snapshot = _ISSUED_TOKENS.get(request)
+        except TypeError as error:
+            raise _InvalidExecutionTokenError from error
         if (
             type(request) is not ValidatedM1004Request
             or request._seal is not _TOKEN_SEAL
