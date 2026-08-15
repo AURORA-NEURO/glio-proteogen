@@ -16,6 +16,7 @@ from pydantic import Field, model_validator
 from glio_proteogen.contracts.m07_03.canonical import (
     canonical_request_digest,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -96,7 +97,16 @@ class BaselinePreprocessingPolicy(FrozenModel):
         max_length=M0703_MAX_PREPROCESSING_STEPS,
     )
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0703_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M0703_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def evidence_is_explicit(self) -> BaselinePreprocessingPolicy:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("preprocessing evidence cannot be counter-evidence")
+        return self
 
 
 class BaselineTuningRecord(FrozenModel):
@@ -109,7 +119,16 @@ class BaselineTuningRecord(FrozenModel):
     seed: int = Field(ge=0)
     metrics: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M0703_MAX_METRICS)
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0703_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M0703_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def evidence_is_explicit(self) -> BaselineTuningRecord:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("tuning evidence cannot be counter-evidence")
+        return self
 
 
 class MatureBaselineConfiguration(FrozenModel):
@@ -125,7 +144,18 @@ class MatureBaselineConfiguration(FrozenModel):
     tuning: BaselineTuningRecord
     reference: ArtifactReference
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0703_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(
+        min_length=1,
+        max_length=M0703_MAX_EVIDENCE,
+    )
+
+    @model_validator(mode="after")
+    def configuration_is_locked(self) -> MatureBaselineConfiguration:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("configuration evidence cannot be counter-evidence")
+        if self.reference.media_type != M0703_REPRESENTATION_MEDIA_TYPE:
+            raise ValueError("configuration reference must be the M07-02 representation")
+        return self
 
 
 class BaselineEstimate(FrozenModel):
@@ -192,6 +222,13 @@ class EstimateCopyNumberDosageBaselineRequest(FrozenModel):
             raise ValueError("baseline request must bind the provisional M07-02 representation")
         if self.configuration.representation_media_type != self.representation_result.media_type:
             raise ValueError("baseline configuration does not bind the M07-02 representation")
+        if self.configuration.reference != self.representation_result:
+            raise ValueError(
+                "baseline configuration reference must equal the request representation"
+            )
+        artifact_ids = [artifact.artifact_id for artifact in self.source_artifacts]
+        if len(set(artifact_ids)) != len(artifact_ids):
+            raise ValueError("source artifacts must have unique artifact ids")
         return self
 
 
@@ -225,6 +262,16 @@ class EstimateCopyNumberDosageBaselineResult(FrozenModel):
     def result_is_closed(self) -> EstimateCopyNumberDosageBaselineResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result id must be deterministic from request digest")
+        if not self.evidence:
+            raise ValueError("result requires explicit source evidence")
+        if len({estimate.feature_id for estimate in self.estimates}) != len(self.estimates):
+            raise ValueError("result estimates must have unique feature ids")
+        if len({diagnostic.diagnostic_id for diagnostic in self.diagnostics}) != len(
+            self.diagnostics
+        ):
+            raise ValueError("result diagnostics must have unique ids")
         if self.status is BaselineResultStatus.ESTIMATED:
             if not self.estimates or self.abstention_reason is not None:
                 raise ValueError("estimated result requires estimates and no abstention reason")
@@ -237,7 +284,9 @@ class EstimateCopyNumberDosageBaselineResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("non-estimated result requires no estimates and safe status")
-        if self.result_digest != result_payload_digest(self):
+        if self.status is not BaselineResultStatus.ESTIMATED and not self.human_review_required:
+            raise ValueError("abstained or quarantined result requires human review")
+        if self.result_digest != result_payload_digest(self) or not verify_result_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
 
