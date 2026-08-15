@@ -18,8 +18,13 @@ from glio_proteogen.contracts.m12_03.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ConsentState,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +36,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -54,8 +60,7 @@ M1203_MAX_FINDINGS: Final = 64
 M1203_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1203_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1203_EVIDENCE_CLAIM: Final = (
-    "Caller-declared M12-03 mechanistic feature evidence; issuer authority "
-    "is not authenticated."
+    "Caller-declared M12-03 mechanistic feature evidence; issuer authority is not authenticated."
 )
 
 
@@ -84,6 +89,18 @@ class MechanisticDiagnosticStatus(StrEnum):
     PASS = "pass"  # noqa: S105
     WARNING = "warning"
     FAIL = "fail"
+    NOT_EVALUABLE = "not_evaluable"
+
+
+class MechanisticQualityStatus(StrEnum):
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    UNKNOWN = "unknown"
+
+
+class NegativeControlStatus(StrEnum):
+    PASSED = "passed"
+    FAILED = "failed"
     NOT_EVALUABLE = "not_evaluable"
 
 
@@ -136,9 +153,7 @@ class MechanisticFeature(FrozenModel):
     @model_validator(mode="after")
     def value_shape_is_closed(self) -> MechanisticFeature:
         has_interval = self.lower_bound is not None or self.upper_bound is not None
-        present = sum(
-            (self.scalar_value is not None, has_interval, self.category is not None)
-        )
+        present = sum((self.scalar_value is not None, has_interval, self.category is not None))
         if self.value_kind is MechanisticValueKind.SCALAR:
             if self.scalar_value is None or has_interval or self.category is not None:
                 raise ValueError("scalar feature requires exactly one scalar value")
@@ -195,12 +210,8 @@ class MechanisticFeatureObject(FrozenModel):
 
     object_id: Identifier
     version: SemanticVersion
-    features: tuple[MechanisticFeature, ...] = Field(
-        min_length=1, max_length=M1203_MAX_FEATURES
-    )
-    relations: tuple[MechanisticRelation, ...] = Field(
-        default=(), max_length=M1203_MAX_RELATIONS
-    )
+    features: tuple[MechanisticFeature, ...] = Field(min_length=1, max_length=M1203_MAX_FEATURES)
+    relations: tuple[MechanisticRelation, ...] = Field(default=(), max_length=M1203_MAX_RELATIONS)
     configuration: MechanisticFeatureConfiguration
     lineage_complete: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1203_MAX_EVIDENCE)
@@ -240,6 +251,12 @@ class ConstructBiomarkerPanelMechanisticFeaturesRequest(FrozenModel):
     context: ExecutionContext
     upstream_result: ArtifactReference
     configuration: MechanisticFeatureConfiguration
+    feature_inputs: tuple[MechanisticFeature, ...] = Field(
+        min_length=1, max_length=M1203_MAX_FEATURES
+    )
+    relations: tuple[MechanisticRelation, ...] = Field(default=(), max_length=M1203_MAX_RELATIONS)
+    quality_status: MechanisticQualityStatus = MechanisticQualityStatus.ACCEPTED
+    negative_control_status: NegativeControlStatus = NegativeControlStatus.PASSED
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1203_MAX_EVIDENCE
     )
@@ -255,6 +272,16 @@ class ConstructBiomarkerPanelMechanisticFeaturesRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("source artifact references must be unique")
+        feature_ids = tuple(item.feature_id for item in self.feature_inputs)
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("feature input ids must be unique")
+        relation_ids = tuple(item.relation_id for item in self.relations)
+        if len(relation_ids) != len(set(relation_ids)):
+            raise ValueError("relation ids must be unique")
+        known = set(feature_ids)
+        for relation in self.relations:
+            if relation.source_feature_id not in known or relation.target_feature_id not in known:
+                raise ValueError("relation references an unknown feature input")
         return self
 
 
@@ -274,9 +301,7 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
     diagnostics: tuple[MechanisticFeatureDiagnostic, ...] = Field(
         min_length=1, max_length=M1203_MAX_DIAGNOSTICS
     )
-    findings: tuple[MechanisticFindingCode, ...] = Field(
-        default=(), max_length=M1203_MAX_FINDINGS
-    )
+    findings: tuple[MechanisticFindingCode, ...] = Field(default=(), max_length=M1203_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["biomarker_panel"] = M1203_PARENT
     emits_parent: Literal[False] = False
@@ -291,6 +316,11 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelMechanisticFeatureResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("diagnostic ids must be unique")
+        if self.evidence and {item.role for item in self.evidence} != {"evidence"}:
+            raise ValueError("M12-03 result evidence cannot relabel counter-evidence")
         failed = {MechanisticDiagnosticStatus.FAIL, MechanisticDiagnosticStatus.NOT_EVALUABLE}
         if self.status is MechanisticConstructionStatus.CONSTRUCTED:
             if (
@@ -298,6 +328,8 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
                 or any(item.status in failed for item in self.diagnostics)
+                or self.request.quality_status is not MechanisticQualityStatus.ACCEPTED
+                or self.request.negative_control_status is not NegativeControlStatus.PASSED
             ):
                 raise ValueError("constructed result requires supported, invariant-safe output")
         elif (
@@ -310,6 +342,157 @@ class BiomarkerPanelMechanisticFeatureResult(FrozenModel):
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty() -> UncertaintyProfile:
+    """Return explicit seven-dimension uncertainty for deterministic construction."""
+
+    rationales = (
+        "Source assay measurement uncertainty is not modeled by this deterministic constructor.",
+        "Sampling uncertainty is not estimable from caller-declared source artifacts.",
+        "No parameters are fitted during feature construction.",
+        "The selected mechanistic rule and graph representation are fixed by configuration.",
+        "Feature identity is inherited from caller-declared artifact references.",
+        "Support is limited to the declared topology, units, and negative-control domain.",
+        "Transport to a new assay, site, or population requires external validation.",
+    )
+    estimates = tuple(
+        UncertaintyEstimate(state=EstimateState.NOT_ESTIMABLE, rationale=rationale)
+        for rationale in rationales
+    )
+    return UncertaintyProfile(
+        measurement=estimates[0],
+        sampling=estimates[1],
+        parameter=estimates[2],
+        model_form=estimates[3],
+        identification=estimates[4],
+        support=estimates[5],
+        transport=estimates[6],
+        sensitivity_notes=(
+            "Missing, unsupported, and non-evaluable evidence never becomes a negative finding.",
+            "Configuration, topology, unit, and negative-control changes require re-evaluation.",
+        ),
+    )
+
+
+def expected_limitations() -> tuple[Limitation, ...]:
+    return (
+        Limitation(
+            code="provisional_abi",
+            statement="M12-03 ABI remains provisional pending owner confirmation.",
+        ),
+        Limitation(
+            code="caller_declared_evidence",
+            statement="Evidence is referenced but not authenticated or traversed by this module.",
+        ),
+        Limitation(
+            code="ownership_boundary",
+            statement=(
+                "Kinase activity, all-omics fusion, and treatment recommendation are excluded."
+            ),
+        ),
+    )
+
+
+def expected_provenance(
+    request: ConstructBiomarkerPanelMechanisticFeaturesRequest,
+    request_digest: Sha256Digest | None = None,
+) -> ProvenanceRecord:
+    """Derive auditable provenance from controls and content-addressed references."""
+
+    digest = request_digest or canonical_request_digest(request)
+    refs = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    control_digests = tuple(
+        item.evidence.digest
+        for item in (
+            refs.approved_configuration,
+            refs.identity_lineage,
+            refs.provenance,
+            refs.consent,
+            refs.quality,
+            refs.support,
+            refs.intended_use,
+        )
+    )
+    input_digests = {
+        digest,
+        request.upstream_result.digest,
+        request.configuration.topology_reference.digest,
+        *control_digests,
+        *(item.digest for item in request.source_artifacts),
+        *(item.reference.digest for item in request.configuration.evidence),
+        *(
+            artifact.digest
+            for feature in request.feature_inputs
+            for artifact in feature.lineage.source_artifacts
+        ),
+    }
+    return ProvenanceRecord(
+        activity_id=f"activity.m1203.{digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1203_MODULE_ID,
+        module_version=M1203_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=tuple(sorted(input_digests)),
+        configuration_digest=sha256_digest(request.configuration),
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=ConsentState.GRANTED,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -343,7 +526,12 @@ __all__ = [
     "MechanisticFeatureLineage",
     "MechanisticFeatureObject",
     "MechanisticFindingCode",
+    "MechanisticQualityStatus",
     "MechanisticRelation",
     "MechanisticRelationKind",
     "MechanisticValueKind",
+    "NegativeControlStatus",
+    "expected_limitations",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
