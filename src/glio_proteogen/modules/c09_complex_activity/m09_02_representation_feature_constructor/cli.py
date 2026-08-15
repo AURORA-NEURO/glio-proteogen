@@ -25,7 +25,16 @@ from .service import M0902Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ConstructComplexActivityRepresentationRequest)
 _CONTRACT_NAMES: Final = frozenset(
-    {"request", "output", "feature-specification", "feature-lineage", "representation-feature", "transformation", "policy", "leakage-check"}
+    {
+        "request",
+        "output",
+        "feature-specification",
+        "feature-lineage",
+        "representation-feature",
+        "transformation",
+        "policy",
+        "leakage-check",
+    }
 )
 app = typer.Typer(help="M09-02 complex-activity representation constructor.")
 
@@ -72,7 +81,13 @@ def construct(
 
     try:
         built = M0902Service().construct(_request_from_file(request))
-    except (M0902AuthorizationError, ValidationError, ValueError, TypeError, StrictJsonError) as error:
+    except (
+        M0902AuthorizationError,
+        ValidationError,
+        ValueError,
+        TypeError,
+        StrictJsonError,
+    ) as error:
         raise typer.BadParameter("M09-02 construction input is invalid") from error
     if output is not None and output.exists():
         raise typer.BadParameter("output already exists")

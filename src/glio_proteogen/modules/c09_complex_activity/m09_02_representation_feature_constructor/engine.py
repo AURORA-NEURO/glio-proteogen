@@ -19,17 +19,14 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.contracts.m09_02 import (
     M0902_CONTRACT_VERSION,
     M0902_EVIDENCE_CLAIM,
-    M0902_GATE,
     M0902_MAX_CANONICAL_RESULT_BYTES,
     M0902_MODULE_ID,
     ComplexActivityRepresentationResult,
     ConstructComplexActivityRepresentationRequest,
-    FeatureLineage,
     LeakageCheck,
     LeakageCheckStatus,
     RepresentationConstructionStatus,
     RepresentationFeature,
-    RepresentationValueKind,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -146,7 +143,10 @@ def _control_decisions(
 def _provenance(request: ConstructComplexActivityRepresentationRequest) -> ProvenanceRecord:
     refs = request.context.references
     input_digests = tuple(
-        sorted({item.digest for item in request.source_artifacts} | {request.formal_state_result.digest})
+        sorted(
+            {item.digest for item in request.source_artifacts}
+            | {request.formal_state_result.digest}
+        )
     )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
@@ -216,8 +216,8 @@ def _limitations() -> tuple[Limitation, ...]:
 def _seed(feature_id: str, request: ConstructComplexActivityRepresentationRequest) -> bytes:
     digest = canonical_request_digest(request)
     source_digests = ",".join(sorted(item.digest for item in request.source_artifacts))
-    return "|".join(
-        (feature_id, digest, request.policy.policy_id, request.policy.version, source_digests)
+    return (
+        f"{feature_id}|{digest}|{request.policy.policy_id}|{request.policy.version}|{source_digests}"
     ).encode("utf-8")
 
 
@@ -383,7 +383,10 @@ class M0902RepresentationConstructor:
         except (TypeError, ValueError, ValidationError):
             return False
         if canonical_bytes is not None:
-            if type(canonical_bytes) is not bytes or len(canonical_bytes) > M0902_MAX_CANONICAL_RESULT_BYTES:
+            if (
+                type(canonical_bytes) is not bytes
+                or len(canonical_bytes) > M0902_MAX_CANONICAL_RESULT_BYTES
+            ):
                 return False
             if canonical_bytes != canonical_json_bytes(typed.model_dump(mode="json")):
                 return False

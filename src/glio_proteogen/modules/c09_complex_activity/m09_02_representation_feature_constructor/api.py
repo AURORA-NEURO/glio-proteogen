@@ -25,7 +25,16 @@ from .service import M0902Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ConstructComplexActivityRepresentationRequest)
 _CONTRACT_NAMES: Final = frozenset(
-    {"request", "output", "feature-specification", "feature-lineage", "representation-feature", "transformation", "policy", "leakage-check"}
+    {
+        "request",
+        "output",
+        "feature-specification",
+        "feature-lineage",
+        "representation-feature",
+        "transformation",
+        "policy",
+        "leakage-check",
+    }
 )
 
 

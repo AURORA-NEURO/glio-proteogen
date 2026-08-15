@@ -1,6 +1,6 @@
 """M09-02 representation and feature constructor."""
 
-from glio_proteogen.modules.c09_complex_activity.m09_02_representation_feature_constructor.engine import (
+from .engine import (
     BuiltM0902Result,
     M0902AuthorizationError,
     M0902InputError,
@@ -8,7 +8,7 @@ from glio_proteogen.modules.c09_complex_activity.m09_02_representation_feature_c
     construct_complex_activity_representation,
     preflight_m0902_authorization,
 )
-from glio_proteogen.modules.c09_complex_activity.m09_02_representation_feature_constructor.service import (
+from .service import (
     M0902Service,
 )
 
