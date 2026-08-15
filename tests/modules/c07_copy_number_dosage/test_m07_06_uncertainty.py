@@ -34,7 +34,11 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_06_uncertainty_decomposit
 )
 
 
-def _artifact(label: str, char: str = "a", media_type: str = "application/json") -> ArtifactReference:
+def _artifact(
+    label: str,
+    char: str = "a",
+    media_type: str = "application/json",
+) -> ArtifactReference:
     return ArtifactReference(
         artifact_id=label,
         version="1.0.0",
