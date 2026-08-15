@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1708_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m17_08 import (
+    M1708_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorVariantPeptideTranslationHealthRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_08_translation_monitoring as m1708_monitoring,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1708_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1708_app, name="m1708-translation-health")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3381,6 +3394,41 @@ def compute_proteoform_quality_metrics(
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@m1708_app.command("export-schema")
+def export_m1708_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M17-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-08 contract schema."""
+
+    typer.echo(json.dumps(_m1708_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1708_app.command("monitor")
+def monitor_m1708_translation_health(request: RequestArgument) -> None:
+    """Monitor translation health and emit a bounded state or explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(MonitorVariantPeptideTranslationHealthRequest),
+        m1708_monitoring.preflight_m1708_authorization,
+        M1708_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1708_monitoring.M1708Service().monitor(parsed))
 
 
 @protein_inference_release_app.command("build")

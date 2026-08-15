@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m17_08.schema import (
+    ContractName as M1708ContractName,
+)
+from glio_proteogen.contracts.m17_08.schema import (
+    contract_json_schema as m1708_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_08.v1 import (
+    M1708_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorVariantPeptideTranslationHealthRequest,
+    VariantPeptideTranslationMonitoringResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -424,6 +435,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_08_translation_monitoring as m1708_monitoring,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -447,6 +461,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -599,6 +614,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
+    return m1708_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -786,6 +805,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1708_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1708_contract_json_schema("request")}},
         }
     }
 
@@ -1016,6 +1044,17 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m1708_body(
+    request: Request,
+) -> MonitorVariantPeptideTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1708_REQUEST_ADAPTER,
+        m1708_monitoring.preflight_m1708_authorization,
+        M1708_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1042,6 +1081,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1708_service = m1708_monitoring.M1708Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1088,6 +1128,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1356,6 +1397,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0404ContractName,
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M17-08/{name}/schema", tags=["contracts"])
+    def m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
+        return _m1708_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-08/translation-health",
+        response_model=VariantPeptideTranslationMonitoringResult,
+        tags=["M17-08"],
+        openapi_extra=_m1708_request_body(),
+    )
+    def monitor_m1708_translation_health(
+        request: Annotated[
+            MonitorVariantPeptideTranslationHealthRequest,
+            Depends(_m1708_body),
+        ],
+    ) -> VariantPeptideTranslationMonitoringResult:
+        return m1708_service.monitor(request)
 
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
