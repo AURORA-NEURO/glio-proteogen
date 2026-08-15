@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1505_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m15_05 import (
+    M1505_MAX_CANONICAL_REQUEST_BYTES,
+    ModelComplexActivityLongitudinalEvolutionRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_05_longitudinal_evolution as m1505_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1505_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-05 bounded longitudinal and evolutionary replay.",
+)
+app.add_typer(m1505_app, name="longitudinal-evolution")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3436,6 +3449,44 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@m1505_app.command("export-schema")
+def export_m1505_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "observation",
+            "trajectory-state",
+            "change-point",
+            "configuration",
+            "policy",
+            "diagnostic",
+        ],
+        typer.Argument(help="M15-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M15-05 contract."""
+
+    typer.echo(json.dumps(_m1505_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1505_app.command("infer")
+def infer_m1505(request: RequestArgument) -> None:
+    """Replay ordered caller-declared observations with explicit safe limits."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ModelComplexActivityLongitudinalEvolutionRequest),
+            m1505_module.preflight_m1505_authorization,
+            M1505_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1505_module.M1505Service().execute(parsed))
+    except m1505_module.M1505AuthorizationError as error:
+        typer.echo(f"longitudinal evolution authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
 
 
 @app.command("export-schema")
