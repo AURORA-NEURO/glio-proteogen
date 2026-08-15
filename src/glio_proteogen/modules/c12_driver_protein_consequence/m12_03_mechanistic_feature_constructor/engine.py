@@ -196,8 +196,8 @@ def _compute(
         "limitations": expected_limitations(),
         "human_review_required": True,
     }
-    preliminary = BiomarkerPanelMechanisticFeatureResult.model_construct(  # type: ignore[arg-type]
-        **payload
+    preliminary = BiomarkerPanelMechanisticFeatureResult.model_construct(
+        **payload,  # type: ignore[arg-type]
     )
     payload["result_digest"] = result_payload_digest(preliminary)
     return BiomarkerPanelMechanisticFeatureResult.model_validate(payload)
