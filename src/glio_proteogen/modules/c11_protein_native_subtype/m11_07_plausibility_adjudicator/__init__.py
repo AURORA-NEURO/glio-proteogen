@@ -4,6 +4,7 @@ from .engine import (
     M1107PlausibilityEngine,
     PlausibilityAuthorizationError,
     PlausibilityReplayError,
+    _validate_json_request,
     adjudicate_variant_peptide_plausibility,
     preflight_plausibility_authorization,
     verify_plausibility_replay,
