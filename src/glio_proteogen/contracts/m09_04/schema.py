@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m09_04.v1 import (
     M0904_SAFETY_CLASS,
     EstimateComplexActivityProbabilisticRequest,
     EstimateComplexActivityProbabilisticResult,
+    EstimateComplexActivityProbabilisticVerification,
     EstimatorConstraint,
     OptimizationDiagnostic,
     PosteriorEstimate,
@@ -34,6 +35,7 @@ ContractName = Literal[
     "prior",
     "constraint",
     "configuration",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": EstimateComplexActivityProbabilisticRequest,
@@ -43,6 +45,7 @@ _CONTRACTS: Final = {
     "prior": ProbabilisticPrior,
     "constraint": EstimatorConstraint,
     "configuration": ProbabilisticEstimatorConfiguration,
+    "verification": EstimateComplexActivityProbabilisticVerification,
 }
 
 

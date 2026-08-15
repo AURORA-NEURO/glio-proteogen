@@ -8,7 +8,7 @@ model catalogue.  All symbols below are provisional scaffolding.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -58,6 +58,11 @@ M0904_EVIDENCE_CLAIM: Final = (
     "issuer authority is not authenticated."
 )
 
+# Posterior and optimisation values are part of the signed replay surface.
+# Reject non-finite values at the contract boundary instead of normalising them
+# after a result has already been produced.
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
+
 
 class ProbabilisticEstimatorFamily(StrEnum):
     LEARNED = "probabilistic_learned"
@@ -83,6 +88,14 @@ class OptimizationDiagnosticStatus(StrEnum):
     NOT_CONVERGED = "not_converged"
     FAILED = "failed"
     NOT_EVALUABLE = "not_evaluable"
+
+
+class ProbabilisticReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
 
 
 class ProbabilisticResultStatus(StrEnum):
@@ -136,11 +149,11 @@ class PosteriorEstimate(FrozenModel):
     feature_id: Identifier
     kind: PosteriorEstimateKind
     unit: NonEmptyStr
-    estimate_value: float | None = None
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    estimate_value: FiniteFloat | None = None
+    lower_bound: FiniteFloat | None = None
+    upper_bound: FiniteFloat | None = None
     category: NonEmptyStr | None = None
-    posterior_mass: float | None = Field(default=None, ge=0.0, le=1.0)
+    posterior_mass: FiniteFloat | None = Field(default=None, ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -169,10 +182,40 @@ class OptimizationDiagnostic(FrozenModel):
     status: OptimizationDiagnosticStatus
     objective: NonEmptyStr
     iteration_count: int = Field(ge=0)
-    objective_value: float | None = None
-    convergence_gap: float | None = Field(default=None, ge=0.0)
+    objective_value: FiniteFloat | None = None
+    convergence_gap: FiniteFloat | None = Field(default=None, ge=0.0)
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0904_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_shape_is_closed(self) -> OptimizationDiagnostic:
+        if self.status is OptimizationDiagnosticStatus.CONVERGED:
+            if self.objective_value is None or self.convergence_gap is None:
+                raise ValueError("converged diagnostic requires objective and convergence gap")
+        elif self.objective_value is not None and self.convergence_gap is None:
+            raise ValueError("objective value requires a convergence gap")
+        return self
+
+
+class EstimateComplexActivityProbabilisticVerification(FrozenModel):
+    """Content and deterministic replay status for a published result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: ProbabilisticReplayReason
+
+    @model_validator(mode="after")
+    def verification_flags_are_closed(
+        self,
+    ) -> EstimateComplexActivityProbabilisticVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
+        return self
 
 
 class EstimateComplexActivityProbabilisticRequest(FrozenModel):
@@ -223,11 +266,19 @@ class EstimateComplexActivityProbabilisticResult(FrozenModel):
     def result_is_closed(self) -> EstimateComplexActivityProbabilisticResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("optimization diagnostic ids must be unique")
         if self.status is ProbabilisticResultStatus.ESTIMATED:
             if not self.estimates or self.abstention_reason is not None:
                 raise ValueError("estimated result requires posterior estimates")
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("estimated result requires supported status")
+            if not any(
+                item.status is OptimizationDiagnosticStatus.CONVERGED
+                for item in self.diagnostics
+            ):
+                raise ValueError("estimated result requires a converged diagnostic")
         elif (
             self.estimates
             or self.abstention_reason is None
@@ -358,6 +409,7 @@ __all__ = [
     "M0904_SAFETY_CLASS",
     "EstimateComplexActivityProbabilisticRequest",
     "EstimateComplexActivityProbabilisticResult",
+    "EstimateComplexActivityProbabilisticVerification",
     "EstimatorConstraint",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
@@ -368,6 +420,8 @@ __all__ = [
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",
+    "ProbabilisticReplayReason",
+    "FiniteFloat",
     "expected_provenance",
     "expected_uncertainty",
 ]

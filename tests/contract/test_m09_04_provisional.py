@@ -14,7 +14,7 @@ from glio_proteogen.modules.c09_complex_stoichiometry import (
     m09_04_probabilistic_estimator as runtime,
 )
 
-_SCHEMA_COUNT: Final = 7
+_SCHEMA_COUNT: Final = 8
 
 
 def test_provisional_schemas_are_strict_and_owner_pending() -> None:
