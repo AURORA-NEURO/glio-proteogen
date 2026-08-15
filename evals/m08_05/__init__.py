@@ -1,1 +1,1 @@
-"""Evaluation fixtures for the provisional M08-05 scaffold."""
+"""Executable M08-05 evaluator package."""
