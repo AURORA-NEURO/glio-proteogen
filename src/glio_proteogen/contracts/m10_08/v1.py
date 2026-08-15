@@ -20,6 +20,10 @@ from glio_proteogen.contracts.m10_08.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ConsentState,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +35,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -57,6 +62,7 @@ M1008_EVIDENCE_CLAIM: Final = (
     "Caller-declared evidence for provisional M10-08 publication; issuer authority "
     "is not authenticated."
 )
+_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 
 
 class EvidencePublicationStatus(StrEnum):
@@ -137,9 +143,7 @@ class ProteinRnaEvidenceBundle(FrozenModel):
     bundle_id: Identifier
     version: SemanticVersion
     upstream_result: ArtifactReference
-    sources: tuple[PublisherEvidenceSource, ...] = Field(
-        min_length=1, max_length=M1008_MAX_SOURCES
-    )
+    sources: tuple[PublisherEvidenceSource, ...] = Field(min_length=1, max_length=M1008_MAX_SOURCES)
     assumptions: tuple[PublisherAssumption, ...] = Field(
         min_length=1, max_length=M1008_MAX_ASSUMPTIONS
     )
@@ -162,6 +166,9 @@ class ProteinRnaEvidenceBundle(FrozenModel):
         source_ids = tuple(item.source_id for item in self.sources)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("evidence source identifiers must be unique")
+        artifact_ids = tuple(item.artifact.artifact_id for item in self.sources)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("evidence source artifacts must be unique")
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
@@ -187,6 +194,15 @@ class ProteinRnaExplanation(FrozenModel):
     reconstruction_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M1008_MAX_EVIDENCE
     )
+
+    @model_validator(mode="after")
+    def explanation_is_closed(self) -> ProteinRnaExplanation:
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("diagnostic identifiers must be unique")
+        if self.bundle_id == "":
+            raise ValueError("explanation must bind a bundle")
+        return self
 
 
 class PublishProteinRnaEvidenceRequest(FrozenModel):
@@ -218,6 +234,9 @@ class PublishProteinRnaEvidenceRequest(FrozenModel):
         source_ids = tuple(item.source_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("request evidence source identifiers must be unique")
+        artifact_ids = tuple(item.artifact.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request evidence source artifacts must be unique")
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
@@ -253,12 +272,16 @@ class ProteinRnaEvidencePublicationResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaEvidencePublicationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.m1008.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier does not bind the request digest")
         if self.status is EvidencePublicationStatus.PUBLISHED:
             if (
                 self.bundle is None
                 or self.explanation is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.explanation.bundle_id != self.bundle.bundle_id
             ):
                 raise ValueError("published result requires complete bundle and explanation")
         elif (
@@ -269,9 +292,141 @@ class ProteinRnaEvidencePublicationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no bundle, explanation, and safe status")
+        if self.status is EvidencePublicationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review")
+        if self.provenance.module_id != M1008_MODULE_ID:
+            raise ValueError("provenance must identify M10-08")
+        if self.provenance.consent_state is not ConsentState.GRANTED:
+            raise ValueError("result provenance must retain the consent decision")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("findings must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty() -> UncertaintyProfile:
+    """Return explicit uncertainty dimensions when no estimator is executed."""
+
+    rationale = "M10-08 does not estimate this dimension before owner-locked calibration."
+    estimate = UncertaintyEstimate(state=EstimateState.NOT_ESTIMABLE, rationale=rationale)
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=("No scientific claim is promoted by the provisional publisher.",),
+    )
+
+
+def expected_limitations(*, published: bool) -> tuple[Limitation, ...]:
+    """Return explicit interpretation ceilings for both publication states."""
+
+    statements = [
+        Limitation(
+            code="provisional_abi",
+            statement="The M10-08 ABI is provisional and requires owner confirmation.",
+        ),
+        Limitation(
+            code="caller_declared_evidence",
+            statement="Evidence references are caller-declared and not authenticated here.",
+        ),
+        Limitation(
+            code="no_scientific_inference",
+            statement=(
+                "This publisher does not infer identity, consent, kinase activity, or treatment."
+            ),
+        ),
+    ]
+    if not published:
+        statements.append(
+            Limitation(
+                code="publication_abstained",
+                statement=(
+                    "No evidence bundle or explanation was emitted because closure was incomplete."
+                ),
+            )
+        )
+    return tuple(statements)
+
+
+def expected_provenance(
+    context: ExecutionContext,
+    *,
+    input_digests: tuple[Sha256Digest, ...],
+) -> ProvenanceRecord:
+    """Project immutable context controls into module-local provenance."""
+
+    references = context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.m1008.{context.request_id}",
+        actor_id=context.actor_id,
+        module_id=M1008_MODULE_ID,
+        module_version=M1008_CONTRACT_VERSION,
+        generated_at=context.occurred_at,
+        input_digests=input_digests,
+        configuration_digest=references.approved_configuration.evidence.digest,
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -308,4 +463,7 @@ __all__ = [
     "PublisherSourceKind",
     "ReconstructionStatus",
     "ReconstructionStep",
+    "expected_limitations",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
