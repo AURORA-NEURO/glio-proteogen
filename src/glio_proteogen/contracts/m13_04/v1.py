@@ -155,9 +155,7 @@ class InferProteotypeMechanismRequest(FrozenModel):
 class ProteotypeMechanismInferenceResult(FrozenModel):
     """Mechanism estimates with counter-evidence and explicit abstention."""
 
-    output_type: Literal["proteotype_mechanism_inference"] = (
-        "proteotype_mechanism_inference"
-    )
+    output_type: Literal["proteotype_mechanism_inference"] = "proteotype_mechanism_inference"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1304_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -345,5 +343,3 @@ __all__ = [
     "expected_provenance",
     "expected_uncertainty",
 ]
-
-

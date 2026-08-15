@@ -20,5 +20,3 @@ __all__ = [
     "infer_proteotype_mechanism",
     "preflight_mechanism_authorization",
 ]
-
-

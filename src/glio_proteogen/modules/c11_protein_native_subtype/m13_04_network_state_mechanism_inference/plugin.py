@@ -56,9 +56,7 @@ class _InvalidExecutionTokenError(TypeError):
         super().__init__("M13-04 execution requires a validated request token")
 
 
-class M1304Plugin(
-    ModulePlugin[object, ValidatedM1304Request, ProteotypeMechanismInferenceResult]
-):
+class M1304Plugin(ModulePlugin[object, ValidatedM1304Request, ProteotypeMechanismInferenceResult]):
     """Expose M13-04 through validate-then-run token semantics."""
 
     __slots__ = ("_service",)
@@ -105,5 +103,3 @@ class M1304Plugin(
 
 
 __all__ = ["M1304Plugin", "ValidatedM1304Request"]
-
-
