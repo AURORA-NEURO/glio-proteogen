@@ -339,7 +339,10 @@ class M0901FormalStateEngine:
             if isinstance(result, ValidateComplexActivityStateResult):
                 expected = result
             else:
-                expected = _RESULT_ADAPTER.validate_python(result, strict=True)
+                expected = _RESULT_ADAPTER.validate_json(
+                    canonical_json_bytes(result),
+                    strict=True,
+                )
             if typed != expected:
                 return M0901ReplayVerification(
                     verified=False,
