@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-07",
+  "builder": "uv build / hatchling",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "size_bytes": 868814,
+    "sha256": "0e92bb983301c4696c120ee66522b856de7a640f43af504bb678780c54cac89c",
+    "member_count": 364
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "size_bytes": 1482970,
+    "sha256": "8af7e48adf63010d7db318319089d5f28c2fa1580d0b69bb802748938cc2ef28"
+  },
+  "isolated_import": true,
+  "isolated_import_check": "Installed wheel with --no-deps into isolated-m1507-20260815; imported six M15-07 schemas and adapter app."
+}
