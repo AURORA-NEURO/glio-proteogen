@@ -322,7 +322,8 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
         support=estimate,
         transport=estimate,
         sensitivity_notes=(
-            "Weak links, counter-evidence, validation requirements, and claim ceiling remain visible.",
+            "Weak links, counter-evidence, validation requirements, and claim ceiling remain "
+            "visible.",
             "The provisional probability is metadata only and is not a population coverage claim.",
         ),
     )
