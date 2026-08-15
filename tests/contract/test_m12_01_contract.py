@@ -119,6 +119,12 @@ def test_request_unknown_fields_and_duplicate_hypotheses_are_rejected() -> None:
     duplicate_payload["hypotheses"].append(copy.deepcopy(duplicate_payload["hypotheses"][0]))
     with pytest.raises(ValidationError):
         RegisterBiomarkerPanelHypothesesRequest.model_validate(duplicate_payload, strict=True)
+    hypothesis = duplicate.hypotheses[0]
+    with pytest.raises(ValidationError):
+        BiologicalHypothesis.model_validate(
+            hypothesis.model_copy(update={"evidence_tiers": (hypothesis.evidence_tiers[0],) * 2}),
+            strict=True,
+        )
 
 
 @pytest.mark.parametrize(
@@ -200,6 +206,11 @@ def test_canonical_projection_service_and_plugin_seams() -> None:
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M12-01"
     token = plugin.validate(canonical_json_bytes(request))
     assert plugin.run(token).status is HypothesisStatus.SUPPORTED
+    assert plugin.verify(result).status is HypothesisStatus.SUPPORTED
+    assert (
+        m1201_runtime.register_biomarker_panel_hypotheses(request).status
+        is HypothesisStatus.SUPPORTED
+    )
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
 
@@ -293,6 +304,10 @@ def test_http_rejects_media_schema_json_and_authorization_errors() -> None:
             headers={"content-type": "application/json"},
         ).status_code
         == HTTP_UNPROCESSABLE
+    )
+    assert (
+        client.post("/v1/modules/M12-01/verify", content=b"{}").status_code
+        == HTTP_UNSUPPORTED_MEDIA
     )
     request = build_scenario_request()
     denied_refs = request.context.references.model_copy(
