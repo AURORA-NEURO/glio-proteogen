@@ -174,6 +174,12 @@ class PresentBiomarkerPanelReviewWorkspaceRequest(FrozenModel):
             raise ValueError("request workspace section ids must be unique")
         if set(self.default_section_order) != set(section_ids):
             raise ValueError("request default order must cover every section")
+        section_kinds = {item.section_id: item.kind for item in self.sections}
+        if (
+            section_kinds.get(self.default_section_order[0])
+            is not WorkspaceSectionKind.TASK_SUMMARY
+        ):
+            raise ValueError("request default order must begin with task summary")
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("request source artifacts must be unique")
