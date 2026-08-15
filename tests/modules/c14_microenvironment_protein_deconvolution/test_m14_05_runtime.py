@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m14_05 import (
     TimePointObservation,
     TrajectoryDimension,
     TrajectoryPolicy,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -172,5 +173,47 @@ def test_out_of_order_observations_are_rejected() -> None:
 def test_tampered_result_fails_replay_verification() -> None:
     result = m1405.M1405EvolutionEngine().construct(_request())
     altered = result.model_copy(update={"human_review_required": False})
+    altered = altered.model_copy(update={"result_digest": result_payload_digest(altered)})
     with pytest.raises(m1405.M1405ReplayVerificationError):
         m1405.M1405EvolutionEngine().verify(altered)
+
+
+def test_mapping_service_validation_and_replay_without_execution() -> None:
+    request = _request()
+    service = m1405.M1405Service()
+    result = service.construct(request.model_dump(mode="python"))
+
+    assert service.validate_request(request) == request
+    assert service.validate_request(request.model_dump(mode="python")) == request
+    assert service.verify(result, replay=False) == result
+    with pytest.raises(TypeError, match="strict request"):
+        service.validate_request(object())
+
+
+def test_authorization_and_request_boundaries_fail_closed() -> None:
+    class ContextAccessError(RuntimeError):
+        pass
+
+    class ExplodingContext:
+        @property
+        def context(self) -> object:
+            raise ContextAccessError
+
+    class ContextWrapper:
+        context = _request().context
+
+    with pytest.raises(m1405.M1405AuthorizationError):
+        m1405.M1405Service().construct(ExplodingContext())
+    with pytest.raises(TypeError, match="strict request"):
+        m1405.M1405Service().construct(ContextWrapper())
+
+
+def test_plugin_object_validation_and_token_seal() -> None:
+    request = _request()
+    plugin = m1405.M1405Plugin(m1405.M1405Service())
+    token = plugin.validate(request)
+    result = plugin.run(token)
+
+    assert plugin.verify(result) == result
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(object())
