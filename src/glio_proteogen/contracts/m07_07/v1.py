@@ -12,11 +12,13 @@ from typing import Final, Literal
 
 from pydantic import Field, model_validator
 
-from glio_proteogen.contracts.m07_06.canonical import canonical_request_digest
 from glio_proteogen.contracts.m07_06.v1 import (  # noqa: TC001
     CopyNumberDosageUncertaintyDecompositionResult,
 )
-from glio_proteogen.contracts.m07_07.canonical import result_payload_digest
+from glio_proteogen.contracts.m07_07.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -126,9 +128,7 @@ class CalibrationPolicy(FrozenModel):
     method: CalibrationMethod
     target_coverage: float = Field(default=M0707_NOMINAL_COVERAGE, ge=0.0, le=1.0)
     calibration_reference: ArtifactReference
-    strata: tuple[CalibrationStratum, ...] = Field(
-        min_length=1, max_length=M0707_MAX_STRATA
-    )
+    strata: tuple[CalibrationStratum, ...] = Field(min_length=1, max_length=M0707_MAX_STRATA)
     support_threshold: SelectiveSupportThreshold
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0707_MAX_EVIDENCE)
@@ -238,9 +238,7 @@ class CalibrateSelectiveCopyNumberDosageRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0707_MAX_EVIDENCE
     )
-    candidates: tuple[SelectiveCandidate, ...] = Field(
-        default=(), max_length=M0707_MAX_CANDIDATES
-    )
+    candidates: tuple[SelectiveCandidate, ...] = Field(default=(), max_length=M0707_MAX_CANDIDATES)
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -310,9 +308,9 @@ __all__ = [
     "M0707_EVIDENCE_CLAIM",
     "M0707_GATE",
     "M0707_MAX_CALIBRATION_ERROR",
+    "M0707_MAX_CANDIDATES",
     "M0707_MAX_CANONICAL_REQUEST_BYTES",
     "M0707_MAX_CANONICAL_RESULT_BYTES",
-    "M0707_MAX_CANDIDATES",
     "M0707_MAX_COVERAGE",
     "M0707_MAX_DIAGNOSTICS",
     "M0707_MAX_ESTIMATES",
@@ -339,7 +337,7 @@ __all__ = [
     "CalibrationStratum",
     "CalibrationStratumDimension",
     "OutOfDistributionStatus",
-    "SelectivePredictionStatus",
     "SelectiveCandidate",
+    "SelectivePredictionStatus",
     "SelectiveSupportThreshold",
 ]

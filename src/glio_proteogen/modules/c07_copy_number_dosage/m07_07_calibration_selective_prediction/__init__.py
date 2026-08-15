@@ -1,5 +1,7 @@
 """Provisional M07-07 calibration/selective-prediction module."""
 
+from .api import router
+from .cli import app as cli_app
 from .engine import (
     CalibrationAuthorizationError,
     CalibrationInputError,
@@ -23,5 +25,7 @@ __all__ = [
     "M0707Service",
     "ValidatedM0707Request",
     "calibrate_selective_copy_number_dosage",
+    "cli_app",
     "preflight_calibration_authorization",
+    "router",
 ]

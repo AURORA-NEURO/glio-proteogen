@@ -3,6 +3,8 @@
 from glio_proteogen.contracts.m07_07 import (
     CalibrateSelectiveCopyNumberDosageRequest,
     CalibrateSelectiveCopyNumberDosageResult,
+    canonical_request_digest,
+    result_payload_digest,
 )
 
 from .engine import (
@@ -32,6 +34,22 @@ class M0707Service:
 
     def execute(self, request: object) -> CalibrateSelectiveCopyNumberDosageResult:
         return self._engine.calibrate(request)
+
+    @staticmethod
+    def verify_result(
+        result: object,
+        request: object | None = None,
+    ) -> CalibrateSelectiveCopyNumberDosageResult:
+        """Validate a replayed result and optionally bind it to a request."""
+
+        typed = CalibrateSelectiveCopyNumberDosageResult.model_validate(result, strict=True)
+        if request is not None:
+            expected_request = M0707Service.validate_request(request)
+            if typed.request_digest != canonical_request_digest(expected_request):
+                raise ValueError("result request digest does not match replay request")  # noqa: TRY003
+        if typed.result_digest != result_payload_digest(typed):
+            raise ValueError("result digest does not match replay payload")  # noqa: TRY003
+        return typed
 
 
 __all__ = ["M0707Service"]

@@ -93,5 +93,14 @@ class M0707Plugin(
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
 
+    def verify(
+        self,
+        result: object,
+        request: object | None = None,
+    ) -> CalibrateSelectiveCopyNumberDosageResult:
+        """Verify canonical result and optional request binding for replay."""
+
+        return self._service.verify_result(result, request)
+
 
 __all__ = ["M0707Plugin", "ValidatedM0707Request"]

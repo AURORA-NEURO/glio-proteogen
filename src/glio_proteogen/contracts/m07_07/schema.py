@@ -9,8 +9,8 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m07_07.v1 import (
     M0707_CONTRACT_VERSION,
     M0707_GATE,
-    M0707_MAX_CANONICAL_REQUEST_BYTES,
     M0707_MAX_CANDIDATES,
+    M0707_MAX_CANONICAL_REQUEST_BYTES,
     M0707_MODULE_ID,
     M0707_OUTPUT_MEDIA_TYPE,
     M0707_OWNER,
@@ -27,9 +27,7 @@ from glio_proteogen.contracts.m07_07.v1 import (
     SelectiveSupportThreshold,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M07-07:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M07-07:0.1.0-provisional"
 CONTRACT_VERSION: Final = M0707_CONTRACT_VERSION
 ContractName = Literal[
     "request",
