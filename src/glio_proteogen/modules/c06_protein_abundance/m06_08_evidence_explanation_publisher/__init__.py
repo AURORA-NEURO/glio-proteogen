@@ -3,6 +3,7 @@
 from .engine import (
     M0608EvidencePublisherAuthorizationError,
     M0608EvidencePublisherEngine,
+    M0608ReplayVerificationError,
     preflight_evidence_publisher_authorization,
     publish_protein_abundance_evidence,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "M0608EvidencePublisherAuthorizationError",
     "M0608EvidencePublisherEngine",
     "M0608Plugin",
+    "M0608ReplayVerificationError",
     "M0608Service",
     "ValidatedM0608Request",
     "preflight_evidence_publisher_authorization",

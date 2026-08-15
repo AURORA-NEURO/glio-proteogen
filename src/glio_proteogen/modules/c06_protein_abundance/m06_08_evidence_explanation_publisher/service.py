@@ -32,5 +32,15 @@ class M0608Service:
     def execute(self, request: object) -> ProteinAbundanceEvidencePublicationResult:
         return self._engine.publish(request)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> ProteinAbundanceEvidencePublicationResult:
+        """Verify a result receipt and optionally reconstruct the operation."""
+
+        return self._engine.verify(result, replay=replay)
+
 
 __all__ = ["M0608Service"]

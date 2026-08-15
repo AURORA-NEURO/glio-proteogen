@@ -97,5 +97,15 @@ class M0608Plugin(
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> ProteinAbundanceEvidencePublicationResult:
+        """Verify a result through the same service boundary as execution."""
+
+        return self._service.verify(result, replay=replay)
+
 
 __all__ = ["M0608Plugin", "ValidatedM0608Request"]

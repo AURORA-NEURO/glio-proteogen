@@ -92,12 +92,24 @@ class PublisherAssumption(FrozenModel):
     statement: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0608_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def assumption_evidence_is_positive(self) -> PublisherAssumption:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("assumption evidence must use the evidence role")
+        return self
+
 
 class PublisherCounterEvidence(FrozenModel):
     counter_evidence_id: Identifier
     statement: NonEmptyStr
     impact: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0608_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def counter_evidence_is_explicit(self) -> PublisherCounterEvidence:
+        if any(item.role != "counter_evidence" for item in self.evidence):
+            raise ValueError("counter-evidence references must use the counter_evidence role")
+        return self
 
 
 class ReconstructionStep(FrozenModel):
@@ -107,12 +119,24 @@ class ReconstructionStep(FrozenModel):
     output_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0608_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def reconstruction_evidence_is_positive(self) -> ReconstructionStep:
+        if any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("reconstruction evidence must use the evidence role")
+        return self
+
 
 class PublisherDiagnostic(FrozenModel):
     diagnostic_id: Identifier
     status: PublisherDiagnosticStatus
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0608_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def diagnostic_evidence_is_explicit(self) -> PublisherDiagnostic:
+        if any(item.role not in {"evidence", "counter_evidence"} for item in self.evidence):
+            raise ValueError("diagnostic evidence has an invalid role")
+        return self
 
 
 class ProteinAbundanceEvidenceBundle(FrozenModel):
@@ -146,6 +170,17 @@ class ProteinAbundanceEvidenceBundle(FrozenModel):
             raise ValueError("reconstruction steps must have unique ordered sequences")
         if self.reconstruction_status is not ReconstructionStatus.COMPLETE:
             raise ValueError("published bundle requires complete reconstruction")
+        if any(item.role != "evidence" for item in self.sources):
+            raise ValueError("bundle sources must use the evidence role")
+        source_ids = tuple(item.reference.artifact_id for item in self.sources)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("bundle sources must not repeat artifact identifiers")
+        assumption_ids = tuple(item.assumption_id for item in self.assumptions)
+        counter_ids = tuple(item.counter_evidence_id for item in self.counter_evidence)
+        if len(assumption_ids) != len(set(assumption_ids)):
+            raise ValueError("bundle assumptions must have unique identifiers")
+        if len(counter_ids) != len(set(counter_ids)):
+            raise ValueError("bundle counter-evidence must have unique identifiers")
         return self
 
 
@@ -197,6 +232,15 @@ class PublishProteinAbundanceEvidenceRequest(FrozenModel):
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifacts must have unique identifiers")
+        assumption_ids = tuple(item.assumption_id for item in self.assumptions)
+        counter_ids = tuple(item.counter_evidence_id for item in self.counter_evidence)
+        if len(assumption_ids) != len(set(assumption_ids)):
+            raise ValueError("assumptions must have unique identifiers")
+        if len(counter_ids) != len(set(counter_ids)):
+            raise ValueError("counter-evidence must have unique identifiers")
         return self
 
 
@@ -229,6 +273,11 @@ class ProteinAbundanceEvidencePublicationResult(FrozenModel):
     def result_is_closed(self) -> ProteinAbundanceEvidencePublicationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence:
+            raise ValueError("every result requires reconstruction-visible evidence references")
         if self.status is EvidencePublicationStatus.PUBLISHED:
             if (
                 self.bundle is None
@@ -245,6 +294,8 @@ class ProteinAbundanceEvidencePublicationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no bundle, explanation, and safe status")
+        if self.status is EvidencePublicationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

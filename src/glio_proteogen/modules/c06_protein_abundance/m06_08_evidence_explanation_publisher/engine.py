@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m06_08 import (
 from glio_proteogen.contracts.m06_08.canonical import (
     canonical_request_digest,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.models import (
     EvidenceReference,
@@ -41,6 +42,13 @@ class M0608EvidencePublisherAuthorizationError(PermissionError):
         super().__init__(
             "M06-08 requires accepted controls, resolved identity, and granted consent"
         )
+
+
+class M0608ReplayVerificationError(ValueError):
+    """A result cannot be reconstructed from its exact request envelope."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"M06-08 replay verification failed: {detail}")
 
 
 def _member(value: object, field: str) -> object:
@@ -166,6 +174,34 @@ class M0608EvidencePublisherEngine:
         payload["result_digest"] = result_payload_digest(constructed)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> ProteinAbundanceEvidencePublicationResult:
+        """Strictly verify the envelope and, by default, replay its request.
+
+        ``replay`` is exposed for callers that only need a receipt check.  The
+        service and evaluator use the default transitive replay, which catches
+        changes to the request digest, evidence references, controls, and
+        abstention explanation.
+        """
+
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M0608ReplayVerificationError("result is not a strict result envelope") from error  # noqa: TRY003
+        if not verify_result_digest(validated):
+            raise M0608ReplayVerificationError("result digest does not match canonical payload")  # noqa: TRY003
+        if validated.request_digest != canonical_request_digest(validated.request):
+            raise M0608ReplayVerificationError("request digest does not match embedded request")  # noqa: TRY003
+        if replay:
+            expected = self.publish(validated.request)
+            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+                raise M0608ReplayVerificationError("replayed request produced a different result")  # noqa: TRY003
+        return validated
+
 
 def publish_protein_abundance_evidence(
     request: object,
@@ -178,6 +214,7 @@ def publish_protein_abundance_evidence(
 __all__ = [
     "M0608EvidencePublisherAuthorizationError",
     "M0608EvidencePublisherEngine",
+    "M0608ReplayVerificationError",
     "preflight_evidence_publisher_authorization",
     "publish_protein_abundance_evidence",
 ]

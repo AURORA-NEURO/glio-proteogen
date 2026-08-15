@@ -36,9 +36,32 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def canonical_result_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Return the digest committed by a result envelope.
+
+    The result digest intentionally excludes only the digest field itself.  This
+    makes verification independent of Pydantic object identity and ensures a
+    replay cannot silently accept a changed request, finding, or evidence list.
+    """
+
+    return result_payload_digest(value)
+
+
+def verify_result_digest(value: BaseModel | dict[str, Any]) -> bool:
+    """Check an M06-08 result's self-reported digest without coercion."""
+
+    if isinstance(value, BaseModel):
+        reported = getattr(value, "result_digest", None)
+    elif isinstance(value, dict):
+        reported = value.get("result_digest")
+    return isinstance(reported, str) and reported == canonical_result_digest(value)
+
+
 __all__ = [
     "canonical_request_digest",
+    "canonical_result_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_result_digest",
 ]
