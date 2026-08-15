@@ -32,7 +32,6 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_06_reviewer_adjudication as m1806,
 )
