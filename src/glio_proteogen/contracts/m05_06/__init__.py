@@ -28,6 +28,8 @@ from glio_proteogen.contracts.m05_06.schema import (
     contract_json_schemas,
 )
 from glio_proteogen.contracts.m05_06.v1 import (
+    M0506_BENCHMARK_ITERATIONS,
+    M0506_BENCHMARK_WARMUPS,
     M0506_CONTRACT_VERSION,
     M0506_EVIDENCE_CLAIM,
     M0506_FACTOR_COUNT,
@@ -44,10 +46,12 @@ from glio_proteogen.contracts.m05_06.v1 import (
     M0506_MAX_PROFILES,
     M0506_MAX_STAGES,
     M0506_MAX_TARGETS,
+    M0506_MEAN_BUDGET_NS,
     M0506_MODULE_ID,
     M0506_OPERATION,
     M0506_OUTPUT_MEDIA_TYPE,
     M0506_OWNER,
+    M0506_P95_BUDGET_NS,
     M0506_PARENT,
     M0506_PROVISIONAL_ABI,
     M0506_RATE_SCALE,
@@ -95,6 +99,8 @@ from glio_proteogen.contracts.m05_06.v1 import (
 
 __all__ = [
     "CONTRACT_VERSION",
+    "M0506_BENCHMARK_ITERATIONS",
+    "M0506_BENCHMARK_WARMUPS",
     "M0506_CONTRACT_VERSION",
     "M0506_EVIDENCE_CLAIM",
     "M0506_FACTOR_COUNT",
@@ -111,10 +117,12 @@ __all__ = [
     "M0506_MAX_PROFILES",
     "M0506_MAX_STAGES",
     "M0506_MAX_TARGETS",
+    "M0506_MEAN_BUDGET_NS",
     "M0506_MODULE_ID",
     "M0506_OPERATION",
     "M0506_OUTPUT_MEDIA_TYPE",
     "M0506_OWNER",
+    "M0506_P95_BUDGET_NS",
     "M0506_PARENT",
     "M0506_PROVISIONAL_ABI",
     "M0506_RATE_SCALE",
