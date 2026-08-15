@@ -1,5 +1,7 @@
 """Runtime, plugin, and safe-failure tests for M05-07."""
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m05_07 import (
@@ -20,7 +22,12 @@ from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_r
     PtmLocalizationSupportInputError,
     ValidatedM0507Request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
+    engine as engine_module,
+)
 from tests.contract.test_m05_07_hardening import _context, _request
+
+_TWO_FAILURES = 2
 
 
 def test_supported_route_is_deterministic_and_canonically_bound() -> None:
@@ -89,6 +96,11 @@ def test_authorization_preflight_rejects_denied_control() -> None:
         M0507PtmLocalizationSupportEngine().route(_request(context=context))
 
 
+def test_engine_rejects_unsupported_request_type() -> None:
+    with pytest.raises(PtmLocalizationSupportInputError):
+        M0507PtmLocalizationSupportEngine().route(object())
+
+
 def test_strict_mapping_rejects_unknown_field() -> None:
     payload = _request().model_dump(mode="json")
     payload["untrusted"] = "do not traverse"
@@ -126,3 +138,59 @@ def test_service_validates_before_engine_execution() -> None:
     request = _request()
     assert service.validate_request(request) == request
     assert service.execute(request).request == request
+
+
+def test_authorization_rejects_non_mapping_and_hostile_mapping() -> None:
+    with pytest.raises(PtmLocalizationSupportAuthorizationError):
+        engine_module.preflight_ptm_localization_support_authorization(object())
+
+    class ExplodingMapping(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise RuntimeError
+
+    with pytest.raises(PtmLocalizationSupportAuthorizationError):
+        engine_module.preflight_ptm_localization_support_authorization(ExplodingMapping())
+
+
+def test_strict_json_boundary_rejects_non_mapping_and_non_plain_values() -> None:
+    with pytest.raises(PtmLocalizationSupportInputError):
+        engine_module._validate_json_request([], b"[]")
+
+    payload = cast("dict[object, object]", _request().model_dump(mode="json"))
+    payload[1] = "non-string key"
+    with pytest.raises(PtmLocalizationSupportInputError):
+        engine_module._validate_json_request(payload, b"{}")
+
+    payload = cast("dict[object, object]", _request().model_dump(mode="json"))
+    payload["unsupported"] = object()
+    with pytest.raises(PtmLocalizationSupportInputError):
+        engine_module._validate_json_request(payload, b"{}")
+
+
+def test_request_byte_caps_fail_closed_for_mapping_and_typed_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = cast("dict[str, object]", _request().model_dump(mode="json"))
+    payload["padding"] = "x" * (engine_module.M0507_MAX_CANONICAL_REQUEST_BYTES + 1)
+    with pytest.raises(ValueError, match="canonical request exceeds"):
+        M0507PtmLocalizationSupportEngine().route(payload)
+
+    monkeypatch.setattr(engine_module, "M0507_MAX_CANONICAL_REQUEST_BYTES", 0)
+    with pytest.raises(ValueError, match="canonical request exceeds"):
+        M0507PtmLocalizationSupportEngine().route(_request())
+
+
+def test_duplicate_unsupported_dimensions_keep_one_remediation_path() -> None:
+    base = _request()
+    facts = list(base.declared_facts)
+    facts[0] = facts[0].model_copy(
+        update={"decision": PtmLocalizationDimensionSupportDecision.OUTSIDE_DOMAIN}
+    )
+    facts[1] = facts[1].model_copy(
+        update={"decision": PtmLocalizationDimensionSupportDecision.OUTSIDE_DOMAIN}
+    )
+    result = M0507PtmLocalizationSupportEngine().route(_request(declared_facts=tuple(facts)))
+
+    assert len(result.receipt.unsupported_dimensions) == _TWO_FAILURES
+    assert len(result.remediation) == 1
