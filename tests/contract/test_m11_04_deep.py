@@ -2,7 +2,7 @@
 
 # The matrix intentionally uses literal protocol status codes and broad ValueError
 # assertions at the contract boundary to exercise hostile wire inputs.
-# ruff: noqa: PLR2004, PT011, PT007, TC003
+# ruff: noqa: E501, ARG005, PLR2004, PT011, PT007, TC003, TRY003
 
 from __future__ import annotations
 
@@ -14,18 +14,23 @@ from evals.m11_04.run import build_scenario_request, run_evaluator
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+import glio_proteogen.modules.c11_protein_native_subtype.m11_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.adapters.m1104 import app, m1104_app
 from glio_proteogen.contracts.m11_04 import (
     M1104_OUTPUT_MEDIA_TYPE,
+    InferVariantPeptideMechanismRequest,
     MechanismEstimate,
     MechanismEstimateKind,
     MechanismInferenceStatus,
+    VariantPeptideMechanismInferenceResult,
     contract_json_schema,
     contract_json_schemas,
     expected_uncertainty,
+    result_payload_digest,
 )
+from glio_proteogen.contracts.m11_04.canonical import normalized_request
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.modules.c11_protein_native_subtype.m11_04_network_state_mechanism_inference import (  # noqa: E501
+from glio_proteogen.modules.c11_protein_native_subtype.m11_04_network_state_mechanism_inference import (
     M1104MechanismAuthorizationError,
     M1104MechanismEngine,
     M1104Plugin,
@@ -45,6 +50,7 @@ def test_schema_metadata_and_unknown_schema_are_closed() -> None:
 
 
 def test_estimate_invariants_reject_invalid_posterior_and_state() -> None:
+    counter = M1104MechanismEngine().infer(build_scenario_request()).estimates[0].counter_evidence
     with pytest.raises(ValueError):
         MechanismEstimate(
             estimate_id="estimate.invalid",
@@ -56,7 +62,7 @@ def test_estimate_invariants_reject_invalid_posterior_and_state() -> None:
             upper_bound=0.3,
             assumptions=("assumption",),
             alternatives=("alternative",),
-            counter_evidence=(),
+            counter_evidence=counter,
         )
     with pytest.raises(ValueError):
         MechanismEstimate(
@@ -68,7 +74,29 @@ def test_estimate_invariants_reject_invalid_posterior_and_state() -> None:
             posterior_probability=0.2,
             assumptions=("assumption",),
             alternatives=("alternative",),
-            counter_evidence=(),
+            counter_evidence=counter,
+        )
+    with pytest.raises(ValueError, match="posterior estimate"):
+        MechanismEstimate(
+            estimate_id="estimate.invalid",
+            mechanism_id="mechanism.invalid",
+            label="Invalid",
+            kind=MechanismEstimateKind.POSTERIOR,
+            assumptions=("assumption",),
+            alternatives=("alternative",),
+            counter_evidence=counter,
+        )
+    with pytest.raises(ValueError, match="state estimate"):
+        MechanismEstimate(
+            estimate_id="estimate.invalid",
+            mechanism_id="mechanism.invalid",
+            label="Invalid",
+            kind=MechanismEstimateKind.STATE,
+            state_value="active",
+            lower_bound=0.1,
+            assumptions=("assumption",),
+            alternatives=("alternative",),
+            counter_evidence=counter,
         )
 
 
@@ -89,6 +117,52 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     assert result.emits_parent is False
 
 
+def test_request_and_result_closure_reject_forged_payloads() -> None:
+    request = build_scenario_request()
+    forged_request = request.model_dump(mode="python")
+    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"  # type: ignore[index]
+    with pytest.raises(ValueError, match="provisional M11-01"):
+        InferVariantPeptideMechanismRequest.model_validate(forged_request, strict=True)
+    engine = M1104MechanismEngine()
+    result = engine.infer(request)
+
+    def resigned(**updates: object) -> dict[str, object]:
+        payload = result.model_dump(mode="python")
+        payload.update(updates)
+        payload["result_digest"] = result_payload_digest(payload)
+        return payload
+
+    with pytest.raises(ValueError, match="request digest"):
+        VariantPeptideMechanismInferenceResult.model_validate(
+            resigned(request_digest="sha256:" + "0" * 64), strict=True
+        )
+    with pytest.raises(ValueError, match="estimate ids"):
+        VariantPeptideMechanismInferenceResult.model_validate(
+            resigned(estimates=result.estimates + result.estimates), strict=True
+        )
+    abstained = engine.infer(build_scenario_request("abstain:review"))
+    duplicated_findings = {
+        **abstained.model_dump(mode="python"),
+        "findings": abstained.findings + abstained.findings,
+    }
+    duplicated_findings["result_digest"] = result_payload_digest(duplicated_findings)
+    with pytest.raises(ValueError, match="finding ids"):
+        VariantPeptideMechanismInferenceResult.model_validate(duplicated_findings, strict=True)
+    with pytest.raises(ValueError, match="inferred result"):
+        VariantPeptideMechanismInferenceResult.model_validate(resigned(estimates=()), strict=True)
+    invalid_abstention = {
+        **abstained.model_dump(mode="python"),
+        "estimates": result.estimates,
+    }
+    invalid_abstention["result_digest"] = result_payload_digest(invalid_abstention)
+    with pytest.raises(ValueError, match="abstained result"):
+        VariantPeptideMechanismInferenceResult.model_validate(invalid_abstention, strict=True)
+    no_review = {**abstained.model_dump(mode="python"), "human_review_required": False}
+    no_review["result_digest"] = result_payload_digest(no_review)
+    with pytest.raises(ValueError, match="human review"):
+        VariantPeptideMechanismInferenceResult.model_validate(no_review, strict=True)
+
+
 @pytest.mark.parametrize(
     "method",
     (
@@ -98,11 +172,14 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
         "posterior:mechanism-a:Candidate:bad:0.1:0.2",
         "posterior:mechanism-a:Candidate:0.9:0.1:0.2",
         "posterior:mechanism-a:Candidate:0.8:0.9:0.7",
+        "posterior:mechanism-a",
+        "state:mechanism-a",
+        "state:mechanism-a:Label:unknown",
     ),
 )
 def test_method_matrix_is_deterministic_and_safe(method: str) -> None:
     result = M1104MechanismEngine().infer(build_scenario_request(method))
-    if method.startswith("state:"):
+    if method == "state:mechanism-b:State mechanism:active":
         assert result.status is MechanismInferenceStatus.INFERRED
         assert result.estimates[0].state_value == "active"
     else:
@@ -111,11 +188,33 @@ def test_method_matrix_is_deterministic_and_safe(method: str) -> None:
         assert result.human_review_required
 
 
+def test_counter_evidence_gate_abstains_when_source_refs_are_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    normal = M1104MechanismEngine().infer(build_scenario_request())
+    request = build_scenario_request().model_copy(update={"source_artifacts": ()})
+    monkeypatch.setattr(
+        engine_module,
+        "_parse_method",
+        lambda method, *, counter_evidence, evidence: (normal.estimates[0], None, None),
+    )
+    with pytest.raises(ValueError):
+        M1104MechanismEngine()._result(request)
+
+
 def test_authorization_runs_before_typed_traversal() -> None:
     with pytest.raises(M1104MechanismAuthorizationError):
         M1104MechanismEngine().infer(build_scenario_request(accepted=False))
     with pytest.raises(M1104MechanismAuthorizationError):
         M1104MechanismEngine().infer({"context": {"references": {}}})
+
+    class Exploding:
+        @property
+        def context(self) -> object:
+            raise RuntimeError("hostile traversal")
+
+    with pytest.raises(M1104MechanismAuthorizationError):
+        M1104MechanismEngine().infer(Exploding())
 
 
 def test_replay_and_tamper_detection() -> None:
@@ -125,6 +224,21 @@ def test_replay_and_tamper_detection() -> None:
     assert engine.verify(result, replay=False) == result
     with pytest.raises(M1104ReplayVerificationError):
         engine.verify(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
+
+    original_digest = engine_module.result_payload_digest
+    try:
+        engine_module.result_payload_digest = lambda value: "sha256:" + "e" * 64  # type: ignore[assignment]
+        with pytest.raises(M1104ReplayVerificationError):
+            engine.verify(result)
+    finally:
+        engine_module.result_payload_digest = original_digest
+
+    assert (
+        engine_module.infer_variant_peptide_mechanism(build_scenario_request()).status
+        is MechanismInferenceStatus.INFERRED
+    )
+    with pytest.raises(ValueError):
+        engine_module._decimal("not-a-number")
 
 
 def test_plugin_is_parse_once_and_token_bound() -> None:
@@ -136,6 +250,11 @@ def test_plugin_is_parse_once_and_token_bound() -> None:
     assert plugin.run(token).status is MechanismInferenceStatus.INFERRED
     with pytest.raises(TypeError):
         plugin.run(ValidatedM1104Request(request=request, _seal=object()))
+    with pytest.raises(TypeError):
+        plugin.run({})  # type: ignore[arg-type]
+    assert plugin.verify(plugin.run(token)).status is MechanismInferenceStatus.INFERRED
+    with pytest.raises(ValueError):
+        plugin.validate("{")
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M11-04"
 
 
@@ -225,3 +344,4 @@ def test_result_payload_is_canonical_json() -> None:
     second = canonical_json_bytes(result)
     assert first == second
     assert json.loads(first)["result_digest"] == result.result_digest
+    assert normalized_request({"request_id": "dict"}) == {"request_id": "dict"}
