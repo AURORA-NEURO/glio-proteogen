@@ -18,6 +18,8 @@ from glio_proteogen.contracts.m17_02 import (
     DiscrepancyCode,
     SourceModality,
     SourceObservation,
+    VariantPeptideCrossSourceAlignmentResult,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -31,6 +33,9 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_02_cross_source_alignment_reconciliation as m1702,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -210,3 +215,93 @@ def test_bundle_preserves_discrepancies_and_observation_membership() -> None:
 def test_request_observation_ids_are_unique() -> None:
     with pytest.raises(ValidationError, match="observation ids must be unique"):
         _request(duplicate=True)
+
+
+def test_observation_and_bundle_closures_reject_hidden_or_duplicate_data() -> None:
+    with pytest.raises(ValidationError, match="requires evidence"):
+        SourceObservation.model_validate(
+            _observation("observation.no-evidence").model_dump(mode="python") | {"evidence": ()}
+        )
+    with pytest.raises(ValidationError, match="observation ids must be unique"):
+        AlignedEvidenceBundle(
+            bundle_id="bundle.duplicate",
+            version="1.0.0",
+            observations=(_observation("observation.a"), _observation("observation.a")),
+            alignment_status=AlignmentStatus.ALIGNED,
+            evidence=(_evidence("bundle"),),
+        )
+    discrepancy = Discrepancy(
+        discrepancy_id="discrepancy.sample",
+        code=DiscrepancyCode.SAMPLE_MISMATCH,
+        axis=AlignmentAxis.SAMPLE,
+        observation_ids=("observation.a", "observation.b"),
+        message="sample keys disagree",
+    )
+    with pytest.raises(ValidationError, match="discrepancy ids must be unique"):
+        AlignedEvidenceBundle(
+            bundle_id="bundle.duplicate-discrepancy",
+            version="1.0.0",
+            observations=(_observation("observation.a"), _observation("observation.b")),
+            discrepancy_map=(discrepancy, discrepancy),
+            alignment_status=AlignmentStatus.CONFLICTED,
+            evidence=(_evidence("bundle"),),
+        )
+    with pytest.raises(ValidationError, match="requires an explicit"):
+        AlignedEvidenceBundle(
+            bundle_id="bundle.conflicted-empty",
+            version="1.0.0",
+            observations=(_observation("observation.a"), _observation("observation.b")),
+            alignment_status=AlignmentStatus.CONFLICTED,
+            evidence=(_evidence("bundle"),),
+        )
+
+
+def test_result_closure_rejects_identity_evidence_status_and_digest_mutations() -> None:
+    result = m1702.M1702AlignmentEngine().export(_request())
+    with pytest.raises(ValidationError, match="request digest does not bind"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"request_digest": sha256_digest("wrong")}
+        )
+    with pytest.raises(ValidationError, match="identifier must be derived"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"result_id": "result.wrong"}
+        )
+    with pytest.raises(ValidationError, match="requires evidence"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"evidence": ()}
+        )
+    with pytest.raises(ValidationError, match="finding codes must be unique"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python")
+            | {"findings": (result.findings[0], result.findings[0])}
+        )
+    with pytest.raises(ValidationError, match="reconciled result requires"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"human_review_required": True}
+        )
+    discrepancy = Discrepancy(
+        discrepancy_id="discrepancy.sample",
+        code=DiscrepancyCode.SAMPLE_MISMATCH,
+        axis=AlignmentAxis.SAMPLE,
+        observation_ids=("observation.a", "observation.b"),
+        message="sample keys disagree",
+    )
+    with pytest.raises(ValidationError, match="must match aligned bundle"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"discrepancy_map": (discrepancy,)}
+        )
+    conflicted = m1702.M1702AlignmentEngine().export(
+        _request().model_copy(
+            update={
+                "observations": (
+                    _observation("observation.a"),
+                    _observation("observation.b").model_copy(update={"sample_id": "sample.002"}),
+                )
+            }
+        )
+    )
+    with pytest.raises(ValidationError, match="abstained result requires"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            conflicted.model_dump(mode="python") | {"aligned_bundle": result.aligned_bundle}
+        )
+    assert canonical_request_digest(result.request) == result.request_digest
