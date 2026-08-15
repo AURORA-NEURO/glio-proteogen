@@ -1,6 +1,6 @@
 """Locked M12-05 evaluator and benchmark evidence tests."""
 
-# ruff: noqa: E501, PLR2004
+# ruff: noqa: PLR2004
 
 from evals.m12_05.benchmark import run_benchmark
 from evals.m12_05.run import EXPECTED_CASE_IDS, run_evaluator
