@@ -98,9 +98,7 @@ class FeatureLineage(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0902_MAX_EVIDENCE
     )
-    source_fields: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M0902_MAX_SOURCE_FIELDS
-    )
+    source_fields: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M0902_MAX_SOURCE_FIELDS)
     transformations: tuple[RepresentationTransformation, ...] = Field(
         min_length=1, max_length=M0902_MAX_TRANSFORMATIONS
     )
@@ -243,9 +241,7 @@ class ComplexActivityRepresentationResult(FrozenModel):
     result_digest: Sha256Digest
     request: ConstructComplexActivityRepresentationRequest
     status: RepresentationConstructionStatus
-    features: tuple[RepresentationFeature, ...] = Field(
-        default=(), max_length=M0902_MAX_FEATURES
-    )
+    features: tuple[RepresentationFeature, ...] = Field(default=(), max_length=M0902_MAX_FEATURES)
     leakage_checks: tuple[LeakageCheck, ...] = Field(
         default=(), max_length=M0902_MAX_LEAKAGE_CHECKS
     )

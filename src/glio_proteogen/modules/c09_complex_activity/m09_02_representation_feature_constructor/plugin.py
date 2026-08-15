@@ -78,7 +78,10 @@ class M0902Plugin(ModulePlugin[object, ValidatedM0902Request, BuiltM0902Result])
         return token
 
     def run(self, request: ValidatedM0902Request) -> BuiltM0902Result:
-        snapshot = _ISSUED_TOKENS.get(request)
+        try:
+            snapshot = _ISSUED_TOKENS.get(request)
+        except TypeError:
+            snapshot = None
         if (
             type(request) is not ValidatedM0902Request
             or request._seal is not _TOKEN_SEAL

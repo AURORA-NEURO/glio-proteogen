@@ -10,6 +10,9 @@ from glio_proteogen.contracts.m09_02 import (
     ConstructComplexActivityRepresentationRequest,
     FeatureLineage,
     FeatureSpecification,
+    LeakageCheck,
+    LeakageCheckStatus,
+    RepresentationFeature,
     RepresentationPolicy,
     RepresentationTransformation,
     RepresentationTransformationKind,
@@ -79,7 +82,7 @@ def _context(*, consent: ConsentState = ConsentState.GRANTED) -> ExecutionContex
     )
 
 
-def _request(*, marker: str | None = None) -> object:
+def _request(*, marker: str | None = None) -> ConstructComplexActivityRepresentationRequest:
     source = _artifact("proteome", marker or "application/json")
     transform = RepresentationTransformation(
         sequence=1,
@@ -159,3 +162,123 @@ def test_preflight_rejects_withheld_consent() -> None:
     request = _request().model_copy(update={"context": _context(consent=ConsentState.WITHHELD)})
     with pytest.raises(m0902.M0902AuthorizationError):
         m0902.M0902RepresentationConstructor().construct(request)
+
+
+def test_contract_rejects_duplicate_lineage_and_mask_shape() -> None:
+    source = _artifact("duplicate")
+    transform = RepresentationTransformation(
+        sequence=1,
+        kind=RepresentationTransformationKind.NORMALIZATION,
+        name="locked",
+        parameters_digest=_DIGEST,
+    )
+    with pytest.raises(ValueError, match="source artifacts must be unique"):
+        FeatureLineage(
+            feature_id="feature.duplicate",
+            source_artifacts=(source, source),
+            source_fields=("field",),
+            transformations=(transform,),
+        )
+    with pytest.raises(ValueError, match="unique ordered"):
+        FeatureLineage(
+            feature_id="feature.order",
+            source_artifacts=(source,),
+            source_fields=("field",),
+            transformations=(transform, transform),
+        )
+    with pytest.raises(ValueError, match="source fields must be unique"):
+        FeatureLineage(
+            feature_id="feature.fields",
+            source_artifacts=(source,),
+            source_fields=("field", "field"),
+            transformations=(transform,),
+        )
+    lineage = FeatureLineage(
+        feature_id="feature.mask",
+        source_artifacts=(source,),
+        source_fields=("field",),
+        transformations=(transform,),
+    )
+    with pytest.raises(ValueError, match="mask must be empty"):
+        RepresentationFeature(
+            feature_id=lineage.feature_id,
+            value_kind=RepresentationValueKind.SCALAR,
+            unit="unit",
+            values=(0.2, 0.3),
+            mask=(True,),
+            lineage=lineage,
+        )
+    with pytest.raises(ValueError, match="retain at least"):
+        RepresentationFeature(
+            feature_id=lineage.feature_id,
+            value_kind=RepresentationValueKind.SCALAR,
+            unit="unit",
+            values=(0.2, 0.3),
+            mask=(False, False),
+            lineage=lineage,
+        )
+
+
+def test_failed_leakage_check_requires_held_out_group() -> None:
+    with pytest.raises(ValueError, match="held-out group"):
+        LeakageCheck(
+            check_id="leakage.failed",
+            status=LeakageCheckStatus.FAILED,
+            message="split is not isolated",
+        )
+
+
+def test_engine_verify_rejects_invalid_and_noncanonical_replay() -> None:
+    engine = m0902.M0902RepresentationConstructor()
+    built = engine.construct(_request())
+    assert not engine.verify(object())
+    assert not engine.verify(built.result, b"{}")
+    assert not engine.verify(built.result, b"x" * (8 * 1024 * 1024 + 1))
+
+
+def test_policy_and_constructor_defensive_error_paths() -> None:
+    with pytest.raises(ValueError, match="covariates must be unique"):
+        RepresentationPolicy(
+            policy_id="policy.duplicate",
+            version="1.0.0",
+            scaling_method="median",
+            mask_policy="observed",
+            covariates=("batch", "batch"),
+        )
+    context = _context()
+    rejected = context.references.quality.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied = context.model_copy(
+        update={"references": context.references.model_copy(update={"quality": rejected})}
+    )
+    with pytest.raises(m0902.M0902AuthorizationError):
+        m0902.M0902RepresentationConstructor().construct(
+            _request().model_copy(update={"context": denied})
+        )
+
+
+def test_leakage_unknown_abstains_and_public_service_delegates() -> None:
+    request = _request().model_copy(
+        update={"policy": _request().policy.model_copy(update={"mask_policy": "leakage_unknown"})}
+    )
+    service = m0902.M0902Service()
+    built = service.execute(request)
+    assert built.result.status.value == "abstained"
+    assert built.result.leakage_checks[0].status.value == "not_evaluable"
+    assert service.verify(built.result, built.canonical_bytes)
+    assert (
+        m0902.construct_complex_activity_representation(_request()).result.status.value
+        == "constructed"
+    )
+
+
+def test_built_result_seal_rejects_digest_and_bytes_drift() -> None:
+    built = m0902.M0902RepresentationConstructor().construct(_request())
+    with pytest.raises(m0902.M0902InputError, match="digest"):
+        m0902.BuiltM0902Result(
+            result=built.result.model_copy(update={"result_digest": "sha256:" + ("0" * 64)}),
+            canonical_bytes=built.canonical_bytes,
+        )
+    with pytest.raises(m0902.M0902InputError, match="canonical"):
+        m0902.BuiltM0902Result(result=built.result, canonical_bytes=b"{}")
