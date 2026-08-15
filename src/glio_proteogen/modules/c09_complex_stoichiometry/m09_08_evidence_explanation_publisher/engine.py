@@ -367,8 +367,6 @@ def _build_result(
     if not _reconstruction_is_closed(request):
         findings.append(PublisherFindingCode.RECONSTRUCTION_INCOMPLETE)
         reasons.append("reconstruction chain is absent or not digest-closed")
-    if M0908_EVIDENCE_CLAIM.endswith("not authenticated."):
-        findings.append(PublisherFindingCode.PROVISIONAL_ABI_PENDING_REVIEW)
     unique_findings = tuple(dict.fromkeys(findings))
     if len(unique_findings) > 1 or reasons:
         return _abstention(

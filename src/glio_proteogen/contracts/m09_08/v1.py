@@ -314,9 +314,13 @@ class ComplexActivityEvidencePublicationResult(FrozenModel):
             bundle_source_ids = {item.source_id for item in self.bundle.sources}
             if request_source_ids != bundle_source_ids:
                 raise ValueError("published bundle must cover every request source")
-            if len(self.request.assumptions) != len(self.explanation.assumptions):
+            request_assumption_ids = {item.assumption_id for item in self.request.assumptions}
+            if request_assumption_ids != set(self.explanation.assumptions):
                 raise ValueError("published explanation must cover every assumption")
-            if len(self.request.counter_evidence) != len(self.explanation.counter_evidence):
+            request_counter_ids = {
+                item.counter_evidence_id for item in self.request.counter_evidence
+            }
+            if request_counter_ids != set(self.explanation.counter_evidence):
                 raise ValueError("published explanation must cover every counter-evidence item")
         elif (
             self.bundle is not None
