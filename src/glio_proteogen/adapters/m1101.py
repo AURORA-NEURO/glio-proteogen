@@ -34,6 +34,7 @@ from glio_proteogen.kernel.strict_json import (
 from ..modules.c11_protein_native_subtype.m11_01_biological_hypothesis_registry.engine import (
     M1101HypothesisAuthorizationError,
     M1101ReplayVerificationError,
+    preflight_hypothesis_authorization,
 )
 from ..modules.c11_protein_native_subtype.m11_01_biological_hypothesis_registry.service import (
     M1101Service,
@@ -63,10 +64,11 @@ async def _validated_body(request: Request) -> RegisterVariantPeptideHypothesesR
         raise _json_error(415, "content-type must be application/json")
     try:
         body = await request.body()
-        strict_json_loads(
+        decoded = strict_json_loads(
             body,
             max_bytes=M1101_MAX_CANONICAL_REQUEST_BYTES,
         )
+        preflight_hypothesis_authorization(decoded)
         # The strict scanner above enforces duplicate-key/size policy; the
         # contract adapter performs the single typed JSON conversion so date,
         # enum, and tuple fields retain their declared wire representation.
@@ -118,8 +120,9 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> RegisterVariantPeptideHypothesesRequest:
     try:
-        decoded = strict_json_loads(path.read_bytes(), max_bytes=M1101_MAX_CANONICAL_REQUEST_BYTES)
-        return _REQUEST_ADAPTER.validate_python(decoded, strict=True)
+        raw = path.read_bytes()
+        strict_json_loads(raw, max_bytes=M1101_MAX_CANONICAL_REQUEST_BYTES)
+        return _REQUEST_ADAPTER.validate_json(raw, strict=True)
     except (OSError, StrictJsonError, ValidationError) as error:
         raise typer.BadParameter(_INVALID_REQUEST) from error
 
@@ -160,11 +163,12 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        decoded = strict_json_loads(
-            result_path.read_bytes(),
+        raw = result_path.read_bytes()
+        strict_json_loads(
+            raw,
             max_bytes=M1101_MAX_CANONICAL_REQUEST_BYTES * 2,
         )
-        result = _RESULT_ADAPTER.validate_python(decoded, strict=True)
+        result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.verify(result)
     except (OSError, StrictJsonError, ValidationError, M1101ReplayVerificationError) as error:
         typer.echo("verification failed: M11-01 result is invalid", err=True)

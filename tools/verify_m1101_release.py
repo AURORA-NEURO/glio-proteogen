@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Final
+from typing import Any, Final, cast
 
 EXPECTED_CASE_IDS: Final = (
     "supported_registry",
@@ -28,10 +28,7 @@ class M1101ReleaseVerificationError(ValueError):
         super().__init__("M11-01 release evidence verification failed")
 
 
-def verify_release(root: Path) -> dict[str, object]:
-    evaluation = json.loads((root / "evaluation.json").read_text(encoding="utf-8"))
-    benchmark = json.loads((root / "benchmark.json").read_text(encoding="utf-8"))
-    package = json.loads((root / "package.json").read_text(encoding="utf-8"))
+def _verify_evaluation(evaluation: dict[str, Any]) -> None:
     if evaluation["module_id"] != MODULE_ID or evaluation["fixture_digest"] != FIXTURE_DIGEST:
         raise M1101ReleaseVerificationError
     if tuple(evaluation["case_ids"]) != EXPECTED_CASE_IDS:
@@ -43,17 +40,44 @@ def verify_release(root: Path) -> dict[str, object]:
         or evaluation["failed"]
     ):
         raise M1101ReleaseVerificationError
+
+
+def _verify_benchmark(benchmark: dict[str, Any]) -> None:
     if benchmark["module_id"] != MODULE_ID or not benchmark["deterministic"]:
         raise M1101ReleaseVerificationError
     if benchmark["mean_ns"] > benchmark["mean_budget_ns"]:
         raise M1101ReleaseVerificationError
     if benchmark["p95_ns"] > benchmark["p95_budget_ns"]:
         raise M1101ReleaseVerificationError
+
+
+def _verify_package(package: dict[str, Any]) -> None:
     if float(package["coverage_percent"]) < MIN_COVERAGE_PERCENT:
         raise M1101ReleaseVerificationError
     for key in ("wheel_sha256", "sdist_sha256", "wheel_members", "sdist_members"):
         if key not in package:
             raise M1101ReleaseVerificationError
+    if (
+        not package["isolated_import"]
+        or int(package["wheel_members"]) <= 0
+        or int(package["sdist_members"]) <= 0
+    ):
+        raise M1101ReleaseVerificationError
+
+
+def verify_release(root: Path) -> dict[str, object]:
+    evaluation = cast(
+        "dict[str, Any]", json.loads((root / "evaluation.json").read_text(encoding="utf-8"))
+    )
+    benchmark = cast(
+        "dict[str, Any]", json.loads((root / "benchmark.json").read_text(encoding="utf-8"))
+    )
+    package = cast(
+        "dict[str, Any]", json.loads((root / "package.json").read_text(encoding="utf-8"))
+    )
+    _verify_evaluation(evaluation)
+    _verify_benchmark(benchmark)
+    _verify_package(package)
     return {
         "module_id": MODULE_ID,
         "evaluation": "passed",
