@@ -164,7 +164,7 @@ class PolicyDecision(FrozenModel):
     decision_id: Identifier
     status: PolicyDecisionStatus
     policy_id: Identifier
-    reasons: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1604_MAX_REASONS)
+    reasons: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M1604_MAX_REASONS)
     registered_intended_use: Literal[True] = True
     auditable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1604_MAX_EVIDENCE)
@@ -202,8 +202,6 @@ class IntendedUseObject(FrozenModel):
 
     @model_validator(mode="after")
     def object_matches_policy(self) -> IntendedUseObject:
-        if self.policy_decision.policy_id == "":
-            raise ValueError("intended-use object requires a policy binding")
         if (
             self.claim_ceiling is ClaimCeiling.ABSTAIN
             and self.policy_decision.status is PolicyDecisionStatus.ALLOWED

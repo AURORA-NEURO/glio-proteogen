@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from evals.m16_04.run import _policy, build_scenario_request, run_evaluator
@@ -16,6 +16,7 @@ import glio_proteogen.modules.c16_protein_rna_discordance.m16_04_intended_use_ad
 from glio_proteogen.adapters.m1604 import app, m1604_app
 from glio_proteogen.contracts.m16_04 import (
     AdapterStatus,
+    ClaimCeiling,
     DisplaySemantic,
     EvidenceTier,
     IntendedUseAudience,
@@ -28,6 +29,7 @@ from glio_proteogen.contracts.m16_04 import (
     contract_json_schemas,
     result_payload_digest,
 )
+from glio_proteogen.contracts.m16_04.canonical import normalized_request
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c16_protein_rna_discordance.m16_04_intended_use_adapter import (
@@ -229,3 +231,103 @@ def test_cli_adapt_verify_schema_and_no_overwrite(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text("{}", encoding="utf-8")
     assert runner.invoke(m1604_app, ["verify", str(bad)]).exit_code != 0
+
+
+def test_adversarial_policy_and_object_validator_branches() -> None:
+    base = _policy().model_dump(mode="python")
+    duplicate_prohibited = dict(base)
+    duplicate_prohibited["prohibited_claims"] = ("same", "same")
+    with pytest.raises(ValueError, match="prohibited claims"):
+        IntendedUsePolicy.model_validate(duplicate_prohibited, strict=True)
+    clinical_exploratory = dict(base)
+    clinical_exploratory.update(
+        context=IntendedUseContext.CLINICAL_REVIEW,
+        audience=IntendedUseAudience.CLINICAL_REVIEWER,
+        minimum_evidence_tier=EvidenceTier.EXPLORATORY,
+    )
+    with pytest.raises(ValueError, match="clinical review"):
+        IntendedUsePolicy.model_validate(clinical_exploratory, strict=True)
+    mechanism_exploratory = dict(base)
+    mechanism_exploratory.update(
+        maximum_claim_ceiling=ClaimCeiling.SUPPORTED_MECHANISM,
+        minimum_evidence_tier=EvidenceTier.EXPLORATORY,
+    )
+    with pytest.raises(ValueError, match="supported mechanism"):
+        IntendedUsePolicy.model_validate(mechanism_exploratory, strict=True)
+    with pytest.raises(ValueError, match="allowed policy"):
+        PolicyDecision(
+            decision_id="decision.allowed",
+            status=PolicyDecisionStatus.ALLOWED,
+            policy_id="policy.allowed",
+            reasons=("allowed",),
+        )
+    with pytest.raises(ValueError, match="blocked or abstained"):
+        PolicyDecision(
+            decision_id="decision.blocked",
+            status=PolicyDecisionStatus.BLOCKED,
+            policy_id="policy.blocked",
+            reasons=(),
+        )
+    object_value = M1604IntendedUseAdapterEngine().infer(build_scenario_request()).intended_use_object
+    assert object_value is not None
+    object_data = object_value.model_dump(mode="python")
+    object_data["claim_ceiling"] = ClaimCeiling.ABSTAIN
+    with pytest.raises(ValueError, match="cannot be allowed"):
+        type(object_value).model_validate(object_data, strict=True)
+    for field, message in (
+        ("permitted_claims", "object permitted claims"),
+        ("blocked_claims", "object blocked claims"),
+    ):
+        duplicate = object_value.model_dump(mode="python")
+        duplicate[field] = ("same", "same")
+        with pytest.raises(ValueError, match=message):
+            type(object_value).model_validate(duplicate, strict=True)
+    overlap = object_value.model_dump(mode="python")
+    overlap["permitted_claims"] = ("overlap",)
+    overlap["blocked_claims"] = ("overlap",)
+    with pytest.raises(ValueError, match="disjoint"):
+        type(object_value).model_validate(overlap, strict=True)
+
+
+def test_adversarial_request_result_and_adapter_error_branches(tmp_path: Path) -> None:
+    request = build_scenario_request()
+    bad_request = request.model_dump(mode="python")
+    bad_request["upstream_resolution_result"] = request.source_artifacts[0]
+    with pytest.raises(ValueError, match="bind the provisional"):
+        type(request).model_validate(bad_request, strict=True)
+    engine = M1604IntendedUseAdapterEngine()
+    adapted = engine.infer(request)
+
+    def validate_payload(payload: dict[str, Any], message: str) -> None:
+        payload["result_digest"] = result_payload_digest(
+            ProteinRnaDiscordanceIntendedUseResult.model_construct(**payload)
+        )
+        with pytest.raises(ValueError, match=message):
+            ProteinRnaDiscordanceIntendedUseResult.model_validate(payload, strict=True)
+
+    payload = adapted.model_dump(mode="python")
+    payload["intended_use_object"] = None
+    validate_payload(payload, "adapted result")
+    payload = adapted.model_dump(mode="python")
+    payload["human_review_required"] = True
+    validate_payload(payload, "evidence and no mandatory review")
+    blocked = engine.infer(build_scenario_request(policy=_policy(permitted=("Recommend treatment.",))))
+    payload = blocked.model_dump(mode="python")
+    payload["intended_use_object"] = adapted.intended_use_object
+    validate_payload(payload, "abstained result")
+    payload = blocked.model_dump(mode="python")
+    payload["human_review_required"] = False
+    validate_payload(payload, "human review")
+    payload = blocked.model_dump(mode="python")
+    payload["findings"] = blocked.findings + blocked.findings
+    validate_payload(payload, "unique identifiers")
+    with pytest.raises(M1604ReplayVerificationError):
+        engine.verify({})
+    assert normalized_request({"a": 1}) == {"a": 1}
+    runner = CliRunner()
+    bad_request_path = tmp_path / "bad-request.json"
+    bad_request_path.write_text("{}", encoding="utf-8")
+    assert runner.invoke(m1604_app, ["adapt", str(bad_request_path)]).exit_code != 0
+    assert runner.invoke(m1604_app, ["adapt", str(tmp_path / "missing.json")]).exit_code != 0
+    with pytest.raises(TypeError):
+        M1604Plugin(M1604Service()).run(object())  # type: ignore[arg-type]
