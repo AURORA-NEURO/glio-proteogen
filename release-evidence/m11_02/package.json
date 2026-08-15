@@ -2,6 +2,11 @@
   "module_id": "GLIO-PROTEOGEN-M11-02",
   "contract_version": "0.1.0-provisional",
   "builder": "hatchling 1.31.0",
+  "source_commit": "ad3d03f",
+  "build_commands": [
+    "uv build --out-dir dist-m11-02",
+    "uv pip install --target tmp-m11-02-import --no-deps glio_proteogen-0.1.0-py3-none-any.whl"
+  ],
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
     "bytes": 790397,
@@ -15,6 +20,10 @@
   "isolated_import": {
     "passed": true,
     "schemas": 8,
-    "api_title": "GLIO-PROTEOGEN M11-02"
+    "api_title": "GLIO-PROTEOGEN M11-02",
+    "imports": [
+      "glio_proteogen.contracts.m11_02.contract_json_schemas",
+      "glio_proteogen.adapters.m1102.create_m1102_app"
+    ]
   }
 }
