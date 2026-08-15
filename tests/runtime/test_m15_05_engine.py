@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m15_05 import (
     TrajectoryDimension,
     TrajectoryPolicy,
     TrajectoryStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -206,3 +207,61 @@ def test_plugin_token_and_json_paths() -> None:
     assert plugin.verify(result).result_id == result.result_id
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_mapping_service_and_plugin_descriptor_paths() -> None:
+    request = _request()
+    service = m1505.M1505Service()
+    mapping = request.model_dump(mode="python")
+    assert service.validate_request(mapping).request_id == request.request_id
+    assert service.construct(mapping).status is TrajectoryStatus.MODELED
+    result = service.execute(request)
+    assert service.verify(result, replay=False).result_id == result.result_id
+    assert service.construct(request).result_digest == result.result_digest
+    plugin = m1505.M1505Plugin(service)
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M15-05"
+    with pytest.raises(TypeError, match="strict request"):
+        service.validate_request(object())
+
+
+def test_invalid_engine_candidate_and_authorization_shape_fail_closed() -> None:
+    request = _request()
+
+    class Candidate:
+        context = request.context
+
+    with pytest.raises(TypeError, match="strict request"):
+        m1505.M1505EvolutionEngine().construct(Candidate())
+
+    class Broken:
+        @property
+        def context(self) -> object:
+            raise RuntimeError
+
+    with pytest.raises(m1505.M1505AuthorizationError):
+        m1505.preflight_m1505_authorization(Broken())
+
+
+def test_duplicate_evidence_is_canonicalized() -> None:
+    original = _request()
+    duplicate = original.source_artifacts[0]
+    request = original.model_copy(update={"source_artifacts": (duplicate, duplicate)})
+    result = m1505.M1505EvolutionEngine().construct(request)
+    keys = [
+        (
+            item.reference.artifact_id,
+            item.reference.version,
+            item.reference.digest,
+            item.reference.media_type,
+        )
+        for item in result.evidence
+    ]
+    assert len(keys) == len(set(keys))
+
+
+def test_replay_mismatch_is_distinguished_from_digest_tamper() -> None:
+    result = m1505.M1505Service().execute(_request())
+    changed = result.model_copy(update={"human_review_required": False})
+    changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
+    with pytest.raises(m1505.M1505ReplayVerificationError):
+        m1505.M1505Service().verify(changed)
