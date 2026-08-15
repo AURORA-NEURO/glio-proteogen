@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from http import HTTPStatus
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -32,6 +36,7 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c13_variant_peptide.m13_05_longitudinal_evolution import (
     M1305AuthorizationError,
     M1305LongitudinalEngine,
@@ -39,6 +44,9 @@ from glio_proteogen.modules.c13_variant_peptide.m13_05_longitudinal_evolution im
     M1305ReplayVerificationError,
     M1305Service,
 )
+
+_BASELINE_OBSERVATIONS = 2
+_EXPECTED_OBSERVATIONS = 3
 
 
 def _digest(index: int) -> str:
@@ -135,7 +143,7 @@ def _request(
             "sequence": index,
             "observed_at": start + timedelta(days=index),
             "territory": "primary" if index == 0 else "recurrence",
-            "treatment_era": "baseline" if index < 2 else "post-treatment",
+            "treatment_era": ("baseline" if index < _BASELINE_OBSERVATIONS else "post-treatment"),
             "feature_artifact": _artifact(100 + index),
         }
         for index in range(count)
@@ -169,7 +177,7 @@ def test_supported_trajectory_and_replay_are_deterministic() -> None:
 def test_supported_objective_families(objective: str) -> None:
     result = M1305LongitudinalEngine().infer(_request(objective))
     assert result.status.value == "modeled"
-    assert len(result.trajectory) == 3
+    assert len(result.trajectory) == _EXPECTED_OBSERVATIONS
 
 
 def test_unsupported_objective_abstains_without_negative_finding() -> None:
@@ -189,7 +197,7 @@ def test_change_point_outside_history_abstains() -> None:
 
 
 def test_controls_are_checked_before_execution() -> None:
-    with pytest.raises(M1305AuthorizationError):
+    with pytest.raises(StrictJsonError):
         M1305LongitudinalEngine().infer(_request(accepted=False))
     with pytest.raises(M1305AuthorizationError):
         M1305Service.validate_request(_request(accepted=False).model_dump(mode="json"))
@@ -212,37 +220,39 @@ def test_plugin_is_strict_parse_once_and_token_bound() -> None:
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
     with pytest.raises(M1305AuthorizationError):
-        plugin.validate(json.dumps({"request_id": "x", "duplicate": 1, "duplicate": 2}))
+        plugin.validate('{"request_id":"x","duplicate":1,"duplicate":2}')
 
 
 def test_fastapi_validate_schema_infer_verify_and_sanitized_errors() -> None:
     client = TestClient(app)
     request_json = _request().model_dump(mode="json")
     schema_response = client.get("/v1/m13-05/schema/request")
-    assert schema_response.status_code == 200
+    assert schema_response.status_code == HTTPStatus.OK
     assert schema_response.json()["x-glio-contract"]["provisionalAbi"] is True
     inferred = client.post("/v1/modules/M13-05/longitudinal", json=request_json)
-    assert inferred.status_code == 200
+    assert inferred.status_code == HTTPStatus.OK
     assert inferred.json()["output_type"] == "proteotype_longitudinal_evolution"
     verified = client.post("/v1/modules/M13-05/verify", json=inferred.json())
-    assert verified.status_code == 200
+    assert verified.status_code == HTTPStatus.OK
     unauthorized = client.post(
         "/v1/modules/M13-05/longitudinal", json=_request(accepted=False).model_dump(mode="json")
     )
-    assert unauthorized.status_code == 403
+    assert unauthorized.status_code == HTTPStatus.FORBIDDEN
     malformed = client.post("/v1/modules/M13-05/longitudinal", json={"request_id": "bad"})
-    assert malformed.status_code == 403 or malformed.status_code == 422
+    assert malformed.status_code in {HTTPStatus.FORBIDDEN, HTTPStatus.UNPROCESSABLE_ENTITY}
     assert "traceback" not in malformed.text.lower()
 
 
 def test_fastapi_content_type_and_schema_errors() -> None:
     client = TestClient(app)
-    assert client.get("/v1/m13-05/schema/not-a-schema").status_code == 404
+    assert client.get("/v1/m13-05/schema/not-a-schema").status_code == HTTPStatus.NOT_FOUND
     assert (
         client.post(
-            "/v1/modules/M13-05/longitudinal", content="{}", headers={"content-type": "text/plain"}
+            "/v1/modules/M13-05/longitudinal",
+            content="{}",
+            headers={"content-type": "text/plain"},
         ).status_code
-        == 415
+        == HTTPStatus.UNSUPPORTED_MEDIA_TYPE
     )
 
 
