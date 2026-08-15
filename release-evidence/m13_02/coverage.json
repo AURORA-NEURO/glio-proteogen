@@ -6,7 +6,7 @@
     "glio_proteogen.adapters.m1302",
     "evals.m13_02"
   ],
-  "tests": 29,
+  "tests": 31,
   "statements": 663,
   "branches": 132,
   "covered_percent": 98.0,
