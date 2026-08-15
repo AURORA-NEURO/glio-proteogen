@@ -1,1 +1,1 @@
-"""Evaluation fixtures for the provisional M07-07 scaffold."""
+"""Executable evaluation fixtures for provisional M07-07."""

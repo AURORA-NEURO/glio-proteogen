@@ -286,7 +286,7 @@ def test_low_support_and_ood_candidates_are_selectively_abstained() -> None:
 
 def test_preflight_rejects_withheld_consent_before_execution() -> None:
     request = _request()
-    consent = request.context.references.consent.model_copy(update={"state": "withheld"})
+    consent = request.context.references.consent.model_copy(update={"state": ConsentState.WITHHELD})
     refs = request.context.references.model_copy(update={"consent": consent})
     blocked_context = request.context.model_copy(update={"references": refs})
     blocked = request.model_copy(update={"context": blocked_context})

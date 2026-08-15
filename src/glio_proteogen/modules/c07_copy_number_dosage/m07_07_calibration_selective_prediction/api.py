@@ -32,8 +32,9 @@ router = APIRouter(prefix="/modules/m07-07", tags=["GLIO-PROTEOGEN-M07-07"])
 
 async def _body(request: Request) -> object:
     try:
-        return strict_json_loads(
-            await request.body(),
+        raw = await request.body()
+        strict_json_loads(
+            raw,
             max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES,
         )
     except StrictJsonError as exc:
@@ -41,6 +42,8 @@ async def _body(request: Request) -> object:
             status_code=400,
             detail={"type": f"json_{exc.code.value}", "loc": ["body"], "msg": str(exc)},
         ) from None
+    else:
+        return raw
 
 
 def _safe_validation(exc: ValidationError) -> list[dict[str, object]]:

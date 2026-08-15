@@ -25,7 +25,8 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 def _read(path: Path | None) -> object:
     raw = sys.stdin.buffer.read() if path is None else path.read_bytes()
-    return strict_json_loads(raw, max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES)
+    strict_json_loads(raw, max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES)
+    return raw
 
 
 def _write(payload: object, output: Path | None) -> None:

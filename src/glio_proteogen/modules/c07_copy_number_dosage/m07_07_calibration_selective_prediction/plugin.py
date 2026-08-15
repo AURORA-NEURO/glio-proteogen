@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
@@ -72,10 +74,13 @@ class M0707Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            strict_json_loads(
                 serialized,
                 max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES,
             )
+            candidate = serialized
+        elif isinstance(candidate, Mapping):
+            candidate = json.dumps(candidate, ensure_ascii=False, separators=(",", ":")).encode()
         typed = self._service.validate_request(candidate)
         token = ValidatedM0707Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))

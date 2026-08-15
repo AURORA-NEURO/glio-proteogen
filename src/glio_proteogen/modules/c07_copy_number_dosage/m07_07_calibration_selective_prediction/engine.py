@@ -12,9 +12,9 @@ candidate's support/OOD/calibration values pass the locked threshold.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m07_06 import (
     SensitivityEnvelopeStatus,
@@ -349,11 +349,17 @@ class M0707CalibrationEngine:
 
     @staticmethod
     def validate_request(request: object) -> CalibrateSelectiveCopyNumberDosageRequest:
-        preflight_calibration_authorization(request)
         try:
-            return _REQUEST_ADAPTER.validate_python(request, strict=True)
-        except Exception as exc:
+            if type(request) in {bytes, bytearray, str}:
+                typed = _REQUEST_ADAPTER.validate_json(
+                    cast("str | bytes | bytearray", request), strict=True
+                )
+            else:
+                typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        except (TypeError, ValueError, ValidationError) as exc:
             raise CalibrationInputError from exc
+        preflight_calibration_authorization(typed)
+        return typed
 
     def calibrate(self, request: object) -> CalibrateSelectiveCopyNumberDosageResult:
         validated = self.validate_request(request)

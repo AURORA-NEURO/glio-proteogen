@@ -1,5 +1,9 @@
 """Stateless application boundary for provisional M07-07."""
 
+from typing import cast
+
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m07_07 import (
     CalibrateSelectiveCopyNumberDosageRequest,
     CalibrateSelectiveCopyNumberDosageResult,
@@ -12,6 +16,9 @@ from .engine import (
     preflight_calibration_authorization,
 )
 
+_REQUEST_ADAPTER = TypeAdapter(CalibrateSelectiveCopyNumberDosageRequest)
+_RESULT_ADAPTER = TypeAdapter(CalibrateSelectiveCopyNumberDosageResult)
+
 
 class M0707Service:
     """Authorize, strictly validate, and execute one M07-07 request."""
@@ -23,8 +30,14 @@ class M0707Service:
 
     @staticmethod
     def validate_request(request: object) -> CalibrateSelectiveCopyNumberDosageRequest:
-        preflight_calibration_authorization(request)
-        return CalibrateSelectiveCopyNumberDosageRequest.model_validate(request, strict=True)
+        if type(request) in {bytes, bytearray, str}:
+            typed = _REQUEST_ADAPTER.validate_json(
+                cast("str | bytes | bytearray", request), strict=True
+            )
+        else:
+            typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        preflight_calibration_authorization(typed)
+        return typed
 
     def _execute_validated(
         self,
@@ -42,7 +55,12 @@ class M0707Service:
     ) -> CalibrateSelectiveCopyNumberDosageResult:
         """Validate a replayed result and optionally bind it to a request."""
 
-        typed = CalibrateSelectiveCopyNumberDosageResult.model_validate(result, strict=True)
+        if type(result) in {bytes, bytearray, str}:
+            typed = _RESULT_ADAPTER.validate_json(
+                cast("str | bytes | bytearray", result), strict=True
+            )
+        else:
+            typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         if request is not None:
             expected_request = M0707Service.validate_request(request)
             if typed.request_digest != canonical_request_digest(expected_request):
