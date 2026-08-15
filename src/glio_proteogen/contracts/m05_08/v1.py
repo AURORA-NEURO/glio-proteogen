@@ -10,8 +10,9 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import AwareDatetime, Field, StringConstraints, field_validator, model_validator
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 
+from glio_proteogen.contracts.m05_08.canonical import manifest_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -99,12 +100,56 @@ class PtmLocalizationReleaseArtifact(FrozenModel):
         return value
 
 
+class PtmLocalizationReleaseTransformation(FrozenModel):
+    """One immutable transformation recorded in the reproducibility manifest."""
+
+    transformation_id: Identifier
+    name: NonEmptyStr
+    version: SemanticVersion
+    digest: Sha256Digest
+    input_digests: tuple[Sha256Digest, ...] = Field(min_length=1, max_length=64)
+    output_digests: tuple[Sha256Digest, ...] = Field(min_length=1, max_length=64)
+
+    @model_validator(mode="after")
+    def transformations_are_closed(self) -> PtmLocalizationReleaseTransformation:
+        if len(set(self.input_digests)) != len(self.input_digests):
+            raise ValueError("transformation input digests must be unique")
+        if len(set(self.output_digests)) != len(self.output_digests):
+            raise ValueError("transformation output digests must be unique")
+        if set(self.input_digests) & set(self.output_digests):
+            raise ValueError("transformation cannot emit an input digest unchanged")
+        return self
+
+
+class PtmLocalizationReleaseQualityDecision(FrozenModel):
+    """Quality decision retained as evidence instead of being recomputed here."""
+
+    decision_id: Identifier
+    status: Literal["accepted", "limited", "rejected"]
+    evidence: ArtifactReference
+    rationale: NonEmptyStr
+
+    @model_validator(mode="after")
+    def rejected_quality_cannot_be_accepted(self) -> PtmLocalizationReleaseQualityDecision:
+        if self.status == "rejected" and self.evidence.digest.startswith("sha256:0000"):
+            raise ValueError("rejected quality decisions require non-empty evidence")
+        return self
+
+
 class PtmLocalizationReleasePolicy(FrozenModel):
     policy_id: Identifier
     policy_version: SemanticVersion
     allowed_signature_algorithms: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=8)
     allowed_verifier_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=16)
     evidence: ArtifactReference
+
+    @model_validator(mode="after")
+    def policy_entries_are_unique(self) -> PtmLocalizationReleasePolicy:
+        if len(set(self.allowed_signature_algorithms)) != len(self.allowed_signature_algorithms):
+            raise ValueError("signature algorithms must be unique")
+        if len(set(self.allowed_verifier_ids)) != len(self.allowed_verifier_ids):
+            raise ValueError("verifier ids must be unique")
+        return self
 
 
 class PtmLocalizationReleaseManifest(FrozenModel):
@@ -113,6 +158,7 @@ class PtmLocalizationReleaseManifest(FrozenModel):
     manifest_id: Identifier
     release_id: Identifier
     release_version: SemanticVersion
+    artifact_digests: tuple[Sha256Digest, ...] = Field(min_length=1, max_length=M0508_MAX_ARTIFACTS)
     stage_result_digests: tuple[Sha256Digest, ...] = Field(
         min_length=1, max_length=M0508_MAX_STAGE_RESULTS
     )
@@ -124,6 +170,31 @@ class PtmLocalizationReleaseManifest(FrozenModel):
     reproducibility_evidence: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0508_MAX_EVIDENCE
     )
+    transformations: tuple[PtmLocalizationReleaseTransformation, ...] = Field(
+        default=(), max_length=64
+    )
+    quality_decisions: tuple[PtmLocalizationReleaseQualityDecision, ...] = Field(
+        min_length=1, max_length=16
+    )
+
+    @model_validator(mode="after")
+    def manifest_entries_are_unique(self) -> PtmLocalizationReleaseManifest:
+        digest_groups = (
+            self.artifact_digests,
+            self.stage_result_digests,
+            self.transformation_digests,
+            self.quality_decision_ids,
+        )
+        if any(len(set(group)) != len(group) for group in digest_groups):
+            raise ValueError("manifest entries must be unique")
+        quality_ids = {item.decision_id for item in self.quality_decisions}
+        if len(quality_ids) != len(self.quality_decisions):
+            raise ValueError("quality decision ids must be unique")
+        if set(self.quality_decision_ids) != quality_ids:
+            raise ValueError("quality decision ids must match quality decision evidence")
+        if set(self.transformation_digests) != {item.digest for item in self.transformations}:
+            raise ValueError("transformation digests must match transformation evidence")
+        return self
 
 
 class PtmLocalizationReleaseSignature(FrozenModel):
@@ -132,6 +203,13 @@ class PtmLocalizationReleaseSignature(FrozenModel):
     signature_value: NonEmptyStr
     claimed_manifest_digest: Sha256Digest
     evidence: ArtifactReference
+
+    @field_validator("signature_value")
+    @classmethod
+    def signature_value_is_not_whitespace(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("signature value must not be blank")
+        return value
 
 
 class BuildPtmLocalizationReleaseRequest(FrozenModel):
@@ -155,6 +233,16 @@ class BuildPtmLocalizationReleaseRequest(FrozenModel):
             sorted(self.manifest.stage_result_digests)
         ):
             raise ValueError("upstream result digests must match the immutable manifest")
+        if len({item.path for item in self.artifacts}) != len(self.artifacts):
+            raise ValueError("release artifact paths must be unique")
+        artifact_digests = tuple(item.reference.digest for item in self.artifacts)
+        if tuple(sorted(artifact_digests)) != tuple(sorted(self.manifest.artifact_digests)):
+            raise ValueError("artifact digests must match the immutable manifest")
+        if self.signature.algorithm not in self.policy.allowed_signature_algorithms:
+            raise ValueError("signature algorithm is not allowed by policy")
+
+        if self.signature.claimed_manifest_digest != manifest_digest(self.manifest):
+            raise ValueError("signature manifest digest does not match the manifest")
         return self
 
 
@@ -167,7 +255,7 @@ class PtmLocalizationReleaseQuarantine(FrozenModel):
 class PtmLocalizationReleaseResult(FrozenModel):
     output_type: Literal["ptm_localization_release_result"] = "ptm_localization_release_result"
     release_result_id: Identifier
-    result_version: Literal[M0508_CONTRACT_VERSION] = M0508_CONTRACT_VERSION
+    result_version: Literal["0.1.0-provisional"] = M0508_CONTRACT_VERSION
     request_digest: Sha256Digest
     manifest_digest: Sha256Digest
     disposition: PtmLocalizationReleaseDisposition
@@ -182,7 +270,7 @@ class PtmLocalizationReleaseResult(FrozenModel):
     quarantine_reasons: tuple[PtmLocalizationReleaseQuarantine, ...] = Field(
         default=(), max_length=8
     )
-    parent_target: Literal[M0508_PARENT] = M0508_PARENT
+    parent_target: Literal["variant_peptide"] = M0508_PARENT
     emits_variant_peptide: Literal[False] = False
     infers_identity: Literal[False] = False
     infers_proteogenomic_state: Literal[False] = False
@@ -205,6 +293,12 @@ class PtmLocalizationReleaseResult(FrozenModel):
             raise ValueError("quarantine reasons must match the disposition")
         if released == self.human_review_required:
             raise ValueError("human review routing must match the disposition")
+        if released and self.support.status is not SupportStatus.SUPPORTED:
+            raise ValueError("released package requires supported status")
+        if not released and (self.signature_verified or self.package_digest is not None):
+            raise ValueError("quarantined package cannot expose verified release bytes")
+        if self.package_member_count == 0 and released:
+            raise ValueError("released package must contain members")
         return self
 
 
@@ -217,7 +311,9 @@ class PtmLocalizationReleaseVerification(FrozenModel):
 
     @model_validator(mode="after")
     def verification_is_closed(self) -> PtmLocalizationReleaseVerification:
-        if self.authenticity_verified != (self.reason is PtmLocalizationSignatureVerificationReason.VERIFIED):
+        if self.authenticity_verified != (
+            self.reason is PtmLocalizationSignatureVerificationReason.VERIFIED
+        ):
             raise ValueError("authenticity must match the signature reason")
         if self.verified != (self.content_verified and self.authenticity_verified):
             raise ValueError("verified must match content and authenticity")
@@ -225,7 +321,6 @@ class PtmLocalizationReleaseVerification(FrozenModel):
 
 
 __all__ = [
-    "BuildPtmLocalizationReleaseRequest",
     "M0508_ARTIFACT_ROLE_COUNT",
     "M0508_CONTRACT_VERSION",
     "M0508_GATE",
@@ -242,15 +337,18 @@ __all__ = [
     "M0508_PARENT",
     "M0508_PROVISIONAL_ABI",
     "M0508_SAFETY_CLASS",
+    "BuildPtmLocalizationReleaseRequest",
     "PtmLocalizationReleaseArtifact",
     "PtmLocalizationReleaseArtifactRole",
     "PtmLocalizationReleaseDisposition",
     "PtmLocalizationReleaseManifest",
     "PtmLocalizationReleasePolicy",
+    "PtmLocalizationReleaseQualityDecision",
     "PtmLocalizationReleaseQuarantine",
     "PtmLocalizationReleaseQuarantineCode",
     "PtmLocalizationReleaseResult",
     "PtmLocalizationReleaseSignature",
+    "PtmLocalizationReleaseTransformation",
     "PtmLocalizationReleaseVerification",
     "PtmLocalizationSignatureVerificationReason",
 ]
