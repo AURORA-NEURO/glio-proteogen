@@ -1,5 +1,8 @@
 """Public provisional M05-08 PTM-localization release-packaging boundary."""
 
+from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.api import (
+    create_app,
+)
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.engine import (
     BuiltPtmLocalizationRelease,
     M0508PtmLocalizationReleaseEngine,
@@ -29,5 +32,6 @@ __all__ = [
     "PtmLocalizationSignatureVerifier",
     "ValidatedM0508Request",
     "build_ptm_localization_release_manifest",
+    "create_app",
     "preflight_ptm_localization_release_authorization",
 ]
