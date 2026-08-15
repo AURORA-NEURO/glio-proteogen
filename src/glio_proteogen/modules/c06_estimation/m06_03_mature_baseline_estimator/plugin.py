@@ -77,7 +77,10 @@ class M0603Plugin(
         return token
 
     def run(self, request: ValidatedM0603Request) -> EstimateProteinAbundanceBaselineResult:
-        snapshot = _ISSUED.get(request)
+        try:
+            snapshot = _ISSUED.get(request)
+        except TypeError as error:
+            raise _InvalidExecutionTokenError from error
         candidate = getattr(request, "request", None)
         if (
             type(request) is not ValidatedM0603Request

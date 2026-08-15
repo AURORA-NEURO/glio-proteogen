@@ -28,6 +28,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m0603_baseline_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -160,6 +161,10 @@ from glio_proteogen.contracts.m04_04 import (
 from glio_proteogen.contracts.m06_01 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
     ValidateFormalProteinStateRequest,
+)
+from glio_proteogen.contracts.m06_03 import (
+    M0603_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceBaselineRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -305,6 +310,15 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    PtmBaselineAuthorizationError,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0603_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
+    M0603Service,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     M0601Service,
     preflight_formal_state_authorization,
@@ -447,6 +461,11 @@ formal_state_app = typer.Typer(
     help="M06-01 formal state and feature schema validation.",
 )
 app.add_typer(formal_state_app, name="formal-state")
+m0603_baseline_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-03 provisional deterministic mature baseline estimation.",
+)
+app.add_typer(m0603_baseline_app, name="mature-baseline")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -555,6 +574,10 @@ ProteoformRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+M0603BaselineOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M06-03 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -790,7 +813,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](
+def _load_request[RequestT](  # noqa: C901 - strict ingress maps typed failures to CLI exits.
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -824,6 +847,8 @@ def _load_request[RequestT](
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
+        raise
+    except PtmBaselineAuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3432,6 +3457,53 @@ def validate_formal_state_request(request: RequestArgument) -> None:
         _emit(M0601Service().execute(parsed))
     except (TypeError, ValueError) as error:
         typer.echo(f"formal-state validation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0603_baseline_app.command("export-schema")
+def export_m0603_baseline_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "configuration",
+            "preprocessing-policy",
+            "tuning-record",
+            "estimate",
+            "diagnostic",
+        ],
+        typer.Argument(help="M06-03 provisional public contract to export."),
+    ],
+) -> None:
+    """Export one provisional M06-03 JSON Schema 2020-12 contract."""
+
+    _emit(_m0603_baseline_contract_schema(contract))
+
+
+@m0603_baseline_app.command("estimate")
+def estimate_m0603_baseline(
+    request: RequestArgument,
+    output: M0603BaselineOutputOption,
+) -> None:
+    """Estimate transparent baseline values and publish one canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinAbundanceBaselineRequest),
+            None,
+            M0603_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0603_json_request,
+        )
+        result = M0603Service()._execute_validated(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except PtmBaselineAuthorizationError as error:
+        typer.echo(f"m06-03 baseline estimation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"m06-03 baseline estimation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 

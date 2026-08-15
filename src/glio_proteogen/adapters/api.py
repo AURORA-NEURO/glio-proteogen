@@ -286,6 +286,17 @@ from glio_proteogen.contracts.m06_01.v1 import (
     ValidateFormalProteinStateRequest,
     ValidateFormalProteinStateResult,
 )
+from glio_proteogen.contracts.m06_03.schema import (
+    ContractName as M0603ContractName,
+)
+from glio_proteogen.contracts.m06_03.schema import (
+    contract_json_schema as m0603_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_03.v1 import (
+    M0603_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceBaselineRequest,
+    EstimateProteinAbundanceBaselineResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -435,6 +446,15 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    PtmBaselineAuthorizationError,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0603_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
+    M0603Service,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     FormalStateAuthorizationError,
     M0601Service,
@@ -463,6 +483,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -619,6 +640,12 @@ def _proteoform_quality_contract_schema(
 
 def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
     return m0601_contract_json_schema(name)
+
+
+def _m0603_baseline_contract_schema(
+    name: M0603ContractName,
+) -> dict[str, object]:
+    return m0603_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -815,6 +842,15 @@ def _formal_state_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0601_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0603_baseline_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0603_contract_json_schema("request")}},
         }
     }
 
@@ -1054,6 +1090,18 @@ async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequ
     )
 
 
+async def _m0603_baseline_body(
+    request: Request,
+) -> EstimateProteinAbundanceBaselineRequest:
+    return await _strict_json_body(
+        request,
+        _M0603_BASELINE_ADAPTER,
+        None,
+        M0603_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0603_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1081,6 +1129,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
     formal_state_service = M0601Service()
+    m0603_service = M0603Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1128,6 +1177,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
     @app.exception_handler(FormalStateAuthorizationError)
+    @app.exception_handler(PtmBaselineAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1428,6 +1478,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ValidateFormalProteinStateResult:
         return formal_state_service.execute(request)
+
+    @app.get("/v1/contracts/M06-03/{name}/schema", tags=["contracts"])
+    def m0603_baseline_contract_schema(
+        name: M0603ContractName,
+    ) -> dict[str, object]:
+        return _m0603_baseline_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-03/estimate",
+        response_model=EstimateProteinAbundanceBaselineResult,
+        tags=["M06-03"],
+        openapi_extra=_m0603_baseline_request_body(),
+    )
+    def estimate_m0603_baseline(
+        request: Annotated[
+            EstimateProteinAbundanceBaselineRequest,
+            Depends(_m0603_baseline_body),
+        ],
+    ) -> EstimateProteinAbundanceBaselineResult:
+        return m0603_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
