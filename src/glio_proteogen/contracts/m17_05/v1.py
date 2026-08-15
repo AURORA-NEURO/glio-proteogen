@@ -247,17 +247,18 @@ class VariantPeptideHumanReviewWorkspaceResult(FrozenModel):
             if (
                 self.workspace is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status
+                not in {SupportStatus.SUPPORTED, SupportStatus.REVIEW_REQUIRED}
             ):
                 raise ValueError("presented result requires a supported workspace")
             if self.workspace.ordering is not self.request.policy.default_ordering:
                 raise ValueError("workspace ordering must bind the requested policy")
             if self.workspace.source_bundle.digest != self.request.aligned_evidence_bundle.digest:
                 raise ValueError("workspace source bundle must bind the aligned evidence bundle")
-            request_ids = tuple(item.item_id for item in self.request.review_items)
-            workspace_ids = tuple(item.item_id for item in self.workspace.items)
+            request_ids = {item.item_id for item in self.request.review_items}
+            workspace_ids = {item.item_id for item in self.workspace.items}
             if workspace_ids != request_ids:
-                raise ValueError("workspace items must bind the request item sequence")
+                raise ValueError("workspace items must bind exactly the request items")
         elif (
             self.workspace is not None
             or self.abstention_reason is None
