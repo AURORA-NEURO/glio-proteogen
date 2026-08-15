@@ -228,6 +228,18 @@ class FormalCopyNumberStateSchema(FrozenModel):
         return self
 
 
+def _represented_kind(value: CopyNumberFeatureValue) -> CopyNumberFeatureValueKind:
+    """Return the one representation kind carried by an observed value."""
+
+    if value.scalar_value is not None:
+        return CopyNumberFeatureValueKind.SCALAR
+    if value.interval_lower is not None or value.interval_upper is not None:
+        return CopyNumberFeatureValueKind.INTERVAL
+    if value.category is not None:
+        return CopyNumberFeatureValueKind.CATEGORICAL
+    return CopyNumberFeatureValueKind.VECTOR
+
+
 class CopyNumberInvariantResult(FrozenModel):
     invariant_id: Identifier
     status: CopyNumberInvariantStatus
@@ -264,19 +276,34 @@ class ValidateCopyNumberStateRequest(FrozenModel):
                 raise ValueError("feature value uses a disallowed missingness state")
             if value.unit != definition.unit:
                 raise ValueError("feature value unit does not match schema unit")
+            if value.state is CopyNumberMissingness.OBSERVED and _represented_kind(value) is not definition.value_kind:
+                raise ValueError("feature value representation does not match schema kind")
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
-            if value.scalar_value is not None and (
+            numeric_values = tuple(
+                item
+                for item in (
+                    value.scalar_value,
+                    value.interval_lower,
+                    value.interval_upper,
+                    *value.vector,
+                )
+                if item is not None
+            )
+            if any(
                 (
                     definition.domain_lower is not None
-                    and value.scalar_value < definition.domain_lower
+                    and item < definition.domain_lower
                 )
                 or (
                     definition.domain_upper is not None
-                    and value.scalar_value > definition.domain_upper
+                    and item > definition.domain_upper
                 )
+                for item in numeric_values
             ):
-                raise ValueError("scalar feature value is outside the declared domain")
+                raise ValueError("numeric feature value is outside the declared domain")
+            if value.state is not CopyNumberMissingness.OBSERVED and numeric_values:
+                raise ValueError("non-observed feature cannot carry numeric values")
         return self
 
 
@@ -319,6 +346,15 @@ class ValidateCopyNumberStateResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires unsupported or review-required status")
+        if self.status is CopyNumberValidationStatus.INVALID and not (
+            CopyNumberInvariantStatus.VIOLATED in statuses
+            or self.support_decision.status is SupportStatus.REVIEW_REQUIRED
+        ):
+            raise ValueError("invalid result requires a violated invariant or review status")
+        declared_invariants = {item.invariant_id for item in self.request.state_schema.invariants}
+        result_invariants = {item.invariant_id for item in self.invariant_results}
+        if result_invariants != declared_invariants:
+            raise ValueError("result must report every declared invariant exactly once")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
