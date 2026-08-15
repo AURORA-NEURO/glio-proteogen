@@ -136,7 +136,7 @@ def test_resolved_result_has_bundle_parent_provenance_and_uncertainty() -> None:
         ),
     ],
 )
-def test_incompatible_candidates_abstain(candidate: object) -> None:
+def test_incompatible_candidates_abstain(candidate: UpstreamCandidate) -> None:
     result = M1601UpstreamContractResolverEngine().infer(
         build_scenario_request(candidates=(candidate,))
     )
