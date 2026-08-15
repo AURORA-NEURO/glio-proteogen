@@ -20,6 +20,9 @@ from glio_proteogen.contracts.m14_01.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +34,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -38,7 +42,7 @@ from glio_proteogen.kernel.models import (
 M1401_MODULE_ID: Final = "GLIO-PROTEOGEN-M14-01"
 M1401_OPERATION: Final = "register_protein_subtype_hypotheses"
 M1401_CONTRACT_VERSION: Final = "0.1.0-provisional"
-M1401_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m14-01+json"
+M1401_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m11-01+json"
 M1401_PARENT: Final = "protein_subtype"
 M1401_OWNER: Final = "Clinical science"
 M1401_SAFETY_CLASS: Final = "S2"
@@ -248,6 +252,11 @@ class ProteinSubtypeHypothesisRegistryResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeHypothesisRegistryResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
         hypothesis_ids = {item.hypothesis_id for item in self.request.hypotheses}
         evaluation_ids = tuple(item.hypothesis_id for item in self.evaluations)
         if set(evaluation_ids) != hypothesis_ids or len(evaluation_ids) != len(set(evaluation_ids)):
@@ -276,9 +285,118 @@ class ProteinSubtypeHypothesisRegistryResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no registry and safe status")
+        if self.status is HypothesisStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Return explicit seven-axis uncertainty for supported and abstained paths."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Registry evidence tiers and falsification outcomes are explicit; no population "
+            "calibration claim is made."
+            if supported
+            else "A hypothesis or falsification rule is not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Competing explanations and falsification rules remain visible.",
+            "Unsupported or missing evidence is never converted into a negative finding.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: RegisterProteinSubtypeHypothesesRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller controls and opaque source artifacts."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1401_MODULE_ID,
+        module_version=M1401_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -312,6 +430,10 @@ __all__ = [
     "HypothesisFindingCode",
     "HypothesisRegistry",
     "HypothesisStatus",
-    "ProteinSubtypeHypothesisRegistryResult",
     "RegisterProteinSubtypeHypothesesRequest",
+    "ProteinSubtypeHypothesisRegistryResult",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
+
+
