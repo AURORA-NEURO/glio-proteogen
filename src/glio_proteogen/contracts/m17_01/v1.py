@@ -37,6 +37,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from the M17-01 dossier slice.
 M1701_MODULE_ID: Final = "GLIO-PROTEOGEN-M17-01"
+M1701_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1701_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:5796-5836"
 M1701_OPERATION: Final = "resolve_variant_peptide_upstream_contracts"
 M1701_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1701_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m17-01+json"
@@ -299,6 +303,8 @@ class VariantPeptideUpstreamResolutionResult(FrozenModel):
 
 __all__ = [
     "M1701_CONTRACT_VERSION",
+    "M1701_DOSSIER_SHA256",
+    "M1701_DOSSIER_SLICE",
     "M1701_EVIDENCE_CLAIM",
     "M1701_GATE",
     "M1701_MAX_CANDIDATES",
