@@ -70,6 +70,16 @@ class ReconstructionStatus(StrEnum):
     NOT_REPRODUCIBLE = "not_reproducible"
 
 
+class PublicationReplayReason(StrEnum):
+    """Stable replay outcomes for the evidence publication envelope."""
+
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
+
+
 class PublisherFindingCode(StrEnum):
     UPSTREAM_ABSTAINED = "upstream_abstained"
     MISSING_ATTRIBUTION = "missing_attribution"
@@ -131,6 +141,27 @@ class PublisherDiagnostic(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0908_MAX_EVIDENCE)
 
 
+class ComplexActivityEvidencePublicationVerification(FrozenModel):
+    """Content and deterministic replay status for one publication result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: PublicationReplayReason
+
+    @model_validator(mode="after")
+    def verification_flags_are_closed(
+        self,
+    ) -> ComplexActivityEvidencePublicationVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
+        return self
+
+
 class ComplexActivityEvidenceBundle(FrozenModel):
     """Versioned evidence bundle with explicit reconstruction status."""
 
@@ -162,11 +193,20 @@ class ComplexActivityEvidenceBundle(FrozenModel):
         source_ids = tuple(item.source_id for item in self.sources)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("evidence source identifiers must be unique")
+        evidence_ids = tuple(
+            item.reference.digest
+            for source in self.sources
+            for item in source.evidence
+        )
+        if len(evidence_ids) != len(set(evidence_ids)):
+            raise ValueError("bundle evidence references must be unique")
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
         if self.reconstruction_status is not ReconstructionStatus.COMPLETE:
             raise ValueError("published bundle requires complete reconstruction")
+        if not self.evidence:
+            raise ValueError("published bundle requires bundle evidence")
         return self
 
 
@@ -187,6 +227,14 @@ class ComplexActivityExplanation(FrozenModel):
     reconstruction_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M0908_MAX_EVIDENCE
     )
+
+    @model_validator(mode="after")
+    def explanation_ids_are_unique(self) -> ComplexActivityExplanation:
+        if len(self.assumptions) != len(set(self.assumptions)):
+            raise ValueError("explanation assumption identifiers must be unique")
+        if len(self.counter_evidence) != len(set(self.counter_evidence)):
+            raise ValueError("explanation counter-evidence identifiers must be unique")
+        return self
 
 
 class PublishComplexActivityEvidenceRequest(FrozenModel):
@@ -218,6 +266,9 @@ class PublishComplexActivityEvidenceRequest(FrozenModel):
         source_ids = tuple(item.source_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("request evidence source identifiers must be unique")
+        artifact_digests = tuple(item.artifact.digest for item in self.source_artifacts)
+        if len(artifact_digests) != len(set(artifact_digests)):
+            raise ValueError("request source artifact digests must be unique")
         sequences = tuple(item.sequence for item in self.reconstruction_steps)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
@@ -261,6 +312,16 @@ class ComplexActivityEvidencePublicationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires complete bundle and explanation")
+            if self.bundle.bundle_id != self.explanation.bundle_id:
+                raise ValueError("published explanation must bind the evidence bundle")
+            request_source_ids = {item.source_id for item in self.request.source_artifacts}
+            bundle_source_ids = {item.source_id for item in self.bundle.sources}
+            if request_source_ids != bundle_source_ids:
+                raise ValueError("published bundle must cover every request source")
+            if len(self.request.assumptions) != len(self.explanation.assumptions):
+                raise ValueError("published explanation must cover every assumption")
+            if len(self.request.counter_evidence) != len(self.explanation.counter_evidence):
+                raise ValueError("published explanation must cover every counter-evidence item")
         elif (
             self.bundle is not None
             or self.explanation is not None
@@ -296,6 +357,7 @@ __all__ = [
     "M0908_SAFETY_CLASS",
     "ComplexActivityEvidenceBundle",
     "ComplexActivityEvidencePublicationResult",
+    "ComplexActivityEvidencePublicationVerification",
     "ComplexActivityExplanation",
     "EvidencePublicationStatus",
     "PublishComplexActivityEvidenceRequest",
@@ -306,6 +368,7 @@ __all__ = [
     "PublisherEvidenceSource",
     "PublisherFindingCode",
     "PublisherSourceKind",
+    "PublicationReplayReason",
     "ReconstructionStatus",
     "ReconstructionStep",
 ]

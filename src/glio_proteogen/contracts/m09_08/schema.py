@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m09_08.v1 import (
     M0908_SAFETY_CLASS,
     ComplexActivityEvidenceBundle,
     ComplexActivityEvidencePublicationResult,
+    ComplexActivityEvidencePublicationVerification,
     ComplexActivityExplanation,
     PublishComplexActivityEvidenceRequest,
     PublisherAssumption,
@@ -38,6 +39,7 @@ ContractName = Literal[
     "counter-evidence",
     "diagnostic",
     "reconstruction-step",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": PublishComplexActivityEvidenceRequest,
@@ -49,6 +51,7 @@ _CONTRACTS: Final = {
     "counter-evidence": PublisherCounterEvidence,
     "diagnostic": PublisherDiagnostic,
     "reconstruction-step": ReconstructionStep,
+    "verification": ComplexActivityEvidencePublicationVerification,
 }
 
 

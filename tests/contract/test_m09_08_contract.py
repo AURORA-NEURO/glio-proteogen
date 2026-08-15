@@ -6,11 +6,12 @@ from glio_proteogen.contracts.m09_08 import (
     M0908_PROVISIONAL_ABI,
     PublisherEvidenceSource,
     PublisherSourceKind,
+    PublicationReplayReason,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.models import ArtifactReference
 
-_SCHEMA_COUNT = 9
+_SCHEMA_COUNT = 10
 
 
 def test_provisional_schemas_require_publication_evidence_fields() -> None:
@@ -25,6 +26,8 @@ def test_provisional_schemas_require_publication_evidence_fields() -> None:
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0908_OUTPUT_MEDIA_TYPE
     assert M0908_PROVISIONAL_ABI is True
     assert M0908_MAX_EVIDENCE > 0
+    assert schemas["verification"]["x-glio-contract"]["strict"] is True
+    assert PublicationReplayReason.VERIFIED.value == "verified"
 
 
 def test_source_attribution_keeps_external_payload_opaque() -> None:
