@@ -54,7 +54,7 @@ oversized input, unknown fields, and forged execution tokens.
 
 ## Verification evidence
 
-- Contract/runtime/interface/evaluator tests: 34 focused tests pass.
+- Contract/runtime/interface/evaluator/release-verifier tests: 36 focused tests pass.
 - Scoped branch coverage: 98% (570 statements, 114 branch arcs).
 - Evaluator fixture: 7 declared, 7 executed, 7 passed; fixture digest is recorded in `release-evidence/m13_03/evaluation.json`.
 - Benchmark: 10 deterministic calls; mean and p95 are recorded in `release-evidence/m13_03/benchmark.json` against provisional 2 s / 3 s budgets.
