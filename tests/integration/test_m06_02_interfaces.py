@@ -7,7 +7,11 @@ import json
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m06_02 import contract_json_schema, contract_json_schemas
+from glio_proteogen.contracts.m06_02 import (
+    RepresentationObservationState,
+    contract_json_schema,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_constructor import (
@@ -16,7 +20,13 @@ from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_
 from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_constructor import (
     cli as m0602_cli,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_constructor import (
+    engine as m0602_engine,
+)
 from tests.contract.test_m06_02_contract import _request
+from tests.modules.c06_protein_abundance.test_m06_02_representation_constructor import (
+    _with_feature_state,
+)
 
 _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
@@ -126,3 +136,76 @@ def test_api_denies_withheld_consent_before_construction() -> None:
         )
     assert response.status_code == _HTTP_FORBIDDEN
     assert "authorization denied" in response.text
+
+
+def test_api_construct_sanitizes_validation_and_input_failures() -> None:
+    class FailingService:
+        def validate_request(self, request: object) -> object:
+            return request
+
+        def construct(self, _request: object) -> object:
+            raise m0602_engine.RepresentationInputError("result_bytes")
+
+    with TestClient(m0602_api.create_app(FailingService())) as client:  # type: ignore[arg-type]
+        invalid = client.post("/v1/modules/M06-02/construct", content=b"{}")
+        rejected = client.post(
+            "/v1/modules/M06-02/construct",
+            content=canonical_json_bytes(_request().model_dump(mode="json")),
+        )
+    assert invalid.status_code == _HTTP_UNPROCESSABLE
+    assert rejected.status_code == _HTTP_UNPROCESSABLE
+    assert rejected.json()["detail"] == "M06-02 input rejected"
+
+
+def test_api_validate_denies_withheld_consent() -> None:
+    request = _request()
+    refs = request.context.references
+    withheld = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": refs.model_copy(
+                        update={
+                            "consent": refs.consent.model_copy(
+                                update={"state": ConsentState.WITHHELD}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    with TestClient(m0602_api.create_app()) as client:
+        response = client.post(
+            "/v1/modules/M06-02/validate",
+            content=canonical_json_bytes(withheld.model_dump(mode="json")),
+        )
+    assert response.status_code == _HTTP_FORBIDDEN
+
+
+def test_cli_construct_output_overwrite_and_abstention(tmp_path) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(_request().model_dump(mode="json")))
+    output = tmp_path / "result.json"
+    first = CliRunner().invoke(
+        m0602_cli.app,
+        ["construct", str(request_path), "--output", str(output)],
+    )
+    second = CliRunner().invoke(
+        m0602_cli.app,
+        ["construct", str(request_path), "--output", str(output)],
+    )
+
+    unsupported = _with_feature_state(RepresentationObservationState.UNSUPPORTED)
+    unsupported_path = tmp_path / "unsupported.json"
+    unsupported_path.write_bytes(canonical_json_bytes(unsupported.model_dump(mode="json")))
+    abstained = CliRunner().invoke(m0602_cli.app, ["construct", str(unsupported_path)])
+
+    invalid_path = tmp_path / "invalid-construct.json"
+    invalid_path.write_bytes(b"{}")
+    invalid = CliRunner().invoke(m0602_cli.app, ["construct", str(invalid_path)])
+    assert first.exit_code == 0
+    assert second.exit_code != 0
+    assert output.exists()
+    assert abstained.exit_code == 1
+    assert invalid.exit_code != 0

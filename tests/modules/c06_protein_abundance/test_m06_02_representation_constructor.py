@@ -12,12 +12,14 @@ from glio_proteogen.contracts.m06_02 import (
     RepresentationFeature,
     RepresentationFeatureKind,
     RepresentationObservationState,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
     IdentityLineageState,
+    SupportDecision,
     SupportStatus,
     UpstreamDecisionState,
 )
@@ -29,6 +31,7 @@ from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_
     RepresentationAuthorizationError,
     RepresentationInputError,
     RepresentationSubmission,
+    construct_protein_representation,
 )
 from tests.contract.test_m06_02_contract import _request
 
@@ -131,8 +134,37 @@ def test_invalid_result_and_noncanonical_built_outcome_fail_closed() -> None:
     invalid = engine.verify(object(), built.canonical_bytes)
     assert invalid.verified is False
     assert invalid.reason.value == "invalid_result"
+    invalid_bytes = engine.verify(
+        built.result,
+        bytearray(built.canonical_bytes),  # type: ignore[arg-type]
+    )
+    assert invalid_bytes.verified is False
     with pytest.raises(RepresentationInputError, match="not canonical"):
         BuiltProteinRepresentation(built.result, b"{}")
+
+
+def test_result_closure_rejects_constructed_without_support_and_abstained_with_support() -> None:
+    built = M0602RepresentationEngine().construct(_request())
+    limited = SupportDecision(
+        status=SupportStatus.LIMITED,
+        reason_code="test",
+        rationale="test limited support",
+    )
+    constructed_payload = built.result.model_copy(update={"support_decision": limited})
+    constructed_payload = constructed_payload.model_copy(
+        update={"result_digest": result_payload_digest(constructed_payload)}
+    )
+    with pytest.raises(ValueError, match="constructed result requires supported"):
+        type(built.result).model_validate(constructed_payload, strict=True)
+
+    abstained_payload = built.result.model_copy(
+        update={"status": RepresentationConstructorStatus.ABSTAINED}
+    )
+    abstained_payload = abstained_payload.model_copy(
+        update={"result_digest": result_payload_digest(abstained_payload)}
+    )
+    with pytest.raises(ValueError, match="cannot claim supported"):
+        type(built.result).model_validate(abstained_payload, strict=True)
 
 
 def test_authorization_rejects_withheld_consent_unresolved_identity_and_controls() -> None:
@@ -204,6 +236,8 @@ def test_plugin_parse_once_validate_token_and_safe_execution() -> None:
 
     validated = plugin.validate(submission)
     built = plugin.run(validated)
+    assert plugin.validate_request(request) == request
+    assert plugin.validate(RepresentationSubmission(request)).request == request
 
     assert validated.request == request
     assert built.result.status is RepresentationConstructorStatus.CONSTRUCTED
@@ -212,6 +246,29 @@ def test_plugin_parse_once_validate_token_and_safe_execution() -> None:
 def test_plugin_rejects_unvalidated_token_and_invalid_submission() -> None:
     plugin = M0602Plugin()
     with pytest.raises(TypeError, match="validated request token"):
-        plugin.run(object())
+        plugin.run(object())  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="representation submission"):
         plugin.validate(object())
+    assert plugin.execute(_request()).result.status is RepresentationConstructorStatus.CONSTRUCTED
+
+
+def test_public_construct_wrapper_and_result_limit_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    assert (
+        construct_protein_representation(request).result.status
+        is RepresentationConstructorStatus.CONSTRUCTED
+    )
+    built = M0602RepresentationEngine().construct(request)
+    with pytest.raises(RepresentationInputError, match="digest"):
+        BuiltProteinRepresentation(
+            built.result.model_copy(update={"result_digest": "sha256:" + "0" * 64}),
+            built.canonical_bytes,
+        )
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_constructor.engine.M0602_MAX_CANONICAL_RESULT_BYTES",
+        1,
+    )
+    with pytest.raises(RepresentationInputError, match="exceeds byte limit"):
+        M0602RepresentationEngine().construct(request)

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m06_02 import (
@@ -129,7 +129,9 @@ def test_schema_inventory_is_explicitly_provisional() -> None:
         metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["abiStatus"] == "dossier-behavioral-brief-only"
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0602_OUTPUT_MEDIA_TYPE
+    output_schema = schemas["output"]
+    output_metadata = cast("dict[str, object]", output_schema["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M0602_OUTPUT_MEDIA_TYPE
 
 
 def test_strict_request_and_canonical_digest_smoke() -> None:
@@ -140,10 +142,10 @@ def test_strict_request_and_canonical_digest_smoke() -> None:
     assert service.validate_request(request) == request
 
 
-def _rebuild(model: object, **updates: object) -> object:
-    payload = model.model_dump(mode="python")  # type: ignore[union-attr]
+def _rebuild(model: Any, **updates: object) -> Any:
+    payload = model.model_dump(mode="python")
     payload.update(updates)
-    return type(model).model_validate(payload, strict=True)  # type: ignore[attr-defined]
+    return type(model).model_validate(payload, strict=True)
 
 
 def test_lineage_rejects_duplicate_output_ids() -> None:
@@ -183,6 +185,12 @@ def test_non_observed_feature_cannot_carry_value() -> None:
     feature = _request().features[0]
     with pytest.raises(ValidationError, match="non-observed"):
         _rebuild(feature, state=RepresentationObservationState.MISSING)
+
+
+def test_observed_feature_rejects_multiple_value_representations() -> None:
+    feature = _request().features[0]
+    with pytest.raises(ValidationError, match="exactly one"):
+        _rebuild(feature, vector=(2.0,))
 
 
 def test_request_rejects_duplicate_features_and_unbound_lineage() -> None:
@@ -240,4 +248,18 @@ def test_replay_verification_flags_are_closed() -> None:
             verified=False,
             result_digest="sha256:" + "a" * 64,
             reason=RepresentationReplayReason.DIGEST_MISMATCH,
+        )
+    with pytest.raises(ValidationError, match="verified must match replay reason"):
+        ConstructProteinRepresentationVerification(
+            content_verified=False,
+            deterministic_verified=False,
+            verified=False,
+            reason=RepresentationReplayReason.VERIFIED,
+        )
+    with pytest.raises(ValidationError, match="requires a result digest"):
+        ConstructProteinRepresentationVerification(
+            content_verified=True,
+            deterministic_verified=True,
+            verified=True,
+            reason=RepresentationReplayReason.VERIFIED,
         )
