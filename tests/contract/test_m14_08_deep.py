@@ -36,8 +36,8 @@ from glio_proteogen.contracts.m14_08 import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m14_08.canonical import normalized_request
-from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_08_mechanism_evidence_dossier import (
     M1408DossierAuthorizationError,
     M1408DossierEngine,
