@@ -66,14 +66,11 @@ class M1102ReplayVerificationError(ValueError):
 def _member(value: object, field: str) -> object:
     """Read only ordinary mappings/models; never traverse arbitrary accessors."""
 
-    value_type = type(value)
     if isinstance(value, Mapping):
         return value.get(field)
     if isinstance(value, BaseModel):
         storage = object.__getattribute__(value, "__dict__")
         return cast("dict[str, object]", storage).get(field)
-    if value_type is StrEnum:
-        return None
     return None
 
 
