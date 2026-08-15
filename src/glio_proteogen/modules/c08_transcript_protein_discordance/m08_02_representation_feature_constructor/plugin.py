@@ -96,4 +96,3 @@ class M0802Plugin:
 
 
 __all__ = ["M0802Plugin", "RepresentationSubmission", "ValidatedM0802Request"]
-

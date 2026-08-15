@@ -213,11 +213,7 @@ def _limitations() -> tuple[Limitation, ...]:
 
 def _leakage_reason(spec: FeatureSpecification) -> str | None:
     fields = {field.casefold() for field in spec.lineage.source_fields}
-    tokens = {
-        token
-        for field in fields
-        for token in field.replace("-", "_").split("_")
-    }
+    tokens = {token for field in fields for token in field.replace("-", "_").split("_")}
     if tokens & _LEAKAGE_TOKENS:
         return (
             "feature lineage references a future, outcome, target, label, response, "
@@ -307,10 +303,13 @@ def _build_result(
             else reason or "representation construction requires human review"
         ),
     )
-    evidence = tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0802_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.policy.evidence
+    evidence = (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0802_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.policy.evidence
+    )
     draft = TranscriptProteinRepresentationResult.model_construct(
         result_id=f"result.{request.request_id}",
         request_digest=canonical_request_digest(request),

@@ -108,4 +108,3 @@ def create_app(service: M0802Service | None = None) -> FastAPI:
 app = create_app()
 
 __all__ = ["app", "create_app"]
-
