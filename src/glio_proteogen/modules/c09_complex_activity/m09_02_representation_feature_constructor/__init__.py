@@ -1,5 +1,6 @@
 """M09-02 representation and feature constructor."""
 
+from . import api, cli, plugin
 from .engine import (
     BuiltM0902Result,
     M0902AuthorizationError,
@@ -18,6 +19,9 @@ __all__ = [
     "M0902InputError",
     "M0902RepresentationConstructor",
     "M0902Service",
+    "api",
+    "cli",
     "construct_complex_activity_representation",
+    "plugin",
     "preflight_m0902_authorization",
 ]
