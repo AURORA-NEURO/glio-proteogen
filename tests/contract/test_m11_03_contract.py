@@ -24,9 +24,7 @@ def test_provisional_schemas_require_mechanistic_safety_controls() -> None:
     assert all(
         schema["x-glio-contract"]["topologyInvariantsRequired"] for schema in schemas.values()
     )
-    assert all(
-        schema["x-glio-contract"]["unitInvariantsRequired"] for schema in schemas.values()
-    )
+    assert all(schema["x-glio-contract"]["unitInvariantsRequired"] for schema in schemas.values())
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1103_OUTPUT_MEDIA_TYPE
     assert M1103_PROVISIONAL_ABI is True
 
