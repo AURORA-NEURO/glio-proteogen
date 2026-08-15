@@ -400,7 +400,16 @@ def expected_provenance(
         module_id=M0804_MODULE_ID,
         module_version=M0804_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request_digest, request.baseline_result.digest),
+        input_digests=(
+            request_digest,
+            request.baseline_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(
+                evidence.reference.digest
+                for feature in request.feature_observations
+                for evidence in feature.evidence
+            ),
+        ),
         configuration_digest=configuration_digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
