@@ -383,4 +383,3 @@ def test_result_payload_is_canonical_json() -> None:
     assert first == second
     assert json.loads(first)["result_digest"] == result.result_digest
     assert normalized_request({"request_id": "dict"}) == {"request_id": "dict"}
-
