@@ -36,9 +36,20 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def verify_result_digest(value: BaseModel | dict[str, Any]) -> bool:
+    """Verify a receipt against its canonical payload without mutating it."""
+
+    document = _dump(value)
+    recorded = document.get("result_digest")
+    if not isinstance(recorded, str):
+        return False
+    return recorded == result_payload_digest(document)
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_result_digest",
 ]
