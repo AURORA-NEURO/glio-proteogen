@@ -176,7 +176,9 @@ class M0708EvidencePublisherEngine:
             "limitations": _limitations(),
             "human_review_required": True,
         }
-        constructed = ProteotypeEvidencePublicationResult.model_construct(**payload)
+        constructed = ProteotypeEvidencePublicationResult.model_construct(
+            **payload,  # type: ignore[arg-type]
+        )
         payload["result_digest"] = result_payload_digest(constructed)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
 
