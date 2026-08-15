@@ -1,0 +1,8 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-03",
+  "built": false,
+  "wheel": {"path": "", "bytes": 0, "sha256": ""},
+  "sdist": {"path": "", "bytes": 0, "sha256": ""},
+  "isolated_import": false,
+  "build_backend": "hatchling"
+}
