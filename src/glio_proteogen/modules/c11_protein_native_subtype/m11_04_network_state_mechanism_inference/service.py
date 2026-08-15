@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pydantic import TypeAdapter
+
+from glio_proteogen.contracts.m11_04 import InferVariantPeptideMechanismRequest
+
 if TYPE_CHECKING:
-    from glio_proteogen.contracts.m11_04 import (
-        InferVariantPeptideMechanismRequest,
-        VariantPeptideMechanismInferenceResult,
-    )
+    from glio_proteogen.contracts.m11_04 import VariantPeptideMechanismInferenceResult
 
 from .engine import M1104MechanismEngine
+
+_REQUEST_ADAPTER = TypeAdapter(InferVariantPeptideMechanismRequest)
 
 
 class M1104Service:
@@ -26,15 +29,21 @@ class M1104Service:
     ) -> VariantPeptideMechanismInferenceResult:
         return self._engine.infer(request)
 
+    def validate_request(self, request: object) -> InferVariantPeptideMechanismRequest:
+        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+
     def _execute_validated(
         self, request: InferVariantPeptideMechanismRequest
     ) -> VariantPeptideMechanismInferenceResult:
         return self._engine.infer(request)
 
     def verify(
-        self, result: VariantPeptideMechanismInferenceResult
+        self,
+        result: object,
+        *,
+        replay: bool = True,
     ) -> VariantPeptideMechanismInferenceResult:
-        return self._engine.verify(result)
+        return self._engine.verify(result, replay=replay)
 
 
 __all__ = ["M1104Service"]
