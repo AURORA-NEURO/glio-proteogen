@@ -183,8 +183,9 @@ def verify_cli(
 ) -> None:
     try:
         typed_request = _validated_request(_read_json(request))
-        strict_result = strict_json_loads(_read_json(result), max_bytes=8 * 1024 * 1024)
-        typed_result = _RESULT_ADAPTER.validate_python(strict_result, strict=True)
+        result_bytes = _read_json(result)
+        strict_json_loads(result_bytes, max_bytes=8 * 1024 * 1024)
+        typed_result = _RESULT_ADAPTER.validate_json(result_bytes, strict=True)
         _SERVICE.verify(typed_request, typed_result)
     except (
         StrictJsonError,

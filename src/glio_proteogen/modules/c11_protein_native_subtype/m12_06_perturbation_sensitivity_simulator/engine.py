@@ -168,15 +168,6 @@ def _uncertainty(*, simulated: bool) -> UncertaintyProfile:
     )
 
 
-def _artifact(module: str, digest: str, version: str = M1206_CONTRACT_VERSION) -> ArtifactReference:
-    return ArtifactReference(
-        artifact_id=f"result.{module}.{digest.removeprefix('sha256:')}",
-        version=version,
-        digest=digest,
-        media_type=_RESULT_MEDIA_TYPE,
-    )
-
-
 def _evidence(reference: ArtifactReference, claim: str) -> EvidenceReference:
     return EvidenceReference(reference=reference, role="evidence", claim=claim)
 
