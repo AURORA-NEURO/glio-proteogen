@@ -6,9 +6,8 @@ import argparse
 import json
 import sys
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
 
 from glio_proteogen.contracts.m08_07 import (
     M0807_UNCERTAINTY_MEDIA_TYPE,
@@ -28,9 +27,8 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c08_transcript_protein_discordance.m08_07_calibration_selective_prediction import (
-    M0807Plugin,
-    M0807Service,
+from glio_proteogen.modules.c08_transcript_protein_discordance import (
+    m08_07_calibration_selective_prediction as m0807,
 )
 
 
@@ -43,7 +41,7 @@ def artifact(index: int, media_type: str = "application/json") -> ArtifactRefere
     )
 
 
-def build_request(candidate: CalibrationCandidate | None = None):
+def build_request(candidate: CalibrationCandidate | None = None) -> dict[str, object]:
     accepted = UpstreamDecisionReference(
         decision_id="decision.accepted",
         state=UpstreamDecisionState.ACCEPTED,
@@ -53,7 +51,7 @@ def build_request(candidate: CalibrationCandidate | None = None):
     context = ExecutionContext(
         request_id="context.m0807",
         actor_id="actor.evaluator",
-        occurred_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 1, 1, tzinfo=UTC),
         references=ContextReferences(
             approved_configuration=accepted,
             identity_lineage=IdentityLineageReference(
@@ -118,7 +116,7 @@ def candidate(**overrides: object) -> CalibrationCandidate:
         "subgroup_disparity": 0.03,
     }
     values.update(overrides)
-    return CalibrationCandidate(**values)
+    return CalibrationCandidate.model_validate(values, strict=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,7 +129,7 @@ class EvaluationReport:
 
 
 def run_evaluation() -> EvaluationReport:
-    service = M0807Service()
+    service = m0807.M0807Service()
     scenarios: dict[str, bool] = {}
     statuses: dict[str, str] = {}
 
@@ -141,7 +139,8 @@ def run_evaluation() -> EvaluationReport:
 
     missing = service.execute(build_request())
     scenarios["missing_candidate_abstention"] = (
-        missing.status.value == "abstained" and missing.support_decision.status.value == "review_required"
+        missing.status.value == "abstained"
+        and missing.support_decision.status.value == "review_required"
     )
     statuses["missing_candidate_abstention"] = missing.status.value
 
@@ -165,7 +164,7 @@ def run_evaluation() -> EvaluationReport:
     tampered["status"] = "abstained"
     scenarios["tamper_rejected"] = not service.verify(tampered, supported.request)
 
-    plugin = M0807Plugin(service)
+    plugin = m0807.M0807Plugin(service)
     token = plugin.validate(supported.request.model_dump_json())
     plugin_result = plugin.run(token)
     scenarios["plugin_parity"] = plugin_result == supported
@@ -197,4 +196,3 @@ __all__ = ["EvaluationReport", "artifact", "build_request", "candidate", "main",
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

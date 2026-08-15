@@ -206,9 +206,15 @@ class CalibrationDiagnostic(FrozenModel):
 
     @model_validator(mode="after")
     def metric_matches_status(self) -> CalibrationDiagnostic:
-        if self.status is CalibrationDiagnosticStatus.NOT_EVALUABLE and self.metric_value is not None:
+        if (
+            self.status is CalibrationDiagnosticStatus.NOT_EVALUABLE
+            and self.metric_value is not None
+        ):
             raise ValueError("non-evaluable diagnostics cannot claim a metric value")
-        if self.status is not CalibrationDiagnosticStatus.NOT_EVALUABLE and self.metric_value is None:
+        if (
+            self.status is not CalibrationDiagnosticStatus.NOT_EVALUABLE
+            and self.metric_value is None
+        ):
             raise ValueError("evaluated diagnostics require a finite metric value")
         return self
 

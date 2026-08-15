@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Annotated
+from pathlib import Path  # noqa: TC003
+from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
@@ -21,6 +21,11 @@ from .service import M0807Service
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
+def _fail(message: str) -> NoReturn:
+    typer.echo(message, err=True)
+    raise typer.Exit(code=2)
+
+
 def _emit(value: object) -> None:
     typer.echo(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
 
@@ -29,7 +34,8 @@ def _load(path: Path) -> object:
     try:
         return strict_json_loads(path.read_bytes())
     except (OSError, StrictJsonError) as error:
-        raise typer.BadParameter("input is not a valid bounded JSON document") from error
+        del error
+        _fail("input is not a valid bounded JSON document")
 
 
 @app.command("export-schema")
@@ -42,18 +48,20 @@ def export_schema(
     try:
         value: object = contract_json_schemas() if name == "all" else contract_json_schema(name)  # type: ignore[arg-type]
     except (KeyError, ValueError) as error:
-        raise typer.BadParameter("unknown contract name") from error
+        del error
+        _fail("unknown contract name")
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     if output is None:
         typer.echo(encoded, nl=False)
         return
     if output.exists():
-        raise typer.BadParameter("refusing to overwrite an existing output")
+        _fail("refusing to overwrite an existing output")
     try:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(encoded, encoding="utf-8", newline="\n")
     except OSError as error:
-        raise typer.BadParameter("cannot write output") from error
+        del error
+        _fail("cannot write output")
 
 
 @app.command("validate")
@@ -85,4 +93,3 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = ["app"]
-

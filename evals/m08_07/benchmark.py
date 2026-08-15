@@ -11,8 +11,8 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
-from glio_proteogen.modules.c08_transcript_protein_discordance.m08_07_calibration_selective_prediction import (
-    M0807Service,
+from glio_proteogen.modules.c08_transcript_protein_discordance import (
+    m08_07_calibration_selective_prediction as m0807,
 )
 
 from .run import build_request, candidate
@@ -20,6 +20,10 @@ from .run import build_request, candidate
 ITERATIONS: Final = 10
 MEAN_BUDGET_NS: Final = 2_000_000_000
 P95_BUDGET_NS: Final = 3_000_000_000
+
+
+class NonDeterministicBenchmarkError(RuntimeError):
+    """The public operation returned different results for the same request."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +42,7 @@ class BenchmarkReport:
 
 
 def run_benchmark() -> BenchmarkReport:
-    service = M0807Service()
+    service = m0807.M0807Service()
     request = build_request(candidate())
     warm = service.execute(request)
     samples: list[int] = []
@@ -47,7 +51,7 @@ def run_benchmark() -> BenchmarkReport:
         result = service.execute(request)
         samples.append(perf_counter_ns() - started)
         if result != warm:
-            raise RuntimeError("M08-07 benchmark result was not deterministic")
+            raise NonDeterministicBenchmarkError
     ordered = sorted(samples)
     p95 = ordered[(95 * len(ordered) - 1) // 100]
     mean = fmean(samples)
@@ -81,4 +85,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

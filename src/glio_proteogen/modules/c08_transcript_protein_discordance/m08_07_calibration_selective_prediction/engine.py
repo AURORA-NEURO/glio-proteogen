@@ -8,13 +8,13 @@ from typing import Final
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m08_07 import (
+    M0807_CONTRACT_VERSION,
     M0807_COVERAGE_CEILING,
     M0807_COVERAGE_FLOOR,
-    M0807_CONTRACT_VERSION,
     M0807_EVIDENCE_CLAIM,
     M0807_PARENT,
-    CalibrateProteinSubtypeSelectivePredictionRequest,
     CalibratedEstimate,
+    CalibrateProteinSubtypeSelectivePredictionRequest,
     CalibrationDiagnostic,
     CalibrationDiagnosticStatus,
     CalibrationFindingCode,
@@ -123,7 +123,7 @@ class M0807CalibrationEngine:
 
     __slots__ = ()
 
-    def calibrate(
+    def calibrate(  # noqa: PLR0915
         self,
         request: object,
     ) -> ProteinSubtypeSelectivePredictionResult:
@@ -169,7 +169,9 @@ class M0807CalibrationEngine:
         ) -> None:
             nonlocal status, support_status, support_reason, support_rationale, abstention_reason
             status = CalibrationStatus.ABSTAINED
-            support_status = SupportStatus.UNSUPPORTED if hard_unsupported else SupportStatus.REVIEW_REQUIRED
+            support_status = (
+                SupportStatus.UNSUPPORTED if hard_unsupported else SupportStatus.REVIEW_REQUIRED
+            )
             support_reason = "m0807_unsupported" if hard_unsupported else "m0807_review_required"
             support_rationale = reason
             abstention_reason = reason
@@ -182,7 +184,8 @@ class M0807CalibrationEngine:
                     status=CalibrationDiagnosticStatus.NOT_EVALUABLE,
                     metric_name="selective_coverage",
                     message=(
-                        "No caller-declared candidate was supplied; calibration evidence is not evaluable."
+                        "No caller-declared candidate was supplied; calibration evidence "
+                        "is not evaluable."
                     ),
                 )
             )
@@ -203,6 +206,12 @@ class M0807CalibrationEngine:
                 candidate.subgroup,
             )
             if candidate_scope not in configured_scopes:
+                add_metric(
+                    "scope_support",
+                    0.0,
+                    "Candidate scope is not covered by the locked calibration configuration.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
                 abstain(
                     CalibrationFindingCode.SCOPE_NOT_SUPPORTED,
                     "Candidate scope is not covered by the locked calibration configuration.",
@@ -232,7 +241,9 @@ class M0807CalibrationEngine:
                     "Candidate is outside the configured support domain.",
                     hard_unsupported=True,
                 )
-            elif not (M0807_COVERAGE_FLOOR <= candidate.observed_coverage <= M0807_COVERAGE_CEILING):
+            elif not (
+                M0807_COVERAGE_FLOOR <= candidate.observed_coverage <= M0807_COVERAGE_CEILING
+            ):
                 add_metric(
                     "selective_coverage",
                     candidate.observed_coverage,

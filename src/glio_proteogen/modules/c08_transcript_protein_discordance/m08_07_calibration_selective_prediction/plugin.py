@@ -82,10 +82,11 @@ class M0807Plugin(
         return token
 
     def run(self, request: ValidatedM0807Request) -> ProteinSubtypeSelectivePredictionResult:
+        if type(request) is not ValidatedM0807Request:
+            raise _InvalidExecutionTokenError
         snapshot = _ISSUED_TOKENS.get(request)
         if (
-            type(request) is not ValidatedM0807Request
-            or request._seal is not _TOKEN_SEAL
+            request._seal is not _TOKEN_SEAL
             or snapshot is None
             or snapshot[0] is not request.request
             or snapshot[1] != canonical_request_digest(request.request)

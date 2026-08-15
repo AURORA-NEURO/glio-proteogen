@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -16,11 +15,11 @@ from glio_proteogen.contracts.m08_07 import (
 from .engine import M0807CalibrationEngine, preflight_m0807_authorization
 
 
-def _json_default(value: object) -> Any:
+def _json_default(value: object) -> object:
     model_dump = getattr(value, "model_dump", None)
     if callable(model_dump):
         return model_dump(mode="json")
-    raise TypeError(f"unsupported request value: {type(value).__name__}")
+    raise TypeError from None
 
 
 class M0807Service:
@@ -69,16 +68,30 @@ class M0807Service:
         """Validate a result and verify its canonical request/result digests."""
 
         try:
-            typed_result = TypeAdapter(ProteinSubtypeSelectivePredictionResult).validate_python(
-                result,
-                strict=True,
-            )
-            typed_request = None
-            if request is not None:
-                typed_request = CalibrateProteinSubtypeSelectivePredictionRequest.model_validate(
-                    request,
+            result_adapter = TypeAdapter(ProteinSubtypeSelectivePredictionResult)
+            if isinstance(result, dict):
+                typed_result = result_adapter.validate_json(
+                    json.dumps(result, ensure_ascii=False, separators=(",", ":")),
                     strict=True,
                 )
+            else:
+                typed_result = result_adapter.validate_python(result, strict=True)
+            typed_request = None
+            if request is not None:
+                if isinstance(request, dict):
+                    typed_request = (
+                        CalibrateProteinSubtypeSelectivePredictionRequest.model_validate_json(
+                            json.dumps(request, ensure_ascii=False, separators=(",", ":")),
+                            strict=True,
+                        )
+                    )
+                else:
+                    typed_request = (
+                        CalibrateProteinSubtypeSelectivePredictionRequest.model_validate(
+                            request,
+                            strict=True,
+                        )
+                    )
             return verify_result_replay(typed_result, typed_request)
         except (TypeError, ValueError):
             return False
