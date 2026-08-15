@@ -40,8 +40,9 @@ weak-reference token bound to the original request object and canonical digest.
 
 ## Gate evidence
 
-The locked local evidence includes 19 focused contract/runtime/interface tests,
+The locked local evidence includes 37 focused contract/runtime/interface tests,
 an eight-case evaluator matrix, deterministic benchmark samples, schema
 serialization, strict Ruff and MyPy checks, and an isolated package import.
-Generated coverage and package directories are task-local and removed after
-the final audit.
+The package evidence records wheel/sdist hashes, byte sizes, member inventories,
+and the clean isolated import. Generated coverage and package directories are
+task-local and removed after the final audit.
