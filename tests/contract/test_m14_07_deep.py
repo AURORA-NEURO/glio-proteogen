@@ -1,6 +1,5 @@
 """Adversarial closure tests for the provisional M14-07 contract."""
 
-
 from __future__ import annotations
 
 from copy import deepcopy

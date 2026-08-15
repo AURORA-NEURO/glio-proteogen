@@ -47,3 +47,10 @@ The locked synthetic evaluator covers passing controls, failed/not-evaluable/abs
 controls, unresolved conflict, missing control, replay/tamper, authorization denial,
 and deterministic reconstruction. Evidence metrics are recorded in
 `docs/evidence/M14-07.md` and `release-evidence/m14_07/`.
+
+The final scoped gate ran 25 focused tests with 98% branch-enabled coverage
+(479 statements, 470 covered; 78 branches, 75 covered; 95% fail-under). The
+ten-call benchmark measured 1,791,740 ns mean, 1,703,000 ns median, and
+2,283,800 ns p95 against provisional 2e9/3e9 ns budgets. The wheel is 856,863
+bytes and the source distribution is 1,472,042 bytes; both were built and the
+wheel imported from an isolated target.

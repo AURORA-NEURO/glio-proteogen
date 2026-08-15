@@ -53,6 +53,7 @@ exclude = [
   "/evidence",
   "/glio-proteogen-evidence.tar.gz",
   "/release-build-*",
+  "/release-evidence",
 ]
 
 [tool.pytest.ini_options]
