@@ -18,7 +18,7 @@ from glio_proteogen.contracts.m07_07 import (
     SelectiveCandidate,
     SelectivePredictionStatus,
 )
-from glio_proteogen.kernel.models import SupportStatus
+from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction import (
     CalibrationAuthorizationError,
     CalibrationInputError,
@@ -27,6 +27,9 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_
     M0707Service,
     calibrate_selective_copy_number_dosage,
     preflight_calibration_authorization,
+)
+from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction import (
+    engine as m0707_engine,
 )
 
 
@@ -76,6 +79,61 @@ def test_each_selective_rejection_reason_is_auditable() -> None:
     assert len(result.diagnostics) == len(candidates)
 
 
+def test_policy_gate_rejects_each_unready_stratum_shape() -> None:
+    active = request()
+    base = active.policy
+    updates = (
+        {"target_coverage": 0.89},
+        {"strata": (base.strata[0],)},
+        {
+            "strata": (
+                base.strata[0].model_copy(update={"sample_count": 0}),
+                *base.strata[1:],
+            )
+        },
+        {
+            "strata": (
+                base.strata[0].model_copy(update={"observed_coverage": 0.7}),
+                *base.strata[1:],
+            )
+        },
+        {
+            "strata": (
+                base.strata[0].model_copy(update={"calibration_error": None}),
+                *base.strata[1:],
+            )
+        },
+    )
+    for update in updates:
+        forged_policy = base.model_copy(update=update)
+        assert m0707_engine._policy_ready(
+            active.model_copy(update={"policy": forged_policy})
+        ) is False
+
+    bad_strata = (
+        base.strata[0].model_copy(update={"calibration_error": 0.9}),
+        *base.strata[1:],
+    )
+    candidate = SelectiveCandidate(
+        feature_id="feature.stratum-error",
+        category="unknown",
+        support_score=0.9,
+        ood_score=0.1,
+        calibration_error=0.01,
+        stratum_ids=(bad_strata[0].stratum_id,),
+    )
+    forged = active.model_copy(
+        update={
+            "policy": base.model_copy(update={"strata": bad_strata}),
+            "candidates": (candidate,),
+        }
+    )
+    _, _, diagnostics = m0707_engine._select_candidates(
+        forged, "sha256:" + "c" * 64
+    )
+    assert diagnostics[0].message == "candidate is bound to an out-of-gate calibration stratum"
+
+
 def test_contract_selected_and_abstained_shapes_are_closed() -> None:
     with pytest.raises(ValidationError):
         CalibratedPredictionSet(
@@ -109,6 +167,24 @@ def test_contract_selected_and_abstained_shapes_are_closed() -> None:
             calibration_error=0.01,
             selection_status=SelectivePredictionStatus.ABSTAINED,
         )
+    with pytest.raises(ValidationError):
+        SelectiveCandidate(
+            feature_id="feature.numeric-no-label",
+            estimate_value=1.0,
+            support_score=0.9,
+            ood_score=0.1,
+            calibration_error=0.01,
+            stratum_ids=("stratum.site",),
+        )
+    with pytest.raises(ValidationError):
+        SelectiveCandidate(
+            feature_id="feature.duplicate-strata",
+            category="x",
+            support_score=0.9,
+            ood_score=0.1,
+            calibration_error=0.01,
+            stratum_ids=("stratum.site", "stratum.site"),
+        )
 
 
 def test_plugin_bytes_path_descriptor_and_forged_token() -> None:
@@ -127,7 +203,34 @@ def test_request_binding_rejects_wrong_version_or_coverage() -> None:
     with pytest.raises(ValidationError):
         type(active).model_validate(active.model_copy(update={"policy": bad_policy}), strict=True)
     bad_upstream = active.uncertainty_result.model_copy(update={"result_version": "0.2.0"})
-    with pytest.raises(ValidationError):
-        type(active).model_validate(
-            active.model_copy(update={"uncertainty_result": bad_upstream}), strict=True
-        )
+    with pytest.raises((ValidationError, ValueError)):
+        active.model_copy(
+            update={"uncertainty_result": bad_upstream}
+        ).request_is_bound()
+    bad_output = active.uncertainty_result.model_copy(update={"output_type": "wrong"})
+    with pytest.raises((ValidationError, ValueError)):
+        active.model_copy(update={"uncertainty_result": bad_output}).request_is_bound()
+    with pytest.raises((ValidationError, ValueError)):
+        active.model_copy(update={"policy": bad_policy}).request_is_bound()
+
+
+def test_result_closure_rejects_forged_status_and_support() -> None:
+    result = M0707Service().execute(request())
+    with pytest.raises((ValidationError, ValueError)):
+        result.model_copy(
+            update={"request_digest": "sha256:" + "d" * 64}
+        ).result_is_closed()
+    with pytest.raises((ValidationError, ValueError)):
+        result.model_copy(
+            update={"estimates": (), "abstention_reason": "missing"}
+        ).result_is_closed()
+    with pytest.raises((ValidationError, ValueError)):
+        result.model_copy(
+            update={
+                "support_decision": SupportDecision(
+                    status=SupportStatus.REVIEW_REQUIRED,
+                    reason_code="review",
+                    rationale="review",
+                )
+            }
+        ).result_is_closed()
