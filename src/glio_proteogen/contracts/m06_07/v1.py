@@ -92,13 +92,19 @@ class SelectivePredictionStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class CalibrationReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+
+
 class CalibrationStratum(FrozenModel):
     stratum_id: Identifier
     dimension: CalibrationStratumDimension
     label: NonEmptyStr
     sample_count: int = Field(ge=0)
-    observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
-    calibration_error: float | None = Field(default=None, ge=0.0, le=1.0)
+    observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    calibration_error: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0607_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -113,10 +119,10 @@ class CalibrationStratum(FrozenModel):
 class SelectiveSupportThreshold(FrozenModel):
     threshold_id: Identifier
     version: SemanticVersion
-    minimum_support_score: float = Field(ge=0.0, le=1.0)
-    maximum_ood_score: float = Field(ge=0.0, le=1.0)
-    maximum_calibration_error: float = Field(ge=0.0, le=1.0)
-    target_coverage: float = Field(ge=0.0, le=1.0)
+    minimum_support_score: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    maximum_ood_score: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    maximum_calibration_error: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    target_coverage: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0607_MAX_EVIDENCE)
 
@@ -151,8 +157,8 @@ class CalibratedPredictionSet(FrozenModel):
     labels: tuple[NonEmptyStr, ...] = Field(
         min_length=1, max_length=M0607_MAX_PREDICTION_SET_LABELS
     )
-    target_coverage: float = Field(ge=0.0, le=1.0)
-    observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
+    target_coverage: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
     abstention_allowed: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0607_MAX_EVIDENCE)
 
@@ -165,12 +171,12 @@ class CalibratedPredictionSet(FrozenModel):
 
 class CalibratedEstimate(FrozenModel):
     feature_id: Identifier
-    estimate_value: float | None = None
+    estimate_value: float | None = Field(default=None, allow_inf_nan=False)
     category: NonEmptyStr | None = None
     prediction_set_id: Identifier | None = None
-    support_score: float = Field(ge=0.0, le=1.0)
+    support_score: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
     ood_status: OutOfDistributionStatus
-    calibration_error: float | None = Field(default=None, ge=0.0, le=1.0)
+    calibration_error: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
     selection_status: SelectivePredictionStatus
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0607_MAX_EVIDENCE)
 
@@ -258,10 +264,24 @@ class CalibrateSelectiveProteinAbundanceResult(FrozenModel):
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.status is CalibrationStatus.CALIBRATED:
-            if not self.estimates or self.abstention_reason is not None:
-                raise ValueError("calibrated result requires selected or abstained estimates")
+            if (
+                not self.estimates
+                or self.abstention_reason is not None
+                or not self.prediction_sets
+            ):
+                raise ValueError(
+                    "calibrated result requires selected estimates and prediction sets"
+                )
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("calibrated result requires supported status")
+            if any(
+                item.selection_status is not SelectivePredictionStatus.SELECTED
+                for item in self.estimates
+            ):
+                raise ValueError("calibrated result cannot contain abstained estimates")
+            prediction_ids = {item.prediction_set_id for item in self.prediction_sets}
+            if any(item.prediction_set_id not in prediction_ids for item in self.estimates):
+                raise ValueError("calibrated estimates must bind a prediction set")
         elif (
             self.estimates
             or self.prediction_sets
@@ -270,8 +290,32 @@ class CalibrateSelectiveProteinAbundanceResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no predictions and safe status")
+        if len({item.diagnostic_id for item in self.diagnostics}) != len(self.diagnostics):
+            raise ValueError("calibration diagnostic ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        return self
+
+
+class CalibrateSelectiveProteinAbundanceVerification(FrozenModel):
+    """Replay verdict for one canonical calibration result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: CalibrationReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(self) -> CalibrateSelectiveProteinAbundanceVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified and self.reason is not CalibrationReplayReason.VERIFIED:
+            raise ValueError("verified replay requires verified reason")
+        if not self.verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a trusted result digest")
+        if self.verified and self.result_digest is None:
+            raise ValueError("verified replay requires a result digest")
         return self
 
 
@@ -299,11 +343,13 @@ __all__ = [
     "M0607_SAFETY_CLASS",
     "CalibrateSelectiveProteinAbundanceRequest",
     "CalibrateSelectiveProteinAbundanceResult",
+    "CalibrateSelectiveProteinAbundanceVerification",
     "CalibratedEstimate",
     "CalibratedPredictionSet",
     "CalibrationDiagnostic",
     "CalibrationMethod",
     "CalibrationPolicy",
+    "CalibrationReplayReason",
     "CalibrationStatus",
     "CalibrationStratum",
     "CalibrationStratumDimension",

@@ -1,6 +1,7 @@
 """Public provisional M06-07 calibration/selective-prediction boundary."""
 
 from .engine import (
+    BuiltCalibration,
     CalibrationAuthorizationError,
     CalibrationInputError,
     M0607CalibrationEngine,
@@ -10,6 +11,7 @@ from .engine import (
 from .service import M0607Service
 
 __all__ = [
+    "BuiltCalibration",
     "CalibrationAuthorizationError",
     "CalibrationInputError",
     "M0607CalibrationEngine",

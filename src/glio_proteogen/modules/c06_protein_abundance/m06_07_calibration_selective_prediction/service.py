@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .engine import M0607CalibrationEngine
+from .engine import BuiltCalibration, M0607CalibrationEngine
 
 if TYPE_CHECKING:
-    from glio_proteogen.contracts.m06_07 import CalibrateSelectiveProteinAbundanceRequest
+    from glio_proteogen.contracts.m06_07 import (
+        CalibrateSelectiveProteinAbundanceRequest,
+        CalibrateSelectiveProteinAbundanceVerification,
+    )
 
 
 class M0607Service:
-    """Strictly validate one request; calibration is intentionally deferred."""
+    """Validate, calibrate, replay, and execute one request."""
 
     __slots__ = ("_engine",)
 
@@ -22,8 +25,18 @@ class M0607Service:
     def validate_request(request: object) -> CalibrateSelectiveProteinAbundanceRequest:
         return M0607CalibrationEngine.validate_request(request)
 
-    def calibrate(self, request: object) -> None:
+    def calibrate(self, request: object) -> BuiltCalibration:
         return self._engine.calibrate(request)
+
+    def verify(
+        self,
+        result: object,
+        canonical_bytes: bytes | None = None,
+    ) -> CalibrateSelectiveProteinAbundanceVerification:
+        return self._engine.verify(result, canonical_bytes)
+
+    def execute(self, request: object) -> BuiltCalibration:
+        return self._engine.execute(request)
 
 
 __all__ = ["M0607Service"]
