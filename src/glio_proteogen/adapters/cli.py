@@ -17,6 +17,7 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
     _contract_schema,
+    _formal_state_contract_schema,
     _harmonization_contract_schema,
     _identification_artifact_contract_schema,
     _identification_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m06_01 import (
+    M0601_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateFormalProteinStateRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    M0601Service,
+    preflight_formal_state_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +442,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+formal_state_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-01 formal state and feature schema validation.",
+)
+app.add_typer(formal_state_app, name="formal-state")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3380,6 +3394,44 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@formal_state_app.command("export-schema")
+def export_formal_state_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "schema",
+            "feature-definition",
+            "feature-value",
+            "invariant",
+            "invariant-result",
+            "migration",
+        ],
+        typer.Argument(help="M06-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable formal-state contract."""
+
+    typer.echo(json.dumps(_formal_state_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@formal_state_app.command("validate")
+def validate_formal_state_request(request: RequestArgument) -> None:
+    """Validate one formal-state request and execute its closed invariants."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ValidateFormalProteinStateRequest),
+            preflight_formal_state_authorization,
+            M0601_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M0601Service().execute(parsed))
+    except (TypeError, ValueError) as error:
+        typer.echo(f"formal-state validation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
