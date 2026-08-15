@@ -81,10 +81,10 @@ class M0506Plugin(ModulePlugin[object, ValidatedM0506Request, PtmLocalizationHar
         snapshot = _ISSUED_TOKENS.get(request)
         if (
             type(request) is not ValidatedM0506Request
-            or request._seal is not _TOKEN_SEAL
+            or getattr(request, "_seal", None) is not _TOKEN_SEAL
             or snapshot is None
-            or snapshot[0] is not request.request
-            or snapshot[1] != canonical_request_digest(request.request)
+            or getattr(request, "request", None) is not snapshot[0]
+            or snapshot[1] != canonical_request_digest(getattr(request, "request", None))
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
