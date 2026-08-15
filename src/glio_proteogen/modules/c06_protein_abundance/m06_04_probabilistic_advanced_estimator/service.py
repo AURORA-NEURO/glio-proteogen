@@ -9,6 +9,7 @@ from .engine import M0604ProbabilisticEstimatorEngine
 if TYPE_CHECKING:
     from glio_proteogen.contracts.m06_04 import (
         EstimateProteinAbundanceProbabilisticRequest,
+        EstimateProteinAbundanceProbabilisticResult,
     )
 
 
@@ -24,7 +25,7 @@ class M0604Service:
     def validate_request(request: object) -> EstimateProteinAbundanceProbabilisticRequest:
         return M0604ProbabilisticEstimatorEngine.validate_request(request)
 
-    def estimate(self, request: object) -> None:
+    def estimate(self, request: object) -> EstimateProteinAbundanceProbabilisticResult:
         return self._engine.estimate(request)
 
 

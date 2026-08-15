@@ -113,9 +113,7 @@ class ProbabilisticEstimatorConfiguration(FrozenModel):
     state_schema_id: Identifier
     state_schema_version: SemanticVersion
     objective: NonEmptyStr
-    priors: tuple[ProbabilisticPrior, ...] = Field(
-        min_length=1, max_length=M0604_MAX_PRIORS
-    )
+    priors: tuple[ProbabilisticPrior, ...] = Field(min_length=1, max_length=M0604_MAX_PRIORS)
     constraints: tuple[EstimatorConstraint, ...] = Field(
         default=(), max_length=M0604_MAX_CONSTRAINTS
     )
@@ -199,12 +197,45 @@ class EstimateProteinAbundanceProbabilisticRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateProteinAbundanceProbabilisticRequest:
-        schema_features = {item.feature_id for item in self.state_schema.features}
+        definitions = {item.feature_id: item for item in self.state_schema.features}
+        schema_features = set(definitions)
         value_features = {item.feature_id for item in self.feature_values}
         if len(value_features) != len(self.feature_values):
             raise ValueError("probabilistic feature values must be unique")
         if value_features != schema_features:
             raise ValueError("probabilistic request must cover the formal-state schema")
+        for feature_id, value in ((item.feature_id, item) for item in self.feature_values):
+            definition = definitions[feature_id]
+            if value.state not in definition.allowed_missingness:
+                raise ValueError("probabilistic feature value uses disallowed missingness")
+            if value.unit != definition.unit:
+                raise ValueError("probabilistic feature value unit does not match schema")
+            if value.category is not None and value.category not in definition.allowed_categories:
+                raise ValueError("probabilistic category is outside the declared domain")
+            numeric_values = tuple(
+                item
+                for item in (
+                    value.scalar_value,
+                    value.interval_lower,
+                    value.interval_upper,
+                    *value.vector,
+                )
+                if item is not None
+            )
+            if any(
+                (definition.domain_lower is not None
+                and item < definition.domain_lower)
+                or (definition.domain_upper is not None
+                and item > definition.domain_upper)
+                for item in numeric_values
+            ):
+                raise ValueError("probabilistic feature value is outside the schema domain")
+            if (
+                value.interval_lower is not None
+                and value.interval_upper is not None
+                and value.interval_lower > value.interval_upper
+            ):
+                raise ValueError("probabilistic interval bounds must be ordered")
         if (
             self.configuration.state_schema_id != self.state_schema.schema_id
             or self.configuration.state_schema_version != self.state_schema.version
@@ -223,9 +254,7 @@ class EstimateProteinAbundanceProbabilisticResult(FrozenModel):
     result_digest: Sha256Digest
     request: EstimateProteinAbundanceProbabilisticRequest
     status: ProbabilisticResultStatus
-    estimates: tuple[PosteriorEstimate, ...] = Field(
-        default=(), max_length=M0604_MAX_ESTIMATES
-    )
+    estimates: tuple[PosteriorEstimate, ...] = Field(default=(), max_length=M0604_MAX_ESTIMATES)
     diagnostics: tuple[OptimizationDiagnostic, ...] = Field(
         default=(), max_length=M0604_MAX_DIAGNOSTICS
     )
@@ -242,6 +271,12 @@ class EstimateProteinAbundanceProbabilisticResult(FrozenModel):
     def result_is_closed(self) -> EstimateProteinAbundanceProbabilisticResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        estimate_ids = tuple(item.feature_id for item in self.estimates)
+        if len(estimate_ids) != len(set(estimate_ids)):
+            raise ValueError("posterior estimate feature ids must be unique")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("optimization diagnostic ids must be unique")
         if self.status is ProbabilisticResultStatus.ESTIMATED:
             if not self.estimates or self.abstention_reason is not None:
                 raise ValueError("estimated result requires posterior estimates")

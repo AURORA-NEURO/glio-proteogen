@@ -60,8 +60,6 @@ def test_prior_posterior_and_runtime_import_smoke() -> None:
     )
     assert prior.parameters == (0.0, 1.0)
     assert posterior.lower_bound == _EXPECTED_LOWER_BOUND
-    assert canonical_request_digest({"prior": prior.model_dump(mode="json")}).startswith(
-        "sha256:"
-    )
+    assert canonical_request_digest({"prior": prior.model_dump(mode="json")}).startswith("sha256:")
     assert M0604Service is not None
     assert M0604ProbabilisticEstimatorEngine is not None
