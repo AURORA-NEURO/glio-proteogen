@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from typing import Final
+from typing import Any, Final, cast
 
 from pydantic import BaseModel
 
@@ -159,28 +159,6 @@ def _validate_request(candidate: object) -> ConstructProteinRnaRepresentationReq
     if not isinstance(candidate, Mapping):
         raise _RequestMappingError
     return ConstructProteinRnaRepresentationRequest.model_validate(_plain(candidate), strict=True)
-
-
-def _validate_json_request(
-    candidate: object,
-    serialized: bytes | bytearray | str,
-) -> ConstructProteinRnaRepresentationRequest:
-    preflight_authorization(candidate)
-    decoded = strict_json_loads(serialized, max_bytes=M1002_MAX_CANONICAL_REQUEST_BYTES)
-    if not isinstance(decoded, dict):
-        raise _RequestJsonObjectError
-    return _validate_decoded_json_request(decoded)
-
-
-def _validate_decoded_json_request(
-    candidate: object,
-) -> ConstructProteinRnaRepresentationRequest:
-    """Validate one already strict-parsed JSON tree without reparsing bytes."""
-
-    preflight_authorization(candidate)
-    if not isinstance(candidate, dict):
-        raise _RequestJsonObjectError
-    return ConstructProteinRnaRepresentationRequest.model_validate(candidate)
 
 
 def _validate_serialized_json_request(
@@ -436,7 +414,7 @@ def _result(
     }
     # Calculate against a validation-free model so nested datetime and enum
     # serialization exactly matches the result validator's canonical boundary.
-    candidate = ProteinRnaRepresentationResult.model_construct(**payload)
+    candidate = cast("Any", ProteinRnaRepresentationResult).model_construct(**payload)
     payload["result_digest"] = result_payload_digest(candidate)
     return ProteinRnaRepresentationResult.model_validate(payload, strict=True)
 

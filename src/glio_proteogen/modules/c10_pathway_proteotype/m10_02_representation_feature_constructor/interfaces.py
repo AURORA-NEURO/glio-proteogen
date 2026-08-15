@@ -117,7 +117,7 @@ def validate_command(request: Path = typer.Argument(..., exists=True, readable=T
     try:
         token = M1002Plugin(M1002Service()).validate(request.read_bytes())
     except Exception as error:
-        typer.echo(json.dumps(_error_response(error).body.decode("utf-8"), sort_keys=True))
+        typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))
         raise typer.Exit(code=2) from error
     typer.echo(json.dumps(token.request.model_dump(mode="json"), sort_keys=True))
 
@@ -136,7 +136,7 @@ def construct_command(
         token = plugin.validate(request.read_bytes())
         result = plugin.run(token)
     except Exception as error:
-        typer.echo(json.dumps(_error_response(error).body.decode("utf-8"), sort_keys=True))
+        typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))
         raise typer.Exit(code=2) from error
     rendered = json.dumps(result.model_dump(mode="json"), ensure_ascii=False, sort_keys=True) + "\n"
     if output is None:

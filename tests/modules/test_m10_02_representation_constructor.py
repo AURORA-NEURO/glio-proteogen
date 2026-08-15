@@ -37,6 +37,13 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature
 )
 from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.engine import (  # noqa: E501
     RepresentationAuthorizationError,
+    _NonEvaluableTransformError,
+    _plain,
+    _RequestMappingError,
+    _RequestTypeError,
+    _UnsupportedOperationError,
+    preflight_authorization,
+    validate_json_request,
 )
 
 
@@ -155,8 +162,111 @@ def test_controls_are_checked_before_execution() -> None:
 def test_plugin_is_parse_once_and_rejects_unvalidated_execution() -> None:
     plugin = M1002Plugin(M1002Service())
     request = _request()
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M10-02"
+    assert plugin.validate(request).request.request_id == request.request_id
     token = plugin.validate(request.model_dump_json())
     result = plugin.run(token)
     assert verify_result_replay(result)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(request)  # type: ignore[arg-type]
+
+
+def test_json_validation_and_mapping_validation_preserve_strict_types() -> None:
+    request = _request()
+    assert validate_json_request({}, request.model_dump_json()).request_id == request.request_id
+    assert M1002Service().validate_request(request.model_dump(mode="python")) == request
+
+
+def test_transform_operations_cover_log1p_fitted_and_non_evaluable_paths() -> None:
+    request = _request()
+    log_configuration = request.configuration.model_copy(
+        update={
+            "transformations": (
+                request.configuration.transformations[0].model_copy(update={"operation": "log1p"}),
+            )
+        }
+    )
+    log_request = request.model_copy(update={"configuration": log_configuration})
+    assert construct_protein_rna_representation(log_request).status.value == "constructed"
+    invalid_input = request.input_features[0].model_copy(update={"scalar_value": -1.0})
+    invalid_request = request.model_copy(update={"input_features": (invalid_input,)})
+    assert (
+        construct_protein_rna_representation(
+            invalid_request.model_copy(update={"configuration": log_configuration})
+        ).status.value
+        == "abstained"
+    )
+    fitted_configuration = request.configuration.model_copy(
+        update={
+            "transformations": (
+                request.configuration.transformations[0].model_copy(
+                    update={"operation": "standardize"}
+                ),
+            )
+        }
+    )
+    assert (
+        construct_protein_rna_representation(
+            request.model_copy(update={"configuration": fitted_configuration})
+        ).status.value
+        == "constructed"
+    )
+    unsupported_configuration = request.configuration.model_copy(
+        update={
+            "transformations": (
+                request.configuration.transformations[0].model_copy(
+                    update={"operation": "future-method"}
+                ),
+            )
+        }
+    )
+    assert (
+        construct_protein_rna_representation(
+            request.model_copy(update={"configuration": unsupported_configuration})
+        ).status.value
+        == "abstained"
+    )
+
+
+def test_categorical_and_vector_values_retain_declared_shapes() -> None:
+    request = _request()
+    categorical = request.input_features[0].model_copy(
+        update={
+            "value_kind": RepresentationFeatureValueKind.CATEGORICAL,
+            "scalar_value": None,
+            "category": "factor-a",
+        }
+    )
+    vector = request.input_features[0].model_copy(
+        update={
+            "value_kind": RepresentationFeatureValueKind.VECTOR,
+            "scalar_value": None,
+            "vector": (0.1, 0.2),
+        }
+    )
+    categorical_result = construct_protein_rna_representation(
+        request.model_copy(update={"input_features": (categorical,)})
+    )
+    vector_result = construct_protein_rna_representation(
+        request.model_copy(update={"input_features": (vector,)})
+    )
+    assert categorical_result.representation is not None
+    assert categorical_result.representation.features[0].category == "factor-a"
+    assert vector_result.representation is not None
+    assert vector_result.representation.features[0].vector == (0.1, 0.2)
+
+
+def test_preflight_rejects_hostile_and_incomplete_candidates() -> None:
+    with pytest.raises(RepresentationAuthorizationError):
+        preflight_authorization(object())
+    with pytest.raises(RepresentationAuthorizationError):
+        preflight_authorization({})
+
+
+def test_defensive_error_types_and_plain_projection_are_exercised() -> None:
+    assert str(_RequestTypeError())
+    assert str(_RequestMappingError())
+    assert str(_UnsupportedOperationError("future"))
+    assert str(_NonEvaluableTransformError())
+    assert _plain(_request())
+    assert _plain([1, {"a": (2,)}]) == [1, {"a": (2,)}]
