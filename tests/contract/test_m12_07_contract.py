@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 
@@ -50,7 +51,7 @@ def _evidence(label: str) -> EvidenceReference:
 
 
 def test_m1207_schemas_are_strict_and_explicitly_provisional() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
 
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
