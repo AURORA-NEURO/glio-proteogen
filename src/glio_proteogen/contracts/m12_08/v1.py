@@ -183,11 +183,7 @@ class MechanismEvidenceDossier(FrozenModel):
         kinds = {item.kind for item in self.links}
         if kinds != set(MechanismEvidenceLinkKind):
             raise ValueError("dossier must expose every mechanism chain link kind exactly")
-        if any(
-            evidence.role != "evidence"
-            for link in self.links
-            for evidence in link.evidence
-        ):
+        if any(evidence.role != "evidence" for link in self.links for evidence in link.evidence):
             raise ValueError("mechanism links may only carry evidence-role references")
         if any(
             evidence.role != "counter_evidence"
@@ -200,7 +196,9 @@ class MechanismEvidenceDossier(FrozenModel):
                 raise ValueError("counter-evidence references an unknown link")
         for link in self.links:
             allowed_external = {
-                predecessor for predecessor in link.predecessor_ids if predecessor.startswith("source.")
+                predecessor
+                for predecessor in link.predecessor_ids
+                if predecessor.startswith("source.")
             }
             if not set(link.predecessor_ids) <= known_links | set(counter_ids) | allowed_external:
                 raise ValueError("mechanism link references an unknown predecessor")
