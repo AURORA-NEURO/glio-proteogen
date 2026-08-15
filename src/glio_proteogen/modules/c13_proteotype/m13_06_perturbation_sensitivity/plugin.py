@@ -61,8 +61,8 @@ class M1306Plugin(
     def validate(self, request: object) -> ValidatedM1306Request:
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
-            decoded = strict_json_loads(serialized, max_bytes=M1306_MAX_CANONICAL_REQUEST_BYTES)
-            typed = self._service.validate_request(decoded)
+            strict_json_loads(serialized, max_bytes=M1306_MAX_CANONICAL_REQUEST_BYTES)
+            typed = SimulateProteotypePerturbationRequest.model_validate_json(serialized)
         else:
             typed = self._service.validate_request(request)
         return ValidatedM1306Request(request=typed, _seal=_TOKEN_SEAL)

@@ -328,7 +328,10 @@ class M1306PerturbationSensitivityEngine:
             "limitations": _LIMITATIONS,
             "human_review_required": True,
         }
-        payload["result_digest"] = result_payload_digest(payload)
+        digest_source = ProteotypePerturbationSensitivityResult.model_construct(
+            **payload  # type: ignore[arg-type]
+        )
+        payload["result_digest"] = result_payload_digest(digest_source)
         return ProteotypePerturbationSensitivityResult.model_validate(payload)
 
 
