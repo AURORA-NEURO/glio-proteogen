@@ -48,6 +48,9 @@ M1007_MAX_EVIDENCE: Final = 64
 M1007_MAX_SCOPES: Final = 128
 M1007_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1007_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1007_BENCHMARK_ITERATIONS: Final = 10
+M1007_MEAN_BUDGET_NS: Final = 2_000_000_000
+M1007_P95_BUDGET_NS: Final = 3_000_000_000
 M1007_NOMINAL_COVERAGE: Final = 0.9
 M1007_MIN_COVERAGE: Final = 0.85
 M1007_MAX_COVERAGE: Final = 0.95
@@ -66,6 +69,14 @@ class CalibrationMethod(StrEnum):
 class CalibrationStatus(StrEnum):
     CALIBRATED = "calibrated"
     ABSTAINED = "abstained"
+
+
+class CalibrationReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
 
 
 class CalibrationDiagnosticStatus(StrEnum):
@@ -153,6 +164,27 @@ class CalibrationDiagnostic(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1007_MAX_EVIDENCE)
 
 
+class CalibrateProteinRnaDiscordanceSelectivePredictionVerification(FrozenModel):
+    """Content and deterministic replay status for one selective result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: CalibrationReplayReason
+
+    @model_validator(mode="after")
+    def flags_are_closed(
+        self,
+    ) -> CalibrateProteinRnaDiscordanceSelectivePredictionVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
+        return self
+
+
 class CalibrateProteinRnaDiscordanceSelectivePredictionRequest(FrozenModel):
     """Provisional request bound to the complete M10-06 uncertainty result."""
 
@@ -221,6 +253,8 @@ class ProteinRnaDiscordanceSelectivePredictionResult(FrozenModel):
                 or any(item.status in failed for item in self.diagnostics)
             ):
                 raise ValueError("calibrated result requires supported, evaluable output")
+            if self.prediction_set.nominal_coverage != M1007_NOMINAL_COVERAGE:
+                raise ValueError("calibrated prediction set requires nominal 90 percent coverage")
         elif (
             self.estimate is not None
             or self.prediction_set is not None
@@ -229,6 +263,11 @@ class ProteinRnaDiscordanceSelectivePredictionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no prediction and explicit safe status")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("calibration diagnostic ids must be unique")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("calibration findings must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -236,10 +275,12 @@ class ProteinRnaDiscordanceSelectivePredictionResult(FrozenModel):
 
 __all__ = [
     "M1007_CONTRACT_VERSION",
+    "M1007_BENCHMARK_ITERATIONS",
     "M1007_EVIDENCE_CLAIM",
     "M1007_GATE",
     "M1007_MAX_CANONICAL_REQUEST_BYTES",
     "M1007_MAX_CANONICAL_RESULT_BYTES",
+    "M1007_MEAN_BUDGET_NS",
     "M1007_MAX_COVERAGE",
     "M1007_MAX_DIAGNOSTICS",
     "M1007_MAX_EVIDENCE",
@@ -252,6 +293,7 @@ __all__ = [
     "M1007_OUTPUT_MEDIA_TYPE",
     "M1007_OWNER",
     "M1007_PARENT",
+    "M1007_P95_BUDGET_NS",
     "M1007_PROVISIONAL_ABI",
     "M1007_SAFETY_CLASS",
     "M1007_UNCERTAINTY_MEDIA_TYPE",
@@ -262,8 +304,10 @@ __all__ = [
     "CalibrationDiagnosticStatus",
     "CalibrationFindingCode",
     "CalibrationMethod",
+    "CalibrationReplayReason",
     "CalibrationScope",
     "CalibrationStatus",
     "PredictionSet",
     "ProteinRnaDiscordanceSelectivePredictionResult",
+    "CalibrateProteinRnaDiscordanceSelectivePredictionVerification",
 ]
