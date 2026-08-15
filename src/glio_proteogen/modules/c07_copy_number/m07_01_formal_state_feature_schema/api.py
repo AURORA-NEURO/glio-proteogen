@@ -106,9 +106,11 @@ def create_app(service: M0701Service | None = None) -> FastAPI:
             decoded = strict_json_loads(payload, max_bytes=M0701_MAX_CANONICAL_REQUEST_BYTES)
             if not isinstance(decoded, dict) or "result" not in decoded:
                 raise ValueError  # noqa: TRY301
-            result = _RESULT_ADAPTER.validate_python(decoded["result"], strict=True)
             canonical = decoded.get("canonical")
-            canonical_bytes = canonical.encode("utf-8") if isinstance(canonical, str) else None
+            if not isinstance(canonical, str):
+                raise ValueError  # noqa: TRY301
+            canonical_bytes = canonical.encode("utf-8")
+            result = _RESULT_ADAPTER.validate_json(canonical_bytes, strict=True)
             verified = formal_state_service.verify(result, canonical_bytes)
         except (ValidationError, TypeError, ValueError, FormalStateInputError) as error:
             raise HTTPException(
