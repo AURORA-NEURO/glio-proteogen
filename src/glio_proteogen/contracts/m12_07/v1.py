@@ -98,6 +98,10 @@ class PlausibilityControl(FrozenModel):
     kind: ControlKind
     criterion: NonEmptyStr
     expected_direction: NonEmptyStr | None = None
+    # The value is a caller-declared observation; opaque evidence artifacts are
+    # never traversed or treated as authenticated measurements by this module.
+    declared_outcome: ControlOutcome | None = None
+    declared_observed_direction: NonEmptyStr | None = None
     required_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M1207_MAX_EVIDENCE
     )
@@ -141,6 +145,9 @@ class AdjudicateBiomarkerPanelPlausibilityRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1207_MAX_EVIDENCE
     )
+    declared_conflicts: tuple[UnresolvedConflict, ...] = Field(
+        default=(), max_length=M1207_MAX_CONFLICTS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -155,6 +162,9 @@ class AdjudicateBiomarkerPanelPlausibilityRequest(FrozenModel):
             raise ValueError("source artifact ids must be unique")
         if self.mechanism_inference_result.artifact_id in set(source_ids):
             raise ValueError("mechanism result must not be duplicated as a source artifact")
+        conflict_ids = tuple(item.conflict_id for item in self.declared_conflicts)
+        if len(conflict_ids) != len(set(conflict_ids)):
+            raise ValueError("declared conflict ids must be unique")
         return self
 
 
