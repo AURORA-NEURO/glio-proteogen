@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m10_02.canonical import (
     canonical_request_digest,
@@ -116,6 +116,16 @@ class FeatureLineage(FrozenModel):
     leakage_safe: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
 
+    @field_validator("source_artifacts", "transformation_ids", "evidence")
+    @classmethod
+    def references_are_unique(cls, values: tuple[object, ...]) -> tuple[object, ...]:
+        """Prevent ambiguous lineage while retaining caller-declared ordering."""
+
+        keys = tuple(item.model_dump_json() if hasattr(item, "model_dump_json") else item for item in values)
+        if len(keys) != len(set(keys)):
+            raise ValueError("feature lineage references must be unique")
+        return values
+
 
 class TransformationStep(FrozenModel):
     """Deterministic transformation with explicit fit scope and leakage guard."""
@@ -135,6 +145,10 @@ class TransformationStep(FrozenModel):
             raise ValueError("fit artifact is forbidden for a fit-free transformation")
         if self.fit_scope != "none" and self.fit_artifact is None:
             raise ValueError("fitted transformation requires an explicit fit artifact")
+        if len(self.input_feature_ids) != len(set(self.input_feature_ids)):
+            raise ValueError("transformation input feature identifiers must be unique")
+        if len(self.output_feature_ids) != len(set(self.output_feature_ids)):
+            raise ValueError("transformation output feature identifiers must be unique")
         return self
 
 
@@ -162,6 +176,16 @@ class MaskPolicy(FrozenModel):
     )
     replacement: Literal["mask_token", "missing_indicator", "none"]
     locked: Literal[True] = True
+
+    @field_validator("missingness_states")
+    @classmethod
+    def missingness_states_are_unique(
+        cls,
+        values: tuple[RepresentationMissingness, ...],
+    ) -> tuple[RepresentationMissingness, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("mask missingness states must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
 
 
 class CovariateDefinition(FrozenModel):
@@ -246,6 +270,19 @@ class RepresentationFeature(FrozenModel):
             and self.state is RepresentationMissingness.OBSERVED
         ):
             raise ValueError("vector representation feature requires vector values")
+        expected_present = {
+            RepresentationFeatureValueKind.SCALAR: self.scalar_value is not None,
+            RepresentationFeatureValueKind.CATEGORICAL: self.category is not None,
+            RepresentationFeatureValueKind.VECTOR: bool(self.vector),
+        }[self.value_kind]
+        if self.state is RepresentationMissingness.OBSERVED and not expected_present:
+            raise ValueError("feature value does not match its declared value kind")
+        if self.state is not RepresentationMissingness.OBSERVED and (
+            self.scaling_id is not None or self.mask_id is not None
+        ):
+            raise ValueError("non-observed feature cannot claim applied scaling or mask")
+        if len(self.covariate_ids) != len(set(self.covariate_ids)):
+            raise ValueError("feature covariate identifiers must be unique")
         return self
 
 
@@ -274,9 +311,16 @@ class AnalysisRepresentation(FrozenModel):
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("representation feature ids must be unique")
         transformation_ids = {item.transformation_id for item in self.transformations}
+        output_feature_ids = {
+            feature_id
+            for transformation in self.transformations
+            for feature_id in transformation.output_feature_ids
+        }
         for feature in self.features:
             if not set(feature.lineage.transformation_ids) <= transformation_ids:
                 raise ValueError("feature lineage references an unknown transformation")
+            if not set(feature.lineage.transformation_ids) or feature.feature_id not in output_feature_ids:
+                raise ValueError("feature must be emitted by a declared transformation")
         covariate_ids = {item.covariate_id for item in self.covariates}
         for feature in self.features:
             if not set(feature.covariate_ids) <= covariate_ids:
@@ -367,6 +411,11 @@ class ProteinRnaRepresentationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no representation and safe status")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("result diagnostic identifiers must be unique")
+        if self.status is RepresentationConstructionStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained representation requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
