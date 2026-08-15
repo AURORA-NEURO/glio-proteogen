@@ -1,13 +1,11 @@
 """Contract, runtime, replay, safety, and adapter tests for M12-05."""
 
 # The adversarial matrix intentionally exercises fail-closed boundary behavior.
-# ruff: noqa: E501, ARG005, B017, PLR2004, PT011, PT018, PT006, TRY003
+# ruff: noqa: E501, ARG005, PLR2004, PT018, TRY003
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -71,30 +69,54 @@ def _controls(*, accepted: bool = True) -> ContextReferences:
     consent = ConsentState.GRANTED if accepted else ConsentState.WITHHELD
     return ContextReferences(
         approved_configuration=UpstreamDecisionReference(
-            decision_id="decision.configuration", state=decision, policy_version="1.0.0", evidence=_artifact("control.configuration")
+            decision_id="decision.configuration",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.configuration"),
         ),
         identity_lineage=IdentityLineageReference(
-            decision_id="decision.identity", state=identity, policy_version="1.0.0", binding_digest=sha256_digest("identity"), evidence=_artifact("control.identity")
+            decision_id="decision.identity",
+            state=identity,
+            policy_version="1.0.0",
+            binding_digest=sha256_digest("identity"),
+            evidence=_artifact("control.identity"),
         ),
         provenance=UpstreamDecisionReference(
-            decision_id="decision.provenance", state=decision, policy_version="1.0.0", evidence=_artifact("control.provenance")
+            decision_id="decision.provenance",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.provenance"),
         ),
         consent=ConsentReference(
-            decision_id="decision.consent", state=consent, policy_version="1.0.0", evidence=_artifact("control.consent")
+            decision_id="decision.consent",
+            state=consent,
+            policy_version="1.0.0",
+            evidence=_artifact("control.consent"),
         ),
         quality=UpstreamDecisionReference(
-            decision_id="decision.quality", state=decision, policy_version="1.0.0", evidence=_artifact("control.quality")
+            decision_id="decision.quality",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.quality"),
         ),
         support=UpstreamDecisionReference(
-            decision_id="decision.support", state=decision, policy_version="1.0.0", evidence=_artifact("control.support")
+            decision_id="decision.support",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.support"),
         ),
         intended_use=UpstreamDecisionReference(
-            decision_id="decision.intended", state=decision, policy_version="1.0.0", evidence=_artifact("control.intended")
+            decision_id="decision.intended",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.intended"),
         ),
     )
 
 
-def _request(objective: str = "stable", *, accepted: bool = True) -> ModelBiomarkerPanelLongitudinalEvolutionRequest:
+def _request(
+    objective: str = "stable", *, accepted: bool = True
+) -> ModelBiomarkerPanelLongitudinalEvolutionRequest:
     observations = tuple(
         TimePointObservation(
             observation_id=f"observation.{index}",
@@ -103,7 +125,13 @@ def _request(objective: str = "stable", *, accepted: bool = True) -> ModelBiomar
             territory="core" if index < 2 else "rim",
             treatment_era="pre" if index < 2 else "post",
             feature_artifact=_artifact(f"feature.{index}"),
-            evidence=(EvidenceReference(reference=_artifact(f"obs-evidence.{index}"), role="evidence", claim="Caller-declared observation evidence."),),
+            evidence=(
+                EvidenceReference(
+                    reference=_artifact(f"obs-evidence.{index}"),
+                    role="evidence",
+                    claim="Caller-declared observation evidence.",
+                ),
+            ),
         )
         for index in range(3)
     )
@@ -113,12 +141,21 @@ def _request(objective: str = "stable", *, accepted: bool = True) -> ModelBiomar
         model_family=EvolutionModelFamily.STATE_SPACE,
         objective=objective,
         model_reference=_artifact("model", "application/vnd.glio-proteogen.model+json"),
-        evidence=(EvidenceReference(reference=_artifact("configuration.evidence"), role="evidence", claim="Locked temporal model manifest."),),
+        evidence=(
+            EvidenceReference(
+                reference=_artifact("configuration.evidence"),
+                role="evidence",
+                claim="Locked temporal model manifest.",
+            ),
+        ),
     )
     return ModelBiomarkerPanelLongitudinalEvolutionRequest(
         request_id="request.m1205",
         context=ExecutionContext(
-            request_id="request.m1205", actor_id="actor.test", occurred_at=_WHEN, references=_controls(accepted=accepted)
+            request_id="request.m1205",
+            actor_id="actor.test",
+            occurred_at=_WHEN,
+            references=_controls(accepted=accepted),
         ),
         network_state_result=_artifact("m1204-result", M1205_M1204_RESULT_MEDIA_TYPE),
         policy=TrajectoryPolicy(
@@ -142,7 +179,9 @@ def test_supported_trajectory_is_typed_ordered_and_replayable() -> None:
     assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
 
 
-@pytest.mark.parametrize("objective", ["alternating", "territory", "treatment_era", "time_course", "trajectory:stable"])
+@pytest.mark.parametrize(
+    "objective", ["alternating", "territory", "treatment_era", "time_course", "trajectory:stable"]
+)
 def test_closed_objectives_produce_deterministic_labels(objective: str) -> None:
     result = M1205LongitudinalEngine().infer(_request(objective))
     assert result.status is TrajectoryStatus.MODELED
@@ -158,7 +197,15 @@ def test_change_point_is_explicit_and_replayable() -> None:
     assert result.change_points[0].before_state_id != result.change_points[0].after_state_id
 
 
-@pytest.mark.parametrize("objective", ["abstain:review", "bayesian_graph:state", "change_point:0:before:after", "change_point:9:before:after"])
+@pytest.mark.parametrize(
+    "objective",
+    [
+        "abstain:review",
+        "bayesian_graph:state",
+        "change_point:0:before:after",
+        "change_point:9:before:after",
+    ],
+)
 def test_unknown_or_unsupported_objective_abstains_safely(objective: str) -> None:
     result = M1205LongitudinalEngine().infer(_request(objective))
     assert result.status is TrajectoryStatus.NOT_EVALUABLE
@@ -232,7 +279,9 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
         return payload
 
     with pytest.raises(ValueError, match="result identifier"):
-        BiomarkerPanelLongitudinalEvolutionResult.model_validate(resigned(result_id="result.bad"), strict=True)
+        BiomarkerPanelLongitudinalEvolutionResult.model_validate(
+            resigned(result_id="result.bad"), strict=True
+        )
     with pytest.raises(ValueError, match="every result"):
         BiomarkerPanelLongitudinalEvolutionResult.model_validate(resigned(evidence=()), strict=True)
     duplicated = result.model_dump(mode="python")
@@ -264,10 +313,20 @@ def test_service_api_success_error_and_verify_paths() -> None:
     assert verified.status_code == 200
     assert client.get("/v1/m12-05/schema/request").status_code == 200
     assert client.get("/v1/m12-05/schema/not-real").status_code == 404
-    assert client.post("/v1/modules/M12-05/longitudinal", content=b"{}", headers={"content-type": "text/plain"}).status_code == 415
+    assert (
+        client.post(
+            "/v1/modules/M12-05/longitudinal", content=b"{}", headers={"content-type": "text/plain"}
+        ).status_code
+        == 415
+    )
     denied = _request(accepted=False).model_dump(mode="json")
     assert client.post("/v1/modules/M12-05/longitudinal", json=denied).status_code == 403
-    assert client.post("/v1/modules/M12-05/verify", content=b"{}", headers={"content-type": "application/json"}).status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M12-05/verify", content=b"{}", headers={"content-type": "application/json"}
+        ).status_code
+        == 422
+    )
 
 
 def test_service_and_public_operation_paths() -> None:
@@ -276,5 +335,7 @@ def test_service_and_public_operation_paths() -> None:
     assert service.validate_request(request) == request
     assert service.execute(request).status is TrajectoryStatus.MODELED
     assert service.verify(service.execute(request)).status is TrajectoryStatus.MODELED
-    assert engine_module.infer_biomarker_panel_longitudinal_evolution(request).status is TrajectoryStatus.MODELED
-
+    assert (
+        engine_module.infer_biomarker_panel_longitudinal_evolution(request).status
+        is TrajectoryStatus.MODELED
+    )
