@@ -15,6 +15,7 @@ from glio_proteogen.adapters.m1308 import app, m1308_app
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c13_variant_peptide.m13_08_mechanism_evidence_dossier import (
     M1308AuthorizationError,
+    M1308ReplayVerificationError,
     M1308Service,
 )
 from tests.contract.test_m13_08_deep import _request
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
 
 def test_fastapi_invalid_json_validation_and_replay_errors() -> None:
     client = TestClient(app)
+    assert client.post("/v1/modules/M13-08/dossier", content=b"{}").status_code == 415
+    assert client.get("/v1/m13-08/schema/request").status_code == 200
+    assert client.get("/v1/m13-08/schema/not-real").status_code == 404
     assert (
         client.post(
             "/v1/modules/M13-08/dossier",
@@ -56,6 +60,28 @@ def test_fastapi_invalid_json_validation_and_replay_errors() -> None:
     invalid_request = _request().model_dump(mode="json")
     invalid_request.pop("request_id")
     assert client.post("/v1/modules/M13-08/dossier", json=invalid_request).status_code == 422
+
+
+def test_fastapi_successful_assembly_and_verification_paths() -> None:
+    client = TestClient(app)
+    request = _request().model_dump(mode="json")
+    assembled = client.post("/v1/modules/M13-08/dossier", json=request)
+    assert assembled.status_code == 200
+    result = assembled.json()
+    verified = client.post("/v1/modules/M13-08/verify", json=result)
+    assert verified.status_code == 200
+    assert verified.json() == result
+
+
+def test_fastapi_verify_service_failure_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
+    class ReplayService:
+        def verify(self, _result: object) -> object:
+            raise M1308ReplayVerificationError
+
+    monkeypatch.setattr(adapter_module, "_SERVICE", ReplayService())
+    result = M1308Service().execute(_request()).model_dump(mode="json")
+    response = TestClient(app).post("/v1/modules/M13-08/verify", json=result)
+    assert response.status_code == 422
 
 
 def test_fastapi_service_authorization_error_is_sanitized(

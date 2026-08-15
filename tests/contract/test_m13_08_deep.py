@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -18,6 +19,7 @@ from glio_proteogen.contracts.m13_08 import (
     MechanismDossierStatus,
     MechanismEvidenceLinkKind,
     ProteotypeMechanismDossierResult,
+    ValidationRouteStatus,
     expected_uncertainty,
     result_payload_digest,
 )
@@ -201,6 +203,9 @@ def test_tamper_replay_guards_and_plugin_capability() -> None:
         plugin.validate('{"request_id":"a","request_id":"b"}')
     bytes_token = plugin.validate(canonical_json_bytes(_request()))
     assert plugin.run(bytes_token).status is MechanismDossierStatus.READY
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(cast("ValidatedM1308Request", []))
+    assert plugin.verify(result).status is MechanismDossierStatus.READY
 
 
 def test_request_and_result_contract_closure_rejects_forgery() -> None:
@@ -235,6 +240,100 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
     bad_review["result_digest"] = result_payload_digest(bad_review)
     with pytest.raises(ValueError, match="ready result"):
         ProteotypeMechanismDossierResult.model_validate(bad_review, strict=True)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("duplicate_link", "link ids"),
+        ("duplicate_counter", "counter-evidence ids"),
+        ("duplicate_route", "validation route ids"),
+        ("unknown_counter_link", "counter-evidence references"),
+        ("unknown_predecessor", "mechanism link references"),
+        ("missing_input", "input link"),
+        ("missing_claim_ceiling", "claim-ceiling link"),
+        ("incomplete_route", "complete validation route"),
+        ("invalid_dossier_evidence", "dossier requires evidence"),
+    ],
+)
+def test_dossier_chain_closure_rejects_adversarial_mutations(mutation: str, message: str) -> None:
+    result = M1308DossierEngine().infer(_request())
+    assert result.dossier is not None
+    dossier = result.dossier
+    update: dict[str, object]
+    if mutation == "duplicate_link":
+        update = {"links": (*dossier.links, dossier.links[0])}
+    elif mutation == "duplicate_counter":
+        update = {"counter_evidence": (*dossier.counter_evidence, dossier.counter_evidence[0])}
+    elif mutation == "duplicate_route":
+        update = {"validation_routes": (*dossier.validation_routes, dossier.validation_routes[0])}
+    elif mutation == "unknown_counter_link":
+        update = {
+            "counter_evidence": (
+                dossier.counter_evidence[0].model_copy(
+                    update={"challenges_link_ids": ("missing",)}
+                ),
+            )
+        }
+    elif mutation == "unknown_predecessor":
+        update = {
+            "links": (
+                dossier.links[0].model_copy(update={"predecessor_ids": ("missing",)}),
+                *dossier.links[1:],
+            )
+        }
+    elif mutation == "missing_input":
+        update = {
+            "links": (
+                dossier.links[1].model_copy(update={"predecessor_ids": ("source",)}),
+                *dossier.links[2:],
+            )
+        }
+    elif mutation == "missing_claim_ceiling":
+        update = {
+            "links": tuple(
+                item
+                for item in dossier.links
+                if item.kind is not MechanismEvidenceLinkKind.CLAIM_CEILING
+            )
+        }
+    elif mutation == "incomplete_route":
+        update = {
+            "validation_routes": (
+                dossier.validation_routes[0].model_copy(
+                    update={"status": ValidationRouteStatus.PLANNED}
+                ),
+            )
+        }
+    else:
+        update = {"evidence": ()}
+    bad_dossier = dossier.model_copy(update=update)
+    payload = result.model_dump(mode="python")
+    payload["dossier"] = bad_dossier.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+    with pytest.raises(ValueError, match=message):
+        ProteotypeMechanismDossierResult.model_validate(payload, strict=True)
+
+
+def test_result_closure_rejects_bad_request_digest_duplicate_diagnostics_and_abstention() -> None:
+    result = M1308DossierEngine().infer(_request())
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = sha256_digest("wrong-request")
+    payload["result_digest"] = result_payload_digest(payload)
+    with pytest.raises(ValueError, match="request digest"):
+        ProteotypeMechanismDossierResult.model_validate(payload, strict=True)
+
+    payload = result.model_dump(mode="python")
+    payload["diagnostics"] = (*result.diagnostics, result.diagnostics[0])
+    payload["result_digest"] = result_payload_digest(payload)
+    with pytest.raises(ValueError, match="diagnostic ids"):
+        ProteotypeMechanismDossierResult.model_validate(payload, strict=True)
+
+    payload = result.model_dump(mode="python")
+    payload["status"] = MechanismDossierStatus.ABSTAINED
+    payload["result_digest"] = result_payload_digest(payload)
+    with pytest.raises(ValueError, match="abstained result"):
+        ProteotypeMechanismDossierResult.model_validate(payload, strict=True)
 
 
 def test_uncertainty_and_service_public_paths() -> None:
