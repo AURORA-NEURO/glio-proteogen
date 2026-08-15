@@ -1,5 +1,6 @@
 """Provisional M08-08 evidence and explanation publisher."""
 
+from .api import create_app
 from .engine import (
     BuiltM0808Result,
     M0808AuthorizationError,
@@ -19,6 +20,7 @@ __all__ = [
     "M0808Plugin",
     "M0808Service",
     "ValidatedM0808Request",
+    "create_app",
     "preflight_m0808_authorization",
     "publish_transcript_protein_evidence_explanation",
 ]
