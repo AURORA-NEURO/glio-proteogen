@@ -2,9 +2,11 @@
 
 from glio_proteogen.contracts.m07_04.canonical import (
     canonical_request_digest,
+    canonical_result_digest,
     normalized_request,
     normalized_result_payload,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.contracts.m07_04.schema import (
     CONTRACT_VERSION,
@@ -34,6 +36,7 @@ from glio_proteogen.contracts.m07_04.v1 import (
     EstimateCopyNumberDosageProbabilisticRequest,
     EstimateCopyNumberDosageProbabilisticResult,
     EstimatorConstraint,
+    EstimatorObservation,
     OptimizationDiagnostic,
     OptimizationDiagnosticStatus,
     PosteriorEstimate,
@@ -43,6 +46,7 @@ from glio_proteogen.contracts.m07_04.v1 import (
     ProbabilisticPrior,
     ProbabilisticPriorKind,
     ProbabilisticResultStatus,
+    expected_uncertainty,
 )
 
 __all__ = [
@@ -69,6 +73,7 @@ __all__ = [
     "EstimateCopyNumberDosageProbabilisticRequest",
     "EstimateCopyNumberDosageProbabilisticResult",
     "EstimatorConstraint",
+    "EstimatorObservation",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
     "PosteriorEstimate",
@@ -79,9 +84,12 @@ __all__ = [
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",
     "canonical_request_digest",
+    "canonical_result_digest",
     "contract_json_schema",
     "contract_json_schemas",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_result_digest",
+    "expected_uncertainty",
 ]

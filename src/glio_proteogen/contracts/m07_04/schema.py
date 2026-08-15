@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m07_04.v1 import (
     EstimateCopyNumberDosageProbabilisticRequest,
     EstimateCopyNumberDosageProbabilisticResult,
     EstimatorConstraint,
+    EstimatorObservation,
     OptimizationDiagnostic,
     PosteriorEstimate,
     ProbabilisticEstimatorConfiguration,
@@ -38,6 +39,7 @@ ContractName = Literal[
     "constraint",
     "posterior",
     "diagnostic",
+    "observation",
 ]
 _CONTRACTS: Final = {
     "request": EstimateCopyNumberDosageProbabilisticRequest,
@@ -47,6 +49,7 @@ _CONTRACTS: Final = {
     "constraint": EstimatorConstraint,
     "posterior": PosteriorEstimate,
     "diagnostic": OptimizationDiagnostic,
+    "observation": EstimatorObservation,
 }
 
 
@@ -65,6 +68,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "strict": True,
         "provisionalAbi": M0704_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
+        "pendingOwnerConfirmation": True,
         "provisionalLimits": True,
         "modelMetricsFrozen": False,
         "externalContentTraversal": False,
@@ -77,6 +81,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "parentTarget": M0704_PARENT,
         "outputMediaType": M0704_OUTPUT_MEDIA_TYPE,
         "representationInputMediaType": M0704_REPRESENTATION_MEDIA_TYPE,
+        "unsupportedToNegative": False,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M0704_MAX_CANONICAL_REQUEST_BYTES

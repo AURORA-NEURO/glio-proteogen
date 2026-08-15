@@ -8,6 +8,7 @@ Every symbol here is provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -15,6 +16,7 @@ from pydantic import Field, model_validator
 from glio_proteogen.contracts.m07_04.canonical import (
     canonical_request_digest,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -48,6 +50,7 @@ M0704_MAX_ESTIMATES: Final = 512
 M0704_MAX_DIAGNOSTICS: Final = 512
 M0704_MAX_PRIORS: Final = 128
 M0704_MAX_CONSTRAINTS: Final = 128
+M0704_MAX_OBSERVATIONS: Final = 512
 M0704_MAX_EVIDENCE: Final = 32
 M0704_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0704_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
@@ -87,6 +90,46 @@ class ProbabilisticResultStatus(StrEnum):
     ESTIMATED = "estimated"
     QUARANTINED = "quarantined"
     ABSTAINED = "abstained"
+
+
+class EstimatorObservation(FrozenModel):
+    """One caller-declared numeric/categorical observation for the proxy.
+
+    The module never opens the referenced artifact.  The digest is retained so
+    the observation can be audited and replayed without treating a caller
+    declaration as authenticated evidence.
+    """
+
+    observation_id: Identifier
+    feature_id: Identifier
+    unit: NonEmptyStr
+    source_artifact_digest: Sha256Digest
+    scalar_value: float | None = None
+    interval_lower: float | None = None
+    interval_upper: float | None = None
+    category: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def observation_shape_is_closed(self) -> EstimatorObservation:
+        interval_present = self.interval_lower is not None or self.interval_upper is not None
+        scalar = self.scalar_value is not None
+        categorical = self.category is not None
+        if sum((scalar, interval_present, categorical)) != 1:
+            raise ValueError("observation must contain exactly one scalar, interval, or category")
+        if interval_present and (
+            self.interval_lower is None
+            or self.interval_upper is None
+            or self.interval_lower > self.interval_upper
+        ):
+            raise ValueError("observation interval must have ordered finite bounds")
+        numbers = tuple(
+            value
+            for value in (self.scalar_value, self.interval_lower, self.interval_upper)
+            if value is not None
+        )
+        if any(not isfinite(value) for value in numbers):
+            raise ValueError("observation numeric values must be finite")
+        return self
 
 
 class ProbabilisticPrior(FrozenModel):
@@ -187,6 +230,9 @@ class EstimateCopyNumberDosageProbabilisticRequest(FrozenModel):
     representation_result: ArtifactReference
     baseline_result_digest: Sha256Digest
     configuration: ProbabilisticEstimatorConfiguration
+    observations: tuple[EstimatorObservation, ...] = Field(
+        min_length=1, max_length=M0704_MAX_OBSERVATIONS
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0704_MAX_EVIDENCE
     )
@@ -194,12 +240,26 @@ class EstimateCopyNumberDosageProbabilisticRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateCopyNumberDosageProbabilisticRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("request id must match execution context request id")
         if self.representation_result.media_type != M0704_REPRESENTATION_MEDIA_TYPE:
             raise ValueError(
                 "probabilistic request must bind the provisional M07-02 representation"
             )
         if self.configuration.representation_media_type != self.representation_result.media_type:
             raise ValueError("configuration does not bind the M07-02 representation")
+        if self.configuration.reference != self.representation_result:
+            raise ValueError("configuration reference must equal the representation reference")
+        artifact_digests = {
+            self.representation_result.digest,
+            *(artifact.digest for artifact in self.source_artifacts),
+        }
+        if any(item.source_artifact_digest not in artifact_digests for item in self.observations):
+            raise ValueError("observation source digest must name a declared artifact")
+        if len({item.observation_id for item in self.observations}) != len(self.observations):
+            raise ValueError("observation ids must be unique")
+        if len({item.artifact_id for item in self.source_artifacts}) != len(self.source_artifacts):
+            raise ValueError("source artifact ids must be unique")
         return self
 
 
@@ -231,6 +291,14 @@ class EstimateCopyNumberDosageProbabilisticResult(FrozenModel):
     def result_is_closed(self) -> EstimateCopyNumberDosageProbabilisticResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result id must be deterministic from request digest")
+        if not self.evidence:
+            raise ValueError("result requires explicit source evidence")
+        if len({item.feature_id for item in self.estimates}) != len(self.estimates):
+            raise ValueError("result estimates must have unique feature ids")
+        if len({item.diagnostic_id for item in self.diagnostics}) != len(self.diagnostics):
+            raise ValueError("result diagnostics must have unique ids")
         if self.status is ProbabilisticResultStatus.ESTIMATED:
             if not self.estimates or self.abstention_reason is not None:
                 raise ValueError("estimated result requires posterior estimates")
@@ -243,9 +311,32 @@ class EstimateCopyNumberDosageProbabilisticResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("non-estimated result requires no estimates and safe status")
-        if self.result_digest != result_payload_digest(self):
+        if self.status is not ProbabilisticResultStatus.ESTIMATED and not self.human_review_required:
+            raise ValueError("abstained or quarantined result requires human review")
+        if self.result_digest != result_payload_digest(self) or not verify_result_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty() -> UncertaintyProfile:
+    """Make every uncertainty dimension explicit until calibration is frozen."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.NOT_ESTIMABLE,
+        rationale="M07-04 calibration and model registry are not frozen; no probability is claimed.",
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Deterministic proxy intervals are not calibrated posterior intervals.",
+        ),
+    )
 
 
 __all__ = [
@@ -258,6 +349,7 @@ __all__ = [
     "M0704_MAX_DIAGNOSTICS",
     "M0704_MAX_ESTIMATES",
     "M0704_MAX_EVIDENCE",
+    "M0704_MAX_OBSERVATIONS",
     "M0704_MODULE_ID",
     "M0704_OPERATION",
     "M0704_OUTPUT_MEDIA_TYPE",
@@ -269,6 +361,7 @@ __all__ = [
     "EstimateCopyNumberDosageProbabilisticRequest",
     "EstimateCopyNumberDosageProbabilisticResult",
     "EstimatorConstraint",
+    "EstimatorObservation",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
     "PosteriorEstimate",
@@ -278,4 +371,5 @@ __all__ = [
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",
+    "expected_uncertainty",
 ]

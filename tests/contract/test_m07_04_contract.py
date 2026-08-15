@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m07_04 import (
     M0704_OUTPUT_MEDIA_TYPE,
     PosteriorEstimate,
     PosteriorEstimateKind,
+    EstimatorObservation,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
     canonical_request_digest,
@@ -33,6 +34,7 @@ def test_schema_inventory_is_explicitly_provisional() -> None:
         "constraint",
         "posterior",
         "diagnostic",
+        "observation",
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
@@ -40,6 +42,7 @@ def test_schema_inventory_is_explicitly_provisional() -> None:
         assert metadata["provisionalAbi"] is True
         assert metadata["abiStatus"] == "dossier-behavioral-brief-only"
         assert metadata["modelMetricsFrozen"] is False
+        assert metadata["pendingOwnerConfirmation"] is True
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0704_OUTPUT_MEDIA_TYPE
 
 
@@ -60,6 +63,14 @@ def test_prior_posterior_and_runtime_import_smoke() -> None:
     )
     assert prior.parameters == (0.0, 1.0)
     assert posterior.lower_bound == _EXPECTED_LOWER_BOUND
+    observation = EstimatorObservation(
+        observation_id="observation.m0704.smoke",
+        feature_id="feature.m0704.smoke",
+        unit="copy-number",
+        source_artifact_digest="sha256:" + ("a" * 64),
+        scalar_value=2.0,
+    )
+    assert observation.scalar_value == 2.0
     assert canonical_request_digest({"prior": prior.model_dump(mode="json")}).startswith(
         "sha256:"
     )
