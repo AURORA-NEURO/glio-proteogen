@@ -88,6 +88,7 @@ class ResolverStatus(StrEnum):
 
 
 class ResolverFindingCode(StrEnum):
+    ACCEPTED = "accepted"
     INCOMPATIBLE_VERSION = "incompatible_version"
     MEDIA_TYPE_MISMATCH = "media_type_mismatch"
     CONSENT_NOT_GRANTED = "consent_not_granted"
@@ -168,7 +169,8 @@ class CompatibilityReport(FrozenModel):
         min_length=1, max_length=M1701_MAX_DECISIONS
     )
     selected_candidate_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1701_MAX_CANDIDATES
+        default=(),
+        max_length=M1701_MAX_CANDIDATES,
     )
     rejected_candidate_ids: tuple[Identifier, ...] = Field(
         default=(), max_length=M1701_MAX_CANDIDATES
