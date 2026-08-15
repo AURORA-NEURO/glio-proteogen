@@ -259,11 +259,8 @@ class ProteotypeAnalysisRepresentationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("constructed result requires complete leakage-safe support")
-            requested_ids = {item.feature_id for item in self.request.feature_specs}
-            if {item.feature_id for item in self.features} != requested_ids:
-                raise ValueError("constructed result must cover every requested feature")
             if {item.check_id for item in self.leakage_checks} != {
-                f"leakage.{feature_id}" for feature_id in requested_ids
+                f"leakage.{spec.feature_id}" for spec in self.request.feature_specs
             }:
                 raise ValueError("constructed result requires one leakage check per feature")
         elif (
