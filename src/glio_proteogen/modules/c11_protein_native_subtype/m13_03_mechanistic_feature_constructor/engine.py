@@ -160,7 +160,10 @@ def validate_json_request(
         raise _InvalidExecutionRequestError
     preflight_mechanistic_feature_authorization(decoded)
     try:
-        encoded = bytes(serialized, "utf-8") if type(serialized) is str else bytes(serialized)
+        if type(serialized) is str:
+            encoded = serialized.encode("utf-8")
+        else:
+            encoded = bytes(cast("bytes | bytearray", serialized))
         return ConstructProteotypeMechanisticFeaturesRequest.model_validate_json(encoded)
     except ValueError as exc:
         raise _InvalidExecutionRequestError from exc

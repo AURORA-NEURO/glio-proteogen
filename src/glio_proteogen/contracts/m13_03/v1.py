@@ -342,46 +342,45 @@ class ProteotypeMechanisticFeatureResult(FrozenModel):
 def expected_uncertainty() -> UncertaintyProfile:
     """Return the conservative seven-dimension uncertainty baseline."""
 
-    estimates = {
-        "measurement": UncertaintyEstimate(
+    return UncertaintyProfile(
+        measurement=UncertaintyEstimate(
             state=EstimateState.ESTIMATED,
             probability=0.8,
             rationale="Caller-declared measurement support.",
         ),
-        "sampling": UncertaintyEstimate(
+        sampling=UncertaintyEstimate(
             state=EstimateState.NOT_ESTIMABLE,
             rationale="Sampling frame is not traversed by this module.",
         ),
-        "parameter": UncertaintyEstimate(
+        parameter=UncertaintyEstimate(
             state=EstimateState.ESTIMATED,
             probability=0.75,
             rationale="Locked configuration parameter uncertainty.",
         ),
-        "model_form": UncertaintyEstimate(
+        model_form=UncertaintyEstimate(
             state=EstimateState.ESTIMATED,
             probability=0.7,
             rationale="Reference mechanistic model form.",
         ),
-        "identification": UncertaintyEstimate(
+        identification=UncertaintyEstimate(
             state=EstimateState.ESTIMATED,
             probability=0.8,
             rationale="Caller-declared source identification support.",
         ),
-        "support": UncertaintyEstimate(
+        support=UncertaintyEstimate(
             state=EstimateState.ESTIMATED,
             probability=0.8,
             rationale="Upstream support controls accepted.",
         ),
-        "transport": UncertaintyEstimate(
+        transport=UncertaintyEstimate(
             state=EstimateState.NOT_ESTIMABLE,
             rationale="Transport domain is not inferred from opaque artifacts.",
         ),
-        "sensitivity_notes": (
+        sensitivity_notes=(
             "Scores are deterministic digest-derived reference features; "
             "no raw payload is traversed.",
         ),
-    }
-    return UncertaintyProfile(**estimates)
+    )
 
 
 def expected_limitations() -> tuple[Limitation, ...]:
