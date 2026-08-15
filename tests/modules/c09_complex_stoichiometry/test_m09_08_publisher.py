@@ -177,7 +177,9 @@ def test_complete_publication_is_deterministic_and_replayable() -> None:
         ({"include_reconstruction": False}, "reconstruction chain"),
     ],
 )
-def test_publication_abstains_without_required_review_material(kwargs, finding: str) -> None:
+def test_publication_abstains_without_required_review_material(
+    kwargs: dict[str, bool], finding: str
+) -> None:
     result = M0908EvidencePublisher().publish(_request(**kwargs)).result
     assert result.status is EvidencePublicationStatus.ABSTAINED
     assert result.bundle is None
