@@ -1,0 +1,19 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "deterministic": true,
+  "iterations": 10,
+  "maximum_ns": 1292900,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1181450.0,
+  "module_id": "GLIO-PROTEOGEN-M10-03",
+  "p50_ns": 1195900.0,
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1292900,
+  "passed": true,
+  "request_digest": "sha256:fee312f0b99cc656ee1e1f7755a7992b1556c3eba5257b8af69042845378800e",
+  "result_digest": "sha256:afa275369e742761ca535295bf9dd9cfa7162245131f8a79994ddf782f6c3b59",
+  "target_count": 3,
+  "timed_boundary": "estimate_protein_rna_discordance_baseline",
+  "warmup_count": 1,
+  "workload": "three-target-locked-robust-linear-baseline"
+}

@@ -14,6 +14,12 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estima
     M1003Plugin,
     M1003Service,
 )
+from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.api import (
+    app as fastapi_app,
+)
+from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.cli import (
+    app as typer_app,
+)
 from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.interfaces import (  # noqa: E501
     M1003_SCHEMA_NAMES,
     _error_response,
@@ -32,6 +38,11 @@ def test_schema_routes_are_allowlisted() -> None:
         assert response.status_code == 200
         assert response.json()["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M10-03"
     assert client.get("/v1/m10-03/schema/nope").status_code == 404
+
+
+def test_standalone_entrypoints_are_exported() -> None:
+    assert fastapi_app.title == "GLIO-PROTEOGEN M10-03"
+    assert typer_app.registered_commands
 
 
 def test_api_validate_and_estimate_match_plugin() -> None:

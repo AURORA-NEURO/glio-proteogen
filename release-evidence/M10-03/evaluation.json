@@ -1,0 +1,35 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-03",
+  "contract_version": "0.1.0-provisional",
+  "fixture": "tests/fixtures/m10_03/scenarios.json",
+  "fixture_digest": "sha256:13452c73c0118a1ab853f483293a1ce69842f87c99fe356242252627a70e139a",
+  "declared_cases": 11,
+  "executed_cases": 11,
+  "declared_case_ids": [
+    "supported_estimated",
+    "three_targets",
+    "interval_shape",
+    "scalar_shape",
+    "categorical_shape",
+    "replay_verified",
+    "tamper_rejected",
+    "parent_not_emitted",
+    "rejected_control",
+    "locked_preprocessing",
+    "locked_tuning"
+  ],
+  "executed_case_ids": [
+    "supported_estimated",
+    "three_targets",
+    "interval_shape",
+    "scalar_shape",
+    "categorical_shape",
+    "replay_verified",
+    "tamper_rejected",
+    "parent_not_emitted",
+    "rejected_control",
+    "locked_preprocessing",
+    "locked_tuning"
+  ],
+  "passed": true
+}

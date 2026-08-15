@@ -5,3 +5,7 @@ seven uncertainty dimensions,modules/c10_pathway_proteotype/m10_03_mature_baseli
 safe control rejection,engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
 canonical replay,engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
 API and CLI parity,interfaces.py,tests/integration/test_m10_03_interfaces.py,pass
+scalar/interval/categorical shapes,engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
+finite numeric closure,contracts/m10_03/v1.py,tests/contract/test_m10_03_contract.py,pass
+11-case evaluator matrix,evals/m10_03/run.py,tests/evals/test_m10_03_evaluator.py,pass
+benchmark budget evidence,evals/m10_03/benchmark.py,release-evidence/M10-03/benchmark.json,pass
