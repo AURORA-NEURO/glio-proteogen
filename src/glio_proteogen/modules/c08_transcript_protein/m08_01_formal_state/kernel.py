@@ -27,7 +27,7 @@ _COMPARISON: Final = re.compile(
     rf"(?P<operator>>=|<=|==|>|<)\s*(?P<bound>{_NUMBER})$"
 )
 _CATEGORY: Final = re.compile(
-    r'^feature:(?P<feature>[a-zA-Z][a-zA-Z0-9._:-]{0,127})\s+category\s*==\s*'
+    r"^feature:(?P<feature>[a-zA-Z][a-zA-Z0-9._:-]{0,127})\s+category\s*==\s*"
     r'"(?P<category>[^"]{1,512})"$'
 )
 
