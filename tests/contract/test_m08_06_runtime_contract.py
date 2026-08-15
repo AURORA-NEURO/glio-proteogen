@@ -10,13 +10,21 @@ from glio_proteogen.contracts.m08_06 import (
     M0806_PROVISIONAL_ABI,
     SensitivityEnvelope,
     SensitivityEnvelopeStatus,
+    UncertaintyComponent,
+    UncertaintyDecomposition,
+    UncertaintyDecompositionStatus,
     UncertaintyDimension,
     contract_json_schemas,
+    expected_uncertainty,
+    result_payload_digest,
+    verify_result_digest,
 )
+from glio_proteogen.kernel.models import ArtifactReference, EstimateState, UncertaintyEstimate
 from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertainty_decomposition import (  # noqa: E501
     M0806Plugin,
     M0806Service,
 )
+from tests.modules.c08_transcript_protein_discordance.test_m08_06_uncertainty import _request
 
 _SCHEMA_COUNT = 7
 _NOMINAL_COVERAGE = 0.9
@@ -61,3 +69,81 @@ def test_sensitivity_requires_ordered_coverage_inside_gate() -> None:
             observed_coverage=0.90,
             rationale="Invalid ordering.",
         )
+
+
+def test_contract_rejects_incomplete_dimensions_and_invalid_envelopes() -> None:
+    component = UncertaintyComponent(
+        dimension=UncertaintyDimension.MEASUREMENT,
+        estimate=UncertaintyEstimate(
+            state=EstimateState.NOT_ESTIMABLE,
+            rationale="No calibration.",
+        ),
+        rationale="Explicitly unresolved.",
+    )
+    with pytest.raises(ValueError, match="all seven"):
+        UncertaintyDecomposition(
+            decomposition_id="decomposition.invalid",
+            components=(component,) * M0806_MAX_COMPONENTS,
+            method="rule",
+            model_reference=ArtifactReference(
+                artifact_id="model.invalid",
+                version="1.0.0",
+                digest="sha256:" + "a" * 64,
+                media_type="application/octet-stream",
+            ),
+        )
+    for values, message in (
+        ({"status": SensitivityEnvelopeStatus.EVALUATED, "lower_bound": 0.9}, "bounds"),
+        (
+            {
+                "status": SensitivityEnvelopeStatus.EVALUATED,
+                "lower_bound": 0.80,
+                "upper_bound": 0.90,
+                "observed_coverage": 0.80,
+            },
+            "85-95",
+        ),
+        (
+            {
+                "status": SensitivityEnvelopeStatus.EVALUATED,
+                "lower_bound": 0.86,
+                "upper_bound": 0.94,
+                "observed_coverage": 0.90,
+                "nominal_coverage": 0.95,
+            },
+            "nominal",
+        ),
+    ):
+        with pytest.raises(ValueError, match=message):
+            SensitivityEnvelope(rationale="invalid envelope", **values)
+
+
+def test_contract_closes_policy_result_and_digest_paths() -> None:
+    request = _request()
+    with pytest.raises(ValueError, match="nominal 90"):
+        type(request.policy).model_validate(
+            request.policy.model_dump(mode="python") | {"nominal_coverage": 0.95},
+            strict=True,
+        )
+    result = M0806Service().execute(request)
+    with pytest.raises(ValueError, match="request digest"):
+        type(result).model_validate(
+            result.model_dump(mode="python") | {"request_digest": "sha256:" + "0" * 64},
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="decomposed result"):
+        type(result).model_validate(
+            result.model_dump(mode="python")
+            | {"status": UncertaintyDecompositionStatus.DECOMPOSED},
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="result digest"):
+        type(result).model_validate(
+            result.model_dump(mode="python") | {"result_digest": "sha256:" + "0" * 64},
+            strict=True,
+        )
+    assert result_payload_digest(result) == result.result_digest
+    assert verify_result_digest(result) is True
+    assert verify_result_digest(object()) is False
+    assert verify_result_digest({}) is False
+    assert expected_uncertainty().transport.state is EstimateState.NOT_ESTIMABLE

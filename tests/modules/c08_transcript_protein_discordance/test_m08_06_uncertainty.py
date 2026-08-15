@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -170,8 +172,18 @@ def test_authorization_fails_closed_on_withheld_consent() -> None:
 
 def test_plugin_requires_issued_validate_token() -> None:
     plugin = M0806Plugin(M0806Service())
-    token = plugin.validate(_request().model_dump(mode="json"))
+    request = _request()
+    encoded = json.dumps(request.model_dump(mode="json"))
+    token = plugin.validate(encoded)
     assert plugin.run(token).status is UncertaintyDecompositionStatus.ABSTAINED
+    mapping_token = plugin.validate(request.model_dump(mode="json"))
+    assert mapping_token.request == request
+    assert plugin.run(mapping_token).status is UncertaintyDecompositionStatus.ABSTAINED
+    assert plugin.run(plugin.validate(request)).status is UncertaintyDecompositionStatus.ABSTAINED
+    verified = plugin.verify(M0806Service().execute(request))
+    assert verified.status is UncertaintyDecompositionStatus.ABSTAINED
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(replace(token, _seal=object()))
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
 
