@@ -275,6 +275,15 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m08_01.schema import ContractName as M0801ContractName
+from glio_proteogen.contracts.m08_01.schema import (
+    contract_json_schema as m0801_contract_json_schema,
+)
+from glio_proteogen.contracts.m08_01.v1 import (
+    M0801_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateTranscriptProteinStateRequest,
+    ValidateTranscriptProteinStateResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -424,6 +433,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    M0801FormalStateAuthorizationError,
+    M0801Service,
+    preflight_formal_state_authorization,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
+    _validate_json_request as _validate_m0801_json_request,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -447,6 +464,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0801_FORMAL_STATE_ADAPTER: Final = TypeAdapter(ValidateTranscriptProteinStateRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -599,6 +617,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+    return m0801_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -786,6 +808,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0801_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0801_contract_json_schema("request")}},
         }
     }
 
@@ -1016,6 +1047,16 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m0801_body(request: Request) -> ValidateTranscriptProteinStateRequest:
+    return await _strict_json_body(
+        request,
+        _M0801_FORMAL_STATE_ADAPTER,
+        preflight_formal_state_authorization,
+        M0801_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0801_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1042,6 +1083,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m0801_service = M0801Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1088,6 +1130,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(M0801FormalStateAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1370,6 +1413,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.get("/v1/contracts/M08-01/{name}/schema", tags=["contracts"])
+    def m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+        return _m0801_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M08-01/formal-state-validation",
+        response_model=ValidateTranscriptProteinStateResult,
+        tags=["M08-01"],
+        openapi_extra=_m0801_request_body(),
+    )
+    def validate_m0801_formal_state(
+        request: Annotated[ValidateTranscriptProteinStateRequest, Depends(_m0801_body)],
+    ) -> ValidateTranscriptProteinStateResult:
+        return m0801_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",

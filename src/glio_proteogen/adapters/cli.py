@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m0801_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,13 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m08_01 import (
+    M0801_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateTranscriptProteinStateRequest,
+)
+from glio_proteogen.contracts.m08_01 import (
+    ContractName as M0801ContractName,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +308,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    M0801FormalStateAuthorizationError,
+    M0801Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
+    _validate_json_request as _validate_m0801_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +448,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m0801_app = typer.Typer(
+    no_args_is_help=True,
+    help="M08-01 provisional formal transcript-protein state validation.",
+)
+app.add_typer(m0801_app, name="transcript-protein-state")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -541,6 +561,10 @@ ProteoformRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+M0801OutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M08-01 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -776,7 +800,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](
+def _load_request[RequestT](  # noqa: C901 - one sanitized boundary for all request sources.
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -810,6 +834,8 @@ def _load_request[RequestT](
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
+        raise
+    except M0801FormalStateAuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3380,6 +3406,40 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0801_app.command("export-schema")
+def export_m0801_schema(contract: M0801ContractName) -> None:
+    """Export one provisional M08-01 JSON Schema 2020-12 contract."""
+
+    typer.echo(json.dumps(_m0801_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m0801_app.command("validate")
+def validate_m0801_state(
+    request: RequestArgument,
+    output: M0801OutputOption,
+) -> None:
+    """Validate one formal transcript-protein state and publish a canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ValidateTranscriptProteinStateRequest),
+            None,
+            M0801_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0801_json_request,
+        )
+        result = M0801Service().execute(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except M0801FormalStateAuthorizationError as error:
+        typer.echo(f"transcript-protein state validation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"transcript-protein state validation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
