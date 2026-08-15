@@ -54,9 +54,7 @@ M0507_BENCHMARK_ITERATIONS: Final = 25
 M0507_BENCHMARK_WARMUPS: Final = 1
 M0507_MEAN_BUDGET_NS: Final = 2_000_000_000
 M0507_P95_BUDGET_NS: Final = 3_000_000_000
-M0507_M0506_RESULT_MEDIA_TYPE: Final = (
-    "application/vnd.glio-proteogen.m05-06+json"
-)
+M0507_M0506_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m05-06+json"
 M0507_EVIDENCE_CLAIM: Final = (
     "Caller-declared evidence for provisional M05-07 support routing; "
     "issuer authority is not authenticated."
@@ -218,6 +216,12 @@ class RoutePtmLocalizationSupportRequest(FrozenModel):
             raise ValueError("request must contain exactly one fact for every support dimension")
         return tuple(sorted(values, key=lambda item: item.dimension.value))
 
+    @model_validator(mode="after")
+    def request_identity_is_bound(self) -> RoutePtmLocalizationSupportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("request id must match the execution context request id")
+        return self
+
 
 class PtmLocalizationSupportReceipt(FrozenModel):
     """Auditable decision receipt for a provisional route."""
@@ -236,13 +240,15 @@ class PtmLocalizationSupportReceipt(FrozenModel):
 
     @model_validator(mode="after")
     def receipt_is_closed(self) -> PtmLocalizationSupportReceipt:
+        if len(self.unsupported_dimensions) != len(set(self.unsupported_dimensions)):
+            raise ValueError("receipt unsupported dimensions must be unique")
+        if len(self.remediation) != len(set(self.remediation)):
+            raise ValueError("receipt remediation paths must be unique")
         if self.disposition is PtmLocalizationSupportDisposition.SUPPORTED:
             if self.abstention_code is not None or self.remediation or self.unsupported_dimensions:
                 raise ValueError("supported receipt cannot carry abstention material")
         elif (
-            self.abstention_code is None
-            or not self.remediation
-            or not self.unsupported_dimensions
+            self.abstention_code is None or not self.remediation or not self.unsupported_dimensions
         ):
             raise ValueError("abstained receipt requires code, remediation, and dimensions")
         if self.receipt_digest != receipt_digest(self):
@@ -279,13 +285,24 @@ class PtmLocalizationSupportRouteResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.receipt.request_digest != self.request_digest:
             raise ValueError("result receipt does not bind the exact request")
+        if self.receipt.disposition is not self.disposition:
+            raise ValueError("result disposition does not match its receipt")
+        if self.receipt.abstention_code is not self.abstention_code:
+            raise ValueError("result abstention code does not match its receipt")
+        if self.receipt.remediation != self.remediation:
+            raise ValueError("result remediation does not match its receipt")
         if self.disposition is PtmLocalizationSupportDisposition.SUPPORTED:
             if self.abstention_code is not None or self.remediation:
                 raise ValueError("supported result cannot carry abstention material")
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("supported result requires supported status")
-        elif self.abstention_code is None or not self.remediation:
-            raise ValueError("abstained result requires typed remediation")
+        elif (
+            self.abstention_code is None
+            or not self.remediation
+            or self.support_decision.status
+            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+        ):
+            raise ValueError("abstained result requires typed remediation and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
