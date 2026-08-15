@@ -76,6 +76,12 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "assumptionsRequired": True,
         "negativeControlGatingExplicit": True,
         "alternativePriorsExplicit": True,
+        "assayPerturbationsExplicit": True,
+        "mechanismStressTestsExplicit": True,
+        "sevenDimensionUncertaintyRequired": True,
+        "unsupportedPerturbationsAbstain": True,
+        "upstreamMutationForbidden": True,
+        "identityInferenceForbidden": True,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1106_MAX_CANONICAL_REQUEST_BYTES

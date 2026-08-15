@@ -152,7 +152,14 @@ class SensitivitySimulationConfiguration(FrozenModel):
     reference_artifact: ArtifactReference
     maximum_scenarios: int = Field(gt=0, le=M1106_MAX_SCENARIOS)
     locked: Literal[True] = True
+    negative_control_artifact: ArtifactReference | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1106_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def configuration_is_closed(self) -> SensitivitySimulationConfiguration:
+        if self.maximum_scenarios > M1106_MAX_SCENARIOS:
+            raise ValueError("configuration exceeds the provisional scenario capacity")
+        return self
 
 
 class SensitivitySurface(FrozenModel):
@@ -182,6 +189,8 @@ class SensitivitySurface(FrozenModel):
             raise ValueError("every perturbation must have exactly one sensitivity response")
         if self.baseline_result.media_type != M1106_M1105_INPUT_MEDIA_TYPE:
             raise ValueError("surface must bind the provisional M11-05 baseline result")
+        if len(self.perturbations) > self.configuration.maximum_scenarios:
+            raise ValueError("surface exceeds the locked configuration scenario limit")
         return self
 
 
@@ -263,6 +272,8 @@ class VariantPeptideSensitivitySimulationResult(FrozenModel):
                 or any(item.status in unsafe_statuses for item in self.surface.responses)
             ):
                 raise ValueError("simulated result requires supported bounded responses")
+            if self.human_review_required:
+                raise ValueError("simulated result cannot require human review")
         elif (
             self.surface is not None
             or self.abstention_reason is None
@@ -270,9 +281,123 @@ class VariantPeptideSensitivitySimulationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no surface and safe status")
+        if self.status is SensitivitySimulationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Return a conservative seven-dimension uncertainty profile.
+
+    The simulator never invents confidence for an unsupported perturbation.  A
+    supported deterministic response is estimated but still records the
+    transport and model-form limitations that remain provisional.
+    """
+
+    probability = 0.1 if supported else None
+    state = "estimated" if supported else "not_estimable"
+    rationale = (
+        "Deterministic bounded response under the locked provisional envelope."
+        if supported
+        else "No uncertainty estimate is published after a safety-gated abstention."
+    )
+    from glio_proteogen.kernel.models import EstimateState, UncertaintyEstimate
+
+    estimate = lambda: UncertaintyEstimate(
+        state=EstimateState(state), probability=probability, rationale=rationale
+    )
+    return UncertaintyProfile(
+        measurement=estimate(),
+        sampling=estimate(),
+        parameter=estimate(),
+        model_form=estimate(),
+        identification=estimate(),
+        support=estimate(),
+        transport=estimate(),
+        sensitivity_notes=(
+            "Responses are bounded deterministic projections, not causal treatment effects.",
+            "Alternative priors and assay perturbations remain caller-declared references.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: SimulateVariantPeptidePerturbationsRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Build module-local provenance from the immutable request controls."""
+
+    refs = request.context.references
+    from glio_proteogen.kernel.models import ControlDecisionRecord, ControlRole
+
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1106_MODULE_ID,
+        module_version=M1106_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(request_digest, request.upstream_result.digest),
+        configuration_digest=request.configuration.reference_artifact.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -307,4 +432,6 @@ __all__ = [
     "SensitivitySurface",
     "SimulateVariantPeptidePerturbationsRequest",
     "VariantPeptideSensitivitySimulationResult",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
