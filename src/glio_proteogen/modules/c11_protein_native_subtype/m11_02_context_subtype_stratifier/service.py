@@ -1,11 +1,17 @@
 """M11-02 application service boundary."""
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m11_02 import (
     StratifyVariantPeptideContextRequest,
     VariantPeptideContextStratificationResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M1102ContextEngine, _prepare
+from .engine import M1102ContextEngine, _prepare, preflight_context_authorization
+
+_REQUEST_ADAPTER = TypeAdapter(StratifyVariantPeptideContextRequest)
 
 
 class M1102Service:
@@ -19,6 +25,14 @@ class M1102Service:
     @staticmethod
     def validate_request(request: object) -> StratifyVariantPeptideContextRequest:
         return StratifyVariantPeptideContextRequest.model_validate(_prepare(request), strict=True)
+
+    @staticmethod
+    def validate_json(payload: bytes | bytearray | str) -> StratifyVariantPeptideContextRequest:
+        """Strictly parse one JSON document after duplicate-key and authorization checks."""
+
+        parsed = strict_json_loads(payload)
+        preflight_context_authorization(parsed)
+        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
 
     def _execute_validated(
         self,
