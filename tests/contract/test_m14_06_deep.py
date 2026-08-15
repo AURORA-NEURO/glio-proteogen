@@ -29,6 +29,8 @@ from glio_proteogen.contracts.m14_06 import (
     ProteinSubtypeSensitivitySimulationResult,
     SensitivityResponse,
     SensitivitySimulationStatus,
+    SensitivitySurface,
+    SimulateProteinSubtypePerturbationsRequest,
     contract_json_schema,
     contract_json_schemas,
     expected_uncertainty,
@@ -112,6 +114,23 @@ def test_response_bounds_require_counter_evidence_and_are_closed() -> None:
     assert response.upper_bound is not None
     assert response.lower_bound <= response.response_value <= response.upper_bound
     assert response.counter_evidence
+    with pytest.raises(ValueError, match="ordered bounds"):
+        SensitivityResponse(
+            scenario_id="scenario.invalid-bounds",
+            status=PerturbationResponseStatus.BOUNDED,
+            response_value=0.5,
+            lower_bound=0.9,
+            upper_bound=0.1,
+            assumptions=("assumption",),
+            counter_evidence=response.counter_evidence,
+        )
+    with pytest.raises(ValueError, match="non-bounded"):
+        SensitivityResponse(
+            scenario_id="scenario.invalid-status",
+            status=PerturbationResponseStatus.NOT_EVALUABLE,
+            response_value=0.1,
+            assumptions=("assumption",),
+        )
 
 
 def test_uncertainty_is_explicit_on_supported_and_abstained_paths() -> None:
@@ -151,6 +170,44 @@ def test_result_closure_rejects_forged_payloads() -> None:
     payload["result_digest"] = result_payload_digest(payload)
     with pytest.raises(ValueError, match="simulated result"):
         ProteinSubtypeSensitivitySimulationResult.model_validate(payload, strict=True)
+    abstained = engine.infer(build_scenario_request(model_family="unregistered_model"))
+    no_review = abstained.model_dump(mode="python")
+    no_review["human_review_required"] = False
+    no_review["result_digest"] = result_payload_digest(no_review)
+    with pytest.raises(ValueError, match="human review"):
+        ProteinSubtypeSensitivitySimulationResult.model_validate(no_review, strict=True)
+    with_surface = abstained.model_dump(mode="python")
+    with_surface["surface"] = result.surface.model_dump(mode="python") if result.surface else None
+    with_surface["result_digest"] = result_payload_digest(with_surface)
+    with pytest.raises(ValueError, match="abstained result"):
+        ProteinSubtypeSensitivitySimulationResult.model_validate(with_surface, strict=True)
+
+
+def test_surface_and_request_identity_closures_reject_duplicates_and_wrong_media() -> None:
+    request = build_scenario_request()
+    result = M1406SensitivityEngine().infer(request)
+    assert result.surface is not None
+    surface = result.surface
+    duplicate_perturbations = surface.model_dump(mode="python")
+    duplicate_perturbations["perturbations"] = duplicate_perturbations["perturbations"] * 2
+    with pytest.raises(ValueError, match="perturbation identifiers"):
+        SensitivitySurface.model_validate(duplicate_perturbations, strict=True)
+    duplicate_responses = surface.model_dump(mode="python")
+    duplicate_responses["responses"] = duplicate_responses["responses"] * 2
+    with pytest.raises(ValueError, match="response identifiers"):
+        SensitivitySurface.model_validate(duplicate_responses, strict=True)
+    mismatched = surface.model_dump(mode="python")
+    mismatched["responses"][0]["scenario_id"] = "scenario.mismatch"
+    with pytest.raises(ValueError, match="exactly one"):
+        SensitivitySurface.model_validate(mismatched, strict=True)
+    wrong_media = surface.model_dump(mode="python")
+    wrong_media["baseline_result"]["media_type"] = "application/octet-stream"
+    with pytest.raises(ValueError, match="M14-05"):
+        SensitivitySurface.model_validate(wrong_media, strict=True)
+    duplicate_request = request.model_dump(mode="python")
+    duplicate_request["perturbations"] = duplicate_request["perturbations"] * 2
+    with pytest.raises(ValueError, match="request perturbation"):
+        SimulateProteinSubtypePerturbationsRequest.model_validate(duplicate_request, strict=True)
 
 
 @pytest.mark.parametrize(
@@ -227,10 +284,23 @@ def test_replay_and_tamper_detection(monkeypatch: pytest.MonkeyPatch) -> None:
         engine_module.M1406SensitivityEngine,
         "infer",
         lambda self, request: original_infer(
-            self, build_scenario_request(model_family="curated_rule")
+            self, build_scenario_request(model_family="unregistered_model")
         ),
     )
-    assert engine.verify(result).status is SensitivitySimulationStatus.SIMULATED
+    with pytest.raises(M1406ReplayVerificationError):
+        engine.verify(result)
+    monkeypatch.undo()
+    assert (
+        engine_module.simulate_protein_subtype_perturbations(result.request).status
+        is SensitivitySimulationStatus.SIMULATED
+    )
+    assert engine_module._decimal("not-a-number") is None
+    assert (
+        engine_module._response(
+            _perturbation("scenario.no-counter"), evidence=(), counter_evidence=()
+        )
+        is None
+    )
 
 
 def test_plugin_is_parse_once_and_token_bound() -> None:
@@ -286,20 +356,41 @@ def test_http_schema_simulate_verify_and_sanitized_errors() -> None:
         ).status_code
         == 422
     )
-
-
-def test_http_denies_controls_and_rejects_tamper() -> None:
-    client = TestClient(app)
-    denied = build_scenario_request(accepted=False)
+    invalid = request.model_dump(mode="json")
+    invalid["request_id"] = 1
+    assert client.post("/v1/modules/M14-06/sensitivity", json=invalid).status_code == 422
     assert (
         client.post(
-            "/v1/modules/M14-06/sensitivity", json=denied.model_dump(mode="json")
+            "/v1/modules/M14-06/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+
+
+def test_http_denies_controls_and_rejects_tamper(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = TestClient(app)
+    denied_request = build_scenario_request(accepted=False)
+    assert (
+        client.post(
+            "/v1/modules/M14-06/sensitivity", json=denied_request.model_dump(mode="json")
         ).status_code
         == 403
     )
     result = M1406SensitivityEngine().infer(build_scenario_request()).model_dump(mode="json")
     result["result_digest"] = "sha256:" + "f" * 64
     assert client.post("/v1/modules/M14-06/verify", json=result).status_code == 422
+    def deny_execute(self: object, request: object) -> object:  # noqa: ARG001
+        raise M1406SensitivityAuthorizationError
+    monkeypatch.setattr(M1406Service, "_execute_validated", deny_execute)
+    assert (
+        client.post(
+            "/v1/modules/M14-06/sensitivity",
+            json=build_scenario_request().model_dump(mode="json"),
+        ).status_code
+        == 403
+    )
 
 
 def test_cli_export_infer_verify_and_no_overwrite(tmp_path: Path) -> None:
