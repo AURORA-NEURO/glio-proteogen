@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m17_03 import (
     FuseVariantPeptideEvidenceRequest,
     VariantPeptideIntegratedEvidenceResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -31,7 +32,7 @@ class M1703Service:
     def validate_request(self, request: object) -> FuseVariantPeptideEvidenceRequest:
         if isinstance(request, (bytes, bytearray, str)):
             decoded = strict_json_loads(request, max_bytes=M1703_MAX_CANONICAL_REQUEST_BYTES)
-            return _REQUEST_ADAPTER.validate_python(decoded, strict=True)
+            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def execute(self, request: object) -> VariantPeptideIntegratedEvidenceResult:
