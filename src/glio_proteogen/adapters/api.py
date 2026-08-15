@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Final
+from typing import Annotated, Final, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -314,6 +314,20 @@ from glio_proteogen.contracts.m05_03.schema import (
 from glio_proteogen.contracts.m05_03.schema import (
     contract_json_schema as m0503_contract_json_schema,
 )
+from glio_proteogen.contracts.m05_04.schema import (
+    ContractName as M0504ContractName,
+)
+from glio_proteogen.contracts.m05_04.schema import (
+    contract_json_schema as m0504_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_04.v1 import (
+    M0504_MAX_CANONICAL_REQUEST_BYTES,
+    ComputePtmLocalizationQualityMetricsRequest,
+    PtmLocalizationQualityResult,
+)
+from glio_proteogen.contracts.m05_04.v1 import (
+    _ValidatedRequestCapability as _ValidatedM0504RequestCapability,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -484,6 +498,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import 
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
     _validate_json_request as _validate_m0502_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics import (
+    M0504Service,
+    PtmLocalizationQualityAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics.engine import (
+    _validate_json_request_capability as _validate_m0504_json_request_capability,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -510,6 +531,7 @@ _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsReque
 _M0405_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteoformArtifactsRequest)
 _M0501_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluatePtmLocalizationProtocolRequest)
 _M0502_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest)
+_M0504_QUALITY_ADAPTER: Final = TypeAdapter(ComputePtmLocalizationQualityMetricsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -686,6 +708,12 @@ def _ptm_localization_raw_contract_schema(
     name: M0503ContractName,
 ) -> dict[str, object]:
     return m0503_contract_json_schema(name)
+
+
+def _ptm_localization_quality_contract_schema(
+    name: M0504ContractName,
+) -> dict[str, object]:
+    return m0504_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -904,6 +932,15 @@ def _ptm_localization_lineage_request_body() -> dict[str, object]:
     }
 
 
+def _ptm_localization_quality_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0504_contract_json_schema("request")}},
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
@@ -935,6 +972,8 @@ async def _strict_json_body[ModelT](
             raise
         if adapter is _M0404_QUALITY_ADAPTER:
             detail = "M04-04 request validation failed"
+        elif adapter is _M0504_QUALITY_ADAPTER:
+            detail = "M05-04 request validation failed"
         elif adapter is _M0501_PROTOCOL_ADAPTER:
             detail = "strict request validation failed"
         else:
@@ -1172,6 +1211,22 @@ async def _ptm_localization_lineage_body(
     )
 
 
+async def _ptm_localization_quality_body(
+    request: Request,
+) -> _ValidatedM0504RequestCapability:
+    adapter = cast(
+        "TypeAdapter[_ValidatedM0504RequestCapability]",
+        _M0504_QUALITY_ADAPTER,
+    )
+    return await _strict_json_body(
+        request,
+        adapter,
+        None,
+        M0504_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0504_json_request_capability,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1201,6 +1256,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_artifact_service = M0405Service()
     ptm_localization_protocol_service = M0501Service()
     ptm_localization_lineage_service = M0502Service()
+    ptm_localization_quality_service = M0504Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1250,6 +1306,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformArtifactAuthorizationError)
     @app.exception_handler(PtmLocalizationProtocolAuthorizationError)
     @app.exception_handler(PtmLocalizationIdentityLineageAuthorizationError)
+    @app.exception_handler(PtmLocalizationQualityAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1570,6 +1627,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0503ContractName,
     ) -> dict[str, object]:
         return _ptm_localization_raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-04/{name}/schema", tags=["contracts"])
+    def ptm_localization_quality_contract_schema(
+        name: M0504ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_quality_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-04/quality-metric-computation",
+        response_model=PtmLocalizationQualityResult,
+        tags=["M05-04"],
+        openapi_extra=_ptm_localization_quality_request_body(),
+    )
+    def compute_ptm_localization_quality(
+        capability: Annotated[
+            _ValidatedM0504RequestCapability,
+            Depends(_ptm_localization_quality_body),
+        ],
+    ) -> PtmLocalizationQualityResult:
+        return ptm_localization_quality_service._execute_validated(capability)
 
     @app.post(
         "/v1/modules/M05-02/identity-lineage-reconciliation",

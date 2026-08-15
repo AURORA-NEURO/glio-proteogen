@@ -1,0 +1,61 @@
+requirement_id,source,requirement,implementation,evidence,gate
+M05-04-R01,dossier:responsibility,"Own aggregate quality metric computation beneath PTM localization","strict M05-04 contracts and deterministic engine","contract and lifecycle tests",G1
+M05-04-R02,dossier:output,"Emit only typed quality profile with metric provenance","PtmLocalizationQualityResult and metric provenance","72-case eval and result replay tests",G1
+M05-04-R03,dossier:parent,"Support parent variant_peptide without emitting it","parent_target literal and emits_variant_peptide=false","canonical eval and schema tests",G1
+M05-04-R04,dossier:boundary,"Do not claim KINOPHOS kinase ownership","all kinase authority/output flags false","authority eval and manifest",G1
+M05-04-R05,dossier:boundary,"No generic all-omics fusion or treatment recommendation","closed false authority fields and limitations","recursive authority checks",G1
+M05-04-R06,dossier:boundary,"Do not mutate or relabel upstream evidence","full embedded replay and immutable models","nonmutation cases",G1
+M05-04-R07,dossier:boundary,"Do not erase disagreement","typed findings and quarantine precedence","threshold/disposition cases",G1
+M05-04-R08,dossier:boundary,"Do not infer missing identity or consent","seven-control preflight and no inference flags","seven denial cases",G1
+M05-04-R09,dossier:boundary,"Missing evidence never becomes a negative","nonnumeric observation states and abstention","missing evidence cases",G1
+M05-04-R10,dossier:inputs,"Consume four governed input roles","four-role fact ledger and exact M05-03 inputs","role and ledger tests",G1
+M05-04-R11,dossier:inputs,"Consume approved configuration","policy/configuration digest bindings","request closure tests",G1
+M05-04-R12,dossier:inputs,"Consume identity and lineage","exact transitive identity digest binding","upstream replay cases",G1
+M05-04-R13,dossier:inputs,"Consume provenance and consent","preflight plus seven control records","authorization and provenance cases",G1
+M05-04-R14,dossier:inputs,"Consume quality support and intended use","exact result receipt and intended-use bindings","stale binding cases",G1
+M05-04-R15,dossier:quality,"Validate identity and version","opaque namespaces and version-profile matching","contract and eval cases",G1
+M05-04-R16,dossier:quality,"Validate units","unit-system version profile matching","unit mismatch quarantine",G1
+M05-04-R17,dossier:quality,"Validate completeness","raw input completeness metric","metric math cases",G1
+M05-04-R18,dossier:quality,"Validate assay support","proteome assay kind and reviewed support domain","unsupported assay abstention",G1
+M05-04-R19,dossier:quality,"Validate parent-specific quality","sample context and cross-input metrics","32-metric closure",G1
+M05-04-R20,dossier:uncertainty,"Expose seven uncertainty dimensions","seven explicit not-estimable estimates","uncertainty cases",G1
+M05-04-R21,dossier:uncertainty,"Expose sensitivity and abstention","locked sensitivity notes and typed abstention","uncertainty/disposition cases",G1
+M05-04-R22,dossier:review,"Require review for governed discrepancy","review flag derived from disposition or optional warning","result replay cases",G1
+M05-04-R23,dossier:acceptance,"Versioned implementation","contract version and schema IDs 1.0.0","schema tests",G1
+M05-04-R24,dossier:acceptance,"Locked unit integration and benchmark evidence","focused tests 72-case eval and exact25 benchmark","CI/release workflow",G1
+M05-04-R25,dossier:acceptance,"Safe failure","authorization rejection quarantine and abstention","safe-failure zero traversal",G1
+M05-04-R26,derived:upstream,"Replay exact full M05-03 result","normalized full-result validation and sealed capability","full replay and forgery cases",G1
+M05-04-R27,derived:upstream,"Preserve transitive M04-01 and M04-02 bindings","M05-03 receipt/result replay","transitive binding cases",G1
+M05-04-R28,derived:roles,"Require exactly four roles","ledger and upstream role set closure","fact ledger tests",G1
+M05-04-R29,derived:metrics,"Compute eight metrics per role","closed metric enum and profile thresholds","exact 32 metrics case",G1
+M05-04-R30,derived:math,"Use exact round-half-up ppm","integer numerator denominator formula","2/3 rounding case",G1
+M05-04-R31,derived:math,"Keep zero denominator not evaluable","nonnumeric metric shape","zero denominator case",G1
+M05-04-R32,derived:censoring,"Retain detection censoring exactly","detection-only censored state and count","censoring cases",G1
+M05-04-R33,derived:profiles,"Require one selected profile per role","disjoint closed match domains","profile selection cases",G1
+M05-04-R34,derived:profiles,"Require eight thresholds per profile","exact metric-code set validator","threshold closure cases",G1
+M05-04-R35,derived:capacity,"Support 32 profiles and 256 thresholds","bounded policy/profile contracts","maximum shape eval",G1
+M05-04-R36,derived:capacity,"Support four facts and 45 evidence records","bounded ledger and evidence index","maximum evidence case",G1
+M05-04-R37,derived:capacity,"Safe failure retains 12 evidence records","seven controls policy and four profiles","safe failure evidence case",G1
+M05-04-R38,derived:disposition,"Quarantine precedes abstention","closed finding action precedence","precedence case",G1
+M05-04-R39,derived:support,"Optional warning limits support","qualified plus limited support derivation","optional warning case",G1
+M05-04-R40,derived:privacy,"Never traverse external scientific content","artifact references only and no lookup","recursive canary case",G1
+M05-04-R41,derived:privacy,"Retain duplicate content without deduplication","identity-version evidence occurrence retention","duplicate retention case",G1
+M05-04-R42,derived:authorization,"Authorize before ledger traversal","seven-state preflight","individual denial cases",G1
+M05-04-R43,derived:firewall,"Reject arbitrary mappings and sequences","exact built-in traversal firewall","lifecycle hostile container tests",G1
+M05-04-R44,derived:firewall,"Do not swallow BaseException","ordinary exception firewall only","evaluator exception boundary",G1
+M05-04-R45,derived:json,"Reject duplicate keys unknown fields and coercion","strict_json_loads and strict Pydantic","boundary cases",G1
+M05-04-R46,derived:cap,"Cap ingress at 4 MiB","pre-parse byte cap","exact and first excess case",G1
+M05-04-R47,derived:capability,"Bind validation capability to issuance and identity","weak issued registries and seals","lifecycle forgery tests",G1
+M05-04-R48,derived:capability,"Bind reuse to canonical byte snapshots","request and raw-result snapshots","mutation and cache tests",G1
+M05-04-R49,derived:result,"Fully rederive all result regions","exact replay validator","derived-region forgery tests",G1
+M05-04-R50,derived:schema,"Export exactly 13 strict schemas","contract schema registry","API CLI schema parity",G1
+M05-04-R51,derived:interfaces,"Keep Python service plugin API and CLI equal","shared strict admission and sealed execution","interface parity cases",G1
+M05-04-R52,derived:corpus,"Lock 72 unique cases 8/9/9/9/8/8/8/13","fixture digest inventory and executable equality","evaluation report",G1
+M05-04-R53,derived:benchmark,"Measure exact25 maximum-shape public calls","untimed build warmup and retained samples","benchmark report verifier",G1
+M05-04-R54,derived:benchmark,"Enforce 500ms mean and 750ms p95","nearest-rank recomputation","benchmark and verifier",G1
+M05-04-R55,derived:data,"Use synthetic non-clinical aggregate metadata only","closed fixture and no external access","data manifest and privacy checks",G1
+M05-04-R56,derived:model,"Execute zero models","deterministic fixed-point runtime","model manifest and authority checks",G1
+M05-04-R57,derived:review,"Do not self-approve","external governed sign-off plan","module manifest",G1
+M05-04-R58,derived:rollback,"Recover append-only with supersession digest","supersedes_result_digest provenance binding","supersession test and recovery plan",G1
+M05-04-R59,derived:packaging,"Ship contracts runtime eval fixture and docs","wheel and sdist membership verifier","reproducible package gate",G1
+M05-04-R60,derived:publication,"Verify diff secrets schemas eval benchmark and install","CI/release commands and focused gates","release evidence workflow",G1
