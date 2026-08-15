@@ -39,6 +39,13 @@ def _int_field(value: object, name: str) -> int:
     return value
 
 
+def _positive_int_field(value: object, name: str) -> int:
+    result = _int_field(value, name)
+    if result <= 0:
+        raise M1005ReleaseEvidenceError(f"{name} must be positive")
+    return result
+
+
 def verify_evidence(directory: Path) -> dict[str, object]:
     evaluation = _read(directory / "evaluation.json")
     benchmark = _read(directory / "benchmark.json")
@@ -78,6 +85,8 @@ def verify_evidence(directory: Path) -> dict[str, object]:
             or package.get("isolated_import") is not True
         ):
             raise M1005ReleaseEvidenceError("package schema/import evidence is incomplete")
+        for field in ("wheel_bytes", "sdist_bytes", "wheel_members", "sdist_members"):
+            _positive_int_field(package.get(field), f"package {field}")
         for field in ("wheel_sha256", "sdist_sha256"):
             value = package.get(field)
             if not isinstance(value, str) or len(value) != DIGEST_HEX_LENGTH:

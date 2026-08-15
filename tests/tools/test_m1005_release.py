@@ -54,3 +54,24 @@ def test_m1005_release_evidence_rejects_budget_overrun(tmp_path: Path) -> None:
     (directory / "benchmark.json").write_text(json.dumps(benchmark), encoding="utf-8")
     with pytest.raises(M1005ReleaseEvidenceError):
         verify_evidence(directory)
+
+
+def test_m1005_release_evidence_validates_package_inventory(tmp_path: Path) -> None:
+    directory = _bundle(tmp_path)
+    package = {
+        "module_id": "GLIO-PROTEOGEN-M10-05",
+        "schema_count": 7,
+        "isolated_import": True,
+        "wheel_sha256": "a" * 64,
+        "sdist_sha256": "b" * 64,
+        "wheel_bytes": 100,
+        "sdist_bytes": 200,
+        "wheel_members": 10,
+        "sdist_members": 20,
+    }
+    (directory / "package.json").write_text(json.dumps(package), encoding="utf-8")
+    assert verify_evidence(directory)["package_present"] is True
+    package["sdist_members"] = 0
+    (directory / "package.json").write_text(json.dumps(package), encoding="utf-8")
+    with pytest.raises(M1005ReleaseEvidenceError, match="sdist_members"):
+        verify_evidence(directory)
