@@ -51,6 +51,9 @@ M0906_MAX_EVIDENCE: Final = 64
 M0906_MAX_FINDINGS: Final = 64
 M0906_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0906_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0906_BENCHMARK_ITERATIONS: Final = 10
+M0906_MEAN_BUDGET_NS: Final = 2_000_000_000
+M0906_P95_BUDGET_NS: Final = 3_000_000_000
 M0906_NOMINAL_COVERAGE: Final = 0.9
 M0906_MIN_COVERAGE: Final = 0.85
 M0906_MAX_COVERAGE: Final = 0.95
@@ -286,6 +289,7 @@ class ComplexActivityUncertaintyDecompositionResult(FrozenModel):
 
 
 __all__ = [
+    "M0906_BENCHMARK_ITERATIONS",
     "M0906_CONTRACT_VERSION",
     "M0906_EVIDENCE_CLAIM",
     "M0906_GATE",
@@ -296,17 +300,20 @@ __all__ = [
     "M0906_MAX_COVERAGE",
     "M0906_MAX_EVIDENCE",
     "M0906_MAX_FINDINGS",
+    "M0906_MEAN_BUDGET_NS",
     "M0906_MIN_COVERAGE",
     "M0906_MODULE_ID",
     "M0906_NOMINAL_COVERAGE",
     "M0906_OPERATION",
     "M0906_OUTPUT_MEDIA_TYPE",
     "M0906_OWNER",
+    "M0906_P95_BUDGET_NS",
     "M0906_PARENT",
     "M0906_PROVISIONAL_ABI",
     "M0906_SAFETY_CLASS",
     "ComplexActivityUncertaintyDecompositionResult",
     "DecomposeComplexActivityUncertaintyRequest",
+    "DecomposeComplexActivityUncertaintyVerification",
     "SensitivityEnvelope",
     "SensitivityEnvelopeStatus",
     "UncertaintyComponent",
@@ -317,5 +324,4 @@ __all__ = [
     "UncertaintyDimension",
     "UncertaintyFinding",
     "UncertaintyFindingCode",
-    "DecomposeComplexActivityUncertaintyVerification",
 ]
