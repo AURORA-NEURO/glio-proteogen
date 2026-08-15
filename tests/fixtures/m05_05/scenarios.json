@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-05",
+  "cases": [
+    {"case_id": "clear"},
+    {"case_id": "seeded_critical"},
+    {"case_id": "contamination_detected"},
+    {"case_id": "missing_required"},
+    {"case_id": "unsupported_required"},
+    {"case_id": "ledger_binding_only"},
+    {"case_id": "upstream_quarantined"},
+    {"case_id": "upstream_abstained"}
+  ]
+}
