@@ -7,9 +7,16 @@ from typing import Final
 
 from pydantic import TypeAdapter
 
+from glio_proteogen.contracts.m06_05.canonical import (
+    canonical_request_digest as m0605_request_digest,
+)
+from glio_proteogen.contracts.m06_05.canonical import (
+    result_payload_digest as m0605_result_digest,
+)
 from glio_proteogen.contracts.m06_06 import (
     M0606_CONTRACT_VERSION,
     M0606_EVIDENCE_CLAIM,
+    M0606_MAX_CANONICAL_REQUEST_BYTES,
     M0606_PARENT,
     DecomposeProteinAbundanceUncertaintyRequest,
     ProteinAbundanceUncertaintyDecompositionResult,
@@ -85,6 +92,26 @@ def _prepare(candidate: object) -> object:
     return candidate
 
 
+def _validate_typed_request(
+    candidate: object,
+) -> DecomposeProteinAbundanceUncertaintyRequest:
+    return _REQUEST_ADAPTER.validate_python(_prepare(candidate), strict=True)
+
+
+def _validate_json_request(
+    candidate: object,
+    serialized: bytes | bytearray | str,
+) -> DecomposeProteinAbundanceUncertaintyRequest:
+    size = len(serialized.encode("utf-8")) if type(serialized) is str else len(serialized)
+    if size > M0606_MAX_CANONICAL_REQUEST_BYTES:
+        raise ValueError("M06-06 canonical request exceeds its byte limit")  # noqa: TRY003
+    candidate = _prepare(candidate)
+    return _REQUEST_ADAPTER.validate_json(
+        (serialized if isinstance(serialized, (bytes, bytearray)) else serialized.encode("utf-8")),
+        strict=True,
+    )
+
+
 def _evidence(
     request: DecomposeProteinAbundanceUncertaintyRequest,
 ) -> tuple[EvidenceReference, ...]:
@@ -141,13 +168,27 @@ class M0606UncertaintyDecompositionEngine:
         self,
         request: object,
     ) -> ProteinAbundanceUncertaintyDecompositionResult:
-        validated = _REQUEST_ADAPTER.validate_python(_prepare(request), strict=True)
-        return self._result(validated)
+        return self.decompose_validated(_validate_typed_request(request))
+
+    def decompose_validated(
+        self,
+        request: DecomposeProteinAbundanceUncertaintyRequest,
+    ) -> ProteinAbundanceUncertaintyDecompositionResult:
+        """Execute a request that was already validated at an ingress boundary."""
+
+        if not isinstance(request, DecomposeProteinAbundanceUncertaintyRequest):
+            raise TypeError("M06-06 requires a validated request")  # noqa: TRY003
+        return self._result(request)
 
     def _result(
         self,
         request: DecomposeProteinAbundanceUncertaintyRequest,
     ) -> ProteinAbundanceUncertaintyDecompositionResult:
+        upstream = request.constraint_result
+        if upstream.request_digest != m0605_request_digest(upstream.request):
+            raise ValueError("M06-05 result request digest is stale")  # noqa: TRY003
+        if upstream.result_digest != m0605_result_digest(upstream):
+            raise ValueError("M06-05 result digest is stale")  # noqa: TRY003
         request_hash = canonical_request_digest(request)
         policy_hash = sha256_digest(request.policy)
         upstream_status = request.constraint_result.support_decision.status
@@ -211,6 +252,8 @@ def decompose_protein_abundance_uncertainty(
 __all__ = [
     "M0606UncertaintyDecompositionAuthorizationError",
     "M0606UncertaintyDecompositionEngine",
+    "_validate_json_request",
+    "_validate_typed_request",
     "decompose_protein_abundance_uncertainty",
     "preflight_uncertainty_decomposition_authorization",
 ]

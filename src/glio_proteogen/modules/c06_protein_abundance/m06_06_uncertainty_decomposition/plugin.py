@@ -15,7 +15,7 @@ from glio_proteogen.contracts.m06_06 import (
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
-    _prepare,
+    _validate_json_request,
 )
 
 if TYPE_CHECKING:
@@ -75,17 +75,22 @@ class M0606Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            decoded = strict_json_loads(
                 serialized,
                 max_bytes=M0606_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(_prepare(candidate))
+            typed = _validate_json_request(decoded, serialized)
+        else:
+            typed = self._service.validate_request(candidate)
         token = ValidatedM0606Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token
 
     def run(self, request: ValidatedM0606Request) -> ProteinAbundanceUncertaintyDecompositionResult:
-        snapshot = _ISSUED_TOKENS.get(request)
+        try:
+            snapshot = _ISSUED_TOKENS.get(request)
+        except TypeError as error:
+            raise _InvalidExecutionTokenError from error
         if (
             type(request) is not ValidatedM0606Request
             or request._seal is not _TOKEN_SEAL
