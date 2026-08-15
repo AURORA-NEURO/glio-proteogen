@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1403_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m14_03 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1403_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-03 provisional caller-declared mechanistic feature construction.",
+)
+app.add_typer(m1403_app, name="mechanistic-features")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3380,6 +3393,47 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1403_app.command("export-schema")
+def export_m1403_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "feature-object",
+            "feature",
+            "lineage",
+            "relation",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M14-03 feature contract."""
+
+    typer.echo(json.dumps(_m1403_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1403_app.command("construct")
+def construct_m1403_features(request: RequestArgument) -> None:
+    """Construct caller-declared mechanistic feature metadata and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest),
+            m1403_module.preflight_m1403_authorization,
+            M1403_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1403_module.M1403Service().execute(parsed))
+    except m1403_module.M1403AuthorizationError as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 

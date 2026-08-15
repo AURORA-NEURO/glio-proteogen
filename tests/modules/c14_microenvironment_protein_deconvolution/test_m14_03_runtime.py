@@ -145,7 +145,7 @@ def test_constructs_all_declared_feature_kinds_and_replays() -> None:
         for feature in result.feature_object.features
     )
     assert all(
-        feature.category.startswith("caller_declared:")
+        feature.category is not None and feature.category.startswith("caller_declared:")
         for feature in result.feature_object.features
     )
     assert result.human_review_required is True
