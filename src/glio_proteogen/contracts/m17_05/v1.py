@@ -159,8 +159,8 @@ class HumanReviewWorkspace(FrozenModel):
         positions = tuple(item.position for item in self.items)
         if len(ids) != len(set(ids)):
             raise ValueError("workspace item ids must be unique")
-        if positions != tuple(sorted(positions)) or len(set(positions)) != len(positions):
-            raise ValueError("workspace item positions must be strictly ordered")
+        if positions != tuple(range(len(positions))):
+            raise ValueError("workspace item positions must be contiguous and zero-based")
         return self
 
 
@@ -192,6 +192,26 @@ class PresentVariantPeptideHumanReviewWorkspaceRequest(FrozenModel):
             raise ValueError("workspace request must bind the provisional M17-02 result")
         if len(self.review_items) > self.policy.maximum_items:
             raise ValueError("request exceeds configured workspace item limit")
+        item_ids = tuple(item.item_id for item in self.review_items)
+        positions = tuple(item.position for item in self.review_items)
+        if len(item_ids) != len(set(item_ids)):
+            raise ValueError("request review item ids must be unique")
+        if positions != tuple(range(len(positions))):
+            raise ValueError("request review item positions must be contiguous and zero-based")
+        required = set(self.policy.required_views)
+        present = {item.view_kind for item in self.review_items}
+        if not required.issubset(present):
+            raise ValueError("request must provide every policy-required workspace view")
+        source_digests = tuple(artifact.digest for artifact in self.source_artifacts)
+        if len(source_digests) != len(set(source_digests)):
+            raise ValueError("request source artifacts must be unique")
+        if self.aligned_evidence_bundle.digest not in source_digests:
+            raise ValueError("aligned evidence bundle must be listed in source artifacts")
+        for item in self.review_items:
+            if item.provenance_artifact.digest not in source_digests:
+                raise ValueError("review item provenance must bind a request source artifact")
+            if any(evidence.reference.digest not in source_digests for evidence in item.evidence):
+                raise ValueError("review item evidence must bind request source artifacts")
         return self
 
 
@@ -230,6 +250,14 @@ class VariantPeptideHumanReviewWorkspaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("presented result requires a supported workspace")
+            if self.workspace.ordering is not self.request.policy.default_ordering:
+                raise ValueError("workspace ordering must bind the requested policy")
+            if self.workspace.source_bundle.digest != self.request.aligned_evidence_bundle.digest:
+                raise ValueError("workspace source bundle must bind the aligned evidence bundle")
+            request_ids = tuple(item.item_id for item in self.request.review_items)
+            workspace_ids = tuple(item.item_id for item in self.workspace.items)
+            if workspace_ids != request_ids:
+                raise ValueError("workspace items must bind the request item sequence")
         elif (
             self.workspace is not None
             or self.abstention_reason is None
@@ -237,6 +265,12 @@ class VariantPeptideHumanReviewWorkspaceResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no workspace and safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        finding_codes = tuple(finding.code for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("result finding codes must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
