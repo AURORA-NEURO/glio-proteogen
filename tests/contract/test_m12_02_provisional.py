@@ -1,7 +1,9 @@
 """Focused schema and safe-failure smoke for provisional M12-02."""
 
+from typing import cast
+
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m12_02 import (
     M1202_OUTPUT_MEDIA_TYPE,
@@ -13,6 +15,7 @@ from glio_proteogen.contracts.m12_02 import (
     MechanismApplicability,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.models import ArtifactReference
 
 _SCHEMA_COUNT = 8
 
@@ -32,11 +35,12 @@ def test_provisional_schemas_preserve_context_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["conflictPreservationRequired"] is True
         assert metadata["unsupportedToNegative"] is False
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1202_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M1202_OUTPUT_MEDIA_TYPE
     assert M1202_PROVISIONAL_ABI is True
 
 
@@ -47,12 +51,12 @@ def test_supported_context_requires_evidence() -> None:
             dimension=ContextDimension.SUBTYPE,
             value="candidate subtype",
             status=ContextObservationStatus.SUPPORTED,
-            source_artifact={
-                "artifact_id": "source-1",
-                "version": "1.0.0",
-                "digest": "sha256:" + "a" * 64,
-                "media_type": "application/json",
-            },
+            source_artifact=ArtifactReference(
+                artifact_id="source-1",
+                version="1.0.0",
+                digest="sha256:" + "a" * 64,
+                media_type="application/json",
+            ),
         )
 
 

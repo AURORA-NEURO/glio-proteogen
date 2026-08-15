@@ -94,7 +94,7 @@ def test_result_closure_rejects_each_tampered_envelope_field() -> None:
     engine = M1202ContextEngine()
     result = engine.stratify(_request())
     payload = result.model_dump(mode="python")
-    mutations = (
+    mutations: tuple[tuple[str, object], ...] = (
         ("request_digest", _DIGEST),
         ("result_id", "result.tampered"),
         ("evidence", []),

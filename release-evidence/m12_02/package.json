@@ -9,11 +9,11 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "3d0523c88401ad9499687b6154c02c318f6815680bd1055d9bc1c3d84a281874",
-    "size_bytes": 1454999,
-    "members": 782
+    "sha256": "be9cb365bb22d3382d4b5e0e1c8f50989e54a71347c30a6d06f8841bbf2bdf59",
+    "size_bytes": 1455330,
+    "members": 783
   },
   "isolated_import": true,
-  "build_command": "uv build --out-dir C:\\Users\\murar\\AppData\\Local\\Temp\\m1202-dist-clean",
-  "isolated_import_command": "uv pip install --target C:\\Users\\murar\\AppData\\Local\\Temp\\m1202-install-clean --no-deps glio_proteogen-0.1.0-py3-none-any.whl"
+  "build_command": "uv build --out-dir C:\\Users\\murar\\AppData\\Local\\Temp\\m1202-dist-final2",
+  "isolated_import_command": "uv pip install --target C:\\Users\\murar\\AppData\\Local\\Temp\\m1202-install-final2 --no-deps glio_proteogen-0.1.0-py3-none-any.whl"
 }

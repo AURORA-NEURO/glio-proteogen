@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +20,9 @@ from glio_proteogen.modules.c12_driver_to_protein_consequence import (
     m12_02_context_subtype_stratifier,
 )
 from tests.contract.test_m12_02_contract import _request
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _CLIENT = TestClient(app)
 _RUNNER = CliRunner()
@@ -99,9 +103,9 @@ def test_api_strict_json_and_validation_error_surfaces() -> None:
     assert wrong_verify_type.status_code == _UNSUPPORTED_MEDIA
 
 
-def test_api_service_authorization_error_is_sanitized(monkeypatch) -> None:
+def test_api_service_authorization_error_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
     class FailingService:
-        def _execute_validated(self, _: object):
+        def _execute_validated(self, _: object) -> NoReturn:
             raise m1202_adapter.M1202ContextAuthorizationError
 
     monkeypatch.setattr(m1202_adapter, "_SERVICE", FailingService())
@@ -109,7 +113,7 @@ def test_api_service_authorization_error_is_sanitized(monkeypatch) -> None:
     assert response.status_code == _FORBIDDEN
 
 
-def test_cli_invalid_schema_request_and_verify_paths(tmp_path) -> None:
+def test_cli_invalid_schema_request_and_verify_paths(tmp_path: Path) -> None:
     unknown_schema = _RUNNER.invoke(m1202_app, ["export-schema", "unknown"])
     assert unknown_schema.exit_code == _USAGE_ERROR
     bad_request = tmp_path / "bad-request.json"
@@ -122,7 +126,7 @@ def test_cli_invalid_schema_request_and_verify_paths(tmp_path) -> None:
     assert failed_verify.exit_code == 1
 
 
-def test_cli_stratify_stdout_and_plugin_service_seams(tmp_path) -> None:
+def test_cli_stratify_stdout_and_plugin_service_seams(tmp_path: Path) -> None:
     request_path = tmp_path / "request.json"
     request_path.write_bytes(canonical_json_bytes(_request()))
     stdout = _RUNNER.invoke(m1202_app, ["stratify", str(request_path)])
@@ -139,7 +143,7 @@ def test_cli_stratify_stdout_and_plugin_service_seams(tmp_path) -> None:
     assert service.verify(result, replay=False) == result
 
 
-def test_cli_export_schema_and_stratify_no_overwrite(tmp_path) -> None:
+def test_cli_export_schema_and_stratify_no_overwrite(tmp_path: Path) -> None:
     request_path = tmp_path / "request.json"
     output_path = tmp_path / "result.json"
     request_path.write_bytes(canonical_json_bytes(_request()))
