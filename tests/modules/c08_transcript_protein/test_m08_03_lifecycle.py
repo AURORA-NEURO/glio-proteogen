@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from evals.m08_03.evaluator import evaluate_all
+from evals.m08_03.benchmark import measure
+from evals.m08_03.evaluator import evaluate_all, evaluate_replay_and_tamper
 from evals.m08_03.fixtures import request
 
 from glio_proteogen.contracts.m08_03 import (
@@ -17,7 +18,7 @@ from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estima
     M0803Service,
 )
 
-EXPECTED_SCENARIOS = 4
+EXPECTED_SCENARIOS = 6
 
 
 def test_transparent_baseline_estimates_and_replays() -> None:
@@ -77,3 +78,9 @@ def test_evaluator_matrix_passes() -> None:
     records = evaluate_all()
     assert len(records) == EXPECTED_SCENARIOS
     assert all(record.passed for record in records)
+    assert evaluate_replay_and_tamper()
+
+
+def test_benchmark_requires_positive_iterations() -> None:
+    with pytest.raises(ValueError, match="iterations must be positive"):
+        measure(0)

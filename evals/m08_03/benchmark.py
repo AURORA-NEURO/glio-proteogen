@@ -13,6 +13,8 @@ from .fixtures import request
 
 
 def measure(iterations: int = 10) -> dict[str, float | int]:
+    if iterations < 1:
+        raise ValueError("benchmark iterations must be positive")  # noqa: TRY003
     service = M0803Service()
     candidate = request()
     durations: list[int] = []
