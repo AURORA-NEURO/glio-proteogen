@@ -1,6 +1,7 @@
 """Public provisional M06-02 representation/feature-constructor boundary."""
 
 from .engine import (
+    BuiltProteinRepresentation,
     M0602RepresentationEngine,
     RepresentationAuthorizationError,
     RepresentationInputError,
@@ -10,6 +11,7 @@ from .engine import (
 from .service import M0602Service
 
 __all__ = [
+    "BuiltProteinRepresentation",
     "M0602RepresentationEngine",
     "M0602Service",
     "RepresentationAuthorizationError",

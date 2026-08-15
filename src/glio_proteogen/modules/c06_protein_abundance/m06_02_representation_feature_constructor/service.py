@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .engine import M0602RepresentationEngine
+from .engine import BuiltProteinRepresentation, M0602RepresentationEngine
 
 if TYPE_CHECKING:
-    from glio_proteogen.contracts.m06_02 import BuildProteinRepresentationRequest
+    from glio_proteogen.contracts.m06_02 import (
+        BuildProteinRepresentationRequest,
+        ConstructProteinRepresentationVerification,
+    )
 
 
 class M0602Service:
@@ -22,8 +25,18 @@ class M0602Service:
     def validate_request(request: object) -> BuildProteinRepresentationRequest:
         return M0602RepresentationEngine.validate_request(request)
 
-    def construct(self, request: object) -> None:
+    def construct(self, request: object) -> BuiltProteinRepresentation:
         return self._engine.construct(request)
+
+    def verify(
+        self,
+        result: object,
+        canonical_bytes: bytes | None = None,
+    ) -> ConstructProteinRepresentationVerification:
+        return self._engine.verify(result, canonical_bytes)
+
+    def execute(self, request: object) -> BuiltProteinRepresentation:
+        return self._engine.execute(request)
 
 
 __all__ = ["M0602Service"]
