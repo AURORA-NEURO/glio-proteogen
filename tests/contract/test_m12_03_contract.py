@@ -33,10 +33,7 @@ def test_m1203_schemas_are_strict_and_explicitly_provisional() -> None:
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(
-        schema["x-glio-contract"]["pendingOwnerConfirmation"]
-        for schema in schemas.values()
-    )
+    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     metadata = schemas["output"]["x-glio-contract"]
     assert metadata["outputMediaType"] == M1203_OUTPUT_MEDIA_TYPE
     assert metadata["parentTarget"] == "biomarker_panel"

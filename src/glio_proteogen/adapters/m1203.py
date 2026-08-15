@@ -66,7 +66,9 @@ def _error(message: str, status_code: int = 422) -> JSONResponse:
 
 
 @app.exception_handler(ValidationError)
-async def _validation_error(_request: Request, _exc: ValidationError) -> JSONResponse:
+async def _validation_error(  # pragma: no cover - FastAPI body is handled by strict raw routes.
+    _request: Request, _exc: ValidationError
+) -> JSONResponse:
     return _error("M12-03 request failed strict validation")
 
 
@@ -139,7 +141,7 @@ def cli_construct(
         payload = _read_json(request)
         typed = _SERVICE.validate_request(payload)
         result = construct_mechanistic_features(typed)
-    except (ValueError, TypeError, ValidationError) as exc:
+    except (PermissionError, ValueError, TypeError, ValidationError) as exc:
         raise _CliRequestError from exc
     typer.echo(result.model_dump_json(indent=2))
 

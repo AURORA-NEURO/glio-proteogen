@@ -59,11 +59,6 @@ class MechanisticFeatureValidationError(ValueError):
     """Raised when strict request replay or feature invariants fail."""
 
 
-class _InvalidExecutionInputError(TypeError):
-    def __init__(self) -> None:
-        super().__init__("M12-03 execution requires a validated request")
-
-
 class M1203MechanisticFeatureEngine:
     """Construct a versioned mechanistic feature object without external traversal."""
 
