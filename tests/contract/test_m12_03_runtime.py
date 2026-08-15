@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 import pytest
 from fastapi.testclient import TestClient
+from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m1203 import app, m1203_app
 from glio_proteogen.contracts.m12_03 import (
     M1203_M1202_INPUT_MEDIA_TYPE,
     M1203_OPERATION,
+    ConstructBiomarkerPanelMechanisticFeaturesRequest,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
-    MechanisticFeatureLineage,
     MechanisticFeatureKind,
+    MechanisticFeatureLineage,
     MechanisticValueKind,
     NegativeControlStatus,
-    ConstructBiomarkerPanelMechanisticFeaturesRequest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -38,6 +39,9 @@ from glio_proteogen.modules.c12_driver_protein_consequence import (
     MechanisticFeatureAuthorizationError,
     construct_mechanistic_features,
 )
+
+HTTP_OK = 200
+HTTP_UNPROCESSABLE_CONTENT = 422
 
 
 def artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -109,7 +113,9 @@ def context() -> ExecutionContext:
     )
 
 
-def request(*, negative: NegativeControlStatus = NegativeControlStatus.PASSED) -> ConstructBiomarkerPanelMechanisticFeaturesRequest:
+def request(
+    *, negative: NegativeControlStatus = NegativeControlStatus.PASSED
+) -> ConstructBiomarkerPanelMechanisticFeaturesRequest:
     source = artifact("feature-source")
     lineage = MechanisticFeatureLineage(
         feature_id="feature.pathway",
@@ -191,24 +197,22 @@ def test_plugin_rejects_forged_capability_and_accepts_json() -> None:
 def test_fastapi_construct_verify_and_schema_are_sanitized() -> None:
     client = TestClient(app)
     response = client.post("/v1/modules/M12-03/construct", content=request().model_dump_json())
-    assert response.status_code == 200
+    assert response.status_code == HTTP_OK
     result = response.json()
     assert result["status"] == "constructed"
     verified = client.post("/v1/modules/M12-03/verify", json=result)
-    assert verified.status_code == 200
+    assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
     schema = client.get("/v1/m12-03/schema/request")
-    assert schema.status_code == 200
+    assert schema.status_code == HTTP_OK
     assert schema.json()["x-glio-contract"]["provisionalAbi"] is True
-    bad = client.post("/v1/modules/M12-03/construct", content=b"{\"request_id\": 3}")
-    assert bad.status_code == 422
+    bad = client.post("/v1/modules/M12-03/construct", content=b'{"request_id": 3}')
+    assert bad.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert "validation" in bad.json()["error"]["message"]
     assert "traceback" not in bad.text.lower()
 
 
 def test_cli_schema_no_overwrite(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-
     output = tmp_path / "schema.json"
     runner = CliRunner()
     first = runner.invoke(m1203_app, ["export-schema", "request", "--output", str(output)])
