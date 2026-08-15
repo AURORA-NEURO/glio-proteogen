@@ -75,10 +75,12 @@ class M0805Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            strict_json_loads(
                 serialized,
                 max_bytes=M0805_MAX_CANONICAL_REQUEST_BYTES,
             )
+            raw = bytes(serialized) if isinstance(serialized, bytearray) else serialized
+            candidate = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         typed = self._service.validate_request(candidate)
         token = ValidatedM0805Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))

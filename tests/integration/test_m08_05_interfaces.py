@@ -1,7 +1,7 @@
 """API, CLI, and plugin parity checks for provisional M08-05."""
 
 # The long module import paths make the test's ownership explicit.
-# ruff: noqa: E501
+# ruff: noqa: E501, ARG002
 
 import json
 from http import HTTPStatus
@@ -9,7 +9,9 @@ from http import HTTPStatus
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c08_transcript_protein_discordance.m08_05_mechanism_constraint_integrator import (
+    M0805InputError,
     M0805Plugin,
     M0805Service,
     create_app,
@@ -72,3 +74,107 @@ def test_cli_and_plugin_use_the_same_canonical_result(tmp_path) -> None:
     assert json.loads(output_path.read_text(encoding="utf-8")) == json.loads(
         plugin_result.canonical_bytes
     )
+
+
+def test_api_validation_authorization_and_input_handlers() -> None:
+    request = _request("conservation_hold")
+    withheld = request.context.references.consent.model_copy(
+        update={"state": ConsentState.WITHHELD}
+    )
+    denied = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": request.context.references.model_copy(
+                        update={"consent": withheld}
+                    )
+                }
+            )
+        }
+    )
+
+    class InputRejectingService(M0805Service):
+        def integrate(self, request: object):
+            raise M0805InputError("result_noncanonical")
+
+    with TestClient(create_app(M0805Service())) as client:
+        invalid = client.post("/v1/modules/M08-05/validate", json={})
+        invalid_integrate = client.post("/v1/modules/M08-05/integrate", json={})
+        denied_validate = client.post(
+            "/v1/modules/M08-05/validate", json=denied.model_dump(mode="json")
+        )
+        denied_integrate = client.post(
+            "/v1/modules/M08-05/integrate", json=denied.model_dump(mode="json")
+        )
+        malformed = client.post("/v1/modules/M08-05/validate", content=b"{not-json")
+    with TestClient(create_app(InputRejectingService())) as client:
+        rejected = client.post(
+            "/v1/modules/M08-05/integrate",
+            json=request.model_dump(mode="json"),
+        )
+
+    assert invalid.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert invalid_integrate.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert denied_validate.status_code == HTTPStatus.FORBIDDEN
+    assert denied_integrate.status_code == HTTPStatus.FORBIDDEN
+    assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert rejected.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_cli_schema_validation_and_safe_output_boundaries(tmp_path) -> None:
+    runner = CliRunner()
+    request = _request("conservation_hold")
+    request_path = tmp_path / "request.json"
+    bad_path = tmp_path / "bad.json"
+    invalid_path = tmp_path / "invalid-contract.json"
+    abstain_path = tmp_path / "abstain.json"
+    denied_path = tmp_path / "denied.json"
+    output_path = tmp_path / "output.json"
+    request_path.write_text(json.dumps(request.model_dump(mode="json")), encoding="utf-8")
+    bad_path.write_text("{", encoding="utf-8")
+    invalid_path.write_text("{}", encoding="utf-8")
+    abstain_path.write_text(
+        json.dumps(_request("force_violation").model_dump(mode="json")), encoding="utf-8"
+    )
+    denied = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": request.context.references.model_copy(
+                        update={
+                            "consent": request.context.references.consent.model_copy(
+                                update={"state": ConsentState.WITHHELD}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    denied_path.write_text(json.dumps(denied.model_dump(mode="json")), encoding="utf-8")
+
+    assert runner.invoke(cli_app, ["export-schema", "verification"]).exit_code == 0
+    assert runner.invoke(cli_app, ["export-schema", "unknown"]).exit_code != 0
+    assert runner.invoke(cli_app, ["validate", str(request_path)]).exit_code == 0
+    assert runner.invoke(cli_app, ["validate", str(bad_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["validate", str(invalid_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["validate", str(tmp_path / "missing.json")]).exit_code != 0
+    assert (
+        runner.invoke(
+            cli_app, ["integrate", str(request_path), "--output", str(output_path)]
+        ).exit_code
+        == 0
+    )
+    assert runner.invoke(cli_app, ["integrate", str(request_path)]).exit_code == 0
+    assert (
+        runner.invoke(
+            cli_app, ["integrate", str(request_path), "--output", str(output_path)]
+        ).exit_code
+        != 0
+    )
+    abstained = runner.invoke(
+        cli_app,
+        ["integrate", str(abstain_path), "--output", str(abstain_path.with_suffix(".out.json"))],
+    )
+    assert abstained.exit_code == 1
+    assert runner.invoke(cli_app, ["integrate", str(denied_path)]).exit_code != 0
