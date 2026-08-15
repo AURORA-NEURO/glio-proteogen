@@ -25,9 +25,7 @@ from glio_proteogen.contracts.m12_07.v1 import (
     UnresolvedConflict,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M12-07:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M12-07:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1207_CONTRACT_VERSION
 ContractName = Literal[
     "request",

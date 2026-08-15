@@ -137,9 +137,7 @@ class AdjudicateBiomarkerPanelPlausibilityRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     mechanism_inference_result: ArtifactReference
-    controls: tuple[PlausibilityControl, ...] = Field(
-        min_length=1, max_length=M1207_MAX_CONTROLS
-    )
+    controls: tuple[PlausibilityControl, ...] = Field(min_length=1, max_length=M1207_MAX_CONTROLS)
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1207_MAX_EVIDENCE
     )
@@ -152,6 +150,11 @@ class AdjudicateBiomarkerPanelPlausibilityRequest(FrozenModel):
         ids = tuple(item.control_id for item in self.controls)
         if len(ids) != len(set(ids)):
             raise ValueError("control ids must be unique")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if self.mechanism_inference_result.artifact_id in set(source_ids):
+            raise ValueError("mechanism result must not be duplicated as a source artifact")
         return self
 
 
@@ -168,9 +171,7 @@ class BiomarkerPanelPlausibilityAdjudicationResult(FrozenModel):
     request: AdjudicateBiomarkerPanelPlausibilityRequest
     status: PlausibilityAdjudicationStatus
     grade: PlausibilityGrade | None = None
-    evaluations: tuple[ControlEvaluation, ...] = Field(
-        default=(), max_length=M1207_MAX_EVALUATIONS
-    )
+    evaluations: tuple[ControlEvaluation, ...] = Field(default=(), max_length=M1207_MAX_EVALUATIONS)
     conflicts: tuple[UnresolvedConflict, ...] = Field(default=(), max_length=M1207_MAX_CONFLICTS)
     findings: tuple[PlausibilityFinding, ...] = Field(default=(), max_length=M1207_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
@@ -191,6 +192,12 @@ class BiomarkerPanelPlausibilityAdjudicationResult(FrozenModel):
         evaluation_ids = tuple(item.control_id for item in self.evaluations)
         if set(evaluation_ids) != control_ids or len(evaluation_ids) != len(set(evaluation_ids)):
             raise ValueError("every control must have exactly one evaluation")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
+        conflict_ids = tuple(item.conflict_id for item in self.conflicts)
+        if len(conflict_ids) != len(set(conflict_ids)):
+            raise ValueError("conflict ids must be unique")
         blocking_outcomes = {
             ControlOutcome.FAILED,
             ControlOutcome.NOT_EVALUABLE,
@@ -211,6 +218,7 @@ class BiomarkerPanelPlausibilityAdjudicationResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no grade and safe status")
         if self.result_digest != result_payload_digest(self):
