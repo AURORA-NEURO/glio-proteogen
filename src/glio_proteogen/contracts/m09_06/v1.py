@@ -81,6 +81,16 @@ class UncertaintyDecompositionStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class UncertaintyDecompositionReplayReason(StrEnum):
+    """Stable reason codes for canonical replay verification."""
+
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
+
+
 class UncertaintyFindingCode(StrEnum):
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     CALIBRATION_NOT_LOCKED = "calibration_not_locked"
@@ -124,8 +134,8 @@ class SensitivityEnvelope(FrozenModel):
 
     status: SensitivityEnvelopeStatus
     nominal_coverage: float = Field(default=M0906_NOMINAL_COVERAGE, ge=0.0, le=1.0)
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0906_MAX_EVIDENCE)
@@ -152,6 +162,27 @@ class SensitivityEnvelope(FrozenModel):
             or self.observed_coverage is not None
         ):
             raise ValueError("non-evaluated sensitivity cannot carry coverage values")
+        return self
+
+
+class DecomposeComplexActivityUncertaintyVerification(FrozenModel):
+    """Content and deterministic replay status for one result envelope."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: UncertaintyDecompositionReplayReason
+
+    @model_validator(mode="after")
+    def verification_flags_are_closed(
+        self,
+    ) -> DecomposeComplexActivityUncertaintyVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
         return self
 
 
@@ -246,6 +277,9 @@ class ComplexActivityUncertaintyDecompositionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no decomposition and explicit safe status")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -278,8 +312,10 @@ __all__ = [
     "UncertaintyComponent",
     "UncertaintyDecomposition",
     "UncertaintyDecompositionPolicy",
+    "UncertaintyDecompositionReplayReason",
     "UncertaintyDecompositionStatus",
     "UncertaintyDimension",
     "UncertaintyFinding",
     "UncertaintyFindingCode",
+    "DecomposeComplexActivityUncertaintyVerification",
 ]
