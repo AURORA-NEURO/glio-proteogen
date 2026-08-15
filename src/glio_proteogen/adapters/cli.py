@@ -17,7 +17,6 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
     _contract_schema,
-    _formal_state_contract_schema,
     _harmonization_contract_schema,
     _identification_artifact_contract_schema,
     _identification_contract_schema,
@@ -28,14 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
-    _m0603_baseline_contract_schema,
-    _m0606_uncertainty_contract_schema,
-    _m0801_contract_schema,
-    _m1306_contract_schema,
-    _m1403_contract_schema,
-    _m1405_contract_schema,
-    _m1502_contract_schema,
-    _probabilistic_estimator_contract_schema,
+    _m1508_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -165,42 +157,9 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
-from glio_proteogen.contracts.m06_01 import (
-    M0601_MAX_CANONICAL_REQUEST_BYTES,
-    ValidateFormalProteinStateRequest,
-)
-from glio_proteogen.contracts.m06_03 import (
-    M0603_MAX_CANONICAL_REQUEST_BYTES,
-    EstimateProteinAbundanceBaselineRequest,
-)
-from glio_proteogen.contracts.m06_04 import (
-    M0604_MAX_CANONICAL_REQUEST_BYTES,
-    EstimateProteinAbundanceProbabilisticRequest,
-)
-from glio_proteogen.contracts.m06_06 import (
-    M0606_MAX_CANONICAL_REQUEST_BYTES,
-    DecomposeProteinAbundanceUncertaintyRequest,
-)
-from glio_proteogen.contracts.m08_01 import (
-    M0801_MAX_CANONICAL_REQUEST_BYTES,
-    ValidateTranscriptProteinStateRequest,
-)
-from glio_proteogen.contracts.m08_01 import ContractName as M0801ContractName
-from glio_proteogen.contracts.m13_06 import (
-    M1306_MAX_CANONICAL_REQUEST_BYTES,
-    SimulateProteotypePerturbationRequest,
-)
-from glio_proteogen.contracts.m14_03 import (
-    M1403_MAX_CANONICAL_REQUEST_BYTES,
-    ConstructProteinSubtypeMechanisticFeaturesRequest,
-)
-from glio_proteogen.contracts.m14_05 import (
-    M1405_MAX_CANONICAL_REQUEST_BYTES,
-    ModelProteinSubtypeLongitudinalEvolutionRequest,
-)
-from glio_proteogen.contracts.m15_02 import (
-    M1502_MAX_CANONICAL_REQUEST_BYTES,
-    StratifyContextAndSubtypeRequest,
+from glio_proteogen.contracts.m15_08 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -346,53 +305,8 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
-    PtmBaselineAuthorizationError,
-)
-from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
-    _validate_json_request as _validate_m0603_json_request,
-)
-from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
-    M0603Service,
-)
-from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
-    M0601Service,
-    preflight_formal_state_authorization,
-)
-from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
-    M0604Service,
-    ProbabilisticEstimatorAuthorizationError,
-    preflight_probabilistic_estimator_authorization,
-)
-from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
-    M0606UncertaintyDecompositionAuthorizationError,
-)
-from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
-    _validate_json_request as _validate_m0606_json_request,
-)
-from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
-    M0606Service,
-)
-from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
-    M0801FormalStateAuthorizationError,
-    M0801Service,
-)
-from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
-    _validate_json_request as _validate_m0801_json_request,
-)
-from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
-    M1306AuthorizationError,
-    M1306Service,
-    preflight_m1306_authorization,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_03_mechanistic_feature_constructor as m1403_module,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_05_protein_subtype_evolution as m1405_module,
-)
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
-    m15_02_context_subtype_stratifier as m1502_module,
+    m15_08_mechanism_evidence_dossier as m1508,
 )
 
 if TYPE_CHECKING:
@@ -527,51 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
-m0801_app = typer.Typer(
+mechanism_dossier_app = typer.Typer(
     no_args_is_help=True,
-    help="M08-01 provisional formal transcript-protein state validation.",
+    help="M15-08 bounded mechanism evidence dossier assembly.",
 )
-app.add_typer(m0801_app, name="transcript-protein-state")
-formal_state_app = typer.Typer(
-    no_args_is_help=True,
-    help="M06-01 formal state and feature schema validation.",
-)
-app.add_typer(formal_state_app, name="formal-state")
-m0603_baseline_app = typer.Typer(
-    no_args_is_help=True,
-    help="M06-03 provisional deterministic mature baseline estimation.",
-)
-app.add_typer(m0603_baseline_app, name="mature-baseline")
-probabilistic_estimator_app = typer.Typer(
-    no_args_is_help=True,
-    help="M06-04 provisional probabilistic and advanced estimation.",
-)
-app.add_typer(probabilistic_estimator_app, name="probabilistic-estimator")
-uncertainty_decomposition_app = typer.Typer(
-    no_args_is_help=True,
-    help="M06-06 provisional protein-abundance uncertainty decomposition.",
-)
-app.add_typer(uncertainty_decomposition_app, name="uncertainty-decomposition")
-m1306_app = typer.Typer(
-    no_args_is_help=True,
-    help="M13-06 bounded variant-peptide perturbation sensitivity.",
-)
-app.add_typer(m1306_app, name="proteotype-sensitivity")
-m1403_app = typer.Typer(
-    no_args_is_help=True,
-    help="M14-03 provisional caller-declared mechanistic feature construction.",
-)
-app.add_typer(m1403_app, name="mechanistic-features")
-m1405_app = typer.Typer(
-    no_args_is_help=True,
-    help="M14-05 provisional longitudinal protein-subtype evolution.",
-)
-app.add_typer(m1405_app, name="longitudinal-evolution")
-m1502_app = typer.Typer(
-    no_args_is_help=True,
-    help="M15-02 caller-declared context and subtype stratification.",
-)
-app.add_typer(m1502_app, name="context-stratifier")
+app.add_typer(mechanism_dossier_app, name="mechanism-dossier")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -680,18 +554,6 @@ ProteoformRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
-]
-M0801OutputOption = Annotated[
-    str,
-    typer.Option("--output", "-o", help="New M08-01 canonical result JSON path."),
-]
-M0603BaselineOutputOption = Annotated[
-    str,
-    typer.Option("--output", "-o", help="New M06-03 canonical result JSON path."),
-]
-M0606UncertaintyOutputOption = Annotated[
-    str,
-    typer.Option("--output", "-o", help="New M06-06 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -927,7 +789,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](  # noqa: C901, PLR0912 - one sanitized boundary normalizes all CLI failures.
+def _load_request[RequestT](
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -961,14 +823,6 @@ def _load_request[RequestT](  # noqa: C901, PLR0912 - one sanitized boundary nor
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
-        raise
-    except M0801FormalStateAuthorizationError:
-        raise
-    except PtmBaselineAuthorizationError:
-        raise
-    except ProbabilisticEstimatorAuthorizationError:
-        raise
-    except M0606UncertaintyDecompositionAuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3542,368 +3396,45 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=1) from error
 
 
-@m0801_app.command("export-schema")
-def export_m0801_schema(contract: M0801ContractName) -> None:
-    """Export one provisional M08-01 JSON Schema 2020-12 contract."""
-
-    typer.echo(json.dumps(_m0801_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@m0801_app.command("validate")
-def validate_m0801_state(
-    request: RequestArgument,
-    output: M0801OutputOption,
-) -> None:
-    """Validate one formal transcript-protein state and publish a canonical result."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(ValidateTranscriptProteinStateRequest),
-            None,
-            M0801_MAX_CANONICAL_REQUEST_BYTES,
-            _validate_m0801_json_request,
-        )
-        result = M0801Service().execute(parsed)
-        _write_proteoform_raw_result(
-            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
-        )
-    except M0801FormalStateAuthorizationError as error:
-        typer.echo(f"transcript-protein state validation failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"transcript-protein state validation failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@formal_state_app.command("export-schema")
-def export_formal_state_schema(
+@mechanism_dossier_app.command("export-schema")
+def export_m1508_dossier_schema(
     contract: Annotated[
         Literal[
             "request",
             "output",
-            "schema",
-            "feature-definition",
-            "feature-value",
-            "invariant",
-            "invariant-result",
-            "migration",
-        ],
-        typer.Argument(help="M06-01 public contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one machine-readable formal-state contract."""
-
-    typer.echo(json.dumps(_formal_state_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@formal_state_app.command("validate")
-def validate_formal_state_request(request: RequestArgument) -> None:
-    """Validate one formal-state request and execute its closed invariants."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(ValidateFormalProteinStateRequest),
-            preflight_formal_state_authorization,
-            M0601_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(M0601Service().execute(parsed))
-    except (TypeError, ValueError) as error:
-        typer.echo(f"formal-state validation failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@m0603_baseline_app.command("export-schema")
-def export_m0603_baseline_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "configuration",
-            "preprocessing-policy",
-            "tuning-record",
-            "estimate",
-            "diagnostic",
-        ],
-        typer.Argument(help="M06-03 provisional public contract to export."),
-    ],
-) -> None:
-    """Export one provisional M06-03 JSON Schema 2020-12 contract."""
-
-    _emit(_m0603_baseline_contract_schema(contract))
-
-
-@m0603_baseline_app.command("estimate")
-def estimate_m0603_baseline(
-    request: RequestArgument,
-    output: M0603BaselineOutputOption,
-) -> None:
-    """Estimate transparent baseline values and publish one canonical result."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(EstimateProteinAbundanceBaselineRequest),
-            None,
-            M0603_MAX_CANONICAL_REQUEST_BYTES,
-            _validate_m0603_json_request,
-        )
-        result = M0603Service()._execute_validated(parsed)
-        _write_proteoform_raw_result(
-            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
-        )
-    except PtmBaselineAuthorizationError as error:
-        typer.echo(f"m06-03 baseline estimation denied: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"m06-03 baseline estimation failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@probabilistic_estimator_app.command("export-schema")
-def export_probabilistic_estimator_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "configuration",
-            "prior",
-            "constraint",
-            "posterior",
-            "diagnostic",
-        ],
-        typer.Argument(help="M06-04 public contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one machine-readable provisional M06-04 contract."""
-
-    _emit(_probabilistic_estimator_contract_schema(contract))
-
-
-@probabilistic_estimator_app.command("estimate")
-def estimate_probabilistic_abundance(request: RequestArgument) -> None:
-    """Run the strict M06-04 proxy and print a typed estimate or abstention."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(EstimateProteinAbundanceProbabilisticRequest),
-            preflight_probabilistic_estimator_authorization,
-            M0604_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(M0604Service().estimate(parsed))
-    except ProbabilisticEstimatorAuthorizationError as error:
-        typer.echo(f"probabilistic estimation denied: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"probabilistic estimation failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@uncertainty_decomposition_app.command("export-schema")
-def export_m0606_uncertainty_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "component",
-            "decomposition",
-            "sensitivity-envelope",
-            "policy",
-            "finding",
-        ],
-        typer.Argument(help="M06-06 provisional contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one machine-readable provisional M06-06 contract."""
-
-    _emit(_m0606_uncertainty_contract_schema(contract))
-
-
-@uncertainty_decomposition_app.command("decompose")
-def decompose_m0606_uncertainty(
-    request: RequestArgument,
-    output: M0606UncertaintyOutputOption,
-) -> None:
-    """Decompose uncertainty and publish a safe provisional result."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest),
-            None,
-            M0606_MAX_CANONICAL_REQUEST_BYTES,
-            _validate_m0606_json_request,
-        )
-        result = M0606Service().execute(parsed)
-        _write_proteoform_raw_result(
-            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
-        )
-    except M0606UncertaintyDecompositionAuthorizationError as error:
-        typer.echo(f"M06-06 uncertainty decomposition failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"M06-06 uncertainty decomposition failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@m1403_app.command("export-schema")
-def export_m1403_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "feature-object",
-            "feature",
-            "lineage",
-            "relation",
+            "dossier",
+            "link",
+            "counter-evidence",
+            "validation-route",
+            "claim-ceiling",
             "configuration",
             "diagnostic",
         ],
-        typer.Argument(help="M14-03 public contract to export as JSON Schema 2020-12."),
+        typer.Argument(help="M15-08 public contract to export as JSON Schema 2020-12."),
     ],
 ) -> None:
-    """Export one machine-readable M14-03 feature contract."""
+    """Export one machine-readable mechanism dossier contract."""
 
-    typer.echo(json.dumps(_m1403_contract_schema(contract), indent=2, sort_keys=True))
+    typer.echo(json.dumps(_m1508_contract_schema(contract), indent=2, sort_keys=True))
 
 
-@m1403_app.command("construct")
-def construct_m1403_features(request: RequestArgument) -> None:
-    """Construct caller-declared mechanistic feature metadata and emit one sealed result."""
+@mechanism_dossier_app.command("assemble")
+def assemble_m1508_dossier(request: RequestArgument) -> None:
+    """Assemble one bounded caller-declared mechanism evidence dossier."""
 
     try:
         parsed = _load_request(
             request,
-            TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest),
-            m1403_module.preflight_m1403_authorization,
-            M1403_MAX_CANONICAL_REQUEST_BYTES,
+            TypeAdapter(AssembleComplexActivityMechanismDossierRequest),
+            m1508.preflight_m1508_authorization,
+            M1508_MAX_CANONICAL_REQUEST_BYTES,
         )
-        _emit(m1403_module.M1403Service().execute(parsed))
-    except m1403_module.M1403AuthorizationError as error:
-        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        _emit(m1508.M1508Service().execute(parsed))
+    except m1508.M1508AuthorizationError as error:
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@m1405_app.command("export-schema")
-def export_m1405_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "trajectory",
-            "state",
-            "evidence",
-            "configuration",
-            "diagnostic",
-        ],
-        typer.Argument(help="M14-05 contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one strict provisional M14-05 schema."""
-
-    typer.echo(json.dumps(_m1405_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@m1405_app.command("infer")
-def infer_m1405(request: RequestArgument) -> None:
-    """Replay an ordered M14-05 request into a bounded trajectory result."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest),
-            m1405_module.preflight_m1405_authorization,
-            M1405_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(m1405_module.M1405Service().execute(parsed))
-    except m1405_module.M1405AuthorizationError as error:
-        typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
-
-
-@m1502_app.command("export-schema")
-def export_m1502_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "attribute",
-            "mechanism",
-            "profile",
-            "evaluation",
-            "finding",
-        ],
-        typer.Argument(help="M15-02 public contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one machine-readable provisional M15-02 contract."""
-
-    typer.echo(json.dumps(_m1502_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@m1502_app.command("stratify")
-def stratify_m1502(request: RequestArgument) -> None:
-    """Replay caller-declared context and applicable mechanisms safely."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(StratifyContextAndSubtypeRequest),
-            m1502_module.preflight_m1502_authorization,
-            M1502_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(m1502_module.M1502Service().execute(parsed))
-    except m1502_module.M1502AuthorizationError as error:
-        typer.echo(f"context stratification authorization failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-
-
-@m1306_app.command("export-schema")
-def export_m1306_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "scenario",
-            "response",
-            "sensitivity-surface",
-            "configuration",
-            "policy",
-            "finding",
-        ],
-        typer.Argument(help="M13-06 public contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one machine-readable M13-06 perturbation contract."""
-
-    typer.echo(json.dumps(_m1306_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@m1306_app.command("simulate")
-def simulate_m1306(request: RequestArgument) -> None:
-    """Replay bounded variant-peptide perturbations and emit one sealed result."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(SimulateProteotypePerturbationRequest),
-            preflight_m1306_authorization,
-            M1306_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(M1306Service().execute(parsed))
-    except M1306AuthorizationError as error:
-        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
