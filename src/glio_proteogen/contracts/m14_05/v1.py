@@ -33,8 +33,12 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 4892-4935.
+# PROVISIONAL ABI: behavior bound to the authoritative dossier slice below.
 M1405_MODULE_ID: Final = "GLIO-PROTEOGEN-M14-05"
+M1405_DOSSIER_SLICE: Final = "4892-4932"
+M1405_REQUIREMENT_SHA256: Final = (
+    "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
 M1405_OPERATION: Final = "infer_protein_subtype_longitudinal_evolution"
 M1405_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1405_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m14-05+json"
@@ -269,6 +273,7 @@ class ProteinSubtypeLongitudinalEvolutionResult(FrozenModel):
 
 __all__ = [
     "M1405_CONTRACT_VERSION",
+    "M1405_DOSSIER_SLICE",
     "M1405_GATE",
     "M1405_M1404_RESULT_MEDIA_TYPE",
     "M1405_MAX_CANONICAL_REQUEST_BYTES",
@@ -285,6 +290,7 @@ __all__ = [
     "M1405_OWNER",
     "M1405_PARENT",
     "M1405_PROVISIONAL_ABI",
+    "M1405_REQUIREMENT_SHA256",
     "M1405_SAFETY_CLASS",
     "ChangePoint",
     "ChangePointStatus",
