@@ -3406,7 +3406,7 @@ def export_m1704_schema(
             "display-semantics",
             "registration",
             "policy-decision",
-            "object",
+            "intended-use-object",
             "finding",
         ],
         typer.Argument(help="M17-04 public contract to export as JSON Schema 2020-12."),
