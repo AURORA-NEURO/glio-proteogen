@@ -164,7 +164,7 @@ class CompatibilityReport(FrozenModel):
         min_length=1, max_length=M1801_MAX_DECISIONS
     )
     selected_candidate_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1801_MAX_CANDIDATES
+        default=(), max_length=M1801_MAX_CANDIDATES
     )
     rejected_candidate_ids: tuple[Identifier, ...] = Field(
         default=(), max_length=M1801_MAX_CANDIDATES
