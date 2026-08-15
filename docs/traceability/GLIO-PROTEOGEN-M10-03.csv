@@ -1,0 +1,7 @@
+requirement,implementation,evidence,status
+locked preprocessing,contracts/m10_03/v1.py,tests/contract/test_m10_03_contract.py,pass
+locked tuning,contracts/m10_03/v1.py,tests/contract/test_m10_03_contract.py,pass
+seven uncertainty dimensions,modules/c10_pathway_proteotype/m10_03_mature_baseline_estimator/engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
+safe control rejection,engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
+canonical replay,engine.py,tests/modules/test_m10_03_baseline_runtime.py,pass
+API and CLI parity,interfaces.py,tests/integration/test_m10_03_interfaces.py,pass

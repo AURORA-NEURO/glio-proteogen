@@ -1,0 +1,12 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-03",
+  "contractVersion": "0.1.0-provisional",
+  "cases": [
+    {"id": "supported_estimate", "expected": "estimated"},
+    {"id": "replay_verified", "expected": "verified"},
+    {"id": "rejected_support_control", "expected": "authorization_error"},
+    {"id": "parent_not_emitted", "expected": false},
+    {"id": "locked_preprocessing", "expected": true},
+    {"id": "locked_tuning", "expected": true}
+  ]
+}

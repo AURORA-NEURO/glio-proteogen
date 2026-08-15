@@ -34,6 +34,10 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estima
     estimate_protein_rna_discordance_baseline,
     verify_result_replay,
 )
+from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator.engine import (
+    _plain,
+    _validate_request,
+)
 
 _TWO_TARGETS = 2
 
@@ -155,3 +159,37 @@ def test_plugin_validates_json_once_and_requires_token() -> None:
 def test_service_mapping_validation_is_strict() -> None:
     request = _request()
     assert M1003Service().validate_request(request.model_dump(mode="python")) == request
+
+
+def test_container_firewall_and_invalid_token_paths_are_closed() -> None:
+    class HostileDict(dict[str, object]):
+        def items(self):  # type: ignore[no-untyped-def]
+            raise AssertionError
+
+    class HostileList(list[object]):
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            raise AssertionError
+
+    with pytest.raises(ValueError, match="container subclasses"):
+        _plain(HostileDict())
+    with pytest.raises(ValueError, match="container subclasses"):
+        _plain(HostileList())
+    with pytest.raises(BaselineAuthorizationError):
+        _validate_request(object())
+
+
+def test_reconstructed_token_is_rejected() -> None:
+    plugin = M1003Plugin(M1003Service())
+    token = plugin.validate(_request())
+    copied = type(token)(request=token.request, _seal=object())
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(copied)
+
+
+def test_plain_builtin_paths_and_replay_tamper_are_exercised() -> None:
+    request = _request()
+    assert isinstance(_plain(request), dict)
+    assert _plain([1, 2]) == [1, 2]
+    result = estimate_protein_rna_discordance_baseline(request)
+    tampered = result.model_copy(update={"result_digest": _artifact("wrong").digest})
+    assert verify_result_replay(tampered) is False
