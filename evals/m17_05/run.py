@@ -1,7 +1,7 @@
 """Frozen synthetic evaluator for M17-05 workflow presentation."""
 
 # Synthetic metadata builders intentionally keep scenario arguments explicit.
-# ruff: noqa: E501, T201
+# ruff: noqa: E501, FBT001, FBT002, T201
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from glio_proteogen.contracts.m17_05 import (
     M1705_M1702_RESULT_MEDIA_TYPE,
     NextAction,
     OrderingPolicy,
-    PresentVariantPeptideHumanReviewWorkspaceRequest,
     PresentationConfiguration,
     PresentationPolicy,
+    PresentVariantPeptideHumanReviewWorkspaceRequest,
     ReviewItem,
     ReviewItemStatus,
     ViewKind,
@@ -180,10 +180,14 @@ def build_scenario_request(
         ViewKind.NEXT_ACTION,
     )
     items = tuple(_item(index, view, statuses[index]) for index, view in enumerate(views))
-    source_artifacts = (aligned, model) + tuple(
+    source_artifacts = (
+        aligned,
+        model,
+        *(
         artifact
         for item in items
         for artifact in (item.evidence[0].reference, item.provenance_artifact)
+        ),
     )
     context = ExecutionContext(
         request_id="request.m1705",
@@ -236,4 +240,3 @@ if __name__ == "__main__":
     import json
 
     print(json.dumps(run_evaluator(), sort_keys=True))
-
