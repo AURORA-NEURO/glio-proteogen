@@ -6,6 +6,7 @@ import ctypes
 import json
 import os
 import stat
+from contextlib import suppress
 from ctypes import wintypes
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal, Never
@@ -41,6 +42,7 @@ from glio_proteogen.adapters.api import (
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
     _ptm_localization_artifact_contract_schema,
+    _ptm_localization_harmonization_contract_schema,
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
     _ptm_localization_raw_contract_schema,
@@ -183,6 +185,10 @@ from glio_proteogen.contracts.m05_03 import (
 from glio_proteogen.contracts.m05_05 import (
     M0505_MAX_CANONICAL_REQUEST_BYTES,
     DetectPtmLocalizationArtifactsRequest,
+)
+from glio_proteogen.contracts.m05_06 import (
+    M0506_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizePtmLocalizationAnalysisRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -358,6 +364,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection impor
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0505_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
+    M0506Service,
+    PtmLocalizationHarmonizationAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
+    _validate_json_request as _validate_m0506_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -506,6 +519,11 @@ ptm_localization_artifacts_app = typer.Typer(
     help="M05-05 deterministic aggregate PTM-localization artifact detection.",
 )
 app.add_typer(ptm_localization_artifacts_app, name="ptm-localization-artifacts")
+ptm_localization_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-06 deterministic PTM-localization harmonization and normalization.",
+)
+app.add_typer(ptm_localization_harmonization_app, name="ptm-localization-harmonization")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -618,6 +636,10 @@ PtmLocalizationRawSourceArgument = Annotated[
 PtmLocalizationRawOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M05-03 canonical result JSON path."),
+]
+PtmLocalizationHarmonizationOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-06 canonical result JSON path."),
 ]
 ProteoformQualityOutputOption = Annotated[
     str,
@@ -793,6 +815,14 @@ class _PtmLocalizationRawFileError(ValueError):
         return cls("PTM-localization raw output must be a new regular file")
 
 
+class _PtmLocalizationHarmonizationFileError(ValueError):
+    """An M05-06 result path cannot be admitted as a new canonical file."""
+
+    @classmethod
+    def output_unavailable(cls) -> _PtmLocalizationHarmonizationFileError:
+        return cls("PTM-localization harmonization output must be a new regular file")
+
+
 class _IdentificationReleaseFileError(ValueError):
     """A CLI path violates the closed M02-08 file or archive boundary."""
 
@@ -930,6 +960,7 @@ def _load_request[RequestT](
         ProteoformRawInputAuthorizationError,
         PtmLocalizationRawInputAuthorizationError,
         PtmLocalizationArtifactAuthorizationError,
+        PtmLocalizationHarmonizationAuthorizationError,
     ):
         raise
     except (TypeError, ValueError):
@@ -1982,6 +2013,35 @@ def _write_proteoform_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
             cleanup_error = cleanup_error or error
         if cleanup_error is not None:
             raise cleanup_error
+
+
+def _write_ptm_localization_harmonization_result(path: Path, payload: bytes) -> None:
+    """Publish one new M05-06 result without leaving a partial output on failure."""
+
+    absolute = path.absolute()
+    descriptor: int | None = None
+    try:
+        if not absolute.name or absolute.name in {".", ".."}:
+            raise _PtmLocalizationHarmonizationFileError.output_unavailable()
+        absolute.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(
+            absolute,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        offset = 0
+        while offset < len(payload):
+            offset += os.write(descriptor, payload[offset:])
+        os.fsync(descriptor)
+    except _PtmLocalizationHarmonizationFileError:
+        raise
+    except (OSError, ValueError) as error:
+        with suppress(OSError):
+            absolute.unlink(missing_ok=True)
+        raise _PtmLocalizationHarmonizationFileError.output_unavailable() from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def _write_ptm_localization_raw_result(path: Path, payload: bytes) -> None:
@@ -3886,6 +3946,67 @@ def detect_ptm_localization_artifacts_cli(request: RequestArgument) -> None:
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo("PTM-localization artifact detection failed: invalid request", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_harmonization_app.command("export-schema")
+def export_ptm_localization_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "artifact-receipt",
+            "support-ledger",
+            "support-observation",
+            "support-invariant",
+            "policy",
+            "profile",
+            "normalization-stage",
+            "level-shift",
+            "stage-transformation",
+            "transformation-manifest",
+            "analysis",
+            "receipt",
+        ],
+        typer.Argument(help="M05-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M05-06 contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_harmonization_app.command("harmonize")
+def harmonize_ptm_localization_analysis_cli(
+    request: RequestArgument,
+    output: PtmLocalizationHarmonizationOutputOption,
+) -> None:
+    """Harmonize one authorized M05-06 request into a new canonical result file."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(HarmonizePtmLocalizationAnalysisRequest),
+            None,
+            M0506_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0506_json_request,
+        )
+        result = M0506Service()._execute_validated(parsed)
+        _write_ptm_localization_harmonization_result(
+            Path(output),
+            canonical_json_bytes(result),
+        )
+    except PtmLocalizationHarmonizationAuthorizationError as error:
+        typer.echo(f"PTM-localization harmonization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization harmonization failed: invalid request or output", err=True)
         raise typer.Exit(code=1) from error
 
 
