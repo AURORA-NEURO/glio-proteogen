@@ -32,6 +32,16 @@ class M0706Service:
     ) -> CopyNumberDosageUncertaintyDecompositionResult:
         return self._engine.decompose(request)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> CopyNumberDosageUncertaintyDecompositionResult:
+        """Verify a receipt and optionally replay its immutable request."""
+
+        return self._engine.verify(result, replay=replay)
+
     def execute(self, request: object) -> CopyNumberDosageUncertaintyDecompositionResult:
         return self._engine.decompose(request)
 
