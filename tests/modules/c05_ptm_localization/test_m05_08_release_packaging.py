@@ -15,9 +15,16 @@ from glio_proteogen.contracts.m05_08 import (
     manifest_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.canonical_ustar import inspect_canonical_ustar, sha256_bytes
+from glio_proteogen.kernel.canonical_ustar import (
+    PackageAssemblyError,
+    PackageMember,
+    build_canonical_ustar,
+    inspect_canonical_ustar,
+    sha256_bytes,
+)
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging import (
+    BuiltPtmLocalizationRelease,
     M0508Plugin,
     M0508PtmLocalizationReleaseEngine,
     M0508Service,
@@ -261,3 +268,119 @@ def test_authorization_denies_withheld_consent() -> None:
 
     with pytest.raises(PtmLocalizationReleaseAuthorizationError):
         M0508PtmLocalizationReleaseEngine().validate_request(denied)
+
+
+def test_authorization_denies_unresolved_identity_and_unaccepted_control() -> None:
+    request, _artifacts = _valid_fixture()
+    refs = request.context.references
+    identity = refs.identity_lineage.model_copy(update={"state": "unresolved"})
+    context = refs.model_copy(update={"identity_lineage": identity})
+    unresolved_context = request.context.model_copy(update={"references": context})
+    unresolved = request.model_copy(update={"context": unresolved_context})
+    with pytest.raises(PtmLocalizationReleaseAuthorizationError):
+        M0508PtmLocalizationReleaseEngine().validate_request(unresolved)
+
+    support = refs.support.model_copy(update={"state": "rejected"})
+    context = refs.model_copy(update={"support": support})
+    rejected_context = request.context.model_copy(update={"references": context})
+    rejected = request.model_copy(update={"context": rejected_context})
+    with pytest.raises(PtmLocalizationReleaseAuthorizationError):
+        M0508PtmLocalizationReleaseEngine().validate_request(rejected)
+
+
+def test_built_release_invariant_rejects_mismatched_package_closure() -> None:
+    request, artifacts = _valid_fixture()
+    quarantined = M0508PtmLocalizationReleaseEngine().build(request, artifacts)
+    with pytest.raises(ValueError, match="release/package closure"):
+        BuiltPtmLocalizationRelease(
+            quarantined.result.model_copy(
+                update={"disposition": PtmLocalizationReleaseDisposition.RELEASED}
+            ),
+            None,
+        )
+
+
+def test_engine_helpers_and_service_verify_cover_lifecycle() -> None:
+    request, artifacts = _valid_fixture()
+    verifier = _Verifier()
+    engine = M0508PtmLocalizationReleaseEngine(verifier)
+    built = engine.execute(request, artifacts)
+    assert engine.manifest_digest(request) == manifest_digest(request.manifest)
+    assert engine.manifest(request) == request.manifest
+    assert M0508Service(verifier=verifier).verify(built.result, built.package_bytes or b"").verified
+
+
+def test_verification_rejects_invalid_package_bytes_and_non_release_result() -> None:
+    request, artifacts = _valid_fixture()
+    no_verifier = M0508PtmLocalizationReleaseEngine()
+    quarantined = no_verifier.build(request, artifacts)
+    not_attempted = no_verifier.verify(quarantined.result, b"")
+    assert not_attempted.reason is PtmLocalizationSignatureVerificationReason.NOT_ATTEMPTED
+
+    verifier = _Verifier()
+    engine = M0508PtmLocalizationReleaseEngine(verifier)
+    released = engine.build(request, artifacts)
+    malformed = engine.verify(released.result, bytearray(b"not-a-package"))  # type: ignore[arg-type]
+    assert malformed.reason is PtmLocalizationSignatureVerificationReason.MANIFEST_MISMATCH
+    invalid_tar = engine.verify(released.result, b"not-a-package")
+    assert invalid_tar.reason is PtmLocalizationSignatureVerificationReason.MANIFEST_MISMATCH
+
+
+def test_verification_rejects_package_missing_required_members() -> None:
+    request, artifacts = _valid_fixture()
+    engine = M0508PtmLocalizationReleaseEngine(_Verifier())
+    built = engine.build(request, artifacts)
+    assert built.package_bytes is not None
+    package = build_canonical_ustar((PackageMember("manifest/policy.json", b"{}"),))
+    verification = engine.verify(built.result, package)
+    assert verification.reason is PtmLocalizationSignatureVerificationReason.MANIFEST_MISMATCH
+    assert verification.verified is False
+
+
+def test_verify_fails_closed_when_verifier_raises() -> None:
+    class ExplodingVerifier(_Verifier):
+        def verify(self, *, statement_digest: str, signature: object) -> bool:  # noqa: ARG002
+            raise RuntimeError("fixture verifier failure")  # noqa: TRY003
+
+    request, artifacts = _valid_fixture()
+    engine = M0508PtmLocalizationReleaseEngine(ExplodingVerifier())
+    built = M0508PtmLocalizationReleaseEngine(_Verifier()).build(request, artifacts)
+    assert built.package_bytes is not None
+    verification = engine.verify(built.result, built.package_bytes)
+    assert verification.reason is PtmLocalizationSignatureVerificationReason.VERIFIER_REJECTED
+    assert verification.verified is False
+
+
+def test_package_assembly_and_package_limit_are_safe_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request, artifacts = _valid_fixture()
+
+    def fail_assembly(_members: object) -> bytes:
+        raise PackageAssemblyError("fixture assembly failure")  # noqa: TRY003
+
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.engine.build_canonical_ustar",
+        fail_assembly,
+    )
+    with pytest.raises(PtmLocalizationReleaseInputError, match="package assembly"):
+        M0508PtmLocalizationReleaseEngine(_Verifier()).build(request, artifacts)
+
+    monkeypatch.undo()
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.engine.M0508_MAX_PACKAGE_BYTES",
+        1,
+    )
+    with pytest.raises(PtmLocalizationReleaseInputError, match="package exceeds"):
+        M0508PtmLocalizationReleaseEngine(_Verifier()).build(request, artifacts)
+
+
+def test_plugin_rejects_invalid_submission_and_execute_without_map() -> None:
+    plugin = M0508Plugin()
+    with pytest.raises(TypeError, match="release submission"):
+        plugin.validate(object())
+    request, _artifacts = _valid_fixture()
+    validated = plugin.validate(PtmLocalizationReleaseSubmission(request, {}))
+    assert validated.request == request
+    with pytest.raises(PtmLocalizationReleaseInputError, match="artifact map"):
+        plugin.execute(request)

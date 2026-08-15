@@ -11,11 +11,14 @@ from glio_proteogen.contracts.m05_08 import (
     BuildPtmLocalizationReleaseRequest,
     PtmLocalizationReleaseArtifact,
     PtmLocalizationReleaseArtifactRole,
+    PtmLocalizationReleaseDisposition,
     PtmLocalizationReleaseManifest,
     PtmLocalizationReleasePolicy,
     PtmLocalizationReleaseQualityDecision,
     PtmLocalizationReleaseSignature,
     PtmLocalizationReleaseTransformation,
+    PtmLocalizationReleaseVerification,
+    PtmLocalizationSignatureVerificationReason,
     manifest_digest,
     normalized_manifest,
 )
@@ -31,6 +34,10 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging import (
+    M0508PtmLocalizationReleaseEngine,
+)
+from tests.modules.c05_ptm_localization.test_m05_08_release_packaging import _valid_fixture
 
 
 def _reference(label: str, nibble: str = "a") -> ArtifactReference:
@@ -194,6 +201,27 @@ def test_transformation_rejects_identity_output() -> None:
         )
 
 
+def test_transformation_rejects_duplicate_outputs_and_accepts_valid_record() -> None:
+    with pytest.raises(ValidationError, match="output digests must be unique"):
+        PtmLocalizationReleaseTransformation(
+            transformation_id="transform.m0508.duplicate-output",
+            name="normalization",
+            version="1.0.0",
+            digest="sha256:" + "9" * 64,
+            input_digests=("sha256:" + "a" * 64,),
+            output_digests=("sha256:" + "b" * 64,) * 2,
+        )
+    valid = PtmLocalizationReleaseTransformation(
+        transformation_id="transform.m0508.valid",
+        name="normalization",
+        version="1.0.0",
+        digest="sha256:" + "9" * 64,
+        input_digests=("sha256:" + "a" * 64,),
+        output_digests=("sha256:" + "b" * 64,),
+    )
+    assert valid.output_digests == ("sha256:" + "b" * 64,)
+
+
 def test_policy_rejects_duplicate_algorithms() -> None:
     with pytest.raises(ValidationError, match="signature algorithms must be unique"):
         PtmLocalizationReleasePolicy(
@@ -271,4 +299,55 @@ def test_quality_rejects_blank_rationale() -> None:
             status="accepted",
             evidence=_reference("quality", "b"),
             rationale=" ",
+        )
+
+
+def test_quality_rejects_empty_evidence_for_rejected_decision() -> None:
+    with pytest.raises(ValidationError, match="require non-empty evidence"):
+        PtmLocalizationReleaseQualityDecision(
+            decision_id="decision.m0508.rejected",
+            status="rejected",
+            evidence=_reference("quality", "0"),
+            rationale="rejected fixture",
+        )
+
+
+def test_signature_rejects_blank_signature_value() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="non-blank"):
+        _rebuild(request.signature, signature_value="  ")
+
+
+def test_result_and_verification_closure_reject_inconsistent_flags() -> None:
+    fixture_request, artifacts = _valid_fixture()
+    built = M0508PtmLocalizationReleaseEngine().build(fixture_request, artifacts)
+    quarantined_payload = built.result.model_dump(mode="python")
+    quarantined_payload["package_digest"] = "sha256:" + "1" * 64
+    with pytest.raises(ValidationError, match="quarantined package"):
+        type(built.result).model_validate(quarantined_payload, strict=True)
+
+    released_payload = quarantined_payload | {
+        "disposition": PtmLocalizationReleaseDisposition.RELEASED,
+        "signature_verified": True,
+        "package_digest": None,
+        "package_member_count": 1,
+        "quarantine_reasons": (),
+        "human_review_required": False,
+    }
+    with pytest.raises(ValidationError, match="release disposition"):
+        type(built.result).model_validate(released_payload, strict=True)
+
+    with pytest.raises(ValidationError, match="authenticity must match"):
+        PtmLocalizationReleaseVerification(
+            content_verified=True,
+            authenticity_verified=True,
+            verified=True,
+            reason=PtmLocalizationSignatureVerificationReason.NOT_ATTEMPTED,
+        )
+    with pytest.raises(ValidationError, match="verified must match"):
+        PtmLocalizationReleaseVerification(
+            content_verified=False,
+            authenticity_verified=True,
+            verified=True,
+            reason=PtmLocalizationSignatureVerificationReason.VERIFIED,
         )
