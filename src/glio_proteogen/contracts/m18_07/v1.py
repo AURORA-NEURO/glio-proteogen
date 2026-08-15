@@ -99,6 +99,12 @@ class ExportField(FrozenModel):
     value_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1807_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def field_identity_is_closed(self) -> ExportField:
+        if self.field_id == self.field_name:
+            raise ValueError("export field id and name must be distinct")
+        return self
+
 
 class ExportOwnershipBinding(FrozenModel):
     """Explicit owner and boundary for the downstream contract object."""
@@ -110,6 +116,12 @@ class ExportOwnershipBinding(FrozenModel):
     kinase_activity_owned_elsewhere: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1807_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def ownership_is_module_bound(self) -> ExportOwnershipBinding:
+        if self.owning_module != M1807_MODULE_ID:
+            raise ValueError("ownership binding must name M18-07")
+        return self
+
 
 class SignedContractEnvelope(FrozenModel):
     """Signature binding for an immutable downstream contract projection."""
@@ -120,6 +132,12 @@ class SignedContractEnvelope(FrozenModel):
     signature_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1807_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def signature_digests_are_distinct(self) -> SignedContractEnvelope:
+        if self.signed_payload_digest == self.signature_digest:
+            raise ValueError("signed payload and signature digests must be distinct")
+        return self
+
 
 class DownstreamExportConfiguration(FrozenModel):
     configuration_id: Identifier
@@ -129,7 +147,7 @@ class DownstreamExportConfiguration(FrozenModel):
     documented_fields_only: Literal[True] = True
     immutable: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1807_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1807_MAX_EVIDENCE)
 
 
 class DownstreamContractObject(FrozenModel):
@@ -163,6 +181,12 @@ class DownstreamContractObject(FrozenModel):
             raise ValueError("downstream contract requires supported status")
         if self.ownership.owning_module != M1807_MODULE_ID:
             raise ValueError("ownership binding must name M18-07")
+        if self.configuration.parent_target != self.parent_target:
+            raise ValueError("export configuration must bind the biomarker-panel parent")
+        if self.configuration.version != self.version:
+            raise ValueError("export configuration and contract versions must match")
+        if any(field.owner != self.ownership.owner for field in self.fields):
+            raise ValueError("export fields must preserve the ownership binding")
         return self
 
 
@@ -200,6 +224,11 @@ class ExportBiomarkerPanelDownstreamContractRequest(FrozenModel):
             raise ValueError("request export field ids must be unique")
         if len(field_names) != len(set(field_names)):
             raise ValueError("request export field names must be unique")
+        digests = tuple(item.digest for item in self.source_artifacts)
+        if len(digests) != len(set(digests)):
+            raise ValueError("request source artifact digests must be unique")
+        if self.consent != self.context.references.consent:
+            raise ValueError("request consent must bind the context consent control")
         return self
 
 
@@ -231,6 +260,8 @@ class BiomarkerPanelDownstreamExportResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelDownstreamExportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is ExportStatus.EXPORTED:
             if (
                 self.contract is None
@@ -246,6 +277,17 @@ class BiomarkerPanelDownstreamExportResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no contract and safe status")
+        if self.status is ExportStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
+        if self.contract is not None and (
+            self.contract.fields != self.request.fields
+            or self.contract.consent != self.request.consent
+            or self.contract.support_decision != self.request.support_decision
+            or self.contract.configuration != self.request.configuration
+        ):
+            raise ValueError(
+                "export contract must bind request fields, consent, support and configuration"
+            )
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -277,7 +319,6 @@ __all__ = [
     "ExportFieldType",
     "ExportFinding",
     "ExportFindingCode",
-    "ExportOwnershipBinding",
     "ExportOwnershipBinding",
     "ExportStatus",
     "SignedContractEnvelope",
