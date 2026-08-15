@@ -9,11 +9,14 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m07_08 import (
     M0708_M0707_RESULT_MEDIA_TYPE,
     EvidencePublicationStatus,
+    ProteotypeEvidenceBundle,
+    ProteotypeEvidencePublicationResult,
     PublisherAssumption,
     PublisherCounterEvidence,
     PublisherDiagnostic,
     PublisherDiagnosticStatus,
     PublishProteotypeEvidenceRequest,
+    ReconstructionStatus,
     ReconstructionStep,
     canonical_request_digest,
     result_payload_digest,
@@ -67,6 +70,8 @@ def test_replay_is_transitive_and_byte_stable() -> None:
     assert publish_proteotype_evidence(build_request()) == first
     with pytest.raises(M0708ReplayVerificationError):
         service.verify(object())
+    assert verify_result_digest({"result_digest": "not-a-digest"}) is False
+    assert verify_result_digest({}) is False
 
 
 def test_tampered_receipt_and_replayed_payload_are_rejected() -> None:
@@ -99,10 +104,12 @@ def test_auth_controls_fail_closed_before_validation() -> None:
 def test_plugin_seals_tokens_and_parses_serialized_request_once() -> None:
     service = M0708Service()
     plugin = M0708Plugin(service)
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M07-08"
     request = build_request()
     token = plugin.validate(request)
     assert isinstance(token, ValidatedM0708Request)
     assert plugin.run(token) == service.execute(request)
+    assert plugin.verify(plugin.run(token)) == plugin.run(token)
     serialized = canonical_json_bytes(request.model_dump(mode="json"))
     assert plugin.run(plugin.validate(serialized)).status is EvidencePublicationStatus.ABSTAINED
     forged = ValidatedM0708Request(request=token.request, _seal=object())
@@ -168,6 +175,28 @@ def test_evidence_roles_are_never_silently_rewritten() -> None:
             statement="Wrong role.",
             evidence=(counter_reference,),
         )
+    with pytest.raises(ValidationError):
+        PublisherCounterEvidence(
+            counter_evidence_id="counter.bad",
+            statement="Wrong role.",
+            impact="Review.",
+            evidence=(reference,),
+        )
+    with pytest.raises(ValidationError):
+        ReconstructionStep(
+            sequence=2,
+            operation="wrong-role",
+            input_digests=(reference.reference.digest,),
+            output_digest=reference.reference.digest,
+            evidence=(counter_reference,),
+        )
+    with pytest.raises(ValidationError):
+        PublisherDiagnostic(
+            diagnostic_id="diagnostic.bad",
+            status=PublisherDiagnosticStatus.FAIL,
+            message="Invalid role.",
+            evidence=(reference.model_copy(update={"role": "invalid"}),),
+        )
 
 
 def test_reconstruction_steps_and_identifiers_are_ordered_and_unique() -> None:
@@ -219,6 +248,52 @@ def test_invalid_result_status_cannot_claim_published_bundle() -> None:
             },
             strict=True,
         )
+
+
+def test_bundle_and_result_release_closures_reject_each_gap() -> None:
+    service = M0708Service()
+    request = build_request()
+    result = service.execute(request)
+    bundle = ProteotypeEvidenceBundle(
+        bundle_id="bundle.m0708",
+        version="0.1.0",
+        upstream_result=request.upstream_result,
+        sources=request.source_artifacts,
+        assumptions=request.assumptions,
+        counter_evidence=request.counter_evidence,
+        uncertainty=result.uncertainty,
+        support_decision=result.support_decision.model_copy(
+            update={"status": SupportStatus.SUPPORTED, "reason_code": "supported"}
+        ),
+        reconstruction_status=ReconstructionStatus.COMPLETE,
+        reconstruction_steps=request.reconstruction_steps,
+        provenance=result.provenance,
+        evidence=result.evidence,
+    )
+    for update in (
+        {"reconstruction_status": ReconstructionStatus.PARTIAL},
+        {"upstream_result": _artifact("wrong", "8")},
+        {"reconstruction_steps": (request.reconstruction_steps[0],) * 2},
+        {"sources": (request.source_artifacts[0], request.source_artifacts[0])},
+        {"evidence": (result.evidence[0].model_copy(update={"role": "counter_evidence"}),)},
+    ):
+        with pytest.raises(ValidationError):
+            ProteotypeEvidenceBundle.model_validate(
+                bundle.model_dump(mode="python") | update,
+                strict=True,
+            )
+    for update in (
+        {"request_digest": "sha256:" + "0" * 64},
+        {"result_id": "result.invalid"},
+        {"evidence": ()},
+        {"human_review_required": False},
+        {"result_digest": "sha256:" + "0" * 64},
+    ):
+        with pytest.raises(ValidationError):
+            ProteotypeEvidencePublicationResult.model_validate(
+                result.model_dump(mode="python") | update,
+                strict=True,
+            )
 
 
 def test_authority_media_constant_remains_provisional() -> None:

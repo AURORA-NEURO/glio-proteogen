@@ -86,6 +86,9 @@ def test_cli_schema_validation_and_publish_are_deterministic(tmp_path) -> None:
     schema = runner.invoke(m0708_app, ["export-schema", "all"])
     assert schema.exit_code == 0
     assert set(json.loads(schema.stdout)) == set(contract_json_schemas())
+    one_schema = runner.invoke(m0708_app, ["export-schema", "request"])
+    assert one_schema.exit_code == 0
+    assert json.loads(one_schema.stdout)["$id"].endswith(":request")
     request_path = tmp_path / "request.json"
     request_path.write_bytes(canonical_json_bytes(build_request().model_dump(mode="json")))
     validated = runner.invoke(m0708_app, ["validate", str(request_path)])
@@ -113,6 +116,10 @@ def test_cli_unknown_schema_duplicate_and_authorization_fail_closed(tmp_path) ->
     )
     denied = runner.invoke(m0708_app, ["publish", str(denied_path)])
     assert denied.exit_code == _CLI_AUTH_ERROR
+    invalid_path = tmp_path / "invalid.json"
+    invalid_path.write_text('{"operation":"wrong"}', encoding="utf-8")
+    invalid = runner.invoke(m0708_app, ["publish", str(invalid_path)])
+    assert invalid.exit_code == _CLI_CONTRACT_ERROR
 
 
 def test_api_verify_maps_tampering_to_conflict() -> None:
