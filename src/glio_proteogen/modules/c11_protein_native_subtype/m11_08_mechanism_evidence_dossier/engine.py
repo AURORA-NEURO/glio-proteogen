@@ -9,6 +9,7 @@ from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts.m11_08 import (
     M1108_CONTRACT_VERSION,
+    M1108_M1107_INPUT_MEDIA_TYPE,
     M1108_PARENT,
     AssembleVariantPeptideMechanismDossierRequest,
     ClaimCeiling,
@@ -99,6 +100,8 @@ def _validate_authorized_request(
 ) -> AssembleVariantPeptideMechanismDossierRequest:
     preflight_m1108_authorization(candidate)
     if type(candidate) is AssembleVariantPeptideMechanismDossierRequest:
+        if candidate.upstream_result.media_type != M1108_M1107_INPUT_MEDIA_TYPE:
+            raise _InvalidRequestError
         return candidate
     if type(candidate) is dict:
         try:
