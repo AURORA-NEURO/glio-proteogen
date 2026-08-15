@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import TypedDict
 
 import pytest
 
@@ -43,6 +44,14 @@ from glio_proteogen.modules.c15_longitudinal_recurrence.m15_01_biological_hypoth
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+class RequestKwargs(TypedDict, total=False):
+    accepted: bool
+    statement: str
+    tier_label: str
+    rule_failure: str
+    status: HypothesisStatus
 
 
 def _artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
@@ -218,7 +227,7 @@ def test_supported_registry_is_deterministic_and_replayable() -> None:
     ],
 )
 def test_unsupported_failed_prohibited_and_conflicted_cases_abstain(
-    kwargs: dict[str, object], expected: HypothesisEvaluationStatus
+    kwargs: RequestKwargs, expected: HypothesisEvaluationStatus
 ) -> None:
     result = M1501HypothesisRegistry().infer(_request(**kwargs))
     assert result.status is HypothesisStatus.ABSTAINED
