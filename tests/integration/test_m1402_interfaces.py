@@ -16,6 +16,7 @@ import glio_proteogen.adapters.m1402 as adapter_module
 from glio_proteogen.adapters.m1402 import app, m1402_app
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c14_microenvironment.m14_02_context_subtype_stratifier import (
+    M1402AuthorizationError,
     M1402InferenceError,
     M1402Plugin,
     M1402ReplayVerificationError,
@@ -53,6 +54,9 @@ def test_fastapi_validation_schema_stratify_and_verify_paths() -> None:
         ).status_code
         == 415
     )
+    invalid_request = _request().model_dump(mode="json")
+    invalid_request.pop("observations")
+    assert client.post("/v1/modules/M14-02/stratify", json=invalid_request).status_code == 422
 
 
 def test_fastapi_authorization_and_replay_failures_are_sanitized(
@@ -72,6 +76,18 @@ def test_fastapi_authorization_and_replay_failures_are_sanitized(
     monkeypatch.setattr(adapter_module, "_SERVICE", ReplayService())
     result = M1402Service().execute(_request()).model_dump(mode="json")
     assert client.post("/v1/modules/M14-02/verify", json=result).status_code == 422
+
+    class AuthorizationService:
+        def _execute_validated(self, _request: object) -> object:
+            raise M1402AuthorizationError
+
+    monkeypatch.setattr(adapter_module, "_SERVICE", AuthorizationService())
+    assert (
+        TestClient(app)
+        .post("/v1/modules/M14-02/stratify", json=_request().model_dump(mode="json"))
+        .status_code
+        == 403
+    )
 
 
 def test_typer_stratify_verify_export_schema_and_no_overwrite(tmp_path: Path) -> None:
