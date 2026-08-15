@@ -141,11 +141,6 @@ def _observation_evidence(
     )
 
 
-def _slug(value: str) -> str:
-    normalized = "".join(character.lower() if character.isalnum() else "-" for character in value)
-    return "-".join(part for part in normalized.split("-") if part)[:96] or "unknown"
-
-
 def _mechanisms(
     observations: tuple[ContextObservation, ...],
 ) -> tuple[ApplicableMechanism, ...]:
