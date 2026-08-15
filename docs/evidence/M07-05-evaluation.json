@@ -13,7 +13,16 @@
     {"id": "hard-violation-abstention", "expectedStatus": "abstained"},
     {"id": "missing-feature-abstention", "expectedStatus": "abstained"}
   ],
-  "staticGate": {"ruff": "passed"},
-  "runtimeGate": {"pytest": "pending-environment", "mypy": "pending-environment"},
+  "staticGate": {"ruff": "passed", "compileall": "passed"},
+  "manualHarness": {
+    "contractTests": 3,
+    "focusedRuntimeTests": 9,
+    "evaluatorTests": 2,
+    "result": "all passed"
+  },
+  "runtimeGate": {
+    "pytest": "not-runnable: bundled runtime has no pytest package",
+    "mypy": "not-runnable: bundled runtime has no mypy package"
+  },
   "status": "provisional-not-release-approved"
 }

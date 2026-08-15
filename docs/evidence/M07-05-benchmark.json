@@ -6,6 +6,14 @@
   "meanBudgetNs": 2000000000,
   "p95BudgetNs": 3000000000,
   "workload": "hard and soft proteotype constraint integration",
-  "status": "pending-environment",
-  "reason": "Python child process could not be spawned in the managed desktop environment; do not interpret budgets as passed."
+  "measured": {
+    "meanNs": 1782940.0,
+    "medianNs": 1671950.0,
+    "p95Ns": 2746100,
+    "passed": true,
+    "constraintCount": 2,
+    "featureCount": 2
+  },
+  "status": "manual-evaluator-run",
+  "caveat": "Measured with the bundled Python runtime and a 10-call workload; rerun with the governed project environment before release approval."
 }

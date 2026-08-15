@@ -7,15 +7,19 @@
     "ruffFormatCheck": "passed"
   },
   "pythonGates": {
-    "pytestFocused": "pending-environment",
-    "pytestEvaluator": "pending-environment",
-    "mypy": "pending-environment",
-    "coverage": "pending-environment",
-    "wheelBuild": "pending-environment",
-    "packageImport": "pending-environment"
+    "compileall": "passed",
+    "manualContractHarness": "3 passed",
+    "manualFocusedHarness": "9 passed",
+    "manualEvaluatorHarness": "2 passed",
+    "pytestFocused": "not-runnable: pytest package unavailable",
+    "pytestEvaluator": "not-runnable: pytest package unavailable",
+    "mypy": "not-runnable: mypy package unavailable",
+    "coverage": "not-runnable: pytest-cov package unavailable",
+    "wheelBuild": "blocked: uv cannot read managed Python installation",
+    "packageImport": "manual source import passed; wheel import pending"
   },
   "environment": {
-    "python": "managed child process denied (Access is denied)",
+    "python": "bundled Python 3.12.13 available; project pytest/mypy packages absent",
     "uv": "managed installation directory denied (Access is denied)"
   },
   "releaseStatus": "local-only-provisional"
