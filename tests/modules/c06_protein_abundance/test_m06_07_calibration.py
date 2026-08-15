@@ -52,12 +52,17 @@ from glio_proteogen.contracts.m06_06.canonical import (
 )
 from glio_proteogen.contracts.m06_07 import (
     M0607_NOMINAL_COVERAGE,
+    CalibratedEstimate,
     CalibrateSelectiveProteinAbundanceRequest,
+    CalibrateSelectiveProteinAbundanceResult,
     CalibrationMethod,
     CalibrationPolicy,
     CalibrationStratum,
     CalibrationStratumDimension,
+    OutOfDistributionStatus,
+    SelectivePredictionStatus,
     SelectiveSupportThreshold,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -86,6 +91,9 @@ from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_p
     M0607CalibrationEngine,
     M0607Service,
     calibrate_selective_protein_abundance,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction import (
+    engine as m0607_engine,
 )
 
 _COVERAGE = 0.90
@@ -466,3 +474,196 @@ def test_authorization_and_built_result_fail_closed() -> None:
             built.result.model_copy(update={"result_digest": "sha256:" + "0" * 64}),
             built.canonical_bytes,
         )
+    with pytest.raises(CalibrationInputError, match="canonical"):
+        BuiltCalibration(built.result, built.canonical_bytes + b" ")
+
+
+def test_authorization_checks_identity_and_all_upstream_controls() -> None:
+    request = _request()
+    refs = request.context.references
+    unresolved = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": refs.model_copy(
+                        update={
+                            "identity_lineage": refs.identity_lineage.model_copy(
+                                update={"state": IdentityLineageState.UNRESOLVED}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    with pytest.raises(CalibrationAuthorizationError):
+        M0607CalibrationEngine().calibrate(unresolved)
+    rejected_quality = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": refs.model_copy(
+                        update={
+                            "quality": refs.quality.model_copy(
+                                update={"state": UpstreamDecisionState.REJECTED}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    with pytest.raises(CalibrationAuthorizationError):
+        M0607CalibrationEngine().calibrate(rejected_quality)
+
+
+def test_quality_gate_abstains_for_missing_metrics_and_outside_coverage() -> None:
+    request = _request()
+    no_metrics_policy = CalibrationPolicy(
+        **request.policy.model_dump(mode="python")
+        | {
+            "strata": (
+                CalibrationStratum(
+                    stratum_id="stratum.site-a",
+                    dimension=CalibrationStratumDimension.SITE,
+                    label="site-a",
+                    sample_count=20,
+                ),
+            )
+        }
+    )
+    no_metrics = request.model_copy(update={"policy": no_metrics_policy})
+    outside_policy = CalibrationPolicy(
+        **request.policy.model_dump(mode="python")
+        | {
+            "strata": (
+                CalibrationStratum(
+                    stratum_id="stratum.site-a",
+                    dimension=CalibrationStratumDimension.SITE,
+                    label="site-a",
+                    sample_count=20,
+                    observed_coverage=0.80,
+                    calibration_error=0.02,
+                ),
+            )
+        }
+    )
+    outside = request.model_copy(update={"policy": outside_policy})
+    engine = M0607CalibrationEngine()
+    assert engine.calibrate(no_metrics).result.status.value == "abstained"
+    assert engine.calibrate(outside).result.status.value == "abstained"
+
+
+def test_quality_gate_target_branch_and_result_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _request()
+    high_target_policy = request.policy.model_copy(update={"target_coverage": 1.0})
+    high_target = request.model_copy(update={"policy": high_target_policy})
+    assert m0607_engine._quality_gate(high_target)[0] is False
+    monkeypatch.setattr(m0607_engine, "M0607_MAX_CANONICAL_RESULT_BYTES", 1)
+    with pytest.raises(CalibrationInputError, match="byte limit"):
+        M0607CalibrationEngine().calibrate(request)
+
+
+def test_invalid_and_non_bytes_replay_fail_closed() -> None:
+    engine = M0607CalibrationEngine()
+    assert engine.verify(object()).reason.value == "invalid_result"
+    built = engine.calibrate(_request())
+    rejected = engine.verify(built.result, "not-canonical-bytes")
+    assert rejected.verified is False
+    assert rejected.content_verified is False
+
+
+def _validated_result_variant(
+    built: BuiltCalibration,
+    **updates: object,
+) -> CalibrateSelectiveProteinAbundanceResult:
+    candidate = built.result.model_copy(update=updates)
+    return CalibrateSelectiveProteinAbundanceResult.model_validate(
+        candidate.model_copy(update={"result_digest": result_payload_digest(candidate)}),
+        strict=True,
+    )
+
+
+def test_result_closure_rejects_digest_support_selection_and_bindings() -> None:
+    engine = M0607CalibrationEngine()
+    built = engine.calibrate(_request())
+    with pytest.raises(ValueError, match="request digest"):
+        CalibrateSelectiveProteinAbundanceResult.model_validate(
+            built.result.model_copy(update={"request_digest": "sha256:" + "0" * 64}),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="selected estimates"):
+        _validated_result_variant(built, estimates=())
+    with pytest.raises(ValueError, match="supported status"):
+        _validated_result_variant(
+            built,
+            support_decision=built.result.support_decision.model_copy(
+                update={"status": SupportStatus.REVIEW_REQUIRED}
+            ),
+        )
+    abstained = built.result.estimates[0].model_copy(
+        update={
+            "estimate_value": None,
+            "calibration_error": None,
+            "ood_status": OutOfDistributionStatus.OOD,
+            "selection_status": SelectivePredictionStatus.ABSTAINED,
+            "prediction_set_id": None,
+            "support_score": 0.0,
+        }
+    )
+    with pytest.raises(ValueError, match="abstained estimates"):
+        _validated_result_variant(built, estimates=(abstained,))
+    with pytest.raises(ValueError, match="bind a prediction set"):
+        _validated_result_variant(
+            built,
+            estimates=(
+                built.result.estimates[0].model_copy(update={"prediction_set_id": "missing"}),
+            ),
+        )
+    with pytest.raises(ValueError, match="canonical result content"):
+        CalibrateSelectiveProteinAbundanceResult.model_validate(
+            built.result.model_copy(update={"result_digest": "sha256:" + "0" * 64}),
+            strict=True,
+        )
+
+
+def test_result_closure_rejects_abstention_status_and_duplicate_diagnostics() -> None:
+    engine = M0607CalibrationEngine()
+    built = engine.calibrate(_request(upstream_decomposed=False))
+    with pytest.raises(ValueError, match="no predictions"):
+        _validated_result_variant(
+            built,
+            support_decision=built.result.support_decision.model_copy(
+                update={"status": SupportStatus.SUPPORTED}
+            ),
+        )
+    diagnostic = built.result.diagnostics[0]
+    with pytest.raises(ValueError, match="diagnostic ids"):
+        _validated_result_variant(built, diagnostics=(diagnostic, diagnostic))
+
+
+def test_request_binding_checks_upstream_output_version_and_nominal_target() -> None:
+    request = _request()
+    bad_output_data = request.uncertainty_result.model_dump(mode="python")
+    bad_output_data["output_type"] = "wrong-output"
+    bad_output_upstream = request.uncertainty_result.model_construct(**bad_output_data)
+    with pytest.raises(ValueError, match="complete M06-06"):
+        request.model_copy(update={"uncertainty_result": bad_output_upstream}).request_is_bound()
+    bad_version_data = request.uncertainty_result.model_dump(mode="python")
+    bad_version_data["result_version"] = "9.9.9"
+    bad_version_upstream = request.uncertainty_result.model_construct(**bad_version_data)
+    with pytest.raises(ValueError, match="provisional M06-06"):
+        request.model_copy(update={"uncertainty_result": bad_version_upstream}).request_is_bound()
+    bad_target = request.policy.model_copy(update={"target_coverage": 0.8})
+    with pytest.raises(ValueError, match="nominal 90"):
+        request.model_copy(update={"policy": bad_target}).request_is_bound()
+
+
+def test_abstained_estimate_without_value_is_closed() -> None:
+    estimate = CalibratedEstimate(
+        feature_id="feature.abstained",
+        support_score=0.0,
+        ood_status=OutOfDistributionStatus.NOT_EVALUABLE,
+        selection_status=SelectivePredictionStatus.ABSTAINED,
+    )
+    assert estimate.estimate_value is None

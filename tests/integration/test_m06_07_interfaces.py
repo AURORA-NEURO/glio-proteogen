@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m06_07 import contract_json_schema, contract_json_
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction import (
+    CalibrationInputError,
     CalibrationSubmission,
     M0607Plugin,
     ValidatedM0607Request,
@@ -154,3 +156,60 @@ def test_cli_output_is_non_overwriting_and_abstention_exits_one(tmp_path) -> Non
     assert first.exit_code == 0
     assert second.exit_code != 0
     assert output.exists()
+
+
+def test_api_validation_auth_and_calibration_input_handlers() -> None:
+    request = _request()
+    refs = request.context.references
+    withheld = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": refs.model_copy(
+                        update={
+                            "consent": refs.consent.model_copy(
+                                update={"state": ConsentState.WITHHELD}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    encoded = canonical_json_bytes(withheld.model_dump(mode="json"))
+    with TestClient(m0607_api.create_app()) as client:
+        denied = client.post("/v1/modules/M06-07/validate", content=encoded)
+        invalid = client.post("/v1/modules/M06-07/calibrate", content=b"{}")
+    assert denied.status_code == _HTTP_FORBIDDEN
+    assert invalid.status_code == _HTTP_UNPROCESSABLE
+    with patch.object(
+        m0607_api.M0607Service,
+        "calibrate",
+        side_effect=CalibrationInputError("result_digest"),
+    ), TestClient(m0607_api.create_app()) as client:
+        rejected = client.post(
+            "/v1/modules/M06-07/calibrate",
+            content=canonical_json_bytes(_request().model_dump(mode="json")),
+        )
+    assert rejected.status_code == _HTTP_UNPROCESSABLE
+    assert rejected.json() == {"detail": "M06-07 input rejected"}
+
+
+def test_cli_invalid_calibration_and_abstention_paths(tmp_path) -> None:
+    invalid_path = tmp_path / "invalid.json"
+    invalid_path.write_bytes(b"{}")
+    invalid = CliRunner().invoke(m0607_cli.app, ["calibrate", str(invalid_path)])
+    assert invalid.exit_code != 0
+    abstained_path = tmp_path / "abstained.json"
+    abstained_path.write_bytes(
+        canonical_json_bytes(_request(upstream_decomposed=False).model_dump(mode="json"))
+    )
+    abstained = CliRunner().invoke(m0607_cli.app, ["calibrate", str(abstained_path)])
+    assert abstained.exit_code == 1
+    assert json.loads(abstained.stdout)["status"] == "abstained"
+
+
+def test_plugin_direct_calibrate_and_execute_are_compatible() -> None:
+    plugin = M0607Plugin()
+    request = _request()
+    assert plugin.calibrate(request).canonical_bytes == plugin.execute(request).canonical_bytes
