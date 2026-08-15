@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m12_05.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +34,7 @@ from glio_proteogen.kernel.models import (
     SupportDecision,
     SupportStatus,
     UncertaintyProfile,
+    UncertaintyEstimate,
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 4172-4212.
@@ -242,6 +246,20 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelLongitudinalEvolutionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
+        state_ids = tuple(state.state_id for state in self.trajectory)
+        if len(state_ids) != len(set(state_ids)):
+            raise ValueError("trajectory state identifiers must be unique")
+        change_ids = tuple(item.change_point_id for item in self.change_points)
+        if len(change_ids) != len(set(change_ids)):
+            raise ValueError("change-point identifiers must be unique")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("diagnostic identifiers must be unique")
         if self.status is TrajectoryStatus.MODELED:
             if (
                 not self.trajectory
@@ -258,13 +276,135 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
         ):
             raise ValueError("abstained result requires no trajectory and safe status")
         state_sequences = tuple(state.sequence for state in self.trajectory)
-        if state_sequences != tuple(sorted(state_sequences)):
+        if state_sequences != tuple(sorted(state_sequences)) or len(state_sequences) != len(set(state_sequences)):
             raise ValueError("trajectory states must be ordered")
         if len(self.change_points) > len(self.request.observations):
             raise ValueError("change-point count exceeds observation history")
+        change_sequences = tuple(item.sequence for item in self.change_points)
+        if change_sequences != tuple(sorted(change_sequences)) or len(change_sequences) != len(set(change_sequences)):
+            raise ValueError("change points must be ordered")
+        if any(
+            point.status is ChangePointStatus.DETECTED
+            and (
+                point.before_state_id not in state_ids
+                or point.after_state_id not in state_ids
+            )
+            for point in self.change_points
+        ):
+            raise ValueError("detected change points must reference trajectory states")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Construct all seven uncertainty dimensions without hiding abstention."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "The locked trajectory grammar and ordered caller-declared observations are "
+            "inside the provisional support domain."
+            if supported
+            else "Temporal history, upstream support, or model configuration was not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "The trajectory is deterministic over caller-declared observations; artifact "
+            "contents are opaque and never traversed.",
+            "Nominal coverage is provisional and requires locked external calibration evidence.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: ModelBiomarkerPanelLongitudinalEvolutionRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller-declared controls into auditable provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1205_MODULE_ID,
+        module_version=M1205_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.network_state_result.digest,
+            *(observation.feature_artifact.digest for observation in request.observations),
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=request.policy.configuration.model_reference.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -299,4 +439,6 @@ __all__ = [
     "TrajectoryPolicy",
     "TrajectoryState",
     "TrajectoryStatus",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
