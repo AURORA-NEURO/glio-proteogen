@@ -400,6 +400,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         ("ptm-localization-quality", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-04:1.0.0:request",
     ),
+    (
+        ("ptm-localization-harmonization", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-06:1.0.0-provisional:request",
+    ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
     {

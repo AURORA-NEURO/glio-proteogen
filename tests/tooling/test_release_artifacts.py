@@ -776,6 +776,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m04_07.run --output evidence/m04-07-eval.json" in workflow
     assert "evals.m05_02.run --output evidence/m05-02-eval.json" in workflow
     assert "evals.m05_03.run --output evidence/m05-03-eval.json" in workflow
+    assert "evals.m05_06.run --output evidence/m05-06-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -817,6 +818,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m05_02.benchmark --output evidence/m05-02-benchmark.json" in workflow
     assert "verify_release_artifacts.py m05-02-evidence" in workflow
     assert "evals.m05_03.benchmark --output evidence/m05-03-benchmark.json" in workflow
+    assert "evals.m05_06.benchmark --output evidence/m05-06-benchmark.json" in workflow
     assert "verify_release_artifacts.py m05-03-evidence" in workflow
     assert "tests/fixtures/m05_03/scenarios.json" in workflow
     assert "qualified" not in workflow.casefold()
@@ -920,6 +922,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m04_07",
         "m05_02",
         "m05_03",
+        "m05_06",
     ):
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
@@ -1078,6 +1081,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("ptm-localization-raw", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-03:1.0.0:request"
+        ),
+        ("ptm-localization-harmonization", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-06:1.0.0-provisional:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT
