@@ -276,7 +276,10 @@ class ValidateCopyNumberStateRequest(FrozenModel):
                 raise ValueError("feature value uses a disallowed missingness state")
             if value.unit != definition.unit:
                 raise ValueError("feature value unit does not match schema unit")
-            if value.state is CopyNumberMissingness.OBSERVED and _represented_kind(value) is not definition.value_kind:
+            if (
+                value.state is CopyNumberMissingness.OBSERVED
+                and _represented_kind(value) is not definition.value_kind
+            ):
                 raise ValueError("feature value representation does not match schema kind")
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
