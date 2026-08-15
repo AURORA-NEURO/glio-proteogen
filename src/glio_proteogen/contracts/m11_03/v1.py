@@ -54,8 +54,7 @@ M1103_MAX_FINDINGS: Final = 64
 M1103_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1103_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1103_EVIDENCE_CLAIM: Final = (
-    "Caller-declared M11-03 mechanistic feature evidence; issuer authority "
-    "is not authenticated."
+    "Caller-declared M11-03 mechanistic feature evidence; issuer authority is not authenticated."
 )
 
 # Every numeric feature is a measured or derived quantity.  NaN/Inf would
@@ -201,9 +200,7 @@ class MechanisticFeatureObject(FrozenModel):
     object_id: Identifier
     version: SemanticVersion
     features: tuple[MechanisticFeature, ...] = Field(min_length=1, max_length=M1103_MAX_FEATURES)
-    relations: tuple[MechanisticRelation, ...] = Field(
-        default=(), max_length=M1103_MAX_RELATIONS
-    )
+    relations: tuple[MechanisticRelation, ...] = Field(default=(), max_length=M1103_MAX_RELATIONS)
     configuration: MechanisticFeatureConfiguration
     lineage_complete: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1103_MAX_EVIDENCE)
@@ -254,6 +251,16 @@ class ConstructVariantPeptideMechanisticFeaturesRequest(FrozenModel):
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1103_MAX_EVIDENCE
     )
+    # The dossier does not freeze a feature catalogue or an estimator ABI.
+    # These immutable declarations are therefore an explicitly provisional
+    # seam: the runtime validates them, never traverses artifact payloads, and
+    # preserves every declaration's lineage and value representation.
+    declared_features: tuple[MechanisticFeature, ...] = Field(
+        default=(), max_length=M1103_MAX_FEATURES
+    )
+    declared_relations: tuple[MechanisticRelation, ...] = Field(
+        default=(), max_length=M1103_MAX_RELATIONS
+    )
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
@@ -270,6 +277,12 @@ class ConstructVariantPeptideMechanisticFeaturesRequest(FrozenModel):
             raise ValueError("source artifact references must be unique")
         if self.configuration.locked is not True:
             raise ValueError("mechanistic configuration must be locked")
+        feature_ids = tuple(item.feature_id for item in self.declared_features)
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("declared feature ids must be unique")
+        relation_ids = tuple(item.relation_id for item in self.declared_relations)
+        if len(relation_ids) != len(set(relation_ids)):
+            raise ValueError("declared relation ids must be unique")
         return self
 
 
