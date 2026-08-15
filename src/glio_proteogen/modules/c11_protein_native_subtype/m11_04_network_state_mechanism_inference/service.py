@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m11_04 import InferVariantPeptideMechanismRequest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 if TYPE_CHECKING:
     from glio_proteogen.contracts.m11_04 import VariantPeptideMechanismInferenceResult
@@ -30,7 +31,7 @@ class M1104Service:
         return self._engine.infer(request)
 
     def validate_request(self, request: object) -> InferVariantPeptideMechanismRequest:
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(request), strict=True)
 
     def _execute_validated(
         self, request: InferVariantPeptideMechanismRequest
