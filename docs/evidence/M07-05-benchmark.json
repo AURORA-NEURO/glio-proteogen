@@ -1,0 +1,11 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-05",
+  "contractVersion": "0.1.0-provisional",
+  "runner": "evals/m07_05/benchmark.py",
+  "iterations": 10,
+  "meanBudgetNs": 2000000000,
+  "p95BudgetNs": 3000000000,
+  "workload": "hard and soft proteotype constraint integration",
+  "status": "pending-environment",
+  "reason": "Python child process could not be spawned in the managed desktop environment; do not interpret budgets as passed."
+}

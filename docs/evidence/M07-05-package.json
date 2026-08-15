@@ -1,0 +1,22 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-05",
+  "contractVersion": "0.1.0-provisional",
+  "sourceCommits": ["fc64dcb", "7534793", "c63139b", "3e70d06", "c8e23b2", "7271010"],
+  "staticGates": {
+    "ruffCheck": "passed",
+    "ruffFormatCheck": "passed"
+  },
+  "pythonGates": {
+    "pytestFocused": "pending-environment",
+    "pytestEvaluator": "pending-environment",
+    "mypy": "pending-environment",
+    "coverage": "pending-environment",
+    "wheelBuild": "pending-environment",
+    "packageImport": "pending-environment"
+  },
+  "environment": {
+    "python": "managed child process denied (Access is denied)",
+    "uv": "managed installation directory denied (Access is denied)"
+  },
+  "releaseStatus": "local-only-provisional"
+}

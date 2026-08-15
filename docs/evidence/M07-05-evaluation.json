@@ -1,0 +1,19 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-05",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "source": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+    "sha256": "0A6B200CBE073DB13A4BCF315EDC23AB97EDFE6F500BC7EA2785F5E1C70DA181",
+    "lines": "2372-2415"
+  },
+  "fixture": "tests/fixtures/m07_05/scenarios.json",
+  "declaredScenarios": 3,
+  "scenarios": [
+    {"id": "hard-soft-integrated", "expectedStatus": "integrated"},
+    {"id": "hard-violation-abstention", "expectedStatus": "abstained"},
+    {"id": "missing-feature-abstention", "expectedStatus": "abstained"}
+  ],
+  "staticGate": {"ruff": "passed"},
+  "runtimeGate": {"pytest": "pending-environment", "mypy": "pending-environment"},
+  "status": "provisional-not-release-approved"
+}
