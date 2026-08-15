@@ -21,13 +21,11 @@ from glio_proteogen.contracts.m13_07.v1 import (
     ControlEvaluation,
     PlausibilityControl,
     PlausibilityFinding,
-    ProteotypePlausibilityAdjudicationResult,
     UnresolvedConflict,
+    ProteotypePlausibilityAdjudicationResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M13-07:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M13-07:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1307_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -98,3 +96,5 @@ __all__ = [
     "contract_json_schema",
     "contract_json_schemas",
 ]
+
+

@@ -1,4 +1,4 @@
-"""Provisional M13-07 plausibility and negative-control exports."""
+"""Provisional M13-07 plausibility adjudication exports."""
 
 from glio_proteogen.contracts.m13_07.canonical import (
     canonical_request_digest,
@@ -26,3 +26,5 @@ __all__ = [
     "normalized_result_payload",
     "result_payload_digest",
 ]
+
+
