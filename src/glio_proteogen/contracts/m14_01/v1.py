@@ -430,10 +430,8 @@ __all__ = [
     "HypothesisFindingCode",
     "HypothesisRegistry",
     "HypothesisStatus",
-    "RegisterProteinSubtypeHypothesesRequest",
     "ProteinSubtypeHypothesisRegistryResult",
+    "RegisterProteinSubtypeHypothesesRequest",
     "expected_provenance",
     "expected_uncertainty",
 ]
-
-

@@ -10,8 +10,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m14_01 import (
     M1401_MAX_CANONICAL_REQUEST_BYTES,
-    RegisterProteinSubtypeHypothesesRequest,
     ProteinSubtypeHypothesisRegistryResult,
+    RegisterProteinSubtypeHypothesesRequest,
     canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -105,5 +105,3 @@ class M1401Plugin(
 
 
 __all__ = ["M1401Plugin", "ValidatedM1401Request"]
-
-

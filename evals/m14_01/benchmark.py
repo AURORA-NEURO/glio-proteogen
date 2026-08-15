@@ -45,5 +45,3 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
 
 
 __all__ = ["MEAN_BUDGET_NS", "P95_BUDGET_NS", "run_benchmark"]
-
-

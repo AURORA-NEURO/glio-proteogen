@@ -20,8 +20,8 @@ from glio_proteogen.contracts.m14_01 import (
     HypothesisFindingCode,
     HypothesisRegistry,
     HypothesisStatus,
-    RegisterProteinSubtypeHypothesesRequest,
     ProteinSubtypeHypothesisRegistryResult,
+    RegisterProteinSubtypeHypothesesRequest,
     expected_provenance,
     expected_uncertainty,
 )
@@ -329,5 +329,3 @@ __all__ = [
     "preflight_hypothesis_authorization",
     "register_protein_subtype_hypotheses",
 ]
-
-

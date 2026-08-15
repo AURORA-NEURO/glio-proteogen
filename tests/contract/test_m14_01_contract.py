@@ -221,7 +221,8 @@ def test_service_public_seams_and_plugin_hostile_token_inputs() -> None:
     assert service.validate_request(request) == request
     assert service.execute(request).status is HypothesisStatus.SUPPORTED
     assert (
-        m1401_runtime.register_protein_subtype_hypotheses(request).status is HypothesisStatus.SUPPORTED
+        m1401_runtime.register_protein_subtype_hypotheses(request).status
+        is HypothesisStatus.SUPPORTED
     )
     plugin = m1401_runtime.M1401Plugin(service)
     token = plugin.validate(request)
@@ -275,6 +276,12 @@ def test_http_schema_register_verify_and_sanitized_failures() -> None:
         ).status_code
         == HTTP_UNSUPPORTED_MEDIA
     )
+    malformed = client.post(
+        "/v1/modules/M14-01/hypotheses",
+        content=b"{not-json}",
+        headers={"content-type": "application/json"},
+    )
+    assert malformed.status_code == HTTP_UNPROCESSABLE
 
 
 def test_cli_register_verify_schema_and_no_overwrite(tmp_path: Path) -> None:
@@ -286,6 +293,9 @@ def test_cli_register_verify_schema_and_no_overwrite(tmp_path: Path) -> None:
     assert export.exit_code == 0
     assert '"$id"' in export.stdout
     assert runner.invoke(m1401_app, ["export-schema", "invalid"]).exit_code == CLI_USAGE_ERROR
+    stdout_register = runner.invoke(m1401_app, ["register", str(request_path)])
+    assert stdout_register.exit_code == 0
+    assert "result_digest" in stdout_register.stdout
     registered = runner.invoke(
         m1401_app, ["register", str(request_path), "--output", str(result_path)]
     )
@@ -300,6 +310,8 @@ def test_cli_register_verify_schema_and_no_overwrite(tmp_path: Path) -> None:
     verified = runner.invoke(m1401_app, ["verify", str(result_path)])
     assert verified.exit_code == 0
     assert "result_digest" in verified.stdout
+    result_path.write_text("{}", encoding="utf-8")
+    assert runner.invoke(m1401_app, ["verify", str(result_path)]).exit_code != 0
     request_path.write_text('{"duplicate": 1, "duplicate": 2}', encoding="utf-8")
     assert runner.invoke(m1401_app, ["register", str(request_path)]).exit_code != 0
 
@@ -312,4 +324,3 @@ def test_evaluator_and_benchmark_are_fixture_bound() -> None:
     benchmark = run_benchmark(BENCHMARK_ITERATIONS)
     assert benchmark["passed"] is True
     assert benchmark["iterations"] == BENCHMARK_ITERATIONS
-

@@ -20,8 +20,8 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m14_01 import (
     M1401_MAX_CANONICAL_REQUEST_BYTES,
-    RegisterProteinSubtypeHypothesesRequest,
     ProteinSubtypeHypothesisRegistryResult,
+    RegisterProteinSubtypeHypothesesRequest,
     contract_json_schema,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -31,12 +31,12 @@ from glio_proteogen.kernel.strict_json import (
     strict_json_loads,
 )
 
-from ..modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry.engine import (
+from ..modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry.engine import (  # noqa: E501
     M1401HypothesisAuthorizationError,
     M1401ReplayVerificationError,
     preflight_hypothesis_authorization,
 )
-from ..modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry.service import (
+from ..modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry.service import (  # noqa: E501
     M1401Service,
 )
 
@@ -177,4 +177,3 @@ def verify_command(
 
 
 __all__ = ["app", "m1401_app"]
-

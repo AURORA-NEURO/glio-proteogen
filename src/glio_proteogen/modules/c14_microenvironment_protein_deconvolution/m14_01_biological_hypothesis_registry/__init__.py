@@ -20,5 +20,3 @@ __all__ = [
     "preflight_hypothesis_authorization",
     "register_protein_subtype_hypotheses",
 ]
-
-

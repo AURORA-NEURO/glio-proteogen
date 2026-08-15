@@ -1,8 +1,8 @@
 """M14-01 service boundary."""
 
 from glio_proteogen.contracts.m14_01 import (
-    RegisterProteinSubtypeHypothesesRequest,
     ProteinSubtypeHypothesisRegistryResult,
+    RegisterProteinSubtypeHypothesesRequest,
 )
 
 from .engine import M1401HypothesisEngine, _prepare
@@ -41,5 +41,3 @@ class M1401Service:
 
 
 __all__ = ["M1401Service"]
-
-
