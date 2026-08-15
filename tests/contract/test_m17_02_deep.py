@@ -270,6 +270,17 @@ def test_result_closure_rejects_identity_evidence_status_and_digest_mutations() 
         VariantPeptideCrossSourceAlignmentResult.model_validate(
             result.model_dump(mode="python") | {"evidence": ()}
         )
+    discrepancy = Discrepancy(
+        discrepancy_id="discrepancy.sample",
+        code=DiscrepancyCode.SAMPLE_MISMATCH,
+        axis=AlignmentAxis.SAMPLE,
+        observation_ids=("observation.a", "observation.b"),
+        message="sample keys disagree",
+    )
+    with pytest.raises(ValidationError, match="result discrepancy ids must be unique"):
+        VariantPeptideCrossSourceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"discrepancy_map": (discrepancy, discrepancy)}
+        )
     with pytest.raises(ValidationError, match="finding codes must be unique"):
         VariantPeptideCrossSourceAlignmentResult.model_validate(
             result.model_dump(mode="python")
@@ -279,13 +290,6 @@ def test_result_closure_rejects_identity_evidence_status_and_digest_mutations() 
         VariantPeptideCrossSourceAlignmentResult.model_validate(
             result.model_dump(mode="python") | {"human_review_required": True}
         )
-    discrepancy = Discrepancy(
-        discrepancy_id="discrepancy.sample",
-        code=DiscrepancyCode.SAMPLE_MISMATCH,
-        axis=AlignmentAxis.SAMPLE,
-        observation_ids=("observation.a", "observation.b"),
-        message="sample keys disagree",
-    )
     with pytest.raises(ValidationError, match="must match aligned bundle"):
         VariantPeptideCrossSourceAlignmentResult.model_validate(
             result.model_dump(mode="python") | {"discrepancy_map": (discrepancy,)}
