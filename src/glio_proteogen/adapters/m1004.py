@@ -17,10 +17,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import (
-    RequestBodyTooLargeError,
-    RequestSizeLimitMiddleware,
-)
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m10_04 import (
     M1004_MAX_CANONICAL_REQUEST_BYTES,
     M1004_MAX_CANONICAL_RESULT_BYTES,
@@ -63,11 +60,8 @@ def _validation_detail(error: ValidationError) -> list[dict[str, object]]:
 
 
 async def _body(request: Request, *, result: bool = False) -> bytes:
-    payload = await request.body()
-    limit = M1004_MAX_CANONICAL_RESULT_BYTES if result else M1004_MAX_CANONICAL_REQUEST_BYTES
-    if len(payload) > limit:
-        raise RequestBodyTooLargeError
-    return payload
+    del result  # Middleware applies the stricter request limit before route parsing.
+    return await request.body()
 
 
 def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C901
@@ -96,8 +90,6 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
             )
         except ValidationError as error:
             return JSONResponse(status_code=422, content={"detail": _validation_detail(error)})
-        except ValueError as error:
-            return JSONResponse(status_code=413, content={"detail": str(error)})
         typed = cast("EstimateProteinRnaDiscordanceProbabilisticRequest", parsed)
         return JSONResponse(content={"valid": True, "request": typed.model_dump(mode="json")})
 
@@ -117,8 +109,6 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
             return JSONResponse(
                 status_code=403, content={"detail": "caller controls are not accepted"}
             )
-        except ValueError as error:
-            return JSONResponse(status_code=413, content={"detail": str(error)})
         return JSONResponse(content=result.model_dump(mode="json"))
 
     @app.post("/v1/m10-04/verify")
@@ -138,8 +128,6 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
             return JSONResponse(
                 status_code=409, content={"detail": "receipt replay verification failed"}
             )
-        except ValueError as error:
-            return JSONResponse(status_code=413, content={"detail": str(error)})
         return JSONResponse(content={"verified": True, "result": result.model_dump(mode="json")})
 
     return app

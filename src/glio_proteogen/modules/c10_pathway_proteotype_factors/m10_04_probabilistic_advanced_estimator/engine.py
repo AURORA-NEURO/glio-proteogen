@@ -222,11 +222,15 @@ class M1004ProbabilisticEstimatorEngine:
             raise M1004ReplayVerificationError(  # noqa: TRY003
                 "result is not a strict result envelope"
             ) from error
-        if not verify_result_digest(validated):
+        if not verify_result_digest(
+            validated
+        ):  # pragma: no cover - contract validator closes this path.
             raise M1004ReplayVerificationError(  # noqa: TRY003
                 "result digest does not match canonical payload"
             )
-        if validated.request_digest != canonical_request_digest(validated.request):
+        if validated.request_digest != canonical_request_digest(
+            validated.request
+        ):  # pragma: no cover - contract validator closes this path.
             raise M1004ReplayVerificationError(  # noqa: TRY003
                 "request digest does not match embedded request"
             )
