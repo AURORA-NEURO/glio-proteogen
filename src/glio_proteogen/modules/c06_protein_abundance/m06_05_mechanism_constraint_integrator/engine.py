@@ -152,7 +152,7 @@ def _provenance(request: IntegrateProteinAbundanceConstraintsRequest) -> Provena
         sorted(
             {item.digest for item in request.source_artifacts}
             | {request.advanced_estimator_result.digest}
-            | {item.digest for item in request.constraint_set.evidence}
+            | {item.reference.digest for item in request.constraint_set.evidence}
         )
     )
     return ProvenanceRecord(
@@ -325,13 +325,17 @@ def _build_result(
         ConstraintAblationRecord(
             constraint_id=constraint.constraint_id,
             with_constraint_effect=(
-                constraint.weight
+                (
+                    constraint.weight if constraint.weight is not None else 0.0
+                )
                 if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
                 else 0.0
             ),
             without_constraint_effect=0.0,
             effect_delta=(
-                constraint.weight
+                (
+                    constraint.weight if constraint.weight is not None else 0.0
+                )
                 if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
                 else 0.0
             ),

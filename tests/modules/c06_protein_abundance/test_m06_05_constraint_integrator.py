@@ -14,9 +14,12 @@ from glio_proteogen.contracts.m06_01 import (
     FormalStateMissingness,
 )
 from glio_proteogen.contracts.m06_05 import (
+    ConstraintAblationRecord,
+    ConstraintEvaluation,
     ConstraintEvaluationOutcome,
     ConstraintIntegrationStatus,
     IntegrateProteinAbundanceConstraintsRequest,
+    IntegrateProteinAbundanceConstraintsResult,
     MechanismConstraint,
     MechanismConstraintHardness,
     MechanismConstraintKind,
@@ -32,6 +35,8 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportDecision,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
@@ -45,6 +50,7 @@ from glio_proteogen.modules.c06_protein_abundance.m06_05_mechanism_constraint_in
 )
 
 _SOFT_WEIGHT = 0.5
+_OBSERVED_VALUE = 1.5
 
 
 def _reference(
@@ -278,3 +284,175 @@ def test_result_limit_is_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     with pytest.raises(ConstraintIntegrationInputError, match="byte limit"):
         M0605MechanismConstraintEngine().integrate(_request())
+
+
+def _rebuild_result(
+    built: BuiltConstraintIntegration,
+    **updates: object,
+) -> IntegrateProteinAbundanceConstraintsResult:
+    candidate = built.result.model_copy(update=updates)
+    candidate = candidate.model_copy(update={"result_digest": result_payload_digest(candidate)})
+    return type(built.result).model_validate(candidate, strict=True)
+
+
+def test_result_validator_rejects_stale_request_digest() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    with pytest.raises(ValueError, match="request digest"):
+        _rebuild_result(built, request_digest="sha256:" + "0" * 64)
+
+
+def test_result_validator_rejects_missing_or_duplicate_evaluations() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    with pytest.raises(ValueError, match="evaluations must be unique"):
+        _rebuild_result(built, evaluations=(built.result.evaluations[0],) * 2)
+    with pytest.raises(ValueError, match="evaluate every"):
+        _rebuild_result(built, evaluations=(built.result.evaluations[0],))
+
+
+def test_result_validator_rejects_invalid_ablation_sets() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    soft = built.result.ablations[0]
+    hard = ConstraintAblationRecord(
+        constraint_id="constraint.nonnegative",
+        with_constraint_effect=0.0,
+        without_constraint_effect=0.0,
+        effect_delta=0.0,
+    )
+    with pytest.raises(ValueError, match="every soft"):
+        _rebuild_result(built, ablations=())
+    with pytest.raises(ValueError, match="ablations must be unique"):
+        _rebuild_result(built, ablations=(soft, soft))
+    with pytest.raises(ValueError, match="hard constraints"):
+        _rebuild_result(built, ablations=(soft, hard))
+
+
+def test_result_validator_rejects_invalid_estimates() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    estimate = built.result.estimates[0]
+    unknown = estimate.model_copy(update={"feature_id": "feature.unknown"})
+    with pytest.raises(ValueError, match="estimate feature ids"):
+        _rebuild_result(built, estimates=(estimate, estimate))
+    with pytest.raises(ValueError, match="unknown feature"):
+        _rebuild_result(built, estimates=(unknown,))
+
+
+def test_result_validator_rejects_status_support_and_digest_conflicts() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    limited = SupportDecision(
+        status=SupportStatus.REVIEW_REQUIRED,
+        reason_code="test.review",
+        rationale="review is required",
+    )
+    violated = ConstraintEvaluation(
+        constraint_id="constraint.nonnegative",
+        outcome=ConstraintEvaluationOutcome.VIOLATED,
+        residual=-1.0,
+        effect_size=0.0,
+        message="hard constraint violated",
+    )
+    with pytest.raises(ValueError, match="requires estimates"):
+        _rebuild_result(built, estimates=())
+    with pytest.raises(ValueError, match="no hard violation"):
+        _rebuild_result(
+            built,
+            evaluations=(violated, built.result.evaluations[1]),
+        )
+    with pytest.raises(ValueError, match="supported status"):
+        _rebuild_result(built, support_decision=limited)
+    with pytest.raises(ValueError, match="no hard violation"):
+        _rebuild_result(built, abstention_reason="unexpected")
+    candidate = built.result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+    with pytest.raises(ValueError, match="digest"):
+        type(built.result).model_validate(candidate, strict=True)
+
+
+def test_abstained_result_requires_reason_no_estimate_and_safe_support() -> None:
+    built = M0605MechanismConstraintEngine().integrate(_request())
+    supported = SupportDecision(
+        status=SupportStatus.SUPPORTED,
+        reason_code="test.supported",
+        rationale="support is present",
+    )
+    with pytest.raises(ValueError, match="no estimates"):
+        _rebuild_result(
+            built,
+            status=ConstraintIntegrationStatus.ABSTAINED,
+            abstention_reason="review",
+            estimates=built.result.estimates,
+            support_decision=SupportDecision(
+                status=SupportStatus.UNSUPPORTED,
+                reason_code="test.unsupported",
+                rationale="unsupported",
+            ),
+        )
+    with pytest.raises(ValueError, match="reason"):
+        _rebuild_result(
+            built,
+            status=ConstraintIntegrationStatus.ABSTAINED,
+            estimates=(),
+            abstention_reason=None,
+            support_decision=SupportDecision(
+                status=SupportStatus.UNSUPPORTED,
+                reason_code="test.unsupported",
+                rationale="unsupported",
+            ),
+        )
+    with pytest.raises(ValueError, match="safe status"):
+        _rebuild_result(
+            built,
+            status=ConstraintIntegrationStatus.ABSTAINED,
+            estimates=(),
+            abstention_reason="review",
+            support_decision=supported,
+        )
+
+
+def test_engine_covers_comparison_operators_intervals_and_categorical_no_estimate() -> None:
+    engine = M0605MechanismConstraintEngine()
+    for operator in ("<=", ">", "<", "=="):
+        result = engine.integrate(_request(expression=f"protein.abundance {operator} 1.5"))
+        assert result.result.evaluations[0].outcome in {
+            ConstraintEvaluationOutcome.SATISFIED,
+            ConstraintEvaluationOutcome.VIOLATED,
+        }
+    request = _request()
+    interval = request.feature_values[0].model_copy(
+        update={"scalar_value": None, "interval_lower": 1.0, "interval_upper": 2.0}
+    )
+    interval_result = engine.integrate(request.model_copy(update={"feature_values": (interval,)}))
+    assert interval_result.result.estimates[0].estimate_value == _OBSERVED_VALUE
+    categorical = request.feature_values[0].model_copy(
+        update={"scalar_value": None, "category": "A"}
+    )
+    categorical_result = engine.integrate(
+        request.model_copy(update={"feature_values": (categorical,)})
+    )
+    assert categorical_result.result.status is ConstraintIntegrationStatus.ABSTAINED
+
+
+def test_engine_rejects_control_state_and_bad_built_digest() -> None:
+    request = _request()
+    refs = request.context.references
+    rejected = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": refs.model_copy(
+                        update={
+                            "support": refs.support.model_copy(
+                                update={"state": UpstreamDecisionState.REJECTED}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    with pytest.raises(ConstraintIntegrationAuthorizationError):
+        M0605MechanismConstraintEngine().integrate(rejected)
+    built = M0605MechanismConstraintEngine().integrate(request)
+    with pytest.raises(ConstraintIntegrationInputError, match="digest"):
+        BuiltConstraintIntegration(
+            built.result.model_copy(update={"result_digest": "sha256:" + "0" * 64}),
+            built.canonical_bytes,
+        )

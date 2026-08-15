@@ -1,1 +1,1 @@
-"""M06-02 evaluator tests."""
+"""Evaluator tests for the M06 module slices."""
