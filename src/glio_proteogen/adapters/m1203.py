@@ -93,8 +93,8 @@ async def construct(request: Request) -> JSONResponse:
 async def verify(request: Request) -> JSONResponse:
     raw = await request.body()
     try:
-        decoded = strict_json_loads(raw, max_bytes=8 * 1024 * 1024)
-        result = BiomarkerPanelMechanisticFeatureResult.model_validate(decoded)
+        strict_json_loads(raw, max_bytes=8 * 1024 * 1024)
+        result = BiomarkerPanelMechanisticFeatureResult.model_validate_json(raw)
     except (ValueError, TypeError, ValidationError):
         return _error("M12-03 result failed replay verification")
     return JSONResponse(
@@ -149,8 +149,8 @@ def cli_verify(
     result: Annotated[pathlib.Path, typer.Argument(exists=True, dir_okay=False)],
 ) -> None:
     try:
-        payload = _read_json(result)
-        checked = BiomarkerPanelMechanisticFeatureResult.model_validate(payload)
+        _read_json(result)
+        checked = BiomarkerPanelMechanisticFeatureResult.model_validate_json(result.read_bytes())
     except (ValueError, TypeError, ValidationError) as exc:
         raise _CliResultError from exc
     typer.echo(

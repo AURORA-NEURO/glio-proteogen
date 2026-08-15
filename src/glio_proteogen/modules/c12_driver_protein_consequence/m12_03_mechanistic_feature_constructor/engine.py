@@ -26,6 +26,7 @@ from glio_proteogen.contracts.m12_03 import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m12_03.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -104,12 +105,15 @@ def construct_mechanistic_features(
 
 def _validate_request(candidate: object) -> ConstructBiomarkerPanelMechanisticFeaturesRequest:
     preflight_mechanistic_feature_authorization(candidate)
+    if isinstance(candidate, ConstructBiomarkerPanelMechanisticFeaturesRequest):
+        return candidate
     plain = _plain_value(candidate)
     try:
-        request = ConstructBiomarkerPanelMechanisticFeaturesRequest.model_validate(plain)
+        encoded = canonical_json_bytes(plain)
+        request = ConstructBiomarkerPanelMechanisticFeaturesRequest.model_validate_json(encoded)
     except Exception as exc:
         raise MechanisticFeatureValidationError from exc
-    if request.model_dump(mode="json") != plain:
+    if request.model_dump(mode="json") != strict_json_loads(encoded, max_bytes=4 * 1024 * 1024):
         raise MechanisticFeatureValidationError
     return request
 
@@ -122,8 +126,11 @@ def validate_json_request(
 
     if type(decoded) is not dict:
         raise MechanisticFeatureValidationError
-    typed = _validate_request(decoded)
-    if strict_json_loads(serialized, max_bytes=4 * 1024 * 1024) != decoded:
+    try:
+        typed = ConstructBiomarkerPanelMechanisticFeaturesRequest.model_validate_json(serialized)
+    except Exception as exc:
+        raise MechanisticFeatureValidationError from exc
+    if typed.model_dump(mode="json") != decoded:
         raise MechanisticFeatureValidationError
     return typed
 
@@ -189,7 +196,10 @@ def _compute(
         "limitations": expected_limitations(),
         "human_review_required": True,
     }
-    payload["result_digest"] = result_payload_digest(payload)
+    preliminary = BiomarkerPanelMechanisticFeatureResult.model_construct(  # type: ignore[arg-type]
+        **payload
+    )
+    payload["result_digest"] = result_payload_digest(preliminary)
     return BiomarkerPanelMechanisticFeatureResult.model_validate(payload)
 
 
