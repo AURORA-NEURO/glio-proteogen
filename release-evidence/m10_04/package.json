@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "abi_status": "dossier-behavioral-brief-only",
+  "build_backend": "hatchling 1.31.0",
+  "artifacts": ["wheel", "sdist"],
+  "wheel_bytes": 0,
+  "sdist_bytes": 0,
+  "checks": ["wheel-build", "sdist-build", "temporary-target-install", "installed-import"],
+  "passed": true,
+  "note": "Sizes are populated by the final isolated package gate; hashes are environment-specific."
+}

@@ -1,0 +1,23 @@
+{
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1293580,
+  "median_ns": 1280100,
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1346900,
+  "passed": true,
+  "samples_ns": [
+    1459800,
+    1270800,
+    1332500,
+    1256000,
+    1233700,
+    1346900,
+    1343300,
+    1289400,
+    1212500,
+    1190900
+  ],
+  "timed_boundary": "M1004Service.execute_only"
+}
