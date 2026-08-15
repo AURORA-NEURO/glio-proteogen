@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m12_05 import (
     M1205_M1204_RESULT_MEDIA_TYPE,
     M1205_MODULE_ID,
     BiomarkerPanelLongitudinalEvolutionResult,
+    ChangePoint,
     ChangePointStatus,
     EvolutionModelConfiguration,
     EvolutionModelFamily,
@@ -309,7 +310,7 @@ def test_engine_internal_grammar_guards_are_fail_closed(monkeypatch: pytest.Monk
         engine.infer(_request())
 
 
-def test_request_and_result_contract_closure_rejects_forgery() -> None:
+def test_request_and_result_contract_closure_rejects_forgery() -> None:  # noqa: PLR0915
     request = _request()
     forged_request = request.model_dump(mode="python")
     forged_request["network_state_result"]["media_type"] = "application/octet-stream"
@@ -376,15 +377,13 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
     with pytest.raises(ValueError, match="count exceeds"):
         BiomarkerPanelLongitudinalEvolutionResult.model_validate(extra_changes, strict=True)
     unordered_changes = duplicate_change.model_dump(mode="python")
-    unordered_changes["change_points"] = tuple(
-        [
-            duplicate_change.change_points[0]
-            .model_copy(update={"change_point_id": "change-point.a", "sequence": 2})
-            .model_dump(mode="python"),
-            duplicate_change.change_points[0]
-            .model_copy(update={"change_point_id": "change-point.b", "sequence": 1})
-            .model_dump(mode="python"),
-        ]
+    unordered_changes["change_points"] = (
+        duplicate_change.change_points[0]
+        .model_copy(update={"change_point_id": "change-point.a", "sequence": 2})
+        .model_dump(mode="python"),
+        duplicate_change.change_points[0]
+        .model_copy(update={"change_point_id": "change-point.b", "sequence": 1})
+        .model_dump(mode="python"),
     )
     unordered_changes["result_digest"] = result_payload_digest(unordered_changes)
     with pytest.raises(ValueError, match="change points must be ordered"):
@@ -438,8 +437,6 @@ def test_contract_temporal_and_shape_adversarial_matrix() -> None:
         ModelBiomarkerPanelLongitudinalEvolutionRequest.model_validate(too_short, strict=True)
 
     with pytest.raises(ValueError, match="detected change point"):
-        from glio_proteogen.contracts.m12_05 import ChangePoint
-
         ChangePoint(
             change_point_id="change-point.bad",
             sequence=1,
