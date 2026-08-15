@@ -48,6 +48,10 @@ M1405_OWNER: Final = "Computational biology"
 M1405_SAFETY_CLASS: Final = "S2"
 M1405_GATE: Final = "G2"
 M1405_PROVISIONAL_ABI: Final = True
+M1405_EVIDENCE_CLAIM: Final = (
+    "Caller-declared ordered observations and M14-05 metadata replay; "
+    "issuer authority and biological state are not authenticated."
+)
 M1405_MAX_OBSERVATIONS: Final = 256
 M1405_MAX_STATES: Final = 256
 M1405_MAX_CHANGE_POINTS: Final = 128
@@ -274,6 +278,7 @@ class ProteinSubtypeLongitudinalEvolutionResult(FrozenModel):
 __all__ = [
     "M1405_CONTRACT_VERSION",
     "M1405_DOSSIER_SLICE",
+    "M1405_EVIDENCE_CLAIM",
     "M1405_GATE",
     "M1405_M1404_RESULT_MEDIA_TYPE",
     "M1405_MAX_CANONICAL_REQUEST_BYTES",
