@@ -1,1 +1,2 @@
-"""Executable module evidence gates."""
+"""Executable evaluation packages."""
+
