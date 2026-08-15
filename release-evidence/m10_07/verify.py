@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ def verify_release(root: Path = Path()) -> dict[str, object]:
     evidence = root / "release-evidence" / "m10_07"
     traceability = json.loads((evidence / "traceability.json").read_text(encoding="utf-8"))
     release = json.loads((evidence / "release.json").read_text(encoding="utf-8"))
+    package = json.loads((evidence / "package.json").read_text(encoding="utf-8"))
     fixture = json.loads(
         (root / "tests" / "fixtures" / "m10_07" / "scenarios.json").read_text(encoding="utf-8")
     )
@@ -36,6 +38,12 @@ def verify_release(root: Path = Path()) -> dict[str, object]:
         "traceability_csv": (
             root / "docs" / "traceability" / "GLIO-PROTEOGEN-M10-07.csv"
         ).is_file(),
+        "package_hashes": all(
+            hashlib.sha256((root / item["path"]).read_bytes()).hexdigest() == item["sha256"]
+            and (root / item["path"]).stat().st_size == item["bytes"]
+            for item in (package["wheel"], package["sdist"])
+        ),
+        "isolated_import": package["isolated_import"] == "passed",
     }
     return {"module_id": MODULE_ID, "passed": all(checks.values()), "checks": checks}
 
