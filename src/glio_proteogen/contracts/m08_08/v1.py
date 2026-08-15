@@ -90,18 +90,14 @@ class PublishedEvidenceItem(FrozenModel):
 class ExplanationAssumption(FrozenModel):
     assumption_id: Identifier
     statement: NonEmptyStr
-    evidence_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M0808_MAX_EVIDENCE
-    )
+    evidence_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M0808_MAX_EVIDENCE)
 
 
 class ExplanationDiagnostic(FrozenModel):
     diagnostic_id: Identifier
     status: PublisherDiagnosticStatus
     message: NonEmptyStr
-    evidence_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M0808_MAX_EVIDENCE
-    )
+    evidence_ids: tuple[Identifier, ...] = Field(default=(), max_length=M0808_MAX_EVIDENCE)
 
 
 class ReconstructionStep(FrozenModel):
@@ -110,9 +106,7 @@ class ReconstructionStep(FrozenModel):
     input_digests: tuple[Sha256Digest, ...] = Field(min_length=1, max_length=M0808_MAX_EVIDENCE)
     output_digest: Sha256Digest
     status: ReconstructionStatus
-    evidence_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M0808_MAX_EVIDENCE
-    )
+    evidence_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M0808_MAX_EVIDENCE)
 
 
 class EvidenceBundle(FrozenModel):
@@ -120,12 +114,8 @@ class EvidenceBundle(FrozenModel):
 
     bundle_id: Identifier
     version: SemanticVersion
-    items: tuple[PublishedEvidenceItem, ...] = Field(
-        min_length=1, max_length=M0808_MAX_ITEMS
-    )
-    assumptions: tuple[ExplanationAssumption, ...] = Field(
-        min_length=1, max_length=M0808_MAX_ITEMS
-    )
+    items: tuple[PublishedEvidenceItem, ...] = Field(min_length=1, max_length=M0808_MAX_ITEMS)
+    assumptions: tuple[ExplanationAssumption, ...] = Field(min_length=1, max_length=M0808_MAX_ITEMS)
     counter_evidence: tuple[PublishedEvidenceItem, ...] = Field(
         min_length=1, max_length=M0808_MAX_ITEMS
     )
@@ -140,11 +130,21 @@ class EvidenceBundle(FrozenModel):
         ids += tuple(item.evidence_id for item in self.counter_evidence)
         if len(ids) != len(set(ids)):
             raise ValueError("evidence item ids must be unique")
+        assumption_ids = tuple(item.assumption_id for item in self.assumptions)
+        if len(assumption_ids) != len(set(assumption_ids)):
+            raise ValueError("assumption ids must be unique")
         sequences = tuple(item.sequence for item in self.reconstruction)
         if len(sequences) != len(set(sequences)) or sequences != tuple(sorted(sequences)):
             raise ValueError("reconstruction steps must have unique ordered sequences")
         if any(item.role is not EvidenceRole.COUNTER_EVIDENCE for item in self.counter_evidence):
             raise ValueError("counter-evidence collection must contain counter-evidence items")
+        item_ids = set(ids)
+        for assumption in self.assumptions:
+            if not set(assumption.evidence_ids) <= item_ids:
+                raise ValueError("assumption references unknown evidence item")
+        for step in self.reconstruction:
+            if not set(step.evidence_ids) <= item_ids:
+                raise ValueError("reconstruction references unknown evidence item")
         return self
 
 
@@ -152,13 +152,16 @@ class ExplanationObject(FrozenModel):
     explanation_id: Identifier
     version: SemanticVersion
     summary: NonEmptyStr
-    diagnostics: tuple[ExplanationDiagnostic, ...] = Field(
-        min_length=1, max_length=M0808_MAX_ITEMS
-    )
-    limitation_statements: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M0808_MAX_ITEMS
-    )
+    diagnostics: tuple[ExplanationDiagnostic, ...] = Field(min_length=1, max_length=M0808_MAX_ITEMS)
+    limitation_statements: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M0808_MAX_ITEMS)
     bundle_id: Identifier
+
+    @model_validator(mode="after")
+    def explanation_is_closed(self) -> ExplanationObject:
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("explanation diagnostic ids must be unique")
+        return self
 
 
 class PublishTranscriptProteinEvidenceRequest(FrozenModel):
@@ -182,6 +185,15 @@ class PublishTranscriptProteinEvidenceRequest(FrozenModel):
             raise ValueError("publisher request must bind the provisional M08-07 result")
         if self.uncertainty_result.media_type != M0808_UNCERTAINTY_MEDIA_TYPE:
             raise ValueError("publisher request must bind the provisional M08-06 result")
+        if self.request_id != self.context.request_id:
+            raise ValueError("publisher request id must match its execution context")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if self.calibration_result.artifact_id in artifact_ids:
+            raise ValueError("calibration result must remain a distinct upstream artifact")
+        if self.uncertainty_result.artifact_id in artifact_ids:
+            raise ValueError("uncertainty result must remain a distinct upstream artifact")
         return self
 
 
@@ -213,6 +225,14 @@ class PublishTranscriptProteinEvidenceResult(FrozenModel):
     def result_is_closed(self) -> PublishTranscriptProteinEvidenceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.request.request_id != self.request.context.request_id:
+            raise ValueError("request id must match the execution context request id")
+        if self.result_id != f"result.{self.request.request_id}":
+            raise ValueError("result id must be deterministically derived from request id")
+        if not self.evidence:
+            raise ValueError("publisher result requires source evidence references")
+        if any(item.role not in {"evidence", "counter_evidence"} for item in self.evidence):
+            raise ValueError("publisher evidence roles must be explicit")
         if self.status is PublisherStatus.PUBLISHED:
             if (
                 self.evidence_bundle is None
@@ -222,6 +242,12 @@ class PublishTranscriptProteinEvidenceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires complete supported evidence")
+            if not self.evidence_bundle.counter_evidence:
+                raise ValueError("published result requires counter-evidence")
+            if not self.evidence_bundle.reconstruction:
+                raise ValueError("published result requires reconstruction evidence")
+            if not self.explanation.diagnostics:
+                raise ValueError("published result requires diagnostics")
         elif (
             self.evidence_bundle is not None
             or self.explanation is not None

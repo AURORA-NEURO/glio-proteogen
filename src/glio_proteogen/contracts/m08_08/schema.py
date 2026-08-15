@@ -28,9 +28,7 @@ from glio_proteogen.contracts.m08_08.v1 import (
     ReconstructionStep,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M08-08:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M08-08:0.1.0-provisional"
 CONTRACT_VERSION: Final = M0808_CONTRACT_VERSION
 ContractName = Literal[
     "request",
