@@ -27,16 +27,22 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c16_kinophos_object_consumer.m16_06_reviewer_discrepancy_adjudication_queue import (
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
     M1606AuthorizationError,
     M1606Engine,
+    M1606Plugin,
     M1606ReplayError,
+    M1606Service,
+    adjudicate_protein_rna_discordance_queue,
 )
 
 _DIGEST = "sha256:" + "1" * 64
 
 
-def _artifact(name: str, media_type: str = "application/vnd.glio.evidence+json") -> ArtifactReference:
+def _artifact(
+    name: str,
+    media_type: str = "application/vnd.glio.evidence+json",
+) -> ArtifactReference:
     return ArtifactReference(
         artifact_id=name,
         version="1.0.0",
@@ -111,7 +117,7 @@ def _request(
         assignment_id="assignment.one",
         discrepancy_id="discrepancy.one",
         reviewer_role="quality_reviewer",
-        reviewer_token="reviewer.opaque",
+        reviewer_token="reviewer.opaque",  # noqa: S106
         decision=decision,
         rationale="The reviewer recorded an explicit, blinded decision.",
         evidence=_evidence("evidence.assignment"),
@@ -137,7 +143,7 @@ def test_resolved_queue_preserves_history_and_replays() -> None:
     assert result.status.value == "recorded"
     assert result.record is not None
     assert result.record.locked is True
-    assert result.record.history[0].actor_token == "reviewer.opaque"
+    assert result.record.history[0].actor_token == "reviewer.opaque"  # noqa: S105
     assert result.emits_parent is False
     assert M1606Engine().replay(result) == result
 
@@ -166,3 +172,33 @@ def test_tampered_result_digest_is_rejected() -> None:
     with pytest.raises(M1606ReplayError, match="digest"):
         M1606Engine().replay(tampered)
 
+
+def test_missing_controls_fail_before_traversal() -> None:
+    with pytest.raises(M1606AuthorizationError, match="seven upstream controls"):
+        M1606Engine().adjudicate({"context": {}})
+
+
+def test_missing_assignment_abstains_explicitly() -> None:
+    request = _request()
+    second = request.entries[0].model_copy(update={"discrepancy_id": "discrepancy.two"})
+    incomplete = request.model_copy(update={"entries": (request.entries[0], second)})
+    result = M1606Engine().adjudicate(incomplete)
+    assert result.status.value == "abstained"
+    assert result.findings[0].code.value == "assignment_missing"
+
+
+def test_request_digest_and_facades_are_sealed() -> None:
+    engine = M1606Engine()
+    result = engine.adjudicate(_request())
+    tampered_request = result.model_copy(update={"request_digest": "sha256:" + "3" * 64})
+    with pytest.raises(M1606ReplayError, match="request digest"):
+        engine.replay(tampered_request)
+    plugin = M1606Plugin()
+    assert plugin.descriptor.blinded_review is True
+    assert plugin.descriptor.kinase_activity is False
+    validated = plugin.validate_request(_request())
+    assert plugin.replay(plugin.run(validated)).status.value == "recorded"
+    service = M1606Service()
+    assert service.validate_request(_request()).request_id == "request.m1606.001"
+    assert service.replay(service.adjudicate(_request())).status.value == "recorded"
+    assert adjudicate_protein_rna_discordance_queue(_request()).status.value == "recorded"
