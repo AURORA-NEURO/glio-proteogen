@@ -8,6 +8,8 @@ All symbols here are provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
+import re
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -50,6 +52,26 @@ M1001_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1001_EVIDENCE_CLAIM: Final = (
     "Caller-declared protein-RNA discordance formal-state evidence; "
     "issuer authority is not authenticated."
+)
+M1001_MAX_EXPRESSION_BYTES: Final = 512
+M1001_MAX_FEATURE_VECTOR_LENGTH: Final = 4096
+M1001_SUPPORTED_EXPRESSION: Final = (
+    "Expressions are declarative only: present(<feature>), missing(<feature>), "
+    "<feature> <operator> <number>, or <feature> between <lower> and <upper>."
+)
+
+_IDENTIFIER_TOKEN = r"[a-zA-Z][a-zA-Z0-9._:-]{0,127}"
+_COMPARISON_PATTERN: Final = re.compile(
+    rf"^(?P<feature>{_IDENTIFIER_TOKEN})\s*(?P<operator>==|>=|<=|>|<)\s*"
+    r"(?P<value>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$"
+)
+_BETWEEN_PATTERN: Final = re.compile(
+    rf"^(?P<feature>{_IDENTIFIER_TOKEN})\s+between\s+"
+    r"(?P<lower>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+and\s+"
+    r"(?P<upper>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$"
+)
+_PRESENCE_PATTERN: Final = re.compile(
+    rf"^(?P<kind>present|missing)\((?P<feature>{_IDENTIFIER_TOKEN})\)$"
 )
 
 
@@ -131,6 +153,10 @@ class ProteinRnaFeatureDefinition(FrozenModel):
                 raise ValueError("categorical feature cannot declare numeric bounds")
         elif self.allowed_categories:
             raise ValueError("non-categorical feature cannot declare categories")
+        if self.value_kind is ProteinRnaFeatureValueKind.VECTOR and (
+            self.domain_lower is not None or self.domain_upper is not None
+        ):
+            raise ValueError("vector feature cannot declare scalar numeric bounds")
         return self
 
 
@@ -142,7 +168,7 @@ class ProteinRnaFeatureValue(FrozenModel):
     interval_lower: float | None = None
     interval_upper: float | None = None
     category: NonEmptyStr | None = None
-    vector: tuple[float, ...] = Field(default=(), max_length=4096)
+    vector: tuple[float, ...] = Field(default=(), max_length=M1001_MAX_FEATURE_VECTOR_LENGTH)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1001_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -165,6 +191,14 @@ class ProteinRnaFeatureValue(FrozenModel):
                 or self.interval_lower > self.interval_upper
             ):
                 raise ValueError("observed interval requires ordered bounds")
+            for numeric in (
+                self.scalar_value,
+                self.interval_lower,
+                self.interval_upper,
+                *self.vector,
+            ):
+                if numeric is not None and not isfinite(numeric):
+                    raise ValueError("feature values must be finite")
         elif present:
             raise ValueError("non-observed feature cannot carry a value representation")
         return self
@@ -183,6 +217,19 @@ class ProteinRnaInvariant(FrozenModel):
             raise ValueError("invariant feature ids must be unique")
         return tuple(sorted(values))
 
+    @field_validator("expression")
+    @classmethod
+    def expression_is_declarative(cls, value: NonEmptyStr) -> NonEmptyStr:
+        if len(value.encode("utf-8")) > M1001_MAX_EXPRESSION_BYTES:
+            raise ValueError("invariant expression exceeds the bounded byte limit")
+        if not (
+            _COMPARISON_PATTERN.fullmatch(value)
+            or _BETWEEN_PATTERN.fullmatch(value)
+            or _PRESENCE_PATTERN.fullmatch(value)
+        ):
+            raise ValueError(M1001_SUPPORTED_EXPRESSION)
+        return value
+
 
 class ProteinRnaMigrationRule(FrozenModel):
     source_version: SemanticVersion
@@ -195,6 +242,8 @@ class ProteinRnaMigrationRule(FrozenModel):
     def versions_are_distinct(self) -> ProteinRnaMigrationRule:
         if self.source_version == self.target_version:
             raise ValueError("migration source and target versions must differ")
+        if len(set(self.mapped_feature_ids)) != len(self.mapped_feature_ids):
+            raise ValueError("migration feature ids must be unique")
         return self
 
 
@@ -220,9 +269,14 @@ class FormalProteinRnaDiscordanceStateSchema(FrozenModel):
         feature_ids = tuple(item.feature_id for item in self.features)
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("schema feature ids must be unique")
+        invariant_ids = tuple(item.invariant_id for item in self.invariants)
+        if len(invariant_ids) != len(set(invariant_ids)):
+            raise ValueError("schema invariant ids must be unique")
         known = set(feature_ids)
         if any(not set(item.feature_ids) <= known for item in self.invariants):
             raise ValueError("invariant references an unknown feature")
+        if any(not set(item.mapped_feature_ids) <= known for item in self.migrations):
+            raise ValueError("migration references an unknown feature")
         return self
 
 
@@ -264,6 +318,17 @@ class ValidateProteinRnaDiscordanceStateRequest(FrozenModel):
                 raise ValueError("feature value uses a disallowed missingness state")
             if value.unit != definition.unit:
                 raise ValueError("feature value unit does not match schema unit")
+            if value.state is ProteinRnaMissingness.OBSERVED:
+                expected = {
+                    ProteinRnaFeatureValueKind.SCALAR: value.scalar_value is not None,
+                    ProteinRnaFeatureValueKind.INTERVAL: (
+                        value.interval_lower is not None and value.interval_upper is not None
+                    ),
+                    ProteinRnaFeatureValueKind.CATEGORICAL: value.category is not None,
+                    ProteinRnaFeatureValueKind.VECTOR: bool(value.vector),
+                }[definition.value_kind]
+                if not expected:
+                    raise ValueError("feature value representation does not match schema kind")
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
             if value.scalar_value is not None and (
@@ -277,6 +342,18 @@ class ValidateProteinRnaDiscordanceStateRequest(FrozenModel):
                 )
             ):
                 raise ValueError("scalar feature value is outside the declared domain")
+            if value.interval_lower is not None and (
+                (
+                    definition.domain_lower is not None
+                    and value.interval_lower < definition.domain_lower
+                )
+                or (
+                    definition.domain_upper is not None
+                    and value.interval_upper is not None
+                    and value.interval_upper > definition.domain_upper
+                )
+            ):
+                raise ValueError("interval feature value is outside the declared domain")
         return self
 
 
