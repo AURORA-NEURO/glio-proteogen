@@ -15,10 +15,19 @@ from glio_proteogen.contracts.m13_03 import (
     MechanisticDiagnosticStatus,
     MechanisticFeature,
     MechanisticFeatureConfiguration,
+    MechanisticFeatureDiagnostic,
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
+    MechanisticFeatureObject,
+    MechanisticRelation,
+    MechanisticRelationKind,
     MechanisticValueKind,
+    ProteotypeMechanisticFeatureResult,
     expected_uncertainty,
+)
+from glio_proteogen.contracts.m13_03.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -155,6 +164,13 @@ def test_negative_control_failure_abstains_with_fail_diagnostic() -> None:
     assert result.diagnostics[0].status is MechanisticDiagnosticStatus.FAIL
 
 
+def test_withheld_marker_is_not_converted_to_a_negative_finding() -> None:
+    result = construct_proteotype_mechanistic_features(request(source_label="withheld.source"))
+
+    assert result.status is MechanisticConstructionStatus.ABSTAINED
+    assert result.abstention_reason == "source evidence is incomplete or not evaluable"
+
+
 def test_denied_control_fails_closed_before_upstream_access() -> None:
     denied = request(control_state="rejected")
 
@@ -216,3 +232,223 @@ def test_raw_dict_request_is_supported_only_when_controls_are_exact() -> None:
     candidate: dict[str, Any] = request().model_dump(mode="python")
     result = construct_proteotype_mechanistic_features(candidate)
     assert result.status is MechanisticConstructionStatus.CONSTRUCTED
+
+
+def test_plugin_descriptor_and_typed_service_validation() -> None:
+    plugin = M1303Plugin(M1303Service())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M13-03"
+    token = plugin.validate(request())
+    assert token.request.request_id == "request.m1303"
+
+
+def test_plugin_rejects_untyped_and_bytes_boundary_cases() -> None:
+    plugin = M1303Plugin(M1303Service())
+    with pytest.raises(MechanisticFeatureAuthorizationError):
+        plugin.validate(object())
+    with pytest.raises(ValueError, match="invalid JSON"):
+        plugin.validate(b"not-json")
+    with pytest.raises(TypeError, match="strict contract object"):
+        plugin.validate("[]")
+    bad_dict = request().model_dump(mode="python")
+    bad_dict["operation"] = "wrong"
+    with pytest.raises(TypeError, match="strict contract object"):
+        plugin.validate(bad_dict)
+    with pytest.raises(TypeError, match="strict contract object"):
+        m1303.validate_json_request(request().model_dump(mode="python"), b"{}")
+
+
+def test_preflight_hostile_and_untyped_candidates_fail_closed() -> None:
+    for candidate in (object(), {"context": object()}, {"context": {"references": {}}}):
+        with pytest.raises(MechanisticFeatureAuthorizationError):
+            preflight_mechanistic_feature_authorization(candidate)
+    with pytest.raises(ValueError, match="replay"):
+        m1303.verify_mechanistic_feature_replay(object())
+    result = construct_proteotype_mechanistic_features(request())
+    with pytest.raises(ValueError, match="replay"):
+        m1303.verify_mechanistic_feature_replay(
+            result.model_copy(update={"request_digest": "sha256:" + "0" * 64})
+        )
+
+
+def test_replay_model_validation_rejects_constructed_tampering() -> None:
+    result = construct_proteotype_mechanistic_features(request())
+    payload = result.model_dump(mode="python")
+    payload["feature_object"] = "not-an-object"
+    shell = ProteotypeMechanisticFeatureResult.model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(shell)
+    sealed = ProteotypeMechanisticFeatureResult.model_construct(**payload)
+    with pytest.raises(ValueError, match="replay"):
+        m1303.verify_mechanistic_feature_replay(sealed)
+
+
+def test_contract_feature_and_relation_invariants_are_adversarially_closed() -> None:
+    feature = MechanisticFeature(
+        feature_id="feature.state",
+        version="1.0.0",
+        kind=MechanisticFeatureKind.STATE,
+        value_kind=MechanisticValueKind.INTERVAL,
+        unit="normalized_state",
+        lower_bound=0.5,
+        upper_bound=0.7,
+        lineage=MechanisticFeatureLineage(
+            feature_id="feature.state",
+            source_artifacts=(artifact("state"),),
+            claim="State feature.",
+            transformation_ids=("transform.normalize",),
+        ),
+    )
+    with pytest.raises(ValidationError, match="ordered bounds"):
+        MechanisticFeature.model_validate(
+            feature.model_copy(update={"lower_bound": 0.9, "upper_bound": 0.7}).model_dump(
+                mode="python"
+            )
+        )
+    with pytest.raises(ValidationError, match="categorical feature"):
+        MechanisticFeature(
+            feature_id="feature.category",
+            version="1.0.0",
+            kind=MechanisticFeatureKind.STATE,
+            value_kind=MechanisticValueKind.CATEGORICAL,
+            unit="class",
+            scalar_value=0.2,
+            category="a",
+            lineage=MechanisticFeatureLineage(
+                feature_id="feature.category",
+                source_artifacts=(artifact("category"),),
+                claim="Category feature.",
+            ),
+        )
+    with pytest.raises(ValidationError, match="self-loop"):
+        MechanisticRelation(
+            relation_id="relation.loop",
+            source_feature_id="feature.state",
+            target_feature_id="feature.state",
+            kind=MechanisticRelationKind.REGULATES,
+        )
+    with pytest.raises(ValidationError, match="lineage id"):
+        MechanisticFeature.model_validate(
+            feature.model_copy(
+                update={
+                    "lineage": feature.lineage.model_copy(update={"feature_id": "feature.other"})
+                }
+            ).model_dump(mode="python")
+        )
+
+
+def test_contract_configuration_object_request_and_result_closures() -> None:
+    good = request()
+    with pytest.raises(ValidationError, match="transformation ids"):
+        MechanisticFeatureConfiguration.model_validate(
+            good.configuration.model_copy(update={"transformation_ids": ("x", "x")}).model_dump(
+                mode="python"
+            )
+        )
+    with pytest.raises(ValidationError, match="negative-control"):
+        MechanisticFeatureConfiguration.model_validate(
+            good.configuration.model_copy(
+                update={"negative_control_artifacts": (artifact("a"), artifact("a"))}
+            ).model_dump(mode="python")
+        )
+    with pytest.raises(ValidationError, match="provisional M13-02"):
+        ConstructProteotypeMechanisticFeaturesRequest.model_validate(
+            good.model_copy(update={"upstream_result": artifact("wrong")}).model_dump(mode="python")
+        )
+    with pytest.raises(ValidationError, match="alias"):
+        request(negative_label="source.proteome")
+    duplicate_sources = good.model_copy(
+        update={"source_artifacts": (artifact("source.a"), artifact("source.a"))}
+    )
+    with pytest.raises(ValidationError, match="source artifact"):
+        ConstructProteotypeMechanisticFeaturesRequest.model_validate(
+            duplicate_sources.model_dump(mode="python")
+        )
+
+    result = construct_proteotype_mechanistic_features(good)
+    assert result.feature_object is not None
+    duplicate_features = result.feature_object.model_copy(
+        update={"features": (result.feature_object.features[0], result.feature_object.features[0])}
+    )
+    with pytest.raises(ValidationError, match="feature ids"):
+        MechanisticFeatureObject.model_validate(duplicate_features.model_dump(mode="python"))
+    no_pathway = result.feature_object.model_copy(
+        update={"features": result.feature_object.features[1:]}
+    )
+    with pytest.raises(ValidationError, match="pathway feature"):
+        MechanisticFeatureObject.model_validate(no_pathway.model_dump(mode="python"))
+
+
+def test_object_relations_lineage_diagnostics_and_result_closure() -> None:
+    result = construct_proteotype_mechanistic_features(request())
+    assert result.feature_object is not None
+    obj = result.feature_object
+    unknown_relation = obj.model_copy(
+        update={
+            "relations": (
+                obj.relations[0].model_copy(update={"target_feature_id": "feature.unknown"}),
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="unknown feature"):
+        MechanisticFeatureObject.model_validate(unknown_relation.model_dump(mode="python"))
+    duplicate_relations = obj.model_copy(update={"relations": (obj.relations[0], obj.relations[0])})
+    with pytest.raises(ValidationError, match="relation ids"):
+        MechanisticFeatureObject.model_validate(duplicate_relations.model_dump(mode="python"))
+    unknown_transformation = obj.features[0].model_copy(
+        update={
+            "lineage": obj.features[0].lineage.model_copy(
+                update={"transformation_ids": ("transform.unknown",)}
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="unknown transformation"):
+        MechanisticFeatureObject.model_validate(
+            obj.model_copy(
+                update={"features": (unknown_transformation, *obj.features[1:])}
+            ).model_dump(mode="python")
+        )
+    with pytest.raises(ValidationError, match="at most 512"):
+        MechanisticFeatureDiagnostic(
+            diagnostic_id="diagnostic.long",
+            status=MechanisticDiagnosticStatus.PASS,
+            message="x" * 513,
+        )
+
+    with pytest.raises(ValueError, match="request digest"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(update={"request_digest": "sha256:" + "0" * 64}).model_dump(
+                mode="python"
+            )
+        )
+    with pytest.raises(ValueError, match="evidence"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(update={"evidence": ()}).model_dump(mode="python")
+        )
+    duplicate = result.diagnostics[0]
+    with pytest.raises(ValueError, match="diagnostic ids"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(update={"diagnostics": (duplicate, duplicate)}).model_dump(
+                mode="python"
+            )
+        )
+
+
+def test_result_status_and_digest_closures_reject_unsafe_states() -> None:
+    result = construct_proteotype_mechanistic_features(request())
+    with pytest.raises(ValueError, match="constructed result"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(update={"feature_object": None}).model_dump(mode="python")
+        )
+    with pytest.raises(ValueError, match="abstained result"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(
+                update={"status": MechanisticConstructionStatus.ABSTAINED}
+            ).model_dump(mode="python")
+        )
+    with pytest.raises(ValueError, match="result digest"):
+        ProteotypeMechanisticFeatureResult.model_validate(
+            result.model_copy(update={"result_digest": "sha256:" + "0" * 64}).model_dump(
+                mode="python"
+            )
+        )
+    assert canonical_request_digest(request()) == result.request_digest
+    assert result_payload_digest(result) == result.result_digest

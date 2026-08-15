@@ -8,6 +8,7 @@ from http import HTTPStatus
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+import glio_proteogen.adapters.m1303 as m1303_adapter
 from glio_proteogen.adapters.m1303 import app, m1303_app
 from glio_proteogen.contracts.m13_03 import MechanisticConstructionStatus
 from tests.contract.test_m13_03_runtime import request
@@ -47,6 +48,44 @@ def test_api_verifies_released_result() -> None:
     assert verified.json()["verified"] is True
 
 
+def test_api_error_matrix_is_sanitized() -> None:
+    malformed_contract = json.loads(request().model_dump_json())
+    malformed_contract["configuration"] = {}
+    with TestClient(app) as client:
+        unknown_schema = client.get("/v1/m13-03/schema/unknown")
+        invalid_syntax = client.post("/v1/modules/M13-03/features", content=b"{")
+        non_object = client.post("/v1/modules/M13-03/features", json=[])
+        invalid_contract = client.post("/v1/modules/M13-03/features", json=malformed_contract)
+        invalid_result = client.post("/v1/modules/M13-03/verify", json={"result_id": "bad"})
+        invalid_verify_json = client.post("/v1/modules/M13-03/verify", content=b"{")
+
+    assert unknown_schema.status_code == HTTPStatus.NOT_FOUND
+    assert invalid_syntax.status_code == HTTPStatus.BAD_REQUEST
+    assert non_object.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert invalid_contract.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert invalid_result.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert invalid_verify_json.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_api_denied_and_replay_failure_paths(monkeypatch) -> None:
+    denied_payload = json.loads(request(control_state="rejected").model_dump_json())
+    supported_payload = json.loads(request().model_dump_json())
+    with TestClient(app) as client:
+        denied = client.post("/v1/modules/M13-03/features", json=denied_payload)
+        result = client.post("/v1/modules/M13-03/features", json=supported_payload).json()
+        replay = client.post("/v1/modules/M13-03/verify", json=result)
+        monkeypatch.setattr(
+            m1303_adapter,
+            "verify_mechanistic_feature_replay",
+            lambda _result: (_ for _ in ()).throw(ValueError("tamper")),
+        )
+        forced_replay = client.post("/v1/modules/M13-03/verify", json=result)
+
+    assert denied.status_code == HTTPStatus.FORBIDDEN
+    assert replay.status_code == HTTPStatus.OK
+    assert forced_replay.status_code == HTTPStatus.CONFLICT
+
+
 def test_cli_schema_is_no_overwrite_and_unknown_is_safe(tmp_path) -> None:
     output = tmp_path / "schema.json"
     runner = CliRunner()
@@ -75,3 +114,20 @@ def test_cli_construct_and_verify_round_trip(tmp_path) -> None:
     assert constructed.exit_code == 0, constructed.stdout
     assert verified.exit_code == 0, verified.stdout
     assert json.loads(verified.stdout)["verified"] is True
+
+
+def test_cli_error_paths_are_sanitized(tmp_path) -> None:
+    bad_request = tmp_path / "bad-request.json"
+    bad_result = tmp_path / "bad-result.json"
+    bad_request.write_text("{", encoding="utf-8")
+    bad_result.write_text("{}", encoding="utf-8")
+    runner = CliRunner()
+
+    constructed = runner.invoke(
+        m1303_app,
+        ["construct", str(bad_request), "--output", str(tmp_path / "out.json")],
+    )
+    verified = runner.invoke(m1303_app, ["verify", str(bad_result)])
+
+    assert constructed.exit_code != 0
+    assert verified.exit_code != 0

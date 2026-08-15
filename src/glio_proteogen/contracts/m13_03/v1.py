@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m13_03.canonical import (
     canonical_request_digest,
@@ -55,7 +55,6 @@ M1303_MAX_RELATIONS: Final = 4_096
 M1303_MAX_TRANSFORMATIONS: Final = 512
 M1303_MAX_EVIDENCE: Final = 64
 M1303_MAX_DIAGNOSTICS: Final = 128
-M1303_MAX_DIAGNOSTIC_MESSAGE: Final = 512
 M1303_MAX_FINDINGS: Final = 64
 M1303_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1303_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
@@ -242,13 +241,6 @@ class MechanisticFeatureDiagnostic(FrozenModel):
     status: MechanisticDiagnosticStatus
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1303_MAX_EVIDENCE)
-
-    @field_validator("message")
-    @classmethod
-    def diagnostic_message_is_bounded(cls, value: str) -> str:
-        if len(value) > M1303_MAX_DIAGNOSTIC_MESSAGE:
-            raise ValueError("diagnostic message is too long")
-        return value
 
 
 class ConstructProteotypeMechanisticFeaturesRequest(FrozenModel):
