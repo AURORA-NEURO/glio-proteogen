@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m09_02.canonical import (
     canonical_request_digest,
@@ -114,6 +114,12 @@ class FeatureLineage(FrozenModel):
             raise ValueError("feature transformations must have unique ordered sequences")
         if any(not item.leakage_safe for item in self.transformations):
             raise ValueError("feature lineage cannot contain a leakage-unsafe transformation")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("feature lineage source artifacts must be unique")
+        fields = tuple(self.source_fields)
+        if len(fields) != len(set(fields)):
+            raise ValueError("feature lineage source fields must be unique")
         return self
 
 
@@ -145,6 +151,13 @@ class RepresentationPolicy(FrozenModel):
     leakage_safe: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
 
+    @field_validator("covariates")
+    @classmethod
+    def covariates_are_unique(cls, values: tuple[NonEmptyStr, ...]) -> tuple[NonEmptyStr, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("representation policy covariates must be unique")
+        return tuple(sorted(values))
+
 
 class RepresentationFeature(FrozenModel):
     """Constructed feature values with exact immutable lineage."""
@@ -163,6 +176,8 @@ class RepresentationFeature(FrozenModel):
             raise ValueError("representation feature must bind its exact lineage feature id")
         if self.mask and len(self.mask) != len(self.values):
             raise ValueError("feature mask must be empty or match value length")
+        if self.mask and not any(self.mask):
+            raise ValueError("feature mask must retain at least one supported value")
         return self
 
 
@@ -172,6 +187,12 @@ class LeakageCheck(FrozenModel):
     message: NonEmptyStr
     held_out_group: NonEmptyStr | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0902_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def failed_check_requires_context(self) -> LeakageCheck:
+        if self.status is LeakageCheckStatus.FAILED and self.held_out_group is None:
+            raise ValueError("failed leakage check requires the affected held-out group")
+        return self
 
 
 class ConstructComplexActivityRepresentationRequest(FrozenModel):
@@ -203,6 +224,12 @@ class ConstructComplexActivityRepresentationRequest(FrozenModel):
             for artifact in self.source_artifacts
         ):
             raise ValueError("formal-state handoff must not be duplicated as a source artifact")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("request source artifacts must be unique")
+        lineage_ids = tuple(item.feature_id for item in self.feature_specs)
+        if any(item.lineage.feature_id not in lineage_ids for item in self.feature_specs):
+            raise ValueError("every feature lineage must bind a requested feature")
         return self
 
 
@@ -235,14 +262,21 @@ class ComplexActivityRepresentationResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityRepresentationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        requested_ids = {item.feature_id for item in self.request.feature_specs}
         feature_ids = {item.feature_id for item in self.features}
-        if feature_ids and feature_ids != {item.feature_id for item in self.request.feature_specs}:
+        if feature_ids and feature_ids != requested_ids:
             raise ValueError("result features must cover the requested feature specification")
+        if len(feature_ids) != len(self.features):
+            raise ValueError("result feature ids must be unique")
+        check_ids = tuple(item.check_id for item in self.leakage_checks)
+        if len(check_ids) != len(set(check_ids)):
+            raise ValueError("result leakage check ids must be unique")
         leakage_statuses = {item.status for item in self.leakage_checks}
         if self.status is RepresentationConstructionStatus.CONSTRUCTED:
             if (
-                not self.features
+                feature_ids != requested_ids
                 or self.abstention_reason is not None
+                or not self.leakage_checks
                 or LeakageCheckStatus.FAILED in leakage_statuses
                 or LeakageCheckStatus.NOT_EVALUABLE in leakage_statuses
                 or self.support_decision.status is not SupportStatus.SUPPORTED
