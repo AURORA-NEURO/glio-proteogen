@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from datetime import UTC, datetime
 from typing import Any
 
@@ -274,11 +275,13 @@ def test_replay_model_validation_rejects_constructed_tampering() -> None:
     result = construct_proteotype_mechanistic_features(request())
     payload = result.model_dump(mode="python")
     payload["feature_object"] = "not-an-object"
-    shell = ProteotypeMechanisticFeatureResult.model_construct(**payload)
-    payload["result_digest"] = result_payload_digest(shell)
-    sealed = ProteotypeMechanisticFeatureResult.model_construct(**payload)
-    with pytest.raises(ValueError, match="replay"):
-        m1303.verify_mechanistic_feature_replay(sealed)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        shell = ProteotypeMechanisticFeatureResult.model_construct(**payload)
+        payload["result_digest"] = result_payload_digest(shell)
+        sealed = ProteotypeMechanisticFeatureResult.model_construct(**payload)
+        with pytest.raises(ValueError, match="replay"):
+            m1303.verify_mechanistic_feature_replay(sealed)
 
 
 def test_contract_feature_and_relation_invariants_are_adversarially_closed() -> None:
