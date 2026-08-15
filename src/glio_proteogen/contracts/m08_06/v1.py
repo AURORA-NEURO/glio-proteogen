@@ -22,6 +22,7 @@ from glio_proteogen.kernel.models import (
     ArtifactReference,
     ControlDecisionRecord,
     ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -35,7 +36,6 @@ from glio_proteogen.kernel.models import (
     SupportStatus,
     UncertaintyEstimate,
     UncertaintyProfile,
-    EstimateState,
 )
 
 # PROVISIONAL ABI: inferred solely from the M08-06 dossier slice.

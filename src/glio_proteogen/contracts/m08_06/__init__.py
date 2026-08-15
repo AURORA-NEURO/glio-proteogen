@@ -1,8 +1,8 @@
 """Provisional M08-06 uncertainty decomposition contract exports."""
 
 from glio_proteogen.contracts.m08_06.canonical import (
-    canonical_result_digest,
     canonical_request_digest,
+    canonical_result_digest,
     normalized_request,
     normalized_result_payload,
     result_payload_digest,

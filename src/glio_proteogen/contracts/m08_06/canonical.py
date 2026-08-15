@@ -61,8 +61,8 @@ def verify_result_digest(value: object) -> bool:
 
 
 __all__ = [
-    "canonical_result_digest",
     "canonical_request_digest",
+    "canonical_result_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
