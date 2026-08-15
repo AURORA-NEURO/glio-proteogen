@@ -11,7 +11,8 @@
     "7ccbb48 Harden M08-08 evidence contract closure",
     "b7decfb Implement M08-08 replay-safe publisher runtime",
     "627a6ed Add M08-08 strict API CLI and plugin parity",
-    "a8564c8 Add M08-08 evaluator coverage and release evidence"
+    "a8564c8 Add M08-08 evaluator coverage and release evidence",
+    "fcd56b5 Refresh M08-08 package and benchmark evidence"
   ],
   "focusedTests": {
     "count": 22,
