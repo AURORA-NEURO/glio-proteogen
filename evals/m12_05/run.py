@@ -1,7 +1,7 @@
 """Run the locked, deterministic M12-05 evaluation matrix."""
 
 # CLI evidence runner intentionally prints its machine-readable report.
-# ruff: noqa: T201, TRY003, E501, PLR2004
+# ruff: noqa: T201, TRY003, PLR2004
 
 from __future__ import annotations
 
