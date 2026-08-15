@@ -83,7 +83,7 @@ async def _validated_body(request: Request) -> RegisterProteinSubtypeHypothesesR
         raise _json_error(403, str(error)) from error
 
 
-@app.get("/v1/m11-01/schema/{name}")
+@app.get("/v1/m14-01/schema/{name}")
 def schema(name: str) -> JSONResponse:
     try:
         document = contract_json_schema(name)  # type: ignore[arg-type]
@@ -177,5 +177,4 @@ def verify_command(
 
 
 __all__ = ["app", "m1401_app"]
-
 
