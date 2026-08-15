@@ -231,6 +231,21 @@ def test_failed_validation_route_abstains() -> None:
     assert "validation_route_unresolved" in {item.value for item in result.findings}
 
 
+def test_incomplete_chain_and_reconstruction_abstain() -> None:
+    original = request()
+    mechanism_as_input = original.links[1].model_copy(
+        update={"kind": MechanismEvidenceLinkKind.INPUT}
+    )
+    incomplete_chain = original.model_copy(
+        update={"links": (original.links[0], mechanism_as_input, original.links[2])}
+    )
+    chain_result = assemble_mechanism_dossier(incomplete_chain)
+    assert chain_result.status is MechanismDossierStatus.ABSTAINED
+    incomplete_reconstruction = original.model_copy(update={"reconstruction_steps": ()})
+    reconstruction_result = assemble_mechanism_dossier(incomplete_reconstruction)
+    assert reconstruction_result.status is MechanismDossierStatus.ABSTAINED
+
+
 def test_denied_consent_fails_before_request_validation() -> None:
     original = request()
     references = original.context.references.model_copy(
@@ -252,6 +267,7 @@ def test_replay_tamper_is_rejected_and_plugin_requires_capability() -> None:
     tampered = result.model_copy(update={"result_id": "result.tampered"})
     assert not verify_mechanism_dossier_result(tampered)
     plugin = M1108MechanismEvidenceDossierPlugin(M1108MechanismEvidenceDossierService())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M11-08"
     token = plugin.validate(request())
     assert plugin.run(token).result_digest == result.result_digest
     with pytest.raises(TypeError):
