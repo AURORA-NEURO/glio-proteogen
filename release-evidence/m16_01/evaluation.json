@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-01",
+  "fixture_digest": "sha256:917bb4a849437fc138427c4a3395098bd37ca5fc6a4463ecef29847f74e939f4",
+  "case_ids": ["resolved_supported", "version_mismatch_abstention", "media_mismatch_abstention", "missing_required_kind_abstention", "replay_and_tamper", "authorization_gate"],
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "total_cases": 6,
+  "passed": true,
+  "schema_count": 8
+}

@@ -1,0 +1,7 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-01",
+  "built": true,
+  "isolated_import": true,
+  "wheel": {"path": "dist/glio_proteogen-0.1.0-py3-none-any.whl", "bytes": 879512, "sha256": "sha256:ad5d403f2750bfa282026da7bb313fda41fa32ce6d25b2e3553acc2502426eb3"},
+  "sdist": {"path": "dist/glio_proteogen-0.1.0.tar.gz", "bytes": 1478895, "sha256": "sha256:c39b5f901527f14a62abad3f722db0afee65d7b59134057bd31f18bd459bb575"}
+}
