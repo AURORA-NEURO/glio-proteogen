@@ -94,6 +94,7 @@ def test_m1207_controls_and_conflicts_preserve_release_blocking() -> None:
 
 def test_m1207_request_rejects_duplicate_source_artifacts_and_upstream_reuse() -> None:
     evidence = _evidence("source")
+
     def accepted(role: str) -> UpstreamDecisionReference:
         return UpstreamDecisionReference(
             decision_id=f"decision.{role}",
@@ -101,6 +102,7 @@ def test_m1207_request_rejects_duplicate_source_artifacts_and_upstream_reuse() -
             policy_version="1.0.0",
             evidence=_artifact(role),
         )
+
     context = ExecutionContext(
         request_id="request.m1207.contract",
         actor_id="actor.contract",
