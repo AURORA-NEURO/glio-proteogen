@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m06_01.canonical import canonical_request_digest
 from glio_proteogen.contracts.m06_01.v1 import (
     FormalProteinStateSchema,  # noqa: TC001
     FormalStateFeatureValue,  # noqa: TC001
+    ValidateFormalProteinStateResult,  # noqa: TC001
 )
 from glio_proteogen.contracts.m06_03.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
@@ -52,6 +53,10 @@ M0603_MAX_METRICS: Final = 64
 M0603_MAX_EVIDENCE: Final = 32
 M0603_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0603_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0603_BENCHMARK_ITERATIONS: Final = 25
+M0603_BENCHMARK_WARMUPS: Final = 1
+M0603_MEAN_BUDGET_NS: Final = 500_000_000
+M0603_P95_BUDGET_NS: Final = 750_000_000
 M0603_EVIDENCE_CLAIM: Final = (
     "Caller-declared mature-baseline evidence; issuer authority is not authenticated."
 )
@@ -176,6 +181,7 @@ class EstimateProteinAbundanceBaselineRequest(FrozenModel):
     contract_version: Literal["0.1.0-provisional"] = M0603_CONTRACT_VERSION
     request_id: Identifier
     context: ExecutionContext
+    formal_state_result: ValidateFormalProteinStateResult
     state_schema: FormalProteinStateSchema
     feature_values: tuple[FormalStateFeatureValue, ...] = Field(
         min_length=1,
@@ -190,6 +196,10 @@ class EstimateProteinAbundanceBaselineRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateProteinAbundanceBaselineRequest:
+        if self.formal_state_result.request.state_schema != self.state_schema:
+            raise ValueError("baseline request must preserve the complete M06-01 state schema")
+        if self.formal_state_result.request.values != self.feature_values:
+            raise ValueError("baseline request must preserve the complete M06-01 feature values")
         schema_features = {item.feature_id for item in self.state_schema.features}
         value_features = {item.feature_id for item in self.feature_values}
         if len(value_features) != len(self.feature_values):
@@ -253,6 +263,8 @@ class EstimateProteinAbundanceBaselineResult(FrozenModel):
 
 
 __all__ = [
+    "M0603_BENCHMARK_ITERATIONS",
+    "M0603_BENCHMARK_WARMUPS",
     "M0603_CONTRACT_VERSION",
     "M0603_EVIDENCE_CLAIM",
     "M0603_GATE",
@@ -264,10 +276,12 @@ __all__ = [
     "M0603_MAX_FEATURES",
     "M0603_MAX_METRICS",
     "M0603_MAX_PREPROCESSING_STEPS",
+    "M0603_MEAN_BUDGET_NS",
     "M0603_MODULE_ID",
     "M0603_OPERATION",
     "M0603_OUTPUT_MEDIA_TYPE",
     "M0603_OWNER",
+    "M0603_P95_BUDGET_NS",
     "M0603_PARENT",
     "M0603_SAFETY_CLASS",
     "BaselineDiagnostic",
