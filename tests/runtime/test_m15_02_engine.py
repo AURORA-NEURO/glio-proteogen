@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m15_02 import (
     ContextStratificationStatus,
     ContextValueStatus,
     StratifyContextAndSubtypeRequest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -174,7 +175,7 @@ def test_wrong_upstream_media_type_is_rejected() -> None:
     request = _request().model_dump(mode="python")
     request["upstream_result"]["media_type"] = "application/json"
     with pytest.raises(ValueError, match="M15-01"):
-        m1502.M1502Service().execute(request)
+        m1502.M1502Service().construct(request)
 
 
 def test_tampered_result_fails_replay_verification() -> None:
@@ -189,4 +190,47 @@ def test_plugin_requires_sealed_validation_token() -> None:
     validated = plugin.validate(_request())
     assert plugin.run(validated).result_id.startswith("result.m1502.")
     with pytest.raises(TypeError, match="validated request token"):
-        plugin.run(validated.model_copy() if hasattr(validated, "model_copy") else object())
+        plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_service_validation_and_preflight_reject_malformed_candidates() -> None:
+    service = m1502.M1502Service()
+    request = _request()
+    assert service.validate_request(request) == request
+    assert service.validate_request(request.model_dump(mode="python")) == request
+    with pytest.raises(TypeError, match="strict request model"):
+        service.validate_request(object())
+    with pytest.raises(m1502.M1502AuthorizationError):
+        m1502.preflight_m1502_authorization(object())
+
+
+def test_engine_rejects_non_mapping_candidate_and_deduplicates_evidence() -> None:
+    request = _request().model_copy(
+        update={"source_artifacts": (_request().upstream_result, *_request().source_artifacts)}
+    )
+    result = m1502.M1502Service().execute(request)
+    assert len(result.evidence) < len(request.source_artifacts) + 20
+
+    class _Candidate:
+        context = request.context
+
+    with pytest.raises(TypeError, match="strict request model"):
+        m1502.M1502ContextStratifierEngine().construct(_Candidate())
+
+
+def test_plugin_json_and_verify_paths_are_strict() -> None:
+    plugin = m1502.M1502Plugin(m1502.M1502Service())
+    validated = plugin.validate(_request().model_dump_json())
+    result = plugin.run(validated)
+    assert plugin.verify(result).result_id == result.result_id
+
+
+def test_replay_detects_digest_valid_but_semantically_tampered_result() -> None:
+    service = m1502.M1502Service()
+    result = service.execute(_request())
+    tampered = result.model_copy(update={"human_review_required": False})
+    tampered = tampered.model_copy(
+        update={"result_digest": result_payload_digest(tampered)}
+    )
+    with pytest.raises(m1502.M1502ReplayVerificationError):
+        service.verify(tampered)
