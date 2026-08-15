@@ -10,7 +10,9 @@
     "7465c86 feat(m08-05): close constraint replay contract",
     "e558390 feat(m08-05): implement deterministic constraint integration runtime",
     "091d677 feat(m08-05): add strict API CLI and plugin parity",
-    "db3236b test(m08-05): add evaluator matrix and deterministic benchmark"
+    "db3236b test(m08-05): add evaluator matrix and deterministic benchmark",
+    "48d5f68 test(m08-05): close adversarial coverage and JSON plugin parsing",
+    "4adc9ac docs(m08-05): publish traceability and release evidence"
   ],
   "focusedTests": {
     "count": 21,
