@@ -212,10 +212,6 @@ class TranslationHealthReport(FrozenModel):
         for assessment in self.assessments:
             if not set(assessment.signal_ids) <= known:
                 raise ValueError("drift assessment references an unknown signal")
-        if not any(item.critical for item in self.assessments) and any(
-            item.status is HealthSignalStatus.DRIFTING for item in self.assessments
-        ):
-            raise ValueError("drifting reports require a criticality decision")
         return self
 
 
@@ -235,6 +231,7 @@ class MonitorProteinRnaTranslationHealthRequest(FrozenModel):
     context: ExecutionContext
     upstream_result: ArtifactReference
     configuration: TranslationMonitoringConfiguration
+    signals: tuple[HealthSignal, ...] = Field(min_length=1, max_length=M1608_MAX_SIGNALS)
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1608_MAX_EVIDENCE
     )
