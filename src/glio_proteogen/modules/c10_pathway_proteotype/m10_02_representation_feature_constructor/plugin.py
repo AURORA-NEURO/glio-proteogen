@@ -6,16 +6,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 
 from glio_proteogen.contracts.m10_02 import (
-    M1002_MAX_CANONICAL_REQUEST_BYTES,
     ConstructProteinRnaRepresentationRequest,
     ProteinRnaRepresentationResult,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
-from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import (
-    validate_json_request,
-)
+from .engine import _validate_serialized_json_request
 
 if TYPE_CHECKING:
     from .service import (
@@ -66,8 +62,7 @@ class M1002Plugin(ModulePlugin[object, ValidatedM1002Request, ProteinRnaRepresen
     def validate(self, request: object) -> ValidatedM1002Request:
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
-            decoded = strict_json_loads(serialized, max_bytes=M1002_MAX_CANONICAL_REQUEST_BYTES)
-            typed = validate_json_request(decoded, serialized)
+            typed = _validate_serialized_json_request(serialized)
         else:
             typed = self._service.validate_request(request)
         return ValidatedM1002Request(request=typed, _seal=_TOKEN_SEAL)

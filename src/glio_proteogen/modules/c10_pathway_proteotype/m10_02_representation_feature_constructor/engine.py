@@ -103,11 +103,9 @@ class _MissingInputError(RepresentationInputError):
 
 
 def _state_text(value: object) -> str:
-    return (
-        value.value
-        if isinstance(value, (str, UpstreamDecisionState, IdentityLineageState, ConsentState))
-        else str(value)
-    )
+    if isinstance(value, (UpstreamDecisionState, IdentityLineageState, ConsentState)):
+        return value.value
+    return str(value)
 
 
 def preflight_authorization(candidate: object) -> None:
@@ -171,7 +169,28 @@ def _validate_json_request(
     decoded = strict_json_loads(serialized, max_bytes=M1002_MAX_CANONICAL_REQUEST_BYTES)
     if not isinstance(decoded, dict):
         raise _RequestJsonObjectError
-    return ConstructProteinRnaRepresentationRequest.model_validate(decoded, strict=True)
+    return _validate_decoded_json_request(decoded)
+
+
+def _validate_decoded_json_request(
+    candidate: object,
+) -> ConstructProteinRnaRepresentationRequest:
+    """Validate one already strict-parsed JSON tree without reparsing bytes."""
+
+    preflight_authorization(candidate)
+    if not isinstance(candidate, dict):
+        raise _RequestJsonObjectError
+    return ConstructProteinRnaRepresentationRequest.model_validate(candidate)
+
+
+def _validate_serialized_json_request(
+    serialized: bytes | bytearray | str,
+) -> ConstructProteinRnaRepresentationRequest:
+    """Reject duplicate/nonfinite JSON before Pydantic's strict JSON decoder."""
+
+    decoded = strict_json_loads(serialized, max_bytes=M1002_MAX_CANONICAL_REQUEST_BYTES)
+    preflight_authorization(decoded)
+    return ConstructProteinRnaRepresentationRequest.model_validate_json(serialized, strict=True)
 
 
 def _evidence(request: ConstructProteinRnaRepresentationRequest) -> tuple[EvidenceReference, ...]:
@@ -415,7 +434,10 @@ def _result(
         "limitations": limitations,
         "human_review_required": abstained,
     }
-    payload["result_digest"] = result_payload_digest(payload)
+    # Calculate against a validation-free model so nested datetime and enum
+    # serialization exactly matches the result validator's canonical boundary.
+    candidate = ProteinRnaRepresentationResult.model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(candidate)
     return ProteinRnaRepresentationResult.model_validate(payload, strict=True)
 
 
@@ -473,13 +495,15 @@ def validate_json_request(
     candidate: object,
     serialized: bytes | bytearray | str,
 ) -> ConstructProteinRnaRepresentationRequest:
-    return _validate_json_request(candidate, serialized)
+    del candidate
+    return _validate_serialized_json_request(serialized)
 
 
 __all__ = [
     "M1002RepresentationEngine",
     "RepresentationAuthorizationError",
     "RepresentationInputError",
+    "_validate_serialized_json_request",
     "construct_protein_rna_representation",
     "preflight_authorization",
     "validate_json_request",
