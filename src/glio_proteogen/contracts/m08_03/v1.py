@@ -167,6 +167,16 @@ class EstimateProteinSubtypeBaselineRequest(FrozenModel):
         feature_ids = tuple(feature.feature_id for feature in self.features)
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("baseline feature ids must be unique")
+        configuration_artifacts = (
+            self.configuration.preprocessing_artifact,
+            self.configuration.tuning_artifact,
+            self.configuration.uncertainty_artifact,
+            self.configuration.benchmark_artifact,
+        )
+        if len({artifact.artifact_id for artifact in configuration_artifacts}) != len(
+            configuration_artifacts
+        ):
+            raise ValueError("baseline configuration artifacts must be distinct")
         return self
 
 
@@ -199,6 +209,11 @@ class ProteinSubtypeBaselineResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeBaselineResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("result diagnostics must have unique identifiers")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("result findings must be unique")
         failed_diagnostics = {
             BaselineDiagnosticStatus.FAIL,
             BaselineDiagnosticStatus.NOT_EVALUABLE,
@@ -209,6 +224,7 @@ class ProteinSubtypeBaselineResult(FrozenModel):
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
                 or any(item.status in failed_diagnostics for item in self.diagnostics)
+                or self.findings
             ):
                 raise ValueError("estimated result requires supported, evaluable baseline output")
         elif (
@@ -216,6 +232,8 @@ class ProteinSubtypeBaselineResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.findings
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no estimate and explicit safe status")
         if self.result_digest != result_payload_digest(self):
