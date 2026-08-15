@@ -25,9 +25,7 @@ from glio_proteogen.contracts.m06_01.v1 import (
     ValidateFormalProteinStateResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M06-01:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M06-01:0.1.0-provisional"
 CONTRACT_VERSION: Final = M0601_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -66,6 +64,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "strict": True,
         "provisionalAbi": True,
         "abiStatus": "dossier-behavioral-brief-only",
+        "pendingOwnerConfirmation": True,
         "externalContentTraversal": False,
         "rawPayload": False,
         "identityInference": False,
