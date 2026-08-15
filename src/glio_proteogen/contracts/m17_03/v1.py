@@ -54,6 +54,8 @@ M1703_EVIDENCE_CLAIM: Final = (
     "Caller-declared M17-03 source attribution, reliability, propagation and "
     "disagreement material; issuer authority is not authenticated."
 )
+M1703_HIGH_RELIABILITY_THRESHOLD: Final = 0.75
+M1703_MODERATE_RELIABILITY_THRESHOLD: Final = 0.5
 
 
 class SourceKind(StrEnum):
@@ -106,6 +108,28 @@ class SourceContribution(FrozenModel):
     reliability_band: ReliabilityBand
     uncertainty_note: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1703_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def reliability_matches_band(self) -> SourceContribution:
+        if (
+            self.reliability_band is ReliabilityBand.HIGH
+            and self.reliability_score < M1703_HIGH_RELIABILITY_THRESHOLD
+        ):
+            raise ValueError("high reliability requires a score of at least 0.75")
+        if self.reliability_band is ReliabilityBand.MODERATE and not (
+            M1703_MODERATE_RELIABILITY_THRESHOLD
+            <= self.reliability_score
+            < M1703_HIGH_RELIABILITY_THRESHOLD
+        ):
+            raise ValueError("moderate reliability requires a score in [0.5, 0.75)")
+        if (
+            self.reliability_band is ReliabilityBand.LOW
+            and self.reliability_score >= M1703_MODERATE_RELIABILITY_THRESHOLD
+        ):
+            raise ValueError("low reliability requires a score below 0.5")
+        if self.reliability_band is ReliabilityBand.NOT_EVALUABLE and self.reliability_score != 0.0:
+            raise ValueError("not-evaluable reliability requires a zero score")
+        return self
 
 
 class DisagreementRecord(FrozenModel):
@@ -171,6 +195,14 @@ class IntegratedEvidenceObject(FrozenModel):
         source_ids = tuple(item.source_id for item in self.contributions)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source contribution ids must be unique")
+        disagreement_ids = tuple(item.disagreement_id for item in self.disagreements)
+        if len(disagreement_ids) != len(set(disagreement_ids)):
+            raise ValueError("disagreement ids must be unique")
+        propagation_ids = tuple(item.propagation_id for item in self.propagation)
+        if len(propagation_ids) != len(set(propagation_ids)):
+            raise ValueError("propagation ids must be unique")
+        if self.configuration.version != self.version:
+            raise ValueError("integrated configuration version must bind the object version")
         allowed = set(source_ids)
         for disagreement in self.disagreements:
             if not set(disagreement.source_ids) <= allowed:
@@ -223,6 +255,14 @@ class FuseVariantPeptideEvidenceRequest(FrozenModel):
             raise ValueError("request disagreement references an unknown source")
         if any(item.source_id not in allowed for item in self.propagation):
             raise ValueError("request propagation references an unknown source")
+        keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(keys) != len(set(keys)):
+            raise ValueError("request source artifact references must be unique")
+        if self.configuration.version != self.alignment_result.version:
+            raise ValueError("request configuration version must bind the alignment result")
         return self
 
 
@@ -254,6 +294,9 @@ class VariantPeptideIntegratedEvidenceResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideIntegratedEvidenceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("fusion finding ids must be unique")
         has_unsafe_source = any(
             item.reliability_band is ReliabilityBand.NOT_EVALUABLE
             for item in self.request.contributions
@@ -266,13 +309,20 @@ class VariantPeptideIntegratedEvidenceResult(FrozenModel):
                 or has_unsafe_source
             ):
                 raise ValueError("integrated result requires supported attributable sources")
+            if any(
+                item.status is DisagreementStatus.OPEN
+                for item in self.integrated_evidence.disagreements
+            ) and not self.human_review_required:
+                raise ValueError("open disagreement requires human review")
         elif (
             self.integrated_evidence is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
-        ):
+            ):
             raise ValueError("abstained result requires no integrated object and safe status")
+        if self.status is FusionStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
