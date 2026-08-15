@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -136,8 +137,11 @@ def _request(*, accepted: bool = True) -> AdjudicateComplexActivityPlausibilityR
 def test_schema_metadata_and_control_catalogue_are_locked() -> None:
     schemas = contract_json_schemas()
     assert tuple(schemas) == ("request", "output", "control", "evaluation", "conflict", "finding")
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    metadata = schemas["output"]["x-glio-contract"]
+    metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert all(
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"]
+        for schema in schemas.values()
+    )
     assert metadata["failedControlsBlockRelease"] is True
     assert metadata["negativeControlRequired"] is True
     assert metadata["conflictsPreserved"] is True
@@ -210,9 +214,7 @@ def test_result_closure_rejects_missing_evaluation_or_invalid_status() -> None:
         "human_review_required": False,
     }
     with pytest.raises(ValidationError, match="result digest"):
-        ComplexActivityPlausibilityAdjudicationResult.model_construct(**payload).model_validate(
-            payload
-        )
+        ComplexActivityPlausibilityAdjudicationResult.model_validate(payload)
     with pytest.raises(ValidationError, match="every control"):
         ComplexActivityPlausibilityAdjudicationResult.model_validate(
             {**payload, "evaluations": evaluations[:-1]}
