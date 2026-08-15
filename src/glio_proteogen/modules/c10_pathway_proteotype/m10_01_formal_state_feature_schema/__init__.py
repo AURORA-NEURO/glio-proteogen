@@ -8,6 +8,7 @@ from .engine import (
     preflight_m1001_authorization,
     validate_protein_rna_discordance_state,
 )
+from .plugin import M1001Plugin, ValidatedM1001Request
 from .service import M1001Service
 
 __all__ = [
@@ -15,7 +16,9 @@ __all__ = [
     "M1001AuthorizationError",
     "M1001FormalStateEngine",
     "M1001InputError",
+    "M1001Plugin",
     "M1001Service",
+    "ValidatedM1001Request",
     "preflight_m1001_authorization",
     "validate_protein_rna_discordance_state",
 ]
