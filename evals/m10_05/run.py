@@ -41,6 +41,8 @@ from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_05_mechanism_cons
 
 MODULE_ID: Final = "GLIO-PROTEOGEN-M10-05"
 EVALUATOR_VERSION: Final = "0.1.0-provisional"
+AUTHORITY_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+AUTHORITY_LINES: Final = "3452-3495"
 
 
 def _artifact(name: str, fill: str, media_type: str = "application/json") -> ArtifactReference:
@@ -267,6 +269,8 @@ def evaluate() -> dict[str, object]:
     return {
         "module_id": MODULE_ID,
         "evaluator_version": EVALUATOR_VERSION,
+        "authority_sha256": AUTHORITY_SHA256,
+        "authority_lines": AUTHORITY_LINES,
         "passed": passed,
         "checks": checks,
         "check_count": len(checks),

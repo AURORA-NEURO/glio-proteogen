@@ -1,0 +1,12 @@
+{
+  "deterministic": true,
+  "iterations": 10,
+  "max_ns": 1372200,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1331620,
+  "module_id": "GLIO-PROTEOGEN-M10-05",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1372200,
+  "passed": true,
+  "result_digest": "sha256:4a661448950e1b41f9dcd97cd38a4cc5ea5309906917e3cc2ad6d8725d0e3e55"
+}

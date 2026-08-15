@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-05",
+  "wheel": "glio_proteogen-0.1.0-py3-none-any.whl",
+  "wheel_sha256": "423fe3685366095e6331a027c3df3e2d1f29a51ecb5353a213db6df17e5ebcaf",
+  "wheel_bytes": 773740,
+  "sdist": "glio_proteogen-0.1.0.tar.gz",
+  "sdist_sha256": "720d0c4fa3d5a7e302ba708d84104cb77595d042afc1059ec90a8088c918630b",
+  "sdist_bytes": 1438583,
+  "schema_count": 7,
+  "isolated_import": true
+}
