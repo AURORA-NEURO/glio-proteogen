@@ -11,10 +11,11 @@ from glio_proteogen.contracts.m13_02 import (
     ContextObservation,
     ContextObservationStatus,
     MechanismApplicability,
+    MechanismCandidate,
     contract_json_schemas,
 )
 
-_SCHEMA_COUNT = 8
+_SCHEMA_COUNT = 9
 _SOURCE_ARTIFACT = {
     "artifact_id": "source-1",
     "version": "1.0.0",
@@ -32,6 +33,7 @@ def test_provisional_schemas_preserve_proteotype_context_controls() -> None:
         "observation",
         "profile",
         "mechanism",
+        "mechanism-candidate",
         "configuration",
         "policy",
         "finding",
@@ -65,3 +67,13 @@ def test_unknown_mechanism_is_not_a_negative_finding() -> None:
         rationale="The declared context is outside the supported domain.",
     )
     assert mechanism.applicability is MechanismApplicability.UNKNOWN
+
+
+def test_mechanism_candidate_rejects_duplicate_required_dimensions() -> None:
+    with pytest.raises(ValueError, match="dimensions must be unique"):
+        MechanismCandidate(
+            mechanism_id="mechanism-1",
+            label="Subtype route",
+            required_dimensions=(ContextDimension.SUBTYPE, ContextDimension.SUBTYPE),
+            rationale="Declared candidate only.",
+        )

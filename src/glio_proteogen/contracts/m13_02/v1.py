@@ -37,6 +37,9 @@ M1302_MODULE_ID: Final = "GLIO-PROTEOGEN-M13-02"
 M1302_OPERATION: Final = "stratify_proteotype_context"
 M1302_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1302_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m13-02+json"
+M1302_VARIANT_PEPTIDE_INPUT_MEDIA_TYPE: Final = (
+    "application/vnd.glio-proteogen.variant-peptide+json"
+)
 M1302_PARENT: Final = "proteotype"
 M1302_OWNER: Final = "Clinical science"
 M1302_SAFETY_CLASS: Final = "S2"
@@ -150,6 +153,24 @@ class ApplicableMechanism(FrozenModel):
         return self
 
 
+class MechanismCandidate(FrozenModel):
+    """Caller-declared mechanism route; this module evaluates support only."""
+
+    mechanism_id: Identifier
+    label: NonEmptyStr
+    required_dimensions: tuple[ContextDimension, ...] = Field(
+        min_length=1, max_length=M1302_MAX_DIMENSIONS
+    )
+    rationale: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1302_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def required_dimensions_are_unique(self) -> MechanismCandidate:
+        if len(set(self.required_dimensions)) != len(self.required_dimensions):
+            raise ValueError("mechanism candidate dimensions must be unique")
+        return self
+
+
 class ContextFinding(FrozenModel):
     finding_id: Identifier
     code: ContextFindingCode
@@ -192,6 +213,9 @@ class StratifyProteotypeContextRequest(FrozenModel):
     observations: tuple[ContextObservation, ...] = Field(
         min_length=1, max_length=M1302_MAX_OBSERVATIONS
     )
+    mechanism_candidates: tuple[MechanismCandidate, ...] = Field(
+        default=(), max_length=M1302_MAX_MECHANISMS
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1302_MAX_EVIDENCE
     )
@@ -202,15 +226,31 @@ class StratifyProteotypeContextRequest(FrozenModel):
         ids = tuple(item.observation_id for item in self.observations)
         if len(ids) != len(set(ids)):
             raise ValueError("request context observation ids must be unique")
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        observation_keys = {
+            (
+                item.source_artifact.artifact_id,
+                item.source_artifact.version,
+                item.source_artifact.digest,
+                item.source_artifact.media_type,
+            )
+            for item in self.observations
+        }
+        if not observation_keys <= source_keys:
+            raise ValueError("every observation source must be declared in source_artifacts")
+        mechanism_ids = tuple(item.mechanism_id for item in self.mechanism_candidates)
+        if len(mechanism_ids) != len(set(mechanism_ids)):
+            raise ValueError("mechanism candidate ids must be unique")
         return self
 
 
 class ProteotypeContextStratificationResult(FrozenModel):
     """Typed proteotype context and mechanisms with explicit safe failure."""
 
-    output_type: Literal["proteotype_context_stratification"] = (
-        "proteotype_context_stratification"
-    )
+    output_type: Literal["proteotype_context_stratification"] = "proteotype_context_stratification"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1302_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -243,6 +283,14 @@ class ProteotypeContextStratificationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("stratified result requires a supported context profile")
+            mechanism_ids = tuple(item.mechanism_id for item in self.applicable_mechanisms)
+            if len(mechanism_ids) != len(set(mechanism_ids)):
+                raise ValueError("result mechanism ids must be unique")
+            if any(
+                item.applicability is MechanismApplicability.ABSTAINED
+                for item in self.applicable_mechanisms
+            ):
+                raise ValueError("stratified result cannot contain abstained mechanisms")
         elif (
             self.context_profile is not None
             or self.applicable_mechanisms
@@ -273,6 +321,7 @@ __all__ = [
     "M1302_PARENT",
     "M1302_PROVISIONAL_ABI",
     "M1302_SAFETY_CLASS",
+    "M1302_VARIANT_PEPTIDE_INPUT_MEDIA_TYPE",
     "ApplicableMechanism",
     "ContextDimension",
     "ContextFinding",
@@ -281,6 +330,7 @@ __all__ = [
     "ContextObservationStatus",
     "ContextStratificationStatus",
     "MechanismApplicability",
+    "MechanismCandidate",
     "ProteotypeContextProfile",
     "ProteotypeContextStratificationResult",
     "StratifierConfiguration",

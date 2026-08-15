@@ -16,9 +16,11 @@ from glio_proteogen.contracts.m13_02.v1 import (
     M1302_PARENT,
     M1302_PROVISIONAL_ABI,
     M1302_SAFETY_CLASS,
+    M1302_VARIANT_PEPTIDE_INPUT_MEDIA_TYPE,
     ApplicableMechanism,
     ContextFinding,
     ContextObservation,
+    MechanismCandidate,
     ProteotypeContextProfile,
     ProteotypeContextStratificationResult,
     StratifierConfiguration,
@@ -26,9 +28,7 @@ from glio_proteogen.contracts.m13_02.v1 import (
     StratifyProteotypeContextRequest,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M13-02:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M13-02:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1302_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -36,6 +36,7 @@ ContractName = Literal[
     "observation",
     "profile",
     "mechanism",
+    "mechanism-candidate",
     "configuration",
     "policy",
     "finding",
@@ -46,6 +47,7 @@ _CONTRACTS: Final = {
     "observation": ContextObservation,
     "profile": ProteotypeContextProfile,
     "mechanism": ApplicableMechanism,
+    "mechanism-candidate": MechanismCandidate,
     "configuration": StratifierConfiguration,
     "policy": StratifierPolicy,
     "finding": ContextFinding,
@@ -80,6 +82,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "parentTarget": M1302_PARENT,
         "unsupportedToNegative": False,
         "outputMediaType": M1302_OUTPUT_MEDIA_TYPE,
+        "upstreamInputMediaType": M1302_VARIANT_PEPTIDE_INPUT_MEDIA_TYPE,
         "primaryArchitecture": "bayesian_graph_state_space_mechanistic_foundation_assisted",
         "alternateArchitecture": "curated_rule_enrichment_hierarchical_regression",
         "fallbackArchitecture": "orthogonal_consensus_negative_control",
