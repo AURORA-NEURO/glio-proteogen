@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m06_02 import (
     RepresentationFeatureKind,
     RepresentationObservationState,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
@@ -22,10 +23,12 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.modules.c06_protein_abundance.m06_02_representation_feature_constructor import (
     BuiltProteinRepresentation,
+    M0602Plugin,
     M0602RepresentationEngine,
     M0602Service,
     RepresentationAuthorizationError,
     RepresentationInputError,
+    RepresentationSubmission,
 )
 from tests.contract.test_m06_02_contract import _request
 
@@ -190,3 +193,25 @@ def test_authorization_rejects_withheld_consent_unresolved_identity_and_controls
 def test_strict_request_boundary_rejects_untyped_object() -> None:
     with pytest.raises((TypeError, ValueError)):
         M0602RepresentationEngine().construct(object())
+
+
+def test_plugin_parse_once_validate_token_and_safe_execution() -> None:
+    request = _request()
+    plugin = M0602Plugin()
+    submission = RepresentationSubmission(
+        canonical_json_bytes(request.model_dump(mode="json"))
+    )
+
+    validated = plugin.validate(submission)
+    built = plugin.run(validated)
+
+    assert validated.request == request
+    assert built.result.status is RepresentationConstructorStatus.CONSTRUCTED
+
+
+def test_plugin_rejects_unvalidated_token_and_invalid_submission() -> None:
+    plugin = M0602Plugin()
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(object())
+    with pytest.raises(TypeError, match="representation submission"):
+        plugin.validate(object())
