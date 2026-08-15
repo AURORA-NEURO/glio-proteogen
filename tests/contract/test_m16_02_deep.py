@@ -14,10 +14,12 @@ from glio_proteogen.contracts.m16_02 import (
     M1602_M1601_INPUT_MEDIA_TYPE,
     AlignedEvidenceBundle,
     AlignmentConfiguration,
+    AlignmentDecisionStatus,
     AlignmentDimension,
     AlignmentFindingCode,
     AlignmentLink,
     AlignmentLinkStatus,
+    DiscrepancyRecord,
     DiscrepancyResolutionStatus,
     DiscrepancySeverity,
     ProteinRnaDiscordanceAlignmentResult,
@@ -218,6 +220,65 @@ def test_bundle_closure_rejects_unknown_link_and_duplicate_findings() -> None:
                 )
             }
         )
+
+
+def test_discrepancy_resolution_and_bundle_identity_closure() -> None:
+    source = _artifact("source-resolution")
+    link = AlignmentLink(
+        link_id="link.resolution",
+        dimensions=(AlignmentDimension.SAMPLE,),
+        source_artifacts=(source,),
+        canonical_key="sample-1",
+        observed_values=("sample-1",),
+        status=AlignmentLinkStatus.ALIGNED,
+    )
+    base = AlignedEvidenceBundle(
+        bundle_id="bundle.resolution",
+        version="1.0.0",
+        links=(link,),
+        configuration=AlignmentConfiguration(
+            configuration_id="configuration.resolution",
+            version="1.0.0",
+            reference_artifact=_artifact("reference-resolution"),
+            enabled_dimensions=(AlignmentDimension.SAMPLE,),
+            conflict_policy="locked reference precedence",
+        ),
+    )
+    with pytest.raises(ValidationError, match="resolved discrepancy requires"):
+        DiscrepancyRecord(
+            discrepancy_id="discrepancy.resolution.missing",
+            dimensions=(AlignmentDimension.SAMPLE,),
+            source_link_ids=(link.link_id,),
+            description="missing resolution",
+            severity=DiscrepancySeverity.WARNING,
+            resolution_status=DiscrepancyResolutionStatus.RESOLVED,
+        )
+    with pytest.raises(ValidationError, match="open discrepancy cannot"):
+        DiscrepancyRecord(
+            discrepancy_id="discrepancy.resolution.extra",
+            dimensions=(AlignmentDimension.SAMPLE,),
+            source_link_ids=(link.link_id,),
+            description="unexpected resolution",
+            severity=DiscrepancySeverity.WARNING,
+            resolution_status=DiscrepancyResolutionStatus.OPEN,
+            resolution="must not be present",
+        )
+    with pytest.raises(ValidationError, match="alignment link ids must be unique"):
+        AlignedEvidenceBundle.model_validate(
+            base.model_dump(mode="python") | {"links": (link, link)}
+        )
+    discrepancy = {
+        "discrepancy_id": "discrepancy.duplicate",
+        "dimensions": (AlignmentDimension.SAMPLE,),
+        "source_link_ids": (link.link_id,),
+        "description": "duplicate id",
+        "severity": DiscrepancySeverity.WARNING,
+        "resolution_status": DiscrepancyResolutionStatus.OPEN,
+    }
+    with pytest.raises(ValidationError, match="discrepancy ids must be unique"):
+        AlignedEvidenceBundle.model_validate(
+            base.model_dump(mode="python") | {"discrepancies": (discrepancy, discrepancy)}
+        )
     result = M1602AlignmentEngine().reconcile(_request())
     with pytest.raises(ValidationError, match="finding codes must be unique"):
         ProteinRnaDiscordanceAlignmentResult.model_validate(
@@ -228,4 +289,29 @@ def test_bundle_closure_rejects_unknown_link_and_duplicate_findings() -> None:
                     AlignmentFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
                 )
             }
+        )
+
+
+def test_result_status_and_digest_closure_reject_invalid_transitions() -> None:
+    result = M1602AlignmentEngine().reconcile(_request())
+    with pytest.raises(ValidationError, match="identifier must be derived"):
+        ProteinRnaDiscordanceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"result_id": "result.wrong"}
+        )
+    with pytest.raises(ValidationError, match="reconciled result requires"):
+        ProteinRnaDiscordanceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"human_review_required": True}
+        )
+    review = M1602AlignmentEngine().reconcile(_request(label="warning"))
+    with pytest.raises(ValidationError, match="review result requires"):
+        ProteinRnaDiscordanceAlignmentResult.model_validate(
+            review.model_dump(mode="python") | {"human_review_required": False}
+        )
+    with pytest.raises(ValidationError, match="abstained result requires"):
+        ProteinRnaDiscordanceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"status": AlignmentDecisionStatus.ABSTAINED}
+        )
+    with pytest.raises(ValidationError, match="result digest does not match"):
+        ProteinRnaDiscordanceAlignmentResult.model_validate(
+            result.model_dump(mode="python") | {"result_digest": sha256_digest("wrong")}
         )

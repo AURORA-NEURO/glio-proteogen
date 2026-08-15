@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m16_02 import (
     AlignmentLinkStatus,
     DiscrepancyResolutionStatus,
     DiscrepancySeverity,
+    ProteinRnaDiscordanceAlignmentResult,
 )
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c16_kinophos_object_consumer.m16_02_cross_source_alignment_reconciliation import (
@@ -20,6 +21,10 @@ from glio_proteogen.modules.c16_kinophos_object_consumer.m16_02_cross_source_ali
     M1602ReplayVerificationError,
     M1602Service,
     preflight_alignment_authorization,
+    reconcile_cross_source_alignment,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer.m16_02_cross_source_alignment_reconciliation import (
+    engine as engine_module,
 )
 from tests.contract.test_m16_02_deep import _request
 
@@ -122,3 +127,59 @@ def test_engine_rejects_invalid_request_and_hostile_object() -> None:
 
     with pytest.raises(M1602AuthorizationError):
         preflight_alignment_authorization(Hostile())
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"context": None},
+        {"context": {"references": None}},
+        {"context": {"references": {"approved_configuration": None}}},
+        {
+            "context": {
+                "references": {
+                    role: {"state": "accepted"}
+                    for role in (
+                        "approved_configuration",
+                        "identity_lineage",
+                        "provenance",
+                        "consent",
+                        "quality",
+                        "support",
+                        "intended_use",
+                    )
+                }
+            }
+        },
+    ],
+)
+def test_mapping_preflight_is_fail_closed(payload: object) -> None:
+    with pytest.raises(M1602AuthorizationError):
+        preflight_alignment_authorization(payload)
+
+
+def test_public_operation_and_result_construction_failure_are_typed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert reconcile_cross_source_alignment(_request()).status is AlignmentDecisionStatus.RECONCILED
+
+    class BrokenAdapter:
+        def validate_python(self, _payload: object, *, strict: bool) -> object:
+            del strict
+            raise ValueError
+
+    monkeypatch.setattr(engine_module, "_RESULT_ADAPTER", BrokenAdapter())
+    with pytest.raises(M1602InferenceError):
+        M1602AlignmentEngine().reconcile(_request())
+
+
+def test_replay_rejects_a_deterministic_mismatch() -> None:
+    result = M1602AlignmentEngine().reconcile(_request())
+
+    class MismatchEngine(M1602AlignmentEngine):
+        def reconcile(self, request: object) -> ProteinRnaDiscordanceAlignmentResult:
+            del request
+            return M1602AlignmentEngine().reconcile(_request(label="warning"))
+
+    with pytest.raises(M1602ReplayVerificationError):
+        MismatchEngine().verify(result)
