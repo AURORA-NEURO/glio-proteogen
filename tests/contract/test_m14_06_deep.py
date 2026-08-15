@@ -381,8 +381,10 @@ def test_http_denies_controls_and_rejects_tamper(monkeypatch: pytest.MonkeyPatch
     result = M1406SensitivityEngine().infer(build_scenario_request()).model_dump(mode="json")
     result["result_digest"] = "sha256:" + "f" * 64
     assert client.post("/v1/modules/M14-06/verify", json=result).status_code == 422
+
     def deny_execute(self: object, request: object) -> object:  # noqa: ARG001
         raise M1406SensitivityAuthorizationError
+
     monkeypatch.setattr(M1406Service, "_execute_validated", deny_execute)
     assert (
         client.post(
