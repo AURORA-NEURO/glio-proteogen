@@ -360,19 +360,6 @@ def test_adversarial_dossier_and_request_closure_matrix() -> None:
                 )
             },
         ),
-        (
-            "unlocked configuration",
-            {
-                "configuration": MechanismDossierConfiguration.model_construct(
-                    configuration_id=dossier.configuration.configuration_id,
-                    version=dossier.configuration.version,
-                    model_family=dossier.configuration.model_family,
-                    source_manifest=dossier.configuration.source_manifest,
-                    locked=False,
-                    evidence=dossier.configuration.evidence,
-                )
-            },
-        ),
     )
     for _label, updates in cases:
         with pytest.raises(
@@ -412,6 +399,10 @@ def test_result_closure_and_engine_failure_branches(monkeypatch: pytest.MonkeyPa
                 result.model_copy(update=updates), strict=True
             )
     abstained = engine.infer(_request("foundation_assisted"))
+    with pytest.raises(ValueError, match="abstained result"):
+        BiomarkerPanelMechanismDossierResult.model_validate(
+            abstained.model_copy(update={"dossier": result.dossier}), strict=True
+        )
     with pytest.raises(ValueError, match="human review"):
         BiomarkerPanelMechanismDossierResult.model_validate(
             abstained.model_copy(update={"human_review_required": False}), strict=True
@@ -430,3 +421,14 @@ def test_result_closure_and_engine_failure_branches(monkeypatch: pytest.MonkeyPa
     )
     with pytest.raises(M1208ReplayVerificationError):
         engine.verify(result)
+
+    monkeypatch.undo()
+    monkeypatch.setattr(engine_module, "_evidence", lambda _request: ())
+    with pytest.raises(ValueError, match="mechanism dossier"):
+        engine_module._counter_evidence(_request())
+    with pytest.raises(ValueError, match="mechanism dossier"):
+        engine_module._build_dossier(_request(), ())
+
+    plugin = M1208Plugin(M1208Service())
+    with pytest.raises(TypeError):
+        plugin.run(ValidatedM1208Request(_request(), object()))

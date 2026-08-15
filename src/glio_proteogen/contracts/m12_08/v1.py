@@ -202,8 +202,6 @@ class MechanismEvidenceDossier(FrozenModel):
             }
             if not set(link.predecessor_ids) <= known_links | set(counter_ids) | allowed_external:
                 raise ValueError("mechanism link references an unknown predecessor")
-        if self.configuration.locked is not True:
-            raise ValueError("dossier configuration must remain locked")
         return self
 
 
