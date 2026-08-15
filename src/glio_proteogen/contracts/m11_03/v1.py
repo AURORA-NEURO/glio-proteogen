@@ -10,7 +10,7 @@ are provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -57,6 +57,11 @@ M1103_EVIDENCE_CLAIM: Final = (
     "Caller-declared M11-03 mechanistic feature evidence; issuer authority "
     "is not authenticated."
 )
+
+# Every numeric feature is a measured or derived quantity.  NaN/Inf would
+# destroy canonical replay and make an invariant appear to pass, so the
+# contract rejects them at the boundary rather than relying on serializers.
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class MechanisticFeatureKind(StrEnum):
@@ -126,9 +131,9 @@ class MechanisticFeature(FrozenModel):
     kind: MechanisticFeatureKind
     value_kind: MechanisticValueKind
     unit: NonEmptyStr
-    scalar_value: float | None = None
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    scalar_value: FiniteFloat | None = None
+    lower_bound: FiniteFloat | None = None
+    upper_bound: FiniteFloat | None = None
     category: NonEmptyStr | None = None
     lineage: MechanisticFeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1103_MAX_EVIDENCE)
@@ -163,13 +168,15 @@ class MechanisticRelation(FrozenModel):
     source_feature_id: Identifier
     target_feature_id: Identifier
     kind: MechanisticRelationKind
-    weight: float | None = None
+    weight: FiniteFloat | None = None
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1103_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def relation_is_not_self_loop(self) -> MechanisticRelation:
         if self.source_feature_id == self.target_feature_id:
             raise ValueError("mechanistic relation cannot be a self-loop")
+        if self.weight is not None and not -1.0 <= self.weight <= 1.0:
+            raise ValueError("mechanistic relation weight must be within [-1, 1]")
         return self
 
 
@@ -214,6 +221,14 @@ class MechanisticFeatureObject(FrozenModel):
             if relation.source_feature_id not in known or relation.target_feature_id not in known:
                 raise ValueError("mechanistic relation references an unknown feature")
         transformation_ids = set(self.configuration.transformation_ids)
+        if len(transformation_ids) != len(self.configuration.transformation_ids):
+            raise ValueError("configuration transformation ids must be unique")
+        negative_ids = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.configuration.negative_control_artifacts
+        )
+        if len(negative_ids) != len(set(negative_ids)):
+            raise ValueError("negative-control artifacts must be unique")
         for feature in self.features:
             if not set(feature.lineage.transformation_ids) <= transformation_ids:
                 raise ValueError("feature lineage references an unknown transformation")
@@ -243,6 +258,8 @@ class ConstructVariantPeptideMechanisticFeaturesRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> ConstructVariantPeptideMechanisticFeaturesRequest:
+        if self.request_id != self.context.request_id:
+            raise ValueError("request identifier must equal context request identifier")
         if self.upstream_result.media_type != M1103_M1102_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M11-02 upstream result")
         keys = tuple(
@@ -251,6 +268,8 @@ class ConstructVariantPeptideMechanisticFeaturesRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("source artifact references must be unique")
+        if self.configuration.locked is not True:
+            raise ValueError("mechanistic configuration must be locked")
         return self
 
 
