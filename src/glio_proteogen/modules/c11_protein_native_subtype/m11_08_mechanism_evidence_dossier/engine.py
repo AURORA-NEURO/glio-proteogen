@@ -324,6 +324,8 @@ def _closure_findings(
     missing = _REQUIRED_SOURCE_KINDS - kinds
     if missing:
         findings.append(MechanismDossierFindingCode.MISSING_SOURCE)
+    if not request.assumptions:
+        findings.append(MechanismDossierFindingCode.CHAIN_INCOMPLETE)
     link_kinds = {link.kind.value for link in request.links}
     if "mechanism" not in link_kinds or "claim_ceiling" not in link_kinds:
         findings.append(MechanismDossierFindingCode.CHAIN_INCOMPLETE)

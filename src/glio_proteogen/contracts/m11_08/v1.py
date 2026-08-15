@@ -272,17 +272,17 @@ class AssembleVariantPeptideMechanismDossierRequest(FrozenModel):
         min_length=1, max_length=M1108_MAX_SOURCES
     )
     assumptions: tuple[MechanismDossierAssumption, ...] = Field(
-        min_length=1, max_length=M1108_MAX_ASSUMPTIONS
+        default=(), max_length=M1108_MAX_ASSUMPTIONS
     )
-    links: tuple[MechanismEvidenceLink, ...] = Field(min_length=1, max_length=M1108_MAX_LINKS)
+    links: tuple[MechanismEvidenceLink, ...] = Field(default=(), max_length=M1108_MAX_LINKS)
     counter_evidence: tuple[CounterEvidenceRecord, ...] = Field(
-        min_length=1, max_length=M1108_MAX_COUNTER_EVIDENCE
+        default=(), max_length=M1108_MAX_COUNTER_EVIDENCE
     )
     validation_routes: tuple[ValidationRoute, ...] = Field(
-        min_length=1, max_length=M1108_MAX_VALIDATION_ROUTES
+        default=(), max_length=M1108_MAX_VALIDATION_ROUTES
     )
     reconstruction_steps: tuple[ReconstructionStep, ...] = Field(
-        min_length=1, max_length=M1108_MAX_RECONSTRUCTION_STEPS
+        default=(), max_length=M1108_MAX_RECONSTRUCTION_STEPS
     )
     reviewer_id: Identifier
     supersedes_result_digest: Sha256Digest | None = None
