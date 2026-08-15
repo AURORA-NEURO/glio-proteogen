@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -19,6 +21,8 @@ from glio_proteogen.contracts.m14_03 import (
     MechanisticRelation,
     MechanisticRelationKind,
     MechanisticValueKind,
+    ProteinSubtypeMechanisticFeatureResult,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -231,3 +235,78 @@ def test_public_result_is_provenance_bound_and_claims_ceiling_is_visible() -> No
     limitation_text = " ".join(item.statement for item in result.limitations)
     assert "do not infer biological mechanism" in limitation_text
     assert "kinase" not in result.model_dump_json().lower()
+
+
+def test_mapping_reconstruction_and_invalid_candidate_paths_fail_closed() -> None:
+    service = m1403.M1403Service()
+    request = _request()
+    payload = request.model_dump(mode="python")
+    assert service.construct(payload).status is MechanisticConstructionStatus.CONSTRUCTED
+    with pytest.raises(TypeError, match="strict request model or mapping"):
+        service.validate_request(42)
+
+    class _Candidate:
+        context = _context()
+
+    with pytest.raises(TypeError, match="strict request model or mapping"):
+        m1403.M1403MechanisticFeatureEngine().construct(_Candidate())
+
+    class _ExplodingMapping(Mapping[str, Any]):
+        def __getitem__(self, key: str) -> object:
+            raise RuntimeError(key)
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(())
+
+        def __len__(self) -> int:
+            return 0
+
+        def get(self, key: str, _default: object = None) -> object:
+            raise RuntimeError(key)
+
+    with pytest.raises(m1403.M1403AuthorizationError):
+        m1403.preflight_m1403_authorization(_ExplodingMapping())
+
+
+def test_duplicate_evidence_and_negative_controls_are_not_silently_accepted() -> None:
+    request = _request().model_copy(
+        update={
+            "source_artifacts": (_artifact("control-config"),),
+        }
+    )
+    result = m1403.M1403Service().construct(request)
+    assert len(result.evidence) < len(result.request.source_artifacts) + 10
+
+    duplicate_configuration = request.configuration.model_copy(
+        update={
+            "negative_control_artifacts": (
+                _artifact("same-negative"),
+                _artifact("same-negative"),
+            )
+        }
+    )
+    duplicate = request.model_copy(update={"configuration": duplicate_configuration})
+    abstained = m1403.M1403Service().construct(duplicate)
+    assert abstained.status is MechanisticConstructionStatus.ABSTAINED
+
+
+def test_plugin_descriptor_model_validation_and_service_replay_modes() -> None:
+    service = m1403.M1403Service()
+    plugin = m1403.M1403Plugin(service)
+    request = _request()
+    token = plugin.validate(request)
+    result = plugin.run(token)
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M14-03"
+    assert plugin.verify(result, replay=False).result_id == result.result_id
+
+
+def test_replay_mismatch_is_detected_after_valid_digest_reconstruction() -> None:
+    service = m1403.M1403Service()
+    result = service.construct(_request())
+    altered = result.model_copy(update={"human_review_required": False})
+    constructed = ProteinSubtypeMechanisticFeatureResult.model_construct(
+        **altered.__dict__
+    )
+    altered = altered.model_copy(update={"result_digest": result_payload_digest(constructed)})
+    with pytest.raises(m1403.M1403ReplayVerificationError):
+        service.verify(altered)
