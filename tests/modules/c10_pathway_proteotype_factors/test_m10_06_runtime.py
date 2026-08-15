@@ -14,17 +14,20 @@ from glio_proteogen.contracts.m10_06 import (
     UncertaintyComponent,
     UncertaintyDecomposition,
     UncertaintyDecompositionPolicy,
+    UncertaintyDecompositionStatus,
     UncertaintyDimension,
     UncertaintyFinding,
     UncertaintyFindingCode,
     expected_provenance,
     expected_uncertainty,
 )
-from glio_proteogen.contracts.m10_06.canonical import verify_result_digest
+from glio_proteogen.contracts.m10_06.canonical import result_payload_digest, verify_result_digest
 from glio_proteogen.kernel.models import (
     ControlRole,
     EstimateState,
     EvidenceReference,
+    SupportDecision,
+    SupportStatus,
     UncertaintyEstimate,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_06_uncertainty_decomposition import (
@@ -84,6 +87,7 @@ def test_plugin_parse_once_token_descriptor_and_forgery() -> None:
     result = plugin.run(token)
     assert result.status.value == "abstained"
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M10-06"
+    assert plugin.validate(request).request.request_id == request.request_id
     forged = ValidatedM1006UncertaintyRequest(request=request, _seal=object())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(forged)
@@ -136,6 +140,28 @@ def test_sensitivity_and_policy_coverage_closure() -> None:
             observed_coverage=0.9,
             rationale="non-evaluated coverage is forbidden",
         )
+    with pytest.raises(ValidationError):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.EVALUATED,
+            rationale="missing bounds",
+        )
+    with pytest.raises(ValidationError):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.EVALUATED,
+            lower_bound=0.8,
+            upper_bound=0.9,
+            observed_coverage=0.8,
+            rationale="below gate",
+        )
+    with pytest.raises(ValidationError):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.EVALUATED,
+            nominal_coverage=0.89,
+            lower_bound=0.85,
+            upper_bound=0.95,
+            observed_coverage=0.9,
+            rationale="wrong nominal",
+        )
     policy = build_request().policy
     assert policy.locked is True
     with pytest.raises(ValidationError):
@@ -145,6 +171,25 @@ def test_sensitivity_and_policy_coverage_closure() -> None:
             method="bad",
             nominal_coverage=0.89,
             calibration_reference=policy.calibration_reference,
+        )
+    counter = EvidenceReference(
+        reference=policy.calibration_reference,
+        role="counter_evidence",
+        claim="wrong policy role",
+    )
+    with pytest.raises(ValidationError):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.ABSTAINED,
+            rationale="wrong sensitivity role",
+            evidence=(counter,),
+        )
+    with pytest.raises(ValidationError):
+        UncertaintyDecompositionPolicy(
+            policy_id="policy.role",
+            version="0.1.0",
+            method="method",
+            calibration_reference=policy.calibration_reference,
+            evidence=(counter,),
         )
 
 
@@ -183,6 +228,14 @@ def test_evidence_roles_and_component_set_are_closed() -> None:
         model_reference=artifact,
     )
     assert len(decomposition.components) == 7
+    with pytest.raises(ValidationError):
+        UncertaintyDecomposition(
+            decomposition_id="decomposition.role",
+            components=components,
+            method="locked-statistical-estimator",
+            model_reference=artifact,
+            evidence=(counter,),
+        )
 
 
 def test_request_and_result_digest_closures_reject_mutations() -> None:
@@ -206,7 +259,96 @@ def test_request_and_result_digest_closures_reject_mutations() -> None:
         type(result).model_validate(
             result.model_dump(mode="python") | {"result_id": "wrong"}, strict=True
         )
+    with pytest.raises(ValidationError):
+        type(result).model_validate(
+            result.model_dump(mode="python") | {"request_digest": "sha256:" + "0" * 64},
+            strict=True,
+        )
+    with pytest.raises(ValidationError):
+        type(result).model_validate(
+            result.model_dump(mode="python") | {"evidence": ()}, strict=True
+        )
+    with pytest.raises(ValidationError):
+        type(result).model_validate(
+            result.model_dump(mode="python") | {"human_review_required": False}, strict=True
+        )
+    invalid_digest = result.model_dump(mode="python") | {"result_digest": "sha256:" + "1" * 64}
+    with pytest.raises(ValidationError):
+        type(result).model_validate(invalid_digest, strict=True)
     with pytest.raises(M1006UncertaintyDecompositionReplayError):
         M1006UncertaintyDecompositionEngine().verify(
             result.model_copy(update={"request_digest": "sha256:" + "0" * 64})
         )
+
+
+def test_mapping_preflight_service_validation_and_decomposed_branch() -> None:
+    request = build_request()
+    preflight_uncertainty_decomposition_authorization(request.model_dump(mode="python"))
+    assert (
+        M1006UncertaintyDecompositionService.validate_request(request).request_id
+        == request.request_id
+    )
+    result = M1006UncertaintyDecompositionService().execute(request)
+    artifact = request.policy.calibration_reference
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED, probability=0.2, rationale="calibrated estimate"
+    )
+    components = tuple(
+        UncertaintyComponent(
+            dimension=dimension,
+            estimate=estimate,
+            rationale="calibrated component",
+        )
+        for dimension in UncertaintyDimension
+    )
+    decomposition = UncertaintyDecomposition(
+        decomposition_id="decomposition.calibrated",
+        components=components,
+        method="locked-statistical-estimator",
+        model_reference=artifact,
+    )
+    sensitivity = SensitivityEnvelope(
+        status=SensitivityEnvelopeStatus.EVALUATED,
+        lower_bound=0.85,
+        upper_bound=0.95,
+        observed_coverage=0.9,
+        rationale="calibrated envelope",
+    )
+    payload = result.model_dump(mode="python")
+    payload.update(
+        status=UncertaintyDecompositionStatus.DECOMPOSED,
+        decomposition=decomposition,
+        sensitivity_envelope=sensitivity,
+        abstention_reason=None,
+        support_decision=SupportDecision(
+            status=SupportStatus.SUPPORTED,
+            reason_code="supported.calibrated",
+            rationale="calibrated support",
+        ),
+        human_review_required=False,
+    )
+    payload["result_digest"] = result_payload_digest(type(result).model_construct(**payload))
+    decomposed = type(result).model_validate(payload, strict=True)
+    assert decomposed.status is UncertaintyDecompositionStatus.DECOMPOSED
+    for update in (
+        {"status": UncertaintyDecompositionStatus.DECOMPOSED, "decomposition": None},
+        {
+            "status": UncertaintyDecompositionStatus.DECOMPOSED,
+            "decomposition": decomposition,
+            "abstention_reason": "unexpected",
+        },
+        {
+            "status": UncertaintyDecompositionStatus.DECOMPOSED,
+            "decomposition": decomposition,
+            "sensitivity_envelope": result.sensitivity_envelope,
+        },
+        {
+            "status": UncertaintyDecompositionStatus.DECOMPOSED,
+            "decomposition": decomposition,
+            "support_decision": result.support_decision,
+        },
+    ):
+        invalid = result.model_dump(mode="python") | update
+        invalid["result_digest"] = result_payload_digest(type(result).model_construct(**invalid))
+        with pytest.raises(ValidationError):
+            type(result).model_validate(invalid, strict=True)

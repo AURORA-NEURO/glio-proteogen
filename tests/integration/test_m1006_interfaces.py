@@ -10,6 +10,10 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m1006 import create_m1006_app, m1006_app
+from glio_proteogen.contracts.m10_06.canonical import result_payload_digest
+from glio_proteogen.modules.c10_pathway_proteotype_factors.m10_06_uncertainty_decomposition import (
+    M1006UncertaintyDecompositionService,
+)
 
 
 def test_api_schema_validate_and_strict_duplicate_rejection() -> None:
@@ -37,12 +41,14 @@ def test_api_decompose_verify_tamper_and_sanitized_errors() -> None:
             json=dict(decomposed.json(), abstention_reason="tampered"),
         )
         invalid = client.post("/v1/m10-06/validate", json={"request_id": "secret"})
+        invalid_decompose = client.post("/v1/m10-06/decompose", json={"request_id": "secret"})
     assert decomposed.status_code == 200
     assert decomposed.json()["status"] == "abstained"
     assert verified.status_code == 200
     assert verified.json()["verified"] is True
     assert tampered.status_code == 409
     assert invalid.status_code == 422
+    assert invalid_decompose.status_code == 422
     assert "secret" not in invalid.text
 
 
@@ -55,6 +61,22 @@ def test_api_maps_authorization_and_malformed_json() -> None:
     assert forbidden.status_code == 403
     assert malformed.status_code == 400
     assert unknown.status_code == 404
+
+
+def test_api_replay_error_and_cli_verify_error_paths(tmp_path) -> None:
+    service = M1006UncertaintyDecompositionService()
+    result = service.execute(build_request())
+    tampered = result.model_copy(update={"abstention_reason": "tampered"})
+    tampered_payload = tampered.model_dump(mode="json")
+    tampered_payload["result_digest"] = result_payload_digest(tampered)
+    with TestClient(create_m1006_app()) as client:
+        rejected = client.post("/v1/m10-06/verify", json=tampered_payload)
+    assert rejected.status_code == 409
+    result_path = tmp_path / "tampered.json"
+    result_path.write_text(json.dumps(tampered_payload), encoding="utf-8")
+    cli_result = CliRunner().invoke(m1006_app, ["verify", str(result_path)])
+    assert cli_result.exit_code == 1
+    assert "verification failed" in cli_result.output
 
 
 def test_cli_validate_decompose_verify_and_export_schema(tmp_path) -> None:
