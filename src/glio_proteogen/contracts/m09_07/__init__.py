@@ -1,10 +1,11 @@
-"""Public provisional M09-07 calibration contracts."""
+"""Provisional M09-07 calibration/selective-prediction contracts."""
 
 from glio_proteogen.contracts.m09_07.canonical import (
     canonical_request_digest,
     normalized_request,
     normalized_result_payload,
     result_payload_digest,
+    verify_result_replay,
 )
 from glio_proteogen.contracts.m09_07.schema import (
     CONTRACT_VERSION,
@@ -25,4 +26,5 @@ __all__ = [
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_result_replay",
 ]

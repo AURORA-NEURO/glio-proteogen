@@ -1,8 +1,8 @@
 """Provisional M09-07 calibration and selective-prediction contracts.
 
 The dossier specifies scoped calibration, support thresholds, OOD checks, and
-abstention, but does not freeze the public ABI, metrics, or calibration
-catalogue.  These symbols are reviewable scaffolding only.
+abstention, but does not freeze the M09-06 handoff ABI, calibration method,
+operation, endpoint, or media type.  This is reviewable scaffolding only.
 """
 
 from __future__ import annotations
@@ -18,6 +18,9 @@ from glio_proteogen.contracts.m09_07.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -29,6 +32,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -42,18 +46,20 @@ M0907_OWNER: Final = "Data engineering"
 M0907_SAFETY_CLASS: Final = "S2"
 M0907_GATE: Final = "G3"
 M0907_PROVISIONAL_ABI: Final = True
-M0907_MAX_PREDICTION_SET: Final = 256
-M0907_MAX_DIAGNOSTICS: Final = 256
+M0907_MAX_PREDICTION_SET: Final = 128
+M0907_MAX_DIAGNOSTICS: Final = 128
 M0907_MAX_EVIDENCE: Final = 64
-M0907_MAX_SCOPES: Final = 128
+M0907_MAX_SCOPES: Final = 64
 M0907_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0907_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0907_NOMINAL_COVERAGE: Final = 0.9
-M0907_MIN_COVERAGE: Final = 0.85
-M0907_MAX_COVERAGE: Final = 0.95
+M0907_COVERAGE_FLOOR: Final = 0.85
+M0907_COVERAGE_CEILING: Final = 0.95
+M0907_DEFAULT_CALIBRATION_ERROR_CEILING: Final = 0.15
+M0907_DEFAULT_SUBGROUP_DISPARITY_CEILING: Final = 0.10
 M0907_EVIDENCE_CLAIM: Final = (
-    "Caller-declared M09-06 uncertainty and calibration evidence; issuer authority "
-    "is not authenticated."
+    "Caller-declared M09-06 uncertainty and calibration evidence; "
+    "issuer authority is not authenticated."
 )
 
 
@@ -80,6 +86,10 @@ class CalibrationFindingCode(StrEnum):
     OOD_UNSUPPORTED = "ood_unsupported"
     SUPPORT_THRESHOLD_NOT_MET = "support_threshold_not_met"
     SUBGROUP_DISPARITY = "subgroup_disparity"
+    CALIBRATION_ERROR_EXCEEDED = "calibration_error_exceeded"
+    COVERAGE_OUT_OF_BOUNDS = "coverage_out_of_bounds"
+    MISSING_CANDIDATE = "missing_candidate"
+    SCOPE_NOT_SUPPORTED = "scope_not_supported"
 
 
 class CalibrationScope(FrozenModel):
@@ -93,17 +103,28 @@ class CalibrationScope(FrozenModel):
 
 
 class CalibrationConfiguration(FrozenModel):
-    """Locked calibration and selective-support policy."""
+    """Locked calibration and selective support policy."""
 
     configuration_id: Identifier
     version: SemanticVersion
     method: CalibrationMethod
     scopes: tuple[CalibrationScope, ...] = Field(
-        min_length=1, max_length=M0907_MAX_SCOPES
+        min_length=1,
+        max_length=M0907_MAX_SCOPES,
     )
     nominal_coverage: float = Field(default=M0907_NOMINAL_COVERAGE, ge=0.0, le=1.0)
     support_threshold: float = Field(ge=0.0, le=1.0)
     ood_threshold: float = Field(ge=0.0, le=1.0)
+    calibration_error_ceiling: float = Field(
+        default=M0907_DEFAULT_CALIBRATION_ERROR_CEILING,
+        ge=0.0,
+        le=1.0,
+    )
+    subgroup_disparity_ceiling: float = Field(
+        default=M0907_DEFAULT_SUBGROUP_DISPARITY_CEILING,
+        ge=0.0,
+        le=1.0,
+    )
     calibration_artifact: ArtifactReference
     benchmark_artifact: ArtifactReference
     locked: Literal[True] = True
@@ -116,22 +137,53 @@ class CalibrationConfiguration(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("calibration scopes must be unique")
-        if self.nominal_coverage != M0907_NOMINAL_COVERAGE:
-            raise ValueError("provisional selective coverage target must be nominal 90 percent")
         return self
 
 
 class CalibratedEstimate(FrozenModel):
-    predicted_complex_activity: NonEmptyStr
+    predicted_subtype: NonEmptyStr
     score: float = Field(ge=0.0, le=1.0)
     calibrated_confidence: float = Field(ge=0.0, le=1.0)
     calibration_reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0907_MAX_EVIDENCE)
 
 
+class CalibrationCandidate(FrozenModel):
+    """Caller-declared candidate produced by the upstream uncertainty service.
+
+    The candidate is never treated as authenticated truth.  M09-07 only
+    applies its deterministic gate to these declared diagnostics and preserves
+    the original artifact references in the result evidence.
+    """
+
+    site: NonEmptyStr
+    platform: NonEmptyStr
+    disease_class: NonEmptyStr
+    subgroup: NonEmptyStr
+    predicted_subtype: NonEmptyStr
+    score: float = Field(ge=0.0, le=1.0)
+    calibrated_confidence: float = Field(ge=0.0, le=1.0)
+    labels: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M0907_MAX_PREDICTION_SET)
+    observed_coverage: float = Field(ge=0.0, le=1.0)
+    calibration_error: float = Field(ge=0.0, le=1.0)
+    support_score: float = Field(ge=0.0, le=1.0)
+    ood_score: float = Field(ge=0.0, le=1.0)
+    subgroup_disparity: float = Field(ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0907_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def labels_are_unique(self) -> CalibrationCandidate:
+        if len(self.labels) != len(set(self.labels)):
+            raise ValueError("candidate prediction-set labels must be unique")
+        if self.predicted_subtype not in self.labels:
+            raise ValueError("candidate estimate must be contained in prediction set")
+        return self
+
+
 class PredictionSet(FrozenModel):
     labels: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M0907_MAX_PREDICTION_SET
+        min_length=1,
+        max_length=M0907_MAX_PREDICTION_SET,
     )
     nominal_coverage: float = Field(ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0907_MAX_EVIDENCE)
@@ -147,10 +199,24 @@ class CalibrationDiagnostic(FrozenModel):
     diagnostic_id: Identifier
     status: CalibrationDiagnosticStatus
     metric_name: NonEmptyStr
-    metric_value: float | None = Field(default=None, ge=0.0, le=1.0)
+    metric_value: float | None = None
     subgroup: NonEmptyStr | None = None
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0907_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def metric_matches_status(self) -> CalibrationDiagnostic:
+        if (
+            self.status is CalibrationDiagnosticStatus.NOT_EVALUABLE
+            and self.metric_value is not None
+        ):
+            raise ValueError("non-evaluable diagnostics cannot claim a metric value")
+        if (
+            self.status is not CalibrationDiagnosticStatus.NOT_EVALUABLE
+            and self.metric_value is None
+        ):
+            raise ValueError("evaluated diagnostics require a finite metric value")
+        return self
 
 
 class CalibrateComplexActivitySelectivePredictionRequest(FrozenModel):
@@ -162,8 +228,10 @@ class CalibrateComplexActivitySelectivePredictionRequest(FrozenModel):
     context: ExecutionContext
     uncertainty_result: ArtifactReference
     configuration: CalibrationConfiguration
+    candidate: CalibrationCandidate | None = None
     source_artifacts: tuple[ArtifactReference, ...] = Field(
-        min_length=1, max_length=M0907_MAX_EVIDENCE
+        min_length=1,
+        max_length=M0907_MAX_EVIDENCE,
     )
     supersedes_result_digest: Sha256Digest | None = None
 
@@ -171,6 +239,14 @@ class CalibrateComplexActivitySelectivePredictionRequest(FrozenModel):
     def request_is_bound(self) -> CalibrateComplexActivitySelectivePredictionRequest:
         if self.uncertainty_result.media_type != M0907_UNCERTAINTY_MEDIA_TYPE:
             raise ValueError("calibration request must bind the provisional M09-06 result")
+        if self.configuration.nominal_coverage != M0907_NOMINAL_COVERAGE:
+            raise ValueError("provisional selective coverage target must be nominal 90 percent")
+        artifact_keys = tuple(
+            (artifact.artifact_id, artifact.version, artifact.digest, artifact.media_type)
+            for artifact in self.source_artifacts
+        )
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("source artifact references must be unique")
         return self
 
 
@@ -189,7 +265,8 @@ class ComplexActivitySelectivePredictionResult(FrozenModel):
     estimate: CalibratedEstimate | None = None
     prediction_set: PredictionSet | None = None
     diagnostics: tuple[CalibrationDiagnostic, ...] = Field(
-        min_length=1, max_length=M0907_MAX_DIAGNOSTICS
+        min_length=1,
+        max_length=M0907_MAX_DIAGNOSTICS,
     )
     findings: tuple[CalibrationFindingCode, ...] = Field(default=(), max_length=32)
     abstention_reason: NonEmptyStr | None = None
@@ -210,6 +287,11 @@ class ComplexActivitySelectivePredictionResult(FrozenModel):
             CalibrationDiagnosticStatus.FAIL,
             CalibrationDiagnosticStatus.NOT_EVALUABLE,
         }
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("diagnostic identifiers must be unique")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("calibration findings must be unique")
         if self.status is CalibrationStatus.CALIBRATED:
             if (
                 self.estimate is None
@@ -227,23 +309,124 @@ class ComplexActivitySelectivePredictionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no prediction and explicit safe status")
+        if self.status is CalibrationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("provisional abstention requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
 
 
+def expected_uncertainty() -> UncertaintyProfile:
+    """Return explicit non-estimable uncertainty for safe provisional abstention."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.NOT_ESTIMABLE,
+        rationale="The provisional M09-07 scaffold has no owner-confirmed calibration.",
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Selective coverage and subgroup disparity are not claimed before benchmark lock.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: CalibrateComplexActivitySelectivePredictionRequest,
+    request_digest: Sha256Digest,
+    configuration_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project all seven caller controls into module-local provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M0907_MODULE_ID,
+        module_version=M0907_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(request_digest, request.uncertainty_result.digest),
+        configuration_digest=configuration_digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
+
+
 __all__ = [
     "M0907_CONTRACT_VERSION",
+    "M0907_COVERAGE_CEILING",
+    "M0907_COVERAGE_FLOOR",
+    "M0907_DEFAULT_CALIBRATION_ERROR_CEILING",
+    "M0907_DEFAULT_SUBGROUP_DISPARITY_CEILING",
     "M0907_EVIDENCE_CLAIM",
     "M0907_GATE",
     "M0907_MAX_CANONICAL_REQUEST_BYTES",
     "M0907_MAX_CANONICAL_RESULT_BYTES",
-    "M0907_MAX_COVERAGE",
     "M0907_MAX_DIAGNOSTICS",
     "M0907_MAX_EVIDENCE",
     "M0907_MAX_PREDICTION_SET",
     "M0907_MAX_SCOPES",
-    "M0907_MIN_COVERAGE",
     "M0907_MODULE_ID",
     "M0907_NOMINAL_COVERAGE",
     "M0907_OPERATION",
@@ -255,6 +438,7 @@ __all__ = [
     "M0907_UNCERTAINTY_MEDIA_TYPE",
     "CalibrateComplexActivitySelectivePredictionRequest",
     "CalibratedEstimate",
+    "CalibrationCandidate",
     "CalibrationConfiguration",
     "CalibrationDiagnostic",
     "CalibrationDiagnosticStatus",
@@ -264,4 +448,6 @@ __all__ = [
     "CalibrationStatus",
     "ComplexActivitySelectivePredictionResult",
     "PredictionSet",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
