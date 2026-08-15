@@ -95,6 +95,9 @@ def test_cli_schema_validation_and_estimate_are_canonical(tmp_path) -> None:
     all_schema = runner.invoke(m0703_app, ["export-schema", "all"])
     assert all_schema.exit_code == 0
     assert set(json.loads(all_schema.stdout)) == set(contract_json_schemas())
+    single_schema = runner.invoke(m0703_app, ["export-schema", "request"])
+    assert single_schema.exit_code == 0
+    assert json.loads(single_schema.stdout)["x-glio-contract"]["provisionalAbi"] is True
     request_path = tmp_path / "request.json"
     request_path.write_bytes(canonical_json_bytes(request().model_dump(mode="json")))
     validated = runner.invoke(m0703_app, ["validate", str(request_path)])
@@ -122,3 +125,7 @@ def test_cli_unknown_schema_duplicate_and_auth_fail_closed(tmp_path) -> None:
     )
     denied = runner.invoke(m0703_app, ["estimate", str(denied_path)])
     assert denied.exit_code == _CLI_AUTH_ERROR
+    invalid_path = tmp_path / "invalid.json"
+    invalid_path.write_text('{"operation":"wrong"}', encoding="utf-8")
+    invalid = runner.invoke(m0703_app, ["estimate", str(invalid_path)])
+    assert invalid.exit_code == _CLI_CONTRACT_ERROR
