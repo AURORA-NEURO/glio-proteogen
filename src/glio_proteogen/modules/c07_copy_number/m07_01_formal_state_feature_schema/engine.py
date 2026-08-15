@@ -320,7 +320,10 @@ def _build_result(request: ValidateCopyNumberStateRequest) -> ValidateCopyNumber
     hard_violation = any(
         declared_severity[item] is CopyNumberInvariantSeverity.ERROR for item in violated
     )
-    if hard_violation:
+    warning_violation = any(
+        declared_severity[item] is CopyNumberInvariantSeverity.WARNING for item in violated
+    )
+    if hard_violation or warning_violation:
         status = CopyNumberValidationStatus.INVALID
         support_status = SupportStatus.LIMITED
         rationale = "one or more error-severity formal invariants were violated"
