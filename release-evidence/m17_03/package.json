@@ -4,22 +4,22 @@
   "builder": "hatchling",
   "wheel": {
     "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
-    "bytes": 897893,
-    "sha256": "5827c6aae8183d0ea94a53a5059ff4d1bddfe96d6006398016006f95b103cc7d"
+    "bytes": 749874,
+    "sha256": "1af2bb3858d7bd531b4b393a7c1322258b40cc40fb14135dc6791ed73eab6494"
   },
   "sdist": {
     "path": "dist/glio_proteogen-0.1.0.tar.gz",
-    "bytes": 2960939,
-    "sha256": "0ae387502c7691dbc283d00f4519bc395b7ecb99efdba9c47d5a9bfc9f822710"
+    "bytes": 2904493,
+    "sha256": "99242eaaf3def4166b1cc3014561ca8b99518237b3c290469bcb3c7e68aa157f"
   },
   "artifacts": [
     {
       "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
-      "sha256": "5827c6aae8183d0ea94a53a5059ff4d1bddfe96d6006398016006f95b103cc7d"
+      "sha256": "1af2bb3858d7bd531b4b393a7c1322258b40cc40fb14135dc6791ed73eab6494"
     },
     {
       "path": "dist/glio_proteogen-0.1.0.tar.gz",
-      "sha256": "0ae387502c7691dbc283d00f4519bc395b7ecb99efdba9c47d5a9bfc9f822710"
+      "sha256": "99242eaaf3def4166b1cc3014561ca8b99518237b3c290469bcb3c7e68aa157f"
     }
   ],
   "isolated_import": {
