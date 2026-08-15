@@ -1,4 +1,4 @@
-"""Provisional M15-05 complex-activity evolution evaluation namespace."""
+"""Provisional M15-05 longitudinal evolution evaluation namespace."""
 
 ABI_STATUS = "provisional-dossier-behavioral-brief-only"
 MODULE_ID = "GLIO-PROTEOGEN-M15-05"
