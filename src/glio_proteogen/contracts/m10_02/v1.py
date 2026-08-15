@@ -196,6 +196,46 @@ class CovariateDefinition(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
 
 
+class RepresentationInputFeature(FrozenModel):
+    """Caller-declared bounded feature value consumed by the constructor.
+
+    The constructor never reads external artifact bytes.  These values are a
+    replayable, content-addressed input view and remain invalid unless their
+    state and value shape agree exactly.
+    """
+
+    feature_id: Identifier
+    value_kind: RepresentationFeatureValueKind
+    state: RepresentationMissingness
+    unit: NonEmptyStr
+    scalar_value: float | None = None
+    category: NonEmptyStr | None = None
+    vector: tuple[float, ...] = Field(default=(), max_length=4_096)
+
+    @model_validator(mode="after")
+    def input_value_shape_is_closed(self) -> RepresentationInputFeature:
+        present = sum(
+            (
+                self.scalar_value is not None,
+                self.category is not None,
+                bool(self.vector),
+            )
+        )
+        if self.state is RepresentationMissingness.OBSERVED:
+            if present != 1:
+                raise ValueError("observed input feature requires exactly one value")
+            expected = {
+                RepresentationFeatureValueKind.SCALAR: self.scalar_value is not None,
+                RepresentationFeatureValueKind.CATEGORICAL: self.category is not None,
+                RepresentationFeatureValueKind.VECTOR: bool(self.vector),
+            }[self.value_kind]
+            if not expected:
+                raise ValueError("input value does not match its declared value kind")
+        elif present:
+            raise ValueError("non-observed input feature cannot carry a value")
+        return self
+
+
 class RepresentationConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
@@ -344,6 +384,9 @@ class ConstructProteinRnaRepresentationRequest(FrozenModel):
     context: ExecutionContext
     formal_state_schema: ArtifactReference
     configuration: RepresentationConfiguration
+    input_features: tuple[RepresentationInputFeature, ...] = Field(
+        min_length=1, max_length=M1002_MAX_FEATURES
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1002_MAX_EVIDENCE
     )
@@ -359,6 +402,28 @@ class ConstructProteinRnaRepresentationRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("source artifact references must be unique")
+        feature_ids = tuple(item.feature_id for item in self.input_features)
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("input feature identifiers must be unique")
+        input_ids = set(feature_ids)
+        output_ids = {
+            feature_id
+            for transformation in self.configuration.transformations
+            for feature_id in transformation.output_feature_ids
+        }
+        if not output_ids:
+            raise ValueError("configuration must declare at least one output feature")
+        if any(
+            feature_id not in input_ids
+            for transformation in self.configuration.transformations
+            for feature_id in transformation.input_feature_ids
+        ):
+            raise ValueError("transformation references an unknown input feature")
+        if len(output_ids) != sum(
+            len(transformation.output_feature_ids)
+            for transformation in self.configuration.transformations
+        ):
+            raise ValueError("transformation output feature identifiers must be globally unique")
         return self
 
 
@@ -455,6 +520,7 @@ __all__ = [
     "RepresentationFeatureValueKind",
     "RepresentationMethod",
     "RepresentationMissingness",
+    "RepresentationInputFeature",
     "ScalingMethod",
     "ScalingPolicy",
     "TransformationStep",

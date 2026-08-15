@@ -5,6 +5,9 @@ import pytest
 from glio_proteogen.contracts.m10_02 import (
     M1002_OUTPUT_MEDIA_TYPE,
     M1002_PROVISIONAL_ABI,
+    RepresentationInputFeature,
+    RepresentationFeatureValueKind,
+    RepresentationMissingness,
     RepresentationMethod,
     TransformationStep,
     contract_json_schemas,
@@ -37,3 +40,22 @@ def test_fitted_transformation_requires_explicit_fit_artifact() -> None:
             fit_scope="training_only",
         )
     assert RepresentationMethod.ELASTIC_NET_CONSEQUENCE.value == "elastic_net_consequence"
+
+
+def test_input_feature_rejects_mismatched_value_kind_and_missing_value_payload() -> None:
+    with pytest.raises(ValueError, match="declared value kind"):
+        RepresentationInputFeature(
+            feature_id="protein.a",
+            value_kind=RepresentationFeatureValueKind.CATEGORICAL,
+            state=RepresentationMissingness.OBSERVED,
+            unit="log2_ratio",
+            scalar_value=1.0,
+        )
+    with pytest.raises(ValueError, match="cannot carry a value"):
+        RepresentationInputFeature(
+            feature_id="protein.a",
+            value_kind=RepresentationFeatureValueKind.SCALAR,
+            state=RepresentationMissingness.UNSUPPORTED,
+            unit="log2_ratio",
+            scalar_value=1.0,
+        )
