@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Final, cast
 
-# ruff: noqa: E501, PLR2004, TRY003, TRY004, T201
+# ruff: noqa: PLR2004, TRY003, TRY004, T201
 
 ROOT: Final = Path(__file__).parents[1]
 EVIDENCE: Final = ROOT / "release-evidence" / "m16_01"
