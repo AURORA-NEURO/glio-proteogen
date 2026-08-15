@@ -217,7 +217,7 @@ def test_authorization_runs_before_typed_traversal() -> None:
         M1104MechanismEngine().infer(Exploding())
 
 
-def test_replay_and_tamper_detection() -> None:
+def test_replay_and_tamper_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     engine = M1104MechanismEngine()
     result = engine.infer(build_scenario_request())
     assert engine.verify(result) == result
@@ -233,12 +233,23 @@ def test_replay_and_tamper_detection() -> None:
     finally:
         engine_module.result_payload_digest = original_digest
 
+    original_infer = engine_module.M1104MechanismEngine.infer
+    monkeypatch.setattr(
+        engine_module.M1104MechanismEngine,
+        "infer",
+        lambda self, request: original_infer(self, build_scenario_request("state:a:Label:active")),
+    )
+    with pytest.raises(M1104ReplayVerificationError):
+        engine.verify(result)
+
     assert (
         engine_module.infer_variant_peptide_mechanism(build_scenario_request()).status
         is MechanismInferenceStatus.INFERRED
     )
     with pytest.raises(ValueError):
         engine_module._decimal("not-a-number")
+    with pytest.raises(ValueError):
+        engine_module._decimal("2")
 
 
 def test_plugin_is_parse_once_and_token_bound() -> None:
@@ -255,6 +266,7 @@ def test_plugin_is_parse_once_and_token_bound() -> None:
     assert plugin.verify(plugin.run(token)).status is MechanismInferenceStatus.INFERRED
     with pytest.raises(ValueError):
         plugin.validate("{")
+    assert plugin.validate(request).request == request
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M11-04"
 
 
@@ -292,6 +304,9 @@ def test_http_schema_infer_verify_and_sanitized_errors() -> None:
         ).status_code
         == 422
     )
+    invalid = request.model_dump(mode="json")
+    invalid["request_id"] = 1
+    assert client.post("/v1/modules/M11-04/mechanism", json=invalid).status_code == 422
 
 
 def test_http_denies_controls_and_rejects_tamper() -> None:
@@ -301,6 +316,19 @@ def test_http_denies_controls_and_rejects_tamper() -> None:
         client.post("/v1/modules/M11-04/mechanism", json=denied.model_dump(mode="json")).status_code
         == 403
     )
+
+
+def test_http_service_authorization_failure_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
+    def denied(self: object, request: object) -> object:  # noqa: ARG001
+        raise M1104MechanismAuthorizationError
+
+    monkeypatch.setattr(M1104Service, "_execute_validated", denied)
+    client = TestClient(app)
+    response = client.post(
+        "/v1/modules/M11-04/mechanism",
+        json=build_scenario_request().model_dump(mode="json"),
+    )
+    assert response.status_code == 403
     result = M1104MechanismEngine().infer(build_scenario_request()).model_dump(mode="json")
     result["result_digest"] = "sha256:" + "f" * 64
     assert client.post("/v1/modules/M11-04/verify", json=result).status_code == 422
@@ -320,6 +348,7 @@ def test_cli_export_infer_verify_and_no_overwrite(tmp_path: Path) -> None:
     assert runner.invoke(m1104_app, ["export-schema", "request"]).exit_code == 0
     inferred = runner.invoke(m1104_app, ["infer", str(request_path), "--output", str(result_path)])
     assert inferred.exit_code == 0
+    assert runner.invoke(m1104_app, ["infer", str(request_path)]).exit_code == 0
     assert (
         runner.invoke(
             m1104_app, ["infer", str(request_path), "--output", str(result_path)]
@@ -327,6 +356,8 @@ def test_cli_export_infer_verify_and_no_overwrite(tmp_path: Path) -> None:
         != 0
     )
     assert runner.invoke(m1104_app, ["verify", str(result_path)]).exit_code == 0
+    result_path.write_text("{", encoding="utf-8")
+    assert runner.invoke(m1104_app, ["verify", str(result_path)]).exit_code != 0
     assert runner.invoke(m1104_app, ["export-schema", "bad"]).exit_code == 2
 
 
