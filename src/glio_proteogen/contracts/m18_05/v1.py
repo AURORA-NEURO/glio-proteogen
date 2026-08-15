@@ -129,8 +129,12 @@ class HumanReviewWorkspace(FrozenModel):
             raise ValueError("workspace must include every required section kind")
         if set(self.default_section_order) != set(section_ids):
             raise ValueError("default section order must include every section exactly once")
-        if self.default_section_order[0] not in section_ids:
-            raise ValueError("default section order must begin with a known section")
+        section_kinds = {item.section_id: item.kind for item in self.sections}
+        if (
+            section_kinds.get(self.default_section_order[0])
+            is not WorkspaceSectionKind.TASK_SUMMARY
+        ):
+            raise ValueError("default section order must begin with task summary")
         return self
 
 
@@ -155,6 +159,7 @@ class PresentBiomarkerPanelReviewWorkspaceRequest(FrozenModel):
     )
     next_actions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1805_MAX_NEXT_ACTIONS)
     configuration: WorkspaceConfiguration
+    support_decision: SupportDecision
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1805_MAX_EVIDENCE
     )
@@ -169,6 +174,18 @@ class PresentBiomarkerPanelReviewWorkspaceRequest(FrozenModel):
             raise ValueError("request workspace section ids must be unique")
         if set(self.default_section_order) != set(section_ids):
             raise ValueError("request default order must cover every section")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request source artifacts must be unique")
+        if self.upstream_result.artifact_id not in set(artifact_ids):
+            raise ValueError("upstream result must be listed in source artifacts")
+        source_ids = set(artifact_ids)
+        if any(
+            artifact.artifact_id not in source_ids
+            for section in self.sections
+            for artifact in section.source_artifacts
+        ):
+            raise ValueError("workspace section references an unknown source artifact")
         return self
 
 
@@ -212,6 +229,12 @@ class BiomarkerPanelReviewWorkspaceResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no workspace and safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        finding_codes = tuple(finding.code for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("workspace finding ids must be unique")
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("workspace finding codes must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
