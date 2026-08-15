@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m0803_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,13 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m08_03 import (
+    M0803_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinSubtypeBaselineRequest,
+)
+from glio_proteogen.contracts.m08_03 import (
+    ContractName as M0803ContractName,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +308,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
+    M0803BaselineAuthorizationError,
+    M0803Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0803_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +448,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m0803_app = typer.Typer(
+    no_args_is_help=True,
+    help="M08-03 provisional mature baseline estimator.",
+)
+app.add_typer(m0803_app, name="protein-subtype-baseline")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -541,6 +561,10 @@ ProteoformRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+M0803OutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M08-03 canonical result JSON path."),
 ]
 UncheckedPackageArgument = Annotated[
     Path,
@@ -776,7 +800,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](
+def _load_request[RequestT](  # noqa: C901 - one sanitized boundary for all request sources.
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -810,6 +834,8 @@ def _load_request[RequestT](
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
+        raise
+    except M0803BaselineAuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3380,6 +3406,40 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0803_app.command("export-schema")
+def export_m0803_schema(contract: M0803ContractName) -> None:
+    """Export one provisional M08-03 JSON Schema 2020-12 contract."""
+
+    typer.echo(json.dumps(_m0803_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m0803_app.command("estimate")
+def estimate_m0803_baseline(
+    request: RequestArgument,
+    output: M0803OutputOption,
+) -> None:
+    """Estimate one transparent protein-subtype baseline and publish its result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinSubtypeBaselineRequest),
+            None,
+            M0803_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0803_json_request,
+        )
+        result = M0803Service().execute(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except M0803BaselineAuthorizationError as error:
+        typer.echo(f"protein-subtype baseline estimation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"protein-subtype baseline estimation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
