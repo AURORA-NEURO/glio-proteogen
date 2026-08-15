@@ -26,12 +26,15 @@ def _sorted(value: tuple[Any, ...] | list[Any]) -> list[Any]:
 def normalized_manifest(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document = _dump(value)
     for name in (
+        "artifact_digests",
         "stage_result_digests",
         "software_versions",
         "reference_versions",
         "transformation_digests",
         "quality_decision_ids",
         "reproducibility_evidence",
+        "transformations",
+        "quality_decisions",
     ):
         if name in document:
             document[name] = _sorted(document[name])
@@ -61,6 +64,7 @@ def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document["upstream_result_digests"] = sorted(document["upstream_result_digests"])
     document["manifest"] = normalized_manifest(document["manifest"])
     document["policy"] = normalized_policy(document["policy"])
+    document["signature"]["claimed_manifest_digest"] = manifest_digest(document["manifest"])
     return document
 
 

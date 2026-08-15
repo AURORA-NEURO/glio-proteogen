@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m05_08 import (
     PtmLocalizationReleaseArtifactRole,
     PtmLocalizationReleaseManifest,
     PtmLocalizationReleasePolicy,
+    PtmLocalizationReleaseQualityDecision,
     PtmLocalizationReleaseSignature,
     manifest_digest,
 )
@@ -23,9 +24,9 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
-    SupportStatus,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging import (
     M0508Plugin,
@@ -83,12 +84,21 @@ def _request() -> BuildPtmLocalizationReleaseRequest:
         manifest_id="manifest.m0508.smoke",
         release_id="release.m0508.smoke",
         release_version="1.0.0",
+        artifact_digests=( _reference("parent").digest,),
         stage_result_digests=(stage_digest,),
         software_versions=("1.0.0",),
         reference_versions=("1.0.0",),
         quality_decision_ids=("decision.m0508.quality",),
         support_status=SupportStatus.SUPPORTED,
         reproducibility_evidence=(_reference("reproduction"),),
+        quality_decisions=(
+            PtmLocalizationReleaseQualityDecision(
+                decision_id="decision.m0508.quality",
+                status="accepted",
+                evidence=_reference("quality-decision"),
+                rationale="fixture quality decision",
+            ),
+        ),
     )
     return BuildPtmLocalizationReleaseRequest(
         context=context,

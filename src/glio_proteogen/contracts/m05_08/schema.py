@@ -21,9 +21,11 @@ from glio_proteogen.contracts.m05_08.v1 import (
     PtmLocalizationReleaseArtifact,
     PtmLocalizationReleaseManifest,
     PtmLocalizationReleasePolicy,
+    PtmLocalizationReleaseQualityDecision,
     PtmLocalizationReleaseQuarantine,
     PtmLocalizationReleaseResult,
     PtmLocalizationReleaseSignature,
+    PtmLocalizationReleaseTransformation,
     PtmLocalizationReleaseVerification,
 )
 
@@ -40,6 +42,8 @@ PtmLocalizationReleaseContractName = Literal[
     "signature",
     "quarantine",
     "verification",
+    "transformation",
+    "quality-decision",
 ]
 ContractName = PtmLocalizationReleaseContractName
 
@@ -52,6 +56,8 @@ _CONTRACTS: Final = {
     "signature": PtmLocalizationReleaseSignature,
     "quarantine": PtmLocalizationReleaseQuarantine,
     "verification": PtmLocalizationReleaseVerification,
+    "transformation": PtmLocalizationReleaseTransformation,
+    "quality-decision": PtmLocalizationReleaseQualityDecision,
 }
 
 
@@ -93,9 +99,9 @@ def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
 
 __all__ = [
     "CONTRACT_VERSION",
+    "SCHEMA_ID_PREFIX",
     "ContractName",
     "PtmLocalizationReleaseContractName",
-    "SCHEMA_ID_PREFIX",
     "contract_json_schema",
     "contract_json_schemas",
 ]
