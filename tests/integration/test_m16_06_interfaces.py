@@ -9,17 +9,19 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app
 from tests.runtime.test_m16_06_queue import _request
 
+_HTTP_OK = 200
+
 
 def test_m1606_http_schema_and_adjudication(tmp_path) -> None:  # type: ignore[no-untyped-def]
     with TestClient(create_app(tmp_path / "m1606-api.sqlite3")) as client:
         schema = client.get("/v1/contracts/M16-06/request/schema")
-        assert schema.status_code == 200
+        assert schema.status_code == _HTTP_OK
         assert schema.json()["x-glio-contract"]["dossierSlice"].endswith("5656-5696")
         response = client.post(
             "/v1/modules/M16-06/reviewer-discrepancy-adjudication",
             json=_request().model_dump(mode="json"),
         )
-        assert response.status_code == 200
+        assert response.status_code == _HTTP_OK
         assert response.json()["status"] == "recorded"
         assert response.json()["record"]["locked"] is True
 
@@ -40,4 +42,3 @@ def test_m1606_cli_schema_and_adjudication(tmp_path) -> None:  # type: ignore[no
     )
     assert result.exit_code == 0
     assert '"status":"recorded"' in result.stdout
-

@@ -4,6 +4,7 @@ from .engine import (
     M1606AuthorizationError,
     M1606Engine,
     M1606ReplayError,
+    adjudicate_protein_rna_discordance_queue,
     preflight_m1606_authorization,
 )
 from .plugin import (
@@ -19,5 +20,6 @@ __all__ = [
     "M1606PluginDescriptor",
     "M1606ReplayError",
     "M1606Service",
+    "adjudicate_protein_rna_discordance_queue",
     "preflight_m1606_authorization",
 ]
