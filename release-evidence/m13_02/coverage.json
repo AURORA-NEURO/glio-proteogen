@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-02",
+  "scope": [
+    "glio_proteogen.contracts.m13_02",
+    "glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_stratifier",
+    "glio_proteogen.adapters.m1302",
+    "evals.m13_02"
+  ],
+  "tests": 29,
+  "statements": 663,
+  "branches": 132,
+  "covered_percent": 98.0,
+  "fail_under_percent": 95.0,
+  "branch_enabled": true,
+  "passed": true
+}
