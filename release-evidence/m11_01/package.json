@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-01",
+  "coverage_percent": 100.0,
+  "coverage_statements": 510,
+  "coverage_branches": 74,
+  "wheel_sha256": "pending-local-package-build",
+  "sdist_sha256": "pending-local-package-build",
+  "wheel_members": 0,
+  "sdist_members": 0,
+  "isolated_import": false
+}
