@@ -132,6 +132,33 @@ class IntendedUsePolicy(FrozenModel):
     registered: Literal[True] = True
     configuration: AdapterConfiguration
 
+    @model_validator(mode="after")
+    def policy_is_closed(self) -> IntendedUsePolicy:
+        permitted = set(self.permitted_claims)
+        prohibited = set(self.prohibited_claims)
+        if len(permitted) != len(self.permitted_claims):
+            raise ValueError("permitted claims must be unique")
+        if len(prohibited) != len(self.prohibited_claims):
+            raise ValueError("prohibited claims must be unique")
+        if permitted & prohibited:
+            raise ValueError("permitted and prohibited claims must be disjoint")
+        if self.context is IntendedUseContext.CLINICAL_REVIEW:
+            if self.audience is not IntendedUseAudience.CLINICAL_REVIEWER:
+                raise ValueError("clinical review requires a clinical reviewer audience")
+            if self.minimum_evidence_tier is EvidenceTier.EXPLORATORY:
+                raise ValueError("clinical review cannot accept exploratory evidence")
+        if (
+            self.maximum_claim_ceiling is ClaimCeiling.SUPPORTED_MECHANISM
+            and self.minimum_evidence_tier is EvidenceTier.EXPLORATORY
+        ):
+            raise ValueError("supported mechanism claims require non-exploratory evidence")
+        if (
+            self.display_semantic is DisplaySemantic.HIDDEN
+            and self.maximum_claim_ceiling is not ClaimCeiling.ABSTAIN
+        ):
+            raise ValueError("hidden display requires an abstaining claim ceiling")
+        return self
+
 
 class PolicyDecision(FrozenModel):
     decision_id: Identifier
@@ -141,6 +168,17 @@ class PolicyDecision(FrozenModel):
     registered_intended_use: Literal[True] = True
     auditable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1604_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def decision_status_is_safe(self) -> PolicyDecision:
+        if self.status is PolicyDecisionStatus.ALLOWED and not self.evidence:
+            raise ValueError("allowed policy decisions require evidence")
+        if (
+            self.status in {PolicyDecisionStatus.BLOCKED, PolicyDecisionStatus.ABSTAINED}
+            and not self.reasons
+        ):
+            raise ValueError("blocked or abstained decisions require reasons")
+        return self
 
 
 class IntendedUseObject(FrozenModel):
@@ -171,6 +209,12 @@ class IntendedUseObject(FrozenModel):
             and self.policy_decision.status is PolicyDecisionStatus.ALLOWED
         ):
             raise ValueError("abstaining claim ceiling cannot be allowed")
+        if len(set(self.permitted_claims)) != len(self.permitted_claims):
+            raise ValueError("object permitted claims must be unique")
+        if len(set(self.blocked_claims)) != len(self.blocked_claims):
+            raise ValueError("object blocked claims must be unique")
+        if set(self.permitted_claims) & set(self.blocked_claims):
+            raise ValueError("object permitted and blocked claims must be disjoint")
         return self
 
 
@@ -239,6 +283,8 @@ class ProteinRnaDiscordanceIntendedUseResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("adapted result requires a supported unblocked object")
+            if not self.evidence or self.human_review_required:
+                raise ValueError("adapted result requires evidence and no mandatory review")
         elif (
             self.intended_use_object is not None
             or self.abstention_reason is None
@@ -247,6 +293,10 @@ class ProteinRnaDiscordanceIntendedUseResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no object and safe status")
+        if self.status is AdapterStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
+        if len({finding.finding_id for finding in self.findings}) != len(self.findings):
+            raise ValueError("findings must have unique identifiers")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
