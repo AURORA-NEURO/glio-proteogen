@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m14_07.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -29,6 +32,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -182,10 +186,21 @@ class ProteinSubtypePlausibilityAdjudicationResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypePlausibilityAdjudicationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
         control_ids = {item.control_id for item in self.request.controls}
         evaluation_ids = tuple(item.control_id for item in self.evaluations)
         if set(evaluation_ids) != control_ids or len(evaluation_ids) != len(set(evaluation_ids)):
             raise ValueError("every control must have exactly one evaluation")
+        conflict_ids = tuple(item.conflict_id for item in self.conflicts)
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(conflict_ids) != len(set(conflict_ids)):
+            raise ValueError("conflict ids must be unique")
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
         blocking_outcomes = {
             ControlOutcome.FAILED,
             ControlOutcome.NOT_EVALUABLE,
@@ -199,6 +214,7 @@ class ProteinSubtypePlausibilityAdjudicationResult(FrozenModel):
                 or has_blocking_outcome
                 or self.conflicts
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("adjudicated result requires all controls passed and no conflicts")
         elif (
@@ -206,11 +222,118 @@ class ProteinSubtypePlausibilityAdjudicationResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no grade and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose all seven uncertainty dimensions for plausibility adjudication."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Orthogonal controls, known controls, direction, conservation, assay physics, and "
+            "competing mechanisms passed in the provisional support domain."
+            if supported
+            else "At least one release-blocking control was not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Direction, conservation, assay physics, territory-conditioned subtype, and "
+            "competing-mechanism sensitivity remain explicit.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: AdjudicateProteinSubtypePlausibilityRequest, request_digest: Sha256Digest
+) -> ProvenanceRecord:
+    """Bind input digests and seven caller-declared control decisions."""
+
+    references = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1407_MODULE_ID,
+        module_version=M1407_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.mechanism_inference_result.digest,
+            *(item.digest for item in request.source_artifacts),
+        ),
+        configuration_digest=request.controls[0].required_evidence[0].reference.digest,
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -244,4 +367,6 @@ __all__ = [
     "PlausibilityGrade",
     "ProteinSubtypePlausibilityAdjudicationResult",
     "UnresolvedConflict",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
