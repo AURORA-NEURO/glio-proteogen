@@ -22,12 +22,11 @@ from glio_proteogen.contracts.m09_05.v1 import (
     ConstraintSatisfactionReport,
     IntegrateComplexActivityConstraintsRequest,
     IntegrateComplexActivityConstraintsResult,
+    IntegrateComplexActivityConstraintsVerification,
     MechanismConstraint,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M09-05:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M09-05:0.1.0-provisional"
 CONTRACT_VERSION: Final = M0905_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -36,6 +35,7 @@ ContractName = Literal[
     "constraint",
     "report",
     "policy",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": IntegrateComplexActivityConstraintsRequest,
@@ -44,6 +44,7 @@ _CONTRACTS: Final = {
     "constraint": MechanismConstraint,
     "report": ConstraintSatisfactionReport,
     "policy": ConstraintIntegratorPolicy,
+    "verification": IntegrateComplexActivityConstraintsVerification,
 }
 
 
@@ -82,7 +83,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
 
 
 def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
-    """Return all six provisional schemas in declared order."""
+    """Return all seven provisional schemas in declared order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))
     return {name: contract_json_schema(name) for name in names}

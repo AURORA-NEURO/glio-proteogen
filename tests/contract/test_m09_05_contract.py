@@ -8,8 +8,10 @@ from glio_proteogen.contracts.m09_05 import (
     M0905_BASELINE_MEDIA_TYPE,
     M0905_OUTPUT_MEDIA_TYPE,
     ConstraintEvaluationStatus,
+    ConstraintReplayReason,
     ConstraintSatisfactionReport,
     ConstraintSeverity,
+    IntegrateComplexActivityConstraintsVerification,
     contract_json_schemas,
 )
 
@@ -25,6 +27,7 @@ def test_schema_inventory_is_strict_and_provisional() -> None:
         "constraint",
         "report",
         "policy",
+        "verification",
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
@@ -50,3 +53,23 @@ def test_constraint_report_requires_explicit_violation_score() -> None:
     )
     assert report.status is ConstraintEvaluationStatus.VIOLATED
     assert report.violation_score == _VIOLATION_SCORE
+
+
+def test_replay_verification_closes_success_and_failure_shapes() -> None:
+    verified = IntegrateComplexActivityConstraintsVerification(
+        content_verified=True,
+        deterministic_verified=True,
+        verified=True,
+        result_digest="sha256:" + "a" * 64,
+        reason=ConstraintReplayReason.VERIFIED,
+    )
+    assert verified.verified is True
+    assert verified.reason is ConstraintReplayReason.VERIFIED
+
+    rejected = IntegrateComplexActivityConstraintsVerification(
+        content_verified=False,
+        deterministic_verified=True,
+        verified=False,
+        reason=ConstraintReplayReason.NON_CANONICAL,
+    )
+    assert rejected.result_digest is None

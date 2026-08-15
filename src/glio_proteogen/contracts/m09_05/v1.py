@@ -81,6 +81,16 @@ class ConstraintIntegratorStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class ConstraintReplayReason(StrEnum):
+    """Closed replay-verification outcomes for canonical result bytes."""
+
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
+
+
 class ConstraintEstimateKind(StrEnum):
     SCALAR = "scalar"
     INTERVAL = "interval"
@@ -191,6 +201,30 @@ class IntegrateComplexActivityConstraintsRequest(FrozenModel):
     def request_is_bound(self) -> IntegrateComplexActivityConstraintsRequest:
         if self.baseline_result.media_type != M0905_BASELINE_MEDIA_TYPE:
             raise ValueError("constraint request must bind the provisional M09-04 result")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        return self
+
+
+class IntegrateComplexActivityConstraintsVerification(FrozenModel):
+    """Replay result that distinguishes content, digest, and canonical-byte failures."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: ConstraintReplayReason
+
+    @model_validator(mode="after")
+    def outcome_is_closed(self) -> IntegrateComplexActivityConstraintsVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verification outcome must equal both verification checks")
+        if self.verified:
+            if self.reason is not ConstraintReplayReason.VERIFIED or self.result_digest is None:
+                raise ValueError("verified replay requires verified reason and digest")
+        elif self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a trusted digest")
         return self
 
 
@@ -227,7 +261,7 @@ class IntegrateComplexActivityConstraintsResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         report_ids = {item.constraint_id for item in self.satisfaction_report}
         policy_ids = {item.constraint_id for item in self.request.policy.constraints}
-        if report_ids and report_ids != policy_ids:
+        if report_ids != policy_ids:
             raise ValueError("satisfaction report must cover the requested constraints")
         hard_violated = any(
             item.status is ConstraintEvaluationStatus.VIOLATED
@@ -276,10 +310,12 @@ __all__ = [
     "ConstraintEvaluationStatus",
     "ConstraintIntegratorPolicy",
     "ConstraintIntegratorStatus",
+    "ConstraintReplayReason",
     "ConstraintSatisfactionReport",
     "ConstraintSeverity",
     "IntegrateComplexActivityConstraintsRequest",
     "IntegrateComplexActivityConstraintsResult",
+    "IntegrateComplexActivityConstraintsVerification",
     "MechanismConstraint",
     "MechanismConstraintKind",
 ]
