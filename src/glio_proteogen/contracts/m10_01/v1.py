@@ -393,11 +393,24 @@ class ValidateProteinRnaDiscordanceStateResult(FrozenModel):
     def result_is_closed(self) -> ValidateProteinRnaDiscordanceStateResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
-        statuses = {item.status for item in self.invariant_results}
+        hard_invariant_ids = {
+            item.invariant_id
+            for item in self.request.state_schema.invariants
+            if item.severity is ProteinRnaInvariantSeverity.ERROR
+        }
+        soft_violation = any(
+            item.status is ProteinRnaInvariantStatus.VIOLATED
+            and item.invariant_id not in hard_invariant_ids
+            for item in self.invariant_results
+        )
         if self.status is ProteinRnaValidationStatus.VALID:
-            if ProteinRnaInvariantStatus.VIOLATED in statuses:
-                raise ValueError("valid result cannot contain a violated invariant")
-            if self.support_decision.status is not SupportStatus.SUPPORTED:
+            if any(
+                item.status is ProteinRnaInvariantStatus.VIOLATED
+                and item.invariant_id in hard_invariant_ids
+                for item in self.invariant_results
+            ):
+                raise ValueError("valid result cannot contain a violated hard invariant")
+            if self.support_decision.status is not SupportStatus.SUPPORTED and not soft_violation:
                 raise ValueError("valid result requires supported status")
         if (
             self.status is ProteinRnaValidationStatus.ABSTAINED
