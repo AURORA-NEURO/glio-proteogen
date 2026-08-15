@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -13,6 +14,13 @@ from glio_proteogen.contracts.m08_07 import (
 )
 
 from .engine import M0807CalibrationEngine, preflight_m0807_authorization
+
+
+def _json_default(value: object) -> Any:
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(mode="json")
+    raise TypeError(f"unsupported request value: {type(value).__name__}")
 
 
 class M0807Service:
@@ -31,7 +39,12 @@ class M0807Service:
             # tuples.  Pydantic's JSON strict mode accepts those representations
             # while still rejecting Python-side coercions.
             return CalibrateProteinSubtypeSelectivePredictionRequest.model_validate_json(
-                json.dumps(request, ensure_ascii=False, separators=(",", ":")),
+                json.dumps(
+                    request,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    default=_json_default,
+                ),
                 strict=True,
             )
         return CalibrateProteinSubtypeSelectivePredictionRequest.model_validate(
