@@ -1,6 +1,6 @@
 """Contract, runtime, replay, safety, and plugin tests for M13-08."""
 
-# ruff: noqa: E501, ARG005, PLR2004, PT018, TRY003
+# ruff: noqa: E501, PLR2004, TRY003
 
 from __future__ import annotations
 
@@ -62,18 +62,60 @@ def _controls(*, accepted: bool = True) -> ContextReferences:
     identity = IdentityLineageState.RESOLVED if accepted else IdentityLineageState.UNRESOLVED
     consent = ConsentState.GRANTED if accepted else ConsentState.WITHHELD
     return ContextReferences(
-        approved_configuration=UpstreamDecisionReference(decision_id="decision.configuration", state=decision, policy_version="1.0.0", evidence=_artifact("control.configuration")),
-        identity_lineage=IdentityLineageReference(decision_id="decision.identity", state=identity, policy_version="1.0.0", binding_digest=sha256_digest("identity"), evidence=_artifact("control.identity")),
-        provenance=UpstreamDecisionReference(decision_id="decision.provenance", state=decision, policy_version="1.0.0", evidence=_artifact("control.provenance")),
-        consent=ConsentReference(decision_id="decision.consent", state=consent, policy_version="1.0.0", evidence=_artifact("control.consent")),
-        quality=UpstreamDecisionReference(decision_id="decision.quality", state=decision, policy_version="1.0.0", evidence=_artifact("control.quality")),
-        support=UpstreamDecisionReference(decision_id="decision.support", state=decision, policy_version="1.0.0", evidence=_artifact("control.support")),
-        intended_use=UpstreamDecisionReference(decision_id="decision.intended", state=decision, policy_version="1.0.0", evidence=_artifact("control.intended")),
+        approved_configuration=UpstreamDecisionReference(
+            decision_id="decision.configuration",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.configuration"),
+        ),
+        identity_lineage=IdentityLineageReference(
+            decision_id="decision.identity",
+            state=identity,
+            policy_version="1.0.0",
+            binding_digest=sha256_digest("identity"),
+            evidence=_artifact("control.identity"),
+        ),
+        provenance=UpstreamDecisionReference(
+            decision_id="decision.provenance",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.provenance"),
+        ),
+        consent=ConsentReference(
+            decision_id="decision.consent",
+            state=consent,
+            policy_version="1.0.0",
+            evidence=_artifact("control.consent"),
+        ),
+        quality=UpstreamDecisionReference(
+            decision_id="decision.quality",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.quality"),
+        ),
+        support=UpstreamDecisionReference(
+            decision_id="decision.support",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.support"),
+        ),
+        intended_use=UpstreamDecisionReference(
+            decision_id="decision.intended",
+            state=decision,
+            policy_version="1.0.0",
+            evidence=_artifact("control.intended"),
+        ),
     )
 
 
-def _request(model_family: str = "bayesian_model_averaging", *, accepted: bool = True) -> AssembleProteotypeMechanismDossierRequest:
-    evidence = EvidenceReference(reference=_artifact("configuration.evidence"), role="evidence", claim="Locked dossier configuration.")
+def _request(
+    model_family: str = "bayesian_model_averaging", *, accepted: bool = True
+) -> AssembleProteotypeMechanismDossierRequest:
+    evidence = EvidenceReference(
+        reference=_artifact("configuration.evidence"),
+        role="evidence",
+        claim="Locked dossier configuration.",
+    )
     configuration = MechanismDossierConfiguration(
         configuration_id="configuration.m1308",
         version="1.0.0",
@@ -83,7 +125,12 @@ def _request(model_family: str = "bayesian_model_averaging", *, accepted: bool =
     )
     return AssembleProteotypeMechanismDossierRequest(
         request_id="request.m1308",
-        context=ExecutionContext(request_id="request.m1308", actor_id="actor.test", occurred_at=_WHEN, references=_controls(accepted=accepted)),
+        context=ExecutionContext(
+            request_id="request.m1308",
+            actor_id="actor.test",
+            occurred_at=_WHEN,
+            references=_controls(accepted=accepted),
+        ),
         upstream_result=_artifact("m1307-result", M1308_M1307_INPUT_MEDIA_TYPE),
         configuration=configuration,
         source_artifacts=(_artifact("source"),),
@@ -98,7 +145,9 @@ def test_supported_dossier_is_reconstructable_and_replayable() -> None:
     assert result.dossier is not None
     assert result.provenance.module_id == M1308_MODULE_ID
     assert result.dossier.claim_ceiling.prohibited_interpretations
-    assert any(link.kind is MechanismEvidenceLinkKind.CLAIM_CEILING for link in result.dossier.links)
+    assert any(
+        link.kind is MechanismEvidenceLinkKind.CLAIM_CEILING for link in result.dossier.links
+    )
     assert engine.verify(result).model_dump(mode="json") == result.model_dump(mode="json")
 
 
@@ -161,7 +210,10 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
     with pytest.raises(ValueError, match="M13-07"):
         AssembleProteotypeMechanismDossierRequest.model_validate(forged, strict=True)
     duplicate = request.model_dump(mode="python")
-    duplicate["source_artifacts"] = (duplicate["source_artifacts"][0], duplicate["source_artifacts"][0])
+    duplicate["source_artifacts"] = (
+        duplicate["source_artifacts"][0],
+        duplicate["source_artifacts"][0],
+    )
     with pytest.raises(ValueError, match="unique"):
         AssembleProteotypeMechanismDossierRequest.model_validate(duplicate, strict=True)
     result = M1308DossierEngine().infer(request)
@@ -173,7 +225,9 @@ def test_request_and_result_contract_closure_rejects_forgery() -> None:
         return payload
 
     with pytest.raises(ValueError, match="result identifier"):
-        ProteotypeMechanismDossierResult.model_validate(resigned(result_id="result.bad"), strict=True)
+        ProteotypeMechanismDossierResult.model_validate(
+            resigned(result_id="result.bad"), strict=True
+        )
     with pytest.raises(ValueError, match="every result"):
         ProteotypeMechanismDossierResult.model_validate(resigned(evidence=()), strict=True)
     bad_review = result.model_dump(mode="python")
@@ -191,4 +245,7 @@ def test_uncertainty_and_service_public_paths() -> None:
     assert service.validate_request(request) == request
     result = service.execute(request)
     assert service.verify(result).status is MechanismDossierStatus.READY
-    assert engine_module.assemble_proteotype_mechanism_dossier(request).status is MechanismDossierStatus.READY
+    assert (
+        engine_module.assemble_proteotype_mechanism_dossier(request).status
+        is MechanismDossierStatus.READY
+    )
