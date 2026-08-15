@@ -21,6 +21,7 @@ __all__ = [
     "PlausibilityAuthorizationError",
     "PlausibilityReplayError",
     "ValidatedM1107Request",
+    "_validate_json_request",
     "adjudicate_variant_peptide_plausibility",
     "preflight_plausibility_authorization",
     "verify_plausibility_replay",

@@ -30,7 +30,7 @@ from glio_proteogen.modules.c11_protein_native_subtype import (
 
 PlausibilityAuthorizationError = m1107.PlausibilityAuthorizationError
 PlausibilityReplayError = m1107.PlausibilityReplayError
-_validate_json_request = m1107._validate_json_request  # type: ignore[attr-defined]
+_validate_json_request = m1107._validate_json_request
 M1107Plugin = m1107.M1107Plugin
 M1107Service = m1107.M1107Service
 
