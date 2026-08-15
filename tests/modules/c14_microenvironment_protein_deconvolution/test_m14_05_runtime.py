@@ -216,4 +216,4 @@ def test_plugin_object_validation_and_token_seal() -> None:
 
     assert plugin.verify(result) == result
     with pytest.raises(TypeError, match="validated request token"):
-        plugin.run(object())
+        plugin.run(object())  # type: ignore[arg-type]
