@@ -218,7 +218,7 @@ def _seed(feature_id: str, request: ConstructComplexActivityRepresentationReques
     source_digests = ",".join(sorted(item.digest for item in request.source_artifacts))
     return (
         f"{feature_id}|{digest}|{request.policy.policy_id}|{request.policy.version}|{source_digests}"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _values(
