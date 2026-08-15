@@ -44,6 +44,7 @@ from glio_proteogen.adapters.api import (
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
     _ptm_localization_raw_contract_schema,
+    _ptm_localization_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -183,6 +184,10 @@ from glio_proteogen.contracts.m05_03 import (
 from glio_proteogen.contracts.m05_05 import (
     M0505_MAX_CANONICAL_REQUEST_BYTES,
     DetectPtmLocalizationArtifactsRequest,
+)
+from glio_proteogen.contracts.m05_07 import (
+    M0507_MAX_CANONICAL_REQUEST_BYTES,
+    RoutePtmLocalizationSupportRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -358,6 +363,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection impor
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0505_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
+    M0507Service,
+    PtmLocalizationSupportAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (  # noqa: E501
+    _validate_json_request as _validate_m0507_json_request,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -506,6 +518,11 @@ ptm_localization_artifacts_app = typer.Typer(
     help="M05-05 deterministic aggregate PTM-localization artifact detection.",
 )
 app.add_typer(ptm_localization_artifacts_app, name="ptm-localization-artifacts")
+ptm_localization_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-07 deterministic PTM-localization support and abstention routing.",
+)
+app.add_typer(ptm_localization_support_app, name="ptm-localization-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3886,6 +3903,45 @@ def detect_ptm_localization_artifacts_cli(request: RequestArgument) -> None:
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo("PTM-localization artifact detection failed: invalid request", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_support_app.command("export-schema")
+def export_ptm_localization_support_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "prerequisites", "fact", "receipt"],
+        typer.Argument(help="M05-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization support contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_support_app.command("route")
+def route_ptm_localization_support_cli(request: RequestArgument) -> None:
+    """Route PTM-localization support facts and emit canonical JSON."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(RoutePtmLocalizationSupportRequest),
+            None,
+            M0507_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0507_json_request,
+        )
+        _emit(M0507Service()._execute_validated(parsed))
+    except PtmLocalizationSupportAuthorizationError as error:
+        typer.echo(f"PTM-localization support routing failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization support routing failed: invalid request", err=True)
         raise typer.Exit(code=1) from error
 
 
