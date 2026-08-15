@@ -7,9 +7,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 from evals.m06_03.run import build_scenario
+from pydantic import TypeAdapter
 
-from glio_proteogen.contracts.m06_03 import BaselineResultStatus
+from glio_proteogen.contracts.m06_03 import (
+    BaselineResultStatus,
+    EstimateProteinAbundanceBaselineResult,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator import (
     M0603MatureBaselineEngine,
     M0603Plugin,
@@ -18,6 +23,7 @@ from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator impo
 )
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
     PtmBaselineAuthorizationError,
+    _validate_json_request,
 )
 
 if TYPE_CHECKING:
@@ -141,3 +147,126 @@ def test_each_control_denies_before_execution(role: str) -> None:
 
     with pytest.raises(PtmBaselineAuthorizationError):
         M0603Service().validate_request(denied_request)
+
+
+def test_invalid_authorization_candidates_fail_closed() -> None:
+    with pytest.raises(PtmBaselineAuthorizationError):
+        M0603Service().validate_request(object())
+
+    class ExplodingMapping(dict[str, object]):
+        def get(self, key: str, _default: object = None) -> object:
+            raise RuntimeError(key)
+
+    with pytest.raises(PtmBaselineAuthorizationError):
+        M0603Service().validate_request(ExplodingMapping())
+
+
+def test_json_request_byte_cap_precedes_validation() -> None:
+    with pytest.raises(ValueError, match="byte limit"):
+        _validate_json_request({}, b"x" * (4 * 1024 * 1024 + 1))
+
+
+def test_engine_rejects_wrong_validated_type_and_feature_replay() -> None:
+    engine = M0603MatureBaselineEngine()
+    with pytest.raises(TypeError, match="declared request type"):
+        engine.estimate_validated(object())  # type: ignore[arg-type]
+
+    request = _request()
+    changed_values = tuple(reversed(request.feature_values))
+    with pytest.raises(ValueError, match="feature replay"):
+        engine.estimate_validated(request.model_copy(update={"feature_values": changed_values}))
+
+
+def test_service_execute_runs_validate_then_execute() -> None:
+    result = M0603Service().execute(_request())
+    assert result.status is BaselineResultStatus.ESTIMATED
+
+
+def test_request_validator_rejects_all_replay_bindings() -> None:
+    request = _request()
+    adapter = TypeAdapter(type(request))
+
+    altered_schema = request.state_schema.model_copy(update={"schema_id": "schema.other"})
+    with pytest.raises(ValueError, match="state schema"):
+        adapter.validate_python(
+            request.model_copy(update={"state_schema": altered_schema}), strict=True
+        )
+
+    altered_values = tuple(reversed(request.feature_values))
+    with pytest.raises(ValueError, match="feature values"):
+        adapter.validate_python(
+            request.model_copy(update={"feature_values": altered_values}), strict=True
+        )
+
+    duplicate = request.feature_values[0].model_copy(
+        update={"feature_id": request.feature_values[1].feature_id}
+    )
+    duplicate_values = (duplicate, *request.feature_values[1:])
+    duplicate_upstream_request = request.formal_state_result.request.model_copy(
+        update={"values": duplicate_values}
+    )
+    duplicate_upstream_result = request.formal_state_result.model_copy(
+        update={"request": duplicate_upstream_request}
+    )
+    with pytest.raises(ValueError, match="unique"):
+        adapter.validate_python(
+            request.model_copy(
+                update={
+                    "formal_state_result": duplicate_upstream_result,
+                    "feature_values": duplicate_values,
+                }
+            ),
+            strict=True,
+        )
+
+    subset = request.feature_values[:2]
+    upstream_fields = dict(request.formal_state_result.request.__dict__)
+    upstream_fields["values"] = subset
+    upstream_request = request.formal_state_result.request.model_construct(
+        **upstream_fields,
+    )
+    upstream_result = request.formal_state_result.model_copy(update={"request": upstream_request})
+    malformed_fields = dict(request.__dict__)
+    malformed_fields["formal_state_result"] = upstream_result
+    malformed_fields["feature_values"] = subset
+    malformed_subset = request.model_construct(**malformed_fields)
+    with pytest.raises(ValueError, match="cover"):
+        malformed_subset.request_is_bound()
+
+    configuration = request.configuration.model_copy(update={"state_schema_id": "schema.other"})
+    with pytest.raises(ValueError, match="configuration"):
+        adapter.validate_python(
+            request.model_copy(update={"configuration": configuration}), strict=True
+        )
+
+
+def test_result_validator_rejects_digest_status_and_support_tampering() -> None:
+    request = _request()
+    result = M0603MatureBaselineEngine().estimate(request)
+    adapter = TypeAdapter(EstimateProteinAbundanceBaselineResult)
+
+    with pytest.raises(ValueError, match="request digest"):
+        adapter.validate_python(
+            result.model_copy(update={"request_digest": "sha256:" + "0" * 64}), strict=True
+        )
+    with pytest.raises(ValueError, match="estimated result"):
+        adapter.validate_python(result.model_copy(update={"estimates": ()}), strict=True)
+    with pytest.raises(ValueError, match="supported status"):
+        adapter.validate_python(
+            result.model_copy(
+                update={
+                    "support_decision": result.support_decision.model_copy(
+                        update={"status": SupportStatus.UNSUPPORTED}
+                    )
+                }
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="abstained result"):
+        adapter.validate_python(
+            result.model_copy(update={"status": BaselineResultStatus.ABSTAINED}), strict=True
+        )
+    with pytest.raises(ValueError, match="result digest"):
+        adapter.validate_python(
+            result.model_copy(update={"result_digest": "sha256:" + "0" * 64}), strict=True
+        )

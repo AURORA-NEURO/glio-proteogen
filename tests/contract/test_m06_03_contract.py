@@ -1,5 +1,7 @@
 """Lightweight checks for the provisional M06-03 contract spine."""
 
+import pytest
+
 from glio_proteogen.contracts.m06_03 import (
     M0603_MAX_EVIDENCE,
     M0603_OUTPUT_MEDIA_TYPE,
@@ -71,3 +73,37 @@ def test_schema_exports_are_provisional_and_bounded() -> None:
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0603_OUTPUT_MEDIA_TYPE
     assert M0603_MAX_EVIDENCE > 0
+
+
+@pytest.mark.parametrize(
+    ("kind", "values", "message"),
+    [
+        (
+            BaselineEstimateKind.SCALAR,
+            {"estimate_value": None},
+            "scalar baseline estimate",
+        ),
+        (
+            BaselineEstimateKind.INTERVAL,
+            {"estimate_value": 4.0, "lower_bound": 1.0, "upper_bound": 3.0},
+            "bounds",
+        ),
+        (
+            BaselineEstimateKind.CATEGORICAL,
+            {"category": "high", "estimate_value": 1.0},
+            "only a category",
+        ),
+    ],
+)
+def test_estimate_shape_rejects_ambiguous_or_invalid_values(
+    kind: BaselineEstimateKind,
+    values: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        BaselineEstimate(
+            feature_id="protein.abundance",
+            kind=kind,
+            unit="normalized-abundance",
+            **values,
+        )
