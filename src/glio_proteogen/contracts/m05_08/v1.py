@@ -295,8 +295,8 @@ class PtmLocalizationReleaseResult(FrozenModel):
             raise ValueError("human review routing must match the disposition")
         if released and self.support.status is not SupportStatus.SUPPORTED:
             raise ValueError("released package requires supported status")
-        if not released and (self.signature_verified or self.package_digest is not None):
-            raise ValueError("quarantined package cannot expose verified release bytes")
+        if not released and self.package_digest is not None:
+            raise ValueError("quarantined package cannot expose release bytes")
         if self.package_member_count == 0 and released:
             raise ValueError("released package must contain members")
         return self
