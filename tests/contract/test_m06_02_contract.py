@@ -7,15 +7,20 @@ from typing import cast
 
 import pytest
 from jsonschema import Draft202012Validator
+from pydantic import ValidationError
 
 from glio_proteogen.contracts.m06_02 import (
     M0602_OUTPUT_MEDIA_TYPE,
     BuildProteinRepresentationRequest,
+    ConstructProteinRepresentationVerification,
     FeatureLineageRole,
     FeatureLineageStep,
+    RepresentationCovariate,
     RepresentationFeature,
     RepresentationFeatureKind,
+    RepresentationMask,
     RepresentationObservationState,
+    RepresentationReplayReason,
     canonical_request_digest,
     contract_json_schemas,
 )
@@ -110,7 +115,15 @@ def _request() -> BuildProteinRepresentationRequest:
 
 def test_schema_inventory_is_explicitly_provisional() -> None:
     schemas = contract_json_schemas()
-    assert tuple(schemas) == ("request", "output", "feature", "lineage", "mask", "covariate")
+    assert tuple(schemas) == (
+        "request",
+        "output",
+        "feature",
+        "lineage",
+        "mask",
+        "covariate",
+        "verification",
+    )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
         metadata = cast("dict[str, object]", schema["x-glio-contract"])
@@ -124,5 +137,107 @@ def test_strict_request_and_canonical_digest_smoke() -> None:
     service = M0602Service()
     assert service.validate_request(request.model_dump(mode="python")) == request
     assert canonical_request_digest(request) == canonical_request_digest(request.model_copy())
-    with pytest.raises(NotImplementedError, match="ABI"):
-        service.construct(request)
+    assert service.validate_request(request) == request
+
+
+def _rebuild(model: object, **updates: object) -> object:
+    payload = model.model_dump(mode="python")  # type: ignore[union-attr]
+    payload.update(updates)
+    return type(model).model_validate(payload, strict=True)  # type: ignore[attr-defined]
+
+
+def test_lineage_rejects_duplicate_output_ids() -> None:
+    with pytest.raises(ValidationError, match="lineage output feature ids"):
+        _rebuild(
+            _request().lineage[0],
+            output_feature_ids=("feature.protein-abundance", "feature.protein-abundance"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("kind", "updates", "message"),
+    [
+        (RepresentationFeatureKind.SCALAR, {"vector": (1.0,)}, "scalar_value"),
+        (RepresentationFeatureKind.VECTOR, {"scalar_value": 1.5}, "vector"),
+        (RepresentationFeatureKind.CATEGORICAL, {"scalar_value": 1.5}, "category"),
+    ],
+)
+def test_observed_feature_requires_kind_value(
+    kind: RepresentationFeatureKind,
+    updates: dict[str, object],
+    message: str,
+) -> None:
+    feature = _request().features[0]
+    changes: dict[str, object] = {
+        "kind": kind,
+        "scalar_value": None,
+        "vector": (),
+        "category": None,
+    }
+    changes.update(updates)
+    with pytest.raises(ValidationError, match=message):
+        _rebuild(feature, **changes)
+
+
+def test_non_observed_feature_cannot_carry_value() -> None:
+    feature = _request().features[0]
+    with pytest.raises(ValidationError, match="non-observed"):
+        _rebuild(feature, state=RepresentationObservationState.MISSING)
+
+
+def test_request_rejects_duplicate_features_and_unbound_lineage() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="feature ids must be unique"):
+        _rebuild(request, features=(request.features[0], request.features[0]))
+    foreign_feature = _rebuild(request.features[0], lineage_id="lineage.foreign")
+    with pytest.raises(ValidationError, match="every feature must bind"):
+        _rebuild(request, features=(foreign_feature,))
+
+
+def test_request_rejects_unknown_masks_and_duplicate_covariates() -> None:
+    request = _request()
+    mask = RepresentationMask(
+        feature_id="feature.unknown",
+        state=RepresentationObservationState.MISSING,
+        reason="not observed",
+    )
+    with pytest.raises(ValidationError, match="unknown feature"):
+        _rebuild(request, masks=(mask,))
+    covariate = RepresentationCovariate(
+        covariate_id="covariate.batch",
+        version="1.0.0",
+        unit="batch",
+        value="A",
+        source_digest=request.source_artifacts[0].digest,
+    )
+    with pytest.raises(ValidationError, match="covariate ids"):
+        _rebuild(request, covariates=(covariate, covariate))
+
+
+def test_request_rejects_undeclared_feature_source_digest() -> None:
+    request = _request()
+    feature = _rebuild(
+        request.features[0],
+        source_digest="sha256:" + "f" * 64,
+    )
+    with pytest.raises(ValidationError, match="source digest"):
+        _rebuild(request, features=(feature,))
+
+
+def test_replay_verification_flags_are_closed() -> None:
+    with pytest.raises(ValidationError, match="verified must match"):
+        ConstructProteinRepresentationVerification(
+            content_verified=True,
+            deterministic_verified=False,
+            verified=True,
+            result_digest="sha256:" + "a" * 64,
+            reason=RepresentationReplayReason.DIGEST_MISMATCH,
+        )
+    with pytest.raises(ValidationError, match="failed replay"):
+        ConstructProteinRepresentationVerification(
+            content_verified=False,
+            deterministic_verified=False,
+            verified=False,
+            result_digest="sha256:" + "a" * 64,
+            reason=RepresentationReplayReason.DIGEST_MISMATCH,
+        )

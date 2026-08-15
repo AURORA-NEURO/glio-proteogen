@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m06_02.v1 import (
     M0602_SAFETY_CLASS,
     BuildProteinRepresentationRequest,
     ConstructProteinRepresentationResult,
+    ConstructProteinRepresentationVerification,
     FeatureLineageStep,
     RepresentationCovariate,
     RepresentationFeature,
@@ -35,6 +36,7 @@ ContractName = Literal[
     "lineage",
     "mask",
     "covariate",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": BuildProteinRepresentationRequest,
@@ -43,6 +45,7 @@ _CONTRACTS: Final = {
     "lineage": FeatureLineageStep,
     "mask": RepresentationMask,
     "covariate": RepresentationCovariate,
+    "verification": ConstructProteinRepresentationVerification,
 }
 
 

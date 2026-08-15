@@ -69,6 +69,13 @@ class RepresentationConstructorStatus(StrEnum):
     QUARANTINED = "quarantined"
 
 
+class RepresentationReplayReason(StrEnum):
+    VERIFIED = "verified"
+    NOT_ATTEMPTED = "not_attempted"
+    DIGEST_MISMATCH = "digest_mismatch"
+    INVALID_RESULT = "invalid_result"
+
+
 class FeatureLineageRole(StrEnum):
     SOURCE = "source"
     TRANSFORM = "transform"
@@ -239,6 +246,28 @@ class ConstructProteinRepresentationResult(FrozenModel):
         return self
 
 
+class ConstructProteinRepresentationVerification(FrozenModel):
+    """Strict replay result for one previously constructed representation."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: RepresentationReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(self) -> ConstructProteinRepresentationVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must match content and deterministic checks")
+        if self.verified != (self.reason is RepresentationReplayReason.VERIFIED):
+            raise ValueError("verified must match replay reason")
+        if self.content_verified and self.result_digest is None:
+            raise ValueError("verified replay requires a result digest")
+        if not self.content_verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a result digest")
+        return self
+
+
 __all__ = [
     "M0602_CONTRACT_VERSION",
     "M0602_EVIDENCE_CLAIM",
@@ -259,6 +288,7 @@ __all__ = [
     "M0602_SAFETY_CLASS",
     "BuildProteinRepresentationRequest",
     "ConstructProteinRepresentationResult",
+    "ConstructProteinRepresentationVerification",
     "FeatureLineageRole",
     "FeatureLineageStep",
     "RepresentationConstructorStatus",
@@ -267,6 +297,7 @@ __all__ = [
     "RepresentationFeatureKind",
     "RepresentationMask",
     "RepresentationObservationState",
+    "RepresentationReplayReason",
 ]
 
 

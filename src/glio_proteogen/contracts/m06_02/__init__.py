@@ -34,6 +34,7 @@ from glio_proteogen.contracts.m06_02.v1 import (
     M0602_SAFETY_CLASS,
     BuildProteinRepresentationRequest,
     ConstructProteinRepresentationResult,
+    ConstructProteinRepresentationVerification,
     FeatureLineageRole,
     FeatureLineageStep,
     RepresentationConstructorStatus,
@@ -42,6 +43,7 @@ from glio_proteogen.contracts.m06_02.v1 import (
     RepresentationFeatureKind,
     RepresentationMask,
     RepresentationObservationState,
+    RepresentationReplayReason,
 )
 
 __all__ = [
@@ -66,6 +68,7 @@ __all__ = [
     "SCHEMA_ID_PREFIX",
     "BuildProteinRepresentationRequest",
     "ConstructProteinRepresentationResult",
+    "ConstructProteinRepresentationVerification",
     "ContractName",
     "FeatureLineageRole",
     "FeatureLineageStep",
@@ -75,6 +78,7 @@ __all__ = [
     "RepresentationFeatureKind",
     "RepresentationMask",
     "RepresentationObservationState",
+    "RepresentationReplayReason",
     "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
