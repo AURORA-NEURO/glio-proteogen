@@ -35,7 +35,9 @@ def verify() -> dict[str, object]:
     package = _load("package.json")
     if evaluation.get("module_id") != "GLIO-PROTEOGEN-M17-03":
         raise ValueError("evaluation module mismatch")
-    if not evaluation.get("passed") or evaluation.get("declared_cases") != evaluation.get("executed_cases"):
+    if not evaluation.get("passed") or evaluation.get("declared_cases") != evaluation.get(
+        "executed_cases"
+    ):
         raise ValueError("evaluation is not closed")
     if not benchmark.get("passed"):
         raise ValueError("benchmark did not pass")
