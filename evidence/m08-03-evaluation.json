@@ -1,0 +1,16 @@
+{
+  "module": "GLIO-PROTEOGEN-M08-03",
+  "contract_version": "0.1.0-provisional",
+  "authority": {"sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181", "lines": "2644-2684"},
+  "tests": {"focused_count": 27, "passed": 27},
+  "scenarios": [
+    {"name": "observed-baseline", "observed": "estimated", "support": "supported", "passed": true},
+    {"name": "missing-feature-abstain", "observed": "abstained", "support": "unsupported", "passed": true},
+    {"name": "unsupported-domain-abstain", "observed": "abstained", "support": "unsupported", "passed": true},
+    {"name": "withheld-consent", "observed": "authorization_error", "support": "unsupported", "passed": true},
+    {"name": "pathway-weighted-baseline", "observed": "estimated", "support": "supported", "passed": true},
+    {"name": "complex-graph-median-fallback", "observed": "estimated", "support": "supported", "passed": true}
+  ],
+  "coverage": {"scope": "M08-03 runtime/plugin/service", "statements": 176, "branches": 28, "percent": 96.0, "fail_under": 95.0},
+  "gates": {"ruff": "pass", "mypy_strict": "pass", "compileall": "pass", "replay_tamper": "pass", "api_cli_parity": "pass", "benchmark_input_guard": "pass"}
+}
