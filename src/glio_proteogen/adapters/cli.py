@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1405_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m14_05 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1405_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-05 provisional longitudinal protein-subtype evolution.",
+)
+app.add_typer(m1405_app, name="longitudinal-evolution")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3457,6 +3470,42 @@ def export_schema(
     """Export a machine-readable public contract for agents and tools."""
 
     typer.echo(json.dumps(_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("export-schema")
+def export_m1405_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "observation",
+            "trajectory-state",
+            "change-point",
+            "configuration",
+            "policy",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-05 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict provisional M14-05 schema."""
+
+    typer.echo(json.dumps(_m1405_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("infer")
+def infer_m1405(
+    request: RequestArgument,
+) -> None:
+    """Replay an ordered M14-05 request into a bounded trajectory result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest),
+        m1405_module.preflight_m1405_authorization,
+        M1405_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1405_module.M1405Service().execute(parsed))
 
 
 @app.command("serve")
