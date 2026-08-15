@@ -121,7 +121,9 @@ class FeatureLineage(FrozenModel):
     def references_are_unique(cls, values: tuple[object, ...]) -> tuple[object, ...]:
         """Prevent ambiguous lineage while retaining caller-declared ordering."""
 
-        keys = tuple(item.model_dump_json() if hasattr(item, "model_dump_json") else item for item in values)
+        keys = tuple(
+            item.model_dump_json() if hasattr(item, "model_dump_json") else item for item in values
+        )
         if len(keys) != len(set(keys)):
             raise ValueError("feature lineage references must be unique")
         return values
@@ -245,9 +247,7 @@ class RepresentationConfiguration(FrozenModel):
     )
     scaling: tuple[ScalingPolicy, ...] = Field(default=(), max_length=M1002_MAX_FEATURES)
     masks: tuple[MaskPolicy, ...] = Field(default=(), max_length=M1002_MAX_FEATURES)
-    covariates: tuple[CovariateDefinition, ...] = Field(
-        default=(), max_length=M1002_MAX_COVARIATES
-    )
+    covariates: tuple[CovariateDefinition, ...] = Field(default=(), max_length=M1002_MAX_COVARIATES)
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
 
@@ -332,15 +332,11 @@ class AnalysisRepresentation(FrozenModel):
     representation_id: Identifier
     version: SemanticVersion
     method: RepresentationMethod
-    features: tuple[RepresentationFeature, ...] = Field(
-        min_length=1, max_length=M1002_MAX_FEATURES
-    )
+    features: tuple[RepresentationFeature, ...] = Field(min_length=1, max_length=M1002_MAX_FEATURES)
     transformations: tuple[TransformationStep, ...] = Field(
         min_length=1, max_length=M1002_MAX_TRANSFORMATIONS
     )
-    covariates: tuple[CovariateDefinition, ...] = Field(
-        default=(), max_length=M1002_MAX_COVARIATES
-    )
+    covariates: tuple[CovariateDefinition, ...] = Field(default=(), max_length=M1002_MAX_COVARIATES)
     deterministic: Literal[True] = True
     lineage_complete: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1002_MAX_EVIDENCE)
@@ -359,7 +355,10 @@ class AnalysisRepresentation(FrozenModel):
         for feature in self.features:
             if not set(feature.lineage.transformation_ids) <= transformation_ids:
                 raise ValueError("feature lineage references an unknown transformation")
-            if not set(feature.lineage.transformation_ids) or feature.feature_id not in output_feature_ids:
+            if (
+                not set(feature.lineage.transformation_ids)
+                or feature.feature_id not in output_feature_ids
+            ):
                 raise ValueError("feature must be emitted by a declared transformation")
         covariate_ids = {item.covariate_id for item in self.covariates}
         for feature in self.features:
@@ -479,7 +478,10 @@ class ProteinRnaRepresentationResult(FrozenModel):
         diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
         if len(diagnostic_ids) != len(set(diagnostic_ids)):
             raise ValueError("result diagnostic identifiers must be unique")
-        if self.status is RepresentationConstructionStatus.ABSTAINED and not self.human_review_required:
+        if (
+            self.status is RepresentationConstructionStatus.ABSTAINED
+            and not self.human_review_required
+        ):
             raise ValueError("abstained representation requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
@@ -518,9 +520,9 @@ __all__ = [
     "RepresentationDiagnosticStatus",
     "RepresentationFeature",
     "RepresentationFeatureValueKind",
+    "RepresentationInputFeature",
     "RepresentationMethod",
     "RepresentationMissingness",
-    "RepresentationInputFeature",
     "ScalingMethod",
     "ScalingPolicy",
     "TransformationStep",

@@ -5,10 +5,10 @@ import pytest
 from glio_proteogen.contracts.m10_02 import (
     M1002_OUTPUT_MEDIA_TYPE,
     M1002_PROVISIONAL_ABI,
-    RepresentationInputFeature,
     RepresentationFeatureValueKind,
-    RepresentationMissingness,
+    RepresentationInputFeature,
     RepresentationMethod,
+    RepresentationMissingness,
     TransformationStep,
     contract_json_schemas,
 )
