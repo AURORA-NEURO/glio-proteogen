@@ -278,7 +278,8 @@ def _tokens(request: EstimateComplexActivityProbabilisticRequest) -> set[str]:
         request.configuration.objective.casefold(),
         *(item.expression.casefold() for item in request.configuration.constraints),
     ]
-    return {token for value in values for token in value.replace("-", "_").split("_")}
+    normalized = [value.replace("-", "_").replace(" ", "_") for value in values]
+    return {token for value in normalized for token in (value, *value.split("_"))}
 
 
 def _numeric_value(
@@ -330,16 +331,16 @@ def _build_result(
 ) -> EstimateComplexActivityProbabilisticResult:
     request_digest = canonical_request_digest(request)
     tokens = _tokens(request)
-    blocked = sorted(tokens & _ABSTENTION_MARKERS)
-    failed = sorted(tokens & _FAILURE_MARKERS)
+    blocked = sorted(
+        marker for marker in _ABSTENTION_MARKERS if any(marker in token for token in tokens)
+    )
+    failed = sorted(
+        marker for marker in _FAILURE_MARKERS if any(marker in token for token in tokens)
+    )
     hard_constraints = [
         item
         for item in request.configuration.constraints
-        if item.hard
-        and any(
-            marker in item.expression.casefold()
-            for marker in _ABSTENTION_MARKERS | _FAILURE_MARKERS
-        )
+        if item.hard and any(marker in item.expression.casefold() for marker in _ABSTENTION_MARKERS)
     ]
     if hard_constraints:
         blocked.extend(item.constraint_id for item in hard_constraints)

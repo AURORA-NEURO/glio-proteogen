@@ -3,9 +3,14 @@
 from glio_proteogen.contracts.m09_04 import (
     EstimateComplexActivityProbabilisticRequest,
     EstimateComplexActivityProbabilisticResult,
+    EstimateComplexActivityProbabilisticVerification,
 )
 
-from .engine import M0904ProbabilisticEstimator, preflight_m0904_authorization
+from .engine import (
+    BuiltM0904Result,
+    M0904ProbabilisticEstimator,
+    preflight_m0904_authorization,
+)
 
 
 class M0904Service:
@@ -29,6 +34,20 @@ class M0904Service:
 
     def execute(self, request: object) -> EstimateComplexActivityProbabilisticResult:
         return self._engine.estimate(request)
+
+    def build(self, request: object) -> BuiltM0904Result:
+        """Return a typed result and its canonical bytes for API/CLI delivery."""
+
+        return self._engine.build(request)
+
+    def verify(
+        self,
+        result: object,
+        canonical_bytes: bytes | None = None,
+    ) -> EstimateComplexActivityProbabilisticVerification:
+        """Verify both canonical content and the result replay digest."""
+
+        return self._engine.verify(result, canonical_bytes)
 
 
 __all__ = ["M0904Service"]

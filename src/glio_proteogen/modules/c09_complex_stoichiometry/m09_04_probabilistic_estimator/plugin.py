@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m09_04 import (
     M0904_MAX_CANONICAL_REQUEST_BYTES,
     EstimateComplexActivityProbabilisticRequest,
@@ -44,6 +46,7 @@ class ValidatedM0904Request:
 _ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0904Request, tuple[object, str]]] = (
     WeakKeyDictionary()
 )
+_REQUEST_ADAPTER: Final = TypeAdapter(EstimateComplexActivityProbabilisticRequest)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -72,11 +75,14 @@ class M0904Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            strict_json_loads(
                 serialized,
                 max_bytes=M0904_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(candidate)
+            typed = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
+        else:
+            typed = self._service.validate_request(candidate)
+        typed = self._service.validate_request(typed)
         token = ValidatedM0904Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token
