@@ -38,6 +38,9 @@ from glio_proteogen.modules.c16_kinophos_object_consumer.m16_05_workflow_present
     preflight_workspace_authorization,
     present_protein_rna_review_workspace,
 )
+from glio_proteogen.modules.c16_kinophos_object_consumer.m16_05_workflow_presentation_service import (
+    engine as engine_module,
+)
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
 
@@ -209,3 +212,70 @@ def test_mapping_preflight_and_hostile_object_are_rejected() -> None:
 
     with pytest.raises(M1605AuthorizationError):
         preflight_workspace_authorization(Hostile())
+
+    class BrokenMapping(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise RuntimeError
+
+    with pytest.raises(M1605AuthorizationError):
+        preflight_workspace_authorization({"context": BrokenMapping()})
+
+
+def test_mapping_preflight_rejects_non_string_and_wrong_control_states() -> None:
+    with pytest.raises(M1605AuthorizationError):
+        preflight_workspace_authorization(
+            {"context": {"references": {"approved_configuration": {"state": None}}}}
+        )
+    refs = {
+        role: {"state": "accepted"}
+        for role in (
+            "approved_configuration",
+            "identity_lineage",
+            "provenance",
+            "consent",
+            "quality",
+            "support",
+            "intended_use",
+        )
+    }
+    with pytest.raises(M1605AuthorizationError):
+        preflight_workspace_authorization({"context": {"references": refs}})
+
+
+def test_engine_replay_and_result_adapter_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = M1605PresentationEngine()
+    result = engine.present(_request())
+    with pytest.raises(M1605ReplayVerificationError):
+        engine.verify(
+            result.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False
+        )
+
+    class BrokenAdapter:
+        def validate_python(self, _payload: object, *, strict: bool) -> object:
+            del strict
+            raise ValueError
+
+    monkeypatch.setattr(engine_module, "_RESULT_ADAPTER", BrokenAdapter())
+    with pytest.raises(M1605InferenceError):
+        engine.present(_request())
+
+
+def test_engine_replay_exception_and_mismatch_are_rejected() -> None:
+    result = M1605PresentationEngine().present(_request())
+
+    class BrokenReplayEngine(M1605PresentationEngine):
+        def present(self, request: object):  # type: ignore[no-untyped-def]
+            del request
+            raise ValueError
+
+    with pytest.raises(M1605ReplayVerificationError):
+        BrokenReplayEngine().verify(result)
+
+    class MismatchEngine(M1605PresentationEngine):
+        def present(self, request: object):  # type: ignore[no-untyped-def]
+            del request
+            return M1605PresentationEngine().present(_request(label="warning"))
+
+    with pytest.raises(M1605ReplayVerificationError):
+        MismatchEngine().verify(result)
