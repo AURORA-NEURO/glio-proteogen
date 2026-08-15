@@ -27,8 +27,10 @@ from glio_proteogen.modules.c15_longitudinal_recurrence.m15_07_plausibility_nega
 from tests.contract.test_m15_07_contract import _request as contract_request
 
 
-def _request(label: str = "sensitivity") -> AdjudicateComplexActivityPlausibilityRequest:
-    request = contract_request()
+def _request(
+    label: str = "sensitivity", *, accepted: bool = True
+) -> AdjudicateComplexActivityPlausibilityRequest:
+    request = contract_request(accepted=accepted)
     sensitivity = ArtifactReference(
         artifact_id=f"artifact.{label}",
         version="1.0.0",
