@@ -87,9 +87,9 @@ __all__ = [
     "canonical_result_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "expected_uncertainty",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
     "verify_result_digest",
-    "expected_uncertainty",
 ]

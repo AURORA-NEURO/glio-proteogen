@@ -8,9 +8,9 @@ from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m07_04 import (
     M0704_OUTPUT_MEDIA_TYPE,
+    EstimatorObservation,
     PosteriorEstimate,
     PosteriorEstimateKind,
-    EstimatorObservation,
     ProbabilisticPrior,
     ProbabilisticPriorKind,
     canonical_request_digest,
@@ -22,6 +22,7 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_04_probabilistic_advanced
 )
 
 _EXPECTED_LOWER_BOUND = 1.0
+_EXPECTED_OBSERVATION_VALUE = 2.0
 
 
 def test_schema_inventory_is_explicitly_provisional() -> None:
@@ -68,9 +69,9 @@ def test_prior_posterior_and_runtime_import_smoke() -> None:
         feature_id="feature.m0704.smoke",
         unit="copy-number",
         source_artifact_digest="sha256:" + ("a" * 64),
-        scalar_value=2.0,
+        scalar_value=_EXPECTED_OBSERVATION_VALUE,
     )
-    assert observation.scalar_value == 2.0
+    assert observation.scalar_value == _EXPECTED_OBSERVATION_VALUE
     assert canonical_request_digest({"prior": prior.model_dump(mode="json")}).startswith(
         "sha256:"
     )

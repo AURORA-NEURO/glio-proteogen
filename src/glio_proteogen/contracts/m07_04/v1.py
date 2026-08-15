@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m07_04.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +32,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -311,7 +313,10 @@ class EstimateCopyNumberDosageProbabilisticResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("non-estimated result requires no estimates and safe status")
-        if self.status is not ProbabilisticResultStatus.ESTIMATED and not self.human_review_required:
+        if (
+            self.status is not ProbabilisticResultStatus.ESTIMATED
+            and not self.human_review_required
+        ):
             raise ValueError("abstained or quarantined result requires human review")
         if self.result_digest != result_payload_digest(self) or not verify_result_digest(self):
             raise ValueError("result digest does not match canonical result content")
@@ -323,7 +328,9 @@ def expected_uncertainty() -> UncertaintyProfile:
 
     estimate = UncertaintyEstimate(
         state=EstimateState.NOT_ESTIMABLE,
-        rationale="M07-04 calibration and model registry are not frozen; no probability is claimed.",
+        rationale=(
+            "M07-04 calibration and model registry are not frozen; no probability is claimed."
+        ),
     )
     return UncertaintyProfile(
         measurement=estimate,
