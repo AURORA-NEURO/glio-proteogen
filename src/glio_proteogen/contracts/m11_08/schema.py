@@ -10,6 +10,8 @@ from glio_proteogen.contracts.m11_08.v1 import (
     M1108_CONTRACT_VERSION,
     M1108_GATE,
     M1108_MAX_CANONICAL_REQUEST_BYTES,
+    M1108_MAX_RECONSTRUCTION_STEPS,
+    M1108_MAX_SOURCES,
     M1108_MODULE_ID,
     M1108_OUTPUT_MEDIA_TYPE,
     M1108_OWNER,
@@ -83,6 +85,13 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "validationRouteRequired": True,
         "claimCeilingRequired": True,
         "weakLinksMustRemainVisible": True,
+        "sourceAttributionRequired": True,
+        "opaqueExternalArtifacts": True,
+        "sevenUncertaintyDimensions": True,
+        "humanReviewForDiscrepancy": True,
+        "safeAbstention": True,
+        "maxSources": M1108_MAX_SOURCES,
+        "maxReconstructionSteps": M1108_MAX_RECONSTRUCTION_STEPS,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1108_MAX_CANONICAL_REQUEST_BYTES

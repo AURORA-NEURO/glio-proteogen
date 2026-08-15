@@ -21,8 +21,7 @@ def test_provisional_schemas_require_reconstructable_dossier_controls() -> None:
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["reconstructableChainRequired"]
-        for schema in schemas.values()
+        schema["x-glio-contract"]["reconstructableChainRequired"] for schema in schemas.values()
     )
     assert all(schema["x-glio-contract"]["claimCeilingRequired"] for schema in schemas.values())
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1108_OUTPUT_MEDIA_TYPE
