@@ -44,6 +44,7 @@ M0707_GATE: Final = "G3"
 M0707_PROVISIONAL_ABI: Final = True
 M0707_MAX_STRATA: Final = 64
 M0707_MAX_ESTIMATES: Final = 512
+M0707_MAX_CANDIDATES: Final = 512
 M0707_MAX_PREDICTION_SET_LABELS: Final = 128
 M0707_MAX_DIAGNOSTICS: Final = 256
 M0707_MAX_EVIDENCE: Final = 32
@@ -193,6 +194,38 @@ class CalibrationDiagnostic(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0707_MAX_EVIDENCE)
 
 
+class SelectiveCandidate(FrozenModel):
+    """Caller-declared candidate used by the provisional selective gate.
+
+    This is deliberately an opaque, content-addressed declaration rather than a
+    model output.  M07-07 may select it only after the upstream M07-06 result,
+    calibration strata, and support/OOD thresholds have all passed.  The
+    candidate is never inferred from an artifact reference or from missing data.
+    """
+
+    feature_id: Identifier
+    estimate_value: float | None = None
+    category: NonEmptyStr | None = None
+    labels: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M0707_MAX_PREDICTION_SET_LABELS)
+    support_score: float = Field(ge=0.0, le=1.0)
+    ood_score: float = Field(ge=0.0, le=1.0)
+    calibration_error: float = Field(ge=0.0, le=1.0)
+    stratum_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=4)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0707_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def candidate_value_is_closed(self) -> SelectiveCandidate:
+        if (self.estimate_value is None) == (self.category is None):
+            raise ValueError("candidate requires exactly one estimate value or category")
+        if self.labels and len(set(self.labels)) != len(self.labels):
+            raise ValueError("candidate prediction labels must be unique")
+        if not self.labels and self.category is None:
+            raise ValueError("numeric candidate requires a non-empty prediction label set")
+        if len(set(self.stratum_ids)) != len(self.stratum_ids):
+            raise ValueError("candidate stratum ids must be unique")
+        return self
+
+
 class CalibrateSelectiveCopyNumberDosageRequest(FrozenModel):
     """Provisional request bound to the complete M07-06 uncertainty result."""
 
@@ -204,6 +237,9 @@ class CalibrateSelectiveCopyNumberDosageRequest(FrozenModel):
     policy: CalibrationPolicy
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0707_MAX_EVIDENCE
+    )
+    candidates: tuple[SelectiveCandidate, ...] = Field(
+        default=(), max_length=M0707_MAX_CANDIDATES
     )
     supersedes_result_digest: Sha256Digest | None = None
 
@@ -276,6 +312,7 @@ __all__ = [
     "M0707_MAX_CALIBRATION_ERROR",
     "M0707_MAX_CANONICAL_REQUEST_BYTES",
     "M0707_MAX_CANONICAL_RESULT_BYTES",
+    "M0707_MAX_CANDIDATES",
     "M0707_MAX_COVERAGE",
     "M0707_MAX_DIAGNOSTICS",
     "M0707_MAX_ESTIMATES",
@@ -303,5 +340,6 @@ __all__ = [
     "CalibrationStratumDimension",
     "OutOfDistributionStatus",
     "SelectivePredictionStatus",
+    "SelectiveCandidate",
     "SelectiveSupportThreshold",
 ]

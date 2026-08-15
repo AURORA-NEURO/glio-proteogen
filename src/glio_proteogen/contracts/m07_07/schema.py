@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m07_07.v1 import (
     M0707_CONTRACT_VERSION,
     M0707_GATE,
     M0707_MAX_CANONICAL_REQUEST_BYTES,
+    M0707_MAX_CANDIDATES,
     M0707_MODULE_ID,
     M0707_OUTPUT_MEDIA_TYPE,
     M0707_OWNER,
@@ -83,6 +84,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M0707_MAX_CANONICAL_REQUEST_BYTES
+        schema["x-glio-contract"]["maxCandidates"] = M0707_MAX_CANDIDATES
     return cast("dict[str, object]", schema)
 
 
