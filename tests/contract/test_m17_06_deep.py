@@ -1,5 +1,7 @@
 """Adversarial contract closure tests for provisional M17-06."""
 
+# ruff: noqa: S106
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
