@@ -9,6 +9,7 @@ provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -117,9 +118,7 @@ class BaselineConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
     estimator_family: BaselineEstimatorFamily
-    target_feature_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1003_MAX_TARGETS
-    )
+    target_feature_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M1003_MAX_TARGETS)
     preprocessing: tuple[BaselinePreprocessingStep, ...] = Field(
         min_length=1, max_length=M1003_MAX_PREPROCESSING_STEPS
     )
@@ -156,6 +155,14 @@ class BaselineEstimate(FrozenModel):
 
     @model_validator(mode="after")
     def estimate_shape_is_closed(self) -> BaselineEstimate:
+        numeric_values = (
+            self.estimate_value,
+            self.lower_bound,
+            self.upper_bound,
+            self.support_score,
+        )
+        if any(value is not None and not isfinite(value) for value in numeric_values):
+            raise ValueError("baseline numeric fields must be finite")
         has_interval = self.lower_bound is not None or self.upper_bound is not None
         if self.kind is BaselineEstimateKind.SCALAR:
             if self.estimate_value is None or has_interval or self.category is not None:
@@ -182,6 +189,12 @@ class BaselineDiagnostic(FrozenModel):
     metric_value: float | None = None
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def metric_is_finite(self) -> BaselineDiagnostic:
+        if self.metric_value is not None and not isfinite(self.metric_value):
+            raise ValueError("diagnostic metric must be finite")
+        return self
 
 
 class EstimateProteinRnaDiscordanceBaselineVerification(FrozenModel):
@@ -227,9 +240,7 @@ class EstimateProteinRnaDiscordanceBaselineRequest(FrozenModel):
 class ProteinRnaDiscordanceBaselineResult(FrozenModel):
     """Baseline estimates, uncertainty, diagnostics, and explicit abstention."""
 
-    output_type: Literal["protein_rna_discordance_baseline"] = (
-        "protein_rna_discordance_baseline"
-    )
+    output_type: Literal["protein_rna_discordance_baseline"] = "protein_rna_discordance_baseline"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1003_CONTRACT_VERSION
     request_digest: Sha256Digest

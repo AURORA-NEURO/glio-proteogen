@@ -10,6 +10,7 @@ import pytest
 from glio_proteogen.contracts.m10_03 import (
     M1003_BASELINE_MEDIA_TYPE,
     BaselineConfiguration,
+    BaselineEstimateKind,
     BaselineEstimatorFamily,
     BaselinePreprocessingStep,
     BaselineTuningSpec,
@@ -127,6 +128,25 @@ def test_estimates_and_replays_deterministically() -> None:
     assert result.request_digest == canonical_request_digest(request)
     assert verify_result_replay(result)
     assert result.emits_parent is False
+
+
+@pytest.mark.parametrize(
+    ("family", "kind"),
+    [
+        (BaselineEstimatorFamily.ESTABLISHED_STATISTICAL, BaselineEstimateKind.SCALAR),
+        (BaselineEstimatorFamily.ROBUST_LINEAR, BaselineEstimateKind.INTERVAL),
+        (BaselineEstimatorFamily.RULE_BASED, BaselineEstimateKind.CATEGORICAL),
+    ],
+)
+def test_declared_estimator_family_selects_closed_estimate_shape(
+    family: BaselineEstimatorFamily, kind: BaselineEstimateKind
+) -> None:
+    request = _request()
+    configuration = request.configuration.model_copy(update={"estimator_family": family})
+    result = estimate_protein_rna_discordance_baseline(
+        request.model_copy(update={"configuration": configuration})
+    )
+    assert {estimate.kind for estimate in result.estimates} == {kind}
 
 
 def test_unsupported_control_is_rejected_before_traversal() -> None:

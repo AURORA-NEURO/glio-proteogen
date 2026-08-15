@@ -1,5 +1,6 @@
 """Focused schema and locked-baseline smoke for provisional M10-03."""
 
+from math import inf, nan
 from typing import cast
 
 import pytest
@@ -114,6 +115,31 @@ def test_baseline_estimate_shapes_are_strict() -> None:
             unit="u",
             estimate_value=1.0,
             support_score=0.9,
+        )
+
+
+@pytest.mark.parametrize("field", ["estimate_value", "lower_bound", "upper_bound", "support_score"])
+def test_baseline_estimate_rejects_non_finite_numbers(field: str) -> None:
+    values: dict[str, object] = {
+        "feature_id": "feature.finite",
+        "kind": BaselineEstimateKind.SCALAR,
+        "unit": "u",
+        "estimate_value": 0.0,
+        "support_score": 0.9,
+    }
+    values[field] = inf if field != "support_score" else nan
+    with pytest.raises(ValueError, match="finite"):
+        BaselineEstimate(**values)
+
+
+def test_diagnostic_rejects_non_finite_metric() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        BaselineDiagnostic(
+            diagnostic_id="diagnostic.nonfinite",
+            status=BaselineDiagnosticStatus.PASS,
+            metric_name="metric",
+            metric_value=nan,
+            message="not a valid metric",
         )
 
 

@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m10_03 import (
     BaselineDiagnosticStatus,
     BaselineEstimate,
     BaselineEstimateKind,
+    BaselineEstimatorFamily,
     BaselineResultStatus,
     EstimateProteinRnaDiscordanceBaselineRequest,
     ProteinRnaDiscordanceBaselineResult,
@@ -313,6 +314,59 @@ def _diagnostics(
     )
 
 
+def _estimates(
+    request: EstimateProteinRnaDiscordanceBaselineRequest,
+) -> tuple[BaselineEstimate, ...]:
+    """Derive transparent fixture estimates for each declared estimator family.
+
+    The provisional runtime intentionally does not inspect source artifacts or
+    claim a fitted scientific model.  It still exercises the complete scalar,
+    interval, and categorical result shapes so owner review can test the
+    contract independently of a future estimator implementation.
+    """
+
+    family = request.configuration.estimator_family
+    estimates: list[BaselineEstimate] = []
+    for index, feature_id in enumerate(request.configuration.target_feature_ids):
+        center = round(math.sin(index + 1) * 0.1, 6)
+        if family is BaselineEstimatorFamily.RULE_BASED:
+            estimates.append(
+                BaselineEstimate(
+                    feature_id=feature_id,
+                    kind=BaselineEstimateKind.CATEGORICAL,
+                    unit="baseline_class",
+                    category="supported_baseline",
+                    support_score=0.95,
+                    evidence=_evidence(request),
+                )
+            )
+        elif family is BaselineEstimatorFamily.ESTABLISHED_STATISTICAL:
+            estimates.append(
+                BaselineEstimate(
+                    feature_id=feature_id,
+                    kind=BaselineEstimateKind.SCALAR,
+                    unit="normalized_effect",
+                    estimate_value=center,
+                    support_score=0.95,
+                    evidence=_evidence(request),
+                )
+            )
+        else:
+            estimates.append(
+                BaselineEstimate(
+                    feature_id=feature_id,
+                    kind=BaselineEstimateKind.INTERVAL,
+                    unit="normalized_effect",
+                    estimate_value=center,
+                    lower_bound=round(center - 0.05, 6),
+                    upper_bound=round(center + 0.05, 6),
+                    support_score=0.95,
+                    evidence=_evidence(request),
+                )
+            )
+    return tuple(estimates)
+
+
 class M1003BaselineEngine:
     """Pure deterministic engine with no scientific-content or network access."""
 
@@ -342,19 +396,7 @@ class M1003BaselineEngine:
             )
             reason = "upstream controls or locked baseline configuration were not evaluable"
         else:
-            estimates = tuple(
-                BaselineEstimate(
-                    feature_id=feature_id,
-                    kind=BaselineEstimateKind.INTERVAL,
-                    unit="normalized_effect",
-                    estimate_value=round(math.sin(index + 1) * 0.1, 6),
-                    lower_bound=round(math.sin(index + 1) * 0.1 - 0.05, 6),
-                    upper_bound=round(math.sin(index + 1) * 0.1 + 0.05, 6),
-                    support_score=0.95,
-                    evidence=_evidence(typed),
-                )
-                for index, feature_id in enumerate(typed.configuration.target_feature_ids)
-            )
+            estimates = _estimates(typed)
             support = SupportDecision(
                 status=SupportStatus.SUPPORTED,
                 reason_code="BASELINE_ESTIMATED",
