@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -282,7 +283,7 @@ def test_estimate_contract_rejects_missing_counter_evidence() -> None:
     ],
 )
 def test_estimate_shape_invariants_are_closed(kwargs: dict[str, object], message: str) -> None:
-    base: dict[str, object] = {
+    base: dict[str, Any] = {
         "estimate_id": "estimate.invalid",
         "mechanism_id": "mechanism.invalid",
         "label": "Invalid",
@@ -299,7 +300,7 @@ def test_estimate_shape_invariants_are_closed(kwargs: dict[str, object], message
 def test_request_media_and_result_closure_reject_forgery() -> None:
     request = _request()
     forged_request = request.model_dump(mode="python")
-    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"  # type: ignore[index]
+    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"
     with pytest.raises(ValueError, match="provisional M12-01"):
         InferBiomarkerPanelMechanismRequest.model_validate(forged_request, strict=True)
     result = M1204MechanismEngine().infer(request)

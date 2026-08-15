@@ -58,9 +58,12 @@ def test_http_denies_controls_and_rejects_tampered_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = TestClient(app)
-    denied = build_scenario_request(accepted=False)
+    denied_request = build_scenario_request(accepted=False)
     assert (
-        client.post("/v1/modules/M12-04/mechanism", json=denied.model_dump(mode="json")).status_code
+        client.post(
+            "/v1/modules/M12-04/mechanism",
+            json=denied_request.model_dump(mode="json"),
+        ).status_code
         == 403
     )
     result = M1204MechanismEngine().infer(build_scenario_request()).model_dump(mode="json")
