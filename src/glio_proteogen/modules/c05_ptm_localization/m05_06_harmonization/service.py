@@ -4,9 +4,11 @@ from glio_proteogen.contracts.m05_06 import (
     HarmonizePtmLocalizationAnalysisRequest,
     PtmLocalizationHarmonizationResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
     M0506PtmLocalizationHarmonizationEngine,
     _prepare,
+    _validate_json_request,
 )
 
 
@@ -23,6 +25,8 @@ class M0506Service:
 
     @staticmethod
     def validate_request(request: object) -> HarmonizePtmLocalizationAnalysisRequest:
+        if isinstance(request, dict):
+            return _validate_json_request(request, canonical_json_bytes(request))
         return HarmonizePtmLocalizationAnalysisRequest.model_validate(
             _prepare(request), strict=True
         )
@@ -31,10 +35,10 @@ class M0506Service:
         self,
         request: HarmonizePtmLocalizationAnalysisRequest,
     ) -> PtmLocalizationHarmonizationResult:
-        return self._engine.harmonize(request)
+        return self._engine.harmonize_validated(request)
 
     def execute(self, request: object) -> PtmLocalizationHarmonizationResult:
-        return self._engine.harmonize(request)
+        return self._execute_validated(self.validate_request(request))
 
 
 __all__ = ["M0506Service"]
