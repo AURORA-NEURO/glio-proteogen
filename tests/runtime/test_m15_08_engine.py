@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m15_08 import (
     MechanismDossierConfiguration,
     MechanismDossierFindingCode,
     MechanismDossierStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -178,19 +179,71 @@ def test_tampered_result_fails_replay_verification() -> None:
         m1508.M1508Service().verify(tampered)
 
 
+def test_replay_mismatch_is_distinguished_from_digest_tamper() -> None:
+    result = m1508.M1508Service().execute(_request())
+    changed = result.model_copy(update={"human_review_required": False})
+    changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
+    with pytest.raises(m1508.M1508ReplayVerificationError):
+        m1508.M1508Service().verify(changed)
+
+
 def test_mapping_service_and_plugin_paths() -> None:
     request = _request()
     service = m1508.M1508Service()
     mapping = request.model_dump(mode="python")
+    assert service.validate_request(request).request_id == request.request_id
     assert service.validate_request(mapping).request_id == request.request_id
     assert service.construct(mapping).status is MechanismDossierStatus.READY
     plugin = m1508.M1508Plugin(service)
     validated = plugin.validate(request.model_dump_json())
+    assert plugin.validate(request).request.request_id == request.request_id
     result = plugin.run(validated)
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M15-08"
     assert plugin.verify(result, replay=False).result_id == result.result_id
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="strict request"):
+        service.validate_request(object())
+
+
+def test_invalid_engine_candidate_and_authorization_shape_fail_closed() -> None:
+    request = _request()
+
+    class Candidate:
+        context = request.context
+
+    with pytest.raises(TypeError, match="strict request"):
+        m1508.M1508Service().construct(Candidate())
+
+    class Broken:
+        @property
+        def context(self) -> object:
+            raise RuntimeError
+
+    with pytest.raises(m1508.M1508AuthorizationError):
+        m1508.preflight_m1508_authorization(Broken())
+
+
+def test_duplicate_evidence_is_canonicalized() -> None:
+    original = _request()
+    request = original.model_copy(
+        update={
+            "configuration": original.configuration.model_copy(
+                update={"source_manifest": (original.source_artifacts[0],)}
+            )
+        }
+    )
+    result = m1508.M1508Service().execute(request)
+    keys = [
+        (
+            item.reference.artifact_id,
+            item.reference.version,
+            item.reference.digest,
+            item.reference.media_type,
+        )
+        for item in result.evidence
+    ]
+    assert len(keys) == len(set(keys))
 
 
 def test_unknown_field_is_rejected_strictly() -> None:
