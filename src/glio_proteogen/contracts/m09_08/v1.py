@@ -168,9 +168,7 @@ class ComplexActivityEvidenceBundle(FrozenModel):
     bundle_id: Identifier
     version: SemanticVersion
     upstream_result: ArtifactReference
-    sources: tuple[PublisherEvidenceSource, ...] = Field(
-        min_length=1, max_length=M0908_MAX_SOURCES
-    )
+    sources: tuple[PublisherEvidenceSource, ...] = Field(min_length=1, max_length=M0908_MAX_SOURCES)
     assumptions: tuple[PublisherAssumption, ...] = Field(
         min_length=1, max_length=M0908_MAX_ASSUMPTIONS
     )
@@ -194,9 +192,7 @@ class ComplexActivityEvidenceBundle(FrozenModel):
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("evidence source identifiers must be unique")
         evidence_ids = tuple(
-            item.reference.digest
-            for source in self.sources
-            for item in source.evidence
+            item.reference.digest for source in self.sources for item in source.evidence
         )
         if len(evidence_ids) != len(set(evidence_ids)):
             raise ValueError("bundle evidence references must be unique")
@@ -360,6 +356,7 @@ __all__ = [
     "ComplexActivityEvidencePublicationVerification",
     "ComplexActivityExplanation",
     "EvidencePublicationStatus",
+    "PublicationReplayReason",
     "PublishComplexActivityEvidenceRequest",
     "PublisherAssumption",
     "PublisherCounterEvidence",
@@ -368,7 +365,6 @@ __all__ = [
     "PublisherEvidenceSource",
     "PublisherFindingCode",
     "PublisherSourceKind",
-    "PublicationReplayReason",
     "ReconstructionStatus",
     "ReconstructionStep",
 ]

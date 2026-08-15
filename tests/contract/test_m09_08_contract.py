@@ -4,9 +4,9 @@ from glio_proteogen.contracts.m09_08 import (
     M0908_MAX_EVIDENCE,
     M0908_OUTPUT_MEDIA_TYPE,
     M0908_PROVISIONAL_ABI,
+    PublicationReplayReason,
     PublisherEvidenceSource,
     PublisherSourceKind,
-    PublicationReplayReason,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.models import ArtifactReference
