@@ -197,6 +197,15 @@ class TranscriptProteinMigrationRule(FrozenModel):
     lossy: bool
     review_required: Literal[True] = True
 
+    @field_validator("mapped_feature_ids")
+    @classmethod
+    def mapped_feature_ids_are_unique(
+        cls, values: tuple[Identifier, ...]
+    ) -> tuple[Identifier, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("migration feature ids must be unique")
+        return tuple(sorted(values))
+
     @model_validator(mode="after")
     def versions_are_distinct(self) -> TranscriptProteinMigrationRule:
         if self.source_version == self.target_version:
@@ -226,6 +235,14 @@ class FormalTranscriptProteinStateSchema(FrozenModel):
         feature_ids = tuple(item.feature_id for item in self.features)
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("schema feature ids must be unique")
+        invariant_ids = tuple(item.invariant_id for item in self.invariants)
+        if len(invariant_ids) != len(set(invariant_ids)):
+            raise ValueError("schema invariant ids must be unique")
+        migration_pairs = tuple(
+            (item.source_version, item.target_version) for item in self.migrations
+        )
+        if len(migration_pairs) != len(set(migration_pairs)):
+            raise ValueError("schema migration source and target pairs must be unique")
         known = set(feature_ids)
         for invariant in self.invariants:
             if not set(invariant.feature_ids) <= known:
@@ -258,7 +275,9 @@ class ValidateTranscriptProteinStateRequest(FrozenModel):
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
-    def values_match_schema(self) -> ValidateTranscriptProteinStateRequest:
+    def values_match_schema(  # noqa: PLR0912 - each feature kind has an explicit closure rule.
+        self,
+    ) -> ValidateTranscriptProteinStateRequest:
         definitions = {item.feature_id: item for item in self.state_schema.features}
         values_by_id = {item.feature_id: item for item in self.values}
         if len(values_by_id) != len(self.values):
@@ -273,6 +292,24 @@ class ValidateTranscriptProteinStateRequest(FrozenModel):
                 raise ValueError("feature value unit does not match schema unit")
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
+            if definition.value_kind is TranscriptProteinFeatureValueKind.SCALAR and (
+                value.scalar_value is None
+                and value.state is TranscriptProteinMissingness.OBSERVED
+            ):
+                raise ValueError("scalar feature requires a scalar value")
+            if definition.value_kind is TranscriptProteinFeatureValueKind.INTERVAL and (
+                (value.interval_lower is None or value.interval_upper is None)
+                and value.state is TranscriptProteinMissingness.OBSERVED
+            ):
+                raise ValueError("interval feature requires interval bounds")
+            if definition.value_kind is TranscriptProteinFeatureValueKind.CATEGORICAL and (
+                value.category is None and value.state is TranscriptProteinMissingness.OBSERVED
+            ):
+                raise ValueError("categorical feature requires a category")
+            if definition.value_kind is TranscriptProteinFeatureValueKind.VECTOR and (
+                not value.vector and value.state is TranscriptProteinMissingness.OBSERVED
+            ):
+                raise ValueError("vector feature requires vector values")
             if value.scalar_value is not None and (
                 (
                     definition.domain_lower is not None
@@ -284,6 +321,16 @@ class ValidateTranscriptProteinStateRequest(FrozenModel):
                 )
             ):
                 raise ValueError("scalar feature value is outside the declared domain")
+            if value.interval_lower is not None and (
+                definition.domain_lower is not None
+                and value.interval_lower < definition.domain_lower
+            ):
+                raise ValueError("interval lower bound is outside the declared domain")
+            if value.interval_upper is not None and (
+                definition.domain_upper is not None
+                and value.interval_upper > definition.domain_upper
+            ):
+                raise ValueError("interval upper bound is outside the declared domain")
         return self
 
 
