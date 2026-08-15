@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1502_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m15_02 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    StratifyContextAndSubtypeRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1502_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-02 caller-declared context and subtype stratification.",
+)
+app.add_typer(m1502_app, name="context-stratifier")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -776,7 +789,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](
+def _load_request[RequestT](  # noqa: C901
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -810,6 +823,8 @@ def _load_request[RequestT](
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
+        raise
+    except m1502_module.M1502AuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3436,6 +3451,43 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@m1502_app.command("export-schema")
+def export_m1502_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "attribute",
+            "mechanism",
+            "profile",
+            "evaluation",
+            "finding",
+        ],
+        typer.Argument(help="M15-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M15-02 contract."""
+
+    typer.echo(json.dumps(_m1502_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1502_app.command("stratify")
+def stratify_m1502(request: RequestArgument) -> None:
+    """Replay caller-declared context and applicable mechanisms safely."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(StratifyContextAndSubtypeRequest),
+            m1502_module.preflight_m1502_authorization,
+            M1502_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1502_module.M1502Service().execute(parsed))
+    except m1502_module.M1502AuthorizationError as error:
+        typer.echo(f"context stratification authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
 
 
 @app.command("export-schema")
