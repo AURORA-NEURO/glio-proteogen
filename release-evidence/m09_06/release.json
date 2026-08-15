@@ -11,7 +11,9 @@
     "c0e5064 feat(m09-06): close uncertainty replay and envelope invariants",
     "8a91275 feat(m09-06): implement replay-bound uncertainty runtime and interfaces",
     "a2d00f9 test(m09-06): add adversarial evaluator and benchmark matrix",
-    "bdcd912 fix(m09-06): parse serialized requests with strict JSON adapter"
+    "bdcd912 fix(m09-06): parse serialized requests with strict JSON adapter",
+    "40b158c docs(m09-06): publish traceability and release evidence",
+    "50df10c test(m09-06): close strict typing and replay branch coverage"
   ],
   "focusedTests": {
     "count": 31,
