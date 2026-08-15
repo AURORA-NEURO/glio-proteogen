@@ -151,7 +151,7 @@ def preflight_m1403_authorization(candidate: object) -> None:
 def _as_request(candidate: object) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
     preflight_m1403_authorization(candidate)
     if type(candidate) is ConstructProteinSubtypeMechanisticFeaturesRequest:
-        return candidate
+        return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
     if isinstance(candidate, Mapping):
         return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
     raise _InvalidRequestError

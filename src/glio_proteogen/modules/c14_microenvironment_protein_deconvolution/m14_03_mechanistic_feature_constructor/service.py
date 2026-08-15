@@ -33,7 +33,10 @@ class M1403Service:
         candidate: object,
     ) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
         if type(candidate) is ConstructProteinSubtypeMechanisticFeaturesRequest:
-            return candidate
+            return ConstructProteinSubtypeMechanisticFeaturesRequest.model_validate(
+                candidate,
+                strict=True,
+            )
         if isinstance(candidate, Mapping):
             return ConstructProteinSubtypeMechanisticFeaturesRequest.model_validate(
                 candidate,
