@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from evals.m05_05.run import build_scenario, canonical_smoke
 
 from glio_proteogen.contracts.m05_06 import (
@@ -16,10 +15,10 @@ from glio_proteogen.contracts.m05_06 import (
     opaque_harmonization_identifier,
 )
 from glio_proteogen.contracts.m05_06.canonical import canonical_request_digest
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
     M0506Plugin,
     M0506Service,
-    harmonize_ptm_localization_analysis,
     preflight_ptm_localization_harmonization_authorization,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
@@ -30,22 +29,29 @@ from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.plugin imp
     ValidatedM0506Request,
 )
 
+_EXPECTED_SCHEMA_COUNT = 14
+
 
 def test_schema_abi_is_explicit_and_provisional() -> None:
     schemas = contract_json_schemas()
-    assert len(schemas) == 14
-    assert all(schema["x-glio-contract"]["provisionalAbi"] is True for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] is True for schema in schemas.values())
+    assert len(schemas) == _EXPECTED_SCHEMA_COUNT
+    assert all(
+        schema["x-glio-contract"]["provisionalAbi"] is True for schema in schemas.values()
+    )
+    assert all(
+        schema["x-glio-contract"]["pendingOwnerConfirmation"] is True
+        for schema in schemas.values()
+    )
     assert M0506_PROVISIONAL_ABI is True
 
 
 def test_missing_request_fails_closed_at_service_boundary() -> None:
-    with pytest.raises(Exception):  # strict Pydantic validation is intentionally opaque
+    with pytest.raises(PtmLocalizationHarmonizationAuthorizationError):
         M0506Service.validate_request({})
 
 
 def test_missing_request_fails_closed_at_plugin_boundary() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(PtmLocalizationHarmonizationAuthorizationError):
         M0506Plugin(M0506Service()).validate({})
 
 
@@ -86,7 +92,7 @@ def test_authorization_preflight_rejects_each_missing_control() -> None:
 
 
 def test_opaque_identifier_rejects_unknown_namespace() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown M05-06"):
         opaque_harmonization_identifier("unknown", {"x": 1})
 
 
@@ -107,7 +113,7 @@ def test_canonical_request_digest_changes_on_mutation() -> None:
 
 
 def test_artifact_receipt_replay_rejects_missing_upstream() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises((AttributeError, TypeError, ValueError)):
         artifact_harmonization_receipt({})
 
 
@@ -128,14 +134,14 @@ def test_plugin_rejects_copied_token_without_issued_registry_entry() -> None:
 def test_plugin_rejects_duplicate_json_keys() -> None:
     plugin = M0506Plugin(M0506Service())
     duplicate = '{"operation":"x","operation":"y"}'
-    with pytest.raises(Exception):
+    with pytest.raises(StrictJsonError):
         plugin.validate(duplicate)
 
 
 def test_plugin_rejects_oversized_json_before_deep_validation() -> None:
     plugin = M0506Plugin(M0506Service())
     oversized = json.dumps({"payload": "x" * M0506_MAX_CANONICAL_REQUEST_BYTES})
-    with pytest.raises(Exception):
+    with pytest.raises(StrictJsonError):
         plugin.validate(oversized)
 
 
