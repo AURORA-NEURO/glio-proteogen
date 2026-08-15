@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1603_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m16_03 import (
+    M1603_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteinRnaDiscordanceEvidenceRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +441,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+fusion_aggregation_app = typer.Typer(
+    no_args_is_help=True,
+    help="M16-03 component-specific fusion and aggregation.",
+)
+app.add_typer(fusion_aggregation_app, name="fusion-aggregation")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3380,6 +3393,47 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@fusion_aggregation_app.command("export-schema")
+def export_m1603_fusion_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "source-contribution",
+            "disagreement",
+            "propagation",
+            "configuration",
+            "finding",
+            "integrated-evidence",
+        ],
+        typer.Argument(help="M16-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable fusion and aggregation contract."""
+
+    typer.echo(json.dumps(_m1603_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@fusion_aggregation_app.command("fuse")
+def fuse_m1603_evidence(request: RequestArgument) -> None:
+    """Fuse attributable component evidence while preserving disagreement."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest),
+            m1603.preflight_m1603_authorization,
+            M1603_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1603.M1603Service().execute(parsed))
+    except m1603.M1603AuthorizationError as error:
+        typer.echo(f"fusion aggregation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"fusion aggregation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
