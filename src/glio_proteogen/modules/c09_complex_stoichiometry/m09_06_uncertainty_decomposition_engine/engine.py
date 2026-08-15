@@ -457,9 +457,9 @@ def _validate_json_request(
     size = len(serialized.encode("utf-8")) if isinstance(serialized, str) else len(serialized)
     if size > M0906_MAX_CANONICAL_REQUEST_BYTES:
         raise M0906InputError("request_limit")
-    return M0906UncertaintyDecompositionEngine.validate_request(
-        _REQUEST_ADAPTER.validate_python(decoded, strict=True)
-    )
+    del decoded
+    typed = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
+    return M0906UncertaintyDecompositionEngine.validate_request(typed)
 
 
 def decompose_complex_activity_uncertainty(request: object) -> BuiltM0906Result:
