@@ -192,9 +192,14 @@ def test_replay_and_tamper_are_closed() -> None:
 def test_plugin_parses_once_and_binds_token_to_issuer() -> None:
     service = M1207Service()
     plugin = M1207Plugin(service)
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M12-07"
     request = _request()
     token = plugin.validate(canonical_json_bytes(request.model_dump(mode="json")))
     assert plugin.run(token).result_id.startswith("result.m1207.")
+    object_token = plugin.validate(request)
+    assert plugin.run(object_token).result_id == plugin.run(token).result_id
     forged = token.__class__(request=token.request, issuer=object())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(object())  # type: ignore[arg-type]
