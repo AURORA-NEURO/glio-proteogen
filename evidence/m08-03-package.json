@@ -2,7 +2,7 @@
   "module": "GLIO-PROTEOGEN-M08-03",
   "build_backend": "hatchling 1.31.0",
   "wheel": {"file": "glio_proteogen-0.1.0-py3-none-any.whl", "bytes": 760182, "sha256": "c46cfc54f49e95a4ea3f3dbf0ed7e42f77eed47bd6d7f8382c9e2a013722a1b00"},
-  "sdist": {"file": "glio_proteogen-0.1.0.tar.gz", "bytes": 1429791, "sha256": "4ed08fd2bd3339005de043407cba82cf07d029d93b991559f38c3c57ef369046"},
+  "sdist": {"file": "glio_proteogen-0.1.0.tar.gz", "bytes": 1430173, "sha256": "92e85e48c1bd41b29196dee4bb4c92d759759a735ce92780f025015f2a1a10f2"},
   "isolated_import": "pass",
   "compileall": "pass"
 }
