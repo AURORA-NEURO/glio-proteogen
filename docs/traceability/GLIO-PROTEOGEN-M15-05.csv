@@ -1,0 +1,17 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M15-05-R01,"Bind implementation to the exact authoritative dossier slice and SHA-256","M1505_DOSSIER_SHA256 and M1505_DOSSIER_SLICE","contract metadata assertions and evaluator report",G2
+M15-05-R02,"Require the provisional M15-04 network-state result media type","request upstream media-type invariant","wrong-upstream-media fixture",G2
+M15-05-R03,"Represent the declared time-course, recurrence, treatment-era, clone, territory, and state-transition dimensions","TrajectoryDimension and TrajectoryPolicy","contract schema and supported fixture",G2
+M15-05-R04,"Require strictly ordered unique observations and configured minimum history","request temporal-closure validator","out-of-order, duplicate, and insufficient-history fixtures",G2
+M15-05-R05,"Check all seven caller controls before observation traversal","preflight_m1505_authorization","denied-control fixture and authorization test",G2
+M15-05-R06,"Prevent future leakage at the replay boundary","ordered metadata replay and temporal diagnostics","engine future-leakage test and evaluator report",G2
+M15-05-R07,"Emit a time-indexed trajectory without claiming a biological state estimate","caller-declared TrajectoryState with limitations","supported runtime result and output-boundary assertions",G2
+M15-05-R08,"Make change-point inference explicit and safe while the ABI is open","ChangePointStatus.NOT_EVALUABLE","change-point assertions and evaluator fixture",G2
+M15-05-R09,"Preserve uncertainty and owner review requirements","UncertaintyProfile and limitations","result contract and runtime uncertainty tests",G2
+M15-05-R10,"Reject unknown and malformed request fields","strict Pydantic request boundary","unknown-field fixture and API/CLI tests",G2
+M15-05-R11,"Bind results to exact request and verify deterministic replay","canonical request/result digests","tampered-result fixture and replay tests",G2
+M15-05-R12,"Keep output inside the complex-activity context boundary","emits_parent=false and descriptor prohibited outputs","plugin descriptor and recursive output assertions",G2
+M15-05-R13,"Expose safe API, CLI, and sealed plugin capability","strict HTTP/CLI/plugin adapters","integration interface tests and installed CLI smoke",G2
+M15-05-R14,"Provide adversarial evaluator coverage at or above the release threshold","locked eight-case synthetic corpus","evals.m15_05.run (8/8 expected outcomes)",G2
+M15-05-R15,"Report representative replay performance","bounded metadata-only service benchmark","evals.m15_05.benchmark (100 calls)",G2
+M15-05-R16,"Verify wheel build, installation, and installed imports","release artifact verification","uv build/uv pip install/verify_release_artifacts report",G2
