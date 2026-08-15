@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-07",
+  "workload": "deterministic_m1207_six_control_adjudication",
+  "iterations": 10,
+  "mean_ns": 2517360.0,
+  "p50_ns": 2421850.0,
+  "p95_ns": 2839500,
+  "maximum_ns": 2839500,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true
+}
