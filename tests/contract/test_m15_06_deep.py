@@ -22,12 +22,14 @@ from glio_proteogen.contracts.m15_06 import (
     PerturbationSpecification,
     SensitivityResponse,
     SensitivitySimulationStatus,
+    SensitivitySurface,
     contract_json_schema,
     contract_json_schemas,
     expected_uncertainty,
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_06_perturbation_sensitivity_simulator import (
     M1506AuthorizationError,
     M1506Plugin,
@@ -101,6 +103,18 @@ def test_contract_shapes_are_fail_closed() -> None:
             assumptions=("x",),
             evidence=_evidence("bad"),
         )
+    with pytest.raises(ValueError, match="finite"):
+        SensitivityResponse.numeric_values_are_finite(float("nan"))
+    with pytest.raises(ValueError, match="ordered bounds"):
+        SensitivityResponse(
+            scenario_id="scenario.bad",
+            status=PerturbationResponseStatus.BOUNDED,
+            response_value=2.0,
+            lower_bound=0.0,
+            upper_bound=1.0,
+            assumptions=("x",),
+            evidence=_evidence("bad-bounds"),
+        )
     with pytest.raises(ValueError, match="requires evidence"):
         SensitivityResponse(
             scenario_id="scenario.bad",
@@ -117,6 +131,14 @@ def test_contract_shapes_are_fail_closed() -> None:
             response_value=0.1,
             assumptions=("x",),
         )
+    assert (
+        SensitivityResponse(
+            scenario_id="scenario.safe",
+            status=PerturbationResponseStatus.NOT_EVALUABLE,
+            assumptions=("not evaluated",),
+        ).response_value
+        is None
+    )
     with pytest.raises(ValueError, match="non-bounded"):
         SensitivityResponse(
             scenario_id="scenario.bad",
@@ -142,6 +164,13 @@ def test_request_and_surface_closures_reject_tampering() -> None:
     bad_surface["responses"] = (*bad_surface["responses"], bad_surface["responses"][0])
     with pytest.raises(ValueError, match="identifiers"):
         type(result.surface).model_validate(bad_surface, strict=True)
+    duplicate_perturbations = result.surface.model_dump(mode="python")
+    duplicate_perturbations["perturbations"] = (
+        duplicate_perturbations["perturbations"][0],
+        duplicate_perturbations["perturbations"][0],
+    )
+    with pytest.raises(ValueError, match="perturbation identifiers"):
+        SensitivitySurface.model_validate(duplicate_perturbations, strict=True)
     mismatched = result.surface.model_dump(mode="python")
     mismatched["responses"] = (
         result.surface.responses[0]
@@ -251,6 +280,18 @@ def test_result_closure_rejects_forged_digest_id_evidence_and_review() -> None:
     no_evidence["result_digest"] = result_payload_digest(no_evidence)
     with pytest.raises(ValueError, match="result evidence"):
         ComplexActivitySensitivitySimulationResult.model_validate(no_evidence, strict=True)
+    unsupported_status = result.model_dump(mode="python")
+    unsupported_status["support_decision"] = result.support_decision.model_copy(
+        update={"status": SupportStatus.REVIEW_REQUIRED}
+    )
+    unsupported_status["result_digest"] = result_payload_digest(unsupported_status)
+    with pytest.raises(ValueError, match="simulated result"):
+        ComplexActivitySensitivitySimulationResult.model_validate(unsupported_status, strict=True)
+    invalid_abstained = abstained.model_dump(mode="python")
+    invalid_abstained["surface"] = result.surface
+    invalid_abstained["result_digest"] = result_payload_digest(invalid_abstained)
+    with pytest.raises(ValueError, match="abstained result"):
+        ComplexActivitySensitivitySimulationResult.model_validate(invalid_abstained, strict=True)
 
 
 def test_authorization_precedes_hostile_traversal() -> None:
