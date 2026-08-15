@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-04",
+  "built": true,
+  "builder": "hatchling via uv build",
+  "wheel": {
+    "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 885587,
+    "sha256": "sha256:2371e3c30540d013f9c15b5c8faed8fd44e2ed93040f1eb2c2ba1751ed899e79"
+  },
+  "sdist": {
+    "path": "dist/glio_proteogen-0.1.0.tar.gz",
+    "bytes": 1482124,
+    "sha256": "sha256:0368700bb9db09e4905ee933b91230cceef65101dcf165fa09207d379acd5289"
+  },
+  "isolated_import": true,
+  "isolated_import_detail": "wheel installed into a fresh temporary target and glio_proteogen.adapters.m1604 imported"
+}
