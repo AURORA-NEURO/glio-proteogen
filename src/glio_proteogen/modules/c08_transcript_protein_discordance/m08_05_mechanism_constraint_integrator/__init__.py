@@ -1,5 +1,7 @@
 """Provisional M08-05 mechanism and constraint integration surfaces."""
 
+from .api import app, create_app
+from .cli import app as cli_app
 from .engine import (
     BuiltM0805Result,
     M0805AuthorizationError,
@@ -19,6 +21,9 @@ __all__ = [
     "M0805Plugin",
     "M0805Service",
     "ValidatedM0805Request",
+    "app",
+    "cli_app",
+    "create_app",
     "integrate_transcript_protein_constraints",
     "preflight_m0805_authorization",
 ]

@@ -318,7 +318,7 @@ def _build_result(
                     ),
                 )
             )
-    status = (
+    integration_status = (
         ConstraintIntegratorStatus.ESTIMATED if integrated else ConstraintIntegratorStatus.ABSTAINED
     )
     abstention_reason = None if integrated else "; ".join(dict.fromkeys(reasons))
@@ -340,7 +340,7 @@ def _build_result(
         request_digest=canonical_request_digest(request),
         result_digest=_ZERO_DIGEST,
         request=request,
-        status=status,
+        status=integration_status,
         estimates=tuple(estimates),
         satisfaction_report=tuple(reports),
         abstention_reason=abstention_reason,
