@@ -293,8 +293,7 @@ class ValidateTranscriptProteinStateRequest(FrozenModel):
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
             if definition.value_kind is TranscriptProteinFeatureValueKind.SCALAR and (
-                value.scalar_value is None
-                and value.state is TranscriptProteinMissingness.OBSERVED
+                value.scalar_value is None and value.state is TranscriptProteinMissingness.OBSERVED
             ):
                 raise ValueError("scalar feature requires a scalar value")
             if definition.value_kind is TranscriptProteinFeatureValueKind.INTERVAL and (
@@ -362,10 +361,18 @@ class ValidateTranscriptProteinStateResult(FrozenModel):
     def result_is_closed(self) -> ValidateTranscriptProteinStateResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
-        statuses = {item.status for item in self.invariant_results}
+        severity_by_id = {
+            invariant.invariant_id: invariant.severity
+            for invariant in self.request.state_schema.invariants
+        }
+        hard_violation = any(
+            item.status is TranscriptProteinInvariantStatus.VIOLATED
+            and severity_by_id.get(item.invariant_id) is TranscriptProteinInvariantSeverity.ERROR
+            for item in self.invariant_results
+        )
         if self.status is TranscriptProteinValidationStatus.VALID:
-            if TranscriptProteinInvariantStatus.VIOLATED in statuses:
-                raise ValueError("valid result cannot contain a violated invariant")
+            if hard_violation:
+                raise ValueError("valid result cannot contain a violated error invariant")
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("valid result requires supported status")
         if (
