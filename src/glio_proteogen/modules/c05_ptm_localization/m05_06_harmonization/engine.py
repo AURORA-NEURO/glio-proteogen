@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m05_05 import (
 from glio_proteogen.contracts.m05_06 import (
     M0506_CONTRACT_VERSION,
     M0506_EVIDENCE_CLAIM,
+    M0506_MAX_CANONICAL_REQUEST_BYTES,
     M0506_OUTPUT_MEDIA_TYPE,
     M0506_PARENT,
     M0506_ZERO_DIGEST,
@@ -321,6 +322,22 @@ def _prepare(candidate: object) -> object:
     return _safe_candidate(candidate)
 
 
+def _validate_json_request(
+    candidate: object,
+    serialized: bytes | bytearray | str,
+) -> HarmonizePtmLocalizationAnalysisRequest:
+    """Validate one decoded JSON candidate with JSON-native strict coercions."""
+
+    serialized_size = (
+        len(serialized.encode("utf-8")) if type(serialized) is str else len(serialized)
+    )
+    if serialized_size > M0506_MAX_CANONICAL_REQUEST_BYTES:
+        raise ValueError("M05-06 canonical request exceeds its byte limit")
+    preflight_ptm_localization_harmonization_authorization(candidate)
+    body = serialized if isinstance(serialized, (bytes, bytearray)) else serialized.encode("utf-8")
+    return _REQUEST_ADAPTER.validate_json(body, strict=True)
+
+
 class M0506PtmLocalizationHarmonizationEngine:
     """Replay M05-05 and harmonize only caller-declared, cleared support."""
 
@@ -332,10 +349,20 @@ class M0506PtmLocalizationHarmonizationEngine:
     def harmonize(self, request: object) -> PtmLocalizationHarmonizationResult:
         prepared = _prepare(request)
         validated = _REQUEST_ADAPTER.validate_python(prepared, strict=True)
-        expected_receipt = artifact_harmonization_receipt(validated.artifact_result)
-        if validated.artifact_receipt != expected_receipt:
+        return self.harmonize_validated(validated)
+
+    def harmonize_validated(
+        self,
+        request: HarmonizePtmLocalizationAnalysisRequest,
+    ) -> PtmLocalizationHarmonizationResult:
+        """Execute one request after the service/plugin boundary has validated it."""
+
+        if not isinstance(request, HarmonizePtmLocalizationAnalysisRequest):
+            raise TypeError("M05-06 validated execution requires the declared request type")
+        expected_receipt = artifact_harmonization_receipt(request.artifact_result)
+        if request.artifact_receipt != expected_receipt:
             raise ValueError("artifact receipt must replay the exact full M05-05 result")
-        return self._result(validated)
+        return self._result(request)
 
     def _result(
         self,
@@ -468,6 +495,7 @@ def harmonize_ptm_localization_analysis(request: object) -> PtmLocalizationHarmo
 __all__ = [
     "M0506PtmLocalizationHarmonizationEngine",
     "PtmLocalizationHarmonizationAuthorizationError",
+    "_validate_json_request",
     "artifact_harmonization_receipt",
     "harmonize_ptm_localization_analysis",
     "preflight_ptm_localization_harmonization_authorization",

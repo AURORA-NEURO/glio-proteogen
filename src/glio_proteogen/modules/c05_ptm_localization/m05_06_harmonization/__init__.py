@@ -3,6 +3,7 @@
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
     M0506PtmLocalizationHarmonizationEngine,
     PtmLocalizationHarmonizationAuthorizationError,
+    artifact_harmonization_receipt,
     harmonize_ptm_localization_analysis,
     preflight_ptm_localization_harmonization_authorization,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "M0506Service",
     "PtmLocalizationHarmonizationAuthorizationError",
     "ValidatedM0506Request",
+    "artifact_harmonization_receipt",
     "harmonize_ptm_localization_analysis",
     "preflight_ptm_localization_harmonization_authorization",
 ]

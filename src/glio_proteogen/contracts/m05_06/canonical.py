@@ -15,8 +15,12 @@ if TYPE_CHECKING:
 def _dump(value: object) -> object:
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
     if isinstance(value, tuple):
         return tuple(_dump(item) for item in value)
+    if isinstance(value, list):
+        return [_dump(item) for item in value]
     if isinstance(value, dict):
         return {key: _dump(item) for key, item in value.items()}
     raise TypeError(f"unsupported canonical value: {type(value).__name__}")

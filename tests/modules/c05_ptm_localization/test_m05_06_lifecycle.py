@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 
 import pytest
-from evals.m05_05.run import build_scenario, canonical_smoke
+from evals.m05_05.run import canonical_smoke
+from evals.m05_06.run import build_scenario
 
 from glio_proteogen.contracts.m05_06 import (
     M0506_MAX_CANONICAL_REQUEST_BYTES,
@@ -126,7 +127,8 @@ def test_plugin_rejects_forged_token() -> None:
 
 def test_plugin_rejects_copied_token_without_issued_registry_entry() -> None:
     plugin = M0506Plugin(M0506Service())
-    copied = ValidatedM0506Request(request=object(), _seal=object())
+    token = plugin.validate(build_scenario("clear").request)
+    copied = ValidatedM0506Request(request=token.request, _seal=object())
     with pytest.raises(TypeError):
         plugin.run(copied)
 
@@ -147,7 +149,9 @@ def test_plugin_rejects_oversized_json_before_deep_validation() -> None:
 
 def test_clear_upstream_result_is_not_silently_downgraded() -> None:
     result = canonical_smoke("clear")
+    harmonized = build_scenario("clear").request.artifact_result
     assert result.disposition.value == "cleared"
+    assert harmonized.disposition.value == "cleared"
 
 
 def test_descriptor_and_operation_are_stable() -> None:
