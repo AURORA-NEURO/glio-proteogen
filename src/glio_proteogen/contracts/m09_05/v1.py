@@ -168,6 +168,7 @@ class ConstraintSatisfactionReport(FrozenModel):
     severity: ConstraintSeverity
     status: ConstraintEvaluationStatus
     violation_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    ablation_effect: float | None = Field(default=None, ge=-1.0, le=1.0)
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0905_MAX_EVIDENCE)
 
@@ -176,10 +177,21 @@ class ConstraintSatisfactionReport(FrozenModel):
         if self.status is ConstraintEvaluationStatus.VIOLATED and self.violation_score is None:
             raise ValueError("violated constraint requires a violation score")
         if (
+            self.status is ConstraintEvaluationStatus.VIOLATED
+            and self.severity is ConstraintSeverity.SOFT
+            and self.ablation_effect is None
+        ):
+            raise ValueError("soft violation requires a quantified ablation effect")
+        if (
             self.status is not ConstraintEvaluationStatus.VIOLATED
             and self.violation_score is not None
         ):
             raise ValueError("non-violated constraint cannot carry a violation score")
+        if (
+            self.status is not ConstraintEvaluationStatus.VIOLATED
+            and self.ablation_effect is not None
+        ):
+            raise ValueError("non-violated constraint cannot carry an ablation effect")
         return self
 
 
