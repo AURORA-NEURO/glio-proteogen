@@ -27,6 +27,7 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     FrozenModel,
     Identifier,
+    IdentityLineageReference,
     Limitation,
     NonEmptyStr,
     ProvenanceRecord,
@@ -346,7 +347,7 @@ def expected_provenance(
             policy_version=decision.policy_version,
             evidence_digest=decision.evidence.digest,
             subject_digest=(
-                decision.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
+                decision.binding_digest if isinstance(decision, IdentityLineageReference) else None
             ),
         )
         for role, decision in controls
@@ -374,6 +375,7 @@ def expected_provenance(
 
 __all__ = [
     "M1105_CONTRACT_VERSION",
+    "M1105_EVIDENCE_CLAIM",
     "M1105_GATE",
     "M1105_M1104_RESULT_MEDIA_TYPE",
     "M1105_MAX_CANONICAL_REQUEST_BYTES",
