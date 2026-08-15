@@ -2,10 +2,15 @@
   "module": "GLIO-PROTEOGEN-M10-03",
   "contractVersion": "0.1.0-provisional",
   "cases": [
-    {"id": "supported_estimate", "expected": "estimated"},
-    {"id": "replay_verified", "expected": "verified"},
-    {"id": "rejected_support_control", "expected": "authorization_error"},
-    {"id": "parent_not_emitted", "expected": false},
+    {"id": "supported_estimated", "expected": true},
+    {"id": "three_targets", "expected": true},
+    {"id": "interval_shape", "expected": true},
+    {"id": "scalar_shape", "expected": true},
+    {"id": "categorical_shape", "expected": true},
+    {"id": "replay_verified", "expected": true},
+    {"id": "tamper_rejected", "expected": true},
+    {"id": "parent_not_emitted", "expected": true},
+    {"id": "rejected_control", "expected": true},
     {"id": "locked_preprocessing", "expected": true},
     {"id": "locked_tuning", "expected": true}
   ]

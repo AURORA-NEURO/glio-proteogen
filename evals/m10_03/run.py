@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from glio_proteogen.contracts.m10_03 import (
@@ -35,6 +36,7 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estima
 )
 
 _THREE_TARGETS = 3
+_FIXTURE = Path(__file__).parents[2] / "tests" / "fixtures" / "m10_03" / "scenarios.json"
 
 
 def artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -58,7 +60,9 @@ def upstream(
 
 
 def build_scenario_request(
-    *, state: UpstreamDecisionState = UpstreamDecisionState.ACCEPTED
+    *,
+    state: UpstreamDecisionState = UpstreamDecisionState.ACCEPTED,
+    family: BaselineEstimatorFamily = BaselineEstimatorFamily.ROBUST_LINEAR,
 ) -> EstimateProteinRnaDiscordanceBaselineRequest:
     return EstimateProteinRnaDiscordanceBaselineRequest(
         request_id="request.m1003.eval",
@@ -91,7 +95,7 @@ def build_scenario_request(
         configuration=BaselineConfiguration(
             configuration_id="config.m1003.eval",
             version="1.0.0",
-            estimator_family=BaselineEstimatorFamily.ROBUST_LINEAR,
+            estimator_family=family,
             target_feature_ids=("target.alpha", "target.beta", "target.gamma"),
             preprocessing=(
                 BaselinePreprocessingStep(
@@ -114,9 +118,20 @@ def build_scenario_request(
     )
 
 
-def evaluate() -> dict[str, Any]:
+def _fixture_digest() -> str:
+    return "sha256:" + hashlib.sha256(_FIXTURE.read_bytes()).hexdigest()
+
+
+def run_evaluator() -> dict[str, Any]:
+    """Run the fixed M10-03 matrix and return fixture-bound evidence."""
+
     supported = estimate_protein_rna_discordance_baseline(build_scenario_request())
-    replay = verify_result_replay(supported)
+    scalar = estimate_protein_rna_discordance_baseline(
+        build_scenario_request(family=BaselineEstimatorFamily.ESTABLISHED_STATISTICAL)
+    )
+    categorical = estimate_protein_rna_discordance_baseline(
+        build_scenario_request(family=BaselineEstimatorFamily.RULE_BASED)
+    )
     rejected = False
     try:
         estimate_protein_rna_discordance_baseline(
@@ -124,17 +139,45 @@ def evaluate() -> dict[str, Any]:
         )
     except BaselineAuthorizationError:
         rejected = True
+    tampered = supported.model_copy(update={"result_digest": artifact("tamper").digest})
+    cases = {
+        "supported_estimated": supported.status.value == "estimated",
+        "three_targets": len(supported.estimates) == _THREE_TARGETS,
+        "interval_shape": all(item.kind.value == "interval" for item in supported.estimates),
+        "scalar_shape": all(item.kind.value == "scalar" for item in scalar.estimates),
+        "categorical_shape": all(
+            item.kind.value == "categorical" for item in categorical.estimates
+        ),
+        "replay_verified": verify_result_replay(supported),
+        "tamper_rejected": not verify_result_replay(tampered),
+        "parent_not_emitted": supported.emits_parent is False,
+        "rejected_control": rejected,
+        "locked_preprocessing": all(
+            item.locked and item.leakage_safe
+            for item in supported.request.configuration.preprocessing
+        ),
+        "locked_tuning": supported.request.configuration.tuning.locked,
+    }
+    fixture = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    declared_ids = tuple(item["id"] for item in fixture["cases"])
+    executed_ids = tuple(cases)
     return {
         "module": "GLIO-PROTEOGEN-M10-03",
         "contract_version": M1003_CONTRACT_VERSION,
-        "cases": {
-            "supported_estimated": supported.status.value == "estimated",
-            "three_targets": len(supported.estimates) == _THREE_TARGETS,
-            "replay_verified": replay,
-            "parent_not_emitted": supported.emits_parent is False,
-            "rejected_control": rejected,
-        },
+        "fixture_digest": _fixture_digest(),
+        "declared_case_ids": declared_ids,
+        "executed_case_ids": executed_ids,
+        "declared_cases": len(declared_ids),
+        "executed_cases": len(executed_ids),
+        "passed": all(cases.values()) and declared_ids == executed_ids,
+        "cases": cases,
     }
+
+
+def evaluate() -> dict[str, Any]:
+    """Compatibility alias returning the complete evaluator report."""
+
+    return run_evaluator()
 
 
 def main() -> int:
