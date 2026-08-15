@@ -61,6 +61,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "gate": M0604_GATE,
         "strict": True,
         "provisionalAbi": M0604_PROVISIONAL_ABI,
+        "pendingOwnerConfirmation": True,
         "abiStatus": "dossier-behavioral-brief-only",
         "provisionalLimits": True,
         "externalContentTraversal": False,
