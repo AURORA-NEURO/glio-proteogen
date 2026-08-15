@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Final
 
 from pydantic import TypeAdapter
@@ -33,6 +34,8 @@ class M1705Service:
         if isinstance(request, (bytes, bytearray, str)):
             decoded = strict_json_loads(request, max_bytes=M1705_MAX_CANONICAL_REQUEST_BYTES)
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+        if isinstance(request, Mapping):
+            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(request), strict=True)
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def execute(self, request: object) -> VariantPeptideHumanReviewWorkspaceResult:
@@ -50,7 +53,13 @@ class M1705Service:
         *,
         replay: bool = True,
     ) -> VariantPeptideHumanReviewWorkspaceResult:
-        validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        if isinstance(result, (bytes, bytearray, str)):
+            decoded = strict_json_loads(result, max_bytes=M1705_MAX_CANONICAL_REQUEST_BYTES)
+            validated = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+        elif isinstance(result, Mapping):
+            validated = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
+        else:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         return self._engine.verify(validated, replay=replay)
 
     def descriptor(self) -> ModuleDescriptor:
@@ -70,4 +79,3 @@ class M1705Service:
 
 
 __all__ = ["M1705Service"]
-
