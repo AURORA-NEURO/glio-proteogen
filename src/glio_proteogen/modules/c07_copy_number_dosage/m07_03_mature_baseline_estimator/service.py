@@ -32,5 +32,15 @@ class M0703Service:
     def execute(self, request: object) -> EstimateCopyNumberDosageBaselineResult:
         return self._engine.estimate(request)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> EstimateCopyNumberDosageBaselineResult:
+        """Verify a result receipt and optionally replay the request."""
+
+        return self._engine.verify(result, replay=replay)
+
 
 __all__ = ["M0703Service"]

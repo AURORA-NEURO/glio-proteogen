@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m07_03 import (
     M0703_CONTRACT_VERSION,
@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m07_03 import (
 from glio_proteogen.contracts.m07_03.canonical import (
     canonical_request_digest,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -43,6 +44,13 @@ class M0703AuthorizationError(PermissionError):
         super().__init__(
             "M07-03 requires accepted controls, resolved identity, and granted consent"
         )
+
+
+class M0703ReplayVerificationError(ValueError):
+    """A result cannot be reconstructed from its exact request envelope."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"M07-03 replay verification failed: {detail}")
 
 
 def _member(value: object, field: str) -> object:
@@ -78,10 +86,21 @@ def preflight_m0703_authorization(candidate: object) -> None:
 
 
 def _evidence(request: EstimateCopyNumberDosageBaselineRequest) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(reference=artifact, role="evidence", claim=M0703_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+    artifacts = (
+        request.representation_result,
+        request.configuration.reference,
+        *request.source_artifacts,
     )
+    seen: set[str] = set()
+    evidence: list[EvidenceReference] = []
+    for artifact in artifacts:
+        if artifact.artifact_id in seen:
+            continue
+        seen.add(artifact.artifact_id)
+        evidence.append(
+            EvidenceReference(reference=artifact, role="evidence", claim=M0703_EVIDENCE_CLAIM)
+        )
+    return tuple(evidence)
 
 
 def _limitations() -> tuple[Limitation, ...]:
@@ -118,6 +137,49 @@ class M0703MatureBaselineEngine:
         preflight_m0703_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         return self._result(validated)
+
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> EstimateCopyNumberDosageBaselineResult:
+        """Verify an envelope and, by default, replay its exact request."""
+
+        if isinstance(result, BaseModel):
+            if not verify_result_digest(result):
+                raise M0703ReplayVerificationError(  # noqa: TRY003
+                    "result digest does not match canonical payload"
+                )
+            embedded_request = getattr(result, "request", None)
+            embedded_digest = getattr(result, "request_digest", None)
+            if embedded_request is not None and embedded_digest != canonical_request_digest(
+                embedded_request
+            ):
+                raise M0703ReplayVerificationError(  # noqa: TRY003
+                    "request digest does not match embedded request"
+                )
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M0703ReplayVerificationError(  # noqa: TRY003
+                "result is not a strict result envelope"
+            ) from error
+        if not verify_result_digest(validated):
+            raise M0703ReplayVerificationError(  # noqa: TRY003
+                "result digest does not match canonical payload"
+            )
+        if validated.request_digest != canonical_request_digest(validated.request):
+            raise M0703ReplayVerificationError(  # noqa: TRY003
+                "request digest does not match embedded request"
+            )
+        if replay:
+            expected = self.estimate(validated.request)
+            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+                raise M0703ReplayVerificationError(  # noqa: TRY003
+                    "replayed request produced a different result"
+                )
+        return validated
 
     def _result(
         self,
@@ -172,6 +234,7 @@ def estimate_copy_number_dosage_baseline(
 __all__ = [
     "M0703AuthorizationError",
     "M0703MatureBaselineEngine",
+    "M0703ReplayVerificationError",
     "estimate_copy_number_dosage_baseline",
     "preflight_m0703_authorization",
 ]

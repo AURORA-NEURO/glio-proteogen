@@ -218,6 +218,8 @@ class EstimateCopyNumberDosageBaselineRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EstimateCopyNumberDosageBaselineRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("request id must match execution context request id")
         if self.representation_result.media_type != M0703_REPRESENTATION_MEDIA_TYPE:
             raise ValueError("baseline request must bind the provisional M07-02 representation")
         if self.configuration.representation_media_type != self.representation_result.media_type:
