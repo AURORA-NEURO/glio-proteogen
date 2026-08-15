@@ -13,6 +13,7 @@ from tests.modules.c10_pathway_proteotype_factors.test_m10_08_runtime import _re
 
 HTTP_BAD_REQUEST = 400
 HTTP_FORBIDDEN = 403
+HTTP_CONFLICT = 409
 HTTP_UNPROCESSABLE = 422
 HTTP_NOT_FOUND = 404
 CLI_INVALID = 2
@@ -39,7 +40,7 @@ def test_api_rejects_invalid_json_nonfinite_and_bad_contract() -> None:
         "/v1/m10-08/verify",
         json={"result_digest": "sha256:" + "a" * 64},
     )
-    assert malformed_result.status_code == 409
+    assert malformed_result.status_code == HTTP_CONFLICT
     structurally_bad = {"result_digest": result_payload_digest({"result_digest": "placeholder"})}
     malformed_contract = client.post("/v1/m10-08/verify", json=structurally_bad)
     assert malformed_contract.status_code == HTTP_UNPROCESSABLE
