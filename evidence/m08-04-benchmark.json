@@ -1,9 +1,9 @@
 {
   "module": "GLIO-PROTEOGEN-M08-04",
   "iterations": 10,
-  "mean_ns": 1353300,
-  "median_ns": 1194100,
-  "p95_ns": 2673300,
+  "mean_ns": 2732230,
+  "median_ns": 1752450,
+  "p95_ns": 8033100,
   "budgets_ns": {"mean": 2000000000, "p95": 3000000000},
   "passed": true,
   "measurement": "evals/m08_04/benchmark.py; perf_counter_ns; deterministic synthetic request"
