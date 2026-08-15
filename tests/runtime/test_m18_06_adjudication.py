@@ -33,12 +33,13 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 
-ROUTINE_REVIEWER_TOKEN = "reviewer.token.routine"
-CRITICAL_REVIEWER_TOKEN = "reviewer.token.critical"
-EXPECTED_HISTORY_EVENTS = 4
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_06_reviewer_adjudication as m1806,
 )
+
+ROUTINE_REVIEWER_TOKEN = "reviewer.token.routine"  # noqa: S105
+CRITICAL_REVIEWER_TOKEN = "reviewer.token.critical"  # noqa: S105
+EXPECTED_HISTORY_EVENTS = 4
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
