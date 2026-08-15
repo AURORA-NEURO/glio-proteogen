@@ -199,7 +199,10 @@ class MechanismEvidenceDossier(FrozenModel):
             if not set(counter.challenges_link_ids) <= known_links:
                 raise ValueError("counter-evidence references an unknown link")
         for link in self.links:
-            if not set(link.predecessor_ids) <= known_links | set(counter_ids):
+            allowed_external = {
+                predecessor for predecessor in link.predecessor_ids if predecessor.startswith("source.")
+            }
+            if not set(link.predecessor_ids) <= known_links | set(counter_ids) | allowed_external:
                 raise ValueError("mechanism link references an unknown predecessor")
         if self.configuration.locked is not True:
             raise ValueError("dossier configuration must remain locked")
