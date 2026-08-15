@@ -1,0 +1,19 @@
+{
+  "status": "provisional",
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "contract_version": "0.1.0-provisional",
+  "fixtures_frozen": false,
+  "limits_frozen": false,
+  "scenarios": [
+    {
+      "id": "provisional-authorized-release",
+      "expected_disposition": "released",
+      "notes": "Shape placeholder only; no ABI or benchmark claim."
+    },
+    {
+      "id": "provisional-upstream-quarantine",
+      "expected_disposition": "quarantined",
+      "notes": "Shape placeholder only; unresolved upstream evidence must not become negative."
+    }
+  ]
+}
