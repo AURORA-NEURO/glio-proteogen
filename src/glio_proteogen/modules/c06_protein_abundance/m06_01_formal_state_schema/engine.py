@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
+from datetime import date, datetime
+from enum import Enum
 from typing import Final, cast
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -91,6 +93,10 @@ def _state_text(value: object) -> str | None:
 def _plain_value(value: object) -> object:
     if isinstance(value, BaseModel):
         return value
+    if isinstance(value, Enum):
+        return _plain_value(value.value)
+    if isinstance(value, datetime | date):
+        return value.isoformat()
     if value is None or type(value) in {str, int, float, bool}:
         return value
     if type(value) is list:

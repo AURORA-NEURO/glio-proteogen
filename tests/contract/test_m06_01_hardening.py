@@ -40,6 +40,9 @@ from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema imp
     ValidatedM0601Request,
     validate_formal_protein_state,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    engine as engine_module,
+)
 
 _DIGEST = "sha256:" + "a" * 64
 _SCHEMA_COUNT = 8
@@ -317,3 +320,96 @@ def test_schema_registry_is_eight_strict_provisional_contracts() -> None:
     assert all(
         schema["x-glio-contract"]["pendingOwnerConfirmation"] is True for schema in schemas.values()
     )
+
+
+def test_engine_accepts_json_and_python_mapping_replays() -> None:
+    request = _request()
+    engine = M0601FormalStateEngine()
+
+    assert engine.validate(request.model_dump_json()) == engine.validate(request)
+    assert engine.validate(request.model_dump(mode="python")) == engine.validate(request)
+    assert engine.validate(bytes(request.model_dump_json(), encoding="utf-8")) == engine.validate(
+        request
+    )
+
+
+def test_engine_rejects_non_mapping_and_hostile_mapping_before_traversal() -> None:
+    with pytest.raises(FormalStateAuthorizationError):
+        engine_module.preflight_formal_state_authorization(object())
+    with pytest.raises(FormalStateInputError):
+        engine_module._validate_json_request([], b"[]")
+
+    class ExplodingMapping(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise RuntimeError
+
+    with pytest.raises(FormalStateAuthorizationError):
+        engine_module.preflight_formal_state_authorization(ExplodingMapping())
+
+
+def test_plain_value_rejects_non_string_keys_and_unsupported_objects() -> None:
+    payload = _request().model_dump(mode="json")
+    hostile = dict(payload)
+    hostile["unsupported"] = object()
+    with pytest.raises(FormalStateInputError):
+        M0601FormalStateEngine().validate(hostile)
+
+    non_string = dict(payload)
+    non_string[1] = "non-string-key"  # type: ignore[index]
+    with pytest.raises(FormalStateInputError):
+        M0601FormalStateEngine().validate(non_string)
+
+
+def test_json_validation_rejects_malformed_serialized_payload() -> None:
+    with pytest.raises(FormalStateInputError):
+        engine_module._validate_json_request(_request().model_dump(mode="json"), b"not-json")
+
+    with pytest.raises(FormalStateInputError):
+        M0601FormalStateEngine().validate("[]")
+
+
+def test_expression_grammar_covers_bare_literals_and_unsupported_operators() -> None:
+    base = _request()
+    subtype_not_equal = base.state_schema.invariants[1].model_copy(
+        update={"expression": "subtype != class_b"}
+    )
+    not_equal_request = base.model_copy(
+        update={
+            "state_schema": base.state_schema.model_copy(
+                update={"invariants": (base.state_schema.invariants[0], subtype_not_equal)}
+            )
+        }
+    )
+    assert M0601FormalStateEngine().validate(not_equal_request).status.value == "valid"
+
+    unsupported = base.state_schema.invariants[0].model_copy(
+        update={"expression": "protein.abundance >= []"}
+    )
+    unsupported_request = base.model_copy(
+        update={
+            "state_schema": base.state_schema.model_copy(
+                update={"invariants": (unsupported, base.state_schema.invariants[1])}
+            )
+        }
+    )
+    assert M0601FormalStateEngine().validate(unsupported_request).status.value == "abstained"
+
+
+def test_interval_and_string_order_comparisons_abstain() -> None:
+    base = _request()
+    interval = base.values[0].model_copy(
+        update={"scalar_value": None, "interval_lower": 0.1, "interval_upper": 0.2}
+    )
+    interval_request = base.model_copy(update={"values": (interval, base.values[1])})
+    assert M0601FormalStateEngine().validate(interval_request).status.value == "abstained"
+
+    order = base.state_schema.invariants[1].model_copy(update={"expression": "subtype > class_a"})
+    order_request = base.model_copy(
+        update={
+            "state_schema": base.state_schema.model_copy(
+                update={"invariants": (base.state_schema.invariants[0], order)}
+            )
+        }
+    )
+    assert M0601FormalStateEngine().validate(order_request).status.value == "abstained"
