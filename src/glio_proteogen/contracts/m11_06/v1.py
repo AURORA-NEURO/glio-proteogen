@@ -21,6 +21,9 @@ from glio_proteogen.contracts.m11_06.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -32,6 +35,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -171,9 +175,7 @@ class SensitivitySurface(FrozenModel):
     perturbations: tuple[PerturbationSpecification, ...] = Field(
         min_length=1, max_length=M1106_MAX_SCENARIOS
     )
-    responses: tuple[SensitivityResponse, ...] = Field(
-        min_length=1, max_length=M1106_MAX_RESPONSES
-    )
+    responses: tuple[SensitivityResponse, ...] = Field(min_length=1, max_length=M1106_MAX_RESPONSES)
     configuration: SensitivitySimulationConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1106_MAX_EVIDENCE)
 
@@ -303,11 +305,12 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
         if supported
         else "No uncertainty estimate is published after a safety-gated abstention."
     )
-    from glio_proteogen.kernel.models import EstimateState, UncertaintyEstimate
 
-    estimate = lambda: UncertaintyEstimate(
-        state=EstimateState(state), probability=probability, rationale=rationale
-    )
+    def estimate() -> UncertaintyEstimate:
+        return UncertaintyEstimate(
+            state=EstimateState(state), probability=probability, rationale=rationale
+        )
+
     return UncertaintyProfile(
         measurement=estimate(),
         sampling=estimate(),
@@ -330,8 +333,6 @@ def expected_provenance(
     """Build module-local provenance from the immutable request controls."""
 
     refs = request.context.references
-    from glio_proteogen.kernel.models import ControlDecisionRecord, ControlRole
-
     controls = (
         ControlDecisionRecord(
             role=ControlRole.APPROVED_CONFIGURATION,
