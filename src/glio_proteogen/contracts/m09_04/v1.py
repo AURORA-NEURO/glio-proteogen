@@ -275,8 +275,7 @@ class EstimateComplexActivityProbabilisticResult(FrozenModel):
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("estimated result requires supported status")
             if not any(
-                item.status is OptimizationDiagnosticStatus.CONVERGED
-                for item in self.diagnostics
+                item.status is OptimizationDiagnosticStatus.CONVERGED for item in self.diagnostics
             ):
                 raise ValueError("estimated result requires a converged diagnostic")
         elif (
@@ -411,6 +410,7 @@ __all__ = [
     "EstimateComplexActivityProbabilisticResult",
     "EstimateComplexActivityProbabilisticVerification",
     "EstimatorConstraint",
+    "FiniteFloat",
     "OptimizationDiagnostic",
     "OptimizationDiagnosticStatus",
     "PosteriorEstimate",
@@ -419,9 +419,8 @@ __all__ = [
     "ProbabilisticEstimatorFamily",
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
-    "ProbabilisticResultStatus",
     "ProbabilisticReplayReason",
-    "FiniteFloat",
+    "ProbabilisticResultStatus",
     "expected_provenance",
     "expected_uncertainty",
 ]
