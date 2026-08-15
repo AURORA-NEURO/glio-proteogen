@@ -212,13 +212,13 @@ def _objective_kind(objective: str) -> tuple[str, int | None, str | None, str | 
     return "", None, None, None
 
 
-def _label_for(
+def _label_for(  # noqa: PLR0911 - each supported dimension has an explicit label policy.
     kind: str,
     observation: TimePointObservation,
     index: int,
     *,
     change_spec: tuple[int, str, str] | None = None,
-) -> str:  # noqa: PLR0911 - each supported dimension has an explicit label policy.
+) -> str:
     if kind == "stable":
         return "stable"
     if kind in {"alternating", "clone"}:
