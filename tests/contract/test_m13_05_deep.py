@@ -197,7 +197,7 @@ def test_change_point_outside_history_abstains() -> None:
 
 
 def test_controls_are_checked_before_execution() -> None:
-    with pytest.raises(StrictJsonError):
+    with pytest.raises(M1305AuthorizationError):
         M1305LongitudinalEngine().infer(_request(accepted=False))
     with pytest.raises(M1305AuthorizationError):
         M1305Service.validate_request(_request(accepted=False).model_dump(mode="json"))
@@ -219,7 +219,7 @@ def test_plugin_is_strict_parse_once_and_token_bound() -> None:
     assert result.status.value == "modeled"
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
-    with pytest.raises(M1305AuthorizationError):
+    with pytest.raises(StrictJsonError):
         plugin.validate('{"request_id":"x","duplicate":1,"duplicate":2}')
 
 
