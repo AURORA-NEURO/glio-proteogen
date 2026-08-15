@@ -207,9 +207,7 @@ class IntegrateProteotypeConstraintsRequest(FrozenModel):
 class IntegrateProteotypeConstraintsResult(FrozenModel):
     """Provisional constraint-aware estimate and satisfaction report."""
 
-    output_type: Literal["proteotype_constraint_integration"] = (
-        "proteotype_constraint_integration"
-    )
+    output_type: Literal["proteotype_constraint_integration"] = "proteotype_constraint_integration"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M0705_CONTRACT_VERSION
     request_digest: Sha256Digest

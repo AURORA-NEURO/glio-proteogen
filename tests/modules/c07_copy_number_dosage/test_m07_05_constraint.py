@@ -163,8 +163,7 @@ def test_soft_conflict_remains_visible_without_hidden_prior_dominance() -> None:
     assert built.result.status.value == "integrated"
     assert built.result.evaluations[1].outcome is ProteotypeConstraintEvaluationOutcome.VIOLATED
     assert (
-        built.result.ablations[0].effect_delta
-        == built.result.ablations[0].with_constraint_effect
+        built.result.ablations[0].effect_delta == built.result.ablations[0].with_constraint_effect
     )
 
 
