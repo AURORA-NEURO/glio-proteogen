@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m16_02.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -231,9 +235,7 @@ class ReconcileCrossSourceAlignmentRequest(FrozenModel):
 class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
     """Aligned bundle with explicit discrepancy review and abstention."""
 
-    output_type: Literal["protein_rna_discordance_alignment"] = (
-        "protein_rna_discordance_alignment"
-    )
+    output_type: Literal["protein_rna_discordance_alignment"] = "protein_rna_discordance_alignment"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1602_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -244,9 +246,7 @@ class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
     diagnostics: tuple[AlignmentDiagnostic, ...] = Field(
         min_length=1, max_length=M1602_MAX_DIAGNOSTICS
     )
-    findings: tuple[AlignmentFindingCode, ...] = Field(
-        default=(), max_length=M1602_MAX_FINDINGS
-    )
+    findings: tuple[AlignmentFindingCode, ...] = Field(default=(), max_length=M1602_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["protein_rna_discordance"] = M1602_PARENT
     emits_parent: Literal[False] = False
@@ -261,6 +261,13 @@ class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceAlignmentResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("alignment result requires evidence references")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("alignment finding codes must be unique")
         critical_open = bool(
             self.bundle
             and any(
@@ -275,6 +282,7 @@ class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
                 or critical_open
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("reconciled result requires supported conflict-free alignment")
         elif self.status is AlignmentDecisionStatus.REVIEW_REQUIRED:
@@ -290,11 +298,121 @@ class ProteinRnaDiscordanceAlignmentResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no bundle and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose all seven uncertainty dimensions for cross-source alignment."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Sample, time, territory, analyte, modality, reference, and biological-context "
+            "alignment are within the provisional support domain."
+            if supported
+            else (
+                "At least one alignment input, support gate, or discrepancy was not safely "
+                "evaluable."
+            )
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Reliability-aware orchestration, hierarchical regression, typed integration, "
+            "and signed review remain explicit; conflicts gate promotion.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: ReconcileCrossSourceAlignmentRequest, request_digest: Sha256Digest
+) -> ProvenanceRecord:
+    """Bind alignment inputs and the seven caller-declared control decisions."""
+
+    references = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1602_MODULE_ID,
+        module_version=M1602_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.upstream_result.digest,
+            *(item.digest for item in request.source_artifacts),
+        ),
+        configuration_digest=request.configuration.reference_artifact.digest,
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -331,4 +449,6 @@ __all__ = [
     "DiscrepancySeverity",
     "ProteinRnaDiscordanceAlignmentResult",
     "ReconcileCrossSourceAlignmentRequest",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
