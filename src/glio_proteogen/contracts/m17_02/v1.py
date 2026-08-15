@@ -50,6 +50,10 @@ M1702_MAX_AXES: Final = 8
 M1702_MAX_FINDINGS: Final = 64
 M1702_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1702_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1702_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M17-02 alignment, discrepancy, support and provenance material; "
+    "issuer authority is not authenticated."
+)
 
 
 class AlignmentAxis(StrEnum):
@@ -82,6 +86,18 @@ class AlignmentStatus(StrEnum):
 class AlignmentResultStatus(StrEnum):
     RECONCILED = "reconciled"
     ABSTAINED = "abstained"
+
+
+_DISCREPANCY_AXIS: Final[dict[str, AlignmentAxis]] = {
+    "sample_mismatch": AlignmentAxis.SAMPLE,
+    "time_mismatch": AlignmentAxis.TIME,
+    "territory_mismatch": AlignmentAxis.TERRITORY,
+    "analyte_mismatch": AlignmentAxis.ANALYTE,
+    "modality_mismatch": AlignmentAxis.MODALITY,
+    "reference_mismatch": AlignmentAxis.REFERENCE,
+    "biological_context_conflict": AlignmentAxis.BIOLOGICAL_CONTEXT,
+    "unresolved_alignment": AlignmentAxis.SAMPLE,
+}
 
 
 class DiscrepancyCode(StrEnum):
@@ -123,6 +139,8 @@ class AlignmentPolicy(FrozenModel):
     def required_axes_are_unique(self) -> AlignmentPolicy:
         if len(set(self.required_axes)) != len(self.required_axes):
             raise ValueError("required alignment axes must be unique")
+        if set(self.required_axes) != set(AlignmentAxis):
+            raise ValueError("alignment policy must declare all seven required axes")
         return self
 
 
@@ -155,6 +173,15 @@ class Discrepancy(FrozenModel):
     review_required: bool = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1702_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def discrepancy_is_reviewable(self) -> Discrepancy:
+        if not self.review_required:
+            raise ValueError("discrepancies must remain reviewable")
+        expected_axis = _DISCREPANCY_AXIS[self.code.value]
+        if self.axis is not expected_axis:
+            raise ValueError("discrepancy code must match its alignment axis")
+        return self
+
 
 class AlignedEvidenceBundle(FrozenModel):
     bundle_id: Identifier
@@ -162,9 +189,7 @@ class AlignedEvidenceBundle(FrozenModel):
     observations: tuple[SourceObservation, ...] = Field(
         min_length=1, max_length=M1702_MAX_OBSERVATIONS
     )
-    discrepancy_map: tuple[Discrepancy, ...] = Field(
-        default=(), max_length=M1702_MAX_DISCREPANCIES
-    )
+    discrepancy_map: tuple[Discrepancy, ...] = Field(default=(), max_length=M1702_MAX_DISCREPANCIES)
     alignment_status: AlignmentStatus
     conflicts_preserved: Literal[True] = True
     immutable: Literal[True] = True
@@ -175,6 +200,19 @@ class AlignedEvidenceBundle(FrozenModel):
         ids = tuple(item.observation_id for item in self.observations)
         if len(ids) != len(set(ids)):
             raise ValueError("aligned observation ids must be unique")
+        discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancy_map)
+        if len(discrepancy_ids) != len(set(discrepancy_ids)):
+            raise ValueError("aligned discrepancy ids must be unique")
+        observed = set(ids)
+        if any(set(item.observation_ids) - observed for item in self.discrepancy_map):
+            raise ValueError("discrepancy observations must belong to the aligned bundle")
+        if self.alignment_status is AlignmentStatus.ALIGNED and self.discrepancy_map:
+            raise ValueError("aligned bundle cannot hide discrepancies")
+        if (
+            self.alignment_status in {AlignmentStatus.CONFLICTED, AlignmentStatus.UNRESOLVED}
+            and not self.discrepancy_map
+        ):
+            raise ValueError("conflicted bundle requires an explicit discrepancy map")
         return self
 
 
@@ -222,9 +260,7 @@ class VariantPeptideCrossSourceAlignmentResult(FrozenModel):
     request: AlignVariantPeptideCrossSourceEvidenceRequest
     status: AlignmentResultStatus
     aligned_bundle: AlignedEvidenceBundle | None = None
-    discrepancy_map: tuple[Discrepancy, ...] = Field(
-        default=(), max_length=M1702_MAX_DISCREPANCIES
-    )
+    discrepancy_map: tuple[Discrepancy, ...] = Field(default=(), max_length=M1702_MAX_DISCREPANCIES)
     findings: tuple[AlignmentFinding, ...] = Field(default=(), max_length=M1702_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["variant_peptide"] = M1702_PARENT
@@ -240,18 +276,34 @@ class VariantPeptideCrossSourceAlignmentResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideCrossSourceAlignmentResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancy_map)
+        if len(discrepancy_ids) != len(set(discrepancy_ids)):
+            raise ValueError("result discrepancy ids must be unique")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("alignment result requires evidence references")
+        finding_codes = tuple(item.code for item in self.findings)
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("alignment finding codes must be unique")
         if self.status is AlignmentResultStatus.RECONCILED:
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
+                or self.aligned_bundle.alignment_status is not AlignmentStatus.ALIGNED
             ):
                 raise ValueError("reconciled result requires a supported aligned bundle")
+            if tuple(self.discrepancy_map) != tuple(self.aligned_bundle.discrepancy_map):
+                raise ValueError("result discrepancy map must match aligned bundle")
         elif (
             self.aligned_bundle is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no bundle and safe status")
         if self.result_digest != result_payload_digest(self):
@@ -261,6 +313,7 @@ class VariantPeptideCrossSourceAlignmentResult(FrozenModel):
 
 __all__ = [
     "M1702_CONTRACT_VERSION",
+    "M1702_EVIDENCE_CLAIM",
     "M1702_GATE",
     "M1702_MAX_AXES",
     "M1702_MAX_CANONICAL_REQUEST_BYTES",
