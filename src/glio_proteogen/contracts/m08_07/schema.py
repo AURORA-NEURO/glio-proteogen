@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m08_07.v1 import (
     M0807_SAFETY_CLASS,
     CalibratedEstimate,
     CalibrateProteinSubtypeSelectivePredictionRequest,
+    CalibrationCandidate,
     CalibrationConfiguration,
     CalibrationDiagnostic,
     CalibrationScope,
@@ -34,6 +35,7 @@ ContractName = Literal[
     "estimate",
     "prediction-set",
     "diagnostic",
+    "candidate",
 ]
 _CONTRACTS: Final = {
     "request": CalibrateProteinSubtypeSelectivePredictionRequest,
@@ -43,6 +45,7 @@ _CONTRACTS: Final = {
     "estimate": CalibratedEstimate,
     "prediction-set": PredictionSet,
     "diagnostic": CalibrationDiagnostic,
+    "candidate": CalibrationCandidate,
 }
 
 
@@ -78,7 +81,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
 
 
 def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
-    """Return all seven provisional M08-07 schemas in ABI order."""
+    """Return all eight provisional M08-07 schemas in ABI order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))
     return {name: contract_json_schema(name) for name in names}

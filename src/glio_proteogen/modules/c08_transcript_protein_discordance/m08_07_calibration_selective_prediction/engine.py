@@ -8,14 +8,18 @@ from typing import Final
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m08_07 import (
+    M0807_COVERAGE_CEILING,
+    M0807_COVERAGE_FLOOR,
     M0807_CONTRACT_VERSION,
     M0807_EVIDENCE_CLAIM,
     M0807_PARENT,
     CalibrateProteinSubtypeSelectivePredictionRequest,
+    CalibratedEstimate,
     CalibrationDiagnostic,
     CalibrationDiagnosticStatus,
     CalibrationFindingCode,
     CalibrationStatus,
+    PredictionSet,
     ProteinSubtypeSelectivePredictionResult,
     expected_provenance,
     expected_uncertainty,
@@ -81,9 +85,12 @@ def preflight_m0807_authorization(candidate: object) -> None:
 def _evidence(
     request: CalibrateProteinSubtypeSelectivePredictionRequest,
 ) -> tuple[EvidenceReference, ...]:
+    refs = list(request.source_artifacts)
+    if request.candidate is not None:
+        refs.extend(item.reference for item in request.candidate.evidence)
     return tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M0807_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+        for artifact in refs
     )
 
 
@@ -124,39 +131,197 @@ class M0807CalibrationEngine:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         request_hash = canonical_request_digest(validated)
         configuration_hash = sha256_digest(validated.configuration)
-        diagnostic = CalibrationDiagnostic(
-            diagnostic_id=f"diagnostic.{request_hash.removeprefix('sha256:')}",
-            status=CalibrationDiagnosticStatus.NOT_EVALUABLE,
-            metric_name="selective_coverage",
-            message=(
-                "Owner-confirmed calibration, OOD thresholds, and subgroup evidence are not locked."
-            ),
-        )
+        candidate = validated.candidate
+        diagnostics: list[CalibrationDiagnostic] = []
+        findings: list[CalibrationFindingCode] = []
+        estimate: CalibratedEstimate | None = None
+        prediction_set: PredictionSet | None = None
+        status = CalibrationStatus.CALIBRATED
+        support_status = SupportStatus.SUPPORTED
+        support_reason = "m0807_calibration_supported"
+        support_rationale = "Candidate passed scope, support, OOD, coverage, and disparity gates."
+        abstention_reason: str | None = None
+
+        def add_metric(
+            name: str,
+            value: float,
+            message: str,
+            *,
+            diagnostic_status: CalibrationDiagnosticStatus,
+        ) -> None:
+            diagnostics.append(
+                CalibrationDiagnostic(
+                    diagnostic_id=(
+                        f"diagnostic.{request_hash.removeprefix('sha256:')}.{len(diagnostics)}"
+                    ),
+                    status=diagnostic_status,
+                    metric_name=name,
+                    metric_value=value,
+                    message=message,
+                )
+            )
+
+        def abstain(
+            finding: CalibrationFindingCode,
+            reason: str,
+            *,
+            hard_unsupported: bool,
+        ) -> None:
+            nonlocal status, support_status, support_reason, support_rationale, abstention_reason
+            status = CalibrationStatus.ABSTAINED
+            support_status = SupportStatus.UNSUPPORTED if hard_unsupported else SupportStatus.REVIEW_REQUIRED
+            support_reason = "m0807_unsupported" if hard_unsupported else "m0807_review_required"
+            support_rationale = reason
+            abstention_reason = reason
+            findings.append(finding)
+
+        if candidate is None:
+            diagnostics.append(
+                CalibrationDiagnostic(
+                    diagnostic_id=f"diagnostic.{request_hash.removeprefix('sha256:')}.0",
+                    status=CalibrationDiagnosticStatus.NOT_EVALUABLE,
+                    metric_name="selective_coverage",
+                    message=(
+                        "No caller-declared candidate was supplied; calibration evidence is not evaluable."
+                    ),
+                )
+            )
+            abstain(
+                CalibrationFindingCode.MISSING_CANDIDATE,
+                "Calibration requires a caller-declared candidate and locked evidence.",
+                hard_unsupported=False,
+            )
+        else:
+            configured_scopes = {
+                (item.site, item.platform, item.disease_class, item.subgroup)
+                for item in validated.configuration.scopes
+            }
+            candidate_scope = (
+                candidate.site,
+                candidate.platform,
+                candidate.disease_class,
+                candidate.subgroup,
+            )
+            if candidate_scope not in configured_scopes:
+                abstain(
+                    CalibrationFindingCode.SCOPE_NOT_SUPPORTED,
+                    "Candidate scope is not covered by the locked calibration configuration.",
+                    hard_unsupported=True,
+                )
+            elif candidate.support_score < validated.configuration.support_threshold:
+                add_metric(
+                    "support_score",
+                    candidate.support_score,
+                    "Candidate support score is below the configured threshold.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
+                abstain(
+                    CalibrationFindingCode.SUPPORT_THRESHOLD_NOT_MET,
+                    "Candidate support score did not meet the configured threshold.",
+                    hard_unsupported=True,
+                )
+            elif candidate.ood_score > validated.configuration.ood_threshold:
+                add_metric(
+                    "ood_score",
+                    candidate.ood_score,
+                    "Candidate OOD score exceeds the configured threshold.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
+                abstain(
+                    CalibrationFindingCode.OOD_UNSUPPORTED,
+                    "Candidate is outside the configured support domain.",
+                    hard_unsupported=True,
+                )
+            elif not (M0807_COVERAGE_FLOOR <= candidate.observed_coverage <= M0807_COVERAGE_CEILING):
+                add_metric(
+                    "selective_coverage",
+                    candidate.observed_coverage,
+                    "Observed coverage is outside the provisional 85%-95% acceptance envelope.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
+                abstain(
+                    CalibrationFindingCode.COVERAGE_OUT_OF_BOUNDS,
+                    "Observed selective coverage is outside the acceptance envelope.",
+                    hard_unsupported=False,
+                )
+            elif candidate.calibration_error > validated.configuration.calibration_error_ceiling:
+                add_metric(
+                    "calibration_error",
+                    candidate.calibration_error,
+                    "Calibration error exceeds the configured ceiling.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
+                abstain(
+                    CalibrationFindingCode.CALIBRATION_ERROR_EXCEEDED,
+                    "Calibration error did not meet the configured ceiling.",
+                    hard_unsupported=False,
+                )
+            elif candidate.subgroup_disparity > validated.configuration.subgroup_disparity_ceiling:
+                add_metric(
+                    "subgroup_disparity",
+                    candidate.subgroup_disparity,
+                    "Subgroup disparity exceeds the configured ceiling.",
+                    diagnostic_status=CalibrationDiagnosticStatus.FAIL,
+                )
+                abstain(
+                    CalibrationFindingCode.SUBGROUP_DISPARITY,
+                    "Subgroup disparity requires review before calibrated release.",
+                    hard_unsupported=False,
+                )
+            else:
+                add_metric(
+                    "selective_coverage",
+                    candidate.observed_coverage,
+                    "Observed coverage meets the provisional acceptance envelope.",
+                    diagnostic_status=CalibrationDiagnosticStatus.PASS,
+                )
+                add_metric(
+                    "calibration_error",
+                    candidate.calibration_error,
+                    "Calibration error meets the configured ceiling.",
+                    diagnostic_status=CalibrationDiagnosticStatus.PASS,
+                )
+                add_metric(
+                    "subgroup_disparity",
+                    candidate.subgroup_disparity,
+                    "Subgroup disparity meets the configured ceiling.",
+                    diagnostic_status=CalibrationDiagnosticStatus.PASS,
+                )
+                estimate = CalibratedEstimate(
+                    predicted_subtype=candidate.predicted_subtype,
+                    score=candidate.score,
+                    calibrated_confidence=candidate.calibrated_confidence,
+                    calibration_reference=validated.configuration.calibration_artifact,
+                    evidence=candidate.evidence,
+                )
+                prediction_set = PredictionSet(
+                    labels=candidate.labels,
+                    nominal_coverage=validated.configuration.nominal_coverage,
+                    evidence=candidate.evidence,
+                )
         payload: dict[str, object] = {
             "result_id": f"result.{request_hash.removeprefix('sha256:')}",
             "result_version": M0807_CONTRACT_VERSION,
             "request_digest": request_hash,
             "result_digest": _ZERO_DIGEST,
             "request": validated,
-            "status": CalibrationStatus.ABSTAINED,
-            "estimate": None,
-            "prediction_set": None,
-            "diagnostics": (diagnostic,),
-            "findings": (CalibrationFindingCode.CALIBRATION_NOT_LOCKED,),
-            "abstention_reason": diagnostic.message,
+            "status": status,
+            "estimate": estimate,
+            "prediction_set": prediction_set,
+            "diagnostics": tuple(diagnostics),
+            "findings": tuple(findings),
+            "abstention_reason": abstention_reason,
             "parent_target": M0807_PARENT,
             "support_decision": SupportDecision(
-                status=SupportStatus.REVIEW_REQUIRED,
-                reason_code="m0807_calibration_review_required",
-                rationale=(
-                    "Calibration error, selective coverage, and subgroup disparity require review."
-                ),
+                status=support_status,
+                reason_code=support_reason,
+                rationale=support_rationale,
             ),
             "uncertainty": expected_uncertainty(),
             "provenance": expected_provenance(validated, request_hash, configuration_hash),
             "evidence": _evidence(validated),
             "limitations": _limitations(),
-            "human_review_required": True,
+            "human_review_required": status is CalibrationStatus.ABSTAINED,
         }
         constructed = ProteinSubtypeSelectivePredictionResult.model_construct(
             **payload,  # type: ignore[arg-type]

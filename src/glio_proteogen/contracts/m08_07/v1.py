@@ -53,6 +53,10 @@ M0807_MAX_SCOPES: Final = 64
 M0807_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0807_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0807_NOMINAL_COVERAGE: Final = 0.9
+M0807_COVERAGE_FLOOR: Final = 0.85
+M0807_COVERAGE_CEILING: Final = 0.95
+M0807_DEFAULT_CALIBRATION_ERROR_CEILING: Final = 0.15
+M0807_DEFAULT_SUBGROUP_DISPARITY_CEILING: Final = 0.10
 M0807_EVIDENCE_CLAIM: Final = (
     "Caller-declared M08-06 uncertainty and calibration evidence; "
     "issuer authority is not authenticated."
@@ -82,6 +86,10 @@ class CalibrationFindingCode(StrEnum):
     OOD_UNSUPPORTED = "ood_unsupported"
     SUPPORT_THRESHOLD_NOT_MET = "support_threshold_not_met"
     SUBGROUP_DISPARITY = "subgroup_disparity"
+    CALIBRATION_ERROR_EXCEEDED = "calibration_error_exceeded"
+    COVERAGE_OUT_OF_BOUNDS = "coverage_out_of_bounds"
+    MISSING_CANDIDATE = "missing_candidate"
+    SCOPE_NOT_SUPPORTED = "scope_not_supported"
 
 
 class CalibrationScope(FrozenModel):
@@ -107,6 +115,16 @@ class CalibrationConfiguration(FrozenModel):
     nominal_coverage: float = Field(default=M0807_NOMINAL_COVERAGE, ge=0.0, le=1.0)
     support_threshold: float = Field(ge=0.0, le=1.0)
     ood_threshold: float = Field(ge=0.0, le=1.0)
+    calibration_error_ceiling: float = Field(
+        default=M0807_DEFAULT_CALIBRATION_ERROR_CEILING,
+        ge=0.0,
+        le=1.0,
+    )
+    subgroup_disparity_ceiling: float = Field(
+        default=M0807_DEFAULT_SUBGROUP_DISPARITY_CEILING,
+        ge=0.0,
+        le=1.0,
+    )
     calibration_artifact: ArtifactReference
     benchmark_artifact: ArtifactReference
     locked: Literal[True] = True
@@ -128,6 +146,38 @@ class CalibratedEstimate(FrozenModel):
     calibrated_confidence: float = Field(ge=0.0, le=1.0)
     calibration_reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0807_MAX_EVIDENCE)
+
+
+class CalibrationCandidate(FrozenModel):
+    """Caller-declared candidate produced by the upstream uncertainty service.
+
+    The candidate is never treated as authenticated truth.  M08-07 only
+    applies its deterministic gate to these declared diagnostics and preserves
+    the original artifact references in the result evidence.
+    """
+
+    site: NonEmptyStr
+    platform: NonEmptyStr
+    disease_class: NonEmptyStr
+    subgroup: NonEmptyStr
+    predicted_subtype: NonEmptyStr
+    score: float = Field(ge=0.0, le=1.0)
+    calibrated_confidence: float = Field(ge=0.0, le=1.0)
+    labels: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M0807_MAX_PREDICTION_SET)
+    observed_coverage: float = Field(ge=0.0, le=1.0)
+    calibration_error: float = Field(ge=0.0, le=1.0)
+    support_score: float = Field(ge=0.0, le=1.0)
+    ood_score: float = Field(ge=0.0, le=1.0)
+    subgroup_disparity: float = Field(ge=0.0, le=1.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0807_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def labels_are_unique(self) -> CalibrationCandidate:
+        if len(self.labels) != len(set(self.labels)):
+            raise ValueError("candidate prediction-set labels must be unique")
+        if self.predicted_subtype not in self.labels:
+            raise ValueError("candidate estimate must be contained in prediction set")
+        return self
 
 
 class PredictionSet(FrozenModel):
@@ -172,6 +222,7 @@ class CalibrateProteinSubtypeSelectivePredictionRequest(FrozenModel):
     context: ExecutionContext
     uncertainty_result: ArtifactReference
     configuration: CalibrationConfiguration
+    candidate: CalibrationCandidate | None = None
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1,
         max_length=M0807_MAX_EVIDENCE,
@@ -358,6 +409,10 @@ def expected_provenance(
 
 __all__ = [
     "M0807_CONTRACT_VERSION",
+    "M0807_COVERAGE_CEILING",
+    "M0807_COVERAGE_FLOOR",
+    "M0807_DEFAULT_CALIBRATION_ERROR_CEILING",
+    "M0807_DEFAULT_SUBGROUP_DISPARITY_CEILING",
     "M0807_EVIDENCE_CLAIM",
     "M0807_GATE",
     "M0807_MAX_CANONICAL_REQUEST_BYTES",
@@ -377,6 +432,7 @@ __all__ = [
     "M0807_UNCERTAINTY_MEDIA_TYPE",
     "CalibrateProteinSubtypeSelectivePredictionRequest",
     "CalibratedEstimate",
+    "CalibrationCandidate",
     "CalibrationConfiguration",
     "CalibrationDiagnostic",
     "CalibrationDiagnosticStatus",

@@ -13,7 +13,7 @@ from glio_proteogen.modules.c08_transcript_protein_discordance import (
     m08_07_calibration_selective_prediction as runtime,
 )
 
-_SCHEMA_COUNT: Final = 7
+_SCHEMA_COUNT: Final = 8
 _PREDICTION_SET_SIZE: Final = 2
 
 
