@@ -90,4 +90,3 @@ class M1707Plugin(
 
 
 __all__ = ["M1707Plugin", "ValidatedM1707Request"]
-

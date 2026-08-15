@@ -107,11 +107,7 @@ def _evidence(
     artifacts: list[ArtifactReference] = [
         request.adjudication_result,
         *request.source_artifacts,
-        *(
-            evidence.reference
-            for field in request.fields
-            for evidence in field.evidence
-        ),
+        *(evidence.reference for field in request.fields for evidence in field.evidence),
         *(evidence.reference for evidence in request.configuration.evidence),
         request.consent.evidence,
         refs.approved_configuration.evidence,
@@ -343,7 +339,9 @@ class M1707DownstreamTypedExportEngine:
             "status": status,
             "contract": contract,
             "findings": _findings(codes, evidence),
-            "abstention_reason": None if contract is not None else "Export inputs are not safely compatible.",
+            "abstention_reason": None
+            if contract is not None
+            else "Export inputs are not safely compatible.",
             "parent_target": "variant peptide",
             "emits_parent": False,
             "support_decision": (

@@ -168,9 +168,7 @@ class DownstreamContractObject(FrozenModel):
         if self.signature.signed_payload_digest == "sha256:" + ("0" * 64):
             raise ValueError("signed contract payload digest cannot be empty")
         field_evidence = {
-            evidence.reference.digest
-            for field in self.fields
-            for evidence in field.evidence
+            evidence.reference.digest for field in self.fields for evidence in field.evidence
         }
         if not field_evidence.issubset({evidence.reference.digest for evidence in self.evidence}):
             raise ValueError("contract evidence must include every field evidence reference")

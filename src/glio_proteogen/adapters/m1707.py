@@ -1,7 +1,6 @@
 """FastAPI and Typer adapters for provisional M17-07."""
 
 # Adapter entry points intentionally keep framework errors sanitized.
-# ruff: noqa: E501
 
 from __future__ import annotations
 

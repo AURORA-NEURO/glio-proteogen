@@ -48,4 +48,3 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=10)
     print(json.dumps(run_benchmark(parser.parse_args().iterations), sort_keys=True))
-

@@ -1,7 +1,7 @@
 """Frozen synthetic evaluator for M17-07 downstream typed export."""
 
 # Synthetic metadata builders intentionally keep scenario arguments explicit.
-# ruff: noqa: E501, FBT001, FBT002, T201
+# ruff: noqa: FBT001, FBT002, T201
 
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from typing import Any
 from glio_proteogen.contracts.m17_07 import (
     M1707_M1706_INPUT_MEDIA_TYPE,
     CompatibilityMode,
+    DownstreamExportConfiguration,
     ExportField,
     ExportFieldType,
     ExportStatus,
     ExportVariantPeptideDownstreamContractRequest,
-    DownstreamExportConfiguration,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -40,7 +40,9 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic.m17_07_downstream_typed_ex
 FIXTURE = Path(__file__).parents[2] / "tests" / "fixtures" / "m17_07" / "scenarios.json"
 
 
-def _artifact(name: str, digest_char: str, media: str = "application/octet-stream") -> ArtifactReference:
+def _artifact(
+    name: str, digest_char: str, media: str = "application/octet-stream"
+) -> ArtifactReference:
     return ArtifactReference(
         artifact_id=name,
         version="0.1.0",
@@ -133,7 +135,9 @@ def build_scenario_request(
     )
     consent = context.references.consent
     support = SupportDecision(
-        status=SupportStatus.REVIEW_REQUIRED if scenario == "unsupported" else SupportStatus.SUPPORTED,
+        status=SupportStatus.REVIEW_REQUIRED
+        if scenario == "unsupported"
+        else SupportStatus.SUPPORTED,
         reason_code="m1707_synthetic_support",
         rationale="Synthetic support decision is caller-declared and bounded.",
     )
@@ -149,9 +153,14 @@ def build_scenario_request(
         evidence=(_evidence("configuration.m1707", "9"),),
     )
     adjudication = _artifact("adjudication.m1706", "8", M1707_M1706_INPUT_MEDIA_TYPE)
-    fields = (_field(0, ExportFieldType.IDENTIFIER), _field(1, ExportFieldType.ENUM), _field(2, ExportFieldType.TEXT))
-    source_artifacts = (adjudication,) + tuple(
-        field.evidence[0].reference for field in fields
+    fields = (
+        _field(0, ExportFieldType.IDENTIFIER),
+        _field(1, ExportFieldType.ENUM),
+        _field(2, ExportFieldType.TEXT),
+    )
+    source_artifacts = (
+        adjudication,
+        *(field.evidence[0].reference for field in fields),
     )
     return ExportVariantPeptideDownstreamContractRequest(
         request_id="request.m1707",
@@ -207,4 +216,3 @@ if __name__ == "__main__":
     import json
 
     print(json.dumps(run_evaluator(), sort_keys=True))
-
