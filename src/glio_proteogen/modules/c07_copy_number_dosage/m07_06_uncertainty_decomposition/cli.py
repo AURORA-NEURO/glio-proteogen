@@ -91,8 +91,8 @@ def verify(result: Annotated[Path, typer.Argument(exists=True, readable=True)]) 
     """Verify a result digest and deterministic replay."""
 
     try:
-        decoded = strict_json_loads(_read(result), max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
-        typed = _RESULT_ADAPTER.validate_python(decoded, strict=True)
+        body = _read(result)
+        typed = _RESULT_ADAPTER.validate_json(body, strict=True)
         M0706Service().verify(typed, replay=True)
     except (ValidationError, ValueError, TypeError, StrictJsonError) as error:
         raise typer.BadParameter("M07-06 result failed replay verification") from error

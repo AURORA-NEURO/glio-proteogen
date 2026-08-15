@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m07_06 import (
     M0706_MAX_CANONICAL_REQUEST_BYTES,
     CopyNumberDosageUncertaintyDecompositionResult,
     DecomposeCopyNumberDosageUncertaintyRequest,
     canonical_request_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -19,6 +22,7 @@ if TYPE_CHECKING:
     from .service import M0706Service
 
 _TOKEN_SEAL: Final = object()
+_REQUEST_ADAPTER: Final = TypeAdapter(DecomposeCopyNumberDosageUncertaintyRequest)
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M07-06",
     title="copy-number dosage uncertainty decomposition (provisional)",
@@ -76,6 +80,8 @@ class M0706Plugin(
                 serialized,
                 max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES,
             )
+        if isinstance(candidate, dict):
+            candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
         typed = self._service.validate_request(candidate)
         token = ValidatedM0706Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
@@ -92,6 +98,16 @@ class M0706Plugin(
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
+
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> CopyNumberDosageUncertaintyDecompositionResult:
+        """Verify a result receipt through the same service seam as HTTP/CLI."""
+
+        return self._service.verify(result, replay=replay)
 
 
 __all__ = ["M0706Plugin", "ValidatedM0706Request"]

@@ -93,8 +93,8 @@ def create_app(service: M0706Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> JSONResponse:
         body = await _strict_body(request)
         try:
-            decoded = strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
-            result = _RESULT_ADAPTER.validate_python(decoded, strict=True)
+            strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
+            result = _RESULT_ADAPTER.validate_json(body, strict=True)
             verified = uncertainty_service.verify(result, replay=True)
         except (ValidationError, M0706ReplayVerificationError) as error:
             if isinstance(error, ValidationError):
