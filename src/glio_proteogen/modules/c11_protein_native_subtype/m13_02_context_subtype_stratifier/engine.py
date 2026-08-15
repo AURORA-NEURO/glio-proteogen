@@ -139,7 +139,7 @@ def _validate_request(candidate: object) -> StratifyProteotypeContextRequest:
     """Validate strict object input and bind it to its canonical request digest."""
 
     if type(candidate) is StratifyProteotypeContextRequest:
-        return cast("StratifyProteotypeContextRequest", candidate)
+        return candidate
     plain = _plain_value(candidate)
     request = StratifyProteotypeContextRequest.model_validate_json(
         canonical_json_bytes(plain), strict=True
@@ -251,7 +251,7 @@ def _compute(request: StratifyProteotypeContextRequest) -> ProteotypeContextStra
         "human_review_required": True,
     }
     # Calculate over the same typed envelope the public validator will replay.
-    assembled = ProteotypeContextStratificationResult.model_construct(**payload)
+    assembled = ProteotypeContextStratificationResult.model_construct(**payload)  # type: ignore[arg-type]
     payload["result_digest"] = result_payload_digest(assembled)
     return ProteotypeContextStratificationResult.model_validate(payload, strict=True)
 

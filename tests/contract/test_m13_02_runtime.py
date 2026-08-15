@@ -26,26 +26,24 @@ from glio_proteogen.kernel.models import (
     ContextReferences,
     ControlRole,
     EvidenceReference,
+    ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
     UpstreamDecisionReference,
     UpstreamDecisionState,
-    ExecutionContext,
 )
-from glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_stratifier.engine import (
+from glio_proteogen.kernel.strict_json import StrictJsonError
+from glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_stratifier import (
     M1302AuthorizationError,
+    M1302Plugin,
+    M1302Service,
     compute_proteotype_context,
     preflight_context_authorization,
     verify_context_result,
 )
-from glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_stratifier.plugin import (
-    M1302Plugin,
-)
-from glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_stratifier.service import (
-    M1302Service,
-)
 
 _TIME = datetime(2026, 1, 1, tzinfo=UTC)
+_CONTROL_COUNT = 7
 
 
 def _artifact(name: str, letter: str = "a") -> ArtifactReference:
@@ -69,6 +67,9 @@ def _context(*, denied: bool = False) -> ExecutionContext:
             evidence=evidence,
         )
 
+    identity_state = (
+        IdentityLineageState.RESOLVED if not denied else IdentityLineageState.UNRESOLVED
+    )
     return ExecutionContext(
         request_id="request-m1302",
         actor_id="actor-m1302",
@@ -77,7 +78,7 @@ def _context(*, denied: bool = False) -> ExecutionContext:
             approved_configuration=upstream("configuration-decision"),
             identity_lineage=IdentityLineageReference(
                 decision_id="identity-decision",
-                state=IdentityLineageState.RESOLVED if not denied else IdentityLineageState.UNRESOLVED,
+                state=identity_state,
                 policy_version="1.0.0",
                 binding_digest="sha256:" + "c" * 64,
                 evidence=evidence,
@@ -96,7 +97,9 @@ def _context(*, denied: bool = False) -> ExecutionContext:
     )
 
 
-def _request(*, statuses: tuple[ContextObservationStatus, ...] | None = None) -> StratifyProteotypeContextRequest:
+def _request(
+    *, statuses: tuple[ContextObservationStatus, ...] | None = None
+) -> StratifyProteotypeContextRequest:
     source = _artifact("context-observations", "d")
     evidence = EvidenceReference(
         reference=source,
@@ -114,9 +117,7 @@ def _request(*, statuses: tuple[ContextObservationStatus, ...] | None = None) ->
             dimension=dimension,
             value=value,
             normalized_value=(
-                value.lower()
-                if status is not ContextObservationStatus.UNRESOLVED
-                else None
+                value.lower() if status is not ContextObservationStatus.UNRESOLVED else None
             ),
             status=status,
             source_artifact=source,
@@ -159,7 +160,7 @@ def test_supported_context_emits_profile_mechanism_and_sealed_provenance() -> No
     assert result.applicable_mechanisms[0].applicability is MechanismApplicability.APPLICABLE
     assert result.parent_target == "proteotype"
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M13-02"
-    assert len(result.provenance.control_decisions) == 7
+    assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert {item.role for item in result.provenance.control_decisions} == set(ControlRole)
     assert verify_context_result(result)
 
@@ -210,7 +211,7 @@ def test_plugin_strict_json_boundary_and_execution_token() -> None:
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
     duplicate = payload[:-1] + ',"request_id":"tampered"}'
-    with pytest.raises(Exception):  # strict JSON duplicate-key boundary
+    with pytest.raises(StrictJsonError):  # strict JSON duplicate-key boundary
         plugin.validate(duplicate)
 
 
