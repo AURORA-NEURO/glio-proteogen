@@ -199,7 +199,7 @@ def test_plugin_descriptor_and_service_replay_failures() -> None:
     with pytest.raises(ValueError, match="replay request"):
         service.replay(altered_request, result)
     altered_result = result.model_copy(update={"status": "invalid"})
-    with pytest.raises(ValueError, match="digest"):
+    with pytest.raises(ValueError, match="status"):
         service.replay(request(), altered_result)
 
 
