@@ -33,6 +33,8 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
+_DERIVED_DIGEST_SENTINEL: Final = "sha256:" + "0" * 64
+
 # PROVISIONAL ABI: inferred solely from dossier lines 4216-4259.
 M1206_MODULE_ID: Final = "GLIO-PROTEOGEN-M12-06"
 M1206_OPERATION: Final = "simulate_biomarker_panel_perturbation_sensitivity"
@@ -135,8 +137,17 @@ class PerturbationScenario(FrozenModel):
 
     @model_validator(mode="after")
     def unsupported_scenario_is_explicit(self) -> PerturbationScenario:
+        if self.status is PerturbationStatus.SUPPORTED and self.source_artifact.digest in {
+            _DERIVED_DIGEST_SENTINEL,
+        }:
+            raise ValueError("supported perturbation requires non-placeholder source evidence")
         if self.status is PerturbationStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported perturbation requires evidence")
+        if self.status is not PerturbationStatus.SUPPORTED and self.evidence:
+            # Counter-evidence is allowed, but a caller must not label an
+            # unsupported perturbation as ordinary positive evidence.
+            if any(item.role == "evidence" for item in self.evidence):
+                raise ValueError("unsupported perturbation cannot carry positive evidence")
         return self
 
 
@@ -158,6 +169,8 @@ class PerturbationResponse(FrozenModel):
             raise ValueError("response envelope must be ordered")
         if not self.envelope_lower <= self.perturbed_response <= self.envelope_upper:
             raise ValueError("perturbed response is outside declared envelope")
+        if not self.envelope_lower <= self.baseline_response <= self.envelope_upper:
+            raise ValueError("baseline response is outside declared envelope")
         if abs(self.delta - (self.perturbed_response - self.baseline_response)) > _DELTA_TOLERANCE:
             raise ValueError("response delta must match baseline and perturbed values")
         if self.status is PerturbationResponseStatus.EVALUATED and not self.evidence:
@@ -182,6 +195,8 @@ class SensitivitySurface(FrozenModel):
         ids = tuple(item.scenario_id for item in self.responses)
         if len(ids) != len(set(ids)):
             raise ValueError("sensitivity response scenario ids must be unique")
+        if any(item.status is not PerturbationResponseStatus.EVALUATED for item in self.responses):
+            raise ValueError("simulated sensitivity surface cannot contain unevaluable responses")
         return self
 
 
@@ -228,7 +243,7 @@ class BiomarkerPanelPerturbationSensitivityResult(FrozenModel):
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1206_CONTRACT_VERSION
     request_digest: Sha256Digest
-    result_digest: Sha256Digest
+    result_digest: Sha256Digest = _DERIVED_DIGEST_SENTINEL
     request: SimulateBiomarkerPanelPerturbationRequest
     status: SimulatorStatus
     sensitivity_surface: SensitivitySurface | None = None
@@ -264,7 +279,10 @@ class BiomarkerPanelPerturbationSensitivityResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no surface and safe status")
-        if self.result_digest != result_payload_digest(self):
+        expected_digest = result_payload_digest(self)
+        if self.result_digest == _DERIVED_DIGEST_SENTINEL:
+            object.__setattr__(self, "result_digest", expected_digest)
+        elif self.result_digest != expected_digest:
             raise ValueError("result digest does not match canonical result content")
         return self
 
