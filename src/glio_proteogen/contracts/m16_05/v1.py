@@ -17,8 +17,12 @@ from glio_proteogen.contracts.m16_05.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +34,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -65,6 +70,9 @@ class WorkspaceViewKind(StrEnum):
     DISCREPANCY = "discrepancy"
     PROVENANCE = "provenance"
     NEXT_ACTION = "next_action"
+
+
+_REQUIRED_VIEW_KINDS: Final = frozenset(WorkspaceViewKind)
 
 
 class WorkspaceItemStatus(StrEnum):
@@ -116,9 +124,7 @@ class WorkspaceView(FrozenModel):
     kind: WorkspaceViewKind
     title: NonEmptyStr
     purpose: NonEmptyStr
-    items: tuple[WorkspaceItem, ...] = Field(
-        min_length=1, max_length=M1605_MAX_ITEMS_PER_VIEW
-    )
+    items: tuple[WorkspaceItem, ...] = Field(min_length=1, max_length=M1605_MAX_ITEMS_PER_VIEW)
     default_item_order: tuple[Identifier, ...] = Field(
         min_length=1, max_length=M1605_MAX_ITEMS_PER_VIEW
     )
@@ -154,6 +160,12 @@ class WorkspaceConfiguration(FrozenModel):
     def view_order_is_unique(self) -> WorkspaceConfiguration:
         if len(self.default_view_order) != len(set(self.default_view_order)):
             raise ValueError("default view order must be unique")
+        if len(self.visible_sections) != len(set(self.visible_sections)):
+            raise ValueError("visible sections must be unique")
+        if set(self.default_view_order) != _REQUIRED_VIEW_KINDS:
+            raise ValueError("default view order must expose every required workspace view")
+        if set(self.visible_sections) != _REQUIRED_VIEW_KINDS:
+            raise ValueError("visible sections must expose every required workspace view")
         return self
 
 
@@ -172,6 +184,8 @@ class HumanReviewWorkspace(FrozenModel):
         if len(view_ids) != len(set(view_ids)):
             raise ValueError("workspace view ids must be unique")
         kinds = {view.kind for view in self.views}
+        if kinds != _REQUIRED_VIEW_KINDS:
+            raise ValueError("workspace must expose every required view kind")
         if not set(self.configuration.default_view_order) <= kinds:
             raise ValueError("default view order references a missing view")
         if not set(self.configuration.visible_sections) <= kinds:
@@ -244,6 +258,13 @@ class ProteinRnaDiscordanceReviewWorkspaceResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceReviewWorkspaceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("workspace result requires evidence references")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("workspace finding codes must be unique")
         blocked = bool(
             self.workspace
             and any(
@@ -258,6 +279,7 @@ class ProteinRnaDiscordanceReviewWorkspaceResult(FrozenModel):
                 or blocked
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("presented workspace requires supported, unblocked content")
         elif self.status is WorkspacePresentationStatus.REVIEW_REQUIRED:
@@ -273,11 +295,118 @@ class ProteinRnaDiscordanceReviewWorkspaceResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no workspace and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose all seven uncertainty dimensions for the review workspace."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Task, evidence, uncertainty, discrepancy, provenance, and next-action views "
+            "are within the provisional support domain."
+            if supported
+            else "Workspace content is missing, unsupported, or requires review."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Safe ordering, discrepancy visibility, automation-bias controls, and reviewer "
+            "next actions remain explicit.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: PresentProteinRnaReviewWorkspaceRequest, request_digest: Sha256Digest
+) -> ProvenanceRecord:
+    """Bind the seven caller-declared control decisions and workspace inputs."""
+
+    references = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1605_MODULE_ID,
+        module_version=M1605_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.upstream_result.digest,
+            *(item.digest for item in request.source_artifacts),
+        ),
+        configuration_digest=sha256_digest(request.configuration.model_dump(mode="json")),
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -312,4 +441,6 @@ __all__ = [
     "WorkspacePresentationStatus",
     "WorkspaceView",
     "WorkspaceViewKind",
+    "expected_provenance",
+    "expected_uncertainty",
 ]

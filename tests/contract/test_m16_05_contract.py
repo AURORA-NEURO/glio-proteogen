@@ -35,10 +35,7 @@ def test_m1605_schemas_are_strict_and_explicitly_provisional() -> None:
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(
-        schema["x-glio-contract"]["pendingOwnerConfirmation"]
-        for schema in schemas.values()
-    )
+    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     metadata = schemas["output"]["x-glio-contract"]
     assert metadata["outputMediaType"] == M1605_OUTPUT_MEDIA_TYPE
     assert metadata["parentTarget"] == "protein_rna_discordance"
@@ -59,23 +56,35 @@ def test_m1605_workspace_requires_safe_default_ordering() -> None:
         next_action="Confirm the evidence scope.",
         source_artifacts=(_artifact("task"),),
     )
-    view = WorkspaceView(
-        view_id="view.task",
-        kind=WorkspaceViewKind.TASK,
-        title="Task",
-        purpose="Orient the reviewer.",
-        items=(item,),
-        default_item_order=(item.item_id,),
-    )
+
+    def view(kind: WorkspaceViewKind) -> WorkspaceView:
+        view_item = item.model_copy(
+            update={
+                "item_id": f"item.{kind.value}",
+                "kind": kind,
+                "title": kind.value.title(),
+            }
+        )
+        return WorkspaceView(
+            view_id=f"view.{kind.value}",
+            kind=kind,
+            title=kind.value.title(),
+            purpose="Orient the reviewer.",
+            items=(view_item,),
+            default_item_order=(view_item.item_id,),
+        )
+
+    views = tuple(view(kind) for kind in WorkspaceViewKind)
+    kinds = tuple(WorkspaceViewKind)
     workspace = HumanReviewWorkspace(
         workspace_id="workspace.review",
         version="1.0.0",
-        views=(view,),
+        views=views,
         configuration=WorkspaceConfiguration(
             configuration_id="config.review",
             version="1.0.0",
-            default_view_order=(WorkspaceViewKind.TASK,),
-            visible_sections=(WorkspaceViewKind.TASK,),
+            default_view_order=kinds,
+            visible_sections=kinds,
         ),
     )
     assert workspace.views[0].default_item_order == ("item.task",)
