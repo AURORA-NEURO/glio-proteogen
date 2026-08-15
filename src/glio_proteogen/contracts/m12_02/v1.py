@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m12_02.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -50,6 +54,10 @@ M1202_MAX_FINDINGS: Final = 64
 M1202_MAX_DIMENSIONS: Final = 8
 M1202_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1202_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1202_EVIDENCE_CLAIM: Final = (
+    "Caller-declared context observation and mechanism material; issuer authority is not "
+    "authenticated by this module."
+)
 
 
 class ContextDimension(StrEnum):
@@ -237,6 +245,18 @@ class BiomarkerPanelContextStratificationResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelContextStratificationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
+        observation_ids = {item.observation_id for item in self.request.observations}
+        if self.context_profile is not None:
+            profile_ids = {item.observation_id for item in self.context_profile.observations}
+            if profile_ids != observation_ids:
+                raise ValueError("context profile must preserve every request observation")
+        if self.status is StratifierStatus.STRATIFIED and self.human_review_required:
+            raise ValueError("stratified result cannot require human review")
         if self.status is StratifierStatus.STRATIFIED:
             if (
                 self.context_profile is None
@@ -252,13 +272,122 @@ class BiomarkerPanelContextStratificationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no profile and safe status")
+        if self.status is StratifierStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
 
 
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Return all seven uncertainty dimensions for supported or abstained output."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Context observations are explicit and limited to the declared support domain."
+            if supported
+            else "A required context dimension, quality gate, or support boundary is unresolved."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Conflicting observations remain visible and are never silently relabeled.",
+            "Unsupported or missing context is never converted into a negative finding.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: StratifyBiomarkerPanelContextRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller-declared controls into immutable provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1202_MODULE_ID,
+        module_version=M1202_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
+
+
 __all__ = [
     "M1202_CONTRACT_VERSION",
+    "M1202_EVIDENCE_CLAIM",
     "M1202_GATE",
     "M1202_MAX_CANONICAL_REQUEST_BYTES",
     "M1202_MAX_CANONICAL_RESULT_BYTES",
@@ -287,4 +416,6 @@ __all__ = [
     "MechanismApplicability",
     "StratifierStatus",
     "StratifyBiomarkerPanelContextRequest",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
