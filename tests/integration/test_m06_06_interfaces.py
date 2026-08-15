@@ -18,11 +18,19 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app
 from glio_proteogen.contracts.m06_06 import (
     M0606_MAX_COMPONENTS,
+    DecomposeProteinAbundanceUncertaintyRequest,
+    ProteinAbundanceUncertaintyDecompositionResult,
     SensitivityEnvelope,
     SensitivityEnvelopeStatus,
+    UncertaintyComponent,
+    UncertaintyDecomposition,
+    UncertaintyDecompositionStatus,
+    UncertaintyDimension,
     contract_json_schema,
     contract_json_schemas,
+    expected_uncertainty,
 )
+from glio_proteogen.contracts.m06_06.canonical import canonical_request_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ConsentState,
@@ -36,6 +44,10 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
     M0606UncertaintyDecompositionAuthorizationError,
     M0606UncertaintyDecompositionEngine,
     ValidatedM0606Request,
+    preflight_uncertainty_decomposition_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    _validate_json_request,
 )
 
 pytestmark = pytest.mark.integration
@@ -149,6 +161,31 @@ def test_plugin_rejects_forged_and_copied_tokens() -> None:
     copied = ValidatedM0606Request(request=token.request, _seal=token._seal)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(copied)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_authorization_fails_closed_for_hostile_mapping() -> None:
+    class Hostile(dict[str, object]):
+        def get(self, _key: str, _default: object = None) -> object:
+            raise RuntimeError
+
+    with pytest.raises(M0606UncertaintyDecompositionAuthorizationError):
+        preflight_uncertainty_decomposition_authorization(
+            {"context": Hostile()}
+        )
+
+
+def test_json_request_size_limit_runs_before_nested_validation() -> None:
+    with pytest.raises(ValueError, match="byte limit"):
+        _validate_json_request({}, b"x" * (4 * 1024 * 1024 + 1))
+
+
+def test_validated_engine_boundary_rejects_untyped_objects() -> None:
+    with pytest.raises(TypeError, match="validated request"):
+        M0606UncertaintyDecompositionEngine().decompose_validated(
+            cast("DecomposeProteinAbundanceUncertaintyRequest", object())
+        )
 
 
 def test_plugin_bytes_ingress_is_strict() -> None:
@@ -165,6 +202,111 @@ def test_sensitivity_shape_rejects_missing_evaluated_bounds() -> None:
             status=SensitivityEnvelopeStatus.EVALUATED,
             nominal_coverage=0.9,
             rationale="incomplete",
+        )
+
+
+def test_sensitivity_shape_rejects_order_and_coverage_errors() -> None:
+    with pytest.raises(ValueError, match="not ordered"):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.EVALUATED,
+            nominal_coverage=0.9,
+            lower_bound=0.95,
+            upper_bound=0.85,
+            observed_coverage=0.9,
+            rationale="inverted",
+        )
+    with pytest.raises(ValueError, match="85-95"):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.EVALUATED,
+            nominal_coverage=0.9,
+            lower_bound=0.8,
+            upper_bound=0.95,
+            observed_coverage=0.7,
+            rationale="outside gate",
+        )
+    with pytest.raises(ValueError, match="cannot carry"):
+        SensitivityEnvelope(
+            status=SensitivityEnvelopeStatus.NOT_EVALUABLE,
+            nominal_coverage=0.9,
+            lower_bound=0.8,
+            rationale="not evaluable",
+        )
+
+
+def test_decomposition_requires_all_dimensions_once() -> None:
+    scenario = build_scenario()
+    estimate = expected_uncertainty().measurement
+    component = UncertaintyComponent(
+        dimension=UncertaintyDimension.MEASUREMENT,
+        estimate=estimate,
+        rationale="duplicate dimension test",
+    )
+    with pytest.raises(ValueError, match="all seven dimensions"):
+        UncertaintyDecomposition(
+            decomposition_id="decomposition.invalid",
+            components=(component,) * 7,
+            method="invalid synthetic decomposition",
+            model_reference=scenario.request.source_artifacts[0],
+        )
+
+
+def test_valid_decomposition_and_canonical_dict_projection() -> None:
+    scenario = build_scenario()
+    estimate = expected_uncertainty().measurement
+    decomposition = UncertaintyDecomposition(
+        decomposition_id="decomposition.valid",
+        components=tuple(
+            UncertaintyComponent(
+                dimension=dimension,
+                estimate=estimate,
+                rationale="synthetic valid component",
+            )
+            for dimension in UncertaintyDimension
+        ),
+        method="synthetic valid decomposition",
+        model_reference=scenario.request.source_artifacts[0],
+    )
+    assert len(decomposition.components) == M0606_MAX_COMPONENTS
+    assert canonical_request_digest(scenario.request.model_dump(mode="json")).startswith(
+        "sha256:"
+    )
+
+
+def test_request_policy_and_result_closure_reject_tampering() -> None:
+    scenario = build_scenario()
+    policy = scenario.request.policy.model_construct(
+        **{**scenario.request.policy.__dict__, "nominal_coverage": 0.8}
+    )
+    bad_request = scenario.request.model_construct(
+        **{**scenario.request.__dict__, "policy": policy}
+    )
+    with pytest.raises(ValueError, match="nominal 90"):
+        type(scenario.request).model_validate(bad_request, strict=True)
+
+    result = M0606Service().execute(scenario.request)
+    bad_request_digest = ProteinAbundanceUncertaintyDecompositionResult.model_construct(
+        **{**result.__dict__, "request_digest": "sha256:" + ("d" * 64)}
+    )
+    with pytest.raises(ValueError, match="request digest"):
+        ProteinAbundanceUncertaintyDecompositionResult.model_validate(
+            bad_request_digest, strict=True
+        )
+    bad_result_digest = ProteinAbundanceUncertaintyDecompositionResult.model_construct(
+        **{**result.__dict__, "result_digest": "sha256:" + ("e" * 64)}
+    )
+    with pytest.raises(ValueError, match="result digest"):
+        ProteinAbundanceUncertaintyDecompositionResult.model_validate(
+            bad_result_digest, strict=True
+        )
+    bad_status = ProteinAbundanceUncertaintyDecompositionResult.model_construct(
+        **{
+            **result.__dict__,
+            "status": UncertaintyDecompositionStatus.DECOMPOSED,
+        }
+    )
+    with pytest.raises(ValueError, match="decomposed result"):
+        ProteinAbundanceUncertaintyDecompositionResult.model_validate(
+            bad_status, strict=True
         )
 
 
