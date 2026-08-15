@@ -1,9 +1,10 @@
 """Focused schema and temporal-ordering smoke for provisional M11-05."""
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m11_05 import (
     M1105_M1104_RESULT_MEDIA_TYPE,
@@ -32,11 +33,12 @@ def test_provisional_schemas_are_strict_and_temporal() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["futureLeakageBlocked"] is True
         assert metadata["unsupportedToNegative"] is False
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1105_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M1105_OUTPUT_MEDIA_TYPE
     assert M1105_M1104_RESULT_MEDIA_TYPE.endswith("m11-04+json")
     assert M1105_PROVISIONAL_ABI is True
 
