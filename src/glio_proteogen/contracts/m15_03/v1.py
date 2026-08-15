@@ -125,17 +125,25 @@ class MechanisticFeature(FrozenModel):
     @field_validator("numeric_value")
     @classmethod
     def numeric_value_is_finite(cls, value: float | None) -> float | None:
-        if value is not None and not isfinite(value):
-            raise ValueError("numeric mechanistic feature value must be finite")
+        _require_finite_value(value)
         return value
 
     @model_validator(mode="after")
     def supported_feature_has_evidence(self) -> MechanisticFeature:
         if self.support_status is FeatureSupportStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported mechanistic feature requires evidence")
-        if self.numeric_value is not None and not self.unit:
-            raise ValueError("numeric mechanistic feature requires a unit")
+        _require_feature_unit(self)
         return self
+
+
+def _require_feature_unit(feature: MechanisticFeature) -> None:
+    if feature.numeric_value is not None and not feature.unit:
+        raise ValueError("numeric mechanistic feature requires a unit")
+
+
+def _require_finite_value(value: float | None) -> None:
+    if value is not None and not isfinite(value):
+        raise ValueError("numeric mechanistic feature value must be finite")
 
 
 class MechanisticFeatureObject(FrozenModel):
@@ -156,9 +164,13 @@ class MechanisticFeatureObject(FrozenModel):
         ids = tuple(item.feature_id for item in self.features)
         if len(ids) != len(set(ids)):
             raise ValueError("mechanistic feature ids must be unique")
-        if any(item.parent_component != M1503_PARENT for item in self.features):
-            raise ValueError("mechanistic features must bind the complex_activity parent")
+        _require_feature_parent(self.features)
         return self
+
+
+def _require_feature_parent(features: tuple[MechanisticFeature, ...]) -> None:
+    if any(item.parent_component != M1503_PARENT for item in features):
+        raise ValueError("mechanistic features must bind the complex_activity parent")
 
 
 class FeatureFinding(FrozenModel):
