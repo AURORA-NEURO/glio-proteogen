@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -14,12 +15,16 @@ from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m1608 import app, m1608_app
 from glio_proteogen.contracts.m16_08 import (
+    DriftAssessment,
+    HealthSignal,
     HealthSignalKind,
     HealthSignalStatus,
     MonitorDiagnosticStatus,
     MonitorProteinRnaTranslationHealthRequest,
     ProteinRnaDiscordanceTranslationHealthResult,
     RollbackDecision,
+    RollbackPlan,
+    TranslationHealthReport,
     TranslationHealthStatus,
     contract_json_schema,
     contract_json_schemas,
@@ -105,6 +110,127 @@ def test_request_and_result_closures_reject_tamper() -> None:
     )
     with pytest.raises(ValueError, match="request digest"):
         ProteinRnaDiscordanceTranslationHealthResult.model_validate(payload, strict=True)
+
+
+def test_contract_bounds_references_and_state_closures_are_adversarial() -> None:
+    request = build_scenario_request()
+    signal = request.signals[0]
+    with pytest.raises(ValueError, match="ordered"):
+        HealthSignal.model_validate(
+            signal.model_copy(update={"lower_bound": 2.0, "upper_bound": 1.0}), strict=True
+        )
+    with pytest.raises(ValueError, match="both bounds"):
+        HealthSignal.model_validate(signal.model_copy(update={"lower_bound": None}), strict=True)
+    with pytest.raises(ValueError, match="inside"):
+        HealthSignal.model_validate(
+            signal.model_copy(update={"observed_value": 2.0}), strict=True
+        )
+    with pytest.raises(ValueError, match="inside"):
+        _signal(
+            "signal.drifting",
+            HealthSignalKind.SUPPORT_DRIFT,
+            "support drift",
+            0.9,
+            HealthSignalStatus.DRIFTING,
+            0.8,
+            1.0,
+        )
+    with pytest.raises(ValueError, match="declared bound"):
+        HealthSignal.model_validate(
+            _signal(
+                "signal.unbounded",
+                HealthSignalKind.SUPPORT_DRIFT,
+                "support drift",
+                0.9,
+                HealthSignalStatus.DRIFTING,
+                None,
+                None,
+            ),
+            strict=True,
+        )
+    assessment = request.signals
+    report = M1608TranslationMonitoringEngine().infer(request).report
+    assert report is not None
+    with pytest.raises(ValueError, match="signal ids"):
+        DriftAssessment.model_validate(
+            report.assessments[0].model_copy(
+                update={"signal_ids": (assessment[0].signal_id, assessment[0].signal_id)}
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="critical drift"):
+        DriftAssessment.model_validate(
+            report.assessments[0].model_copy(
+                update={"critical": True, "status": HealthSignalStatus.WITHIN_ENVELOPE}
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="trigger conditions"):
+        RollbackPlan.model_validate(
+            report.rollback_plan.model_copy(update={"trigger_conditions": ("x", "x")}),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="recovery steps"):
+        RollbackPlan.model_validate(
+            report.rollback_plan.model_copy(update={"recovery_steps": ("x", "x")}),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="unknown signal"):
+        TranslationHealthReport.model_validate(
+            report.model_copy(
+                update={
+                    "assessments": (
+                        report.assessments[0].model_copy(update={"signal_ids": ("signal.unknown",)}),
+                    )
+                }
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="provisional M16-07"):
+        type(request).model_validate(
+            request.model_copy(update={"upstream_result": request.source_artifacts[0]}), strict=True
+        )
+    with pytest.raises(ValueError, match="version"):
+        type(request).model_validate(
+            request.model_copy(
+                update={
+                    "configuration": request.configuration.model_copy(update={"version": "9.9.9"})
+                }
+            ),
+            strict=True,
+        )
+    result = M1608TranslationMonitoringEngine().infer(request)
+    with pytest.raises(ValueError, match="findings"):
+        ProteinRnaDiscordanceTranslationHealthResult.model_validate(
+            result.model_copy(update={"findings": ("provisional_abi_pending_review",) * 2}),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="diagnostic"):
+        ProteinRnaDiscordanceTranslationHealthResult.model_validate(
+            result.model_copy(update={"diagnostics": result.diagnostics * 2}), strict=True
+        )
+    with pytest.raises(ValueError, match="healthy"):
+        ProteinRnaDiscordanceTranslationHealthResult.model_validate(
+            result.model_copy(update={"rollback_decision": RollbackDecision.SUSPEND}), strict=True
+        )
+
+
+def test_adapter_negative_paths_and_plugin_token_seal(tmp_path: Path) -> None:
+    client = TestClient(app)
+    request = build_scenario_request()
+    result = M1608TranslationMonitoringEngine().infer(request)
+    tampered = result.model_dump(mode="json")
+    tampered["result_digest"] = "sha256:" + "0" * 64
+    assert client.post("/v1/modules/M16-08/verify", json=tampered).status_code == 422
+    runner = CliRunner()
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("{", encoding="utf-8")
+    assert runner.invoke(m1608_app, ["monitor", str(malformed)]).exit_code != 0
+    assert runner.invoke(m1608_app, ["verify", str(malformed)]).exit_code != 0
+    plugin = M1608Plugin(M1608Service())
+    token = plugin.validate(request)
+    with pytest.raises(TypeError):
+        plugin.run(replace(token, _seal=object()))
 
 
 def test_authorization_plugin_service_and_replay_parity() -> None:
