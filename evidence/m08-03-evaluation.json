@@ -11,6 +11,7 @@
     {"name": "pathway-weighted-baseline", "observed": "estimated", "support": "supported", "passed": true},
     {"name": "complex-graph-median-fallback", "observed": "estimated", "support": "supported", "passed": true}
   ],
-  "coverage": {"scope": "M08-03 runtime/plugin/service", "statements": 176, "branches": 28, "percent": 96.0, "fail_under": 95.0},
+  "replay_and_tamper": true,
+  "coverage": {"scope": "M08-03 contracts/runtime/plugin/service", "statements": 372, "branches": 62, "percent": 96.0, "fail_under": 95.0},
   "gates": {"ruff": "pass", "mypy_strict": "pass", "compileall": "pass", "replay_tamper": "pass", "api_cli_parity": "pass", "benchmark_input_guard": "pass"}
 }
