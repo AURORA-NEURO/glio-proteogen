@@ -154,6 +154,14 @@ class CalibrationDiagnostic(FrozenModel):
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0807_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def metric_matches_status(self) -> CalibrationDiagnostic:
+        if self.status is CalibrationDiagnosticStatus.NOT_EVALUABLE and self.metric_value is not None:
+            raise ValueError("non-evaluable diagnostics cannot claim a metric value")
+        if self.status is not CalibrationDiagnosticStatus.NOT_EVALUABLE and self.metric_value is None:
+            raise ValueError("evaluated diagnostics require a finite metric value")
+        return self
+
 
 class CalibrateProteinSubtypeSelectivePredictionRequest(FrozenModel):
     """Provisional request bound to the complete M08-06 uncertainty result."""
@@ -176,6 +184,12 @@ class CalibrateProteinSubtypeSelectivePredictionRequest(FrozenModel):
             raise ValueError("calibration request must bind the provisional M08-06 result")
         if self.configuration.nominal_coverage != M0807_NOMINAL_COVERAGE:
             raise ValueError("provisional selective coverage target must be nominal 90 percent")
+        artifact_keys = tuple(
+            (artifact.artifact_id, artifact.version, artifact.digest, artifact.media_type)
+            for artifact in self.source_artifacts
+        )
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("source artifact references must be unique")
         return self
 
 
@@ -216,6 +230,11 @@ class ProteinSubtypeSelectivePredictionResult(FrozenModel):
             CalibrationDiagnosticStatus.FAIL,
             CalibrationDiagnosticStatus.NOT_EVALUABLE,
         }
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("diagnostic identifiers must be unique")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("calibration findings must be unique")
         if self.status is CalibrationStatus.CALIBRATED:
             if (
                 self.estimate is None
@@ -233,6 +252,8 @@ class ProteinSubtypeSelectivePredictionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no prediction and explicit safe status")
+        if self.status is CalibrationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("provisional abstention requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
