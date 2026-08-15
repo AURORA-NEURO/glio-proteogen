@@ -88,3 +88,4 @@ __all__ = [
     "contract_json_schema",
     "contract_json_schemas",
 ]
+
