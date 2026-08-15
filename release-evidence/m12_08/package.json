@@ -1,0 +1,26 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-08",
+  "build_backend": "hatchling 1.31.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 819695,
+    "sha256": "c4556594c37fa4cd67c455e6bc4a140c3c4251c574627e9248798c9dac7c3a92",
+    "members": 328
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 1460752,
+    "sha256": "fff69e3aee643b4d2363033557d8406e56f343ccc955e52c819b8bf360fba9c6",
+    "members": 794
+  },
+  "isolated_import": {
+    "passed": true,
+    "checks": [
+      "glio_proteogen.contracts.m12_08",
+      "glio_proteogen.adapters.m1208",
+      "glio_proteogen.modules.c12_driver_to_protein_consequence.m12_08_mechanism_evidence_dossier",
+      "contract_json_schemas_count=9"
+    ]
+  },
+  "passed": true
+}
