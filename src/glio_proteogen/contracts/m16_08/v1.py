@@ -122,6 +122,20 @@ class HealthSignal(FrozenModel):
             and self.lower_bound > self.upper_bound
         ):
             raise ValueError("health signal bounds must be ordered")
+        if self.status is HealthSignalStatus.WITHIN_ENVELOPE:
+            if self.lower_bound is None or self.upper_bound is None:
+                raise ValueError("within-envelope signals require both bounds")
+            if not self.lower_bound <= self.observed_value <= self.upper_bound:
+                raise ValueError("within-envelope signal must lie inside its bounds")
+        if self.status is HealthSignalStatus.DRIFTING:
+            if self.lower_bound is None and self.upper_bound is None:
+                raise ValueError("drifting signals require a declared bound")
+            if (
+                self.lower_bound is not None
+                and self.upper_bound is not None
+                and self.lower_bound <= self.observed_value <= self.upper_bound
+            ):
+                raise ValueError("drifting signal cannot lie inside its bounds")
         return self
 
 
@@ -132,6 +146,14 @@ class DriftAssessment(FrozenModel):
     status: HealthSignalStatus
     critical: bool = False
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1608_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def assessment_is_closed(self) -> DriftAssessment:
+        if len(set(self.signal_ids)) != len(self.signal_ids):
+            raise ValueError("drift assessment signal ids must be unique")
+        if self.critical and self.status is not HealthSignalStatus.DRIFTING:
+            raise ValueError("critical drift assessments must be drifting")
+        return self
 
 
 class RollbackPlan(FrozenModel):
@@ -145,6 +167,14 @@ class RollbackPlan(FrozenModel):
         min_length=1, max_length=M1608_MAX_RECOVERY_STEPS
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1608_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def rollback_is_recoverable(self) -> RollbackPlan:
+        if len(set(self.trigger_conditions)) != len(self.trigger_conditions):
+            raise ValueError("rollback trigger conditions must be unique")
+        if len(set(self.recovery_steps)) != len(self.recovery_steps):
+            raise ValueError("rollback recovery steps must be unique")
+        return self
 
 
 class TranslationMonitoringConfiguration(FrozenModel):
@@ -182,6 +212,10 @@ class TranslationHealthReport(FrozenModel):
         for assessment in self.assessments:
             if not set(assessment.signal_ids) <= known:
                 raise ValueError("drift assessment references an unknown signal")
+        if not any(item.critical for item in self.assessments) and any(
+            item.status is HealthSignalStatus.DRIFTING for item in self.assessments
+        ):
+            raise ValueError("drifting reports require a criticality decision")
         return self
 
 
@@ -216,6 +250,8 @@ class MonitorProteinRnaTranslationHealthRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("monitor source artifact references must be unique")
+        if self.configuration.version != self.upstream_result.version:
+            raise ValueError("monitor configuration version must bind the upstream result version")
         return self
 
 
@@ -251,12 +287,18 @@ class ProteinRnaDiscordanceTranslationHealthResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceTranslationHealthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if len(set(self.findings)) != len(self.findings):
+            raise ValueError("monitor findings must be unique")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("monitor diagnostic ids must be unique")
         if self.health_status is TranslationHealthStatus.HEALTHY:
             if (
                 self.report is None
                 or self.rollback_decision is not RollbackDecision.CONTINUE
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("healthy result requires supported report and continue decision")
         elif self.health_status is TranslationHealthStatus.DEGRADED:
@@ -279,9 +321,10 @@ class ProteinRnaDiscordanceTranslationHealthResult(FrozenModel):
             self.report is not None
             or self.rollback_decision is not RollbackDecision.ABSTAIN
             or self.abstention_reason is None
-            or self.support_decision.status
-            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
-        ):
+                or self.support_decision.status
+                not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+                or not self.human_review_required
+            ):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
