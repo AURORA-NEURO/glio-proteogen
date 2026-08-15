@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, cast
+from typing import TYPE_CHECKING, Final, cast
 
 from glio_proteogen.contracts.m12_03 import (
     M1203_CONTRACT_VERSION,
@@ -15,7 +15,9 @@ from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
 from .engine import request_digest_for, validate_json_request
-from .service import M1203Service
+
+if TYPE_CHECKING:
+    from .service import M1203Service
 
 _TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
@@ -73,10 +75,7 @@ class M1203Plugin(
         elif isinstance(request, ConstructBiomarkerPanelMechanisticFeaturesRequest):
             typed = request
         else:
-            typed = cast(
-                "ConstructBiomarkerPanelMechanisticFeaturesRequest",
-                self._service.validate_request(request),
-            )
+            typed = self._service.validate_request(request)
 
         return ValidatedM1203Request(
             request=typed,
