@@ -7,7 +7,7 @@ from glio_proteogen.contracts.m08_03 import (
     contract_json_schemas,
 )
 
-_SCHEMA_COUNT = 5
+_SCHEMA_COUNT = 6
 
 
 def test_provisional_schemas_require_locked_baseline_evidence() -> None:

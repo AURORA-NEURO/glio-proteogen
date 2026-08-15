@@ -83,6 +83,30 @@ class BaselineFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+class BaselineFeatureState(StrEnum):
+    OBSERVED = "observed"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+
+
+class BaselineFeatureObservation(FrozenModel):
+    """Caller-declared numeric feature used by the transparent baseline."""
+
+    feature_id: Identifier
+    state: BaselineFeatureState
+    unit: NonEmptyStr
+    value: float | None = None
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0803_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def value_matches_state(self) -> BaselineFeatureObservation:
+        if self.state is BaselineFeatureState.OBSERVED and self.value is None:
+            raise ValueError("observed baseline feature requires a value")
+        if self.state is not BaselineFeatureState.OBSERVED and self.value is not None:
+            raise ValueError("non-observed baseline feature cannot carry a value")
+        return self
+
+
 class BaselineDiagnostic(FrozenModel):
     diagnostic_id: Identifier
     status: BaselineDiagnosticStatus
@@ -122,6 +146,9 @@ class EstimateProteinSubtypeBaselineRequest(FrozenModel):
     context: ExecutionContext
     representation_result: ArtifactReference
     configuration: BaselineRunConfiguration
+    features: tuple[BaselineFeatureObservation, ...] = Field(
+        default=(), max_length=M0803_MAX_FEATURES
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M0803_MAX_FEATURES
     )
@@ -137,6 +164,9 @@ class EstimateProteinSubtypeBaselineRequest(FrozenModel):
         )
         if len(artifact_keys) != len(set(artifact_keys)):
             raise ValueError("source artifact references must be unique")
+        feature_ids = tuple(feature.feature_id for feature in self.features)
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("baseline feature ids must be unique")
         return self
 
 
@@ -214,6 +244,8 @@ __all__ = [
     "BaselineDiagnostic",
     "BaselineDiagnosticStatus",
     "BaselineEstimateStatus",
+    "BaselineFeatureObservation",
+    "BaselineFeatureState",
     "BaselineFindingCode",
     "BaselineMethod",
     "BaselineRunConfiguration",
