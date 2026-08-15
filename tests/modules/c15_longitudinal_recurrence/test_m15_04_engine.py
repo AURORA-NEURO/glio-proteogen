@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m15_04 import (
     M1504_M1501_RESULT_MEDIA_TYPE,
     InferComplexActivityMechanismRequest,
     MechanismEstimateKind,
+    MechanismInferenceConfiguration,
     MechanismInferenceStatus,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
@@ -122,13 +123,13 @@ def _request(
             references=_controls(accepted=accepted),
         ),
         hypothesis_registry_result=_artifact("hypothesis.registry", hypothesis_media_type),
-        configuration={
-            "configuration_id": "configuration.m1504",
-            "version": "1.0.0",
-            "method": method,
-            "model_reference": _artifact("model"),
-            "calibration_reference": _artifact("calibration"),
-        },
+        configuration=MechanismInferenceConfiguration(
+            configuration_id="configuration.m1504",
+            version="1.0.0",
+            method=method,
+            model_reference=_artifact("model"),
+            calibration_reference=_artifact("calibration"),
+        ),
         source_artifacts=(
             _artifact("proteome"),
             _artifact("transcript-protein-discordance"),
