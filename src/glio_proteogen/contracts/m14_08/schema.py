@@ -26,9 +26,7 @@ from glio_proteogen.contracts.m14_08.v1 import (
     ValidationRoute,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M14-08:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M14-08:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1408_CONTRACT_VERSION
 ContractName = Literal[
     "request",
