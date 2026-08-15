@@ -20,8 +20,9 @@ from glio_proteogen.contracts.m12_06 import (
     SensitivitySurface,
     SimulateBiomarkerPanelPerturbationRequest,
 )
-from glio_proteogen.kernel.models import EvidenceReference
+from glio_proteogen.contracts.m12_06.canonical import canonical_request_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import EvidenceReference
 from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator.engine import (
     M1206AuthorizationError,
     preflight_m1206_authorization,
@@ -44,6 +45,7 @@ def _evidence() -> EvidenceReference:
 def test_preflight_non_mapping_fails_closed() -> None:
     with pytest.raises(M1206AuthorizationError):
         preflight_m1206_authorization(object())
+    assert canonical_request_digest(_request().model_dump())
 
 
 def test_policy_bounds_are_ordered() -> None:
@@ -89,6 +91,20 @@ def test_unsupported_positive_evidence_is_rejected() -> None:
             source_artifact=_artifact("source", 91),
             evidence=(_evidence(),),
         )
+    counter = _evidence().model_copy(update={"role": "counter_evidence"})
+    accepted_counter = PerturbationScenario(
+        scenario_id="scenario-counter",
+        kind=PerturbationKind.IN_SILICO,
+        parameter="signal",
+        baseline_value=0.2,
+        perturbed_value=0.3,
+        unit="relative",
+        status=PerturbationStatus.UNSUPPORTED,
+        assumption="unsupported",
+        source_artifact=_artifact("source", 92),
+        evidence=(counter,),
+    )
+    assert accepted_counter.status is PerturbationStatus.UNSUPPORTED
 
 
 @pytest.mark.parametrize(

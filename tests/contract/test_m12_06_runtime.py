@@ -216,6 +216,7 @@ def test_plugin_validates_once_and_rejects_unissued_token() -> None:
     request = _request()
     plugin = M1206Plugin(M1206Service())
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M12-06"
+    assert plugin.validate(request).request == request
     token = plugin.validate(request.model_dump_json())
     assert plugin.run(token).status is SimulatorStatus.SIMULATED
     with pytest.raises(TypeError):
