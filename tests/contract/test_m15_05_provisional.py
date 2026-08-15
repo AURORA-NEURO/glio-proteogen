@@ -6,6 +6,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m15_05 import (
+    M1505_DOSSIER_SHA256,
+    M1505_DOSSIER_SLICE,
     M1505_OUTPUT_MEDIA_TYPE,
     M1505_PROVISIONAL_ABI,
     ChangePoint,
@@ -38,6 +40,14 @@ def test_provisional_schemas_require_ordering_and_leakage_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1505_OUTPUT_MEDIA_TYPE
     assert M1505_PROVISIONAL_ABI is True
+    assert M1505_DOSSIER_SHA256 == (
+        "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+    )
+    assert M1505_DOSSIER_SLICE.endswith(":5252-5295")
+    assert all(
+        schema["x-glio-contract"]["dossierSlice"] == M1505_DOSSIER_SLICE
+        for schema in schemas.values()
+    )
 
 
 def test_detected_change_point_requires_explicit_evidence() -> None:

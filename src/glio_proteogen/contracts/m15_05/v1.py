@@ -35,6 +35,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from dossier lines 5252-5295.
 M1505_MODULE_ID: Final = "GLIO-PROTEOGEN-M15-05"
+M1505_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1505_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:5252-5295"
 M1505_OPERATION: Final = "infer_complex_activity_longitudinal_evolution"
 M1505_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1505_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m15-05+json"
@@ -269,6 +273,8 @@ class ComplexActivityLongitudinalEvolutionResult(FrozenModel):
 
 __all__ = [
     "M1505_CONTRACT_VERSION",
+    "M1505_DOSSIER_SHA256",
+    "M1505_DOSSIER_SLICE",
     "M1505_GATE",
     "M1505_M1504_RESULT_MEDIA_TYPE",
     "M1505_MAX_CANONICAL_REQUEST_BYTES",
