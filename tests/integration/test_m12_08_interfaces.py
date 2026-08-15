@@ -30,6 +30,14 @@ def test_fastapi_invalid_json_validation_and_replay_errors() -> None:
     assert (
         client.post(
             "/v1/modules/M12-08/mechanism-dossier",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+    assert (
+        client.post(
+            "/v1/modules/M12-08/mechanism-dossier",
             content=b"{",
             headers={"content-type": "application/json"},
         ).status_code
@@ -59,6 +67,19 @@ def test_fastapi_invalid_json_validation_and_replay_errors() -> None:
     assert (
         client.post("/v1/modules/M12-08/mechanism-dossier", json=invalid_request).status_code == 422
     )
+
+
+def test_fastapi_success_and_verify_parity() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/modules/M12-08/mechanism-dossier",
+        json=_request().model_dump(mode="json"),
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+    verified = client.post("/v1/modules/M12-08/verify", json=response.json())
+    assert verified.status_code == 200
+    assert verified.json() == response.json()
 
 
 def test_fastapi_service_authorization_error_is_sanitized(

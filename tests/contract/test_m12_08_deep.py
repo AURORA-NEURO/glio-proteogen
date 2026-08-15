@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m12_08 import (
     MechanismDossierStatus,
     MechanismEvidenceDossier,
     MechanismEvidenceLinkKind,
+    canonical_request_digest,
     contract_json_schemas,
     result_payload_digest,
 )
@@ -44,6 +45,7 @@ from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_08_mechanism_e
     M1208ReplayVerificationError,
     M1208Service,
     ValidatedM1208Request,
+    assemble_biomarker_panel_mechanism_dossier,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -219,11 +221,16 @@ def test_plugin_requires_issued_capability_and_preserves_parse_once() -> None:
     request = _request()
     token = plugin.validate(request)
     assert isinstance(token, ValidatedM1208Request)
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M12-08"
     assert plugin.run(token).status is MechanismDossierStatus.READY
+    assert plugin.verify(plugin.run(token)).status is MechanismDossierStatus.READY
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
     payload = request.model_dump_json()
     assert plugin.validate(payload).request == request
+    assert (
+        assemble_biomarker_panel_mechanism_dossier(request).status is MechanismDossierStatus.READY
+    )
 
 
 def test_service_validates_controls_and_replays() -> None:
@@ -282,3 +289,144 @@ def test_schema_exports_are_valid_and_strict() -> None:
         assert schema["x-glio-contract"]["provisionalAbi"] is True
         assert schema["x-glio-contract"]["reconstructableChainRequired"] is True
         assert schema["x-glio-contract"]["counterEvidenceRequired"] is True
+
+
+def test_adversarial_dossier_and_request_closure_matrix() -> None:
+    result = M1208MechanismEvidenceEngine().infer(_request())
+    assert result.dossier is not None
+    dossier = result.dossier
+
+    cases = (
+        ("duplicate link ids", {"links": (*dossier.links, dossier.links[0])}),
+        (
+            "duplicate counter ids",
+            {"counter_evidence": (*dossier.counter_evidence, dossier.counter_evidence[0])},
+        ),
+        (
+            "duplicate route ids",
+            {"validation_routes": (*dossier.validation_routes, dossier.validation_routes[0])},
+        ),
+        ("incomplete link kinds", {"links": dossier.links[1:]}),
+        (
+            "link role",
+            {
+                "links": (
+                    dossier.links[0].model_copy(
+                        update={
+                            "evidence": (
+                                dossier.links[0]
+                                .evidence[0]
+                                .model_copy(update={"role": "counter_evidence"}),
+                            )
+                        }
+                    ),
+                    *dossier.links[1:],
+                )
+            },
+        ),
+        (
+            "counter role",
+            {
+                "counter_evidence": (
+                    dossier.counter_evidence[0].model_copy(
+                        update={
+                            "evidence": (
+                                dossier.counter_evidence[0]
+                                .evidence[0]
+                                .model_copy(update={"role": "evidence"}),
+                            )
+                        }
+                    ),
+                )
+            },
+        ),
+        (
+            "unknown challenge",
+            {
+                "counter_evidence": (
+                    dossier.counter_evidence[0].model_copy(
+                        update={"challenges_link_ids": ("link.unknown",)}
+                    ),
+                )
+            },
+        ),
+        (
+            "unknown predecessor",
+            {
+                "links": (
+                    dossier.links[0],
+                    dossier.links[1].model_copy(update={"predecessor_ids": ("link.unknown",)}),
+                    *dossier.links[2:],
+                )
+            },
+        ),
+        (
+            "unlocked configuration",
+            {
+                "configuration": MechanismDossierConfiguration.model_construct(
+                    configuration_id=dossier.configuration.configuration_id,
+                    version=dossier.configuration.version,
+                    model_family=dossier.configuration.model_family,
+                    source_manifest=dossier.configuration.source_manifest,
+                    locked=False,
+                    evidence=dossier.configuration.evidence,
+                )
+            },
+        ),
+    )
+    for _label, updates in cases:
+        with pytest.raises(
+            ValueError,
+            match=r"ids|kinds|chain|role|references|predecessor|locked|configuration",
+        ):
+            MechanismEvidenceDossier.model_validate(dossier.model_copy(update=updates), strict=True)
+
+    request = _request()
+    with pytest.raises(ValueError, match="M12-07"):
+        AssembleBiomarkerPanelMechanismDossierRequest.model_validate(
+            request.model_copy(update={"upstream_result": _artifact("wrong-media")}), strict=True
+        )
+    with pytest.raises(ValueError, match="unique"):
+        AssembleBiomarkerPanelMechanismDossierRequest.model_validate(
+            request.model_copy(update={"source_artifacts": (request.source_artifacts[0],) * 2}),
+            strict=True,
+        )
+    assert canonical_request_digest(request.model_dump(mode="json")) == canonical_request_digest(
+        request
+    )
+
+
+def test_result_closure_and_engine_failure_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = M1208MechanismEvidenceEngine()
+    result = engine.infer(_request())
+    assert result.dossier is not None
+    for updates, message in (
+        ({"result_id": "result.wrong"}, "identifier"),
+        ({"request_digest": sha256_digest("wrong")}, "request digest"),
+        ({"evidence": ()}, "evidence"),
+        ({"dossier": None}, "ready result"),
+        ({"human_review_required": True}, "ready result"),
+    ):
+        with pytest.raises(ValueError, match=message):
+            BiomarkerPanelMechanismDossierResult.model_validate(
+                result.model_copy(update=updates), strict=True
+            )
+    abstained = engine.infer(_request("foundation_assisted"))
+    with pytest.raises(ValueError, match="human review"):
+        BiomarkerPanelMechanismDossierResult.model_validate(
+            abstained.model_copy(update={"human_review_required": False}), strict=True
+        )
+    monkeypatch.setattr(
+        engine_module, "result_payload_digest", lambda _value: sha256_digest("other")
+    )
+    with pytest.raises(M1208ReplayVerificationError):
+        engine.verify(result)
+
+    monkeypatch.undo()
+    monkeypatch.setattr(
+        engine_module.M1208MechanismEvidenceEngine,
+        "infer",
+        lambda _self, _request: (_ for _ in ()).throw(RuntimeError),
+    )
+    with pytest.raises(M1208ReplayVerificationError):
+        engine.verify(result)
