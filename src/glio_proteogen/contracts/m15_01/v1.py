@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m15_01.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -50,6 +54,7 @@ M1501_MAX_EVIDENCE_TIERS: Final = 8
 M1501_MAX_EVALUATIONS: Final = M1501_MAX_HYPOTHESES
 M1501_MAX_FALSIFICATION_EVALUATIONS: Final = M1501_MAX_HYPOTHESES * M1501_MAX_RULES
 M1501_MAX_EVIDENCE: Final = 64
+M1501_MAX_FINDINGS: Final = 128
 M1501_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1501_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1501_EVIDENCE_CLAIM: Final = (
@@ -232,7 +237,7 @@ class ComplexActivityHypothesisRegistryResult(FrozenModel):
     falsification_evaluations: tuple[FalsificationEvaluation, ...] = Field(
         default=(), max_length=M1501_MAX_FALSIFICATION_EVALUATIONS
     )
-    findings: tuple[HypothesisFinding, ...] = Field(default=(), max_length=M1501_MAX_EVIDENCE)
+    findings: tuple[HypothesisFinding, ...] = Field(default=(), max_length=M1501_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["complex_activity"] = M1501_PARENT
     emits_parent: Literal[False] = False
@@ -247,6 +252,9 @@ class ComplexActivityHypothesisRegistryResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityHypothesisRegistryResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
         hypothesis_ids = {item.hypothesis_id for item in self.request.hypotheses}
         evaluation_ids = tuple(item.hypothesis_id for item in self.evaluations)
         if set(evaluation_ids) != hypothesis_ids or len(evaluation_ids) != len(set(evaluation_ids)):
@@ -261,23 +269,149 @@ class ComplexActivityHypothesisRegistryResult(FrozenModel):
         )
         if set(actual_rules) != expected_rules or len(actual_rules) != len(set(actual_rules)):
             raise ValueError("every falsification rule must have exactly one evaluation")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
+        blocking_evaluations = {
+            HypothesisEvaluationStatus.REFUTED,
+            HypothesisEvaluationStatus.CONFLICTED,
+            HypothesisEvaluationStatus.NOT_EVALUABLE,
+            HypothesisEvaluationStatus.ABSTAINED,
+        }
+        blocking_falsifications = {
+            FalsificationOutcome.FAILED,
+            FalsificationOutcome.NOT_EVALUABLE,
+            FalsificationOutcome.ABSTAINED,
+        }
+        has_blocking = any(item.status in blocking_evaluations for item in self.evaluations)
+        has_failed_rule = any(
+            item.outcome in blocking_falsifications for item in self.falsification_evaluations
+        )
         if self.status is not HypothesisStatus.ABSTAINED:
             if (
                 self.registry is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or has_blocking
+                or has_failed_rule
+                or self.human_review_required
             ):
-                raise ValueError("registered result requires a supported registry")
+                raise ValueError("registered result requires supported hypotheses and rules")
         elif (
             self.registry is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
-            raise ValueError("abstained result requires no registry and safe status")
+            raise ValueError("abstained result requires no registry, safe status, and review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose all seven uncertainty dimensions for hypothesis registration."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Versioned hypotheses, competing explanations, falsification rules, and evidence tiers "
+            "passed in the provisional support domain."
+            if supported
+            else "At least one hypothesis or falsification rule was not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Sparse NMF, Bayesian/state-space/mechanistic/foundation-assisted, curated, and "
+            "orthogonal-consensus sensitivity remains explicit.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: RegisterComplexActivityHypothesesRequest, request_digest: Sha256Digest
+) -> ProvenanceRecord:
+    """Bind request inputs and the seven caller-declared control decisions."""
+
+    references = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1501_MODULE_ID,
+        module_version=M1501_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(request_digest, *(item.digest for item in request.source_artifacts)),
+        configuration_digest=request.hypotheses[0].evidence_tiers[0].evidence[0].reference.digest,
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -291,6 +425,7 @@ __all__ = [
     "M1501_MAX_EVIDENCE_TIERS",
     "M1501_MAX_EXPLANATIONS",
     "M1501_MAX_FALSIFICATION_EVALUATIONS",
+    "M1501_MAX_FINDINGS",
     "M1501_MAX_HYPOTHESES",
     "M1501_MAX_RULES",
     "M1501_MODULE_ID",
@@ -314,4 +449,6 @@ __all__ = [
     "HypothesisRegistry",
     "HypothesisStatus",
     "RegisterComplexActivityHypothesesRequest",
+    "expected_provenance",
+    "expected_uncertainty",
 ]

@@ -28,9 +28,7 @@ from glio_proteogen.contracts.m15_01.v1 import (
     RegisterComplexActivityHypothesesRequest,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M15-01:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M15-01:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1501_CONTRACT_VERSION
 ContractName = Literal[
     "request",
