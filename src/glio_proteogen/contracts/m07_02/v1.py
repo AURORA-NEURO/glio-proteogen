@@ -159,9 +159,7 @@ class RepresentationFeature(FrozenModel):
     feature_id: Identifier
     value_kind: RepresentationValueKind
     unit: NonEmptyStr
-    values: tuple[float, ...] = Field(
-        min_length=1, max_length=M0702_MAX_VALUES, allow_inf_nan=False
-    )
+    values: tuple[float, ...] = Field(min_length=1, max_length=M0702_MAX_VALUES)
     mask: tuple[bool, ...] = Field(default=(), max_length=M0702_MAX_VALUES)
     lineage: FeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0702_MAX_EVIDENCE)
