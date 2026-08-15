@@ -77,6 +77,14 @@ class LeakageCheckStatus(StrEnum):
     NOT_EVALUABLE = "not_evaluable"
 
 
+class RepresentationReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    CANONICAL_BYTES_MISMATCH = "canonical_bytes_mismatch"
+    RESULT_TOO_LARGE = "result_too_large"
+
+
 class RepresentationConstructionStatus(StrEnum):
     CONSTRUCTED = "constructed"
     ABSTAINED = "abstained"
@@ -237,9 +245,15 @@ class TranscriptProteinRepresentationResult(FrozenModel):
     def result_is_closed(self) -> TranscriptProteinRepresentationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
-        feature_ids = {item.feature_id for item in self.features}
-        if feature_ids and feature_ids != {item.feature_id for item in self.request.feature_specs}:
+        feature_ids = tuple(item.feature_id for item in self.features)
+        expected_feature_ids = tuple(item.feature_id for item in self.request.feature_specs)
+        if len(feature_ids) != len(set(feature_ids)):
+            raise ValueError("result feature ids must be unique")
+        if feature_ids and set(feature_ids) != set(expected_feature_ids):
             raise ValueError("result features must cover the requested feature specification")
+        check_ids = tuple(item.check_id for item in self.leakage_checks)
+        if len(check_ids) != len(set(check_ids)):
+            raise ValueError("leakage check ids must be unique")
         leakage_statuses = {item.status for item in self.leakage_checks}
         if self.status is RepresentationConstructionStatus.CONSTRUCTED:
             if (
@@ -248,6 +262,9 @@ class TranscriptProteinRepresentationResult(FrozenModel):
                 or LeakageCheckStatus.FAILED in leakage_statuses
                 or LeakageCheckStatus.NOT_EVALUABLE in leakage_statuses
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or set(feature_ids) != set(expected_feature_ids)
+                or set(check_ids)
+                != {f"leakage.{feature_id}" for feature_id in expected_feature_ids}
             ):
                 raise ValueError("constructed result requires complete leakage-safe support")
         elif (
@@ -259,6 +276,30 @@ class TranscriptProteinRepresentationResult(FrozenModel):
             raise ValueError("abstained result requires no features, a reason, and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        return self
+
+
+class ConstructTranscriptProteinRepresentationVerification(FrozenModel):
+    """Replay verdict for one canonical representation result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: RepresentationReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(
+        self,
+    ) -> ConstructTranscriptProteinRepresentationVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified and self.reason is not RepresentationReplayReason.VERIFIED:
+            raise ValueError("verified replay requires verified reason")
+        if not self.verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a trusted result digest")
+        if self.verified and self.result_digest is None:
+            raise ValueError("verified replay requires a result digest")
         return self
 
 
@@ -283,6 +324,7 @@ __all__ = [
     "M0802_PROVISIONAL_ABI",
     "M0802_SAFETY_CLASS",
     "ConstructTranscriptProteinRepresentationRequest",
+    "ConstructTranscriptProteinRepresentationVerification",
     "FeatureLineage",
     "FeatureSpecification",
     "LeakageCheck",
@@ -290,6 +332,7 @@ __all__ = [
     "RepresentationConstructionStatus",
     "RepresentationFeature",
     "RepresentationPolicy",
+    "RepresentationReplayReason",
     "RepresentationTransformation",
     "RepresentationTransformationKind",
     "RepresentationValueKind",
