@@ -400,5 +400,6 @@ __all__ = [
     "M1406SensitivityAuthorizationError",
     "M1406SensitivityEngine",
     "preflight_sensitivity_authorization",
+    "result_payload_digest",
     "simulate_protein_subtype_perturbations",
 ]

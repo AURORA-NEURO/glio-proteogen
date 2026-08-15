@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-06",
+  "fixture_version": "1.0.0",
+  "cases": [
+    {"case_id": "bounded_simulation", "kind": "in_silico"},
+    {"case_id": "alternative_prior", "kind": "alternative_prior"},
+    {"case_id": "assay_perturbation", "kind": "assay_perturbation"},
+    {"case_id": "unsupported_model_abstention", "kind": "unsupported_model"},
+    {"case_id": "missing_value_abstention", "kind": "missing_value"},
+    {"case_id": "replay_and_tamper", "kind": "replay"},
+    {"case_id": "authorization_gate", "kind": "authorization"}
+  ]
+}
