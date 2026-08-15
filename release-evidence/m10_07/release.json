@@ -21,6 +21,7 @@
   "benchmark_iterations": 10,
   "benchmark_mean_budget_ns": 2000000000,
   "benchmark_p95_budget_ns": 3000000000,
+  "benchmark_evidence": "release-evidence/m10_07/benchmark.json",
   "package_evidence": "release-evidence/m10_07/package.json",
   "traceability": "release-evidence/m10_07/traceability.json"
 }

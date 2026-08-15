@@ -18,6 +18,7 @@ def verify_release(root: Path = Path()) -> dict[str, object]:
     traceability = json.loads((evidence / "traceability.json").read_text(encoding="utf-8"))
     release = json.loads((evidence / "release.json").read_text(encoding="utf-8"))
     package = json.loads((evidence / "package.json").read_text(encoding="utf-8"))
+    benchmark = json.loads((evidence / "benchmark.json").read_text(encoding="utf-8"))
     fixture = json.loads(
         (root / "tests" / "fixtures" / "m10_07" / "scenarios.json").read_text(encoding="utf-8")
     )
@@ -44,6 +45,9 @@ def verify_release(root: Path = Path()) -> dict[str, object]:
             for item in (package["wheel"], package["sdist"])
         ),
         "isolated_import": package["isolated_import"] == "passed",
+        "benchmark": benchmark["passed"] is True
+        and benchmark["mean_ns"] <= benchmark["mean_budget_ns"]
+        and benchmark["p95_ns"] <= benchmark["p95_budget_ns"],
     }
     return {"module_id": MODULE_ID, "passed": all(checks.values()), "checks": checks}
 
