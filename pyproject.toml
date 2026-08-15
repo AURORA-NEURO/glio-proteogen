@@ -51,6 +51,7 @@ exclude = [
   "/.tmp-*",
   "/dist-*",
   "/evidence",
+  "/release-evidence",
   "/glio-proteogen-evidence.tar.gz",
   "/release-build-*",
 ]
