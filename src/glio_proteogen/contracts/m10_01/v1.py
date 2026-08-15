@@ -7,8 +7,8 @@ All symbols here are provisional scaffolding pending owner review.
 
 from __future__ import annotations
 
-from enum import StrEnum
 import re
+from enum import StrEnum
 from math import isfinite
 from typing import Final, Literal
 
@@ -60,7 +60,7 @@ M1001_SUPPORTED_EXPRESSION: Final = (
     "<feature> <operator> <number>, or <feature> between <lower> and <upper>."
 )
 
-_IDENTIFIER_TOKEN = r"[a-zA-Z][a-zA-Z0-9._:-]{0,127}"
+_IDENTIFIER_TOKEN: Final = r"[a-zA-Z][a-zA-Z0-9._:-]{0,127}"  # noqa: S105
 _COMPARISON_PATTERN: Final = re.compile(
     rf"^(?P<feature>{_IDENTIFIER_TOKEN})\s*(?P<operator>==|>=|<=|>|<)\s*"
     r"(?P<value>-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)$"
@@ -105,6 +105,14 @@ class ProteinRnaValidationStatus(StrEnum):
     VALID = "valid"
     INVALID = "invalid"
     ABSTAINED = "abstained"
+
+
+class ProteinRnaReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    NON_CANONICAL = "non_canonical"
+    DIGEST_MISMATCH = "digest_mismatch"
+    OVERSIZED = "oversized"
 
 
 class ProteinRnaFeatureDefinition(FrozenModel):
@@ -402,6 +410,28 @@ class ValidateProteinRnaDiscordanceStateResult(FrozenModel):
         return self
 
 
+class ValidateProteinRnaDiscordanceStateVerification(FrozenModel):
+    """Replay verdict that distinguishes content, digest, and size failures."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    reason: ProteinRnaReplayReason
+    result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def verdict_is_closed(self) -> ValidateProteinRnaDiscordanceStateVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verification verdict does not match its component checks")
+        if self.verified and (
+            self.reason is not ProteinRnaReplayReason.VERIFIED or self.result_digest is None
+        ):
+            raise ValueError("verified replay requires a digest and verified reason")
+        if not self.verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot publish a result digest")
+        return self
+
+
 __all__ = [
     "M1001_CONTRACT_VERSION",
     "M1001_EVIDENCE_CLAIM",
@@ -429,7 +459,9 @@ __all__ = [
     "ProteinRnaInvariantStatus",
     "ProteinRnaMigrationRule",
     "ProteinRnaMissingness",
+    "ProteinRnaReplayReason",
     "ProteinRnaValidationStatus",
     "ValidateProteinRnaDiscordanceStateRequest",
     "ValidateProteinRnaDiscordanceStateResult",
+    "ValidateProteinRnaDiscordanceStateVerification",
 ]

@@ -17,7 +17,7 @@ from glio_proteogen.contracts.m10_01 import (
     contract_json_schemas,
 )
 
-_SCHEMA_COUNT: Final = 8
+_SCHEMA_COUNT: Final = 9
 
 
 def test_provisional_schemas_are_strict_and_owner_pending() -> None:
