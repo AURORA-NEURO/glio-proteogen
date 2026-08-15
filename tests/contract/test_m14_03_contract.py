@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from glio_proteogen.contracts.m14_03 import (
+    M1403_DOSSIER_SLICE,
     M1403_OUTPUT_MEDIA_TYPE,
+    M1403_REQUIREMENT_SHA256,
     MechanisticFeature,
     MechanisticFeatureKind,
     MechanisticFeatureLineage,
@@ -44,6 +46,8 @@ def test_m1403_schemas_are_strict_and_explicitly_provisional() -> None:
     assert metadata["topologyInvariantsRequired"]
     assert metadata["unitInvariantsRequired"]
     assert metadata["safeAbstentionRequired"]
+    assert metadata["dossierSlice"] == M1403_DOSSIER_SLICE == "4804-4847"
+    assert metadata["requirementSha256"] == M1403_REQUIREMENT_SHA256
 
 
 def test_m1403_feature_requires_matching_lineage_and_one_value_shape() -> None:

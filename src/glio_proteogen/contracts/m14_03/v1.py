@@ -45,6 +45,10 @@ M1403_OWNER: Final = "Platform engineering"
 M1403_SAFETY_CLASS: Final = "S2"
 M1403_GATE: Final = "G1"
 M1403_PROVISIONAL_ABI: Final = True
+M1403_DOSSIER_SLICE: Final = "4804-4847"
+M1403_REQUIREMENT_SHA256: Final = (
+    "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
 M1403_MAX_FEATURES: Final = 2_048
 M1403_MAX_RELATIONS: Final = 4_096
 M1403_MAX_TRANSFORMATIONS: Final = 512
@@ -315,6 +319,7 @@ class ProteinSubtypeMechanisticFeatureResult(FrozenModel):
 
 __all__ = [
     "M1403_CONTRACT_VERSION",
+    "M1403_DOSSIER_SLICE",
     "M1403_EVIDENCE_CLAIM",
     "M1403_GATE",
     "M1403_M1402_INPUT_MEDIA_TYPE",
@@ -332,6 +337,7 @@ __all__ = [
     "M1403_OWNER",
     "M1403_PARENT",
     "M1403_PROVISIONAL_ABI",
+    "M1403_REQUIREMENT_SHA256",
     "M1403_SAFETY_CLASS",
     "ConstructProteinSubtypeMechanisticFeaturesRequest",
     "MechanisticConstructionStatus",
