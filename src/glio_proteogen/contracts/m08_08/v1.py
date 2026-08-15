@@ -79,6 +79,14 @@ class ReconstructionStatus(StrEnum):
     NOT_EVALUABLE = "not_evaluable"
 
 
+class PublisherReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    OVERSIZED = "oversized"
+    NON_CANONICAL = "non_canonical"
+    DIGEST_MISMATCH = "digest_mismatch"
+
+
 class PublishedEvidenceItem(FrozenModel):
     evidence_id: Identifier
     role: EvidenceRole
@@ -261,6 +269,28 @@ class PublishTranscriptProteinEvidenceResult(FrozenModel):
         return self
 
 
+class PublishTranscriptProteinEvidenceVerification(FrozenModel):
+    """Closed replay verdict for canonical bytes and content digest."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: PublisherReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(self) -> PublishTranscriptProteinEvidenceVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.reason is PublisherReplayReason.VERIFIED):
+            raise ValueError("replay reason must agree with verified state")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results require a digest and failed results do not")
+        if not self.verified and self.reason is PublisherReplayReason.VERIFIED:
+            raise ValueError("failed replay cannot use verified reason")
+        return self
+
+
 __all__ = [
     "M0808_CALIBRATION_MEDIA_TYPE",
     "M0808_CONTRACT_VERSION",
@@ -286,8 +316,10 @@ __all__ = [
     "ExplanationObject",
     "PublishTranscriptProteinEvidenceRequest",
     "PublishTranscriptProteinEvidenceResult",
+    "PublishTranscriptProteinEvidenceVerification",
     "PublishedEvidenceItem",
     "PublisherDiagnosticStatus",
+    "PublisherReplayReason",
     "PublisherStatus",
     "ReconstructionStatus",
     "ReconstructionStep",

@@ -91,6 +91,7 @@ def test_schema_inventory_is_strict_and_dossier_scoped() -> None:
         "assumption",
         "diagnostic",
         "reconstruction-step",
+        "verification",
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)

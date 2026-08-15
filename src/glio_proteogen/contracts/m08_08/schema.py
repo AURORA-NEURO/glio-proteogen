@@ -25,6 +25,7 @@ from glio_proteogen.contracts.m08_08.v1 import (
     PublishedEvidenceItem,
     PublishTranscriptProteinEvidenceRequest,
     PublishTranscriptProteinEvidenceResult,
+    PublishTranscriptProteinEvidenceVerification,
     ReconstructionStep,
 )
 
@@ -39,6 +40,7 @@ ContractName = Literal[
     "assumption",
     "diagnostic",
     "reconstruction-step",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": PublishTranscriptProteinEvidenceRequest,
@@ -49,6 +51,7 @@ _CONTRACTS: Final = {
     "assumption": ExplanationAssumption,
     "diagnostic": ExplanationDiagnostic,
     "reconstruction-step": ReconstructionStep,
+    "verification": PublishTranscriptProteinEvidenceVerification,
 }
 
 
