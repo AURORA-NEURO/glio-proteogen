@@ -9,6 +9,7 @@ here are provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
+import math
 from typing import Final, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -169,6 +170,18 @@ class ComplexActivityFeatureValue(FrozenModel):
                 or self.interval_lower > self.interval_upper
             ):
                 raise ValueError("observed interval requires ordered bounds")
+            numeric_values = tuple(
+                value
+                for value in (
+                    self.scalar_value,
+                    self.interval_lower,
+                    self.interval_upper,
+                    *self.vector,
+                )
+                if value is not None
+            )
+            if not all(math.isfinite(value) for value in numeric_values):
+                raise ValueError("observed numeric values must be finite")
         elif present:
             raise ValueError("non-observed feature cannot carry a value representation")
         return self
@@ -204,6 +217,12 @@ class ComplexActivityConstraint(FrozenModel):
         if len(values) != len(set(values)):
             raise ValueError("constraint feature ids must be unique")
         return tuple(sorted(values))
+
+    @model_validator(mode="after")
+    def constraint_expression_is_bounded(self) -> ComplexActivityConstraint:
+        if not self.expression.startswith("feature:"):
+            raise ValueError("constraint expression must use the bounded feature language")
+        return self
 
 
 class ComplexActivityCompatibilityRule(FrozenModel):
@@ -277,6 +296,17 @@ class FormalComplexActivityStateSchema(FrozenModel):
         for constraint in self.constraints:
             if not set(constraint.feature_ids) <= known:
                 raise ValueError("constraint references an unknown feature")
+        compatibility_pairs = {
+            (rule.source_version, rule.target_version) for rule in self.compatibility_rules
+        }
+        if len(compatibility_pairs) != len(self.compatibility_rules):
+            raise ValueError("compatibility rules must have unique version pairs")
+        migration_pairs = {(rule.source_version, rule.target_version) for rule in self.migrations}
+        if len(migration_pairs) != len(self.migrations):
+            raise ValueError("migration rules must have unique version pairs")
+        for migration in self.migrations:
+            if not set(migration.mapped_feature_ids) <= known:
+                raise ValueError("migration references an unknown feature")
         return self
 
 
@@ -320,6 +350,19 @@ class ValidateComplexActivityStateRequest(FrozenModel):
                 raise ValueError("feature value unit does not match schema unit")
             if value.category is not None and value.category not in definition.allowed_categories:
                 raise ValueError("feature category is outside the declared domain")
+            if value.state is ComplexActivityMissingness.OBSERVED:
+                expected_kind = {
+                    ComplexActivityFeatureValueKind.SCALAR: value.scalar_value is not None,
+                    ComplexActivityFeatureValueKind.INTERVAL: (
+                        value.interval_lower is not None and value.interval_upper is not None
+                    ),
+                    ComplexActivityFeatureValueKind.CATEGORICAL: value.category is not None,
+                    ComplexActivityFeatureValueKind.VECTOR: bool(value.vector),
+                }[definition.value_kind]
+                if not expected_kind:
+                    raise ValueError("feature value representation does not match schema kind")
+            elif value.state not in definition.allowed_missingness:
+                raise ValueError("feature value uses a disallowed missingness state")
             if value.scalar_value is not None and (
                 (
                     definition.domain_lower is not None
@@ -331,6 +374,18 @@ class ValidateComplexActivityStateRequest(FrozenModel):
                 )
             ):
                 raise ValueError("scalar feature value is outside the declared domain")
+            if value.interval_lower is not None and (
+                (
+                    definition.domain_lower is not None
+                    and value.interval_lower < definition.domain_lower
+                )
+                or (
+                    definition.domain_upper is not None
+                    and value.interval_upper is not None
+                    and value.interval_upper > definition.domain_upper
+                )
+            ):
+                raise ValueError("interval feature value is outside the declared domain")
         return self
 
 
@@ -368,6 +423,13 @@ class ValidateComplexActivityStateResult(FrozenModel):
                 raise ValueError("valid result cannot contain a violated invariant")
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("valid result requires supported status")
+            if statuses != {ComplexActivityInvariantStatus.SATISFIED} and statuses:
+                raise ValueError("valid result requires every invariant to be satisfied")
+        if self.status is ComplexActivityValidationStatus.INVALID:
+            if ComplexActivityInvariantStatus.VIOLATED not in statuses:
+                raise ValueError("invalid result requires a violated invariant")
+            if self.support_decision.status is SupportStatus.UNSUPPORTED:
+                raise ValueError("unsupported evidence must abstain instead of becoming invalid")
         if (
             self.status is ComplexActivityValidationStatus.ABSTAINED
             and self.support_decision.status
