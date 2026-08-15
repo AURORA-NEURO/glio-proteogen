@@ -23,9 +23,7 @@ from glio_proteogen.contracts.m05_07.v1 import (
     RoutePtmLocalizationSupportRequest,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-07:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-07:0.1.0-provisional"
 CONTRACT_VERSION: Final = M0507_CONTRACT_VERSION
 ContractName = Literal["request", "output", "policy", "prerequisites", "fact", "receipt"]
 _CONTRACTS: Final = {
@@ -53,6 +51,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "strict": True,
         "provisionalAbi": True,
         "abiStatus": "dossier-behavioral-brief-only",
+        "pendingOwnerConfirmation": True,
         "externalContentTraversal": False,
         "rawPayload": False,
         "identityInference": False,
@@ -62,6 +61,25 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "variantPeptideEmission": False,
         "parentTarget": M0507_PARENT,
         "outputMediaType": M0507_OUTPUT_MEDIA_TYPE,
+        "unsupportedToNegative": False,
+        "identityValidationRequired": True,
+        "versionValidationRequired": True,
+        "unitValidationRequired": True,
+        "completenessValidationRequired": True,
+        "assaySupportValidationRequired": True,
+        "parentQualityValidationRequired": True,
+        "quarantineUnresolvedInputs": True,
+        "uncertaintyRequired": True,
+        "explicitAbstentionRequired": True,
+        "humanReviewCriticalDiscrepancy": True,
+        "humanReviewNovelOodState": True,
+        "humanReviewSupportOverride": True,
+        "humanReviewClaimPromotion": True,
+        "humanReviewReleaseException": True,
+        "humanReviewBiologicalConflict": True,
+        "primaryArchitecture": "event_sourced_quality_service_longitudinal_state_space",
+        "alternateArchitecture": "schema_first_batch_service_longitudinal_state_space",
+        "fallbackArchitecture": "quarantine_first_deterministic_pipeline_spatial_proteotype_field",
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M0507_MAX_CANONICAL_REQUEST_BYTES
