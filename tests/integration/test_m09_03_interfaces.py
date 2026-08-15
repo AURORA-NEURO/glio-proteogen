@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c09_complex_activity import (
     m09_03_mature_baseline_estimator as m0903,
 )
@@ -61,7 +62,7 @@ def test_api_sanitizes_invalid_and_denied_requests() -> None:
                     "references": _request().context.references.model_copy(
                         update={
                             "consent": _request().context.references.consent.model_copy(
-                                update={"state": "withheld"}
+                                update={"state": ConsentState.WITHHELD}
                             )
                         }
                     )
