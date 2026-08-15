@@ -9,3 +9,5 @@ scalar/interval/categorical shapes,engine.py,tests/modules/test_m10_03_baseline_
 finite numeric closure,contracts/m10_03/v1.py,tests/contract/test_m10_03_contract.py,pass
 11-case evaluator matrix,evals/m10_03/run.py,tests/evals/test_m10_03_evaluator.py,pass
 benchmark budget evidence,evals/m10_03/benchmark.py,release-evidence/M10-03/benchmark.json,pass
+release package integrity,tools/verify_m1003_release.py,release-evidence/M10-03/package.json,pass
+scoped branch coverage,tools/verify_m1003_release.py,release-evidence/M10-03/coverage.json,pass
