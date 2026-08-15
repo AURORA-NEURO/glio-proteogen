@@ -13,7 +13,8 @@
     "cd7de6c feat(m09-02): expose strict service plugin API and CLI",
     "abd1aeb chore(m09-02): close interface formatting and lint gates",
     "0e535ca chore(m09-02): remove redundant encoding argument",
-    "6d5a9e9 test(m09-02): add adversarial constructor and interface parity coverage"
+    "6d5a9e9 test(m09-02): add adversarial constructor and interface parity coverage",
+    "6888c53 test(m09-02): add evaluation benchmark and release evidence"
   ],
   "focusedTests": {
     "count": 26,
