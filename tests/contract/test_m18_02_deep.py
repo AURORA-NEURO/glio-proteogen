@@ -381,13 +381,16 @@ def test_replay_tamper_and_public_wrapper_are_canonical() -> None:
     with pytest.raises(M1802ReplayVerificationError):
         engine.verify({"not": "a result"})
 
-    altered = result.model_copy(update={"request": build_scenario_request("conflict")})
-    altered_payload = altered.model_dump(mode="python")
-    altered_payload["request_digest"] = canonical_request_digest(altered_payload["request"])
-    altered_shell = BiomarkerPanelAlignmentResult.model_construct(**altered_payload)
-    altered_payload["result_digest"] = result_payload_digest(altered_shell)
+    altered_request = build_scenario_request("conflict")
+    altered_shell = result.model_copy(
+        update={
+            "request": altered_request,
+            "request_digest": canonical_request_digest(altered_request),
+        }
+    )
+    object.__setattr__(altered_shell, "result_digest", result_payload_digest(altered_shell))
     with pytest.raises(M1802ReplayVerificationError):
-        engine.verify(altered_payload)
+        engine.verify(altered_shell)
 
 
 def test_api_schema_export_and_route_parity() -> None:
