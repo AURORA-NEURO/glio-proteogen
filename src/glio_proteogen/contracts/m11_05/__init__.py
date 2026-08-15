@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m11_05.schema import (
     contract_json_schemas,
 )
 from glio_proteogen.contracts.m11_05.v1 import *  # noqa: F403
+from glio_proteogen.contracts.m11_05.v1 import expected_provenance, expected_uncertainty
 
 __all__ = [
     "CONTRACT_VERSION",
@@ -22,6 +23,8 @@ __all__ = [
     "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "expected_provenance",
+    "expected_uncertainty",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",

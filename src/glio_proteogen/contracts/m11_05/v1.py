@@ -17,8 +17,12 @@ from glio_proteogen.contracts.m11_05.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +34,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -52,6 +57,10 @@ M1105_MAX_DIAGNOSTICS: Final = 64
 M1105_MAX_DIMENSIONS: Final = 16
 M1105_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1105_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1105_EVIDENCE_CLAIM: Final = (
+    "Caller-declared longitudinal and evolutionary evidence; issuer authority is not "
+    "authenticated by this provisional module."
+)
 
 
 class TrajectoryDimension(StrEnum):
@@ -136,9 +145,7 @@ class TrajectoryState(FrozenModel):
     label: NonEmptyStr
     posterior_probability: float = Field(ge=0.0, le=1.0)
     observation_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M1105_MAX_OBSERVATIONS)
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M1105_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1105_MAX_EVIDENCE)
 
 
 class ChangePoint(FrozenModel):
@@ -259,6 +266,15 @@ class VariantPeptideLongitudinalEvolutionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no trajectory and safe status")
+        state_ids = tuple(state.state_id for state in self.trajectory)
+        if len(set(state_ids)) != len(state_ids):
+            raise ValueError("trajectory state identifiers must be unique")
+        change_point_ids = tuple(item.change_point_id for item in self.change_points)
+        if len(set(change_point_ids)) != len(change_point_ids):
+            raise ValueError("change-point identifiers must be unique")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(set(diagnostic_ids)) != len(diagnostic_ids):
+            raise ValueError("diagnostic identifiers must be unique")
         state_sequences = tuple(state.sequence for state in self.trajectory)
         if state_sequences != tuple(sorted(state_sequences)):
             raise ValueError("trajectory states must be ordered")
@@ -267,6 +283,93 @@ class VariantPeptideLongitudinalEvolutionResult(FrozenModel):
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def _uncertainty_estimate(
+    probability: float | None,
+    rationale: str,
+) -> UncertaintyEstimate:
+    if probability is None:
+        return UncertaintyEstimate(state=EstimateState.NOT_ESTIMABLE, rationale=rationale)
+    return UncertaintyEstimate(
+        state=EstimateState.ESTIMATED,
+        probability=probability,
+        rationale=rationale,
+    )
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Return the fixed seven-dimension uncertainty envelope for M11-05."""
+
+    probability = 0.9 if supported else None
+    rationale = (
+        "Deterministic provisional trajectory baseline; calibrated uncertainty is pending."
+        if supported
+        else "Trajectory uncertainty is not estimable after safe abstention."
+    )
+    return UncertaintyProfile(
+        measurement=_uncertainty_estimate(probability, rationale),
+        sampling=_uncertainty_estimate(probability, rationale),
+        parameter=_uncertainty_estimate(probability, rationale),
+        model_form=_uncertainty_estimate(probability, rationale),
+        identification=_uncertainty_estimate(probability, rationale),
+        support=_uncertainty_estimate(probability, rationale),
+        transport=_uncertainty_estimate(probability, rationale),
+        sensitivity_notes=(
+            "Temporal ordering and future-leakage gates are deterministic.",
+            "Feature artifacts are opaque references and are never traversed.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: ModelVariantPeptideLongitudinalEvolutionRequest,
+    request_hash: Sha256Digest,
+) -> ProvenanceRecord:
+    """Derive auditable provenance only from caller-declared references."""
+
+    refs = request.context.references
+    controls = (
+        (ControlRole.APPROVED_CONFIGURATION, refs.approved_configuration),
+        (ControlRole.IDENTITY_LINEAGE, refs.identity_lineage),
+        (ControlRole.PROVENANCE, refs.provenance),
+        (ControlRole.CONSENT, refs.consent),
+        (ControlRole.QUALITY, refs.quality),
+        (ControlRole.SUPPORT, refs.support),
+        (ControlRole.INTENDED_USE, refs.intended_use),
+    )
+    decisions = tuple(
+        ControlDecisionRecord(
+            role=role,
+            decision_id=decision.decision_id,
+            state=decision.state.value,
+            policy_version=decision.policy_version,
+            evidence_digest=decision.evidence.digest,
+            subject_digest=(
+                decision.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
+            ),
+        )
+        for role, decision in controls
+    )
+    input_digests = (
+        request.network_state_result.digest,
+        *(artifact.digest for artifact in request.source_artifacts),
+        *(observation.feature_artifact.digest for observation in request.observations),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_hash.removeprefix('sha256:')[:32]}",
+        actor_id=request.context.actor_id,
+        module_id=M1105_MODULE_ID,
+        module_version=M1105_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=input_digests,
+        configuration_digest=sha256_digest(request.policy.configuration.model_dump(mode="json")),
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -301,4 +404,6 @@ __all__ = [
     "TrajectoryState",
     "TrajectoryStatus",
     "VariantPeptideLongitudinalEvolutionResult",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
