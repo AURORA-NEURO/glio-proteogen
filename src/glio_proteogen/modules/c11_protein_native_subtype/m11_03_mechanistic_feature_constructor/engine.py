@@ -97,16 +97,16 @@ def preflight_m1103_authorization(candidate: object) -> None:
 
 
 def _validate_request(candidate: object) -> ConstructVariantPeptideMechanisticFeaturesRequest:
+    if type(candidate) not in {ConstructVariantPeptideMechanisticFeaturesRequest, dict}:
+        raise _InvalidRequestError
     preflight_m1103_authorization(candidate)
     if type(candidate) is ConstructVariantPeptideMechanisticFeaturesRequest:
         return ConstructVariantPeptideMechanisticFeaturesRequest.model_validate(
             candidate, strict=True
         )
-    if type(candidate) is dict:
-        return ConstructVariantPeptideMechanisticFeaturesRequest.model_validate_json(
-            canonical_json_bytes(candidate), strict=True
-        )
-    raise _InvalidRequestError
+    return ConstructVariantPeptideMechanisticFeaturesRequest.model_validate_json(
+        canonical_json_bytes(candidate), strict=True
+    )
 
 
 def _validate_json_request(
