@@ -352,9 +352,9 @@ def expected_provenance(
 
 
 __all__ = [
-    "M0606_CONTRACT_VERSION",
     "M0606_BENCHMARK_ITERATIONS",
     "M0606_BENCHMARK_WARMUPS",
+    "M0606_CONTRACT_VERSION",
     "M0606_EVIDENCE_CLAIM",
     "M0606_GATE",
     "M0606_MAX_CANONICAL_REQUEST_BYTES",
@@ -363,15 +363,15 @@ __all__ = [
     "M0606_MAX_COVERAGE",
     "M0606_MAX_EVIDENCE",
     "M0606_MAX_FINDINGS",
+    "M0606_MEAN_BUDGET_NS",
     "M0606_MIN_COVERAGE",
     "M0606_MODULE_ID",
     "M0606_NOMINAL_COVERAGE",
     "M0606_OPERATION",
     "M0606_OUTPUT_MEDIA_TYPE",
     "M0606_OWNER",
-    "M0606_PARENT",
-    "M0606_MEAN_BUDGET_NS",
     "M0606_P95_BUDGET_NS",
+    "M0606_PARENT",
     "M0606_SAFETY_CLASS",
     "DecomposeProteinAbundanceUncertaintyRequest",
     "ProteinAbundanceUncertaintyDecompositionResult",
