@@ -1,14 +1,21 @@
-"""Fail-closed common-plugin scaffold for M04-08 release packaging."""
+"""Strict validate-then-run plugin boundary for M04-08 releases."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
-from glio_proteogen.contracts.m04_08 import M0408DependencyUnavailableError
+from pydantic import TypeAdapter
+
+from glio_proteogen.contracts.m04_08 import (
+    M0408_MAX_CANONICAL_REQUEST_BYTES,
+    BuildProteoformReleaseRequest,
+)
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging.engine import (
     BuiltProteoformRelease,
+    preflight_proteoform_release_authorization,
 )
 
 if TYPE_CHECKING:
@@ -18,6 +25,7 @@ if TYPE_CHECKING:
         M0408Service,
     )
 
+_REQUEST_ADAPTER: Final = TypeAdapter(BuildProteoformReleaseRequest)
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M04-08",
     title="Provenance and release packaging",
@@ -43,18 +51,24 @@ class ProteoformReleaseSubmission:
 
 
 @dataclass(frozen=True, slots=True)
-class _UnavailableValidationToken:
-    """Unconstructable-by-API marker while the M04-07 ABI is unavailable."""
+class ValidatedM0408Request:
+    request: BuildProteoformReleaseRequest
+    artifacts_by_path: Mapping[str, object]
+    stage_results_by_module: Mapping[str, object]
 
 
-def _dependency_error(phase: str) -> M0408DependencyUnavailableError:
-    return M0408DependencyUnavailableError(
-        f"M04-08 plugin {phase} awaits the exact frozen M04-07 public ABI"
-    )
+class _InvalidExecutionTokenError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M04-08 execution requires a validated request token")
 
 
-class M0408Plugin(ModulePlugin[object, _UnavailableValidationToken, BuiltProteoformRelease]):
-    """Publish metadata while refusing guessed validation or execution."""
+class _InvalidSubmissionError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M04-08 validation requires a proteoform release submission")
+
+
+class M0408Plugin(ModulePlugin[object, ValidatedM0408Request, BuiltProteoformRelease]):
+    """Expose M04-08 through the common ABI without owning signing keys."""
 
     __slots__ = ("_service",)
 
@@ -64,13 +78,27 @@ class M0408Plugin(ModulePlugin[object, _UnavailableValidationToken, BuiltProteof
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
 
-    def validate(self, request: object) -> _UnavailableValidationToken:
-        del request
-        raise _dependency_error("validation")
+    def validate(self, request: object) -> ValidatedM0408Request:
+        if not isinstance(request, ProteoformReleaseSubmission):
+            raise _InvalidSubmissionError
+        candidate = request.request
+        if type(candidate) in {bytes, bytearray, str}:
+            serialized = cast("bytes | bytearray | str", candidate)
+            decoded = strict_json_loads(serialized, max_bytes=M0408_MAX_CANONICAL_REQUEST_BYTES)
+            preflight_proteoform_release_authorization(decoded)
+            candidate = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
+        return ValidatedM0408Request(
+            request=self._service.validate_request(candidate),
+            artifacts_by_path=request.artifacts_by_path,
+            stage_results_by_module=request.stage_results_by_module,
+        )
 
-    def run(self, request: _UnavailableValidationToken) -> BuiltProteoformRelease:
-        del request
-        raise _dependency_error("execution")
+    def run(self, request: ValidatedM0408Request) -> BuiltProteoformRelease:
+        if not isinstance(request, ValidatedM0408Request):
+            raise _InvalidExecutionTokenError
+        return self._service.build(
+            request.request, request.artifacts_by_path, request.stage_results_by_module
+        )
 
 
-__all__ = ["M0408Plugin", "ProteoformReleaseSubmission"]
+__all__ = ["M0408Plugin", "ProteoformReleaseSubmission", "ValidatedM0408Request"]

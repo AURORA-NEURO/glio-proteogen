@@ -40,14 +40,11 @@ The owner is Bioinformatics, the safety class is S2, and the evidence gate is G1
    uncertainty receipts, provenance, evidence, limitations, recovery guidance, and human-review
    state. Upstream evidence remains immutable.
 
-## M04-07 dependency hold
+## M04-07 dependency binding
 
-The owned M04-08 contract and schema spine is importable before M04-07 freezes, but executable
-request validation and runtime build/verify operations are intentionally sealed. A private,
-immutable adapter must bind the final M04-07 result identifier convention, media type, disposition
-vocabulary, releasable states, direct-upstream receipt, and genuine replay builder. Until that
-adapter is installed, the runtime raises `M0408DependencyUnavailableError` before accessing any
-upstream object or artifact mapping. No draft M04-07 symbol is part of the public ABI.
+The immutable adapter binds only the published M04-07 result identifier convention, media type,
+disposition vocabulary, releasable state, and direct-upstream receipt. No draft M04-07 symbol is
+part of the executable ABI.
 
 ## Architecture and claims ceiling
 
@@ -68,8 +65,8 @@ Gate G1 requires strict schema behavior with zero silent coercions; hard functio
 supported perturbation closure and explicit abstention outside the envelope; declared uncertainty
 or narrowed support; zero ownership/consent violations; auditability and recovery; and locked
 unit, integration, evaluator, benchmark, traceability, risk-control, data/model/reference,
-reviewer-signoff, and rollback evidence. Executable corpus and benchmark claims remain pending the
-final M04-07 checkpoint.
+reviewer-signoff, and rollback evidence. The executable corpus and exact-byte replay claims are
+synthetic contract evidence only and do not establish scientific reproducibility.
 
 See the [module manifest](M04-08.manifest.md),
 [evidence inventory](../evidence/M04-08.md), and

@@ -171,6 +171,7 @@ from glio_proteogen.contracts.m04_07 import (
     M0407_MAX_CANONICAL_REQUEST_BYTES,
     RouteProteoformSupportRequest,
 )
+from glio_proteogen.contracts.m04_08.schema import contract_json_schema as m0408_contract_json_schema
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -486,6 +487,11 @@ proteoform_support_app = typer.Typer(
     help="M04-07 deterministic proteoform support and abstention routing.",
 )
 app.add_typer(proteoform_support_app, name="proteoform-support")
+proteoform_release_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-08 proteoform provenance and release packaging.",
+)
+app.add_typer(proteoform_release_app, name="proteoform-release")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3603,6 +3609,28 @@ def route_proteoform_support(request: RequestArgument) -> None:
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform support routing failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@proteoform_release_app.command("export-schema")
+def export_proteoform_release_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact",
+            "manifest",
+            "verification",
+            "signature",
+            "stage-provenance",
+            "reproduction-evidence",
+        ],
+        typer.Argument(help="M04-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform release contract."""
+
+    typer.echo(json.dumps(m0408_contract_json_schema(contract), indent=2, sort_keys=True))
 
 
 @protein_inference_release_app.command("build")

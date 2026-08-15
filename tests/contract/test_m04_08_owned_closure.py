@@ -258,8 +258,8 @@ def test_owned_known_stage_vocabulary_version_and_digest_set_are_closed() -> Non
         _stage(upstream=(_digest("same"), _digest("same")))
 
 
-def test_owned_m0407_stage_vocabulary_remains_sealed_until_real_binding() -> None:
-    with pytest.raises(M0408DependencyUnavailableError, match="frozen M04-07"):
+def test_owned_m0407_stage_vocabulary_uses_the_bound_public_disposition() -> None:
+    with pytest.raises(ValidationError, match="stage disposition contradicts"):
         _stage(ProteoformStageModuleId.M04_07, disposition="unbound")
 
 

@@ -11,7 +11,6 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m04_08 import (
     M0408_MAX_ARTIFACT_BYTES,
-    M0408DependencyUnavailableError,
     ProteoformReleaseArtifact,
     ProteoformReleaseArtifactRole,
     ProteoformReleasePolicy,
@@ -30,6 +29,12 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging impo
     build_proteoform_release,
     build_proteoform_release_manifest,
     verify_proteoform_release,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging.engine import (
+    ProteoformReleaseAuthorizationError,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging.plugin import (
+    _InvalidSubmissionError,
 )
 
 _REPRODUCTION_EVIDENCE_COUNT = 9
@@ -99,8 +104,8 @@ def test_m0408_known_artifact_role_has_fixed_path_media_and_identifier() -> None
         ProteoformReleaseArtifact.model_validate_json(canonical_json_bytes(payload), strict=True)
 
 
-def test_m0408_m0407_artifact_validation_fails_closed_without_guessed_abi() -> None:
-    with pytest.raises(M0408DependencyUnavailableError, match="frozen M04-07 public ABI"):
+def test_m0408_m0407_artifact_validation_uses_the_exact_bound_abi() -> None:
+    with pytest.raises(ValidationError, match="contradicts its fixed role"):
         ProteoformReleaseArtifact(
             path="stages/m04-07-upstream-result.json",
             role=ProteoformReleaseArtifactRole.M04_07_UPSTREAM_RESULT,
@@ -191,18 +196,18 @@ class _UntouchedMapping(Mapping[str, object]):
         lambda hostile: verify_proteoform_release(object(), cast("bytes", hostile)),
     ],
 )
-def test_m0408_runtime_fails_before_touching_inputs_while_m0407_is_unfrozen(
+def test_m0408_runtime_fails_before_touching_inputs_after_authorization_denial(
     operation: Callable[[Mapping[str, object]], object],
 ) -> None:
     _UntouchedMapping.touched = False
     hostile = _UntouchedMapping()
 
-    with pytest.raises(M0408DependencyUnavailableError, match="exact frozen M04-07"):
+    with pytest.raises((ProteoformReleaseAuthorizationError, ValidationError)):
         operation(hostile)
     assert _UntouchedMapping.touched is False
 
 
-def test_m0408_plugin_publishes_dossier_metadata_but_refuses_unfrozen_validation() -> None:
+def test_m0408_plugin_publishes_dossier_metadata_and_rejects_invalid_submission() -> None:
     plugin = M0408Plugin(M0408Service())
 
     descriptor = plugin.descriptor()
@@ -210,5 +215,5 @@ def test_m0408_plugin_publishes_dossier_metadata_but_refuses_unfrozen_validation
     assert descriptor.owner == "Bioinformatics"
     assert descriptor.safety_class == "S2"
     assert descriptor.gate == "G1"
-    with pytest.raises(M0408DependencyUnavailableError, match="exact frozen M04-07"):
+    with pytest.raises(_InvalidSubmissionError):
         plugin.validate(object())

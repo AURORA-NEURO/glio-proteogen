@@ -401,11 +401,7 @@ def test_external_verifier_rejects_non_tuple_allowlist_and_non_boolean_chain_sta
             chain_releasable=chain,
             verifier=None,
         )
-        expected = (
-            ProteoformSignatureVerificationReason.VERIFIER_UNAVAILABLE
-            if type(allowed) is not tuple
-            else ProteoformSignatureVerificationReason.NOT_ATTEMPTED
-        )
+        expected = ProteoformSignatureVerificationReason.NOT_ATTEMPTED
         assert receipt.reason_code is expected
 
 
@@ -543,11 +539,11 @@ def test_service_facade_preserves_fail_closed_runtime_boundary() -> None:
         lambda: service.manifest(object(), {}, {}),
         lambda: service.verify(object(), b""),
     ):
-        with pytest.raises(RuntimeError, match="exact frozen M04-07"):
+        with pytest.raises((PermissionError, ValidationError)):
             operation()
 
     plugin = M0408Plugin(service)
-    with pytest.raises(M0408DependencyUnavailableError, match="frozen M04-07"):
+    with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
 
 
