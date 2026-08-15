@@ -10,6 +10,8 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m18_04 import (
     AdaptBiomarkerPanelIntendedUseRequest,
     AdapterFindingCode,
+    AdapterStatus,
+    BiomarkerPanelIntendedUseAdapterResult,
     ClaimCeiling,
     DisplaySemantics,
     IntendedUseKind,
@@ -31,10 +33,14 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportStatus,
     UncertaintyEstimate,
     UncertaintyProfile,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_04_intended_use_adapter as m1804,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -211,3 +217,42 @@ def test_canonical_request_mapping_is_stable() -> None:
         request
     )
     assert result_payload_digest({"result_digest": "sha256:" + "a" * 64}).startswith("sha256:")
+
+
+def test_result_closure_rejects_each_tamper_shape() -> None:
+    result = m1804.M1804Engine().adapt(_request())
+    assert result.adapted_object is not None
+    adapted_object = result.adapted_object
+    cases = (
+        {"request_digest": "sha256:" + "b" * 64},
+        {"result_id": "result.tampered"},
+        {
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.UNSUPPORTED}
+            )
+        },
+        {"status": AdapterStatus.ABSTAINED},
+        {
+            "status": AdapterStatus.ABSTAINED,
+            "adapted_object": None,
+            "abstention_reason": "blocked",
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.UNSUPPORTED}
+            ),
+            "human_review_required": False,
+        },
+        {"adapted_object": adapted_object.model_copy(update={"object_id": "object.tampered"})},
+        {"result_digest": "sha256:" + "c" * 64},
+    )
+    for update in cases:
+        candidate = result.model_copy(update=update)
+        with pytest.raises(ValidationError):
+            BiomarkerPanelIntendedUseAdapterResult.model_validate(
+                candidate.model_dump(mode="python"), strict=True
+            )
+
+
+def test_public_function_and_service_validation_paths() -> None:
+    request = _request()
+    result = m1804.adapt_biomarker_panel_intended_use(request)
+    assert result.status is AdapterStatus.ADAPTED

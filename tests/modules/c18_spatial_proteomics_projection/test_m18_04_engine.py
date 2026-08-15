@@ -111,7 +111,9 @@ def test_preflight_requires_all_controls() -> None:
 
 def test_service_replay_rejects_request_and_payload_tamper() -> None:
     service = m1804.M1804Service()
-    result = service.adapt(_request())
+    request = _request()
+    assert service.validate_request(request) == request
+    result = service.adapt(request)
     assert service.replay(result) == result
 
     with pytest.raises(m1804.M1804ReplayError, match="request digest"):
@@ -127,6 +129,10 @@ def test_plugin_descriptor_and_strict_validation_parity() -> None:
     assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M18-04"
     assert plugin.descriptor.provisional_abi is True
     assert plugin.descriptor.intended_use_registration is True
-    assert plugin.run(_request()).status is AdapterStatus.ADAPTED
+    request = _request()
+    assert plugin.validate_request(request) == request
+    result = plugin.run(request)
+    assert plugin.replay(result) == result
+    assert result.status is AdapterStatus.ADAPTED
     with pytest.raises((ValidationError, m1804.M1804AuthorizationError)):
         plugin.validate_request({"request_id": "bad"})
