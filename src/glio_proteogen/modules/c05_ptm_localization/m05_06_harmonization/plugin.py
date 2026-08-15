@@ -79,12 +79,17 @@ class M0506Plugin(ModulePlugin[object, ValidatedM0506Request, PtmLocalizationHar
 
     def run(self, request: ValidatedM0506Request) -> PtmLocalizationHarmonizationResult:
         snapshot = _ISSUED_TOKENS.get(request)
+        candidate_request = getattr(request, "request", None)
         if (
             type(request) is not ValidatedM0506Request
             or getattr(request, "_seal", None) is not _TOKEN_SEAL
             or snapshot is None
-            or getattr(request, "request", None) is not snapshot[0]
-            or snapshot[1] != canonical_request_digest(getattr(request, "request", None))
+        ):
+            raise _InvalidExecutionTokenError
+        if not isinstance(candidate_request, HarmonizePtmLocalizationAnalysisRequest):
+            raise _InvalidExecutionTokenError
+        if snapshot[0] is not candidate_request or snapshot[1] != canonical_request_digest(
+            candidate_request
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
