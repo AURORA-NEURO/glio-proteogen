@@ -18,6 +18,9 @@ from glio_proteogen.contracts.m15_04.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -29,6 +32,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -94,12 +98,8 @@ class MechanismEstimate(FrozenModel):
     lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     state_value: NonEmptyStr | None = None
-    assumptions: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1504_MAX_ASSUMPTIONS
-    )
-    alternatives: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1504_MAX_ALTERNATIVES
-    )
+    assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1504_MAX_ASSUMPTIONS)
+    alternatives: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1504_MAX_ALTERNATIVES)
     counter_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M1504_MAX_EVIDENCE
     )
@@ -179,11 +179,23 @@ class ComplexActivityMechanismInferenceResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityMechanismInferenceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        estimate_ids = tuple(item.estimate_id for item in self.estimates)
+        if len(estimate_ids) != len(set(estimate_ids)):
+            raise ValueError("mechanism estimate ids must be unique")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("mechanism finding ids must be unique")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("mechanism result requires evidence references")
         if self.status is MechanismInferenceStatus.INFERRED:
             if (
                 not self.estimates
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("inferred result requires supported mechanism estimates")
         elif (
@@ -191,11 +203,121 @@ class ComplexActivityMechanismInferenceResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
-            raise ValueError("abstained result requires no estimates and safe status")
+            raise ValueError("abstained result requires no estimates, safe status, and review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Expose all seven uncertainty dimensions for mechanism inference."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Caller-declared configuration, calibrated support, counter-evidence, and "
+            "structure-aware proteoform inference are within the provisional domain."
+            if supported
+            else (
+                "At least one upstream, calibration, support, or mechanism input "
+                "was not safely evaluable."
+            )
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Bayesian/state-space/mechanistic, curated baseline, and orthogonal consensus "
+            "architectures remain explicit; negative controls gate promotion.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: InferComplexActivityMechanismRequest, request_digest: Sha256Digest
+) -> ProvenanceRecord:
+    """Bind request inputs and the seven caller-declared control decisions."""
+
+    references = request.context.references
+    controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=references.approved_configuration.decision_id,
+            state=references.approved_configuration.state.value,
+            policy_version=references.approved_configuration.policy_version,
+            evidence_digest=references.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=references.identity_lineage.decision_id,
+            state=references.identity_lineage.state.value,
+            policy_version=references.identity_lineage.policy_version,
+            evidence_digest=references.identity_lineage.evidence.digest,
+            subject_digest=references.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=references.provenance.decision_id,
+            state=references.provenance.state.value,
+            policy_version=references.provenance.policy_version,
+            evidence_digest=references.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=references.consent.decision_id,
+            state=references.consent.state.value,
+            policy_version=references.consent.policy_version,
+            evidence_digest=references.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=references.quality.decision_id,
+            state=references.quality.state.value,
+            policy_version=references.quality.policy_version,
+            evidence_digest=references.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=references.support.decision_id,
+            state=references.support.state.value,
+            policy_version=references.support.policy_version,
+            evidence_digest=references.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=references.intended_use.decision_id,
+            state=references.intended_use.state.value,
+            policy_version=references.intended_use.policy_version,
+            evidence_digest=references.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request.request_id}",
+        actor_id=request.context.actor_id,
+        module_id=M1504_MODULE_ID,
+        module_version=M1504_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.hypothesis_registry_result.digest,
+            *(item.digest for item in request.source_artifacts),
+        ),
+        configuration_digest=request.configuration.model_reference.digest,
+        consent_decision_id=references.consent.decision_id,
+        consent_state=references.consent.state,
+        consent_policy_version=references.consent.policy_version,
+        consent_evidence_digest=references.consent.evidence.digest,
+        control_decisions=controls,
+    )
 
 
 __all__ = [
@@ -225,4 +347,6 @@ __all__ = [
     "MechanismFindingCode",
     "MechanismInferenceConfiguration",
     "MechanismInferenceStatus",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
