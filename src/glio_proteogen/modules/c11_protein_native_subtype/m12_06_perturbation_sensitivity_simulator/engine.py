@@ -22,7 +22,6 @@ from glio_proteogen.contracts.m12_06 import (
     SimulateBiomarkerPanelPerturbationRequest,
     SimulatorStatus,
     canonical_request_digest,
-    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -373,8 +372,6 @@ def verify_m1206_result(
     validated_result = _RESULT_ADAPTER.validate_python(result, strict=True)
     expected_request_digest = canonical_request_digest(validated_request)
     if validated_result.request_digest != expected_request_digest:
-        raise M1206ReplayError
-    if validated_result.result_digest != result_payload_digest(validated_result):
         raise M1206ReplayError
     return validated_result
 

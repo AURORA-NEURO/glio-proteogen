@@ -137,17 +137,21 @@ class PerturbationScenario(FrozenModel):
 
     @model_validator(mode="after")
     def unsupported_scenario_is_explicit(self) -> PerturbationScenario:
-        if self.status is PerturbationStatus.SUPPORTED and self.source_artifact.digest in {
-            _DERIVED_DIGEST_SENTINEL,
-        }:
+        if (
+            self.status is PerturbationStatus.SUPPORTED
+            and self.source_artifact.digest == _DERIVED_DIGEST_SENTINEL
+        ):
             raise ValueError("supported perturbation requires non-placeholder source evidence")
         if self.status is PerturbationStatus.SUPPORTED and not self.evidence:
             raise ValueError("supported perturbation requires evidence")
-        if self.status is not PerturbationStatus.SUPPORTED and self.evidence:
-            # Counter-evidence is allowed, but a caller must not label an
-            # unsupported perturbation as ordinary positive evidence.
-            if any(item.role == "evidence" for item in self.evidence):
-                raise ValueError("unsupported perturbation cannot carry positive evidence")
+        # Counter-evidence is allowed, but a caller must not label an
+        # unsupported perturbation as ordinary positive evidence.
+        if (
+            self.status is not PerturbationStatus.SUPPORTED
+            and self.evidence
+            and any(item.role == "evidence" for item in self.evidence)
+        ):
+            raise ValueError("unsupported perturbation cannot carry positive evidence")
         return self
 
 
@@ -184,9 +188,7 @@ class SensitivitySurface(FrozenModel):
     responses: tuple[PerturbationResponse, ...] = Field(
         min_length=1, max_length=M1206_MAX_RESPONSES
     )
-    assumptions: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1206_MAX_ASSUMPTIONS
-    )
+    assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1206_MAX_ASSUMPTIONS)
     negative_control_passed: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1206_MAX_EVIDENCE)
 
