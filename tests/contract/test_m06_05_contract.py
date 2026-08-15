@@ -6,11 +6,12 @@ from glio_proteogen.contracts.m06_05 import (
     M0605_MAX_EVIDENCE,
     M0605_OUTPUT_MEDIA_TYPE,
     ConstraintAblationRecord,
+    ConstraintAwareEstimate,
     ConstraintEvaluation,
     ConstraintEvaluationOutcome,
     ConstraintIntegrationReplayReason,
     ConstraintIntegrationStatus,
-    ConstraintAwareEstimate,
+    IntegrateProteinAbundanceConstraintsVerification,
     MechanismConstraint,
     MechanismConstraintHardness,
     MechanismConstraintKind,
@@ -97,7 +98,6 @@ def _soft() -> MechanismConstraint:
 
 def test_hard_constraint_rejects_weight() -> None:
     with pytest.raises(ValueError, match="hard constraint"):
-        _hard().model_copy(update={"weight": 0.2})
         MechanismConstraint(
             constraint_id="constraint.bad",
             version="0.1.0",
@@ -204,10 +204,6 @@ def test_estimate_must_lie_inside_bounds() -> None:
 def test_failed_replay_cannot_expose_digest() -> None:
     with pytest.raises(ValueError, match="trusted result digest"):
         # Verification closure is intentionally impossible to bypass with a stale digest.
-        from glio_proteogen.contracts.m06_05 import (
-            IntegrateProteinAbundanceConstraintsVerification,
-        )
-
         IntegrateProteinAbundanceConstraintsVerification(
             content_verified=False,
             deterministic_verified=False,
@@ -218,8 +214,6 @@ def test_failed_replay_cannot_expose_digest() -> None:
 
 
 def test_verified_replay_requires_verified_reason() -> None:
-    from glio_proteogen.contracts.m06_05 import IntegrateProteinAbundanceConstraintsVerification
-
     with pytest.raises(ValueError, match="verified reason"):
         IntegrateProteinAbundanceConstraintsVerification(
             content_verified=True,
@@ -231,8 +225,6 @@ def test_verified_replay_requires_verified_reason() -> None:
 
 
 def test_verification_cannot_claim_true_without_both_checks() -> None:
-    from glio_proteogen.contracts.m06_05 import IntegrateProteinAbundanceConstraintsVerification
-
     with pytest.raises(ValueError, match="content and deterministic"):
         IntegrateProteinAbundanceConstraintsVerification(
             content_verified=True,

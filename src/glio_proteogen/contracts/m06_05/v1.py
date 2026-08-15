@@ -272,7 +272,7 @@ class IntegrateProteinAbundanceConstraintsResult(FrozenModel):
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> IntegrateProteinAbundanceConstraintsResult:
+    def result_is_closed(self) -> IntegrateProteinAbundanceConstraintsResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         constraints = {item.constraint_id: item for item in self.request.constraint_set.constraints}
@@ -363,8 +363,8 @@ __all__ = [
     "ConstraintAwareEstimate",
     "ConstraintEvaluation",
     "ConstraintEvaluationOutcome",
-    "ConstraintIntegrationStatus",
     "ConstraintIntegrationReplayReason",
+    "ConstraintIntegrationStatus",
     "IntegrateProteinAbundanceConstraintsRequest",
     "IntegrateProteinAbundanceConstraintsResult",
     "IntegrateProteinAbundanceConstraintsVerification",
