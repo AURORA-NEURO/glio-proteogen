@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1306_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -155,6 +156,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m13_06 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    SimulateProteotypePerturbationRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -300,6 +305,11 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +443,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1306_app = typer.Typer(
+    no_args_is_help=True,
+    help="M13-06 bounded variant-peptide perturbation sensitivity.",
+)
+app.add_typer(m1306_app, name="proteotype-sensitivity")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3380,6 +3395,47 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1306_app.command("export-schema")
+def export_m1306_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "scenario",
+            "response",
+            "sensitivity-surface",
+            "configuration",
+            "policy",
+            "finding",
+        ],
+        typer.Argument(help="M13-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    typer.echo(json.dumps(_m1306_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1306_app.command("simulate")
+def simulate_m1306(
+    request: RequestArgument,
+) -> None:
+    """Replay bounded variant-peptide perturbations and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(SimulateProteotypePerturbationRequest),
+            preflight_m1306_authorization,
+            M1306_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1306Service().execute(parsed))
+    except M1306AuthorizationError as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
