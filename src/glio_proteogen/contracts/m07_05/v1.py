@@ -84,6 +84,12 @@ class ProteotypeConstraintIntegrationStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class ProteotypeConstraintReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+
+
 class ProteotypeMechanismConstraint(FrozenModel):
     """One explicit hard or soft constraint over proteotype features."""
 
@@ -131,8 +137,8 @@ class ProteotypeMechanismConstraintSet(FrozenModel):
 class ProteotypeConstraintEvaluation(FrozenModel):
     constraint_id: Identifier
     outcome: ProteotypeConstraintEvaluationOutcome
-    residual: float | None = None
-    effect_size: float | None = None
+    residual: float | None = Field(default=None, allow_inf_nan=False)
+    effect_size: float | None = Field(default=None, allow_inf_nan=False)
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
 
@@ -141,9 +147,9 @@ class ProteotypeConstraintAblation(FrozenModel):
     """Soft-constraint ablation evidence required to detect prior dominance."""
 
     constraint_id: Identifier
-    with_constraint_effect: float
-    without_constraint_effect: float
-    effect_delta: float
+    with_constraint_effect: float = Field(allow_inf_nan=False)
+    without_constraint_effect: float = Field(allow_inf_nan=False)
+    effect_delta: float = Field(allow_inf_nan=False)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -157,9 +163,9 @@ class ProteotypeConstraintAblation(FrozenModel):
 class ProteotypeConstraintAwareEstimate(FrozenModel):
     feature_id: Identifier
     unit: NonEmptyStr
-    estimate_value: float
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    estimate_value: float = Field(allow_inf_nan=False)
+    lower_bound: float | None = Field(default=None, allow_inf_nan=False)
+    upper_bound: float | None = Field(default=None, allow_inf_nan=False)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0705_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -233,6 +239,9 @@ class IntegrateProteotypeConstraintsResult(FrozenModel):
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         constraints = {item.constraint_id: item for item in self.request.constraint_set.constraints}
+        evaluation_ids = tuple(item.constraint_id for item in self.evaluations)
+        if len(evaluation_ids) != len(set(evaluation_ids)):
+            raise ValueError("constraint evaluations must be unique")
         evaluations = {item.constraint_id: item for item in self.evaluations}
         if set(evaluations) != set(constraints):
             raise ValueError("result must evaluate every declared constraint exactly once")
@@ -241,7 +250,10 @@ class IntegrateProteotypeConstraintsResult(FrozenModel):
             for item in self.request.constraint_set.constraints
             if item.hardness is ProteotypeConstraintHardness.SOFT
         }
-        if not soft_ids <= {item.constraint_id for item in self.ablations}:
+        ablation_ids = tuple(item.constraint_id for item in self.ablations)
+        if len(ablation_ids) != len(set(ablation_ids)):
+            raise ValueError("constraint ablations must be unique")
+        if set(ablation_ids) != soft_ids:
             raise ValueError("every soft constraint requires ablation evidence")
         hard_violated = any(
             constraints[item.constraint_id].hardness is ProteotypeConstraintHardness.HARD
@@ -265,6 +277,28 @@ class IntegrateProteotypeConstraintsResult(FrozenModel):
         return self
 
 
+class IntegrateProteotypeConstraintsVerification(FrozenModel):
+    """Replay verdict for one canonical constraint-integration result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: ProteotypeConstraintReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(self) -> IntegrateProteotypeConstraintsVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified and self.reason is not ProteotypeConstraintReplayReason.VERIFIED:
+            raise ValueError("verified replay requires verified reason")
+        if not self.verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a trusted result digest")
+        if self.verified and self.result_digest is None:
+            raise ValueError("verified replay requires a result digest")
+        return self
+
+
 __all__ = [
     "M0705_ADVANCED_ESTIMATOR_MEDIA_TYPE",
     "M0705_CONTRACT_VERSION",
@@ -285,6 +319,7 @@ __all__ = [
     "M0705_SAFETY_CLASS",
     "IntegrateProteotypeConstraintsRequest",
     "IntegrateProteotypeConstraintsResult",
+    "IntegrateProteotypeConstraintsVerification",
     "ProteotypeConstraintAblation",
     "ProteotypeConstraintAwareEstimate",
     "ProteotypeConstraintEvaluation",
@@ -292,6 +327,7 @@ __all__ = [
     "ProteotypeConstraintHardness",
     "ProteotypeConstraintIntegrationStatus",
     "ProteotypeConstraintKind",
+    "ProteotypeConstraintReplayReason",
     "ProteotypeMechanismConstraint",
     "ProteotypeMechanismConstraintSet",
 ]
