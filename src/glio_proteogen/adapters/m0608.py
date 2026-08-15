@@ -24,7 +24,11 @@ from glio_proteogen.contracts.m06_08 import (
     contract_json_schemas,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.strict_json import sanitized_validation_errors, strict_json_loads
+from glio_proteogen.kernel.strict_json import (
+    StrictJsonError,
+    sanitized_validation_errors,
+    strict_json_loads,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_08_evidence_explanation_publisher import (
     M0608EvidencePublisherAuthorizationError,
     M0608ReplayVerificationError,
@@ -38,11 +42,20 @@ _REQUEST_ADAPTER = TypeAdapter(PublishProteinAbundanceEvidenceRequest)
 _RESULT_ADAPTER = TypeAdapter(ProteinAbundanceEvidencePublicationResult)
 
 
+def _strict_json_bytes(payload: bytes) -> bytes:
+    """Reject duplicate/non-finite JSON, then retain JSON scalar representations."""
+
+    parsed = strict_json_loads(payload, max_bytes=4 * 1024 * 1024)
+    return canonical_json_bytes(parsed)
+
+
 def _validation_detail(error: ValidationError) -> list[dict[str, object]]:
     return sanitized_validation_errors(error)
 
 
-def create_m0608_app(service_factory: Callable[[], M0608Service] = M0608Service) -> FastAPI:
+def create_m0608_app(  # noqa: C901
+    service_factory: Callable[[], M0608Service] = M0608Service,
+) -> FastAPI:
     """Build a small FastAPI app with strict validation and sanitized errors."""
 
     app = FastAPI(
@@ -58,10 +71,15 @@ def create_m0608_app(service_factory: Callable[[], M0608Service] = M0608Service)
         _request: Request,
         exc: RequestValidationError,
     ) -> JSONResponse:
-        return JSONResponse(
-            status_code=422,
-            content={"detail": sanitized_validation_errors(exc)},  # type: ignore[arg-type]
-        )
+        details = [
+            {
+                "type": item.get("type", "validation_error"),
+                "loc": item.get("loc", ()),
+                "msg": "request does not match the declared contract",
+            }
+            for item in exc.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": details})
 
     @app.get("/v1/m06-08/schema/{name}")
     async def schema(name: str) -> dict[str, object]:
@@ -73,9 +91,13 @@ def create_m0608_app(service_factory: Callable[[], M0608Service] = M0608Service)
         "/v1/m06-08/evidence/publish",
         response_model=ProteinAbundanceEvidencePublicationResult,
     )
-    async def publish(request: PublishProteinAbundanceEvidenceRequest) -> object:
+    async def publish(request: Request) -> object:
         try:
-            return service.execute(request)
+            typed = _REQUEST_ADAPTER.validate_json(
+                _strict_json_bytes(await request.body()),
+                strict=True,
+            )
+            return service.execute(typed)
         except M0608EvidencePublisherAuthorizationError as error:
             raise HTTPException(
                 status_code=403,
@@ -83,19 +105,27 @@ def create_m0608_app(service_factory: Callable[[], M0608Service] = M0608Service)
             ) from error
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=_validation_detail(error)) from error
+        except StrictJsonError as error:
+            raise HTTPException(status_code=400, detail="invalid strict JSON request") from error
 
     @app.post(
         "/v1/m06-08/evidence/verify",
         response_model=ProteinAbundanceEvidencePublicationResult,
     )
-    async def verify(result: ProteinAbundanceEvidencePublicationResult) -> object:
+    async def verify(request: Request) -> object:
         try:
-            return service.verify(result)
+            typed = _RESULT_ADAPTER.validate_json(
+                _strict_json_bytes(await request.body()),
+                strict=True,
+            )
+            return service.verify(typed)
         except M0608ReplayVerificationError as error:
             raise HTTPException(
                 status_code=409,
                 detail="result replay verification failed",
             ) from error
+        except (StrictJsonError, ValidationError) as error:
+            raise HTTPException(status_code=422, detail="invalid M06-08 result envelope") from error
 
     return app
 
@@ -135,8 +165,8 @@ def validate_request(
     """Validate one request, preserving the parse-once boundary."""
 
     try:
-        parsed = strict_json_loads(path.read(), max_bytes=4 * 1024 * 1024)
-        request = _REQUEST_ADAPTER.validate_python(parsed, strict=True)
+        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        request = _REQUEST_ADAPTER.validate_json(parsed, strict=True)
         typer.echo(canonical_json_bytes(request.model_dump(mode="json")).decode("utf-8"))
     except (ValidationError, ValueError) as error:
         typer.echo(json.dumps({"detail": str(error)}), err=True)
@@ -150,8 +180,8 @@ def publish_request(
     """Execute one request and emit the canonical result envelope."""
 
     try:
-        parsed = strict_json_loads(path.read(), max_bytes=4 * 1024 * 1024)
-        result = M0608Service().execute(_REQUEST_ADAPTER.validate_python(parsed, strict=True))
+        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        result = M0608Service().execute(_REQUEST_ADAPTER.validate_json(parsed, strict=True))
         typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
     except M0608EvidencePublisherAuthorizationError as error:
         typer.echo(json.dumps({"detail": "authorization controls are unresolved"}), err=True)
