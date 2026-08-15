@@ -5,6 +5,7 @@ from .engine import (
     MechanisticFeatureAuthorizationError,
     construct_proteotype_mechanistic_features,
     preflight_mechanistic_feature_authorization,
+    validate_json_request,
     verify_mechanistic_feature_replay,
 )
 from .plugin import (
@@ -23,5 +24,6 @@ __all__ = [
     "ValidatedM1303Request",
     "construct_proteotype_mechanistic_features",
     "preflight_mechanistic_feature_authorization",
+    "validate_json_request",
     "verify_mechanistic_feature_replay",
 ]
