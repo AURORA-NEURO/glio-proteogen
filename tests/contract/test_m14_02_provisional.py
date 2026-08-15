@@ -1,7 +1,9 @@
 """Focused schema and safe-failure smoke for provisional M14-02."""
 
+from typing import cast
+
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m14_02 import (
     M1402_OUTPUT_MEDIA_TYPE,
@@ -13,14 +15,20 @@ from glio_proteogen.contracts.m14_02 import (
     MechanismApplicability,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.models import ArtifactReference
 
 _SCHEMA_COUNT = 8
-_SOURCE_ARTIFACT = {
-    "artifact_id": "source-1",
-    "version": "1.0.0",
-    "digest": "sha256:" + "a" * 64,
-    "media_type": "application/json",
-}
+_SOURCE_ARTIFACT = ArtifactReference(
+    artifact_id="source-1",
+    version="1.0.0",
+    digest="sha256:" + "a" * 64,
+    media_type="application/json",
+)
+
+
+def _metadata(schema: object) -> dict[str, object]:
+    document = cast("dict[str, object]", schema)
+    return cast("dict[str, object]", document["x-glio-contract"])
 
 
 def test_provisional_schemas_preserve_protein_subtype_controls() -> None:
@@ -38,11 +46,11 @@ def test_provisional_schemas_preserve_protein_subtype_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = _metadata(schema)
         assert metadata["provisionalAbi"] is True
         assert metadata["conflictPreservationRequired"] is True
         assert metadata["unsupportedToNegative"] is False
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1402_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M1402_OUTPUT_MEDIA_TYPE
     assert M1402_PROVISIONAL_ABI is True
 
 
