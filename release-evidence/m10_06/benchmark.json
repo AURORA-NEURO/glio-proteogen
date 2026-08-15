@@ -1,0 +1,23 @@
+{
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1276310,
+  "median_ns": 1170700,
+  "module_id": "GLIO-PROTEOGEN-M10-06",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1445900,
+  "passed": true,
+  "samples_ns": [
+    1997300,
+    1170100,
+    1161500,
+    1173200,
+    1191500,
+    1158900,
+    1138900,
+    1445900,
+    1154500,
+    1171300
+  ],
+  "timed_boundary": "M1006UncertaintyDecompositionService.execute_only"
+}
