@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
@@ -568,7 +569,7 @@ def test_invalid_and_non_bytes_replay_fail_closed() -> None:
     engine = M0607CalibrationEngine()
     assert engine.verify(object()).reason.value == "invalid_result"
     built = engine.calibrate(_request())
-    rejected = engine.verify(built.result, "not-canonical-bytes")
+    rejected = engine.verify(built.result, cast("bytes", "not-canonical-bytes"))
     assert rejected.verified is False
     assert rejected.content_verified is False
 
@@ -648,15 +649,15 @@ def test_request_binding_checks_upstream_output_version_and_nominal_target() -> 
     bad_output_data["output_type"] = "wrong-output"
     bad_output_upstream = request.uncertainty_result.model_construct(**bad_output_data)
     with pytest.raises(ValueError, match="complete M06-06"):
-        request.model_copy(update={"uncertainty_result": bad_output_upstream}).request_is_bound()
+        request.model_copy(update={"uncertainty_result": bad_output_upstream}).request_is_bound()  # type: ignore[operator]
     bad_version_data = request.uncertainty_result.model_dump(mode="python")
     bad_version_data["result_version"] = "9.9.9"
     bad_version_upstream = request.uncertainty_result.model_construct(**bad_version_data)
     with pytest.raises(ValueError, match="provisional M06-06"):
-        request.model_copy(update={"uncertainty_result": bad_version_upstream}).request_is_bound()
+        request.model_copy(update={"uncertainty_result": bad_version_upstream}).request_is_bound()  # type: ignore[operator]
     bad_target = request.policy.model_copy(update={"target_coverage": 0.8})
     with pytest.raises(ValueError, match="nominal 90"):
-        request.model_copy(update={"policy": bad_target}).request_is_bound()
+        request.model_copy(update={"policy": bad_target}).request_is_bound()  # type: ignore[operator]
 
 
 def test_abstained_estimate_without_value_is_closed() -> None:
