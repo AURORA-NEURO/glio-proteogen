@@ -14,6 +14,9 @@ from glio_proteogen.contracts.m11_02 import (
     MechanismApplicability,
     MechanismApplicabilityStatus,
     contract_json_schemas,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import ArtifactReference
 
@@ -86,3 +89,11 @@ def test_context_policy_observation_and_mechanism_smoke() -> None:
     assert policy.locked is True
     assert observation.support_score >= policy.minimum_support_score
     assert mechanism.status is MechanismApplicabilityStatus.APPLICABLE
+
+
+def test_canonical_helpers_accept_plain_mappings_and_strip_result_digest() -> None:
+    request = {"request_id": "request.synthetic"}
+    result = {"result_digest": "sha256:" + ("b" * 64), "value": 1}
+    assert normalized_request(request) == request
+    assert normalized_result_payload(result) == {"value": 1}
+    assert result_payload_digest(result).startswith("sha256:")

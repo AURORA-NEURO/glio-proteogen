@@ -1,1 +1,1 @@
-"""Evaluation fixtures for the provisional M11-02 scaffold."""
+"""Executable M11-02 evaluator and benchmark."""
