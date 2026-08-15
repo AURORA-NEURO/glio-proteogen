@@ -1,8 +1,6 @@
 """Evaluator and benchmark evidence for M11-06."""
 
 import pytest
-
-
 from evals.m11_06.benchmark import (
     M1106InvalidIterationsError,
     run_benchmark,
