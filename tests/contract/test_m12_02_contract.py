@@ -31,15 +31,17 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_02_context_subtype_stratifier.engine import (
-    M1202ContextAuthorizationError,
-    M1202ContextEngine,
-    M1202ReplayVerificationError,
+from glio_proteogen.modules.c12_driver_to_protein_consequence import (
+    m12_02_context_subtype_stratifier as m1202_runtime,
 )
 
 _DIGEST = "sha256:" + ("a" * 64)
 _OTHER_DIGEST = "sha256:" + ("b" * 64)
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
+_DIMENSION_COUNT = 8
+M1202ContextAuthorizationError = m1202_runtime.M1202ContextAuthorizationError
+M1202ContextEngine = m1202_runtime.M1202ContextEngine
+M1202ReplayVerificationError = m1202_runtime.M1202ReplayVerificationError
 
 
 def _artifact(name: str, digest: str = _DIGEST) -> ArtifactReference:
@@ -51,7 +53,9 @@ def _artifact(name: str, digest: str = _DIGEST) -> ArtifactReference:
     )
 
 
-def _controls(*, support: UpstreamDecisionState = UpstreamDecisionState.ACCEPTED) -> ContextReferences:
+def _controls(
+    *, support: UpstreamDecisionState = UpstreamDecisionState.ACCEPTED
+) -> ContextReferences:
     return ContextReferences(
         approved_configuration=UpstreamDecisionReference(
             decision_id="decision.config",
@@ -181,7 +185,7 @@ def test_supported_context_profile_and_mechanisms_are_typed() -> None:
 
     assert result.status is StratifierStatus.STRATIFIED
     assert result.context_profile is not None
-    assert len(result.context_profile.observations) == 8
+    assert len(result.context_profile.observations) == _DIMENSION_COUNT
     assert result.support_decision.status is SupportStatus.SUPPORTED
     assert result.provenance.module_id == M1202_MODULE_ID
     assert any(

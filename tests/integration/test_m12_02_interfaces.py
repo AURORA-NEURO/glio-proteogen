@@ -27,6 +27,7 @@ _NOT_FOUND = 404
 _UNSUPPORTED_MEDIA = 415
 _INVALID = 422
 _FORBIDDEN = 403
+_USAGE_ERROR = 2
 M1202Plugin = m12_02_context_subtype_stratifier.M1202Plugin
 M1202Service = m12_02_context_subtype_stratifier.M1202Service
 
@@ -100,7 +101,7 @@ def test_api_strict_json_and_validation_error_surfaces() -> None:
 
 def test_api_service_authorization_error_is_sanitized(monkeypatch) -> None:
     class FailingService:
-        def _execute_validated(self, request):
+        def _execute_validated(self, _: object):
             raise m1202_adapter.M1202ContextAuthorizationError
 
     monkeypatch.setattr(m1202_adapter, "_SERVICE", FailingService())
@@ -110,7 +111,7 @@ def test_api_service_authorization_error_is_sanitized(monkeypatch) -> None:
 
 def test_cli_invalid_schema_request_and_verify_paths(tmp_path) -> None:
     unknown_schema = _RUNNER.invoke(m1202_app, ["export-schema", "unknown"])
-    assert unknown_schema.exit_code == 2
+    assert unknown_schema.exit_code == _USAGE_ERROR
     bad_request = tmp_path / "bad-request.json"
     bad_request.write_text("{}", encoding="utf-8")
     failed_stratify = _RUNNER.invoke(m1202_app, ["stratify", str(bad_request)])
