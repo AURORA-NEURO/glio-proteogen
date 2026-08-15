@@ -163,7 +163,12 @@ def verify_context_result(result: object) -> bool:
     """Replay and verify an M13-02 result envelope without accepting tampering."""
 
     try:
-        typed = ProteotypeContextStratificationResult.model_validate(result, strict=True)
+        if type(result) is ProteotypeContextStratificationResult:
+            typed = result
+        else:
+            typed = ProteotypeContextStratificationResult.model_validate_json(
+                canonical_json_bytes(_plain_value(result)), strict=True
+            )
     except ValidationError:
         return False
     return typed.request_digest == canonical_request_digest(
