@@ -30,6 +30,7 @@ from glio_proteogen.kernel.models import (
     ControlRole,
     EstimateState,
     EvidenceReference,
+    IdentityLineageReference,
     Limitation,
     ProvenanceRecord,
     SupportDecision,
@@ -92,8 +93,8 @@ def _member(value: object, field: str) -> object:
     return getattr(value, field, None)
 
 
-def _state(value: object) -> object:
-    return getattr(value, "value", value)
+def _state(value: object) -> str:
+    return str(getattr(value, "value", value))
 
 
 def preflight_formal_state_authorization(candidate: object) -> None:
@@ -187,7 +188,9 @@ def _provenance(
             policy_version=reference.policy_version,
             evidence_digest=reference.evidence.digest,
             subject_digest=(
-                reference.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
+                reference.binding_digest
+                if isinstance(reference, IdentityLineageReference)
+                else None
             ),
         )
         for role, reference in records
@@ -315,7 +318,7 @@ class M0901FormalStateEngine:
             "evidence": _evidence(request),
             "limitations": _limitations(),
         }
-        constructed = ValidateComplexActivityStateResult.model_construct(**payload)
+        constructed = ValidateComplexActivityStateResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)
         result = _RESULT_ADAPTER.validate_python(payload, strict=True)
         canonical = canonical_json_bytes(result.model_dump(mode="json"))
