@@ -4,9 +4,11 @@
 
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 
+import glio_proteogen.modules.c08_transcript_protein_discordance.m08_08_evidence_explanation_publisher.engine as engine_module
 from glio_proteogen.contracts.m08_08 import (
     M0808_CALIBRATION_MEDIA_TYPE,
     M0808_UNCERTAINTY_MEDIA_TYPE,
@@ -16,6 +18,7 @@ from glio_proteogen.contracts.m08_08 import (
     PublishedEvidenceItem,
     PublisherStatus,
     PublishTranscriptProteinEvidenceRequest,
+    PublishTranscriptProteinEvidenceResult,
     ReconstructionStatus,
     ReconstructionStep,
 )
@@ -34,6 +37,7 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c08_transcript_protein_discordance.m08_08_evidence_explanation_publisher import (
     M0808AuthorizationError,
     M0808EvidenceExplanationPublisher,
+    M0808InputError,
     M0808Plugin,
     M0808Service,
     ValidatedM0808Request,
@@ -195,3 +199,77 @@ def test_public_function_and_invalid_result_replay_boundary() -> None:
     assert engine.verify(object()).verified is False
     with pytest.raises((TypeError, ValueError)):
         engine.publish(object())
+
+
+def test_request_binding_rejects_wrong_upstream_media_and_duplicate_sources() -> None:
+    request = _request("source.1")
+    wrong_calibration = request.model_copy(
+        update={
+            "calibration_result": _artifact("calibration.1", "application/wrong"),
+        }
+    )
+    with pytest.raises(ValueError, match="M08-07"):
+        PublishTranscriptProteinEvidenceRequest.model_validate(wrong_calibration, strict=True)
+    duplicate = request.model_copy(
+        update={"source_artifacts": (request.source_artifacts[0], request.source_artifacts[0])}
+    )
+    with pytest.raises(ValueError, match="unique"):
+        PublishTranscriptProteinEvidenceRequest.model_validate(duplicate, strict=True)
+
+
+def test_result_closure_rejects_digest_identity_and_status_drift() -> None:
+    built = M0808EvidenceExplanationPublisher().publish(_request("source.1"))
+    result = built.result
+    with pytest.raises(ValueError, match="request digest"):
+        PublishTranscriptProteinEvidenceResult.model_validate(
+            result.model_copy(update={"request_digest": _D2}), strict=True
+        )
+    with pytest.raises(ValueError, match="result id"):
+        PublishTranscriptProteinEvidenceResult.model_validate(
+            result.model_copy(update={"result_id": "result.forged"}), strict=True
+        )
+    with pytest.raises(ValueError, match="supported evidence"):
+        PublishTranscriptProteinEvidenceResult.model_validate(
+            result.model_copy(
+                update={
+                    "support_decision": result.support_decision.model_copy(
+                        update={"status": SupportStatus.REVIEW_REQUIRED}
+                    )
+                }
+            ),
+            strict=True,
+        )
+
+
+def test_replay_and_canonical_byte_limits_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _request("source.1")
+    engine = M0808EvidenceExplanationPublisher()
+    built = engine.publish(request)
+    assert not engine.verify(built.result, cast("bytes", "not-bytes")).verified
+    assert not engine.verify(built.result, b"x" * 8_388_609).verified
+    monkeypatch.setattr(engine_module, "M0808_MAX_CANONICAL_RESULT_BYTES", 1)
+    with pytest.raises(M0808InputError, match="canonical byte"):
+        engine.publish(request)
+    with pytest.raises(ValueError, match="canonical"):
+        engine_module.BuiltM0808Result(built.result, b"")
+
+
+def test_preflight_non_request_is_noop_and_control_rejection_is_explicit() -> None:
+    engine_module.preflight_m0808_authorization(object())
+    request = _request("source.1")
+    rejected_quality = request.context.references.quality.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": request.context.references.model_copy(
+                        update={"quality": rejected_quality}
+                    )
+                }
+            )
+        }
+    )
+    with pytest.raises(M0808AuthorizationError):
+        engine_module.preflight_m0808_authorization(denied)

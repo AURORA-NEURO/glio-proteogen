@@ -1,0 +1,72 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M08-08",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [2864, 2907]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "b1d4bbf Add provisional M08-08 evidence contracts",
+    "7ccbb48 Harden M08-08 evidence contract closure",
+    "b7decfb Implement M08-08 replay-safe publisher runtime",
+    "627a6ed Add M08-08 strict API CLI and plugin parity",
+    "(pending) evaluator, coverage, and release evidence"
+  ],
+  "focusedTests": {
+    "count": 22,
+    "command": "python -W error -m pytest --no-cov tests/contract/test_m08_08_contract.py tests/modules/c08_transcript_protein_discordance/test_m08_08_publisher.py tests/integration/test_m08_08_interfaces.py tests/evals/test_m08_08_evaluation.py",
+    "passed": true
+  },
+  "quality": {
+    "ruff": "clean",
+    "mypyStrict": "clean for 13 source/eval files",
+    "compileall": "clean",
+    "warningsAsErrors": true,
+    "branchCoverage": {
+      "scope": "contracts/m08_08 plus m08_08_evidence_explanation_publisher excluding adapter entrypoint wrappers",
+      "percent": 98,
+      "statements": 418,
+      "branches": 88,
+      "failUnder": 95
+    }
+  },
+  "evaluator": {
+    "published": "published",
+    "unsupported": "abstained",
+    "counterEvidence": 1,
+    "reconstruction": 1,
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 2093930,
+    "medianNs": 2083000,
+    "p95Ns": 2159200,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "limitations": [
+    "ABI, evidence catalogue, claim-promotion policy, and endpoint media details remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "External reviewer sign-off and GitHub CI status are outside this local evidence record.",
+    "FastAPI and Typer wrapper coverage is validated by interface tests but not included in the scoped runtime coverage figure."
+  ],
+  "package": {
+    "builder": "hatchling via uv build --wheel --sdist",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 768904,
+      "sha256": "7a7857e1c8229d6cfd8898f532b314ae131490277e2ee90132a23f2a89afe968"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1437307,
+      "sha256": "2b58bb54de558bfecabdb0c3b2f286a47c163947581bd3755e0b3804342b8c3e"
+    },
+    "isolatedImport": "passed; installed wheel exposes 9 M08-08 schemas"
+  }
+}

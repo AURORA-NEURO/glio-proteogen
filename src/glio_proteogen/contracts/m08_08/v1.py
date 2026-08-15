@@ -286,8 +286,6 @@ class PublishTranscriptProteinEvidenceVerification(FrozenModel):
             raise ValueError("replay reason must agree with verified state")
         if self.verified != (self.result_digest is not None):
             raise ValueError("verified results require a digest and failed results do not")
-        if not self.verified and self.reason is PublisherReplayReason.VERIFIED:
-            raise ValueError("failed replay cannot use verified reason")
         return self
 
 

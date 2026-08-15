@@ -228,16 +228,6 @@ def _limitations() -> tuple[Limitation, ...]:
     )
 
 
-def _digest_seed(request: PublishTranscriptProteinEvidenceRequest) -> str:
-    values = [
-        request.request_id,
-        request.calibration_result.digest,
-        request.uncertainty_result.digest,
-        *(item.digest for item in request.source_artifacts),
-    ]
-    return sha256("|".join(values).encode("utf-8")).hexdigest()
-
-
 def _unsupported_reason(request: PublishTranscriptProteinEvidenceRequest) -> str | None:
     references = (*request.source_artifacts, request.calibration_result, request.uncertainty_result)
     for reference in references:

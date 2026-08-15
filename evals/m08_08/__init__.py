@@ -1,1 +1,1 @@
-"""Evaluation fixtures for the provisional M08-08 scaffold."""
+"""M08-08 executable evaluator and benchmark."""
