@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m08_05.v1 import (
     ConstraintSatisfactionReport,
     IntegrateTranscriptProteinConstraintsRequest,
     IntegrateTranscriptProteinConstraintsResult,
+    IntegrateTranscriptProteinConstraintsVerification,
     MechanismConstraint,
 )
 
@@ -36,6 +37,7 @@ ContractName = Literal[
     "constraint",
     "report",
     "policy",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": IntegrateTranscriptProteinConstraintsRequest,
@@ -44,6 +46,7 @@ _CONTRACTS: Final = {
     "constraint": MechanismConstraint,
     "report": ConstraintSatisfactionReport,
     "policy": ConstraintIntegratorPolicy,
+    "verification": IntegrateTranscriptProteinConstraintsVerification,
 }
 
 
@@ -82,7 +85,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
 
 
 def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
-    """Return all six provisional schemas in declared order."""
+    """Return all seven provisional schemas in declared order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))
     return {name: contract_json_schema(name) for name in names}

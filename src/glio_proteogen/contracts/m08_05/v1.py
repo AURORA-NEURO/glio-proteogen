@@ -80,6 +80,16 @@ class ConstraintIntegratorStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class ConstraintReplayReason(StrEnum):
+    """Stable reasons returned by the replay verifier."""
+
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
+
+
 class ConstraintEstimateKind(StrEnum):
     SCALAR = "scalar"
     INTERVAL = "interval"
@@ -172,6 +182,27 @@ class ConstraintSatisfactionReport(FrozenModel):
         return self
 
 
+class IntegrateTranscriptProteinConstraintsVerification(FrozenModel):
+    """Content and deterministic replay status for one result envelope."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: ConstraintReplayReason
+
+    @model_validator(mode="after")
+    def verification_flags_are_closed(
+        self,
+    ) -> IntegrateTranscriptProteinConstraintsVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
+        return self
+
+
 class IntegrateTranscriptProteinConstraintsRequest(FrozenModel):
     """Provisional request bound to the complete M08-04 probabilistic result."""
 
@@ -226,7 +257,7 @@ class IntegrateTranscriptProteinConstraintsResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         report_ids = {item.constraint_id for item in self.satisfaction_report}
         policy_ids = {item.constraint_id for item in self.request.policy.constraints}
-        if report_ids and report_ids != policy_ids:
+        if report_ids != policy_ids:
             raise ValueError("satisfaction report must cover the requested constraints")
         hard_violated = any(
             item.status is ConstraintEvaluationStatus.VIOLATED
@@ -275,10 +306,12 @@ __all__ = [
     "ConstraintEvaluationStatus",
     "ConstraintIntegratorPolicy",
     "ConstraintIntegratorStatus",
+    "ConstraintReplayReason",
     "ConstraintSatisfactionReport",
     "ConstraintSeverity",
     "IntegrateTranscriptProteinConstraintsRequest",
     "IntegrateTranscriptProteinConstraintsResult",
+    "IntegrateTranscriptProteinConstraintsVerification",
     "MechanismConstraint",
     "MechanismConstraintKind",
 ]

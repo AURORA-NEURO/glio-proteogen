@@ -25,6 +25,7 @@ def test_schema_inventory_is_strict_and_provisional() -> None:
         "constraint",
         "report",
         "policy",
+        "verification",
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
