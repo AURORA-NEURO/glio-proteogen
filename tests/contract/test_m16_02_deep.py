@@ -1,6 +1,6 @@
 """Adversarial contract and provenance tests for M16-02."""
 
-# ruff: noqa: E501, PLR2004
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 
@@ -101,17 +101,19 @@ def _context(*, accepted: bool = True) -> ExecutionContext:
     )
 
 
-def _request(*, accepted: bool = True) -> ReconcileCrossSourceAlignmentRequest:
+def _request(
+    *, accepted: bool = True, label: str = "aligned"
+) -> ReconcileCrossSourceAlignmentRequest:
     return ReconcileCrossSourceAlignmentRequest(
         request_id="request.m1602",
         context=_context(accepted=accepted),
         upstream_result=_artifact("upstream", M1602_M1601_INPUT_MEDIA_TYPE),
         configuration=AlignmentConfiguration(
-            configuration_id="configuration.alignment",
+            configuration_id=f"configuration.alignment.{label}",
             version="1.0.0",
             reference_artifact=_artifact("reference"),
             enabled_dimensions=tuple(AlignmentDimension),
-            conflict_policy="critical discrepancies require human review",
+            conflict_policy="locked reference precedence",
         ),
         source_artifacts=(_artifact("proteome"), _artifact("transcriptome"), _artifact("ptm")),
     )
