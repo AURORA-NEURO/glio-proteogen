@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m16_01 import (
     CompatibilityReport,
     CompatibilityStatus,
     ProteinRnaDiscordanceUpstreamResolutionResult,
+    ResolverPolicy,
     ResolverStatus,
     UpstreamCandidate,
     UpstreamObjectKind,
@@ -29,6 +30,7 @@ from glio_proteogen.contracts.m16_01 import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c16_protein_rna_discordance.m16_01_upstream_contract_resolver import (
     M1601AuthorizationError,
     M1601Plugin,
@@ -92,6 +94,15 @@ def test_report_and_bundle_closures_reject_duplicates_and_mismatch() -> None:
             compatibility_report=report.model_copy(update={"accepted_candidate_ids": ()}),
             evidence=_evidence("bundle"),
         )
+    mismatched_report = report.model_copy(update={"accepted_candidate_ids": ("candidate.other",)})
+    with pytest.raises(ValueError, match="match"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.x",
+            version="1.0.0",
+            accepted_candidates=(candidate,),
+            compatibility_report=mismatched_report,
+            evidence=_evidence("bundle"),
+        )
     blocking = CompatibilityIssue(
         issue_id="issue.x",
         code=CompatibilityIssueCode.VERSION_MISMATCH,
@@ -106,6 +117,32 @@ def test_report_and_bundle_closures_reject_duplicates_and_mismatch() -> None:
             accepted_candidate_ids=(candidate.candidate_id,),
             issues=(blocking,),
             evidence=_evidence("report"),
+        )
+    with pytest.raises(ValueError, match="required upstream kinds"):
+        ResolverPolicy(
+            required_kinds=(
+                UpstreamObjectKind.MASS_SPECTROMETRY_PROTEOME,
+                UpstreamObjectKind.MASS_SPECTROMETRY_PROTEOME,
+            ),
+            configuration=build_scenario_request().policy.configuration,
+        )
+    with pytest.raises(ValueError, match="bundle candidate ids"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.x",
+            version="1.0.0",
+            accepted_candidates=(candidate, candidate),
+            compatibility_report=report,
+            evidence=_evidence("bundle"),
+        )
+    with pytest.raises(ValueError, match="accepted compatibility"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.x",
+            version="1.0.0",
+            accepted_candidates=(candidate,),
+            compatibility_report=report.model_copy(
+                update={"status": CompatibilityStatus.REVIEW_REQUIRED}
+            ),
+            evidence=_evidence("bundle"),
         )
 
 
@@ -182,6 +219,25 @@ def test_request_and_result_closures_reject_tamper() -> None:
     no_review["result_digest"] = result_payload_digest(no_review)
     with pytest.raises(ValueError, match="human review"):
         ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(no_review, strict=True)
+    no_result_evidence = result.model_dump(mode="python")
+    no_result_evidence["evidence"] = ()
+    no_result_evidence["result_digest"] = result_payload_digest(no_result_evidence)
+    with pytest.raises(ValueError, match="result evidence"):
+        ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(
+            no_result_evidence, strict=True
+        )
+    resolved_invalid = result.model_dump(mode="python")
+    resolved_invalid["support_decision"] = result.support_decision.model_copy(
+        update={"status": SupportStatus.REVIEW_REQUIRED}
+    )
+    resolved_invalid["result_digest"] = result_payload_digest(resolved_invalid)
+    with pytest.raises(ValueError, match="resolved result"):
+        ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(resolved_invalid, strict=True)
+    abstained_invalid = abstained.model_dump(mode="python")
+    abstained_invalid["bundle"] = result.bundle
+    abstained_invalid["result_digest"] = result_payload_digest(abstained_invalid)
+    with pytest.raises(ValueError, match="abstained result"):
+        ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(abstained_invalid, strict=True)
 
 
 def candidate_for_bad() -> UpstreamCandidate:
@@ -232,6 +288,15 @@ def test_replay_and_plugin_service_parity(monkeypatch: pytest.MonkeyPatch) -> No
         resolve_protein_rna_discordance_upstream_contracts(build_scenario_request()).status
         is ResolverStatus.RESOLVED
     )
+    monkeypatch.setattr(
+        engine_module.M1601UpstreamContractResolverEngine,
+        "infer",
+        lambda self, request: engine_module.M1601UpstreamContractResolverEngine()._result(
+            build_scenario_request(candidates=(candidate_for_bad(),))
+        ),
+    )
+    with pytest.raises(M1601ReplayVerificationError):
+        engine.verify(result)
 
 
 def test_evaluator_matrix_passes() -> None:
@@ -264,6 +329,14 @@ def test_fastapi_interfaces_and_sanitized_errors() -> None:
     invalid_payload = dict(request_payload)
     invalid_payload.pop("candidates")
     assert client.post("/v1/modules/M16-01/resolve", json=invalid_payload).status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M16-01/resolve",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
     assert client.post("/v1/modules/M16-01/verify", json={}).status_code == 422
     assert (
         client.post(
@@ -292,6 +365,7 @@ def test_cli_resolve_verify_schema_and_no_overwrite(tmp_path: Path) -> None:
         ).exit_code
         != 0
     )
+    assert runner.invoke(m1601_app, ["resolve", str(request_path)]).exit_code == 0
     assert runner.invoke(m1601_app, ["verify", str(output_path)]).exit_code == 0
     bad = tmp_path / "bad.json"
     bad.write_text("{}", encoding="utf-8")
