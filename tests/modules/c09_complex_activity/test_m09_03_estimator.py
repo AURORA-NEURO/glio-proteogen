@@ -190,6 +190,14 @@ def test_service_and_result_seal_reject_digest_or_byte_drift() -> None:
         )
     with pytest.raises(m0903.M0903InputError, match="canonical"):
         m0903.BuiltM0903Result(result=built.result, canonical_bytes=b"{}")
+    assert not service.verify(built.result, "not-bytes")  # type: ignore[arg-type]
+    assert not service.verify(built.result, b"x" * (8 * 1024 * 1024 + 1))
+
+
+def test_free_function_and_non_request_preflight_are_bounded() -> None:
+    m0903.preflight_m0903_authorization(object())
+    built = m0903.estimate_complex_activity_baseline(_request())
+    assert built.result.status.value == "estimated"
 
 
 def test_prohibited_claim_is_rejected_by_estimate_contract() -> None:

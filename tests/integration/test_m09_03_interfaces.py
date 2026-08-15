@@ -40,12 +40,14 @@ def test_api_exports_schema_and_validates_or_estimates() -> None:
     schema = client.get("/v1/modules/M09-03/schemas/output")
     validated = client.post("/v1/modules/M09-03/validate", json=body)
     estimated = client.post("/v1/modules/M09-03/estimate", json=body)
+    invalid_estimate = client.post("/v1/modules/M09-03/estimate", json={"invalid": True})
     unknown = client.get("/v1/modules/M09-03/schemas/unknown")
     assert schema.is_success
     assert schema.json()["x-glio-contract"]["provisionalAbi"] is True
     assert validated.is_success
     assert estimated.is_success
     assert estimated.json()["result"]["status"] == "estimated"
+    assert not invalid_estimate.is_success
     assert not unknown.is_success
 
 
@@ -71,8 +73,13 @@ def test_api_sanitizes_invalid_and_denied_requests() -> None:
         "/v1/modules/M09-03/validate",
         json=denied_body.model_dump(mode="json"),
     )
+    denied_estimate = client.post(
+        "/v1/modules/M09-03/estimate",
+        json=denied_body.model_dump(mode="json"),
+    )
     assert not invalid.is_success
     assert not denied.is_success
+    assert not denied_estimate.is_success
 
 
 def test_cli_export_schema_validate_and_estimate(tmp_path: Path) -> None:
@@ -112,3 +119,21 @@ def test_cli_abstention_is_nonzero_and_never_overwrites(tmp_path: Path) -> None:
     assert abstained.exit_code == 1
     assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "abstained"
     assert existing.exit_code != 0
+
+
+def test_cli_rejects_unknown_schema_invalid_json_and_invalid_request(tmp_path: Path) -> None:
+    runner = CliRunner()
+    unknown = runner.invoke(m0903.cli.app, ["export-schema", "unknown"])
+    invalid_path = tmp_path / "invalid.json"
+    invalid_path.write_text("{not-json", encoding="utf-8")
+    invalid = runner.invoke(m0903.cli.app, ["validate", str(invalid_path)])
+    bad_request = tmp_path / "bad-request.json"
+    bad_request.write_text(json.dumps({"invalid": True}), encoding="utf-8")
+    bad_validation = runner.invoke(m0903.cli.app, ["validate", str(bad_request)])
+    bad_estimate = runner.invoke(m0903.cli.app, ["estimate", str(bad_request)])
+    missing = runner.invoke(m0903.cli.app, ["validate", str(tmp_path / "missing.json")])
+    assert unknown.exit_code != 0
+    assert invalid.exit_code != 0
+    assert bad_validation.exit_code != 0
+    assert bad_estimate.exit_code != 0
+    assert missing.exit_code != 0
