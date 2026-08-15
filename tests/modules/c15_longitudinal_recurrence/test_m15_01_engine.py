@@ -237,6 +237,46 @@ def test_unsupported_failed_prohibited_and_conflicted_cases_abstain(
     assert result.evaluations[0].status is expected
 
 
+@pytest.mark.parametrize(
+    "failure_condition",
+    ["Evidence is unsupported.", "Abstain pending independent review."],
+)
+def test_not_evaluable_and_explicit_abstention_rules_are_safe(
+    failure_condition: str,
+) -> None:
+    result = M1501HypothesisRegistry().infer(_request(rule_failure=failure_condition))
+    assert result.status is HypothesisStatus.ABSTAINED
+    assert result.falsification_evaluations[0].outcome is not FalsificationOutcome.PASSED
+
+
+@pytest.mark.parametrize(
+    "raw_request",
+    [
+        object(),
+        {"context": None},
+        {"context": {"references": None}},
+        {"context": {"references": {"approved_configuration": None}}},
+        {"context": {"references": {"approved_configuration": {"state": 1}}}},
+    ],
+)
+def test_authorization_preflight_rejects_opaque_and_malformed_controls(
+    raw_request: object,
+) -> None:
+    with pytest.raises(M1501AuthorizationError):
+        preflight_hypothesis_authorization(raw_request)
+
+
+def test_inference_and_replay_fail_closed_for_invalid_inputs() -> None:
+    engine = M1501HypothesisRegistry()
+    with pytest.raises(M1501InferenceError):
+        engine.infer(_request().model_copy(update={"hypotheses": ()}))
+    with pytest.raises(M1501ReplayVerificationError):
+        engine.verify(object())
+    assert (
+        engine.verify(engine.infer(_request()), replay=False).status is HypothesisStatus.SUPPORTED
+    )
+
+
 def test_authorization_hostile_and_invalid_request_fail_closed() -> None:
     with pytest.raises(M1501AuthorizationError):
         M1501HypothesisRegistry().infer(_request(accepted=False))
