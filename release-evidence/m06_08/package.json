@@ -3,6 +3,8 @@
   "abi_status": "dossier-behavioral-brief-only",
   "build_backend": "hatchling 1.31.0",
   "artifacts": ["wheel", "sdist"],
+  "wheel_bytes": 779294,
+  "sdist_bytes": 1448066,
   "checks": ["wheel-build", "sdist-build", "temporary-target-install", "installed-import"],
   "passed": true,
   "note": "Artifact sizes and hashes are generated per environment by the release gate."

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Final
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m06_08 import (
     M0608_CONTRACT_VERSION,
@@ -188,6 +188,19 @@ class M0608EvidencePublisherEngine:
         abstention explanation.
         """
 
+        if isinstance(result, BaseModel):
+            if not verify_result_digest(result):
+                raise M0608ReplayVerificationError(  # noqa: TRY003
+                    "result digest does not match canonical payload"
+                )
+            embedded_request = getattr(result, "request", None)
+            embedded_digest = getattr(result, "request_digest", None)
+            if embedded_request is not None and embedded_digest != canonical_request_digest(
+                embedded_request
+            ):
+                raise M0608ReplayVerificationError(  # noqa: TRY003
+                    "request digest does not match embedded request"
+                )
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:

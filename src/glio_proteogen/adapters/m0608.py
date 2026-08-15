@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m06_08 import (
@@ -53,7 +51,7 @@ def _validation_detail(error: ValidationError) -> list[dict[str, object]]:
     return sanitized_validation_errors(error)
 
 
-def create_m0608_app(  # noqa: C901
+def create_m0608_app(
     service_factory: Callable[[], M0608Service] = M0608Service,
 ) -> FastAPI:
     """Build a small FastAPI app with strict validation and sanitized errors."""
@@ -65,21 +63,6 @@ def create_m0608_app(  # noqa: C901
         redoc_url=None,
     )
     service = service_factory()
-
-    @app.exception_handler(RequestValidationError)
-    async def validation_error_handler(
-        _request: Request,
-        exc: RequestValidationError,
-    ) -> JSONResponse:
-        details = [
-            {
-                "type": item.get("type", "validation_error"),
-                "loc": item.get("loc", ()),
-                "msg": "request does not match the declared contract",
-            }
-            for item in exc.errors()
-        ]
-        return JSONResponse(status_code=422, content={"detail": details})
 
     @app.get("/v1/m06-08/schema/{name}")
     async def schema(name: str) -> dict[str, object]:

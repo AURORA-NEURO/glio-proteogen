@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m06_08 import (
     M0608_MAX_CANONICAL_REQUEST_BYTES,
     ProteinAbundanceEvidencePublicationResult,
     PublishProteinAbundanceEvidenceRequest,
     canonical_request_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -23,6 +26,7 @@ if TYPE_CHECKING:
     from .service import M0608Service
 
 _TOKEN_SEAL: Final = object()
+_REQUEST_ADAPTER: Final = TypeAdapter(PublishProteinAbundanceEvidenceRequest)
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M06-08",
     title="evidence and explanation publisher (provisional)",
@@ -76,11 +80,13 @@ class M0608Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            parsed = strict_json_loads(
                 serialized,
                 max_bytes=M0608_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(_prepare(candidate))
+            typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
+        else:
+            typed = self._service.validate_request(_prepare(candidate))
         token = ValidatedM0608Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token
