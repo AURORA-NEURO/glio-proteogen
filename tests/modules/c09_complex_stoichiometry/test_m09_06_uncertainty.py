@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m09_06 import (
     UncertaintyDecomposition,
     UncertaintyDecompositionPolicy,
     UncertaintyDecompositionReplayReason,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -343,7 +344,7 @@ def test_limits_digest_branches_public_operation_and_service_verify(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     built = M0906Service().execute(_request())
-    original_request_digest = m0906_module.engine.canonical_request_digest
+    original_request_digest = canonical_request_digest
     assert m0906_module.decompose_complex_activity_uncertainty(_request()).canonical_bytes == (
         built.canonical_bytes
     )
