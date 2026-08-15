@@ -266,6 +266,8 @@ def _build(
             "calibration score is outside the locked support domain",
             CalibrationFindingCode.OOD_UNSUPPORTED,
         )
+    diagnostics: tuple[CalibrationDiagnostic, ...]
+    findings: tuple[CalibrationFindingCode, ...]
     if reason is None:
         estimate = CalibratedEstimate(
             predicted_discordance="discordant",
@@ -313,6 +315,8 @@ def _build(
             False,
         )
     else:
+        if finding is None:
+            raise M1007InputError("missing_finding")
         estimate, prediction_set = None, None
         diagnostics = (
             CalibrationDiagnostic(

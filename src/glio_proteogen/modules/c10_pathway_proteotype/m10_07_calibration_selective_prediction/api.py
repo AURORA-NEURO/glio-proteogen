@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
@@ -32,7 +32,7 @@ def _parse_body(body: bytes) -> dict[str, Any]:
     return payload
 
 
-def _safe_validation(error: ValidationError) -> HTTPException:
+def _safe_validation(error: Exception) -> HTTPException:
     del error
     return HTTPException(status_code=422, detail="request does not satisfy the M10-07 contract")
 
@@ -53,7 +53,7 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     @app.get("/v1/modules/M10-07/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
-        return contract_json_schemas()
+        return cast("dict[str, dict[str, object]]", contract_json_schemas())
 
     @app.get("/v1/modules/M10-07/schemas/{name}")
     async def schema(name: str) -> dict[str, object]:

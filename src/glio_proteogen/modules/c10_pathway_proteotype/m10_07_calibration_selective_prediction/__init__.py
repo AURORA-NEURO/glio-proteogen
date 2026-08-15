@@ -7,6 +7,7 @@ from .engine import (
     M1007InputError,
     M1007ReplayVerification,
     calibrate_protein_rna_discordance_selective_prediction,
+    preflight_m1007_authorization,
 )
 from .plugin import M1007Plugin, M1007TokenError, ValidatedM1007Request
 from .service import M1007Service
@@ -22,4 +23,5 @@ __all__ = [
     "M1007TokenError",
     "ValidatedM1007Request",
     "calibrate_protein_rna_discordance_selective_prediction",
+    "preflight_m1007_authorization",
 ]

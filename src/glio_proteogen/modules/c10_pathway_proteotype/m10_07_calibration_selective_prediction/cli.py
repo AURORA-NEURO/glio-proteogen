@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path  # noqa: TC003 - Typer resolves the runtime path annotation.
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from pydantic import TypeAdapter, ValidationError
@@ -39,7 +39,7 @@ def _read_object(path: Path) -> dict[str, object]:
         raise _error("input must be a valid strict JSON object") from error  # noqa: TRY003
     if not isinstance(payload, dict):
         raise _error("input must be a JSON object")  # noqa: TRY003
-    return payload
+    return cast("dict[str, object]", payload)
 
 
 def _write_new(path: Path, data: bytes) -> None:
