@@ -34,12 +34,16 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c09_complex_stoichiometry.m09_04_probabilistic_estimator import (
+    BuiltM0904Result,
     M0904AuthorizationError,
+    M0904InputError,
     M0904Plugin,
     M0904ProbabilisticEstimator,
     M0904Service,
     ValidatedM0904Request,
     create_app,
+    estimate_complex_activity_probabilistic,
+    preflight_m0904_authorization,
 )
 
 _DIGEST = "sha256:" + ("1" * 64)
@@ -254,6 +258,36 @@ def test_invalid_result_and_oversized_replay_are_safe() -> None:
     oversized = engine.verify(object(), b"x" * (8 * 1024 * 1024 + 1))
     assert invalid.reason is ProbabilisticReplayReason.INVALID_RESULT
     assert oversized.reason is ProbabilisticReplayReason.INVALID_RESULT
+
+
+def test_runtime_hostile_objects_limits_and_public_execute(monkeypatch) -> None:
+    engine = M0904ProbabilisticEstimator()
+    with pytest.raises(M0904AuthorizationError):
+        preflight_m0904_authorization(object())
+    request = _request("stable_support")
+    built = M0904ProbabilisticEstimator().build(request)
+    with monkeypatch.context() as patcher:
+        patcher.setattr(
+            "glio_proteogen.modules.c09_complex_stoichiometry.m09_04_probabilistic_estimator.engine.M0904_MAX_CANONICAL_RESULT_BYTES",
+            1,
+        )
+        with pytest.raises(M0904InputError, match="canonical byte"):
+            engine.build(request)
+    assert engine.execute(request).result.result_digest == built.result.result_digest
+    assert (
+        estimate_complex_activity_probabilistic(request).result_digest == built.result.result_digest
+    )
+
+
+def test_built_result_rejects_digest_and_canonical_drift() -> None:
+    built = M0904ProbabilisticEstimator().build(_request("stable_support"))
+    with pytest.raises(M0904InputError, match="digest"):
+        BuiltM0904Result(
+            built.result.model_copy(update={"result_digest": _DIGEST}),
+            built.canonical_bytes,
+        )
+    with pytest.raises(M0904InputError, match="canonical"):
+        BuiltM0904Result(built.result, b"{}")
 
 
 def test_plugin_json_submission_and_descriptor_boundary() -> None:
