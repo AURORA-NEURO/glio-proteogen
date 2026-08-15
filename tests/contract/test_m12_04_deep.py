@@ -2,7 +2,7 @@
 
 # The adversarial matrix intentionally uses broad boundary exceptions and
 # literal protocol values to verify fail-closed behavior.
-# ruff: noqa: E501, B017, PT011, PT018, TRY003
+# ruff: noqa: E501, ARG005, B017, PLR2004, PT011, PT018, PT006, PT007, TRY003
 
 from __future__ import annotations
 
@@ -10,17 +10,22 @@ from datetime import UTC, datetime
 
 import pytest
 
+import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.contracts.m12_04 import (
     M1204_M1201_RESULT_MEDIA_TYPE,
     M1204_MODULE_ID,
+    BiomarkerPanelMechanismInferenceResult,
     InferBiomarkerPanelMechanismRequest,
     MechanismEstimate,
     MechanismEstimateKind,
     MechanismFindingCode,
     MechanismInferenceConfiguration,
     MechanismInferenceStatus,
+    expected_uncertainty,
+    result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.contracts.m12_04.canonical import normalized_request
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -232,3 +237,129 @@ def test_estimate_contract_rejects_missing_counter_evidence() -> None:
             alternatives=("An explicit alternative.",),
             counter_evidence=(),
         )
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"kind": MechanismEstimateKind.POSTERIOR}, "posterior estimate"),
+        (
+            {
+                "kind": MechanismEstimateKind.STATE,
+                "state_value": "active",
+                "posterior_probability": 0.2,
+            },
+            "state estimate",
+        ),
+        (
+            {"kind": MechanismEstimateKind.STATE, "state_value": "active", "lower_bound": 0.1},
+            "state estimate",
+        ),
+    ],
+)
+def test_estimate_shape_invariants_are_closed(kwargs: dict[str, object], message: str) -> None:
+    base: dict[str, object] = {
+        "estimate_id": "estimate.invalid",
+        "mechanism_id": "mechanism.invalid",
+        "label": "Invalid",
+        "assumptions": ("assumption",),
+        "alternatives": ("alternative",),
+        "counter_evidence": (
+            {"reference": _artifact("counter"), "role": "evidence", "claim": "counter"},
+        ),
+    }
+    with pytest.raises(ValueError, match=message):
+        MechanismEstimate(**(base | kwargs))
+
+
+def test_request_media_and_result_closure_reject_forgery() -> None:
+    request = _request()
+    forged_request = request.model_dump(mode="python")
+    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"  # type: ignore[index]
+    with pytest.raises(ValueError, match="provisional M12-01"):
+        InferBiomarkerPanelMechanismRequest.model_validate(forged_request, strict=True)
+    result = M1204MechanismEngine().infer(request)
+
+    def resigned(**updates: object) -> dict[str, object]:
+        payload = result.model_dump(mode="python")
+        payload.update(updates)
+        payload["result_digest"] = result_payload_digest(payload)
+        return payload
+
+    with pytest.raises(ValueError, match="result identifier"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(
+            resigned(result_id="result.bad"), strict=True
+        )
+    with pytest.raises(ValueError, match="estimate ids"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(
+            resigned(estimates=result.estimates + result.estimates), strict=True
+        )
+    abstained = M1204MechanismEngine().infer(_request("abstain:review"))
+    bad_review = {**abstained.model_dump(mode="python"), "human_review_required": False}
+    bad_review["result_digest"] = result_payload_digest(bad_review)
+    with pytest.raises(ValueError, match="abstained result"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(bad_review, strict=True)
+    no_evidence = {**result.model_dump(mode="python"), "evidence": ()}
+    no_evidence["result_digest"] = result_payload_digest(no_evidence)
+    with pytest.raises(ValueError, match="every result"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(no_evidence, strict=True)
+
+
+def test_uncertainty_and_canonical_dict_projections_are_explicit() -> None:
+    supported = expected_uncertainty(supported=True)
+    abstained = expected_uncertainty(supported=False)
+    assert supported.measurement.probability == 0.9
+    assert abstained.measurement.probability is None
+    assert len(supported.sensitivity_notes) == 2
+    assert normalized_request({"request_id": "dict"}) == {"request_id": "dict"}
+
+
+@pytest.mark.parametrize(
+    "method",
+    (
+        "posterior:mechanism-a:Candidate:bad:0.1:0.2",
+        "posterior:mechanism-a",
+        "state:mechanism-a",
+        "state:mechanism-a:Label:unknown",
+        "posterior:mechanism-a:Candidate:2:0:1",
+    ),
+)
+def test_method_and_numeric_error_matrix_abstains(method: str) -> None:
+    result = M1204MechanismEngine().infer(_request(method))
+    assert result.status is MechanismInferenceStatus.ABSTAINED
+    assert not result.estimates
+
+
+def test_engine_private_error_and_counter_evidence_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValueError):
+        engine_module._decimal("not-a-number")
+    with pytest.raises(ValueError):
+        engine_module._decimal("2")
+    normal = M1204MechanismEngine().infer(_request())
+    request = _request().model_copy(update={"source_artifacts": ()})
+    monkeypatch.setattr(
+        engine_module,
+        "_parse_method",
+        lambda method, *, counter_evidence, evidence: (normal.estimates[0], None, None),
+    )
+    with pytest.raises(ValueError):
+        M1204MechanismEngine()._result(request)
+    assert (
+        engine_module.infer_biomarker_panel_mechanism(_request()).status
+        is MechanismInferenceStatus.INFERRED
+    )
+
+
+def test_plugin_bytes_and_service_validation_paths() -> None:
+    service = M1204Service()
+    plugin = M1204Plugin(service)
+    request = _request()
+    token = plugin.validate(canonical_json_bytes(request))
+    assert plugin.run(token).status is MechanismInferenceStatus.INFERRED
+    assert plugin.verify(plugin.run(token)).status is MechanismInferenceStatus.INFERRED
+    with pytest.raises(TypeError):
+        plugin.run({})  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        plugin.validate("{")
+    assert service.validate_request(request) == request
+    assert service.execute(request).status is MechanismInferenceStatus.INFERRED
