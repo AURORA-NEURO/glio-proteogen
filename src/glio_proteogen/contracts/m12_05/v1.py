@@ -33,8 +33,8 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
-    UncertaintyProfile,
     UncertaintyEstimate,
+    UncertaintyProfile,
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 4172-4212.
@@ -243,7 +243,9 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> BiomarkerPanelLongitudinalEvolutionResult:
+    def result_is_closed(  # noqa: PLR0912 - explicit contract closure branches are intentional.
+        self,
+    ) -> BiomarkerPanelLongitudinalEvolutionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
@@ -276,19 +278,20 @@ class BiomarkerPanelLongitudinalEvolutionResult(FrozenModel):
         ):
             raise ValueError("abstained result requires no trajectory and safe status")
         state_sequences = tuple(state.sequence for state in self.trajectory)
-        if state_sequences != tuple(sorted(state_sequences)) or len(state_sequences) != len(set(state_sequences)):
+        if state_sequences != tuple(sorted(state_sequences)) or len(state_sequences) != len(
+            set(state_sequences)
+        ):
             raise ValueError("trajectory states must be ordered")
         if len(self.change_points) > len(self.request.observations):
             raise ValueError("change-point count exceeds observation history")
         change_sequences = tuple(item.sequence for item in self.change_points)
-        if change_sequences != tuple(sorted(change_sequences)) or len(change_sequences) != len(set(change_sequences)):
+        if change_sequences != tuple(sorted(change_sequences)) or len(change_sequences) != len(
+            set(change_sequences)
+        ):
             raise ValueError("change points must be ordered")
         if any(
             point.status is ChangePointStatus.DETECTED
-            and (
-                point.before_state_id not in state_ids
-                or point.after_state_id not in state_ids
-            )
+            and (point.before_state_id not in state_ids or point.after_state_id not in state_ids)
             for point in self.change_points
         ):
             raise ValueError("detected change points must reference trajectory states")
@@ -307,7 +310,10 @@ def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
             "The locked trajectory grammar and ordered caller-declared observations are "
             "inside the provisional support domain."
             if supported
-            else "Temporal history, upstream support, or model configuration was not safely evaluable."
+            else (
+                "Temporal history, upstream support, or model configuration was not safely "
+                "evaluable."
+            )
         ),
     )
     return UncertaintyProfile(
