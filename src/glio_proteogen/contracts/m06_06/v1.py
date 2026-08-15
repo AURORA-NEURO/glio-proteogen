@@ -58,6 +58,10 @@ M0606_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0606_NOMINAL_COVERAGE: Final = 0.9
 M0606_MIN_COVERAGE: Final = 0.85
 M0606_MAX_COVERAGE: Final = 0.95
+M0606_BENCHMARK_ITERATIONS: Final = 25
+M0606_BENCHMARK_WARMUPS: Final = 1
+M0606_MEAN_BUDGET_NS: Final = 500_000_000
+M0606_P95_BUDGET_NS: Final = 750_000_000
 M0606_EVIDENCE_CLAIM: Final = (
     "Caller-declared uncertainty evidence; issuer authority is not authenticated."
 )
@@ -349,6 +353,8 @@ def expected_provenance(
 
 __all__ = [
     "M0606_CONTRACT_VERSION",
+    "M0606_BENCHMARK_ITERATIONS",
+    "M0606_BENCHMARK_WARMUPS",
     "M0606_EVIDENCE_CLAIM",
     "M0606_GATE",
     "M0606_MAX_CANONICAL_REQUEST_BYTES",
@@ -364,6 +370,8 @@ __all__ = [
     "M0606_OUTPUT_MEDIA_TYPE",
     "M0606_OWNER",
     "M0606_PARENT",
+    "M0606_MEAN_BUDGET_NS",
+    "M0606_P95_BUDGET_NS",
     "M0606_SAFETY_CLASS",
     "DecomposeProteinAbundanceUncertaintyRequest",
     "ProteinAbundanceUncertaintyDecompositionResult",
