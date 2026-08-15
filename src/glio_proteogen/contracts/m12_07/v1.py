@@ -152,6 +152,8 @@ class AdjudicateBiomarkerPanelPlausibilityRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> AdjudicateBiomarkerPanelPlausibilityRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
         if self.mechanism_inference_result.media_type != M1207_M1206_RESULT_MEDIA_TYPE:
             raise ValueError("plausibility request must bind the provisional M12-06 result")
         ids = tuple(item.control_id for item in self.controls)
