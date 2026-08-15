@@ -12,8 +12,8 @@ from glio_proteogen.contracts.m10_01 import (
     ProteinRnaFeatureValueKind,
     ProteinRnaInvariant,
     ProteinRnaInvariantSeverity,
-    ProteinRnaMissingness,
     ProteinRnaMigrationRule,
+    ProteinRnaMissingness,
     contract_json_schemas,
 )
 

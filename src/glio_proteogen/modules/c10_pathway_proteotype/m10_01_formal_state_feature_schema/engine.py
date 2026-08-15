@@ -271,8 +271,7 @@ def _evaluate_invariant(
             lower, upper = bounds
             status = (
                 ProteinRnaInvariantStatus.SATISFIED
-                if lower >= float(between.group("lower"))
-                and upper <= float(between.group("upper"))
+                if lower >= float(between.group("lower")) and upper <= float(between.group("upper"))
                 else ProteinRnaInvariantStatus.VIOLATED
             )
     return status
