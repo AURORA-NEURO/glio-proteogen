@@ -201,11 +201,35 @@ def test_tampered_digest_is_rejected_and_replay_can_be_disabled() -> None:
     tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
     with pytest.raises(M1204ReplayVerificationError):
         engine.verify(tampered)
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(
+            engine_module,
+            "result_payload_digest",
+            lambda value: "sha256:" + "e" * 64,
+        )
+        with pytest.raises(M1204ReplayVerificationError):
+            engine.verify(result)
+    finally:
+        monkeypatch.undo()
+    monkeypatch = pytest.MonkeyPatch()
+    original_infer = engine_module.M1204MechanismEngine.infer
+    try:
+        monkeypatch.setattr(
+            engine_module.M1204MechanismEngine,
+            "infer",
+            lambda self, request: original_infer(self, _request("state:other:Other:active")),
+        )
+        with pytest.raises(M1204ReplayVerificationError):
+            engine.verify(result)
+    finally:
+        monkeypatch.undo()
     assert engine.verify(result, replay=False) == result
 
 
 def test_plugin_requires_issued_parse_once_token() -> None:
     plugin = M1204Plugin(M1204Service())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M12-04"
     token = plugin.validate(_request())
     result = plugin.run(token)
     assert result.status is MechanismInferenceStatus.INFERRED
@@ -290,6 +314,10 @@ def test_request_media_and_result_closure_reject_forgery() -> None:
         BiomarkerPanelMechanismInferenceResult.model_validate(
             resigned(result_id="result.bad"), strict=True
         )
+    with pytest.raises(ValueError, match="request digest"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(
+            resigned(request_digest="sha256:" + "0" * 64), strict=True
+        )
     with pytest.raises(ValueError, match="estimate ids"):
         BiomarkerPanelMechanismInferenceResult.model_validate(
             resigned(estimates=result.estimates + result.estimates), strict=True
@@ -303,6 +331,17 @@ def test_request_media_and_result_closure_reject_forgery() -> None:
     no_evidence["result_digest"] = result_payload_digest(no_evidence)
     with pytest.raises(ValueError, match="every result"):
         BiomarkerPanelMechanismInferenceResult.model_validate(no_evidence, strict=True)
+    duplicated_findings = {
+        **abstained.model_dump(mode="python"),
+        "findings": abstained.findings + abstained.findings,
+    }
+    duplicated_findings["result_digest"] = result_payload_digest(duplicated_findings)
+    with pytest.raises(ValueError, match="finding ids"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(duplicated_findings, strict=True)
+    human_review = {**result.model_dump(mode="python"), "human_review_required": True}
+    human_review["result_digest"] = result_payload_digest(human_review)
+    with pytest.raises(ValueError, match="inferred result"):
+        BiomarkerPanelMechanismInferenceResult.model_validate(human_review, strict=True)
 
 
 def test_uncertainty_and_canonical_dict_projections_are_explicit() -> None:

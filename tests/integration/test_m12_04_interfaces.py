@@ -1,12 +1,13 @@
 """Adversarial API, CLI, service, and plugin parity tests for M12-04."""
 
 # The matrix intentionally asserts protocol status codes and CLI exit codes.
-# ruff: noqa: E501, PLR2004, TC003
+# ruff: noqa: E501, PLR2004, TC002, TC003
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from evals.m12_04.run import build_scenario_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
@@ -15,7 +16,9 @@ from glio_proteogen.adapters.m1204 import app, m1204_app
 from glio_proteogen.contracts.m12_04 import MechanismInferenceStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference import (
+    M1204MechanismAuthorizationError,
     M1204MechanismEngine,
+    M1204Service,
 )
 
 
@@ -51,7 +54,9 @@ def test_http_schema_infer_verify_and_sanitized_errors() -> None:
     assert client.post("/v1/modules/M12-04/mechanism", json=invalid).status_code == 422
 
 
-def test_http_denies_controls_and_rejects_tampered_result() -> None:
+def test_http_denies_controls_and_rejects_tampered_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = TestClient(app)
     denied = build_scenario_request(accepted=False)
     assert (
@@ -61,6 +66,26 @@ def test_http_denies_controls_and_rejects_tampered_result() -> None:
     result = M1204MechanismEngine().infer(build_scenario_request()).model_dump(mode="json")
     result["result_digest"] = "sha256:" + "f" * 64
     assert client.post("/v1/modules/M12-04/verify", json=result).status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M12-04/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+
+    def denied(self: object, request: object) -> object:  # noqa: ARG001
+        raise M1204MechanismAuthorizationError
+
+    monkeypatch.setattr(M1204Service, "_execute_validated", denied)
+    assert (
+        client.post(
+            "/v1/modules/M12-04/mechanism",
+            json=build_scenario_request().model_dump(mode="json"),
+        ).status_code
+        == 403
+    )
 
 
 def test_cli_infer_verify_export_and_no_overwrite(tmp_path: Path) -> None:
