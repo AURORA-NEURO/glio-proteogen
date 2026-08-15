@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 from evals.m13_04.run import build_scenario_request, run_evaluator
@@ -43,8 +44,14 @@ from glio_proteogen.modules.c11_protein_native_subtype.m13_04_network_state_mech
 def test_schema_metadata_and_unknown_schema_are_closed() -> None:
     schemas = contract_json_schemas()
     assert set(schemas) == {"request", "output", "estimate", "configuration", "finding"}
-    assert all(item["x-glio-contract"]["provisionalAbi"] for item in schemas.values())
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1304_OUTPUT_MEDIA_TYPE
+    assert all(
+        cast("dict[str, object]", item["x-glio-contract"])["provisionalAbi"]
+        for item in schemas.values()
+    )
+    assert (
+        cast("dict[str, object]", schemas["output"]["x-glio-contract"])["outputMediaType"]
+        == M1304_OUTPUT_MEDIA_TYPE
+    )
     with pytest.raises(KeyError):
         contract_json_schema("unknown")  # type: ignore[arg-type]
 
@@ -120,7 +127,7 @@ def test_posterior_result_has_counter_evidence_and_provenance() -> None:
 def test_request_and_result_closure_reject_forged_payloads() -> None:
     request = build_scenario_request()
     forged_request = request.model_dump(mode="python")
-    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"  # type: ignore[index]
+    forged_request["hypothesis_registry_result"]["media_type"] = "application/octet-stream"
     with pytest.raises(ValueError, match="provisional M13-01"):
         InferProteotypeMechanismRequest.model_validate(forged_request, strict=True)
     engine = M1304MechanismEngine()
@@ -227,7 +234,7 @@ def test_replay_and_tamper_detection(monkeypatch: pytest.MonkeyPatch) -> None:
 
     original_digest = engine_module.result_payload_digest
     try:
-        engine_module.result_payload_digest = lambda value: "sha256:" + "e" * 64  # type: ignore[assignment]
+        engine_module.result_payload_digest = lambda value: "sha256:" + "e" * 64
         with pytest.raises(M1304ReplayVerificationError):
             engine.verify(result)
     finally:
@@ -283,8 +290,8 @@ def test_http_schema_infer_verify_and_sanitized_errors() -> None:
     client = TestClient(app)
     request = build_scenario_request()
     payload = request.model_dump(mode="json")
-    assert client.get("/v1/m11-04/schema/request").status_code == 200
-    assert client.get("/v1/m11-04/schema/nope").status_code == 404
+    assert client.get("/v1/m13-04/schema/request").status_code == 200
+    assert client.get("/v1/m13-04/schema/nope").status_code == 404
     response = client.post("/v1/modules/M13-04/mechanism", json=payload)
     assert response.status_code == 200
     result_payload = response.json()
@@ -376,5 +383,3 @@ def test_result_payload_is_canonical_json() -> None:
     assert first == second
     assert json.loads(first)["result_digest"] == result.result_digest
     assert normalized_request({"request_id": "dict"}) == {"request_id": "dict"}
-
-

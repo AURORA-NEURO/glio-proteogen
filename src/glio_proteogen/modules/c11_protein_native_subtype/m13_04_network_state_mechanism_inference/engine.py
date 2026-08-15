@@ -395,6 +395,5 @@ __all__ = [
     "M1304ReplayVerificationError",
     "infer_proteotype_mechanism",
     "preflight_mechanism_authorization",
+    "result_payload_digest",
 ]
-
-

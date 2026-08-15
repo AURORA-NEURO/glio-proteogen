@@ -227,6 +227,7 @@ def run_evaluator() -> dict[str, object]:
         "module_id": MODULE_ID,
         "fixture": str(SCENARIO_PATH),
         "fixture_digest": sha256_digest(fixture),
+        "case_ids": list(case_ids),
         "declared_cases": len(case_ids),
         "executed_cases": len(checks),
         "passed_cases": passed,
@@ -247,5 +248,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
