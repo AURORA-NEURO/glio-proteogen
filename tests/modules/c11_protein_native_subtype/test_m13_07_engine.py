@@ -281,5 +281,3 @@ def test_missing_negative_control_is_rejected() -> None:
             candidate_mechanisms=("a", "b"),
             source_artifacts=(_artifact("source", 11),),
         )
-
-

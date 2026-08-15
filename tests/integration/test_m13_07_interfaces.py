@@ -79,5 +79,3 @@ def test_cli_schema_no_overwrite(tmp_path) -> None:
     second = runner.invoke(m1307_app, ["export-schema", "output", "--output", str(output)])
     assert first.exit_code == 0, first.output
     assert second.exit_code != 0
-
-

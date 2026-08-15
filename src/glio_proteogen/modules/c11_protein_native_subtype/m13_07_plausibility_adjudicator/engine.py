@@ -19,8 +19,8 @@ from glio_proteogen.contracts.m13_07 import (
     PlausibilityFinding,
     PlausibilityFindingCode,
     PlausibilityGrade,
-    UnresolvedConflict,
     ProteotypePlausibilityAdjudicationResult,
+    UnresolvedConflict,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -447,4 +447,3 @@ __all__ = [
     "preflight_plausibility_authorization",
     "verify_plausibility_replay",
 ]
-

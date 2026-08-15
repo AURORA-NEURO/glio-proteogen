@@ -293,8 +293,6 @@ __all__ = [
     "PlausibilityFinding",
     "PlausibilityFindingCode",
     "PlausibilityGrade",
-    "UnresolvedConflict",
     "ProteotypePlausibilityAdjudicationResult",
+    "UnresolvedConflict",
 ]
-
-

@@ -26,5 +26,3 @@ __all__ = [
     "normalized_result_payload",
     "result_payload_digest",
 ]
-
-

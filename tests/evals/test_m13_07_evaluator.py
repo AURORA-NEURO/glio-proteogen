@@ -22,4 +22,3 @@ def test_benchmark_has_budget_and_deterministic_shape() -> None:
     assert report["iterations"] == _BENCHMARK_ITERATIONS
     assert len(report["samples_ns"]) == _BENCHMARK_ITERATIONS
     assert report["within_budget"] is True
-

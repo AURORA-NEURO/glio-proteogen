@@ -81,5 +81,3 @@ class M1307Plugin(
 
 
 __all__ = ["M1307Plugin", "ValidatedM1307Request"]
-
-

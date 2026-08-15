@@ -203,4 +203,3 @@ def cli_verify(
 
 
 __all__ = ["VerifyPayload", "app", "m1307_app"]
-

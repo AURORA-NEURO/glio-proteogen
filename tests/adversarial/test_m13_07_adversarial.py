@@ -287,5 +287,3 @@ def test_api_validation_error_handler(monkeypatch) -> None:
             content=_request().model_dump_json(),
         )
     assert response.status_code == _UNPROCESSABLE
-
-
