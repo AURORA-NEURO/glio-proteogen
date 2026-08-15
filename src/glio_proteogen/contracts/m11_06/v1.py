@@ -161,8 +161,6 @@ class SensitivitySimulationConfiguration(FrozenModel):
 
     @model_validator(mode="after")
     def configuration_is_closed(self) -> SensitivitySimulationConfiguration:
-        if self.maximum_scenarios > M1106_MAX_SCENARIOS:
-            raise ValueError("configuration exceeds the provisional scenario capacity")
         return self
 
 
