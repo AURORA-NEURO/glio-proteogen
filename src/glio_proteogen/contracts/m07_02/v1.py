@@ -78,6 +78,12 @@ class LeakageCheckStatus(StrEnum):
     NOT_EVALUABLE = "not_evaluable"
 
 
+class RepresentationReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+
+
 class RepresentationConstructionStatus(StrEnum):
     CONSTRUCTED = "constructed"
     ABSTAINED = "abstained"
@@ -153,7 +159,9 @@ class RepresentationFeature(FrozenModel):
     feature_id: Identifier
     value_kind: RepresentationValueKind
     unit: NonEmptyStr
-    values: tuple[float, ...] = Field(min_length=1, max_length=M0702_MAX_VALUES)
+    values: tuple[float, ...] = Field(
+        min_length=1, max_length=M0702_MAX_VALUES, allow_inf_nan=False
+    )
     mask: tuple[bool, ...] = Field(default=(), max_length=M0702_MAX_VALUES)
     lineage: FeatureLineage
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0702_MAX_EVIDENCE)
@@ -253,6 +261,13 @@ class ProteotypeAnalysisRepresentationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("constructed result requires complete leakage-safe support")
+            requested_ids = {item.feature_id for item in self.request.feature_specs}
+            if {item.feature_id for item in self.features} != requested_ids:
+                raise ValueError("constructed result must cover every requested feature")
+            if {item.check_id for item in self.leakage_checks} != {
+                f"leakage.{feature_id}" for feature_id in requested_ids
+            }:
+                raise ValueError("constructed result requires one leakage check per feature")
         elif (
             self.features
             or self.abstention_reason is None
@@ -260,8 +275,35 @@ class ProteotypeAnalysisRepresentationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no features, a reason, and safe status")
+        check_ids = tuple(item.check_id for item in self.leakage_checks)
+        if len(check_ids) != len(set(check_ids)):
+            raise ValueError("leakage check ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        return self
+
+
+class ConstructProteotypeAnalysisRepresentationVerification(FrozenModel):
+    """Replay verdict for one canonical representation result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: RepresentationReplayReason
+
+    @model_validator(mode="after")
+    def verification_is_closed(
+        self,
+    ) -> ConstructProteotypeAnalysisRepresentationVerification:
+        if self.verified != (self.content_verified and self.deterministic_verified):
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified and self.reason is not RepresentationReplayReason.VERIFIED:
+            raise ValueError("verified replay requires verified reason")
+        if not self.verified and self.result_digest is not None:
+            raise ValueError("failed replay cannot expose a trusted result digest")
+        if self.verified and self.result_digest is None:
+            raise ValueError("verified replay requires a result digest")
         return self
 
 
@@ -285,6 +327,7 @@ __all__ = [
     "M0702_PARENT",
     "M0702_SAFETY_CLASS",
     "ConstructProteotypeAnalysisRepresentationRequest",
+    "ConstructProteotypeAnalysisRepresentationVerification",
     "FeatureLineage",
     "FeatureSpecification",
     "LeakageCheck",
@@ -293,6 +336,7 @@ __all__ = [
     "RepresentationConstructionStatus",
     "RepresentationFeature",
     "RepresentationPolicy",
+    "RepresentationReplayReason",
     "RepresentationTransformation",
     "RepresentationTransformationKind",
     "RepresentationValueKind",
