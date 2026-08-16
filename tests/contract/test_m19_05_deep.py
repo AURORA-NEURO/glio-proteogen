@@ -19,17 +19,22 @@ from glio_proteogen.contracts.m19_05 import (
     M1905_DOSSIER_SLICE,
     M1905_M1904_RESULT_MEDIA_TYPE,
     HumanReviewWorkspace,
+    NextAction,
     OrderingPolicy,
     PresentationConfiguration,
     PresentationPolicy,
     PresentProteotypeHumanReviewWorkspaceRequest,
+    ProteotypeHumanReviewWorkspaceResult,
     ReviewItem,
     ReviewItemStatus,
     ViewKind,
     WorkspaceStatus,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m19_05.canonical import canonical_request_digest
+from glio_proteogen.contracts.m19_05.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -45,12 +50,14 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_05_workflow_presentation_service import (  # noqa: E501
+    InvalidM1905ExecutionTokenError,
     M1905AuthorizationError,
     M1905Engine,
     M1905Plugin,
     M1905ReplayError,
     M1905Service,
     ValidatedM1905Request,
+    present_proteotype_human_review_workspace,
 )
 
 if TYPE_CHECKING:
@@ -228,6 +235,132 @@ def test_request_closure_rejects_identity_drift_duplicates_and_missing_views() -
         )
 
 
+def test_contract_rejects_nested_duplicate_references_and_unbound_artifacts() -> None:
+    request = build_request()
+    item = request.review_items[0]
+    action = NextAction(
+        action_id="action.m1905",
+        label="Review evidence",
+        rationale="Resolve the caller-declared review state.",
+        required_evidence=(item.provenance_artifact,),
+    )
+    assert action.review_only is True
+    with pytest.raises(ValidationError, match="next-action evidence"):
+        NextAction.model_validate(
+            action.model_dump(mode="python")
+            | {"required_evidence": (item.provenance_artifact,) * 2},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="review item evidence"):
+        ReviewItem.model_validate(
+            item.model_dump(mode="python") | {"evidence": item.evidence * 2},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="discrepancy ids"):
+        ReviewItem.model_validate(
+            item.model_dump(mode="python") | {"discrepancy_ids": ("d1", "d1")},
+            strict=True,
+        )
+
+    wrong_media = request.model_dump(mode="python") | {
+        "aligned_evidence_bundle": request.aligned_evidence_bundle.model_copy(
+            update={"media_type": "application/json"}
+        ).model_dump(mode="python")
+    }
+    with pytest.raises(ValidationError, match="M19-04 result"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(wrong_media, strict=True)
+
+    limited_policy = request.policy.model_copy(update={"maximum_items": 1})
+    with pytest.raises(ValidationError, match="item limit"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"policy": limited_policy.model_dump(mode="python")},
+            strict=True,
+        )
+
+
+def test_request_rejects_positions_views_and_unbound_nested_sources() -> None:
+    request = build_request()
+    items = list(request.review_items)
+    items[1] = items[1].model_copy(update={"position": 2})
+    with pytest.raises(ValidationError, match="positions"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+    items = list(request.review_items)
+    items[-1] = items[-1].model_copy(update={"view_kind": ViewKind.TASK_SUMMARY})
+    with pytest.raises(ValidationError, match="required workspace view"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+    orphan = request.review_items[0].provenance_artifact.model_copy(
+        update={"artifact_id": "orphan"}
+    )
+    items = list(request.review_items)
+    items[0] = items[0].model_copy(update={"provenance_artifact": orphan})
+    with pytest.raises(ValidationError, match="unknown source artifact"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+    orphan_digest = request.review_items[0].provenance_artifact.model_copy(
+        update={"digest": "sha256:" + "0" * 64}
+    )
+    items[0] = request.review_items[0].model_copy(update={"provenance_artifact": orphan_digest})
+    with pytest.raises(ValidationError, match="provenance digest"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+    unknown_evidence = (
+        request.review_items[0]
+        .evidence[0]
+        .model_copy(
+            update={
+                "reference": request.review_items[0]
+                .evidence[0]
+                .reference.model_copy(update={"artifact_id": "orphan.evidence"})
+            }
+        )
+    )
+    items[0] = request.review_items[0].model_copy(update={"evidence": (unknown_evidence,)})
+    with pytest.raises(ValidationError, match="unknown source artifact"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+    unknown_digest = (
+        request.review_items[0]
+        .evidence[0]
+        .model_copy(
+            update={
+                "reference": request.review_items[0]
+                .evidence[0]
+                .reference.model_copy(update={"digest": "sha256:" + "0" * 64})
+            }
+        )
+    )
+    items[0] = request.review_items[0].model_copy(update={"evidence": (unknown_digest,)})
+    with pytest.raises(ValidationError, match="evidence digest"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"review_items": tuple(item.model_dump(mode="python") for item in items)},
+            strict=True,
+        )
+
+
 def test_workspace_closure_rejects_reordered_or_incomplete_material() -> None:
     result = M1905Engine().present(build_request())
     assert result.workspace is not None
@@ -289,6 +422,152 @@ def test_replay_detects_digest_request_and_payload_tampering() -> None:
         engine.verify(altered)
     with pytest.raises(M1905ReplayError):
         engine.verify({"not": "a result"})
+
+    wrong_request_digest = result.model_construct(
+        **result.model_dump(mode="python") | {"request_digest": "sha256:" + "b" * 64}
+    )
+    with pytest.raises(M1905ReplayError):
+        engine.verify(wrong_request_digest)
+
+    wrong_result_digest = result.model_construct(
+        **result.model_dump(mode="python") | {"result_digest": "sha256:" + "c" * 64}
+    )
+    with pytest.raises(M1905ReplayError):
+        engine.verify(wrong_result_digest)
+
+    changed = result.model_copy(update={"human_review_required": False})
+    changed = changed.model_construct(
+        **changed.model_dump(mode="python") | {"result_digest": result_payload_digest(changed)}
+    )
+    with pytest.raises(M1905ReplayError):
+        engine.verify(changed)
+
+    assert present_proteotype_human_review_workspace(build_request()) == result
+
+
+def test_engine_preflight_and_service_mapping_branches_are_fail_closed() -> None:
+    class BrokenCandidate:
+        @property
+        def context(self) -> object:
+            raise RuntimeError
+
+    with pytest.raises(M1905AuthorizationError):
+        M1905Engine().validate_request(BrokenCandidate())
+
+    service = M1905Service()
+    request = build_request()
+    assert service.validate_request(request) == request
+    assert (
+        service.verify(service.execute(request), replay=False).status is WorkspaceStatus.PRESENTED
+    )
+
+    plugin = M1905Plugin(service)
+    with pytest.raises(InvalidM1905ExecutionTokenError):
+        plugin.run(object())  # type: ignore[arg-type]
+    plugin.validate(request)
+    assert plugin.verify(service.execute(request)) == service.execute(request)
+
+
+def test_result_contract_rejects_identity_workspace_status_and_digest_drift() -> None:
+    engine = M1905Engine()
+    result = engine.present(build_request())
+
+    def validate(candidate: ProteotypeHumanReviewWorkspaceResult) -> None:
+        ProteotypeHumanReviewWorkspaceResult.model_validate(
+            candidate.model_dump(mode="python"), strict=True
+        )
+
+    with pytest.raises(ValidationError, match="request digest"):
+        validate(
+            result.model_construct(
+                **result.model_dump(mode="python") | {"request_digest": "sha256:" + "b" * 64}
+            )
+        )
+    with pytest.raises(ValidationError, match="identifier"):
+        validate(
+            result.model_construct(
+                **result.model_dump(mode="python") | {"result_id": "result.other"}
+            )
+        )
+    provenance = result.provenance.model_copy(update={"module_id": "GLIO-PROTEOGEN-M19-04"})
+    with pytest.raises(ValidationError, match="provenance"):
+        validate(
+            result.model_construct(**result.model_dump(mode="python") | {"provenance": provenance})
+        )
+    with pytest.raises(ValidationError, match="presented result"):
+        validate(result.model_construct(**result.model_dump(mode="python") | {"workspace": None}))
+    changed_items = (
+        (
+            result.workspace.items[0].model_copy(update={"title": "Changed review title"}),
+            *result.workspace.items[1:],
+        )
+        if result.workspace is not None
+        else ()
+    )
+    with pytest.raises(ValidationError, match="exact request"):
+        validate(
+            result.model_construct(
+                **result.model_dump(mode="python")
+                | {
+                    "workspace": result.workspace.model_copy(update={"items": changed_items})
+                    if result.workspace is not None
+                    else None
+                }
+            )
+        )
+    if result.workspace is not None:
+        other_bundle = result.request.source_artifacts[1]
+        with pytest.raises(ValidationError, match="aligned evidence"):
+            validate(
+                result.model_construct(
+                    **result.model_dump(mode="python")
+                    | {
+                        "workspace": result.workspace.model_copy(
+                            update={"source_bundle": other_bundle}
+                        )
+                    }
+                )
+            )
+
+    abstained = engine.present(build_request(item_status=ReviewItemStatus.ABSTAINED))
+    supported = abstained.support_decision.model_copy(update={"status": SupportStatus.SUPPORTED})
+    with pytest.raises(ValidationError, match="safe status"):
+        validate(
+            abstained.model_construct(
+                **abstained.model_dump(mode="python") | {"support_decision": supported}
+            )
+        )
+    with pytest.raises(ValidationError, match="result digest"):
+        validate(
+            result.model_construct(
+                **result.model_dump(mode="python") | {"result_digest": "sha256:" + "d" * 64}
+            )
+        )
+
+
+def test_canonical_dict_projection_and_adapter_generic_failures(tmp_path: Path) -> None:
+    request = build_request()
+    assert canonical_request_digest(request.model_dump(mode="json")) == canonical_request_digest(
+        request
+    )
+    runner = CliRunner()
+    missing_present = runner.invoke(cli, ["present", str(tmp_path / "missing.json")])
+    assert missing_present.exit_code == _CLI_ERROR
+
+    class BrokenService(M1905Service):
+        def verify(
+            self,
+            result: object,
+            *,
+            replay: bool = True,
+        ) -> ProteotypeHumanReviewWorkspaceResult:
+            del result, replay
+            raise RuntimeError("internal")
+
+    with TestClient(create_app(BrokenService())) as client:
+        response = client.post("/v1/modules/M19-05/verify", json={"ignored": True})
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"].startswith("M19-05 request rejected")
 
 
 def test_strict_validation_rejects_extra_fields_and_coercion() -> None:
