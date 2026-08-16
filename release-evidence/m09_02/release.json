@@ -1,0 +1,75 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-02",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [2960, 3000]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "d077fff Add provisional M09-02 representation contracts",
+    "b4da59f feat(m09-02): harden lineage and replay contract closure",
+    "52ceb6f feat(m09-02): add deterministic lineage-bound runtime and replay",
+    "cd7de6c feat(m09-02): expose strict service plugin API and CLI",
+    "abd1aeb chore(m09-02): close interface formatting and lint gates",
+    "0e535ca chore(m09-02): remove redundant encoding argument",
+    "6d5a9e9 test(m09-02): add adversarial constructor and interface parity coverage",
+    "6888c53 test(m09-02): add evaluation benchmark and release evidence"
+  ],
+  "focusedTests": {
+    "count": 26,
+    "command": "python -W error -m pytest --no-cov tests/contract/test_m09_02_contract.py tests/modules/c09_complex_activity/test_m09_02_constructor.py tests/integration/test_m09_02_interfaces.py tests/evals/test_m09_02_evaluation.py",
+    "passed": true
+  },
+  "coverage": {
+    "scope": "runtime/replay engine, plugin, and service for M09-02",
+    "branchEnabled": true,
+    "percent": 96,
+    "statements": 198,
+    "branches": 40,
+    "failUnder": 95
+  },
+  "quality": {
+    "ruff": "clean for M09-02 source, eval, and focused tests",
+    "mypyStrict": "clean for 16 source and focused test/eval files",
+    "compileall": "clean",
+    "warningsAsErrors": true
+  },
+  "evaluator": {
+    "constructed": "constructed",
+    "unsupported": "abstained",
+    "leakageFailure": "abstained with failed held-out check",
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true,
+    "lineageComplete": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 1754150,
+    "medianNs": 1700750,
+    "p95Ns": 2251200,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "builder": "hatchling via python -m build --wheel --sdist --no-isolation",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 756999,
+      "sha256": "274c22cd255795b93e4f92e4558620869b5cce1865eb7c40d6de508fb39e50fe"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1439602,
+      "sha256": "f48a4f87ee8306c31a106e2e93c3840924d9cd55dadf93e0004f0ff68b75010b"
+    },
+    "isolatedImport": "passed; installed wheel exposes M09-02 contracts and constructor"
+  },
+  "limitations": [
+    "ABI, feature catalogue, estimator choice, and endpoint media types remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "External reviewer sign-off and GitHub CI status are outside this local evidence record."
+  ]
+}

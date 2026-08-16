@@ -1,0 +1,56 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-02",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3320-3363"
+  },
+  "owner": "Bioinformatics",
+  "safety_class": "S2",
+  "gate": "G1",
+  "focused_tests": 23,
+  "focused_tests_passed": true,
+  "ruff_check": true,
+  "ruff_format_check": true,
+  "mypy_strict_source_files": 11,
+  "mypy_strict": true,
+  "compileall": true,
+  "scoped_runtime_branch_coverage_percent": 98.0,
+  "scoped_runtime_coverage_scope": "m10_02_representation_feature_constructor/*",
+  "evaluator": {
+    "supported_constructed": true,
+    "unsupported_abstained": true,
+    "unsupported_operation_abstained": true,
+    "lineage_complete": true,
+    "replay_verified": true,
+    "parent_not_emitted": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "mean_ns": 1259050,
+    "median_ns": 1078900,
+    "p95_ns": 1347100,
+    "mean_budget_ns": 2000000000,
+    "p95_budget_ns": 3000000000,
+    "budgets_pass": true
+  },
+  "artifacts": {
+    "wheel": {
+      "name": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 770290,
+      "sha256": "aa6d1064b4a2c8124f9bf23f199341d73a71cf5977607b1b761b256ee7f8ff20"
+    },
+    "sdist": {
+      "name": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1435938,
+      "sha256": "7dc05e3a1c3ffa21a00261b9659c47e9a89bd6082f9d29b0b30092273621e524"
+    },
+    "isolated_import": true,
+    "schema_count": 11
+  },
+  "limitations": [
+    "ABI, feature catalogue, media type, and capacities remain provisional pending owner confirmation.",
+    "Synthetic caller-declared values do not authenticate measurements or scientific content.",
+    "No calibration, clinical utility, transportability, or treatment recommendation is established."
+  ]
+}
