@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_05.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -29,6 +30,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from dossier lines 8492-8532.
 M2405_MODULE_ID: Final = "GLIO-PROTEOGEN-M24-05"
+M2405_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2405_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8492-8532"
 M2405_OPERATION: Final = "evaluate_biomarker_panel_subgroup_equity"
 M2405_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2405_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m24-05+json"
@@ -209,6 +214,20 @@ class EvaluateBiomarkerPanelSubgroupEquityRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateBiomarkerPanelSubgroupEquityRequest:
         if self.upstream_result.media_type != M2405_M2404_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-04 evaluator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if self.upstream_result.artifact_id not in set(source_ids):
+            raise ValueError("source artifacts must include the upstream result")
+        required = set(self.configuration.required_dimensions)
+        if {item.dimension for item in self.performance} != required:
+            raise ValueError("performance must cover every configured subgroup dimension")
+        if {item.dimension for item in self.calibration} != required:
+            raise ValueError("calibration must cover every configured subgroup dimension")
+        if {item.dimension for item in self.coverage} != required:
+            raise ValueError("coverage must cover every configured subgroup dimension")
         return self
 
 
@@ -238,6 +257,15 @@ class BiomarkerPanelSubgroupEvaluationResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelSubgroupEvaluationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id does not match deterministic request identity")
+        if self.provenance.module_id != M2405_MODULE_ID:
+            raise ValueError("provenance module id must identify M24-05")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("subgroup finding ids must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -259,6 +287,8 @@ class BiomarkerPanelSubgroupEvaluationResult(FrozenModel):
 
 __all__ = [
     "M2405_CONTRACT_VERSION",
+    "M2405_DOSSIER_SHA256",
+    "M2405_DOSSIER_SLICE",
     "M2405_EVIDENCE_CLAIM",
     "M2405_GATE",
     "M2405_M2404_INPUT_MEDIA_TYPE",
