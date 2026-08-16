@@ -1,0 +1,73 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-05",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3092, 3135]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "8f5480f scaffold provisional M09-05 constraint contracts",
+    "0dfe81e close mechanism constraint contract replay",
+    "686059e require explicit soft-conflict ablation",
+    "7237b76 add deterministic constraint runtime and replay",
+    "81574bb expose API CLI service and plugin parity",
+    "050e46b add evaluator benchmark and adversarial coverage"
+  ],
+  "focusedTests": {
+    "count": 23,
+    "command": "python -W error -m pytest --no-cov tests/contract/test_m09_05_contract.py tests/modules/c09_complex_activity/test_m09_05_integrator.py tests/integration/test_m09_05_interfaces.py tests/evals/test_m09_05_evaluation.py",
+    "passed": true
+  },
+  "coverage": {
+    "scope": "contracts/m09_05 plus m09_05_mechanism_constraint_integrator",
+    "branchEnabled": true,
+    "percent": 99,
+    "statements": 522,
+    "branches": 94,
+    "failUnder": 95
+  },
+  "quality": {
+    "ruff": "clean",
+    "mypyStrict": "clean for 13 source/evaluation files",
+    "compileall": "clean",
+    "warningsAsErrors": true
+  },
+  "evaluator": {
+    "supported": "estimated",
+    "hardViolation": "abstained",
+    "softConflict": "estimated with visible violation and ablation effect",
+    "unsupported": "abstained",
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 1840960,
+    "medianNs": 1794350,
+    "p95Ns": 2108900,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "builder": "hatchling 1.31.0",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 757237,
+      "sha256": "7454a1f40cbd688aeedfc2c1f8939167c71c2b8c0c666d27944fdcb189bdedd5"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1431108,
+      "sha256": "3506260abfe758cc8479a3ed1eea4c6de58e6103f534f4446baba4e7ed2f107d"
+    },
+    "isolatedImport": "passed; installed wheel exposes 7 M09-05 schemas and M0905ConstraintIntegrator"
+  },
+  "limitations": [
+    "ABI, ontology catalogue, estimator choice, and endpoint media types remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "External reviewer sign-off and GitHub CI status are outside this local evidence record."
+  ]
+}
