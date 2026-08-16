@@ -1,0 +1,31 @@
+{
+  "status": "provisional",
+  "module_id": "GLIO-PROTEOGEN-M06-07",
+  "contract_version": "0.1.0-provisional",
+  "fixtures_frozen": false,
+  "limits_frozen": false,
+  "fixture_builder": "tests.modules.c06_protein_abundance.test_m06_07_calibration._request",
+  "scenarios": [
+    {
+      "id": "provisional-calibrated-selection",
+      "expected_status": "calibrated",
+      "expected_support": "supported",
+      "expected_prediction_sets": 1,
+      "notes": "Supported upstream estimate passes provisional coverage and calibration gates."
+    },
+    {
+      "id": "provisional-upstream-abstention",
+      "expected_status": "abstained",
+      "expected_support": "review_required",
+      "expected_prediction_sets": 0,
+      "notes": "Unresolved upstream uncertainty never becomes a calibrated value."
+    },
+    {
+      "id": "provisional-coverage-abstention",
+      "expected_status": "abstained",
+      "expected_support": "review_required",
+      "expected_prediction_sets": 0,
+      "notes": "Calibration error outside the selective threshold requires review."
+    }
+  ]
+}

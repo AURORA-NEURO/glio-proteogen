@@ -15,6 +15,8 @@ from glio_proteogen.contracts.m08_04 import (
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
+from .engine import _validate_json_request
+
 if TYPE_CHECKING:
     from .service import M0804Service
 
@@ -70,13 +72,17 @@ class M0804Plugin(
 
     def validate(self, request: object) -> ValidatedM0804Request:
         candidate = request
+        serialized: bytes | bytearray | str | None = None
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
             candidate = strict_json_loads(
                 serialized,
                 max_bytes=M0804_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(candidate)
+        if serialized is None:
+            typed = self._service.validate_request(candidate)
+        else:
+            typed = _validate_json_request(candidate, serialized)
         token = ValidatedM0804Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token

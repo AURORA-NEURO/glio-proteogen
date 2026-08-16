@@ -73,6 +73,15 @@ class ProbabilisticPriorKind(StrEnum):
     CATEGORICAL = "categorical"
 
 
+class ProbabilisticFeatureState(StrEnum):
+    """Support state for a caller-declared, already-derived feature."""
+
+    OBSERVED = "observed"
+    MISSING = "missing"
+    UNSUPPORTED = "unsupported"
+    OOD = "out_of_domain"
+
+
 class PosteriorEstimateKind(StrEnum):
     SCALAR = "scalar"
     INTERVAL = "interval"
@@ -97,6 +106,26 @@ class ProbabilisticPrior(FrozenModel):
     kind: ProbabilisticPriorKind
     parameters: tuple[float, ...] = Field(min_length=1, max_length=32)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0804_MAX_EVIDENCE)
+
+
+class ProbabilisticFeatureObservation(FrozenModel):
+    """Strict, lineage-preserving feature values; raw source traversal is prohibited."""
+
+    feature_id: Identifier
+    state: ProbabilisticFeatureState
+    unit: NonEmptyStr
+    value: float | None = None
+    isoform_id: Identifier | None = None
+    weight: float = Field(gt=0.0, le=1_000.0)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0804_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def value_matches_state(self) -> ProbabilisticFeatureObservation:
+        if self.state is ProbabilisticFeatureState.OBSERVED and self.value is None:
+            raise ValueError("observed probabilistic feature requires a finite value")
+        if self.state is not ProbabilisticFeatureState.OBSERVED and self.value is not None:
+            raise ValueError("non-observed probabilistic feature cannot carry a value")
+        return self
 
 
 class EstimatorConstraint(FrozenModel):
@@ -179,6 +208,15 @@ class OptimizationDiagnostic(FrozenModel):
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0804_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def failed_diagnostics_cannot_claim_objective(self) -> OptimizationDiagnostic:
+        if self.status in {
+            OptimizationDiagnosticStatus.FAILED,
+            OptimizationDiagnosticStatus.NOT_EVALUABLE,
+        } and (self.objective_value is not None or self.convergence_gap is not None):
+            raise ValueError("failed or non-evaluable diagnostics cannot claim optimization values")
+        return self
+
 
 class EstimateTranscriptProteinProbabilisticRequest(FrozenModel):
     """Provisional request for posterior estimation from the M08-03 baseline."""
@@ -189,6 +227,10 @@ class EstimateTranscriptProteinProbabilisticRequest(FrozenModel):
     context: ExecutionContext
     baseline_result: ArtifactReference
     configuration: ProbabilisticEstimatorConfiguration
+    feature_observations: tuple[ProbabilisticFeatureObservation, ...] = Field(
+        default=(),
+        max_length=M0804_MAX_FEATURES,
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1,
         max_length=M0804_MAX_EVIDENCE,
@@ -199,6 +241,12 @@ class EstimateTranscriptProteinProbabilisticRequest(FrozenModel):
     def request_is_bound(self) -> EstimateTranscriptProteinProbabilisticRequest:
         if self.baseline_result.media_type != M0804_BASELINE_MEDIA_TYPE:
             raise ValueError("probabilistic request must bind the provisional M08-03 baseline")
+        if len({item.feature_id for item in self.feature_observations}) != len(
+            self.feature_observations
+        ):
+            raise ValueError("probabilistic feature ids must be unique")
+        if len({item.artifact_id for item in self.source_artifacts}) != len(self.source_artifacts):
+            raise ValueError("probabilistic source artifacts must be unique")
         return self
 
 
@@ -223,6 +271,8 @@ class EstimateTranscriptProteinProbabilisticResult(FrozenModel):
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["protein_subtype"] = M0804_PARENT
     emits_parent: Literal[False] = False
+    finding_codes: tuple[Identifier, ...] = Field(default=(), max_length=M0804_MAX_DIAGNOSTICS)
+    human_review_required: bool = False
     support_decision: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord
@@ -234,17 +284,30 @@ class EstimateTranscriptProteinProbabilisticResult(FrozenModel):
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.status is ProbabilisticResultStatus.ESTIMATED:
-            if not self.estimates or self.abstention_reason is not None:
+            if (
+                not self.estimates
+                or self.abstention_reason is not None
+                or self.human_review_required
+                or not any(
+                    diagnostic.status is OptimizationDiagnosticStatus.CONVERGED
+                    for diagnostic in self.diagnostics
+                )
+            ):
                 raise ValueError("estimated result requires posterior estimates")
             if self.support_decision.status is not SupportStatus.SUPPORTED:
                 raise ValueError("estimated result requires supported status")
         elif (
             self.estimates
             or self.abstention_reason is None
+            or not self.human_review_required
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no estimates and safe status")
+        if len({item.diagnostic_id for item in self.diagnostics}) != len(self.diagnostics):
+            raise ValueError("optimization diagnostic ids must be unique")
+        if len({item.feature_id for item in self.estimates}) != len(self.estimates):
+            raise ValueError("posterior feature ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -337,7 +400,16 @@ def expected_provenance(
         module_id=M0804_MODULE_ID,
         module_version=M0804_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request_digest, request.baseline_result.digest),
+        input_digests=(
+            request_digest,
+            request.baseline_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(
+                evidence.reference.digest
+                for feature in request.feature_observations
+                for evidence in feature.evidence
+            ),
+        ),
         configuration_digest=configuration_digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -376,6 +448,8 @@ __all__ = [
     "PosteriorEstimateKind",
     "ProbabilisticEstimatorConfiguration",
     "ProbabilisticEstimatorFamily",
+    "ProbabilisticFeatureObservation",
+    "ProbabilisticFeatureState",
     "ProbabilisticPrior",
     "ProbabilisticPriorKind",
     "ProbabilisticResultStatus",
