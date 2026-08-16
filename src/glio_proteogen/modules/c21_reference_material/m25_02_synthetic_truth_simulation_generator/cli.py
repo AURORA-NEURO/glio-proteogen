@@ -123,5 +123,3 @@ def verify(path: Annotated[Path, typer.Argument(exists=True, readable=True)]) ->
 
 
 __all__ = ["app"]
-
-

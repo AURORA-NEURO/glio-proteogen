@@ -110,6 +110,3 @@ def test_hostile_mapping_fails_closed() -> None:
 
     with pytest.raises(M2502AuthorizationError):
         preflight_m2502_authorization(HostileMapping())
-
-
-

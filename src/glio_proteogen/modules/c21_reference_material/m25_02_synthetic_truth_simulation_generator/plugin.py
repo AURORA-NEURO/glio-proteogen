@@ -97,7 +97,3 @@ class M2502Plugin(ModulePlugin[object, ValidatedM2502Request, ProteotypeSyntheti
 
 
 __all__ = ["M2502Plugin", "SyntheticTruthSubmission", "ValidatedM2502Request"]
-
-
-
-

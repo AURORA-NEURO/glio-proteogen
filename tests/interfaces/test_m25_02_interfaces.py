@@ -141,4 +141,3 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 
     monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
     assert runner.invoke(cli_module.app, ["verify", str(result_path)]).exit_code != 0
-

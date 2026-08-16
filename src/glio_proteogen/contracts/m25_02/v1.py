@@ -92,9 +92,7 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2502_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2502_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2502_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2502_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
