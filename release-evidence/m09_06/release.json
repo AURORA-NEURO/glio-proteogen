@@ -1,0 +1,76 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-06",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3136, 3179]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "1fbe9fd Scaffold provisional M09-06 uncertainty contract",
+    "c0e5064 feat(m09-06): close uncertainty replay and envelope invariants",
+    "8a91275 feat(m09-06): implement replay-bound uncertainty runtime and interfaces",
+    "a2d00f9 test(m09-06): add adversarial evaluator and benchmark matrix",
+    "bdcd912 fix(m09-06): parse serialized requests with strict JSON adapter",
+    "40b158c docs(m09-06): publish traceability and release evidence",
+    "50df10c test(m09-06): close strict typing and replay branch coverage"
+  ],
+  "focusedTests": {
+    "count": 31,
+    "command": "python -W error -m pytest --no-cov tests/contract/test_m09_06_contract.py tests/modules/c09_complex_stoichiometry/test_m09_06_uncertainty.py tests/integration/test_m09_06_interfaces.py tests/evals/test_m09_06_evaluation.py",
+    "passed": true
+  },
+  "coverage": {
+    "scope": "contracts/m09_06 plus c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine",
+    "branchEnabled": true,
+    "percent": 98,
+    "statements": 567,
+    "branches": 96,
+    "failUnder": 95
+  },
+  "quality": {
+    "ruff": "clean",
+    "mypyStrict": "pending final project gate",
+    "compileall": "clean",
+    "warningsAsErrors": true
+  },
+  "evaluator": {
+    "supported": "decomposed",
+    "unsupported": "abstained",
+    "uncalibrated": "abstained",
+    "sevenDimensions": 7,
+    "sensitivity": "evaluated; observed 0.90 inside 0.85-0.95 envelope",
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 2949310,
+    "medianNs": 2886600,
+    "p95Ns": 3532000,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "builder": "hatchling via python -m build --wheel --sdist --no-isolation",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 763035,
+      "sha256": "5a943020503299ecfc8f03a8900e051906af401ea60b87d0ce39db8476f2984f"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1434055,
+      "sha256": "8ee59486acf97f5b4d0538043df55145002a784c9010967d97325b3fffd85e3a"
+    },
+    "isolatedImport": "passed; installed wheel exposes seven M09-06 schemas"
+  },
+  "limitations": [
+    "ABI, estimator catalogue, endpoint media types, and operational capacities remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "Strict MyPy and full-project CI status require the final project gate; scoped runtime gates are recorded above.",
+    "External reviewer sign-off and GitHub CI status are outside this local evidence record."
+  ]
+}
