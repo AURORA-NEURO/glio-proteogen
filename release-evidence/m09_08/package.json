@@ -1,0 +1,17 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-08",
+  "contractVersion": "0.1.0-provisional",
+  "buildBackend": "hatchling 1.31.0",
+  "wheel": {
+    "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 769143,
+    "sha256": "f458ce09f5c2feb998d4fcf70b506c012488a237a2f78b5e1ae0f9acc40db8d9"
+  },
+  "sdist": {
+    "file": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 1436875,
+    "sha256": "ec8d1af811a086b24bbefb85ba6176e602e2b99ee563ab1c409ed8ba778b1e74"
+  },
+  "isolatedImport": true,
+  "notes": "Built in the dedicated M09-08 worktree; wheel installed to a clean target and contract/module imports passed."
+}
