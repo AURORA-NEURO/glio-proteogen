@@ -1,1 +1,1 @@
-"""Release verifier tests."""
+"""Tooling tests for release evidence and packaging gates."""
