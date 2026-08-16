@@ -140,9 +140,23 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   artifact classes under a version-and-configuration-bound profile, and emits only explicit
   categorical posteriors, triggered contamination flags, and excluded-only mask entries. Its ppm
   fractions are not calibrated probabilities, and missing or unsupported evidence abstains.
+- `GLIO-PROTEOGEN-M05-01` — deterministic PTM-localization protocol conformance. This stateless
+  module validates reviewed protocol metadata, unit and vocabulary declarations, role closure,
+  and assay/specimen compatibility without localizing modifications or interpreting biology.
+- `GLIO-PROTEOGEN-M05-02` — deterministic PTM-localization identity and lineage reconciliation.
+  This stateless module binds genuine upstream identity and protocol results to opaque artifact
+  claims while retaining duplicates, contradictions, and unresolved states without identity
+  repair or biological inference.
+- `GLIO-PROTEOGEN-M05-03` — deterministic PTM-localization raw-manifest ingestion. This bounded
+  module replays the exact full M05-02 result and validates four canonical manifest documents
+  from immutable bytes without opening referenced scientific content or parsing measurement rows.
+- `GLIO-PROTEOGEN-M05-04` — deterministic PTM-localization quality metric computation. This
+  stateless module replays the exact full M05-03 result and computes 32 fixed-point aggregate
+  quality metrics under reviewed assay profiles, preserving censoring and unsupported evidence
+  without localizing PTMs, executing models, or making biological or clinical claims.
 
-The twenty-eight published module slices and the M04-05 release candidate expose strict JSON Schema
-2020-12 contracts through HTTP and command-line schema routes, plus typed library and
+The current branch contains thirty-three bounded module slices through M05-04. They expose strict
+JSON Schema 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
 signatures or standalone external trust anchors. M01-02 accepts
@@ -186,6 +200,10 @@ uv run python -m evals.m04_02.run
 uv run python -m evals.m04_03.run
 uv run python -m evals.m04_04.run
 uv run python -m evals.m04_05.run
+uv run python -m evals.m05_01.run
+uv run python -m evals.m05_02.run
+uv run python -m evals.m05_03.run
+uv run python -m evals.m05_04.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -215,6 +233,10 @@ uv run python -m evals.m04_02.benchmark
 uv run python -m evals.m04_03.benchmark
 uv run python -m evals.m04_04.benchmark
 uv run python -m evals.m04_05.benchmark
+uv run python -m evals.m05_01.benchmark
+uv run python -m evals.m05_02.benchmark
+uv run python -m evals.m05_03.benchmark
+uv run python -m evals.m05_04.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -235,7 +257,9 @@ harmonization, M03-07 protein-inference support and abstention routing, M03-08 l
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
 proteoform/isoform protocol conformance, M04-02 stateless proteoform/isoform identity and lineage
 reconciliation, M04-03 directory-backed raw-manifest ingestion, and M04-04 metadata-only fixed-point
-quality metric computation, plus M04-05 aggregate artifact and contamination detection.
+quality metric computation, plus M04-05 aggregate artifact and contamination detection, M05-01
+PTM-localization protocol conformance, M05-02 identity-lineage reconciliation, M05-03 bounded
+raw-manifest ingestion, and M05-04 aggregate quality metric computation.
 For example:
 
 ```bash
@@ -298,6 +322,8 @@ glio-proteogen proteoform-raw export-schema request
 glio-proteogen proteoform-raw ingest proteoform-raw-request.json proteoform-raw-source --output proteoform-raw-result.json
 glio-proteogen proteoform-quality export-schema request
 glio-proteogen proteoform-quality compute proteoform-quality-request.json --output proteoform-quality-result.json
+glio-proteogen ptm-localization-quality export-schema request
+glio-proteogen ptm-localization-quality compute ptm-quality-request.json --output ptm-quality-result.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -414,6 +440,14 @@ states, and emits typed findings without opening any referenced scientific conte
 CLI boundaries are metadata-only and strict. It does not authenticate caller-declared aggregates,
 identify proteins, proteoforms, isoforms, or PTMs, localize modifications, compute protein-RNA
 discordance, execute a model, or make treatment or clinical claims.
+M05-04 is stateless and consumes the exact full M05-03 result plus a reviewed quality policy and,
+for validated upstream input, one sealed four-role aggregate fact ledger. It computes eight exact
+integer ppm metrics per role, retains typed missingness and censoring, and fully rederives its
+receipt, support, provenance, evidence, uncertainty, and result digest. Its HTTP and CLI boundaries
+are strict metadata-only surfaces. It does not open external scientific content, authenticate
+caller declarations, localize a modification, infer protein or PTM biology, execute a model, emit
+the parent variant-peptide object, claim kinase ownership, fuse omics, recommend treatment, or make
+a clinical claim.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

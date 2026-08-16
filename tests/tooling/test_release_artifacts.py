@@ -19,6 +19,7 @@ from tools.verify_release_artifacts import (
     verify_m0501_evidence,
     verify_m0502_evidence,
     verify_m0503_evidence,
+    verify_m0504_evidence,
     verify_runtime_sbom,
     wheel_identity,
 )
@@ -31,7 +32,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 32
+EXPECTED_MODULE_COUNT = 33
 
 
 def test_sdist_excludes_generated_release_and_coverage_outputs() -> None:
@@ -424,6 +425,18 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
     case_ids = [
         case_id for group in fixture_payload["scenario_groups"] for case_id in group["case_ids"]
     ]
+    evaluation_checks: list[dict[str, object]] = [
+        {"name": "corpus.inventory", "passed": True, "detail": "locked inventory"},
+        *(
+            {"name": f"scenario.{case_id}", "passed": True, "detail": "substantive"}
+            for case_id in case_ids
+        ),
+        {
+            "name": "corpus.executable_coverage",
+            "passed": True,
+            "detail": "exact executable closure",
+        },
+    ]
     evaluation_report = {
         "module_id": "GLIO-PROTEOGEN-M05-03",
         "phase": "locked_executable_corpus",
@@ -433,18 +446,7 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
         "missing_case_ids": [],
         "extra_case_ids": [],
         "duplicated_case_ids": [],
-        "checks": [
-            {"name": "corpus.inventory", "passed": True, "detail": "locked inventory"},
-            *(
-                {"name": f"scenario.{case_id}", "passed": True, "detail": "substantive"}
-                for case_id in case_ids
-            ),
-            {
-                "name": "corpus.executable_coverage",
-                "passed": True,
-                "detail": "exact executable closure",
-            },
-        ],
+        "checks": evaluation_checks,
         "passed": True,
     }
     samples = [200_000_000] * 25
@@ -485,20 +487,20 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
         verify_m0503_evidence(evaluation, benchmark, fixture)
 
     evaluation_report["executed_case_count"] = 72
-    original_name = evaluation_report["checks"][1]["name"]
-    evaluation_report["checks"][1]["name"] = "scenario.substituted_but_still_unique"
+    original_name = evaluation_checks[1]["name"]
+    evaluation_checks[1]["name"] = "scenario.substituted_but_still_unique"
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="fixture scenario closure"):
         verify_m0503_evidence(evaluation, benchmark, fixture)
-    evaluation_report["checks"][1]["name"] = original_name
+    evaluation_checks[1]["name"] = original_name
 
-    evaluation_report["checks"].append(
+    evaluation_checks.append(
         {"name": "corpus.extra", "passed": True, "detail": "unlocked extra check"}
     )
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="fixture scenario closure"):
         verify_m0503_evidence(evaluation, benchmark, fixture)
-    evaluation_report["checks"].pop()
+    evaluation_checks.pop()
 
     evaluation_report["fixture_digest"] = "sha256:" + ("f" * 64)
     evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
@@ -579,6 +581,131 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
         verify_m0503_evidence(evaluation, benchmark, fixture)
 
 
+def test_m0504_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noqa: PLR0915
+    tmp_path: Path,
+) -> None:
+    evaluation = tmp_path / "m05-04-eval.json"
+    benchmark = tmp_path / "m05-04-benchmark.json"
+    fixture = ROOT / "tests" / "fixtures" / "m05_04" / "scenarios.json"
+    fixture_bytes = fixture.read_bytes()
+    fixture_payload = json.loads(fixture_bytes)
+    case_ids = [
+        case_id for group in fixture_payload["scenario_groups"] for case_id in group["case_ids"]
+    ]
+    evaluation_checks: list[dict[str, object]] = [
+        {"name": "corpus.inventory", "passed": True, "detail": "locked inventory"},
+        *(
+            {"name": f"scenario.{case_id}", "passed": True, "detail": "substantive"}
+            for case_id in case_ids
+        ),
+        {
+            "name": "corpus.executable_coverage",
+            "passed": True,
+            "detail": "exact executable closure",
+        },
+    ]
+    evaluation_report = {
+        "module_id": "GLIO-PROTEOGEN-M05-04",
+        "phase": "locked_executable_corpus",
+        "fixture_digest": f"sha256:{hashlib.sha256(fixture_bytes).hexdigest()}",
+        "declared_case_count": 72,
+        "executed_case_count": 72,
+        "missing_case_ids": [],
+        "extra_case_ids": [],
+        "duplicated_case_ids": [],
+        "checks": evaluation_checks,
+        "passed": True,
+    }
+    samples = [200_000_000] * 25
+    benchmark_report = {
+        "module_id": "GLIO-PROTEOGEN-M05-04",
+        "contract_version": "1.0.0",
+        "workload": "genuine_maximum_supported_quality_metadata_shape",
+        "timed_boundary": "compute_ptm_localization_quality_metrics_only",
+        "passed": True,
+        "iterations": 25,
+        "warmup_count": 1,
+        "role_count": 4,
+        "profile_count": 32,
+        "threshold_count": 256,
+        "fact_count": 4,
+        "metric_count": 32,
+        "evidence_count": 45,
+        "limitation_count": 3,
+        "request_bytes": 176_995,
+        "result_bytes": 243_460,
+        "request_digest": "sha256:c8001d0d9593f6046a7787ba2fe00ee26f29973d45a34c91d33afad3dfd67410",
+        "result_digest": "sha256:e1e87f3915d450910fe2d3113f5ec94727540e4a29b8f4d595ab300bf1b5f6f0",
+        "samples_ns": samples,
+        "mean_ns": 200_000_000.0,
+        "p50_ns": 200_000_000,
+        "p95_ns": 200_000_000,
+        "maximum_ns": 200_000_000,
+        "mean_budget_ns": 500_000_000,
+        "p95_budget_ns": 750_000_000,
+    }
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+
+    verify_m0504_evidence(evaluation, benchmark, fixture)
+
+    evaluation_report["executed_case_count"] = 71
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="executed_case_count"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    evaluation_report["executed_case_count"] = 72
+
+    original_name = evaluation_checks[1]["name"]
+    evaluation_checks[1]["name"] = "scenario.substituted_but_still_unique"
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="fixture scenario closure"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    evaluation_checks[1]["name"] = original_name
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+
+    drifted_fixture = tmp_path / "drifted-m05-04-scenarios.json"
+    drifted_fixture.write_bytes(fixture_bytes + b"\n")
+    with pytest.raises(ReleaseArtifactError, match="fixture digest"):
+        verify_m0504_evidence(evaluation, benchmark, drifted_fixture)
+
+    benchmark_report["threshold_count"] = 255
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="threshold_count"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    benchmark_report["threshold_count"] = 256
+
+    benchmark_report["samples_ns"] = [True, *samples[1:]]
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing samples"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    benchmark_report["samples_ns"] = samples
+
+    benchmark_report["mean_ns"] = 200_000_001.0
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="disagrees with its samples"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    benchmark_report["mean_ns"] = 200_000_000.0
+
+    benchmark_report["request_digest"] = "sha256:" + ("a" * 64)
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="request digest"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+    benchmark_report["request_digest"] = (
+        "sha256:c8001d0d9593f6046a7787ba2fe00ee26f29973d45a34c91d33afad3dfd67410"
+    )
+
+    benchmark_report.update(
+        samples_ns=[800_000_000] * 25,
+        mean_ns=800_000_000.0,
+        p50_ns=800_000_000,
+        p95_ns=800_000_000,
+        maximum_ns=800_000_000,
+    )
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing budgets"):
+        verify_m0504_evidence(evaluation, benchmark, fixture)
+
+
 def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:  # noqa: PLR0915
     workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
@@ -634,6 +761,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m05_01.run --output evidence/m05-01-eval.json" in workflow
     assert "evals.m05_02.run --output evidence/m05-02-eval.json" in workflow
     assert "evals.m05_03.run --output evidence/m05-03-eval.json" in workflow
+    assert "evals.m05_04.run --output evidence/m05-04-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -673,6 +801,9 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m05_03.benchmark --output evidence/m05-03-benchmark.json" in workflow
     assert "verify_release_artifacts.py m05-03-evidence" in workflow
     assert "tests/fixtures/m05_03/scenarios.json" in workflow
+    assert "evals.m05_04.benchmark --output evidence/m05-04-benchmark.json" in workflow
+    assert "verify_release_artifacts.py m05-04-evidence" in workflow
+    assert "tests/fixtures/m05_04/scenarios.json" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -713,6 +844,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m05_01",
         "m05_02",
         "m05_03",
+        "m05_04",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -770,6 +902,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m05_01",
         "m05_02",
         "m05_03",
+        "m05_04",
     ):
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
@@ -819,6 +952,14 @@ def test_ci_exercises_the_native_m05_03_windows_interface() -> None:
 
     assert "windows-m05-03-interface" in workflow
     assert "tests/integration/test_m05_03_interfaces.py" in workflow
+    assert "--no-cov" in workflow
+
+
+def test_ci_exercises_the_native_m05_04_windows_interface() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "windows-m05-04-interface" in workflow
+    assert "tests/integration/test_m05_04_interfaces.py" in workflow
     assert "--no-cov" in workflow
 
 
@@ -922,6 +1063,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("ptm-localization-raw", "export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-03:1.0.0:request"
+        ),
+        ("ptm-localization-quality", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-04:1.0.0:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT
