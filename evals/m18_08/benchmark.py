@@ -33,6 +33,7 @@ class BenchmarkReport:
     warmup_count: int
     request_digest: str
     result_digest: str
+    replay_verified: bool
     mean_ns: float
     p50_ns: float
     p95_ns: int
@@ -46,6 +47,8 @@ def run_benchmark() -> BenchmarkReport:
     request = _request()
     engine = m1808.M1808TranslationMonitoringEngine()
     warmup = engine.adapt(request)
+    if engine.verify(warmup) != warmup:
+        raise RuntimeError("M18-08 warm-up result did not pass replay verification")  # noqa: TRY003
     samples: list[int] = []
     for _ in range(ITERATIONS):
         started = perf_counter_ns()
@@ -53,6 +56,8 @@ def run_benchmark() -> BenchmarkReport:
         samples.append(perf_counter_ns() - started)
         if result != warmup:
             raise RuntimeError("M18-08 benchmark result was not deterministic")  # noqa: TRY003
+        if engine.verify(result) != result:
+            raise RuntimeError("M18-08 benchmark result did not pass replay verification")  # noqa: TRY003
     ordered = sorted(samples)
     p95 = ordered[(95 * len(ordered) - 1) // 100]
     mean = fmean(samples)
@@ -65,6 +70,7 @@ def run_benchmark() -> BenchmarkReport:
         warmup_count=WARMUP_COUNT,
         request_digest=warmup.request_digest,
         result_digest=warmup.result_digest,
+        replay_verified=True,
         mean_ns=mean,
         p50_ns=median(samples),
         p95_ns=p95,

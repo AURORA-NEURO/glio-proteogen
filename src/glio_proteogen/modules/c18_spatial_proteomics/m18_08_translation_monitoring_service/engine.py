@@ -220,19 +220,13 @@ def _classify(
         *(item.status for item in request.support_drift),
         *(item.status for item in request.workflow_effects),
     )
-    critical = sum(status is ObservationStatus.FAIL for status in statuses)
+    critical = sum(status is ObservationStatus.FAIL for status in statuses) + sum(
+        item.status is ObservationStatus.FAIL for item in request.discrepancies
+    )
     unresolved = sum(not item.resolved for item in request.discrepancies)
     not_evaluable = sum(status is ObservationStatus.NOT_EVALUABLE for status in statuses)
     warnings = sum(status is ObservationStatus.WARNING for status in statuses)
-    findings: list[TranslationFindingCode] = []
-    if any(item.status is ObservationStatus.FAIL for item in request.telemetry):
-        findings.append(TranslationFindingCode.CRITICAL_DRIFT)
-    if any(item.status is ObservationStatus.FAIL for item in request.support_drift):
-        findings.append(TranslationFindingCode.SUPPORT_DRIFT)
-    if any(item.status is not ObservationStatus.PASS for item in request.workflow_effects):
-        findings.append(TranslationFindingCode.WORKFLOW_EFFECT)
-    if unresolved:
-        findings.append(TranslationFindingCode.DISCREPANCY_UNRESOLVED)
+    findings = _finding_codes(request, unresolved)
     if not_evaluable:
         return (
             MonitorStatus.ABSTAINED,
@@ -269,6 +263,24 @@ def _classify(
         RollbackDecision.NONE,
         tuple(findings),
     )
+
+
+def _finding_codes(
+    request: MonitorBiomarkerPanelTranslationHealthRequest,
+    unresolved: int,
+) -> list[TranslationFindingCode]:
+    findings: list[TranslationFindingCode] = []
+    if any(item.status is ObservationStatus.FAIL for item in request.telemetry):
+        findings.append(TranslationFindingCode.CRITICAL_DRIFT)
+    if any(item.status is ObservationStatus.FAIL for item in request.support_drift):
+        findings.append(TranslationFindingCode.SUPPORT_DRIFT)
+    if any(item.status is not ObservationStatus.PASS for item in request.workflow_effects):
+        findings.append(TranslationFindingCode.WORKFLOW_EFFECT)
+    if unresolved:
+        findings.append(TranslationFindingCode.DISCREPANCY_UNRESOLVED)
+    if any(item.status is ObservationStatus.FAIL for item in request.discrepancies):
+        findings.append(TranslationFindingCode.POLICY_VIOLATION)
+    return findings
 
 
 def _findings(

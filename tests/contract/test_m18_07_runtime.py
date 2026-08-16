@@ -15,7 +15,7 @@ from glio_proteogen.contracts.m18_07 import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c18_spatial_proteomics_projection.m18_07_downstream_typed_export import (  # noqa: E501
@@ -42,6 +42,21 @@ def test_supported_export_contains_signed_contract_and_all_uncertainty() -> None
     assert result.support_decision.status is SupportStatus.SUPPORTED
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M18-07"
     assert result.uncertainty.support.state.value == "estimated"
+
+
+def test_signed_payload_binds_request_fields_configuration_and_owner() -> None:
+    request = _request()
+    result = M1807Engine().export(request)
+    assert result.contract is not None
+    expected = sha256_digest(
+        {
+            "request_digest": result.request_digest,
+            "fields": request.fields,
+            "configuration": request.configuration,
+            "ownership_module": "GLIO-PROTEOGEN-M18-07",
+        }
+    )
+    assert result.contract.signature.signed_payload_digest == expected
 
 
 def test_abstention_preserves_unsupported_status_and_no_contract() -> None:
@@ -278,6 +293,21 @@ def test_engine_error_paths_and_public_function(monkeypatch: pytest.MonkeyPatch)
         engine_module.export_biomarker_panel_downstream_contract(request).status
         is ExportStatus.EXPORTED
     )
+
+
+def test_request_and_result_size_limits_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = _request()
+    monkeypatch.setattr(engine_module, "M1807_MAX_CANONICAL_REQUEST_BYTES", 1)
+    with pytest.raises(M1807ExportError, match="size limit"):
+        M1807Engine().export(request)
+    monkeypatch.setattr(
+        engine_module,
+        "M1807_MAX_CANONICAL_REQUEST_BYTES",
+        4 * 1024 * 1024,
+    )
+    monkeypatch.setattr(engine_module, "M1807_MAX_CANONICAL_RESULT_BYTES", 1)
+    with pytest.raises(M1807ExportError, match="size limit"):
+        M1807Engine().export(request)
 
 
 def test_plugin_parse_once_seals_request_and_accepts_json() -> None:

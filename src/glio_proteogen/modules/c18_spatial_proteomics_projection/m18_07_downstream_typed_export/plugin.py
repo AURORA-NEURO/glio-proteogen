@@ -68,7 +68,7 @@ class M1807Plugin:
     def run(self, request: ValidatedM1807Request) -> BiomarkerPanelDownstreamExportResult:
         if not isinstance(request, ValidatedM1807Request) or request._seal is not _SEAL:
             raise TypeError
-        return self._service._execute_validated(request.request)
+        return self._service.execute_validated(request.request)
 
     def verify(
         self,

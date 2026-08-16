@@ -140,10 +140,11 @@ def _request(
     source_artifacts: tuple[ArtifactReference, ...] | None = None,
 ) -> ExportBiomarkerPanelDownstreamContractRequest:
     context = _context()
+    upstream = _artifact("upstream", media_type=M1807_M1806_INPUT_MEDIA_TYPE)
     return ExportBiomarkerPanelDownstreamContractRequest(
         request_id="request.m1807",
         context=context,
-        upstream_result=_artifact("upstream", media_type=M1807_M1806_INPUT_MEDIA_TYPE),
+        upstream_result=upstream,
         fields=fields or (_field(),),
         consent=consent or context.references.consent,
         support_decision=SupportDecision(
@@ -152,7 +153,7 @@ def _request(
             rationale="Caller-declared downstream support is within the export envelope.",
         ),
         configuration=_config(),
-        source_artifacts=source_artifacts or (_artifact("source"),),
+        source_artifacts=source_artifacts or (upstream, _artifact("source")),
     )
 
 
@@ -164,7 +165,25 @@ def test_request_binds_input_fields_controls_and_unique_sources() -> None:
         _request(fields=(_field(), _field()))
     source = _artifact("source")
     with pytest.raises(ValidationError, match="source artifact digests"):
-        _request(source_artifacts=(source, source))
+        _request(source_artifacts=(_request().upstream_result, source, source))
+
+
+def test_request_requires_upstream_artifact_and_locked_field_versions() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="included in source artifacts"):
+        ExportBiomarkerPanelDownstreamContractRequest.model_validate(
+            request.model_copy(update={"source_artifacts": (_artifact("source-only"),)}),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="match the locked configuration"):
+        ExportBiomarkerPanelDownstreamContractRequest.model_validate(
+            request.model_copy(
+                update={
+                    "fields": (request.fields[0].model_copy(update={"field_version": "2.0.0"}),)
+                }
+            ),
+            strict=True,
+        )
 
 
 def test_request_rejects_wrong_media_and_consent_mismatch() -> None:

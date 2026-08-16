@@ -55,6 +55,17 @@ def test_fastapi_export_verify_schema_and_sanitized_errors() -> None:
     )
 
 
+def test_fastapi_rejects_duplicate_keys_without_echoing_payload() -> None:
+    response = TestClient(app).post(
+        "/v1/modules/M18-07/export",
+        content=b'{"request_id":"first","request_id":"second"}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422
+    assert "second" not in response.text
+    assert "request_id" not in response.text
+
+
 def test_fastapi_authorization_and_export_error_are_sanitized(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -65,7 +76,7 @@ def test_fastapi_authorization_and_export_error_are_sanitized(
     assert denied.status_code == 403
 
     class FailingService:
-        def _execute_validated(self, _request: object) -> object:
+        def execute_validated(self, _request: object) -> object:
             raise m1807.M1807ExportError
 
     monkeypatch.setattr(adapter_module, "_SERVICE", FailingService())

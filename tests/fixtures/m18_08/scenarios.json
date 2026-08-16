@@ -4,7 +4,7 @@
   "operation": "monitor_biomarker_panel_translation_health",
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6464-6504",
-  "owner": "Platform engineering",
+  "owner": "Scientific engineering",
   "safety_class": "S2",
   "evidence_gate": "G5",
   "parent_target": "biomarker panel",

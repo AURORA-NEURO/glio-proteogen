@@ -9,6 +9,16 @@
       "passed": true
     },
     {
+      "detail": "fixture authority matches the locked contract slice",
+      "name": "authority.exact_binding",
+      "passed": true
+    },
+    {
+      "detail": "fixture owner, safety, gate and parent ceiling match the contract",
+      "name": "authority.owner_gate",
+      "passed": true
+    },
+    {
       "detail": "every declared scenario executes against an explicit oracle",
       "name": "corpus.executable_oracles",
       "passed": true
@@ -21,6 +31,16 @@
     {
       "detail": "all seven uncertainty dimensions remain explicit",
       "name": "healthy.uncertainty_explicit",
+      "passed": true
+    },
+    {
+      "detail": "healthy result round-trips through canonical replay verification",
+      "name": "healthy.replay_verified",
+      "passed": true
+    },
+    {
+      "detail": "service descriptor preserves the typed upstream and safe-failure boundary",
+      "name": "descriptor.boundary_closed",
       "passed": true
     },
     {

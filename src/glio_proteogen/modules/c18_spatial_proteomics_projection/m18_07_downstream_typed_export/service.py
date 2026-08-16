@@ -30,6 +30,13 @@ class M1807Service:
     def _execute_validated(
         self, request: ExportBiomarkerPanelDownstreamContractRequest
     ) -> BiomarkerPanelDownstreamExportResult:
+        return self.execute_validated(request)
+
+    def execute_validated(
+        self, request: ExportBiomarkerPanelDownstreamContractRequest
+    ) -> BiomarkerPanelDownstreamExportResult:
+        """Execute an already parsed request without a second JSON parse."""
+
         return self._engine.export(request)
 
     def verify(

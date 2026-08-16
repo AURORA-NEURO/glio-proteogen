@@ -220,11 +220,15 @@ class ExportBiomarkerPanelDownstreamContractRequest(FrozenModel):
             raise ValueError("request export field ids must be unique")
         if len(field_names) != len(set(field_names)):
             raise ValueError("request export field names must be unique")
+        if self.upstream_result not in self.source_artifacts:
+            raise ValueError("M18-06 upstream result must be included in source artifacts")
         digests = tuple(item.digest for item in self.source_artifacts)
         if len(digests) != len(set(digests)):
             raise ValueError("request source artifact digests must be unique")
         if self.consent != self.context.references.consent:
             raise ValueError("request consent must bind the context consent control")
+        if any(item.field_version != self.configuration.version for item in self.fields):
+            raise ValueError("export field versions must match the locked configuration")
         return self
 
 
