@@ -1,4 +1,4 @@
-"""Canonical projections for the provisional M25-01 contract spine."""
+"""Canonical projections for the provisional M26-02 lineage contract."""
 
 from __future__ import annotations
 
@@ -36,8 +36,17 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def graph_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Hash graph identity/content while excluding the supplied digest field."""
+
+    document = _dump(value)
+    document.pop("graph_digest", None)
+    return sha256_digest(document)
+
+
 __all__ = [
     "canonical_request_digest",
+    "graph_payload_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",

@@ -2,6 +2,7 @@
 
 from glio_proteogen.contracts.m26_02.canonical import (
     canonical_request_digest,
+    graph_payload_digest,
     normalized_request,
     normalized_result_payload,
     result_payload_digest,
@@ -21,6 +22,7 @@ __all__: list[str] = [  # noqa: PLE0604 - composed from typed module exports.
     "SCHEMA_ID_PREFIX",
     "ContractName",
     "canonical_request_digest",
+    "graph_payload_digest",
     "contract_json_schema",
     "contract_json_schemas",
     "normalized_request",
