@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -246,7 +246,9 @@ def test_public_entrypoint_and_mapping_canonical_helpers_are_stable() -> None:
     request = _request()
     result = publish_protein_subtype_access_surface(request)
     assert result.request_digest == canonical_request_digest(request.model_dump(mode="json"))
-    assert contract_json_schema("request")["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M26-04"
+    schema = contract_json_schema("request")
+    metadata = cast("dict[str, object]", schema["x-glio-contract"])
+    assert metadata["moduleId"] == "GLIO-PROTEOGEN-M26-04"
     assert _findings(request.model_copy(update={"audit_events": ()}))
 
 
