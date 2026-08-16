@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m23_08 import (
     SignedReleaseRecord,
     canonical_request_digest,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
@@ -32,6 +33,7 @@ from glio_proteogen.modules.c21_reference_material.m23_08_evidence_gate_release_
     M2308AuthorizationError,
     M2308EvidenceGateEngine,
     M2308Plugin,
+    M2308ReplayError,
     M2308Service,
     M2308TokenError,
     adjudicate_variant_peptide_evidence_gate,
@@ -97,6 +99,14 @@ def test_contract_rejects_source_artifact_digest_substitution() -> None:
     payload["source_artifacts"] = (substituted, *request.source_artifacts[1:])
     with pytest.raises(ValidationError, match="bind every declared input"):
         AdjudicateVariantPeptideEvidenceGateRequest.model_validate(payload)
+    duplicate_payload = request.model_dump(mode="python")
+    duplicate_payload["source_artifacts"] = (
+        request.source_artifacts[0],
+        request.source_artifacts[0],
+        *request.source_artifacts[2:],
+    )
+    with pytest.raises(ValidationError, match="unique artifact IDs"):
+        AdjudicateVariantPeptideEvidenceGateRequest.model_validate(duplicate_payload)
 
 
 def test_api_replay_rejects_nonobject_and_tampered_result() -> None:
@@ -166,6 +176,9 @@ def test_plugin_descriptor_and_replay_boundary() -> None:
     assert plugin.descriptor.unsupported_to_negative is False
     assert plugin.descriptor.kinase_activity is False
     result = service.adjudicate(_request())
+    assert plugin.validate(EvidenceGateSubmission(_request())).request.request_id == (
+        "m2308.request.1"
+    )
     assert plugin.replay(result) == result
 
 
@@ -300,6 +313,28 @@ def test_result_closure_rejects_tampered_request_record_and_finding() -> None:
         candidate = result.model_copy(update=update)
         with pytest.raises(ValidationError):
             type(result).model_validate(candidate.model_dump(mode="python"))
+    for field, value in (
+        (
+            "benchmarks",
+            (result.request.benchmarks[0].model_copy(update={"name": "changed"}),),
+        ),
+        (
+            "residual_risks",
+            (result.request.residual_risks[0].model_copy(update={"statement": "changed"}),),
+        ),
+        (
+            "approvals",
+            (result.request.approvals[0].model_copy(update={"role": "changed"}),),
+        ),
+        (
+            "post_release_obligations",
+            (result.request.post_release_obligations[0].model_copy(update={"action": "changed"}),),
+        ),
+    ):
+        replacement = release_record.model_copy(update={field: value})
+        candidate = result.model_copy(update={"release_record": replacement})
+        with pytest.raises(ValidationError):
+            type(result).model_validate(candidate.model_dump(mode="python"))
     abstained = result.model_copy(
         update={
             "status": GateRunStatus.ABSTAINED,
@@ -313,6 +348,19 @@ def test_result_closure_rejects_tampered_request_record_and_finding() -> None:
     )
     with pytest.raises(ValidationError):
         type(result).model_validate(abstained.model_dump(mode="python"))
+    no_record = result.model_copy(
+        update={
+            "status": GateRunStatus.ABSTAINED,
+            "release_record": None,
+            "abstention_reason": "review required",
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.UNSUPPORTED}
+            ),
+            "findings": (),
+        }
+    )
+    with pytest.raises(ValidationError):
+        type(result).model_validate(no_record.model_dump(mode="python"))
 
 
 def test_control_states_do_not_become_negative_biological_findings() -> None:
@@ -322,3 +370,49 @@ def test_control_states_do_not_become_negative_biological_findings() -> None:
     assert all(item.code is not GateFindingCode.UPSTREAM_UNSUPPORTED for item in result.findings)
     assert result.limitations
     assert canonical_request_digest(result.request) == result.request_digest
+    assert canonical_request_digest(result.request.model_dump(mode="json")) == result.request_digest
+
+
+def test_replay_checks_each_digest_identifier_and_recomputed_result() -> None:
+    engine = M2308EvidenceGateEngine()
+    result = engine.adjudicate(_request())
+    cases = (
+        result.model_copy(update={"request_digest": "sha256:" + "0" * 64}),
+        result.model_copy(update={"result_id": "gate.m2308.forged"}),
+        result.model_copy(update={"result_digest": "sha256:" + "f" * 64}),
+    )
+    for candidate in cases:
+        with pytest.raises(M2308ReplayError):
+            engine.replay(candidate)
+
+    other_request = _request(request_id="m2308.request.other")
+    changed = result.model_copy(
+        update={
+            "request": other_request,
+            "request_digest": canonical_request_digest(other_request),
+            "result_id": result_identifier(canonical_request_digest(other_request)),
+        }
+    )
+    changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
+    with pytest.raises(M2308ReplayError):
+        engine.replay(changed)
+
+
+def test_service_replays_json_bytes_and_canonical_dicts() -> None:
+    service = M2308Service()
+    result = service.adjudicate(_request())
+    assert service.replay(result.model_dump_json()) == result
+    assert service.replay(result.model_dump(mode="json")) == result
+
+
+def test_individual_schema_route_and_cli_stdout_adjudication(tmp_path: Path) -> None:
+    client = TestClient(m2308_api.create_app())
+    schema = client.get("/v1/modules/M23-08/schemas/request")
+    assert schema.status_code == HTTPStatus.OK
+    assert schema.json()["$id"].endswith(":request")
+
+    path = tmp_path / "m2308-adversarial-request.json"
+    path.write_text(_request().model_dump_json(), encoding="utf-8")
+    response = CliRunner().invoke(m2308_cli.app, ["adjudicate", str(path)])
+    assert response.exit_code == 0
+    assert json.loads(response.stdout)["parent_target"] == "variant peptide"
