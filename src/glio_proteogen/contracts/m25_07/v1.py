@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -101,6 +102,15 @@ class OperationalMetric(FrozenModel):
     sample_size: int = Field(ge=1)
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2507_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def pass_requires_target_tolerance(self) -> OperationalMetric:
+        if (
+            self.status is OperationalStatus.PASS
+            and abs(self.observed_value - self.target_value) > self.tolerance
+        ):
+            raise ValueError("passing operational metric must meet target tolerance")
+        return self
 
 
 class FallbackScenario(FrozenModel):
@@ -201,6 +211,17 @@ class EvaluateProteotypeHumanFactorsRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateProteotypeHumanFactorsRequest:
         if self.upstream_result.media_type != M2507_M2506_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M25-06 challenge result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request_id must match request_id")
+        metric_ids = tuple(item.metric_id for item in self.metrics)
+        fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError("operational metric ids must be unique")
+        if len(fallback_ids) != len(set(fallback_ids)):
+            raise ValueError("fallback scenario ids must be unique")
+        artifacts = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifacts) != len(set(artifacts)):
+            raise ValueError("source artifact identifiers must be unique")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}
@@ -246,6 +267,8 @@ class ProteotypeHumanFactorsResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeHumanFactorsResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request, self.status.value):
+            raise ValueError("result id does not bind exact request and terminal status")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -262,6 +285,9 @@ class ProteotypeHumanFactorsResult(FrozenModel):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding identifiers must be unique")
         return self
 
 

@@ -36,9 +36,18 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def result_identifier(request: BaseModel | dict[str, Any], status: str) -> str:
+    """Derive an immutable result identity from exact request and terminal state."""
+
+    return "m2507.result." + sha256_digest(
+        {"request": normalized_request(request), "status": status}
+    ).removeprefix("sha256:")
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "result_identifier",
     "result_payload_digest",
 ]
