@@ -1,6 +1,7 @@
 """Focused contract/schema smoke for provisional M26-07."""
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -23,28 +24,32 @@ from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 _SCHEMA_COUNT = 8
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def test_provisional_schemas_require_change_control_gates() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["changeClassificationRequired"]
-        and schema["x-glio-contract"]["revalidationRequired"]
-        and schema["x-glio-contract"]["championChallengerRequired"]
-        and schema["x-glio-contract"]["stagedRolloutRequired"]
-        and schema["x-glio-contract"]["testedRollbackRequired"]
-        and schema["x-glio-contract"]["criticalRegressionBlocksPromotion"]
-        and schema["x-glio-contract"]["quarantineUnresolvedInputs"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        _metadata(schema)["changeClassificationRequired"]
+        and _metadata(schema)["revalidationRequired"]
+        and _metadata(schema)["championChallengerRequired"]
+        and _metadata(schema)["stagedRolloutRequired"]
+        and _metadata(schema)["testedRollbackRequired"]
+        and _metadata(schema)["criticalRegressionBlocksPromotion"]
+        and _metadata(schema)["quarantineUnresolvedInputs"]
+        and _metadata(schema)["explicitAbstentionRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein subtype"
+        _metadata(schema)["parentTarget"] == "protein subtype"
         for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2607_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2607_OUTPUT_MEDIA_TYPE
     assert M2607_PROVISIONAL_ABI is True
 
 
