@@ -10,12 +10,16 @@ from glio_proteogen.contracts.m20_08 import (
     RollbackDecision,
     TranslationHealthStatus,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_rollback import (
     M2008AuthorizationError,
     M2008Plugin,
+    M2008Service,
     M2008TokenError,
     M2008TranslationMonitoringEngine,
+    monitor_protein_subtype_translation_health,
+    preflight_m2008_authorization,
 )
 from tests.contract.test_m20_08_hardening import _context, _request
 
@@ -105,9 +109,14 @@ def test_plugin_token_is_opaque_and_service_is_deterministic() -> None:
     plugin = M2008Plugin()
     token = plugin.validate(_request())
     result = plugin.run(token)
+    assert plugin.validate_request(_request()) == _request()
     assert plugin.verify(result) == result
+    assert plugin.replay(result) == result
     with pytest.raises(M2008TokenError):
         plugin.run(object())  # type: ignore[arg-type]
+    other_plugin = M2008Plugin()
+    with pytest.raises(M2008TokenError):
+        other_plugin.run(token)
 
 
 def test_tampered_result_digest_is_rejected() -> None:
@@ -116,3 +125,31 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     with pytest.raises(ValueError, match="replay verification failed"):
         engine.verify(tampered)
+
+
+def test_service_supports_mapping_and_canonical_json_boundaries() -> None:
+    service = M2008Service()
+    request = _request()
+    document = request.model_dump(mode="json")
+    result_from_mapping = service.monitor(document)
+    result_from_bytes = service.execute(canonical_json_bytes(document))
+    assert result_from_mapping == result_from_bytes
+    result_document = result_from_mapping.model_dump(mode="json")
+    assert service.replay(result_document) == result_from_mapping
+    assert service.verify(canonical_json_bytes(result_document)) == result_from_mapping
+    assert service.descriptor["upstream_media_type"].endswith("m20-07+json")
+
+
+def test_preflight_mapping_and_malformed_candidates_fail_closed() -> None:
+    preflight_m2008_authorization(_request().model_dump(mode="json"))
+    with pytest.raises(M2008AuthorizationError):
+        preflight_m2008_authorization(None)
+    with pytest.raises(M2008AuthorizationError):
+        M2008TranslationMonitoringEngine().infer({})
+
+
+def test_public_operation_matches_engine() -> None:
+    assert (
+        monitor_protein_subtype_translation_health(_request()).health_status
+        is TranslationHealthStatus.HEALTHY
+    )
