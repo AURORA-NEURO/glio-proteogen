@@ -1,0 +1,22 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-07",
+  "operation": "adjudicate_variant_peptide_plausibility",
+  "fixture_version": "1.0.0",
+  "fixture_digest": "sha256:551b93ed5371820c247e23b1e4ecb3d9c6d1caa0c137874470a72e420839908c",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "all_passed": true,
+  "focused_tests": 31,
+  "branch_coverage_percent": 99,
+  "covered_statements": 536,
+  "covered_branches": 94,
+  "case_ids": [
+    "supported",
+    "failed_control",
+    "not_evaluable",
+    "unresolved_conflict",
+    "denied_upstream",
+    "replay_tamper"
+  ]
+}

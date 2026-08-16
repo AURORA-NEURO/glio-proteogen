@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-05",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "stable_trajectory", "objective": "stable", "expected_status": "modeled"},
+    {"case_id": "alternating_trajectory", "objective": "alternating", "expected_status": "modeled"},
+    {"case_id": "change_point", "objective": "change_point:2:before:after", "expected_status": "modeled"},
+    {"case_id": "unknown_objective_abstention", "objective": "unknown:model", "expected_status": "not_evaluable"},
+    {"case_id": "out_of_support_change_point", "objective": "change_point:99:before:after", "expected_status": "not_evaluable"},
+    {"case_id": "replay_and_tamper", "objective": "territory", "expected_status": "modeled"},
+    {"case_id": "authorization_gate", "objective": "stable", "expected_status": "authorization_error"}
+  ]
+}
