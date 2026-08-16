@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-07",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "2460-2500",
+  "abi_status": "0.1.0-provisional",
+  "scenarios": [
+    {"id": "calibrated_selection", "expected": "calibrated"},
+    {"id": "upstream_not_evaluable", "expected": "abstained"},
+    {"id": "missing_calibration_dimension", "expected": "abstained"},
+    {"id": "withheld_consent", "expected": "authorization_error"},
+    {"id": "no_candidate_passes", "expected": "abstained"},
+    {"id": "replay_round_trip", "expected": "verified"},
+    {"id": "tamper_replay", "expected": "tamper_rejected"},
+    {"id": "deterministic_reorder", "expected": "same_digest"}
+  ]
+}

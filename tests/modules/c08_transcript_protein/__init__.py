@@ -1,1 +1,1 @@
-"""Transcript-protein module tests."""
+"""Transcript-protein module lifecycle and feature tests."""
