@@ -109,9 +109,7 @@ class CalibrationConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
     method: CalibrationMethod
-    scopes: tuple[CalibrationScope, ...] = Field(
-        min_length=1, max_length=M1007_MAX_SCOPES
-    )
+    scopes: tuple[CalibrationScope, ...] = Field(min_length=1, max_length=M1007_MAX_SCOPES)
     nominal_coverage: float = Field(default=M1007_NOMINAL_COVERAGE, ge=0.0, le=1.0)
     support_threshold: float = Field(ge=0.0, le=1.0)
     ood_threshold: float = Field(ge=0.0, le=1.0)
@@ -141,9 +139,7 @@ class CalibratedEstimate(FrozenModel):
 
 
 class PredictionSet(FrozenModel):
-    labels: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1007_MAX_PREDICTION_SET
-    )
+    labels: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1007_MAX_PREDICTION_SET)
     nominal_coverage: float = Field(ge=0.0, le=1.0)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1007_MAX_EVIDENCE)
 
