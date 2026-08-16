@@ -78,7 +78,7 @@ def schema(name: str) -> JSONResponse:
 async def export(request: Request) -> JSONResponse:
     validated = await _validated_body(request)
     try:
-        result = _SERVICE._execute_validated(validated)
+        result = _SERVICE.execute_validated(validated)
     except m1807.M1807AuthorizationError as error:
         raise _json_error(403, str(error)) from error
     except m1807.M1807ExportError as error:
@@ -132,7 +132,7 @@ def export_command(
         raise typer.BadParameter(_OUTPUT_EXISTS)
     try:
         request = _load_request(request_path)
-        result = _SERVICE._execute_validated(request)
+        result = _SERVICE.execute_validated(request)
         payload = canonical_json_bytes(result).decode("utf-8")
         if output is None:
             typer.echo(payload)
