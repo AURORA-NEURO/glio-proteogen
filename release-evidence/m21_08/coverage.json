@@ -1,0 +1,10 @@
+{
+  "branch_enabled": true,
+  "coverage_percent": 95.20123839009288,
+  "covered_lines": 548,
+  "statements": 568,
+  "branches": 78,
+  "covered_branches": 67,
+  "fail_under_percent": 95.0,
+  "focused_tests": 34
+}
