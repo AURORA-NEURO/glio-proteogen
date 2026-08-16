@@ -1,0 +1,15 @@
+{
+  "branch_enabled": true,
+  "branch_percent": 94.56521739130434,
+  "branches": 92,
+  "branches_covered": 87,
+  "branches_partial": 5,
+  "coverage_percent": 97.0,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M21-05",
+  "passed": true,
+  "scope": "contracts/m21_05 plus subgroup-equity-evaluator runtime, service, plugin, FastAPI and Typer adapters",
+  "statements": 557,
+  "statements_covered": 543,
+  "tests": 39
+}
