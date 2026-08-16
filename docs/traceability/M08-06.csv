@@ -1,0 +1,10 @@
+requirement,implementation,evidence,gate,status
+uncertainty decomposition responsibility,contracts/m08_06/v1.py,tests/contract/test_m08_06_runtime_contract.py,G0,pass
+seven explicit uncertainty dimensions,UncertaintyProfile and UncertaintyDecomposition,tests/modules/c08_transcript_protein_discordance/test_m08_06_uncertainty.py,G1,pass
+sensitivity envelope and nominal 90 percent target,contracts/m08_06/v1.py and kernel.py,tests/contract/test_m08_06_runtime_contract.py,G3,pass
+safe unsupported or uncalibrated abstention,engine.py,evals/m08_06/run.py,G3,pass
+identity consent provenance and quality controls,expected_provenance and preflight,tests/integration/test_m08_06_interfaces.py,G4,pass
+canonical replay and tamper closure,canonical.py engine.py service.py,tests/modules/c08_transcript_protein_discordance/test_m08_06_uncertainty.py,G4,pass
+strict transport parity,api.py cli.py plugin.py,tests/integration/test_m08_06_interfaces.py,G2,pass
+benchmark budget,evals/m08_06/benchmark.py,tests/evals/test_m08_06_evaluation.py,G3,pass
+provisional ABI boundary,schema.py and docs/modules/GLIO-PROTEOGEN-M08-06.md,docs/evidence/M08-06.md,G0,owner confirmation pending
