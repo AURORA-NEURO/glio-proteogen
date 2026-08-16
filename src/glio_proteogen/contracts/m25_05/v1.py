@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_05.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -111,6 +112,8 @@ class SubgroupPerformance(FrozenModel):
             raise ValueError("subgroup value must lie within bounds")
         if self.equity_status is EquityStatus.BELOW_FLOOR and self.value >= self.safety_floor:
             raise ValueError("below-floor status requires value below safety floor")
+        if self.equity_status is EquityStatus.WITHIN_FLOOR and self.value < self.safety_floor:
+            raise ValueError("within-floor status requires value at or above safety floor")
         return self
 
 
@@ -123,6 +126,12 @@ class CalibrationSummary(FrozenModel):
     coverage_target: float = Field(ge=0.0, le=1.0)
     status: EvaluationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2505_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def target_is_closed(self) -> CalibrationSummary:
+        if self.nominal_coverage < self.coverage_target:
+            raise ValueError("nominal coverage cannot be below the declared target")
+        return self
 
 
 class CoverageSummary(FrozenModel):
@@ -149,7 +158,7 @@ class EvaluationConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
     nominal_coverage_target: float = Field(ge=0.0, le=1.0)
-    safety_floor: float
+    safety_floor: float = Field(ge=0.0, le=1.0)
     required_dimensions: tuple[SubgroupDimension, ...] = Field(min_length=8, max_length=8)
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2505_MAX_EVIDENCE)
@@ -180,6 +189,9 @@ class SubgroupEvaluationReport(FrozenModel):
         )
         if len(ids) != len(set(ids)):
             raise ValueError("subgroup report ids must be unique")
+        dimensions = {item.dimension for item in self.performance}
+        if dimensions != set(SubgroupDimension):
+            raise ValueError("report must cover every required subgroup dimension")
         return self
 
 
@@ -209,6 +221,16 @@ class EvaluateProteotypeSubgroupEquityRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateProteotypeSubgroupEquityRequest:
         if self.upstream_result.media_type != M2505_M2504_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M25-04 evaluator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request_id must match request_id")
+        if len({item.dimension for item in self.performance}) != len(
+            {item.dimension for item in self.calibration}
+        ):
+            raise ValueError("performance and calibration dimensions must be aligned")
+        if len({item.dimension for item in self.performance}) != len(
+            {item.dimension for item in self.coverage}
+        ):
+            raise ValueError("performance and coverage dimensions must be aligned")
         return self
 
 
@@ -236,6 +258,8 @@ class ProteotypeSubgroupEvaluationResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeSubgroupEvaluationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request, self.status.value):
+            raise ValueError("result id does not bind exact request and terminal status")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
