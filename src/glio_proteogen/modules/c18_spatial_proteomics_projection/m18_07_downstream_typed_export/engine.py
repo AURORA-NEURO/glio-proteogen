@@ -15,8 +15,11 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m18_07 import (
     M1807_CONTRACT_VERSION,
     M1807_EVIDENCE_CLAIM,
+    M1807_MAX_CANONICAL_REQUEST_BYTES,
+    M1807_MAX_CANONICAL_RESULT_BYTES,
     M1807_MODULE_ID,
     BiomarkerPanelDownstreamExportResult,
+    CompatibilityMode,
     DownstreamContractObject,
     ExportBiomarkerPanelDownstreamContractRequest,
     ExportFinding,
@@ -27,7 +30,7 @@ from glio_proteogen.contracts.m18_07 import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
@@ -301,6 +304,22 @@ def _limitations(*, exported: bool) -> tuple[Limitation, ...]:
     )
 
 
+def _signed_payload_digest(
+    request_digest: str,
+    request: ExportBiomarkerPanelDownstreamContractRequest,
+) -> str:
+    """Return the deterministic digest that the signed envelope commits to."""
+
+    return sha256_digest(
+        {
+            "request_digest": request_digest,
+            "fields": request.fields,
+            "configuration": request.configuration,
+            "ownership_module": M1807_MODULE_ID,
+        }
+    )
+
+
 def _finding(
     finding_id: str,
     code: ExportFindingCode,
@@ -323,6 +342,8 @@ class M1807Engine:
     def export(self, candidate: object) -> BiomarkerPanelDownstreamExportResult:
         request = self.validate_request(candidate)
         request_digest = canonical_request_digest(request)
+        if len(canonical_json_bytes(request)) > M1807_MAX_CANONICAL_REQUEST_BYTES:
+            raise M1807ExportError("M18-07 request exceeds the canonical size limit")
         evidence = _evidence(request)
         declared = _declared_text(request)
         prohibited = sorted(term for term in _PROHIBITED_TERMS if term in declared)
@@ -333,6 +354,8 @@ class M1807Engine:
             and request.consent.state is ConsentState.GRANTED
             and request.support_decision.status is SupportStatus.SUPPORTED
             and request.configuration.documented_fields_only
+            and request.configuration.compatibility
+            in {CompatibilityMode.VERSIONED, CompatibilityMode.STRICT}
         )
         findings: list[ExportFinding] = []
         if prohibited:
@@ -380,13 +403,7 @@ class M1807Engine:
         signature = SignedContractEnvelope(
             signer_id=request.context.actor_id,
             algorithm="caller-declared-sha256",
-            signed_payload_digest=sha256_digest(
-                {
-                    "request_digest": request_digest,
-                    "fields": request.fields,
-                    "configuration": request.configuration,
-                }
-            ),
+            signed_payload_digest=_signed_payload_digest(request_digest, request),
             signature_digest=sha256_digest(
                 {"request_digest": request_digest, "owner": M1807_MODULE_ID}
             ),
@@ -455,6 +472,8 @@ class M1807Engine:
         }
         constructed = BiomarkerPanelDownstreamExportResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)
+        if len(canonical_json_bytes(payload)) > M1807_MAX_CANONICAL_RESULT_BYTES:
+            raise M1807ExportError("M18-07 result exceeds the canonical size limit")
         try:
             return _RESULT_ADAPTER.validate_python(payload, strict=True)
         except Exception as error:
