@@ -286,6 +286,17 @@ from glio_proteogen.contracts.m16_03.v1 import (
     FuseProteinRnaDiscordanceEvidenceRequest,
     ProteinRnaDiscordanceIntegratedEvidenceResult,
 )
+from glio_proteogen.contracts.m15_08.schema import (
+    ContractName as M1508ContractName,
+)
+from glio_proteogen.contracts.m15_08.schema import (
+    contract_json_schema as m1508_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_08.v1 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
+    ComplexActivityMechanismDossierResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -438,6 +449,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     m16_03_fusion_aggregation_engine as m1603,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -462,6 +476,7 @@ _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _M1603_FUSION_ADAPTER: Final = TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest)
+_M1508_DOSSIER_ADAPTER: Final = TypeAdapter(AssembleComplexActivityMechanismDossierRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -618,6 +633,9 @@ def _proteoform_quality_contract_schema(
 
 def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
     return m1603_contract_json_schema(name)
+
+def _m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+    return m1508_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1043,6 +1061,14 @@ def _m1603_request_body() -> dict[str, object]:
         }
     }
 
+def _m1508_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1508_contract_json_schema("request")}},
+        }
+    }
+
 
 async def _m1603_fusion_body(
     request: Request,
@@ -1052,6 +1078,16 @@ async def _m1603_fusion_body(
         _M1603_FUSION_ADAPTER,
         m1603.preflight_m1603_authorization,
         M1603_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+async def _m1508_dossier_body(
+    request: Request,
+) -> AssembleComplexActivityMechanismDossierRequest:
+    return await _strict_json_body(
+        request,
+        _M1508_DOSSIER_ADAPTER,
+        m1508.preflight_m1508_authorization,
+        M1508_MAX_CANONICAL_REQUEST_BYTES,
     )
 
 
@@ -1082,6 +1118,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
     m1603_service = m1603.M1603Service()
+    m1508_service = m1508.M1508Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1129,6 +1166,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
     @app.exception_handler(m1603.M1603AuthorizationError)
+    @app.exception_handler(m1508.M1508AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1415,6 +1453,23 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinRnaDiscordanceIntegratedEvidenceResult:
         return m1603_service.execute(request)
+    @app.get("/v1/contracts/M15-08/{name}/schema", tags=["contracts"])
+    def m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+        return _m1508_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-08/mechanism-evidence-dossier",
+        response_model=ComplexActivityMechanismDossierResult,
+        tags=["M15-08"],
+        openapi_extra=_m1508_request_body(),
+    )
+    def assemble_m1508_dossier(
+        request: Annotated[
+            AssembleComplexActivityMechanismDossierRequest,
+            Depends(_m1508_dossier_body),
+        ],
+    ) -> ComplexActivityMechanismDossierResult:
+        return m1508_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
