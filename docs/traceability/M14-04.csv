@@ -1,0 +1,6 @@
+requirement_id,authority_lines,implementation,evidence,gate
+M14-04-R01,4848-4856,"contracts/m14_04/v1.py; posterior/state result",evaluation.json,G0
+M14-04-R02,4858-4862,"PTM-aware state model, isoform quantification, proteoform fallback",docs/modules/M14-04-network-state-mechanism-inference.md,G1
+M14-04-R03,4864-4868,"quality controls, seven uncertainty axes, explicit abstention",coverage.json; test_m14_04_deep.py,G3
+M14-04-R04,4870-4870,"synthetic truth, positive/negative controls, mature-baseline gate",evaluation.json; benchmark.json,G3
+M14-04-R05,4872-4888,"provenance, replay, API/CLI, evaluator, package evidence",package.json; test_m14_04_deep.py,G4
