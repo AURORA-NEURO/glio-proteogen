@@ -1,0 +1,16 @@
+{
+  "module": "GLIO-PROTEOGEN-M11-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3944-3987",
+  "scenarios": [
+    {"id": "complete_dossier", "expected": "ready", "required": ["sources", "links", "counter_evidence", "validation_routes", "reconstruction", "claim_ceiling"]},
+    {"id": "missing_assumptions", "expected": "abstained", "finding": "chain_incomplete"},
+    {"id": "missing_source", "expected": "abstained", "finding": "missing_source"},
+    {"id": "failed_validation_route", "expected": "abstained", "finding": "validation_route_unresolved"},
+    {"id": "unaccepted_control", "expected": "authorization_failure"},
+    {"id": "wrong_upstream_media", "expected": "contract_failure"},
+    {"id": "duplicate_json_key", "expected": "parse_failure"},
+    {"id": "tampered_result_digest", "expected": "replay_failure"},
+    {"id": "deterministic_replay", "expected": "identical"}
+  ]
+}
