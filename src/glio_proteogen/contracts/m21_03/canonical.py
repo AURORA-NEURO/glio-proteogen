@@ -14,7 +14,10 @@ if TYPE_CHECKING:
 
 def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
-        return value.model_dump(mode="json")
+        # Keep datetime/enum objects until the kernel canonicalizer applies
+        # one deterministic representation.  JSON-mode dumping can omit
+        # zero microseconds and make replay hashes construction-path dependent.
+        return value.model_dump(mode="python")
     return dict(value)
 
 
@@ -36,9 +39,16 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def result_identifier(value: BaseModel | dict[str, Any]) -> str:
+    """Return the deterministic result identifier bound to one request."""
+
+    return "m2103.result." + canonical_request_digest(value).removeprefix("sha256:")
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "result_identifier",
     "result_payload_digest",
 ]

@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m21_03.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -32,7 +33,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 7324-7364.
+# PROVISIONAL ABI: inferred solely from the permitted dossier slice.
 M2103_MODULE_ID: Final = "GLIO-PROTEOGEN-M21-03"
 M2103_OPERATION: Final = "run_complex_activity_internal_benchmark"
 M2103_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -43,6 +44,10 @@ M2103_OWNER: Final = "Data engineering"
 M2103_SAFETY_CLASS: Final = "S3"
 M2103_GATE: Final = "G2"
 M2103_PROVISIONAL_ABI: Final = True
+M2103_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2103_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7324-7364"
 M2103_MAX_BASELINES: Final = 32
 M2103_MAX_ABLATIONS: Final = 256
 M2103_MAX_COMPARISONS: Final = 128
@@ -114,6 +119,13 @@ class BaselineRun(FrozenModel):
     metrics: tuple[BenchmarkMetric, ...] = Field(min_length=1, max_length=M2103_MAX_METRICS)
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2103_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def metrics_are_unique(self) -> BaselineRun:
+        metric_ids = tuple(item.metric_id for item in self.metrics)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError("baseline metric ids must be unique")
+        return self
+
 
 class ComponentAblation(FrozenModel):
     ablation_id: Identifier
@@ -184,6 +196,17 @@ class BenchmarkDossier(FrozenModel):
         ):
             if len(values) != len(set(values)):
                 raise ValueError(f"{label} ids must be unique")
+        if not any(item.kind is BaselineKind.SIMPLE for item in self.baselines):
+            raise ValueError("benchmark dossier requires a simple baseline")
+        if not any(item.kind is BaselineKind.MATURE for item in self.baselines):
+            raise ValueError("benchmark dossier requires a mature baseline")
+        baseline_id_set = set(run_ids)
+        if any(
+            item.reference_run_id not in baseline_id_set
+            or item.candidate_run_id not in baseline_id_set
+            for item in self.comparisons
+        ):
+            raise ValueError("benchmark comparison must reference known baseline runs")
         return self
 
 
@@ -217,6 +240,41 @@ class RunComplexActivityInternalBenchmarkRequest(FrozenModel):
     def request_is_bound(self) -> RunComplexActivityInternalBenchmarkRequest:
         if self.upstream_result.media_type != M2103_M2102_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-02 synthetic truth result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        if (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        ) not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-02 result")
+        baseline_ids = tuple(item.run_id for item in self.baseline_runs)
+        if len(baseline_ids) != len(set(baseline_ids)):
+            raise ValueError("request baseline run ids must be unique")
+        if not any(item.kind is BaselineKind.SIMPLE for item in self.baseline_runs):
+            raise ValueError("request requires a simple baseline")
+        if not any(item.kind is BaselineKind.MATURE for item in self.baseline_runs):
+            raise ValueError("request requires a mature baseline")
+        ablation_ids = tuple(item.ablation_id for item in self.ablations)
+        comparison_ids = tuple(item.comparison_id for item in self.comparisons)
+        if len(ablation_ids) != len(set(ablation_ids)):
+            raise ValueError("request ablation ids must be unique")
+        if len(comparison_ids) != len(set(comparison_ids)):
+            raise ValueError("request comparison ids must be unique")
+        baseline_id_set = set(baseline_ids)
+        if any(
+            item.reference_run_id not in baseline_id_set
+            or item.candidate_run_id not in baseline_id_set
+            for item in self.comparisons
+        ):
+            raise ValueError("request comparison must reference known baseline runs")
         return self
 
 
@@ -248,6 +306,8 @@ class ComplexActivityInternalBenchmarkResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityInternalBenchmarkResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
         if self.status is BenchmarkStatus.COMPLETED:
             if (
                 self.dossier is None
@@ -255,6 +315,14 @@ class ComplexActivityInternalBenchmarkResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("completed result requires a supported benchmark dossier")
+            if self.dossier.split != self.request.split:
+                raise ValueError("completed dossier split must equal the request split")
+            if self.dossier.baselines != self.request.baseline_runs:
+                raise ValueError("completed dossier baselines must equal the request baselines")
+            if self.dossier.ablations != self.request.ablations:
+                raise ValueError("completed dossier ablations must equal the request ablations")
+            if self.dossier.comparisons != self.request.comparisons:
+                raise ValueError("completed dossier comparisons must equal the request comparisons")
         elif (
             self.dossier is not None
             or self.abstention_reason is None
@@ -262,6 +330,8 @@ class ComplexActivityInternalBenchmarkResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no dossier and safe status")
+        if len(self.findings) != len({finding.finding_id for finding in self.findings}):
+            raise ValueError("result finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -269,6 +339,8 @@ class ComplexActivityInternalBenchmarkResult(FrozenModel):
 
 __all__ = [
     "M2103_CONTRACT_VERSION",
+    "M2103_DOSSIER_SHA256",
+    "M2103_DOSSIER_SLICE",
     "M2103_EVIDENCE_CLAIM",
     "M2103_GATE",
     "M2103_M2102_INPUT_MEDIA_TYPE",
