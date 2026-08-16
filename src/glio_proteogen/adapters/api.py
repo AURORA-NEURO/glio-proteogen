@@ -457,7 +457,11 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
 )
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_01_upstream_contract_resolver as m1701_resolver,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_04_intended_use_adapter as m1704_adapter,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_08_translation_monitoring as m1708_monitoring,
 )
 
