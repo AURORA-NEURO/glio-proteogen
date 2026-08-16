@@ -1,6 +1,6 @@
 {
-  "adversarial_case_count": 12,
-  "adversarial_passed_count": 12,
+  "adversarial_case_count": 17,
+  "adversarial_passed_count": 17,
   "checks": {
     "ablation_visible": true,
     "completed": true,
