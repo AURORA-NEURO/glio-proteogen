@@ -1,1 +1,1 @@
-"""M14 microenvironment module namespace."""
+"""Microenvironment module family."""
