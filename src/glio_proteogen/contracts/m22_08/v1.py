@@ -9,12 +9,13 @@ owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m22_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -56,6 +57,7 @@ M2208_EVIDENCE_CLAIM: Final = (
     "Caller-declared M22-08 traceability, risk-control, benchmark, approval "
     "and release material; issuer authority is not authenticated."
 )
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class GateDecision(StrEnum):
@@ -113,16 +115,17 @@ class BenchmarkOutcome(FrozenModel):
     benchmark_id: Identifier
     name: NonEmptyStr
     metric_name: NonEmptyStr
-    observed_value: float
-    required_floor: float
+    observed_value: FiniteFloat
+    required_floor: FiniteFloat
     passed: bool
     report_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2208_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def pass_matches_floor(self) -> BenchmarkOutcome:
-        if self.passed and self.observed_value < self.required_floor:
-            raise ValueError("passed benchmark must meet its required floor")
+        expected = self.observed_value >= self.required_floor
+        if self.passed != expected:
+            raise ValueError("benchmark passed flag must match its required floor")
         return self
 
 
@@ -164,7 +167,7 @@ class GateConfiguration(FrozenModel):
     require_signed_release_record: Literal[True] = True
     require_post_release_obligations: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2208_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2208_MAX_EVIDENCE)
 
 
 class SignedReleaseRecord(FrozenModel):
@@ -176,9 +179,7 @@ class SignedReleaseRecord(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2208_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2208_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2208_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2208_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2208_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -199,6 +200,9 @@ class SignedReleaseRecord(FrozenModel):
         groups = (requirement_ids, benchmark_ids, risk_ids, approval_ids, obligation_ids)
         if any(len(group) != len(set(group)) for group in groups):
             raise ValueError("gate record identifiers must be unique")
+        categories = {item.category for item in self.requirements}
+        if categories != set(RequirementCategory):
+            raise ValueError("gate record must cover every required requirement category")
         if self.decision is GateDecision.PASS:
             if any(not item.satisfied for item in self.requirements):
                 raise ValueError("passing gate cannot contain unsatisfied requirements")
@@ -235,9 +239,7 @@ class AdjudicateProteinRnaDiscordanceEvidenceGateRequest(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2208_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2208_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2208_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2208_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2208_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -248,6 +250,34 @@ class AdjudicateProteinRnaDiscordanceEvidenceGateRequest(FrozenModel):
         min_length=1, max_length=M2208_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_closed(self) -> AdjudicateProteinRnaDiscordanceEvidenceGateRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
+        collections = (
+            (item.requirement_id for item in self.requirements),
+            (item.benchmark_id for item in self.benchmarks),
+            (item.risk_id for item in self.residual_risks),
+            (item.approval_id for item in self.approvals),
+            (item.obligation_id for item in self.post_release_obligations),
+        )
+        if any(len(values := tuple(group)) != len(set(values)) for group in collections):
+            raise ValueError("request record identifiers must be unique")
+        if {item.category for item in self.requirements} != set(RequirementCategory):
+            raise ValueError("request must cover every required requirement category")
+        required = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.upstream_evidence,
+        )
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifacts must have unique artifact IDs")
+        if any(source_by_id.get(item.artifact_id) != item for item in required):
+            raise ValueError("source artifacts must bind every declared input exactly")
+        return self
 
 
 class ProteinRnaDiscordanceEvidenceGateResult(FrozenModel):
@@ -279,22 +309,51 @@ class ProteinRnaDiscordanceEvidenceGateResult(FrozenModel):
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.status is GateRunStatus.ADJUDICATED:
-            if (
-                self.release_record is None
-                or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-            ):
-                raise ValueError("adjudicated result requires a supported release record")
-        elif (
-            self.release_record is not None
-            or self.abstention_reason is None
-            or self.support_decision.status
-            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
-        ):
-            raise ValueError("abstained result requires no release record and safe status")
+            _validate_adjudicated_result(self)
+        else:
+            _validate_abstained_result(self)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def _validate_adjudicated_result(result: ProteinRnaDiscordanceEvidenceGateResult) -> None:
+    if (
+        result.release_record is None
+        or result.abstention_reason is not None
+        or result.support_decision.status is not SupportStatus.SUPPORTED
+    ):
+        raise ValueError("adjudicated result requires a supported release record")
+    if result.findings and not all(item.evidence for item in result.findings):
+        raise ValueError("adjudicated findings must carry evidence")
+    if result.result_id != result_identifier(result.request_digest):
+        raise ValueError("result identifier must bind the request digest")
+    record = result.release_record
+    request = result.request
+    if record.requirements != request.requirements:
+        raise ValueError("release requirements must bind the request")
+    if record.benchmarks != request.benchmarks:
+        raise ValueError("release benchmarks must bind the request")
+    if record.residual_risks != request.residual_risks:
+        raise ValueError("release risks must bind the request")
+    if record.approvals != request.approvals:
+        raise ValueError("release approvals must bind the request")
+    if record.post_release_obligations != request.post_release_obligations:
+        raise ValueError("release obligations must bind the request")
+
+
+def _validate_abstained_result(result: ProteinRnaDiscordanceEvidenceGateResult) -> None:
+    if (
+        result.release_record is not None
+        or result.abstention_reason is None
+        or result.support_decision.status
+        not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+    ):
+        raise ValueError("abstained result requires no release record and safe status")
+    if not result.findings:
+        raise ValueError("abstained result must retain at least one finding")
+    if result.result_id != result_identifier(result.request_digest):
+        raise ValueError("result identifier must bind the request digest")
 
 
 __all__ = [
@@ -321,6 +380,7 @@ __all__ = [
     "ApprovalDecision",
     "ApprovalRecord",
     "BenchmarkOutcome",
+    "FiniteFloat",
     "GateConfiguration",
     "GateDecision",
     "GateFinding",
