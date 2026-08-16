@@ -12,7 +12,11 @@ from glio_proteogen.contracts.m24_02 import (
     GenerateBiomarkerPanelSyntheticTruthRequest,
 )
 
-from .engine import M2402SyntheticTruthGenerator, preflight_m2402_authorization
+from .engine import (
+    M2402AuthorizationError,
+    M2402SyntheticTruthGenerator,
+    preflight_m2402_authorization,
+)
 
 _REQUEST_ADAPTER: Final = TypeAdapter(GenerateBiomarkerPanelSyntheticTruthRequest)
 
@@ -26,10 +30,15 @@ class M2402Service:
         self._engine = engine or M2402SyntheticTruthGenerator()
 
     def validate_request(self, request: object) -> GenerateBiomarkerPanelSyntheticTruthRequest:
-        if isinstance(request, bytes | bytearray | str):
-            typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
-        else:
-            typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        try:
+            if isinstance(request, bytes | bytearray | str):
+                typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
+            else:
+                typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        except Exception as error:
+            if isinstance(error, (ValueError, TypeError)):
+                raise
+            raise M2402AuthorizationError from None
         preflight_m2402_authorization(typed)
         return typed
 
