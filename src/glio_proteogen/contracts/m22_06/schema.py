@@ -8,6 +8,9 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m22_06.v1 import (
     M2206_CONTRACT_VERSION,
+    M2206_DOSSIER_SHA256,
+    M2206_DOSSIER_SLICE,
+    M2206_EVIDENCE_CLAIM,
     M2206_GATE,
     M2206_M2205_INPUT_MEDIA_TYPE,
     M2206_MAX_CANONICAL_REQUEST_BYTES,
@@ -27,9 +30,7 @@ from glio_proteogen.contracts.m22_06.v1 import (
     SafeFailureReport,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M22-06:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M22-06:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2206_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -62,6 +63,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["x-glio-contract"] = {
         "moduleId": M2206_MODULE_ID,
         "contractVersion": CONTRACT_VERSION,
+        "dossierSha256": M2206_DOSSIER_SHA256,
+        "dossierSlice": M2206_DOSSIER_SLICE,
         "owner": M2206_OWNER,
         "safetyClass": M2206_SAFETY_CLASS,
         "gate": M2206_GATE,
@@ -95,6 +98,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "oodScoreRequired": True,
         "safeFailureReportRequired": True,
         "unsupportedAbstentionRequired": True,
+        "evidenceClaim": M2206_EVIDENCE_CLAIM,
         "uncertaintyRequired": True,
         "explicitAbstentionRequired": True,
     }

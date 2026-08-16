@@ -1,5 +1,6 @@
 """Provisional M22-06 robustness and OOD challenge contract exports."""
 
+from glio_proteogen.contracts.m22_06.canonical import result_identifier
 from glio_proteogen.contracts.m22_06.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -9,6 +10,9 @@ from glio_proteogen.contracts.m22_06.schema import (
 )
 from glio_proteogen.contracts.m22_06.v1 import (
     M2206_CONTRACT_VERSION,
+    M2206_DOSSIER_SHA256,
+    M2206_DOSSIER_SLICE,
+    M2206_EVIDENCE_CLAIM,
     M2206_GATE,
     M2206_M2205_INPUT_MEDIA_TYPE,
     M2206_MAX_CANONICAL_REQUEST_BYTES,
@@ -44,6 +48,9 @@ from glio_proteogen.contracts.m22_06.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2206_CONTRACT_VERSION",
+    "M2206_DOSSIER_SHA256",
+    "M2206_DOSSIER_SLICE",
+    "M2206_EVIDENCE_CLAIM",
     "M2206_GATE",
     "M2206_M2205_INPUT_MEDIA_TYPE",
     "M2206_MAX_CANONICAL_REQUEST_BYTES",
@@ -78,4 +85,5 @@ __all__ = [
     "SafeFailureReport",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_identifier",
 ]

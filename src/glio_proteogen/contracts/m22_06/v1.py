@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m22_06.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -47,6 +48,10 @@ M2206_OWNER: Final = "Bioinformatics"
 M2206_SAFETY_CLASS: Final = "S3"
 M2206_GATE: Final = "G3"
 M2206_PROVISIONAL_ABI: Final = True
+M2206_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2206_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7816-7856"
 M2206_MAX_SCENARIOS: Final = 256
 M2206_MAX_OBSERVATIONS: Final = 512
 M2206_MAX_EVIDENCE: Final = 64
@@ -54,6 +59,10 @@ M2206_MAX_FINDINGS: Final = 64
 M2206_MAX_CHALLENGE_KINDS: Final = 8
 M2206_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2206_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2206_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M22-06 robustness, shift, OOD, and safe-failure evidence; "
+    "issuer authority is not authenticated."
+)
 
 
 class ChallengeKind(StrEnum):
@@ -124,9 +133,7 @@ class RobustnessObservation(FrozenModel):
     ood_score: float = Field(ge=0.0, le=1.0)
     ood_band: OODBand
     disposition: ChallengeDisposition
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2206_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2206_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def envelope_bounds_are_ordered(self) -> RobustnessObservation:
@@ -162,16 +169,12 @@ class RobustnessConfiguration(FrozenModel):
 class RobustnessSurface(FrozenModel):
     surface_id: Identifier
     version: SemanticVersion
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2206_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2206_MAX_SCENARIOS)
     observations: tuple[RobustnessObservation, ...] = Field(
         min_length=1, max_length=M2206_MAX_OBSERVATIONS
     )
     configuration: RobustnessConfiguration
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2206_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2206_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def surface_is_closed(self) -> RobustnessSurface:
@@ -184,6 +187,13 @@ class RobustnessSurface(FrozenModel):
         allowed = set(scenario_ids)
         if any(item.scenario_id not in allowed for item in self.observations):
             raise ValueError("observation references an unknown scenario")
+        required = set(self.configuration.required_challenge_kinds)
+        present = {item.kind for item in self.scenarios}
+        if present != required:
+            raise ValueError("surface must include every configured challenge kind exactly")
+        observed = {item.scenario_id for item in self.observations}
+        if observed != allowed:
+            raise ValueError("surface must include one or more observations for every scenario")
         return self
 
 
@@ -194,9 +204,7 @@ class SafeFailureReport(FrozenModel):
     action: NonEmptyStr
     abstained: Literal[True] = True
     recovery_note: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2206_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2206_MAX_EVIDENCE)
 
 
 class ChallengeFinding(FrozenModel):
@@ -214,9 +222,7 @@ class ChallengeProteinRnaDiscordanceRobustnessRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     upstream_result: ArtifactReference
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2206_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2206_MAX_SCENARIOS)
     configuration: RobustnessConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2206_MAX_EVIDENCE
@@ -225,11 +231,27 @@ class ChallengeProteinRnaDiscordanceRobustnessRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> ChallengeProteinRnaDiscordanceRobustnessRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         if self.upstream_result.media_type != M2206_M2205_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M22-05 discordance result")
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must include M22-05 evidence")
         return self
 
 
@@ -262,6 +284,8 @@ class ProteinRnaDiscordanceRobustnessChallengeResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceRobustnessChallengeResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is RobustnessStatus.EVALUATED:
             if (
                 self.robustness_surface is None
@@ -284,6 +308,9 @@ class ProteinRnaDiscordanceRobustnessChallengeResult(FrozenModel):
 
 __all__ = [
     "M2206_CONTRACT_VERSION",
+    "M2206_DOSSIER_SHA256",
+    "M2206_DOSSIER_SLICE",
+    "M2206_EVIDENCE_CLAIM",
     "M2206_GATE",
     "M2206_M2205_INPUT_MEDIA_TYPE",
     "M2206_MAX_CANONICAL_REQUEST_BYTES",
