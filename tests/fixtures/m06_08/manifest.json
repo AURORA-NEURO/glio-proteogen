@@ -1,0 +1,10 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M06-08",
+  "contract_version": "0.1.0-provisional",
+  "abi_status": "dossier-behavioral-brief-only",
+  "source": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+  "source_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": "2144-2184",
+  "scenario_count": 7,
+  "prohibited_payloads": ["kinase_state", "all_omics_fusion", "treatment_recommendation"]
+}

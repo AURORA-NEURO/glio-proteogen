@@ -124,8 +124,8 @@ class SensitivityEnvelope(FrozenModel):
 
     status: SensitivityEnvelopeStatus
     nominal_coverage: float = Field(ge=0.0, le=1.0)
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0706_MAX_EVIDENCE)
@@ -140,6 +140,8 @@ class SensitivityEnvelope(FrozenModel):
                 raise ValueError("evaluated sensitivity requires bounds and observed coverage")
             if lower > upper:
                 raise ValueError("sensitivity bounds are not ordered")
+            if lower < 0.0 or upper > 1.0:
+                raise ValueError("sensitivity bounds must be probabilities in [0, 1]")
             if not M0706_MIN_COVERAGE <= observed <= M0706_MAX_COVERAGE:
                 raise ValueError(
                     "observed coverage must satisfy the provisional 85-95 percent gate"
@@ -189,10 +191,17 @@ class DecomposeCopyNumberDosageUncertaintyRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> DecomposeCopyNumberDosageUncertaintyRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request_id must match request_id")
         if self.constraint_result.media_type != M0706_CONSTRAINT_MEDIA_TYPE:
             raise ValueError("uncertainty request must bind the provisional M07-05 result")
         if self.policy.nominal_coverage != M0706_NOMINAL_COVERAGE:
             raise ValueError("provisional sensitivity gate requires nominal 90 percent coverage")
+        artifact_digests = {artifact.digest for artifact in self.source_artifacts}
+        if len(artifact_digests) != len(self.source_artifacts):
+            raise ValueError("source_artifacts must not repeat an evidence digest")
+        if self.constraint_result.digest not in artifact_digests:
+            raise ValueError("source_artifacts must include the bound constraint result")
         return self
 
 
@@ -223,6 +232,8 @@ class CopyNumberDosageUncertaintyDecompositionResult(FrozenModel):
 
     @model_validator(mode="after")
     def result_is_closed(self) -> CopyNumberDosageUncertaintyDecompositionResult:
+        if self.request.context.request_id != self.request.request_id:
+            raise ValueError("result request context is not bound to request")
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.status is UncertaintyDecompositionStatus.DECOMPOSED:
@@ -241,6 +252,11 @@ class CopyNumberDosageUncertaintyDecompositionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no decomposition and explicit safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(set(finding_ids)) != len(finding_ids):
+            raise ValueError("result findings must have unique identifiers")
+        if self.status is UncertaintyDecompositionStatus.ABSTAINED and not self.findings:
+            raise ValueError("abstained result requires a machine-readable finding")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
