@@ -1,0 +1,40 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-08",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "exact_lines": "3584-3627"
+  },
+  "responsibility": "Versioned evidence bundle and explanation publisher beneath Pathway/proteotype factors.",
+  "parent_target": "protein_rna_discordance",
+  "owner": "Scientific engineering",
+  "safety_class": "S2",
+  "gate": "G3",
+  "abi": {
+    "version": "0.1.0-provisional",
+    "status": "dossier-behavioral-brief-only",
+    "owner_confirmation_pending": true
+  },
+  "controls": [
+    "approved_configuration",
+    "identity_lineage",
+    "provenance",
+    "consent",
+    "quality",
+    "support",
+    "intended_use"
+  ],
+  "requirements": {
+    "sources": "Mass spectrometry, genome/transcriptome, PTM annotations, and upstream protein-RNA artifact.",
+    "publication": "Sources, assumptions, counter-evidence, uncertainty, support, provenance, limitations, and reconstruction evidence.",
+    "abstention": "Quarantine unresolved controls or incomplete closure; never emit a bundle or explanation.",
+    "uncertainty": "Expose seven dimensions and explicit not-estimable state before owner-locked calibration.",
+    "human_review": "Required for critical discrepancy, OOD state, support override, claim promotion, release exception, or unresolved conflict."
+  },
+  "verification": {
+    "contract": "tests/contract/test_m10_08_contract.py",
+    "runtime": "tests/modules/c10_pathway_proteotype_factors/test_m10_08_runtime.py",
+    "adversarial": "tests/modules/c10_pathway_proteotype_factors/test_m10_08_adversarial.py",
+    "interfaces": "tests/integration/test_m1008_interfaces.py and test_m1008_adversarial.py",
+    "evaluator": "tests/evals/test_m1008_eval.py"
+  }
+}

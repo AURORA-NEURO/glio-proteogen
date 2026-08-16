@@ -3,7 +3,7 @@
 The M14-04 dossier requires a mechanism posterior or state estimate with
 explicit assumptions, alternatives, counter-evidence, typed uncertainty, and
 safe abstention.  The public ABI and handoff details are not frozen; all
-symbols are provisional pending Clinical science owner confirmation.
+symbols are provisional pending Scientific engineering owner confirmation.
 """
 
 from __future__ import annotations
@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m14_04.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -37,8 +41,8 @@ from glio_proteogen.kernel.models import (
 M1404_MODULE_ID: Final = "GLIO-PROTEOGEN-M14-04"
 M1404_OPERATION: Final = "infer_protein_subtype_mechanism"
 M1404_CONTRACT_VERSION: Final = "0.1.0-provisional"
-M1404_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m14-04+json"
-M1404_M1401_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m14-01+json"
+M1404_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m11-04+json"
+M1404_M1401_RESULT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m11-01+json"
 M1404_PARENT: Final = "protein_subtype"
 M1404_OWNER: Final = "Scientific engineering"
 M1404_SAFETY_CLASS: Final = "S2"
@@ -176,6 +180,12 @@ class ProteinSubtypeMechanismInferenceResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeMechanismInferenceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        estimate_ids = tuple(item.estimate_id for item in self.estimates)
+        if len(estimate_ids) != len(set(estimate_ids)):
+            raise ValueError("estimate ids must be unique")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
         if self.status is MechanismInferenceStatus.INFERRED:
             if (
                 not self.estimates
@@ -190,9 +200,119 @@ class ProteinSubtypeMechanismInferenceResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no estimates and safe status")
+        if self.status is MechanismInferenceStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Construct all seven uncertainty dimensions without hiding abstention."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Closed mechanism evidence and calibration references are present; population "
+            "coverage is not inferred from a single request."
+            if supported
+            else "Mechanism evidence, quality, or upstream support was not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Assumptions, alternatives, counter-evidence, and sensitivity are retained.",
+            "Unsupported or missing evidence is never converted into a negative mechanism.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: InferProteinSubtypeMechanismRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller-declared controls into auditable provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1404_MODULE_ID,
+        module_version=M1404_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.hypothesis_registry_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -222,4 +342,6 @@ __all__ = [
     "MechanismInferenceConfiguration",
     "MechanismInferenceStatus",
     "ProteinSubtypeMechanismInferenceResult",
+    "expected_provenance",
+    "expected_uncertainty",
 ]
