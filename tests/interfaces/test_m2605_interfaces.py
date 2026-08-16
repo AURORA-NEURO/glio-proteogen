@@ -48,6 +48,7 @@ def test_api_schema_validate_emit_and_verify_parity() -> None:
     verified = client.post("/v1/modules/M26-05/verify", json=emitted.json())
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+    assert client.get("/v1/modules/M26-05/schemas/request").status_code == HTTPStatus.OK
 
 
 def test_api_unknown_schema_duplicate_json_and_bad_replay_are_sanitized() -> None:
@@ -63,10 +64,12 @@ def test_api_unknown_schema_duplicate_json_and_bad_replay_are_sanitized() -> Non
         content=b"not-json",
         headers={"content-type": "application/json"},
     )
+    nonobject = client.post("/v1/modules/M26-05/verify", json=["bad"])
     assert unknown.status_code == HTTPStatus.NOT_FOUND
     assert duplicate.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "secret" not in duplicate.text
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_api_authentication_failure_is_forbidden() -> None:
@@ -86,7 +89,13 @@ def test_api_authentication_failure_is_forbidden() -> None:
     response = TestClient(api.create_m2605_app()).post(
         "/v1/modules/M26-05/emit", content=denied.model_dump_json()
     )
+    validation = TestClient(api.create_m2605_app()).post(
+        "/v1/modules/M26-05/validate", content=denied.model_dump_json()
+    )
+    malformed = TestClient(api.create_m2605_app()).post("/v1/modules/M26-05/emit", json={})
     assert response.status_code == HTTPStatus.FORBIDDEN
+    assert validation.status_code == HTTPStatus.FORBIDDEN
+    assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "quality" not in response.text
 
 
@@ -97,6 +106,7 @@ def test_plugin_parse_once_and_canonical_result_parity() -> None:
     result = plugin.run(token)
     replay = plugin.replay(result)
     assert replay == result
+    assert plugin.validate_request(request).request_id == request.request_id
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
     with pytest.raises(TypeError):
@@ -111,11 +121,15 @@ def test_cli_schema_emit_verify_and_no_overwrite(tmp_path: Path) -> None:
     runner = CliRunner()
     schema_path = tmp_path / "schema.json"
     exported = runner.invoke(cli.app, ["export-schema", "request", "--output", str(schema_path)])
+    validated_stdout = runner.invoke(cli.app, ["validate", str(request_path)])
     emitted = runner.invoke(cli.app, ["emit", str(request_path), "--output", str(result_path)])
+    emitted_stdout = runner.invoke(cli.app, ["emit", str(request_path)])
     verified = runner.invoke(cli.app, ["verify", str(result_path)])
     overwrite = runner.invoke(cli.app, ["export-schema", "request", "--output", str(schema_path)])
     assert exported.exit_code == 0
+    assert validated_stdout.exit_code == 0
     assert emitted.exit_code == 0
+    assert emitted_stdout.exit_code == 0
     assert verified.exit_code == 0
     assert json.loads(verified.stdout)["verified"] is True
     assert overwrite.exit_code != 0

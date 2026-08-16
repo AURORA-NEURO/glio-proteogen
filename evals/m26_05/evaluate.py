@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from pathlib import Path
 from typing import Any
 
 from glio_proteogen.contracts.m26_05 import TelemetryMetricKind
@@ -15,11 +18,28 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry i
 
 from .fixture import make_request
 
+SCENARIO_PATH = Path(__file__).parents[2] / "tests" / "fixtures" / "m26_05" / "scenarios.json"
+AUTHORITY_SHA256 = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+AUTHORITY_SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:9212-9252"
+EXPECTED_CASE_IDS = (
+    "complete_emission",
+    "canonical_replay",
+    "deterministic_digest",
+    "missing_signal_abstention",
+    "failed_control_rejection",
+    "drift_review_alert",
+    "tamper_rejection",
+)
+
 
 def evaluate() -> dict[str, Any]:
     """Run deterministic positive, negative, and adversarial telemetry scenarios."""
 
     service = M2605ObservabilityService()
+    fixture = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
+    case_ids = tuple(item["case_id"] for item in fixture["cases"])
+    if case_ids != EXPECTED_CASE_IDS:
+        raise ValueError("M26-05 fixture case IDs are not locked")  # noqa: TRY003
     request = make_request()
     result = service.execute(request)
     scenarios: list[dict[str, object]] = []
@@ -102,8 +122,12 @@ def evaluate() -> dict[str, Any]:
     return {
         "moduleId": "GLIO-PROTEOGEN-M26-05",
         "contractVersion": "0.1.0-provisional",
+        "authoritySha256": AUTHORITY_SHA256,
+        "authoritySlice": AUTHORITY_SLICE,
         "fixtureDigest": canonical_request_digest(request),
         "scenarioCount": len(scenarios),
+        "fixtureFileDigest": "sha256:" + hashlib.sha256(SCENARIO_PATH.read_bytes()).hexdigest(),
+        "caseIds": list(case_ids),
         "passed": passed,
         "total": len(scenarios),
         "allPassed": passed == len(scenarios),
