@@ -175,6 +175,8 @@ class GenerateComplexActivitySyntheticTruthRequest(FrozenModel):
     def request_is_bound(self) -> GenerateComplexActivitySyntheticTruthRequest:
         if self.upstream_result.media_type != M2102_M2101_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-01 curator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
         source_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
         if len(source_keys) != len(set(source_keys)):
             raise ValueError("request source artifacts must be unique by id and digest")
