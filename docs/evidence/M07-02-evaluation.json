@@ -1,0 +1,12 @@
+{
+  "constructed_status": "constructed",
+  "contract_version": "0.1.0-provisional",
+  "deterministic": true,
+  "duplicate_source_abstained_status": "abstained",
+  "feature_count": 2,
+  "leakage_abstained_status": "abstained",
+  "lineage_complete": true,
+  "module_id": "GLIO-PROTEOGEN-M07-02",
+  "passed": true,
+  "replay_verified": true
+}

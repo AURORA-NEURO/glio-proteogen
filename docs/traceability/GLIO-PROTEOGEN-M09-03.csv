@@ -1,0 +1,13 @@
+requirement,evidence,verification,owner,status
+responsibility:mature-baseline-estimator,docs/modules/GLIO-PROTEOGEN-M09-03.md,transparent baseline emits only complex-activity estimate,Bioinformatics,implemented-provisional
+boundary:no-kinase-all-omics-treatment-subtype,engine.py plus module docs,prohibited ownership claims rejected and documented,Bioinformatics,implemented
+inputs:locked-preprocessing-tuning-uncertainty,contract and manifest,distinct content-addressed references and evidence are required,Bioinformatics,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,Bioinformatics,verified-local
+support:upstream-quality-and-domain,engine plus evaluator,missing incomplete unsupported OOD and not-evaluable markers abstain,Bioinformatics,implemented
+uncertainty:seven-dimensions,engine and result contract,all dimensions are explicit estimated or not-estimable,Bioinformatics,implemented-provisional
+diagnostics:locked-and-actionable,result contract and tests,duplicate and failed diagnostic closure is rejected,Bioinformatics,implemented
+replay:canonical-content-and-digest,canonical.py engine verifier replay tests,tamper and noncanonical bytes rejected,Bioinformatics,implemented
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and schema export,Bioinformatics,implemented
+acceptance:evaluator-and-benchmark,evals/m09_03/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,Bioinformatics,verified-local
+evidence:traceability-manifest-review,docs/evidence/M09-03.md and manifest,review and authenticated authority remain external,Bioinformatics,provisional
+release:package-import,release-evidence/m09_03/release.json,package gates recorded with environment truth,release engineering,pending-final-build

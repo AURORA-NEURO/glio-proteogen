@@ -1,0 +1,14 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "feature_count": 1,
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1284480.0,
+  "median_ns": 1270400.0,
+  "module_id": "GLIO-PROTEOGEN-M06-02",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1510500,
+  "passed": true,
+  "timed_boundary": "M0602RepresentationEngine.construct",
+  "workload": "single locked protein representation request"
+}
