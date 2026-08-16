@@ -1,1 +1,1 @@
-"""Release verifier tests."""
+"""Tool verification test package."""
