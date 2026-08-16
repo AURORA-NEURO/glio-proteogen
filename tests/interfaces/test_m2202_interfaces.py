@@ -42,6 +42,7 @@ def test_fastapi_validate_generate_verify_and_sanitized_errors() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert client.get("/v1/modules/M22-02/schemas/unknown").status_code == _HTTP_NOT_FOUND
+    assert client.get("/v1/modules/M22-02/schemas/request").status_code == _HTTP_OK
     malformed = client.post("/v1/modules/M22-02/verify", content=b"[")
     assert malformed.status_code == _HTTP_UNPROCESSABLE
     assert client.post("/v1/modules/M22-02/validate", json=[]).status_code == _HTTP_UNPROCESSABLE
@@ -159,6 +160,7 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
     )
     denied_path = tmp_path / "denied.json"
     denied_path.write_bytes(canonical_json_bytes(denied))
+    monkeypatch.setattr(cli_module, "_SERVICE", M2202Service())
     assert runner.invoke(cli_module.app, ["validate", str(denied_path)]).exit_code != 0
     assert runner.invoke(cli_module.app, ["generate", str(denied_path)]).exit_code != 0
 
