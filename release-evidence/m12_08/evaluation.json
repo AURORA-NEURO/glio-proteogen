@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-08",
+  "contract_version": "0.1.0-provisional",
+  "fixture_path": "tests/fixtures/m12_08/scenarios.json",
+  "fixture_sha256": "sha256:f28607d12df051e209634727812000120b3f6c1e2f9c2a1609a457ee7dd3d7f7",
+  "case_ids": [
+    "bayesian_graph_dossier",
+    "network_factor_dossier",
+    "curated_rule_dossier",
+    "orthogonal_consensus_dossier",
+    "unsupported_architecture_abstention",
+    "unsafe_upstream_abstention",
+    "replay_and_tamper",
+    "authorization_gate"
+  ],
+  "declared_cases": 8,
+  "executed_cases": 8,
+  "passed_cases": 8,
+  "passed": true
+}

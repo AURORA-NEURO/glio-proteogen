@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-06",
+  "fixture_version": "1.0.0",
+  "scenarios": [
+    {"case_id": "supported_in_silico", "expected": "simulated"},
+    {"case_id": "parameter_sweep", "expected": "simulated"},
+    {"case_id": "alternative_prior", "expected": "simulated"},
+    {"case_id": "assay_perturbation", "expected": "simulated"},
+    {"case_id": "mechanism_stress", "expected": "simulated"},
+    {"case_id": "unsupported_ood", "expected": "abstained"},
+    {"case_id": "prohibited_ownership", "expected": "abstained"},
+    {"case_id": "missing_negative_control", "expected": "abstained"},
+    {"case_id": "denied_control", "expected": "authorization_rejected"}
+  ]
+}

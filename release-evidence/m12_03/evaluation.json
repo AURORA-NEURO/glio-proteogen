@@ -1,0 +1,29 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-03",
+  "contract_version": "0.1.0-provisional",
+  "fixture_path": "tests/fixtures/m12_03/scenarios.json",
+  "fixture_sha256": "sha256:ba96ee0ec3364bd120445b843e35e9bba1032c60a2d8755f77c9156d5fbbf757",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "passed": true,
+  "coverage": {
+    "statements": 565,
+    "branches": 118,
+    "branch_percent": 99.0,
+    "fail_under": 95.0
+  },
+  "controls": [
+    "approved_configuration",
+    "identity_lineage",
+    "provenance",
+    "consent",
+    "quality",
+    "support",
+    "intended_use"
+  ],
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_lines": "4084-4127"
+  }
+}

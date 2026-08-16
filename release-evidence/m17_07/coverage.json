@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-07",
+  "command": "uv run coverage run --branch -m pytest -q -o addopts='' tests/contract/test_m17_07_contract.py tests/contract/test_m17_07_deep.py",
+  "scoped_statements": 514,
+  "scoped_missed_statements": 6,
+  "scoped_branches": 96,
+  "scoped_partial_branches": 4,
+  "branch_percent": 98,
+  "fail_under": 95,
+  "passed": true
+}

@@ -3,6 +3,8 @@
 import pytest
 
 from glio_proteogen.contracts.m15_08 import (
+    M1508_DOSSIER_SHA256,
+    M1508_DOSSIER_SLICE,
     M1508_OUTPUT_MEDIA_TYPE,
     M1508_PROVISIONAL_ABI,
     ClaimCeiling,
@@ -35,6 +37,15 @@ def test_provisional_schemas_require_reconstructable_dossier_controls() -> None:
     )
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1508_OUTPUT_MEDIA_TYPE
     assert M1508_PROVISIONAL_ABI is True
+    assert M1508_DOSSIER_SHA256 == (
+        "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+    )
+    assert M1508_DOSSIER_SLICE.endswith(":5384-5424")
+    assert all(
+        schema["x-glio-contract"]["dossierSha256"] == M1508_DOSSIER_SHA256
+        and schema["x-glio-contract"]["dossierSlice"] == M1508_DOSSIER_SLICE
+        for schema in schemas.values()
+    )
 
 
 def test_chain_link_and_claim_ceiling_require_explicit_evidence() -> None:
