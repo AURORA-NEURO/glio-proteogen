@@ -8,6 +8,7 @@ becomes a negative finding.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import Final, Literal
 
@@ -57,6 +58,14 @@ M1902_EVIDENCE_CLAIM: Final = (
 )
 
 
+def _unique(values: Iterable[str], label: str) -> None:
+    """Reject duplicate identifiers/digests instead of silently collapsing them."""
+
+    material = tuple(values)
+    if len(material) != len(set(material)):
+        raise ValueError(f"{label} must be unique")
+
+
 class AlignmentDimension(StrEnum):
     SAMPLE = "sample"
     TIME = "time"
@@ -91,6 +100,12 @@ class AlignmentFindingCode(StrEnum):
     REFERENCE_MISMATCH = "reference_mismatch"
     DISCREPANCY_UNRESOLVED = "discrepancy_unresolved"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
+    QUALITY_FAILURE = "quality_failure"
+    NOVEL_OR_OOD = "novel_or_ood"
+    SUPPORT_OVERRIDE_REVIEW = "support_override_review"
+    CLAIM_PROMOTION_REVIEW = "claim_promotion_review"
+    RELEASE_EXCEPTION_REVIEW = "release_exception_review"
+    BIOLOGICAL_CONFLICT_REVIEW = "biological_conflict_review"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
@@ -108,8 +123,16 @@ class AlignmentObservation(FrozenModel):
 
     @model_validator(mode="after")
     def source_ids_are_unique(self) -> AlignmentObservation:
-        if len(self.source_ids) != len(set(self.source_ids)):
-            raise ValueError("alignment observation source ids must be unique")
+        _unique(self.source_ids, "alignment observation source ids")
+        _unique((item.reference.digest for item in self.evidence), "alignment observation evidence")
+        if self.status is AlignmentObservationStatus.ALIGNED and any(
+            value != self.reference_value for value in self.observed_values
+        ):
+            raise ValueError("aligned observation cannot contain a conflicting observed value")
+        if self.status is AlignmentObservationStatus.CONFLICTED and all(
+            value == self.reference_value for value in self.observed_values
+        ):
+            raise ValueError("conflicted observation must preserve a differing observed value")
         return self
 
 
@@ -121,11 +144,14 @@ class DiscrepancyMapEntry(FrozenModel):
     description: NonEmptyStr
     resolution: NonEmptyStr | None = None
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1902_MAX_EVIDENCE)
+    review_required: bool = False
 
     @model_validator(mode="after")
     def source_ids_are_unique(self) -> DiscrepancyMapEntry:
-        if len(self.source_ids) != len(set(self.source_ids)):
-            raise ValueError("discrepancy source ids must be unique")
+        _unique(self.source_ids, "discrepancy source ids")
+        _unique((item.reference.digest for item in self.evidence), "discrepancy evidence")
+        if self.severity is DiscrepancySeverity.CRITICAL and not self.review_required:
+            raise ValueError("critical discrepancy requires human review")
         return self
 
 
@@ -143,7 +169,42 @@ class AlignmentConfiguration(FrozenModel):
     def all_dimensions_are_required(self) -> AlignmentConfiguration:
         if set(self.required_dimensions) != set(AlignmentDimension):
             raise ValueError("alignment configuration must require all seven dimensions")
+        _unique(self.required_dimensions, "alignment configuration dimensions")
+        evidence_digests = (item.reference.digest for item in self.evidence)
+        _unique(evidence_digests, "alignment configuration evidence")
         return self
+
+
+def _validate_alignment_closure(
+    observations: tuple[AlignmentObservation, ...],
+    discrepancies: tuple[DiscrepancyMapEntry, ...],
+) -> None:
+    """Ensure every dimension and every disagreement has a typed counterpart."""
+
+    dimensions = tuple(item.dimension for item in observations)
+    if set(dimensions) != set(AlignmentDimension) or len(dimensions) != M1902_MAX_DIMENSIONS:
+        raise ValueError("alignment must contain exactly one observation for every dimension")
+    _unique((item.observation_id for item in observations), "alignment observation ids")
+    _unique((item.discrepancy_id for item in discrepancies), "discrepancy ids")
+    by_dimension = {item.dimension: item for item in observations}
+    for observation in observations:
+        matching = tuple(
+            entry
+            for entry in discrepancies
+            if entry.dimension is observation.dimension
+            and set(entry.source_ids) == set(observation.source_ids)
+        )
+        if observation.status is AlignmentObservationStatus.ALIGNED and matching:
+            raise ValueError("aligned observation cannot have a discrepancy entry")
+        if observation.status is not AlignmentObservationStatus.ALIGNED and not matching:
+            raise ValueError("every non-aligned observation requires a matching discrepancy")
+    for entry in discrepancies:
+        bound_observation = by_dimension.get(entry.dimension)
+        if (
+            bound_observation is None
+            or bound_observation.status is AlignmentObservationStatus.ALIGNED
+        ):
+            raise ValueError("discrepancy must bind a non-aligned observation")
 
 
 class AlignedEvidenceBundle(FrozenModel):
@@ -163,12 +224,16 @@ class AlignedEvidenceBundle(FrozenModel):
 
     @model_validator(mode="after")
     def bundle_is_closed(self) -> AlignedEvidenceBundle:
-        observation_ids = tuple(item.observation_id for item in self.observations)
-        discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancies)
-        if len(observation_ids) != len(set(observation_ids)):
-            raise ValueError("alignment observation ids must be unique")
-        if len(discrepancy_ids) != len(set(discrepancy_ids)):
-            raise ValueError("discrepancy ids must be unique")
+        _unique(
+            (artifact.artifact_id for artifact in self.source_artifacts),
+            "source artifact ids",
+        )
+        _unique(
+            (artifact.digest for artifact in self.source_artifacts),
+            "source artifact digests",
+        )
+        _unique((item.reference.digest for item in self.evidence), "bundle evidence")
+        _validate_alignment_closure(self.observations, self.discrepancies)
         allowed = {artifact.artifact_id for artifact in self.source_artifacts}
         if any(not set(item.source_ids) <= allowed for item in self.observations):
             raise ValueError("observation references an unknown source artifact")
@@ -206,11 +271,26 @@ class AlignProteotypeSourcesRequest(FrozenModel):
     def request_is_bound(self) -> AlignProteotypeSourcesRequest:
         if self.upstream_result.media_type != M1902_M1901_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M19-01 resolver result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        _unique(
+            (artifact.artifact_id for artifact in self.source_artifacts),
+            "request source artifact ids",
+        )
+        _unique(
+            (artifact.digest for artifact in self.source_artifacts),
+            "request source artifact digests",
+        )
+        if self.upstream_result.artifact_id not in {
+            artifact.artifact_id for artifact in self.source_artifacts
+        }:
+            raise ValueError("request source artifacts must include the bound M19-01 result")
         source_ids = {artifact.artifact_id for artifact in self.source_artifacts}
         if any(not set(item.source_ids) <= source_ids for item in self.observations):
             raise ValueError("observation references an unknown source artifact")
         if any(not set(item.source_ids) <= source_ids for item in self.discrepancies):
             raise ValueError("discrepancy references an unknown source artifact")
+        _validate_alignment_closure(self.observations, self.discrepancies)
         return self
 
 
@@ -240,20 +320,56 @@ class ProteotypeAlignmentResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeAlignmentResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if self.provenance.module_id != M1902_MODULE_ID:
+            raise ValueError("result provenance must identify M19-02")
+        _unique((item.finding_id for item in self.findings), "result finding ids")
+        _unique((item.reference.digest for item in self.evidence), "result evidence")
+        if self.aligned_bundle is not None and (
+            self.aligned_bundle.source_artifacts != self.request.source_artifacts
+            or self.aligned_bundle.observations != self.request.observations
+            or self.aligned_bundle.discrepancies != self.request.discrepancies
+            or self.aligned_bundle.configuration != self.request.configuration
+        ):
+            raise ValueError("aligned bundle must bind the exact request alignment material")
         if self.status is AlignmentStatus.ALIGNED:
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("aligned result requires a supported evidence bundle")
+            if any(item.review_required for item in self.aligned_bundle.discrepancies):
+                raise ValueError("aligned result cannot contain a review-required discrepancy")
+        elif self.aligned_bundle is not None or self.abstention_reason is None:
+            raise ValueError("abstained result requires no bundle and an explicit reason")
+        elif self.support_decision.status not in {
+            SupportStatus.LIMITED,
+            SupportStatus.UNSUPPORTED,
+            SupportStatus.REVIEW_REQUIRED,
+        }:
+            raise ValueError("abstained result requires a safe non-supported status")
+        elif not self.findings:
+            raise ValueError("abstained result requires typed findings")
         elif (
-            self.aligned_bundle is not None
-            or self.abstention_reason is None
-            or self.support_decision.status
-            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            any(
+                finding.code
+                in {
+                    AlignmentFindingCode.DISCREPANCY_UNRESOLVED,
+                    AlignmentFindingCode.NOVEL_OR_OOD,
+                    AlignmentFindingCode.SUPPORT_OVERRIDE_REVIEW,
+                    AlignmentFindingCode.CLAIM_PROMOTION_REVIEW,
+                    AlignmentFindingCode.RELEASE_EXCEPTION_REVIEW,
+                    AlignmentFindingCode.BIOLOGICAL_CONFLICT_REVIEW,
+                }
+                for finding in self.findings
+            )
+            and not self.human_review_required
         ):
-            raise ValueError("abstained result requires no bundle and safe status")
+            raise ValueError("critical alignment findings require human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
