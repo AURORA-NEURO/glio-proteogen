@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m19_08.schema import (
+    ContractName as M1908ContractName,
+)
+from glio_proteogen.contracts.m19_08.schema import (
+    contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_08.v1 import (
+    M1908_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteotypeTranslationHealthRequest,
+    ProteotypeTranslationMonitoringResult,
+)
 from glio_proteogen.contracts.m19_06.schema import (
     ContractName as M1906ContractName,
 )
@@ -594,6 +605,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_08_translation_monitoring_service as m1908_monitoring,
+)
 from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
     m19_06_reviewer_adjudication as m1906_adjudication,
 )
@@ -674,6 +688,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1908_REQUEST_ADAPTER: Final = TypeAdapter(MonitorProteotypeTranslationHealthRequest)
 _M1906_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeQueueRequest)
 _M1904_REQUEST_ADAPTER: Final = TypeAdapter(AdaptProteotypeIntendedUseRequest)
 _M1904_RESULT_ADAPTER: Final = TypeAdapter(ProteotypeIntendedUseAdapterResult)
@@ -844,6 +859,19 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
+    return m1908_contract_json_schema(name)
+
+
+def _m1908_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1908_contract_json_schema("request")}},
+        }
+    }
 
 
 def _m1906_contract_schema(name: M1906ContractName) -> dict[str, object]:
@@ -1453,6 +1481,15 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m1908_body(request: Request) -> MonitorProteotypeTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1908_REQUEST_ADAPTER,
+        m1908_monitoring.preflight_m1908_authorization,
+        M1908_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 async def _m1906_body(request: Request) -> AdjudicateProteotypeQueueRequest:
     return await _strict_json_body(
         request,
@@ -1647,6 +1684,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1908_service = m1908_monitoring.M1908Service()
     m1906_service = m1906_adjudication.M1906Service()
     m1904_service = M1904Service()
     m1903_service = M1903Service()
@@ -2198,6 +2236,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.get("/v1/contracts/M19-08/{name}/schema", tags=["contracts"])
+    def m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
+        return _m1908_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-08/translation-health",
+        response_model=ProteotypeTranslationMonitoringResult,
+        tags=["M19-08"],
+        openapi_extra=_m1908_request_body(),
+    )
+    def monitor_m1908_translation_health(
+        request: Annotated[
+            MonitorProteotypeTranslationHealthRequest,
+            Depends(_m1908_body),
+        ],
+    ) -> ProteotypeTranslationMonitoringResult:
+        return m1908_service.execute(request)
 
     @app.get("/v1/contracts/M14-05/{name}/schema", tags=["contracts"])
     def m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
