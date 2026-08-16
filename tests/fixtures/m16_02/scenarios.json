@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-02",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "aligned_reconciled", "expected": "reconciled"},
+    {"case_id": "warning_review_required", "expected": "review_required"},
+    {"case_id": "critical_conflict_review", "expected": "review_required"},
+    {"case_id": "resolved_conflict_reconciled", "expected": "reconciled"},
+    {"case_id": "unsupported_abstention", "expected": "abstained"},
+    {"case_id": "prohibited_boundary_abstention", "expected": "abstained"},
+    {"case_id": "replay_and_tamper", "expected": "verified"},
+    {"case_id": "authorization_gate", "expected": "rejected"},
+    {"case_id": "deterministic_reconstruction", "expected": "equal"},
+    {"case_id": "uncertainty_provenance_complete", "expected": "explicit"}
+  ]
+}

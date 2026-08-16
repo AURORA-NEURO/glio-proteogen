@@ -98,7 +98,7 @@ class UpstreamCandidate(FrozenModel):
     declared_consent: Literal[True]
     declared_support: Literal[True]
     declared_provenance: Literal[True]
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1601_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1601_MAX_EVIDENCE)
 
 
 class CompatibilityIssue(FrozenModel):
@@ -126,6 +126,12 @@ class CompatibilityReport(FrozenModel):
     def accepted_ids_are_unique(self) -> CompatibilityReport:
         if len(set(self.accepted_candidate_ids)) != len(self.accepted_candidate_ids):
             raise ValueError("accepted candidate ids must be unique")
+        if self.status is CompatibilityStatus.ACCEPTED and not self.accepted_candidate_ids:
+            raise ValueError("accepted report requires accepted candidates")
+        if self.status is CompatibilityStatus.ACCEPTED and any(
+            issue.blocking for issue in self.issues
+        ):
+            raise ValueError("accepted report cannot contain blocking issues")
         return self
 
 
@@ -194,9 +200,7 @@ class ResolveProteinRnaDiscordanceUpstreamRequest(FrozenModel):
     contract_version: Literal["0.1.0-provisional"] = M1601_CONTRACT_VERSION
     request_id: Identifier
     context: ExecutionContext
-    candidates: tuple[UpstreamCandidate, ...] = Field(
-        min_length=1, max_length=M1601_MAX_CANDIDATES
-    )
+    candidates: tuple[UpstreamCandidate, ...] = Field(min_length=1, max_length=M1601_MAX_CANDIDATES)
     policy: ResolverPolicy
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1601_MAX_EVIDENCE
@@ -245,6 +249,11 @@ class ProteinRnaDiscordanceUpstreamResolutionResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceUpstreamResolutionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("result evidence must contain evidence-role references")
         if self.status is ResolverStatus.RESOLVED:
             if (
                 self.bundle is None
@@ -261,6 +270,8 @@ class ProteinRnaDiscordanceUpstreamResolutionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no bundle and safe status")
+        if self.status is ResolverStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
