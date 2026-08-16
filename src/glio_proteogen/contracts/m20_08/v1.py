@@ -44,6 +44,10 @@ M2008_OWNER: Final = "Bioinformatics"
 M2008_SAFETY_CLASS: Final = "S2"
 M2008_GATE: Final = "G5"
 M2008_PROVISIONAL_ABI: Final = True
+M2008_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2008_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7184-7224"
 M2008_MAX_SIGNALS: Final = 512
 M2008_MAX_ASSESSMENTS: Final = 128
 M2008_MAX_TRIGGERS: Final = 64
@@ -119,6 +123,18 @@ class HealthSignal(FrozenModel):
             and self.lower_bound > self.upper_bound
         ):
             raise ValueError("health signal bounds must be ordered")
+        if self.status is HealthSignalStatus.WITHIN_ENVELOPE:
+            if self.lower_bound is None or self.upper_bound is None:
+                raise ValueError("within-envelope signal requires both bounds")
+            if not self.lower_bound <= self.observed_value <= self.upper_bound:
+                raise ValueError("within-envelope signal must lie within its bounds")
+        return self
+
+    @model_validator(mode="after")
+    def source_artifacts_are_unique(self) -> HealthSignal:
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("health signal source artifact ids must be unique")
         return self
 
 
@@ -130,18 +146,30 @@ class DriftAssessment(FrozenModel):
     critical: bool = False
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2008_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def signal_ids_are_unique(self) -> DriftAssessment:
+        if len(self.signal_ids) != len(set(self.signal_ids)):
+            raise ValueError("drift assessment signal ids must be unique")
+        return self
+
 
 class RollbackPlan(FrozenModel):
     plan_id: Identifier
-    trigger_conditions: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2008_MAX_TRIGGERS
-    )
+    trigger_conditions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2008_MAX_TRIGGERS)
     target_version: SemanticVersion
     action: NonEmptyStr
     recovery_steps: tuple[NonEmptyStr, ...] = Field(
         min_length=1, max_length=M2008_MAX_RECOVERY_STEPS
     )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2008_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def recovery_plan_is_unique(self) -> RollbackPlan:
+        if len(self.trigger_conditions) != len(set(self.trigger_conditions)):
+            raise ValueError("rollback trigger conditions must be unique")
+        if len(self.recovery_steps) != len(set(self.recovery_steps)):
+            raise ValueError("rollback recovery steps must be unique")
+        return self
 
 
 class TranslationMonitoringConfiguration(FrozenModel):
@@ -151,16 +179,21 @@ class TranslationMonitoringConfiguration(FrozenModel):
     monitoring_window: NonEmptyStr
     critical_threshold: NonEmptyStr
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2008_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2008_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def configuration_is_locked(self) -> TranslationMonitoringConfiguration:
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("monitoring configuration evidence must be unique")
+        return self
 
 
 class TranslationHealthReport(FrozenModel):
     report_id: Identifier
     version: SemanticVersion
     signals: tuple[HealthSignal, ...] = Field(min_length=1, max_length=M2008_MAX_SIGNALS)
-    assessments: tuple[DriftAssessment, ...] = Field(
-        min_length=1, max_length=M2008_MAX_ASSESSMENTS
-    )
+    assessments: tuple[DriftAssessment, ...] = Field(min_length=1, max_length=M2008_MAX_ASSESSMENTS)
     rollback_plan: RollbackPlan
     configuration: TranslationMonitoringConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2008_MAX_EVIDENCE)
@@ -177,6 +210,9 @@ class TranslationHealthReport(FrozenModel):
         for assessment in self.assessments:
             if not set(assessment.signal_ids) <= known:
                 raise ValueError("drift assessment references an unknown signal")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("translation report evidence must be unique")
         return self
 
 
@@ -211,6 +247,10 @@ class MonitorProteinSubtypeTranslationHealthRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("monitor source artifact references must be unique")
+        if self.upstream_result.artifact_id not in {
+            item.artifact_id for item in self.source_artifacts
+        }:
+            raise ValueError("monitor source artifacts must retain the upstream result")
         return self
 
 
@@ -246,6 +286,12 @@ class ProteinSubtypeTranslationHealthResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeTranslationHealthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("translation result evidence must be unique")
         if self.health_status is TranslationHealthStatus.HEALTHY:
             if (
                 self.report is None
@@ -276,6 +322,7 @@ class ProteinSubtypeTranslationHealthResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
@@ -285,6 +332,8 @@ class ProteinSubtypeTranslationHealthResult(FrozenModel):
 
 __all__ = [
     "M2008_CONTRACT_VERSION",
+    "M2008_DOSSIER_SHA256",
+    "M2008_DOSSIER_SLICE",
     "M2008_GATE",
     "M2008_M2007_INPUT_MEDIA_TYPE",
     "M2008_MAX_ASSESSMENTS",
