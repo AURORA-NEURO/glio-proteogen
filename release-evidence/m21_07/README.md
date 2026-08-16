@@ -11,9 +11,9 @@ The branch is stacked on published M21-06 head
 installation, and coverage working directories are removed after evidence
 collection.
 
-The wheel is 2,706,299 bytes with SHA-256
-`02b6de09ab348b92865bc9207bcd9edbef4c0936f414ed871aa09a3df3b1648` and
-1,437 members. The source distribution is 3,208,490 bytes with SHA-256
-`16c7d6498bec6441aeabff3b2740a9955f125c65eaacc0db4421a944b72071b4`.
+The wheel is 2,700,583 bytes with SHA-256
+`29bea142bac71ddf74ec88ca9f30a6b4961c7cc3da44615318f98daeb4026210` and
+1,433 members. The source distribution is 3,206,047 bytes with SHA-256
+`f0ac4d24d7d61df89612f27a9458e3dfd43c5f2afb44ed8ab3a06d66b040b293`.
 The wheel was installed into an isolated target and imported successfully;
 the release verifier passed.
