@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m22_02.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -43,6 +44,10 @@ M2202_OWNER: Final = "Data engineering"
 M2202_SAFETY_CLASS: Final = "S3"
 M2202_GATE: Final = "G1"
 M2202_PROVISIONAL_ABI: Final = True
+M2202_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2202_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7640-7680"
 M2202_MAX_CASES: Final = 512
 M2202_MAX_FEATURES: Final = 256
 M2202_MAX_FIXTURE_LABELS: Final = 16
@@ -50,6 +55,10 @@ M2202_MAX_EVIDENCE: Final = 64
 M2202_MAX_FINDINGS: Final = 64
 M2202_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2202_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2202_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M22-02 analytic and semi-synthetic fixture material; "
+    "issuer authority, scientific truth, and biological validity are not authenticated."
+)
 
 
 class FixtureKind(StrEnum):
@@ -83,9 +92,7 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2202_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2202_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2202_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2202_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
@@ -144,6 +151,14 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("corpus case ids must be unique")
         if set(case_ids) != set(self.manifest.case_ids):
             raise ValueError("manifest must enumerate every corpus case")
+        if self.manifest.version != self.version:
+            raise ValueError("manifest version must equal corpus version")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("corpus source artifacts must be unique")
         return self
 
 
@@ -171,8 +186,24 @@ class GenerateProteinRnaDiscordanceSyntheticTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> GenerateProteinRnaDiscordanceSyntheticTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
         if self.upstream_result.media_type != M2202_M2201_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M22-01 curator result")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must include the M22-01 result")
         return self
 
 
@@ -205,6 +236,12 @@ class ProteinRnaDiscordanceSyntheticTruthResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceSyntheticTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        if self.provenance.module_id != M2202_MODULE_ID:
+            raise ValueError("provenance module id must match M22-02")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None
@@ -213,6 +250,10 @@ class ProteinRnaDiscordanceSyntheticTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
+            if self.manifest != self.corpus.manifest:
+                raise ValueError("result manifest must equal corpus manifest")
+            if self.manifest.configuration != self.request.configuration:
+                raise ValueError("result configuration must equal request configuration")
         elif (
             self.corpus is not None
             or self.manifest is not None
@@ -228,6 +269,9 @@ class ProteinRnaDiscordanceSyntheticTruthResult(FrozenModel):
 
 __all__ = [
     "M2202_CONTRACT_VERSION",
+    "M2202_DOSSIER_SHA256",
+    "M2202_DOSSIER_SLICE",
+    "M2202_EVIDENCE_CLAIM",
     "M2202_GATE",
     "M2202_M2201_INPUT_MEDIA_TYPE",
     "M2202_MAX_CANONICAL_REQUEST_BYTES",

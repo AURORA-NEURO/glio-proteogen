@@ -9,6 +9,8 @@ from glio_proteogen.contracts.m18_06.schema import (
 )
 from glio_proteogen.contracts.m18_06.v1 import (
     M1806_CONTRACT_VERSION,
+    M1806_DOSSIER_SHA256,
+    M1806_DOSSIER_SLICE,
     M1806_EVIDENCE_CLAIM,
     M1806_GATE,
     M1806_M1805_INPUT_MEDIA_TYPE,
@@ -46,6 +48,8 @@ from glio_proteogen.contracts.m18_06.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M1806_CONTRACT_VERSION",
+    "M1806_DOSSIER_SHA256",
+    "M1806_DOSSIER_SLICE",
     "M1806_EVIDENCE_CLAIM",
     "M1806_GATE",
     "M1806_M1805_INPUT_MEDIA_TYPE",

@@ -32,7 +32,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 7280-7320.
+# PROVISIONAL ABI: inferred solely from the permitted M21-02 dossier slice.
 M2102_MODULE_ID: Final = "GLIO-PROTEOGEN-M21-02"
 M2102_OPERATION: Final = "generate_complex_activity_synthetic_truth"
 M2102_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -43,6 +43,10 @@ M2102_OWNER: Final = "Clinical science"
 M2102_SAFETY_CLASS: Final = "S3"
 M2102_GATE: Final = "G1"
 M2102_PROVISIONAL_ABI: Final = True
+M2102_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2102_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7229-7272"
 M2102_MAX_CASES: Final = 512
 M2102_MAX_FEATURES: Final = 256
 M2102_MAX_FIXTURE_LABELS: Final = 16
@@ -83,9 +87,7 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2102_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2102_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2102_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2102_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
@@ -173,6 +175,15 @@ class GenerateComplexActivitySyntheticTruthRequest(FrozenModel):
     def request_is_bound(self) -> GenerateComplexActivitySyntheticTruthRequest:
         if self.upstream_result.media_type != M2102_M2101_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-01 curator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        source_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique by id and digest")
+        if (self.upstream_result.artifact_id, self.upstream_result.digest) not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-01 result")
+        if not set(self.configuration.requested_fixture_kinds):
+            raise ValueError("request must declare at least one fixture kind")
         return self
 
 
@@ -211,6 +222,14 @@ class ComplexActivitySyntheticTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
+            if self.manifest != self.corpus.manifest:
+                raise ValueError("generated result manifest must equal corpus manifest")
+            if self.manifest.configuration != self.request.configuration:
+                raise ValueError("generated manifest configuration must equal the request")
+            if len(self.corpus.cases) != self.request.requested_case_count:
+                raise ValueError("generated corpus must match the requested case count")
+            if {item.case_id for item in self.corpus.cases} != set(self.manifest.case_ids):
+                raise ValueError("generated manifest must enumerate every corpus case")
         elif (
             self.corpus is not None
             or self.manifest is not None

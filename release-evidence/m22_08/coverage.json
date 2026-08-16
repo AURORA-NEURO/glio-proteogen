@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M22-08",
+  "branch_enabled": true,
+  "coverage_percent": 95.0,
+  "statements": 709,
+  "covered_statements": 684,
+  "branches": 108,
+  "covered_branches": 90,
+  "partial_branches": 18,
+  "fail_under_percent": 95.0,
+  "focused_tests": 35,
+  "passed": true,
+  "command": "coverage run --branch --source=src/glio_proteogen/contracts/m22_08,src/glio_proteogen/modules/c21_reference_material/m22_08_evidence_gate_release_adjudicator,evals/m22_08 -m pytest --no-cov focused-suite"
+}

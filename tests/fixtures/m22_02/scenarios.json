@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M22-02",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7640-7680",
+  "scenarios": [
+    "all_fixture_kinds_generated",
+    "deterministic_repeat",
+    "replay_verification",
+    "tamper_rejected",
+    "authorization_gate",
+    "upstream_media_boundary",
+    "source_closure",
+    "strict_json_parity"
+  ]
+}

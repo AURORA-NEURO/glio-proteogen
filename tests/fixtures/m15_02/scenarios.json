@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-02",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:5120-5160",
+  "cases": [
+    {"id": "supported-observed-declaration", "kind": "supported", "expected": "stratified"},
+    {"id": "inferred-value-abstains", "kind": "inferred", "expected": "abstained"},
+    {"id": "prohibited-kinase-proxy", "kind": "prohibited_proxy", "expected": "abstained"},
+    {"id": "withheld-consent", "kind": "denied_control", "expected": "authorization_error"},
+    {"id": "wrong-upstream-media", "kind": "wrong_upstream_media", "expected": "validation_error"},
+    {"id": "unknown-field", "kind": "unknown_field", "expected": "validation_error"},
+    {"id": "tampered-result", "kind": "tampered_result", "expected": "replay_error"},
+    {"id": "duplicate-attribute", "kind": "duplicate_attribute", "expected": "validation_error"}
+  ]
+}

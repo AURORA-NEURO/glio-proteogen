@@ -8,6 +8,9 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m19_05.v1 import (
     M1905_CONTRACT_VERSION,
+    M1905_DOSSIER_SHA256,
+    M1905_DOSSIER_SLICE,
+    M1905_EVIDENCE_CLAIM,
     M1905_GATE,
     M1905_M1904_RESULT_MEDIA_TYPE,
     M1905_MAX_CANONICAL_REQUEST_BYTES,
@@ -24,12 +27,11 @@ from glio_proteogen.contracts.m19_05.v1 import (
     PresentProteotypeHumanReviewWorkspaceRequest,
     ProteotypeHumanReviewWorkspaceResult,
     ReviewItem,
+    ViewKind,
     WorkflowFinding,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-05:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-05:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1905_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -62,6 +64,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["x-glio-contract"] = {
         "moduleId": M1905_MODULE_ID,
         "contractVersion": CONTRACT_VERSION,
+        "dossierSha256": M1905_DOSSIER_SHA256,
+        "dossierSlice": M1905_DOSSIER_SLICE,
         "owner": M1905_OWNER,
         "safetyClass": M1905_SAFETY_CLASS,
         "gate": M1905_GATE,
@@ -91,6 +95,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "discrepancyReviewRequired": True,
         "provenanceRequired": True,
         "safeDefaultOrderingRequired": True,
+        "taskSpecificViews": [kind.value for kind in ViewKind],
+        "evidenceClaim": M1905_EVIDENCE_CLAIM,
         "automationBiasGuardRequired": True,
         "explicitAbstentionRequired": True,
     }

@@ -1,0 +1,2 @@
+module_id,authority,owner,safety,gate,upstream,downstream,operation,output_media_type,provisional_abi,prohibited_outputs
+GLIO-PROTEOGEN-M26-02,"source-manifest.yaml:9011-9054; sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",Bioinformatics,S3,G0,GLIO-PROTEOGEN-M26-01,GLIO-PROTEOGEN-M26-04,build_protein_subtype_lineage_graph,application/vnd.glio-proteogen.m26-02+json,true,"protein subtype inference; proteotype inference; kinase activity; generic all-omics fusion; treatment recommendation; identity inference; consent inference"

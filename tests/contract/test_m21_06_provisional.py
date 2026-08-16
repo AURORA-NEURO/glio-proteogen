@@ -3,6 +3,9 @@
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m21_06 import (
+    M2106_DOSSIER_SHA256,
+    M2106_DOSSIER_SLICE,
+    M2106_EVIDENCE_CLAIM,
     M2106_M2105_INPUT_MEDIA_TYPE,
     M2106_OUTPUT_MEDIA_TYPE,
     M2106_PROVISIONAL_ABI,
@@ -33,12 +36,16 @@ def test_provisional_schemas_require_robustness_and_safe_failure_controls() -> N
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
         metadata = schema["x-glio-contract"]
+        assert metadata["dossierSha256"] == M2106_DOSSIER_SHA256
+        assert metadata["dossierSlice"] == M2106_DOSSIER_SLICE
+        assert metadata["evidenceClaim"] == M2106_EVIDENCE_CLAIM
         assert metadata["provisionalAbi"] is True
         assert metadata["robustnessSurfaceRequired"] is True
         assert metadata["oodScoreRequired"] is True
         assert metadata["safeFailureReportRequired"] is True
         assert metadata["unsupportedAbstentionRequired"] is True
         assert metadata["unsupportedToNegative"] is False
+        assert metadata["lowInputChallengeRequired"] is True
         assert metadata["parentTarget"] == "complex activity"
         assert metadata["upstreamInputMediaType"] == M2106_M2105_INPUT_MEDIA_TYPE
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2106_OUTPUT_MEDIA_TYPE

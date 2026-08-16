@@ -1,0 +1,10 @@
+requirement,authority,implementation,evidence,gate
+M26-04-R01,"dossier:9168-9208","typed API SDK CLI access surface beneath protein subtype","contract/runtime/interface tests; evaluator published_complete",G2
+M26-04-R02,"dossier:9168-9208","operation authorization idempotency async-job error audit and compatibility schemas","contracts/m26_04/v1.py; contract closure tests",G2
+M26-04-R03,"dossier:9168-9208","strict complete-source and cross-reference closure with no silent coercion","request closure and adversarial boundary tests",G2
+M26-04-R04,"dossier:9168-9208","seven-control caller preflight and fail-closed abstention","engine preflight; authorization_gate and abstention evaluator cases",G2
+M26-04-R05,"dossier:9168-9208","canonical request/result IDs digests and replay verification","canonical.py; runtime replay and tamper tests",G2
+M26-04-R06,"dossier:9168-9208","API SDK CLI and strict parse-once plugin parity","api.py sdk.py cli.py plugin.py; interface tests",G2
+M26-04-R07,"dossier:9168-9208","seven uncertainty dimensions typed provenance evidence and limitations","engine result envelope; evaluator and manifest",G2
+M26-04-R08,"dossier:9168-9208","no kinase all-omics fusion treatment identity or consent inference","plugin descriptor; authority and adversarial boundary tests",G2
+M26-04-R09,"dossier:9168-9208","frozen scenario matrix, deterministic benchmark, coverage, package and rollback evidence","release-evidence/m26_04; evaluator/benchmark commands",G2

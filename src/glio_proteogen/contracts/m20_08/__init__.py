@@ -1,5 +1,9 @@
 """Provisional M20-08 translation monitoring and rollback exports."""
 
+from glio_proteogen.contracts.m20_08.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m20_08.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -9,6 +13,8 @@ from glio_proteogen.contracts.m20_08.schema import (
 )
 from glio_proteogen.contracts.m20_08.v1 import (
     M2008_CONTRACT_VERSION,
+    M2008_DOSSIER_SHA256,
+    M2008_DOSSIER_SLICE,
     M2008_GATE,
     M2008_M2007_INPUT_MEDIA_TYPE,
     M2008_MAX_ASSESSMENTS,
@@ -46,6 +52,8 @@ from glio_proteogen.contracts.m20_08.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2008_CONTRACT_VERSION",
+    "M2008_DOSSIER_SHA256",
+    "M2008_DOSSIER_SLICE",
     "M2008_GATE",
     "M2008_M2007_INPUT_MEDIA_TYPE",
     "M2008_MAX_ASSESSMENTS",
@@ -80,6 +88,8 @@ __all__ = [
     "TranslationHealthReport",
     "TranslationHealthStatus",
     "TranslationMonitoringConfiguration",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_payload_digest",
 ]

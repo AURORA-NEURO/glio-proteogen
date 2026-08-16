@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_02.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -32,11 +33,12 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier SHA
-# 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,
-# lines 8720-8760. Owner confirmation and implementation details remain
-# pending.
+# PROVISIONAL ABI: inferred solely from the permitted dossier slice.
 M2502_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-02"
+M2502_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2502_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8720-8760"
 M2502_OPERATION: Final = "generate_proteotype_synthetic_truth"
 M2502_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2502_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-02+json"
@@ -53,6 +55,10 @@ M2502_MAX_EVIDENCE: Final = 64
 M2502_MAX_FINDINGS: Final = 64
 M2502_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2502_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2502_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M25-02 synthetic truth, perturbation and reproducibility evidence; "
+    "issuer authority is not authenticated."
+)
 
 
 class FixtureKind(StrEnum):
@@ -86,13 +92,17 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2502_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2502_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2502_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2502_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2502_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def truth_shape_is_closed(self) -> SyntheticTruthCase:
+        if len(self.expected_features) != len(self.truth_values):
+            raise ValueError("expected features and truth values must have equal length")
+        return self
 
 
 class GenerationConfiguration(FrozenModel):
@@ -147,6 +157,8 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("corpus case ids must be unique")
         if set(case_ids) != set(self.manifest.case_ids):
             raise ValueError("manifest must enumerate every corpus case")
+        if self.manifest.configuration.version != self.version:
+            raise ValueError("manifest configuration version must match corpus version")
         return self
 
 
@@ -174,8 +186,15 @@ class GenerateProteotypeSyntheticTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> GenerateProteotypeSyntheticTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
         if self.upstream_result.media_type != M2502_M2501_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M25-01 stability result")
+        source_by_id = {artifact.artifact_id: artifact for artifact in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifacts must have unique artifact IDs")
+        if source_by_id.get(self.upstream_result.artifact_id) != self.upstream_result:
+            raise ValueError("source artifacts must bind the declared upstream result")
         return self
 
 
@@ -206,6 +225,15 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeSyntheticTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result identifier must bind the request digest")
+        if self.provenance.module_id != M2502_MODULE_ID:
+            raise ValueError("provenance module id must identify M25-02")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding IDs must be unique")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None
@@ -214,6 +242,10 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
+            if self.corpus.manifest != self.manifest:
+                raise ValueError("result manifest must bind the generated corpus")
+            if len(self.corpus.cases) != self.request.requested_case_count:
+                raise ValueError("generated corpus must match requested case count")
         elif (
             self.corpus is not None
             or self.manifest is not None
@@ -222,6 +254,8 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no corpus and safe status")
+        if self.status is GenerationStatus.ABSTAINED and not self.findings:
+            raise ValueError("abstained result must retain at least one finding")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -229,6 +263,9 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
 
 __all__ = [
     "M2502_CONTRACT_VERSION",
+    "M2502_DOSSIER_SHA256",
+    "M2502_DOSSIER_SLICE",
+    "M2502_EVIDENCE_CLAIM",
     "M2502_GATE",
     "M2502_M2501_INPUT_MEDIA_TYPE",
     "M2502_MAX_CANONICAL_REQUEST_BYTES",

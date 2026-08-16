@@ -1,6 +1,8 @@
 """Focused schema and deterministic-fixture smoke for provisional M25-02."""
 
-from jsonschema import Draft202012Validator
+from typing import Any, cast
+
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m25_02 import (
     M2502_M2501_INPUT_MEDIA_TYPE,
@@ -17,7 +19,7 @@ _FIXTURE_KIND_COUNT = 5
 
 
 def test_provisional_schemas_require_reproducible_truth_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert tuple(schemas) == (
         "request",

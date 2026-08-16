@@ -1,0 +1,12 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-02",
+  "command": "uv run pytest tests/contract/test_m26_02_provisional.py tests/runtime/test_m26_02_runtime.py tests/interfaces/test_m26_02_interfaces.py tests/adversarial/test_m26_02_adversarial.py tests/evals/test_m26_02_eval.py -q -o addopts=\"\" --cov=glio_proteogen.contracts.m26_02 --cov=glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service --cov-branch --cov-report=term-missing --cov-report=json:.m2602-coverage.json --cov-fail-under=95",
+  "testsPassed": 26,
+  "statements": 570,
+  "coveredStatements": 558,
+  "branches": 106,
+  "coveredBranches": 97,
+  "partialBranches": 9,
+  "percentCovered": 96.89349112426035,
+  "failUnder": 95
+}

@@ -9,6 +9,8 @@ from glio_proteogen.contracts.m21_02.schema import (
 )
 from glio_proteogen.contracts.m21_02.v1 import (
     M2102_CONTRACT_VERSION,
+    M2102_DOSSIER_SHA256,
+    M2102_DOSSIER_SLICE,
     M2102_GATE,
     M2102_M2101_INPUT_MEDIA_TYPE,
     M2102_MAX_CANONICAL_REQUEST_BYTES,
@@ -41,6 +43,8 @@ from glio_proteogen.contracts.m21_02.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2102_CONTRACT_VERSION",
+    "M2102_DOSSIER_SHA256",
+    "M2102_DOSSIER_SLICE",
     "M2102_GATE",
     "M2102_M2101_INPUT_MEDIA_TYPE",
     "M2102_MAX_CANONICAL_REQUEST_BYTES",

@@ -26,9 +26,7 @@ from glio_proteogen.contracts.m10_03.v1 import (
     ProteinRnaDiscordanceBaselineResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M10-03:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M10-03:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1003_CONTRACT_VERSION
 ContractName = Literal[
     "request",

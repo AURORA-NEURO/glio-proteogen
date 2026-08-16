@@ -1,0 +1,9 @@
+module_id,dossier_lines,owner,safety_class,gate,parent,requirement,implementation,evidence,status
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,mechanistic feature object,contracts/m12_03/v1.py,tests/contract/test_m12_03_contract.py,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,source evidence and complete lineage,engine.py,tests/contract/test_m12_03_runtime.py,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,unit and topology invariants,v1.py and engine.py,tests/contract/test_m12_03_runtime.py,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,negative-control gating and safe abstention,engine.py,evals/m12_03/run.py,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,seven-dimensional uncertainty,v1.py,release-evidence/m12_03/evaluation.json,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,ownership boundary and prohibited outputs,plugin.py and docs,docs/evidence/M12-03.md,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,replay and tamper closure,canonical.py and engine.py,tests/contract/test_m12_03_runtime.py,pass
+GLIO-PROTEOGEN-M12-03,4084-4127,Clinical science,S2,G1,biomarker_panel,locked package evidence,release verifier,release-evidence/m12_03/package.json,pass

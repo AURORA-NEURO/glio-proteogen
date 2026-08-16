@@ -1,0 +1,10 @@
+module_id,authority_sha256,authority_lines,requirement,implementation,evidence,verification
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,seven-axis cross-source alignment,AlignmentDimension and locked AlignmentConfiguration,contract tests,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,explicit discrepancy map and conflict preservation,DiscrepancyMapEntry with critical resolution closure,adversarial conflict tests,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,M20-01 typed upstream binding,upstream artifact media-type contract and no service assumption,wrong-media contract test,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,seven caller-declared controls,strict preflight and seven-record provenance,runtime preflight/replay tests,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,safe abstention for unsupported or incomplete inputs,review-required result without aligned bundle,evaluator and adversarial matrix,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,seven uncertainty dimensions,explicit not-estimable UncertaintyProfile,evaluator result assertions,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,replay and tamper closure,canonical request/result digest and deterministic result identity,service/plugin/API verification tests,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,strict external interfaces,FastAPI/Typer adapters with parse-once sanitized errors and no-overwrite,interface parity tests,pass
+GLIO-PROTEOGEN-M20-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6920-6960,reproducible release,locked evaluator benchmark coverage wheel sdist import,release evidence verifier,pass

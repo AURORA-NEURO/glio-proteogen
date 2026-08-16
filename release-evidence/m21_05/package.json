@@ -1,0 +1,22 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M21-05",
+  "passed": true,
+  "isolated_import": true,
+  "build_backend": "hatchling 1.31.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "size_bytes": 2682224,
+    "sha256": "e14787f48ed37d0f3a810c17266b27c89c2417f7a1f02ddd0a95e4ae01bc55df",
+    "member_count": 1423
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "size_bytes": 5611447,
+    "sha256": "ac0c46bbf198df803e1808a14565cb1fc9344bc182afc627cfd9b1b09da4ad49"
+  },
+  "commands": {
+    "build": "python -m build --wheel --sdist --outdir .m2105-build-final",
+    "isolated_install": "python -m pip install --no-deps --target .m2105-install-final glio_proteogen-0.1.0-py3-none-any.whl",
+    "import_smoke": "import glio_proteogen; import M2105Engine, create_app, cli_app"
+  }
+}

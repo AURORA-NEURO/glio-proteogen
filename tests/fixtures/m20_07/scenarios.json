@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-07",
+  "contract_version": "0.1.0-provisional",
+  "operation": "export_protein_subtype_downstream_contract",
+  "dossier_sha256": "0A6B200CBE073DB13A4BCF315EDC23AB97EDFE6F500BC7EA2785F5E1C70DA181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7140-7180",
+  "owner": "Computational biology",
+  "safety_class": "S2",
+  "evidence_gate": "G3",
+  "parent_target": "protein subtype",
+  "schema_names": ["request", "output", "contract", "field", "signature", "configuration", "finding", "ownership"],
+  "scenario_groups": [
+    {"group": "nominal", "case_ids": ["supported_exported"]},
+    {"group": "adversarial", "case_ids": ["unsupported_abstains", "prohibited_boundary_abstains", "consent_denied_preflight", "request_consent_withheld_abstains", "upstream_media_rejected", "replay_tamper_rejected", "duplicate_field_rejected", "review_compatibility_abstains"]}
+  ],
+  "claims_ceiling": "immutable consent-aware documented typed export only; no identity, mutation, all-omics, kinase, treatment, or biological truth inference"
+}

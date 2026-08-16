@@ -8,6 +8,9 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m21_06.v1 import (
     M2106_CONTRACT_VERSION,
+    M2106_DOSSIER_SHA256,
+    M2106_DOSSIER_SLICE,
+    M2106_EVIDENCE_CLAIM,
     M2106_GATE,
     M2106_M2105_INPUT_MEDIA_TYPE,
     M2106_MAX_CANONICAL_REQUEST_BYTES,
@@ -27,9 +30,7 @@ from glio_proteogen.contracts.m21_06.v1 import (
     SafeFailureReport,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M21-06:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M21-06:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2106_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -61,6 +62,9 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M2106_MODULE_ID,
+        "dossierSha256": M2106_DOSSIER_SHA256,
+        "dossierSlice": M2106_DOSSIER_SLICE,
+        "evidenceClaim": M2106_EVIDENCE_CLAIM,
         "contractVersion": CONTRACT_VERSION,
         "owner": M2106_OWNER,
         "safetyClass": M2106_SAFETY_CLASS,
@@ -88,7 +92,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "alternateArchitecture": "locked_offline_benchmark_harness_contrastive_protein_encoder",
         "fallbackArchitecture": "independent_dual_run_validation_proteome_autoencoder",
         "missingDataChallengeRequired": True,
-        "LowInputChallengeRequired": True,
+        "lowInputChallengeRequired": True,
         "corruptionChallengeRequired": True,
         "batchPlatformSiteShiftRequired": True,
         "artifactChallengeRequired": True,

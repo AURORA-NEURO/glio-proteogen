@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-07",
+  "scope": [
+    "glio_proteogen.contracts.m13_07",
+    "glio_proteogen.modules.c11_protein_native_subtype.m13_07_plausibility_adjudicator",
+    "glio_proteogen.adapters.m1307"
+  ],
+  "focused_tests": 31,
+  "branch_coverage_percent": 100.0,
+  "line_coverage_percent": 99.68253968253968,
+  "display_coverage_percent": 99,
+  "statements": 536,
+  "covered_lines": 534,
+  "branches": 94,
+  "covered_branches": 94,
+  "missing_lines": [
+    "src/glio_proteogen/adapters/m1307.py:96-97"
+  ],
+  "fail_under": 95,
+  "passed": true
+}

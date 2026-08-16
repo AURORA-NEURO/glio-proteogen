@@ -1,0 +1,13 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M21-03,caller-declared M21-02 input binding,contracts/m21_03/v1.py request_is_bound,media/source closure tests,pass
+GLIO-PROTEOGEN-M21-03,nested validation and locked split,contracts/m21_03/v1.py LockedSplit,contract/evaluator tests,pass
+GLIO-PROTEOGEN-M21-03,simple and mature baselines,contracts/m21_03/v1.py BaselineRun/BaselineKind,request/dossier closure tests,pass
+GLIO-PROTEOGEN-M21-03,component ablation delta,contracts/m21_03/v1.py ComponentAblation,delta tamper test,pass
+GLIO-PROTEOGEN-M21-03,compute-matched comparison,contracts/m21_03/v1.py ComputeMatchedComparison,compute tolerance test,pass
+GLIO-PROTEOGEN-M21-03,deterministic replay and result identity,contracts/m21_03/canonical.py and engine.py,replay/tamper tests,pass
+GLIO-PROTEOGEN-M21-03,seven-control fail-closed preflight,modules/.../engine.py,denial and malformed mapping tests,pass
+GLIO-PROTEOGEN-M21-03,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M21-03,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M21-03,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M21-03,evaluator and locked benchmark,evals/m21_03,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M21-03,provisional authority and prohibited boundaries,docs/modules/M21-03-internal-benchmark-ablation.md,owner review and evidence,provisional

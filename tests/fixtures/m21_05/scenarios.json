@@ -1,0 +1,38 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M21-05",
+    "contract_version": "0.1.0-provisional",
+    "operation": "evaluate_complex_activity_subgroup_equity",
+    "dossier_sha256": "0A6B200CBE073DB13A4BCF315EDC23AB97EDFE6F500BC7EA2785F5E1C70DA181",
+    "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7412-7452",
+    "owner": "Scientific engineering",
+    "safety_class": "S3",
+    "evidence_gate": "G3",
+    "parent_target": "complex activity",
+    "schema_names": [
+        "request",
+        "output",
+        "report",
+        "performance",
+        "calibration",
+        "coverage",
+        "configuration",
+        "finding"
+    ],
+    "scenario_groups": [
+        {"group": "nominal", "case_ids": ["supported_evaluated"]},
+        {
+            "group": "adversarial",
+            "case_ids": [
+                "limited_coverage_abstains",
+                "unsupported_coverage_abstains",
+                "equity_floor_abstains",
+                "rare_context_abstains",
+                "calibration_failure_abstains",
+                "consent_denied_preflight",
+                "upstream_media_rejected",
+                "replay_tamper_rejected"
+            ]
+        }
+    ],
+    "claims_ceiling": "caller-declared subgroup performance, calibration, coverage and equity evidence only; no identity, consent, kinase, all-omics, treatment, or unsupported negative inference"
+}

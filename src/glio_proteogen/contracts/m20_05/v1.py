@@ -44,6 +44,10 @@ M2005_OWNER: Final = "Platform engineering"
 M2005_SAFETY_CLASS: Final = "S2"
 M2005_GATE: Final = "G4"
 M2005_PROVISIONAL_ABI: Final = True
+M2005_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2005_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7052-7092"
 M2005_MAX_ITEMS: Final = 256
 M2005_MAX_EVIDENCE: Final = 64
 M2005_MAX_DISCREPANCIES: Final = 128
@@ -89,6 +93,9 @@ class WorkflowFindingCode(StrEnum):
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
+_REQUIRED_VIEWS: Final = frozenset(ViewKind)
+
+
 class PresentationConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
@@ -97,7 +104,7 @@ class PresentationConfiguration(FrozenModel):
     locked: Literal[True] = True
     automation_bias_guard_required: Literal[True] = True
     safe_default_order_required: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2005_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2005_MAX_EVIDENCE)
 
 
 class PresentationPolicy(FrozenModel):
@@ -113,6 +120,8 @@ class PresentationPolicy(FrozenModel):
     def required_views_are_unique(self) -> PresentationPolicy:
         if len(set(self.required_views)) != len(self.required_views):
             raise ValueError("required workspace views must be unique")
+        if set(self.required_views) != _REQUIRED_VIEWS:
+            raise ValueError("policy must require every safety-critical workspace view")
         return self
 
 
@@ -135,11 +144,19 @@ class ReviewItem(FrozenModel):
     evidence_summary: NonEmptyStr
     uncertainty_summary: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2005_MAX_EVIDENCE)
-    discrepancy_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M2005_MAX_DISCREPANCIES
-    )
+    discrepancy_ids: tuple[Identifier, ...] = Field(default=(), max_length=M2005_MAX_DISCREPANCIES)
     provenance_artifact: ArtifactReference
     next_action: NextAction | None = None
+
+    @model_validator(mode="after")
+    def review_escalation_is_explicit(self) -> ReviewItem:
+        if self.status in {
+            ReviewItemStatus.CONFLICTED,
+            ReviewItemStatus.UNRESOLVED,
+            ReviewItemStatus.ABSTAINED,
+        } and (not self.discrepancy_ids or self.next_action is None):
+            raise ValueError("review escalation requires a discrepancy and next action")
+        return self
 
 
 class HumanReviewWorkspace(FrozenModel):
@@ -159,8 +176,8 @@ class HumanReviewWorkspace(FrozenModel):
         positions = tuple(item.position for item in self.items)
         if len(ids) != len(set(ids)):
             raise ValueError("workspace item ids must be unique")
-        if positions != tuple(sorted(positions)) or len(set(positions)) != len(positions):
-            raise ValueError("workspace item positions must be strictly ordered")
+        if positions != tuple(range(len(positions))):
+            raise ValueError("workspace item positions must be contiguous from zero")
         return self
 
 
@@ -190,8 +207,26 @@ class PresentProteinSubtypeHumanReviewWorkspaceRequest(FrozenModel):
     def request_is_bound_and_bounded(self) -> PresentProteinSubtypeHumanReviewWorkspaceRequest:
         if self.aligned_evidence_bundle.media_type != M2005_M2004_RESULT_MEDIA_TYPE:
             raise ValueError("workspace request must bind the provisional M20-04 result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         if len(self.review_items) > self.policy.maximum_items:
             raise ValueError("request exceeds configured workspace item limit")
+        item_ids = tuple(item.item_id for item in self.review_items)
+        positions = tuple(item.position for item in self.review_items)
+        if len(item_ids) != len(set(item_ids)):
+            raise ValueError("request review item ids must be unique")
+        if positions != tuple(range(len(positions))):
+            raise ValueError("request review item positions must be contiguous from zero")
+        if {item.view_kind for item in self.review_items} != set(self.policy.required_views):
+            raise ValueError("request must include every policy-required workspace view")
+        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("source artifacts must be unique by id and digest")
+        if (
+            self.aligned_evidence_bundle.artifact_id,
+            self.aligned_evidence_bundle.digest,
+        ) not in set(artifact_keys):
+            raise ValueError("source artifacts must include the aligned evidence bundle")
         return self
 
 
@@ -217,7 +252,7 @@ class ProteinSubtypeHumanReviewWorkspaceResult(FrozenModel):
     provenance: ProvenanceRecord
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2005_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
-    human_review_required: bool = True
+    human_review_required: Literal[True] = True
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ProteinSubtypeHumanReviewWorkspaceResult:
@@ -230,6 +265,21 @@ class ProteinSubtypeHumanReviewWorkspaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("presented result requires a supported workspace")
+            if not self.evidence:
+                raise ValueError("presented result requires output evidence")
+            if self.workspace.ordering is not self.request.policy.default_ordering:
+                raise ValueError("workspace ordering must match the requested policy")
+            workspace_ids = tuple(item.item_id for item in self.workspace.items)
+            request_ids = tuple(item.item_id for item in self.request.review_items)
+            if workspace_ids != request_ids:
+                raise ValueError("workspace must preserve request review items in order")
+            if (
+                self.workspace.source_bundle.artifact_id
+                != self.request.aligned_evidence_bundle.artifact_id
+                or self.workspace.source_bundle.digest
+                != self.request.aligned_evidence_bundle.digest
+            ):
+                raise ValueError("workspace source bundle must bind the aligned evidence bundle")
         elif (
             self.workspace is not None
             or self.abstention_reason is None
@@ -239,11 +289,16 @@ class ProteinSubtypeHumanReviewWorkspaceResult(FrozenModel):
             raise ValueError("abstained result requires no workspace and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("workflow finding ids must be unique")
         return self
 
 
 __all__ = [
     "M2005_CONTRACT_VERSION",
+    "M2005_DOSSIER_SHA256",
+    "M2005_DOSSIER_SLICE",
     "M2005_GATE",
     "M2005_M2004_RESULT_MEDIA_TYPE",
     "M2005_MAX_ACTIONS",

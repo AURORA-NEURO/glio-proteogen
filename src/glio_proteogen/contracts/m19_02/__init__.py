@@ -1,5 +1,11 @@
 """Provisional M19-02 cross-source alignment contract exports."""
 
+from glio_proteogen.contracts.m19_02.canonical import (
+    canonical_request_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m19_02.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -74,6 +80,10 @@ __all__ = [
     "DiscrepancyMapEntry",
     "DiscrepancySeverity",
     "ProteotypeAlignmentResult",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_payload_digest",
 ]

@@ -36,9 +36,16 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def result_identifier(request_digest: Sha256Digest) -> str:
+    """Return the deterministic M25-02 result identifier for one request."""
+
+    return "truth.m2502." + request_digest.removeprefix("sha256:")
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "result_identifier",
     "result_payload_digest",
 ]

@@ -1,1 +1,1 @@
-"""Provisional M20-05 workflow presentation evaluation hooks."""
+"""M20-05 evaluator package."""

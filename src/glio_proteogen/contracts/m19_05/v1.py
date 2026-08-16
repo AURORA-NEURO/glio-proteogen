@@ -8,6 +8,7 @@ turns unsupported evidence into a negative finding.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import Final, Literal
 
@@ -44,6 +45,10 @@ M1905_OWNER: Final = "Data engineering"
 M1905_SAFETY_CLASS: Final = "S2"
 M1905_GATE: Final = "G4"
 M1905_PROVISIONAL_ABI: Final = True
+M1905_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1905_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN-M19-05:6692-6732"
 M1905_MAX_ITEMS: Final = 256
 M1905_MAX_EVIDENCE: Final = 64
 M1905_MAX_DISCREPANCIES: Final = 128
@@ -51,6 +56,18 @@ M1905_MAX_ACTIONS: Final = 64
 M1905_MAX_FINDINGS: Final = 64
 M1905_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1905_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1905_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M19-05 workspace presentation evidence; issuer authority, biological "
+    "truth and human-review decisions remain outside this service."
+)
+
+
+def _unique(values: Iterable[object], label: str) -> None:
+    """Reject duplicate identifiers or digests instead of silently collapsing them."""
+
+    material = tuple(values)
+    if len(material) != len(set(material)):
+        raise ValueError(f"{label} must be unique")
 
 
 class ViewKind(StrEnum):
@@ -111,8 +128,9 @@ class PresentationPolicy(FrozenModel):
 
     @model_validator(mode="after")
     def required_views_are_unique(self) -> PresentationPolicy:
-        if len(set(self.required_views)) != len(self.required_views):
-            raise ValueError("required workspace views must be unique")
+        _unique(self.required_views, "required workspace views")
+        if set(self.required_views) != set(ViewKind):
+            raise ValueError("presentation policy must require all six workspace views")
         return self
 
 
@@ -125,6 +143,14 @@ class NextAction(FrozenModel):
     )
     review_only: Literal[True] = True
 
+    @model_validator(mode="after")
+    def evidence_is_unique(self) -> NextAction:
+        _unique(
+            (artifact.digest for artifact in self.required_evidence),
+            "next-action evidence",
+        )
+        return self
+
 
 class ReviewItem(FrozenModel):
     item_id: Identifier
@@ -135,11 +161,15 @@ class ReviewItem(FrozenModel):
     evidence_summary: NonEmptyStr
     uncertainty_summary: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1905_MAX_EVIDENCE)
-    discrepancy_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M1905_MAX_DISCREPANCIES
-    )
+    discrepancy_ids: tuple[Identifier, ...] = Field(default=(), max_length=M1905_MAX_DISCREPANCIES)
     provenance_artifact: ArtifactReference
     next_action: NextAction | None = None
+
+    @model_validator(mode="after")
+    def references_are_unique(self) -> ReviewItem:
+        _unique(self.discrepancy_ids, "review item discrepancy ids")
+        _unique((item.reference.digest for item in self.evidence), "review item evidence")
+        return self
 
 
 class HumanReviewWorkspace(FrozenModel):
@@ -157,10 +187,15 @@ class HumanReviewWorkspace(FrozenModel):
     def items_are_unique_and_ordered(self) -> HumanReviewWorkspace:
         ids = tuple(item.item_id for item in self.items)
         positions = tuple(item.position for item in self.items)
-        if len(ids) != len(set(ids)):
-            raise ValueError("workspace item ids must be unique")
-        if positions != tuple(sorted(positions)) or len(set(positions)) != len(positions):
-            raise ValueError("workspace item positions must be strictly ordered")
+        _unique(ids, "workspace item ids")
+        if positions != tuple(range(len(positions))):
+            raise ValueError("workspace item positions must be contiguous and strictly ordered")
+        kinds = tuple(item.view_kind for item in self.items)
+        _unique(kinds, "workspace view kinds")
+        if set(kinds) != set(ViewKind):
+            raise ValueError("workspace must contain exactly one item for every workspace view")
+        _unique((item.provenance_artifact.digest for item in self.items), "workspace provenance")
+        _unique((item.reference.digest for item in self.evidence), "workspace evidence")
         return self
 
 
@@ -190,17 +225,46 @@ class PresentProteotypeHumanReviewWorkspaceRequest(FrozenModel):
     def request_is_bound_and_bounded(self) -> PresentProteotypeHumanReviewWorkspaceRequest:
         if self.aligned_evidence_bundle.media_type != M1905_M1904_RESULT_MEDIA_TYPE:
             raise ValueError("workspace request must bind the provisional M19-04 result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
         if len(self.review_items) > self.policy.maximum_items:
             raise ValueError("request exceeds configured workspace item limit")
+        _unique(
+            (artifact.artifact_id for artifact in self.source_artifacts),
+            "request source artifact ids",
+        )
+        _unique(
+            (artifact.digest for artifact in self.source_artifacts),
+            "request source artifact digests",
+        )
+        if self.aligned_evidence_bundle.artifact_id not in {
+            artifact.artifact_id for artifact in self.source_artifacts
+        }:
+            raise ValueError("request source artifacts must include the bound M19-04 result")
+        _unique((item.item_id for item in self.review_items), "request review item ids")
+        positions = tuple(item.position for item in self.review_items)
+        if positions != tuple(range(len(positions))):
+            raise ValueError("request review item positions must be contiguous and ordered")
+        if {item.view_kind for item in self.review_items} != set(self.policy.required_views):
+            raise ValueError("request review items must cover every required workspace view")
+        known_ids = {artifact.artifact_id for artifact in self.source_artifacts}
+        known_digests = {artifact.digest for artifact in self.source_artifacts}
+        for item in self.review_items:
+            if item.provenance_artifact.artifact_id not in known_ids:
+                raise ValueError("review item provenance references an unknown source artifact")
+            if item.provenance_artifact.digest not in known_digests:
+                raise ValueError("review item provenance digest is not a source artifact")
+            if any(evidence.reference.artifact_id not in known_ids for evidence in item.evidence):
+                raise ValueError("review item evidence references an unknown source artifact")
+            if any(evidence.reference.digest not in known_digests for evidence in item.evidence):
+                raise ValueError("review item evidence digest is not a source artifact")
         return self
 
 
 class ProteotypeHumanReviewWorkspaceResult(FrozenModel):
     """Human-review workspace object with safe ordering and abstention."""
 
-    output_type: Literal["proteotype_human_review_workspace"] = (
-        "proteotype_human_review_workspace"
-    )
+    output_type: Literal["proteotype_human_review_workspace"] = "proteotype_human_review_workspace"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1905_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -223,6 +287,13 @@ class ProteotypeHumanReviewWorkspaceResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeHumanReviewWorkspaceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if self.provenance.module_id != M1905_MODULE_ID:
+            raise ValueError("result provenance must identify M19-05")
+        _unique((item.finding_id for item in self.findings), "result finding ids")
+        _unique((item.reference.digest for item in self.evidence), "result evidence")
         if self.status is WorkspaceStatus.PRESENTED:
             if (
                 self.workspace is None
@@ -230,6 +301,10 @@ class ProteotypeHumanReviewWorkspaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("presented result requires a supported workspace")
+            if self.workspace.items != self.request.review_items:
+                raise ValueError("presented workspace must bind exact request review items")
+            if self.workspace.source_bundle != self.request.aligned_evidence_bundle:
+                raise ValueError("presented workspace must bind the exact aligned evidence bundle")
         elif (
             self.workspace is not None
             or self.abstention_reason is None
@@ -244,6 +319,9 @@ class ProteotypeHumanReviewWorkspaceResult(FrozenModel):
 
 __all__ = [
     "M1905_CONTRACT_VERSION",
+    "M1905_DOSSIER_SHA256",
+    "M1905_DOSSIER_SLICE",
+    "M1905_EVIDENCE_CLAIM",
     "M1905_GATE",
     "M1905_M1904_RESULT_MEDIA_TYPE",
     "M1905_MAX_ACTIONS",
