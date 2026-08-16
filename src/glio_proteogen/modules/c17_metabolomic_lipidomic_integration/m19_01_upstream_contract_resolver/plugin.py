@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
+from pydantic import TypeAdapter
+
+from glio_proteogen.contracts.m19_01 import ResolveProteotypeUpstreamContractsRequest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 
 from .engine import M1901Engine
@@ -12,8 +16,11 @@ from .engine import M1901Engine
 if TYPE_CHECKING:
     from glio_proteogen.contracts.m19_01 import (
         ProteotypeUpstreamResolutionResult,
-        ResolveProteotypeUpstreamContractsRequest,
     )
+
+_REQUEST_ADAPTER: TypeAdapter[ResolveProteotypeUpstreamContractsRequest] = TypeAdapter(
+    ResolveProteotypeUpstreamContractsRequest
+)
 
 _MAX_JSON_BYTES: Final = 4 * 1024 * 1024
 
@@ -59,7 +66,8 @@ class M1901Plugin:
             document = strict_json_loads(raw, max_bytes=_MAX_JSON_BYTES)
         except StrictJsonError as exc:
             raise ValueError("M19-01 request must be valid JSON") from exc  # noqa: TRY003
-        return self._engine.validate_request(document)
+        parsed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(document), strict=True)
+        return self._engine.validate_request(parsed)
 
     def run(self, request: object) -> ProteotypeUpstreamResolutionResult:
         return self._engine.resolve(request)

@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m19_01 import (
     ResolverStatus,
 )
 from glio_proteogen.contracts.m19_01.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_01_upstream_contract_resolver as m1901,
@@ -119,6 +120,8 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1901.M1901ReplayError, match="payload"):
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+    with pytest.raises(m1901.M1901ReplayError, match="request digest"):
+        service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
 
 
 def test_strict_public_wrapper_matches_engine() -> None:
@@ -128,3 +131,23 @@ def test_strict_public_wrapper_matches_engine() -> None:
     )
     with pytest.raises((ValidationError, m1901.M1901AuthorizationError)):
         m1901.M1901Engine().validate_request({"request_id": "bad"})
+    service = m1901.M1901Service()
+    assert service.validate_request(_request()) == _request()
+
+
+def test_plugin_descriptor_and_strict_json_boundary() -> None:
+    plugin = m1901.M1901Plugin()
+    descriptor = plugin.descriptor
+    assert descriptor.module_id == "GLIO-PROTEOGEN-M19-01"
+    assert descriptor.parent_target == "proteotype"
+    assert descriptor.unsupported_to_negative is False
+    request = _request()
+    parsed = plugin.validate_json(canonical_json_bytes(request))
+    result = plugin.run(parsed)
+    assert plugin.replay(result) == result
+    with pytest.raises(ValueError, match="valid JSON"):
+        plugin.validate_json(b"not-json")
+    with pytest.raises(ValueError, match="valid JSON"):
+        plugin.validate_json(b'{"a":1,"a":2}')
+    with pytest.raises(ValueError, match="size limit"):
+        plugin.validate_json(b"{" + b" " * (4 * 1024 * 1024) + b"}")

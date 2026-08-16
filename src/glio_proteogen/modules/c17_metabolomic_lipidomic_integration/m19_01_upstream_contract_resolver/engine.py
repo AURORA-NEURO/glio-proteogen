@@ -134,7 +134,9 @@ def _control_decisions(
             policy_version=decision.policy_version,
             evidence_digest=decision.evidence.digest,
             subject_digest=(
-                decision.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
+                refs.identity_lineage.binding_digest
+                if role is ControlRole.IDENTITY_LINEAGE
+                else None
             ),
         )
         for role, decision in ordered

@@ -145,11 +145,13 @@ def test_bundle_and_request_membership_closure_is_fail_closed() -> None:
             compatibility_report=_report(),
             evidence=(_evidence("bundle.mismatch"),),
         )
+    unsafe_candidate = candidate.model_dump(mode="python")
+    unsafe_candidate["consent_state"] = ConsentState.UNKNOWN
     with pytest.raises(ValidationError, match="granted consent"):
         ValidatedUpstreamBundle(
             bundle_id="bundle.consent",
             version="1.0.0",
-            candidates=(candidate.model_copy(update={"consent_state": ConsentState.UNKNOWN}),),
+            candidates=(candidate.model_construct(**unsafe_candidate),),
             compatibility_report=_report(),
             evidence=(_evidence("bundle.consent"),),
         )
