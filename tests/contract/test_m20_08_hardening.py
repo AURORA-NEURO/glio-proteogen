@@ -164,6 +164,7 @@ def _request() -> MonitorProteinSubtypeTranslationHealthRequest:
         context=_context(),
         upstream_result=upstream,
         configuration=_configuration(),
+        signals=(_signal(),),
         source_artifacts=(upstream, _artifact("telemetry")),
     )
 

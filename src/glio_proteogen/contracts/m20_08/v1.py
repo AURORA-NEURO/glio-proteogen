@@ -232,6 +232,7 @@ class MonitorProteinSubtypeTranslationHealthRequest(FrozenModel):
     context: ExecutionContext
     upstream_result: ArtifactReference
     configuration: TranslationMonitoringConfiguration
+    signals: tuple[HealthSignal, ...] = Field(min_length=1, max_length=M2008_MAX_SIGNALS)
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2008_MAX_EVIDENCE
     )
@@ -251,6 +252,8 @@ class MonitorProteinSubtypeTranslationHealthRequest(FrozenModel):
             item.artifact_id for item in self.source_artifacts
         }:
             raise ValueError("monitor source artifacts must retain the upstream result")
+        if self.configuration.version != self.upstream_result.version:
+            raise ValueError("monitor configuration version must bind the upstream result version")
         return self
 
 
