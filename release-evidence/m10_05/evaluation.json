@@ -1,0 +1,51 @@
+{
+  "authority_lines": "3452-3495",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "check_count": 8,
+  "checks": [
+    {
+      "detail": "soft conflict is quantified without overriding a hard constraint",
+      "id": "soft_conflict_is_integrated_with_ablation",
+      "passed": true
+    },
+    {
+      "detail": "exact request replay reproduces the integrated envelope",
+      "id": "integrated_replay_is_byte_stable",
+      "passed": true
+    },
+    {
+      "detail": "hard violations produce a typed reviewed safe failure",
+      "id": "hard_violation_abstains",
+      "passed": true
+    },
+    {
+      "detail": "outside-vocabulary expressions never receive heuristic interpretation",
+      "id": "unknown_expression_abstains",
+      "passed": true
+    },
+    {
+      "detail": "identity, consent, and quality controls are read before constraints",
+      "id": "controls_fail_closed",
+      "passed": true
+    },
+    {
+      "detail": "changing a derived result region fails full replay verification",
+      "id": "tampered_result_rejected",
+      "passed": true
+    },
+    {
+      "detail": "strict JSON rejects duplicate keys before model traversal",
+      "id": "duplicate_json_keys_rejected",
+      "passed": true
+    },
+    {
+      "detail": "representation and estimator handoffs remain explicitly bound",
+      "id": "wrong_upstream_media_rejected",
+      "passed": true
+    }
+  ],
+  "evaluator_version": "0.1.0-provisional",
+  "generated_at": "2026-01-01T00:00:00Z",
+  "module_id": "GLIO-PROTEOGEN-M10-05",
+  "passed": true
+}

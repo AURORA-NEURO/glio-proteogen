@@ -1,0 +1,9 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-07",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": [3540, 3583],
+  "abi_status": "0.1.0-provisional",
+  "provisional_abi": true,
+  "traceability_csv": "docs/traceability/GLIO-PROTEOGEN-M10-07.csv",
+  "fixture": "tests/fixtures/m10_07/scenarios.json"
+}
