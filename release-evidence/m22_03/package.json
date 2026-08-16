@@ -1,7 +1,16 @@
 {
   "module_id": "GLIO-PROTEOGEN-M22-03",
-  "passed": false,
-  "wheel": {},
-  "sdist": {},
-  "isolated_import": false
+  "passed": true,
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "member_count": 1493,
+    "sha256": "5fd78c7111c3daaf47a7ddeebe1017da921d390f6e01b3523f33492dddb349d5",
+    "size_bytes": 2802541
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "097589a450150a64af298aaf0e38cb6d45c2f51123d0ca9c236e3e28daed7308",
+    "size_bytes": 3301285
+  },
+  "isolated_import": true
 }
