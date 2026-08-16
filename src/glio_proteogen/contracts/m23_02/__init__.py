@@ -1,5 +1,10 @@
 """Provisional M23-02 synthetic truth contract exports."""
 
+from glio_proteogen.contracts.m23_02.canonical import (
+    canonical_request_digest,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m23_02.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -9,6 +14,9 @@ from glio_proteogen.contracts.m23_02.schema import (
 )
 from glio_proteogen.contracts.m23_02.v1 import (
     M2302_CONTRACT_VERSION,
+    M2302_DOSSIER_SHA256,
+    M2302_DOSSIER_SLICE,
+    M2302_EVIDENCE_CLAIM,
     M2302_GATE,
     M2302_M2301_INPUT_MEDIA_TYPE,
     M2302_MAX_CANONICAL_REQUEST_BYTES,
@@ -41,6 +49,9 @@ from glio_proteogen.contracts.m23_02.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2302_CONTRACT_VERSION",
+    "M2302_DOSSIER_SHA256",
+    "M2302_DOSSIER_SLICE",
+    "M2302_EVIDENCE_CLAIM",
     "M2302_GATE",
     "M2302_M2301_INPUT_MEDIA_TYPE",
     "M2302_MAX_CANONICAL_REQUEST_BYTES",
@@ -70,6 +81,9 @@ __all__ = [
     "SyntheticTruthCorpus",
     "TruthRepresentation",
     "VariantPeptideSyntheticTruthResult",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_identifier",
+    "result_payload_digest",
 ]
