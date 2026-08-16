@@ -9,8 +9,10 @@ import pytest
 from evals.m25_06.fixture import build_request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.contracts.m25_06 import ChallengeProteotypeRobustnessRequest
-from glio_proteogen.contracts.m25_06 import ChallengeDisposition
+from glio_proteogen.contracts.m25_06 import (
+    ChallengeDisposition,
+    ChallengeProteotypeRobustnessRequest,
+)
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge import (
     M2506AuthorizationError,
