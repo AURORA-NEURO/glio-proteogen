@@ -1,1 +1,1 @@
-"""Tooling tests for release evidence and packaging gates."""
+"""Tooling tests for M14-06 release evidence."""
