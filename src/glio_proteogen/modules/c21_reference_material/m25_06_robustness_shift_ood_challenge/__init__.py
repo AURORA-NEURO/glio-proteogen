@@ -7,15 +7,19 @@ from .engine import (
     challenge_proteotype_robustness,
     preflight_m2506_authorization,
 )
+from .plugin import ChallengeSubmission, M2506Plugin, ValidatedM2506Request
 from .service import (
     M2506Service,
 )
 
 __all__ = [
+    "ChallengeSubmission",
     "M2506AuthorizationError",
+    "M2506Plugin",
     "M2506ReplayError",
     "M2506RobustnessEngine",
     "M2506Service",
+    "ValidatedM2506Request",
     "challenge_proteotype_robustness",
     "preflight_m2506_authorization",
 ]

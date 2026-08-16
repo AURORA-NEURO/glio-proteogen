@@ -31,20 +31,18 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge.engine import (
+from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge import (
+    ChallengeSubmission,
     M2506AuthorizationError,
+    M2506Plugin,
     M2506ReplayError,
     M2506RobustnessEngine,
-)
-from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge.plugin import (
-    ChallengeSubmission,
-    M2506Plugin,
-)
-from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge.service import (
     M2506Service,
 )
 
 _DIGEST = "sha256:" + "a" * 64
+_CHALLENGE_KIND_COUNT = 8
+_CONTROL_COUNT = 7
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -175,9 +173,9 @@ def test_supported_eight_kind_matrix_is_deterministic_and_replayable() -> None:
     assert first.result_digest == second.result_digest
     assert first.result_id == second.result_id
     assert first.robustness_surface is not None
-    assert len(first.robustness_surface.observations) == 8
+    assert len(first.robustness_surface.observations) == _CHALLENGE_KIND_COUNT
     assert engine.replay(first).result_digest == first.result_digest
-    assert len(first.provenance.control_decisions) == 7
+    assert len(first.provenance.control_decisions) == _CONTROL_COUNT
 
 
 def test_novel_state_abstains_with_safe_failure() -> None:
