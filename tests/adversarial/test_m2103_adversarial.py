@@ -97,6 +97,7 @@ def test_result_findings_and_digest_cannot_be_replayed_after_tampering() -> None
         )
     assert result_payload_digest(result) == result.result_digest
     assert canonical_request_digest(request) == result.request_digest
+    assert canonical_request_digest(request.model_dump(mode="python")) == result.request_digest
 
 
 def test_plugin_rejects_malformed_json_and_denied_mapping() -> None:
