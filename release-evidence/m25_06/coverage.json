@@ -1,0 +1,13 @@
+{
+  "branch_enabled": true,
+  "branch_coverage_percent": 100.0,
+  "covered_branches": 90,
+  "covered_statements": 565,
+  "coverage_percent": 99.82332155477032,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M25-06",
+  "num_branches": 90,
+  "num_statements": 566,
+  "passed": true,
+  "scope": "contracts/m25_06 and modules/c21_reference_material/m25_06_robustness_shift_ood_challenge"
+}
