@@ -1,1 +1,1 @@
-"""Protein-native subtype module implementations."""
+"""Protein-native subtype module runtimes."""
