@@ -319,6 +319,15 @@ from glio_proteogen.contracts.m06_06.v1 import (
     DecomposeProteinAbundanceUncertaintyRequest,
     ProteinAbundanceUncertaintyDecompositionResult,
 )
+from glio_proteogen.contracts.m08_01.schema import ContractName as M0801ContractName
+from glio_proteogen.contracts.m08_01.schema import (
+    contract_json_schema as m0801_contract_json_schema,
+)
+from glio_proteogen.contracts.m08_01.v1 import (
+    M0801_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateTranscriptProteinStateRequest,
+    ValidateTranscriptProteinStateResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -496,6 +505,16 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
 from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
     M0606Service,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    M0801FormalStateAuthorizationError,
+    M0801Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    preflight_formal_state_authorization as preflight_m0801_formal_state_authorization,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
+    _validate_json_request as _validate_m0801_json_request,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -519,6 +538,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0801_FORMAL_STATE_ADAPTER: Final = TypeAdapter(ValidateTranscriptProteinStateRequest)
 _M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
 _M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
 _M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
@@ -674,6 +694,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+    return m0801_contract_json_schema(name)
 
 
 def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
@@ -883,6 +907,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0801_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0801_contract_json_schema("request")}},
         }
     }
 
@@ -1149,6 +1182,16 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m0801_body(request: Request) -> ValidateTranscriptProteinStateRequest:
+    return await _strict_json_body(
+        request,
+        _M0801_FORMAL_STATE_ADAPTER,
+        preflight_m0801_formal_state_authorization,
+        M0801_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0801_json_request,
+    )
+
+
 async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequest:
     return await _strict_json_body(
         request,
@@ -1219,6 +1262,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m0801_service = M0801Service()
     formal_state_service = M0601Service()
     m0603_service = M0603Service()
     probabilistic_estimator_service = M0604Service()
@@ -1269,6 +1313,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(M0801FormalStateAuthorizationError)
     @app.exception_handler(FormalStateAuthorizationError)
     @app.exception_handler(PtmBaselineAuthorizationError)
     @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
@@ -1559,6 +1604,21 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.get("/v1/contracts/M08-01/{name}/schema", tags=["contracts"])
+    def m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+        return _m0801_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M08-01/formal-state-validation",
+        response_model=ValidateTranscriptProteinStateResult,
+        tags=["M08-01"],
+        openapi_extra=_m0801_request_body(),
+    )
+    def validate_m0801_formal_state(
+        request: Annotated[ValidateTranscriptProteinStateRequest, Depends(_m0801_body)],
+    ) -> ValidateTranscriptProteinStateResult:
+        return m0801_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M06-01/formal-state-validation",
