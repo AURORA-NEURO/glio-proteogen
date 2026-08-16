@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator, Mapping
 
 import pytest
 
@@ -16,6 +17,7 @@ from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchm
     M2201AuthorizationError,
     M2201ReplayError,
     M2201Service,
+    curate_protein_rna_discordance_reference_truth,
     preflight_m2201_authorization,
 )
 from tests.adversarial.test_m2201_adversarial import _request
@@ -72,11 +74,42 @@ def test_replay_rejects_request_identifier_and_digest_tampering() -> None:
     with pytest.raises(M2201ReplayError, match="payload digest"):
         service.verify_replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
 
+    with pytest.raises(M2201ReplayError, match="request digest"):
+        service.verify_replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+    assert (
+        curate_protein_rna_discordance_reference_truth(_request()).result_digest
+        == result.result_digest
+    )
+
+
+def test_rejected_included_adjudication_abstains_with_lock_finding() -> None:
+    request = _request()
+    rejected = request.adjudications[0].model_copy(
+        update={
+            "status": AdjudicationStatus.REJECTED,
+            "disagreement_statement": "Reviewers disagree on this included item.",
+        }
+    )
+    payload = request.model_dump(mode="python")
+    payload["adjudications"] = (rejected, *request.adjudications[1:])
+    result = M2201Service().curate(type(request)(**payload))
+    assert result.status is CurationStatus.ABSTAINED
+    assert any(item.code.value == "lock_incomplete" for item in result.findings)
+
 
 def test_hostile_mapping_fails_closed() -> None:
-    class HostileMapping:
+    class HostileMapping(Mapping[str, object]):
         def get(self, _field: str) -> object:
             raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+        def __getitem__(self, _key: str) -> object:
+            raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(())
+
+        def __len__(self) -> int:
+            return 0
 
     with pytest.raises(M2201AuthorizationError):
         preflight_m2201_authorization(HostileMapping())

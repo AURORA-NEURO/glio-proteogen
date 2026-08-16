@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m22_01 import AdjudicationStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchmark_curator import (
     M2201Plugin,
     M2201Service,
@@ -82,6 +83,23 @@ def test_fastapi_pending_adjudication_returns_explicit_abstention() -> None:
     assert response.json()["package"] is None
 
 
+def test_fastapi_denied_controls_are_sanitized() -> None:
+    request = _request()
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    context = request.context.model_copy(
+        update={"references": request.context.references.model_copy(update={"support": support})}
+    )
+    denied = request.model_copy(update={"context": context}).model_dump(mode="json")
+    client = TestClient(create_app(M2201Service()))
+    validate_response = client.post("/v1/modules/M22-01/validate", json=denied)
+    curate_response = client.post("/v1/modules/M22-01/curate", json=denied)
+    assert validate_response.status_code == _HTTP_UNPROCESSABLE
+    assert curate_response.status_code == _HTTP_UNPROCESSABLE
+    assert "Traceback" not in curate_response.text
+
+
 def test_plugin_is_strict_parse_once_and_requires_token() -> None:
     request = _request()
     plugin = M2201Plugin(M2201Service())
@@ -102,6 +120,7 @@ def test_typer_export_curate_verify_and_no_overwrite(tmp_path: Path) -> None:
     schema_path = tmp_path / "schema.json"
     result_path = tmp_path / "result.json"
     runner = CliRunner()
+    assert runner.invoke(cli_app, ["export-schema", "request"]).exit_code == 0
     assert (
         runner.invoke(cli_app, ["export-schema", "request", "--output", str(schema_path)]).exit_code
         == 0
