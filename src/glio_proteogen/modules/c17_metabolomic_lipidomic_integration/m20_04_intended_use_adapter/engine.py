@@ -11,7 +11,6 @@ from glio_proteogen.contracts.m20_04 import (
     M2004_CONTRACT_VERSION,
     M2004_EVIDENCE_CLAIM,
     M2004_MAX_EVIDENCE,
-    M2004_M2003_INPUT_MEDIA_TYPE,
     M2004_MODULE_ID,
     AdapterFinding,
     AdapterFindingCode,
@@ -59,6 +58,7 @@ _FORBIDDEN_TERMS: Final = frozenset(
     {"treatment", "diagnos", "kinase", "all-omics", "identity inference"}
 )
 _REQUIRED_DISPLAY_SECTIONS: Final = frozenset({"support", "uncertainty", "evidence", "limitations"})
+_MIN_REVIEW_EVIDENCE_TIER: Final = 3
 
 
 class M2004AuthorizationError(ValueError):
@@ -94,7 +94,10 @@ def preflight_m2004_authorization(candidate: object) -> None:
 def _uncertainty() -> UncertaintyProfile:
     estimate = UncertaintyEstimate(
         state=EstimateState.NOT_ESTIMABLE,
-        rationale="M20-04 adapts caller-declared presentation policy; it does not estimate biological truth.",
+        rationale=(
+            "M20-04 adapts caller-declared presentation policy; it does not estimate "
+            "biological truth."
+        ),
     )
     return UncertaintyProfile(
         measurement=estimate,
@@ -111,7 +114,9 @@ def _uncertainty() -> UncertaintyProfile:
     )
 
 
-def _control_decisions(request: AdaptProteinSubtypeIntendedUseRequest) -> tuple[ControlDecisionRecord, ...]:
+def _control_decisions(
+    request: AdaptProteinSubtypeIntendedUseRequest,
+) -> tuple[ControlDecisionRecord, ...]:
     refs = request.context.references
     records: list[ControlDecisionRecord] = []
     for role, decision in (
@@ -222,7 +227,9 @@ def _findings(request: AdaptProteinSubtypeIntendedUseRequest) -> tuple[AdapterFi
     evidence = _evidence(request)
     findings: list[AdapterFinding] = []
     claim = registration.claim_ceiling.maximum_claim.casefold()
-    prohibited = " ".join(item.casefold() for item in registration.claim_ceiling.prohibited_interpretations)
+    prohibited = " ".join(
+        item.casefold() for item in registration.claim_ceiling.prohibited_interpretations
+    )
     if "treatment" in claim or "treatment" in prohibited:
         findings.append(
             _finding(
@@ -241,7 +248,10 @@ def _findings(request: AdaptProteinSubtypeIntendedUseRequest) -> tuple[AdapterFi
                 evidence,
             )
         )
-    if registration.intended_use.value in {"clinical_review", "release_review"} and registration.evidence_tier < 3:
+    if (
+        registration.intended_use.value in {"clinical_review", "release_review"}
+        and registration.evidence_tier < _MIN_REVIEW_EVIDENCE_TIER
+    ):
         findings.append(
             _finding(
                 request,
@@ -268,19 +278,31 @@ def _limitations() -> tuple[Limitation, ...]:
     return (
         Limitation(
             code="caller_declared_policy",
-            statement="Registration, audience, evidence tier and claim ceiling are caller-declared and not issuer-authenticated.",
+            statement=(
+                "Registration, audience, evidence tier and claim ceiling are caller-declared "
+                "and not issuer-authenticated."
+            ),
         ),
         Limitation(
             code="upstream_not_recomputed",
-            statement="M20-04 binds the M20-03 artifact by media type and does not recompute or authenticate upstream biology.",
+            statement=(
+                "M20-04 binds the M20-03 artifact by media type and does not recompute or "
+                "authenticate upstream biology."
+            ),
         ),
         Limitation(
             code="no_treatment_or_kinase",
-            statement="Treatment, kinase, all-omics, diagnosis and identity-inference interpretations remain outside this adapter.",
+            statement=(
+                "Treatment, kinase, all-omics, diagnosis and identity-inference "
+                "interpretations remain outside this adapter."
+            ),
         ),
         Limitation(
             code="provisional_abi",
-            statement="The ABI remains provisional pending owner confirmation and release governance.",
+            statement=(
+                "The ABI remains provisional pending owner confirmation and release "
+                "governance."
+            ),
         ),
     )
 
@@ -302,27 +324,40 @@ class M2004Engine:
             adapted_object = None
             policy_status = (
                 PolicyDecisionStatus.BLOCKED
-                if any(item.code is AdapterFindingCode.TREATMENT_RECOMMENDATION_BLOCKED for item in findings)
+                if any(
+                    item.code is AdapterFindingCode.TREATMENT_RECOMMENDATION_BLOCKED
+                    for item in findings
+                )
                 else PolicyDecisionStatus.REVIEW_REQUIRED
             )
             support = SupportDecision(
                 status=SupportStatus.REVIEW_REQUIRED,
                 reason_code="intended_use_review_required",
-                rationale="No bounded object is emitted while registration policy findings require review.",
+                rationale=(
+                    "No bounded object is emitted while registration policy findings "
+                    "require review."
+                ),
             )
-            abstention_reason = "M20-04 abstained because intended-use policy findings require review."
+            abstention_reason = (
+                "M20-04 abstained because intended-use policy findings require review."
+            )
         else:
             status = AdapterStatus.ADAPTED
             policy_status = PolicyDecisionStatus.ALLOWED
             support = SupportDecision(
                 status=SupportStatus.SUPPORTED,
                 reason_code="intended_use_policy_allowed",
-                rationale="The locked registration satisfies the bounded M20-04 display and claim policy.",
+                rationale=(
+                    "The locked registration satisfies the bounded M20-04 display and "
+                    "claim policy."
+                ),
             )
             abstention_reason = None
         policy = PolicyDecision(
             status=policy_status,
-            reason_code=(findings[0].code if findings else AdapterFindingCode.PROVISIONAL_ABI_PENDING_REVIEW),
+            reason_code=(
+                findings[0].code if findings else AdapterFindingCode.PROVISIONAL_ABI_PENDING_REVIEW
+            ),
             rationale=(
                 "Registered policy permits bounded protein subtype presentation."
                 if not findings
