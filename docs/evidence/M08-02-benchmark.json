@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M08-02",
+  "contract_version": "0.1.0-provisional",
+  "workload": "two-feature leakage-safe representation construction",
+  "timed_boundary": "M0802RepresentationEngine.construct",
+  "iterations": 10,
+  "mean_ns": 2228980.0,
+  "median_ns": 2229600.0,
+  "p95_ns": 2324000,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "feature_count": 2,
+  "source_count": 2,
+  "passed": true
+}
