@@ -1,1 +1,1 @@
-"""C08 transcript-protein discordance runtime modules (provisional additions)."""
+"""Transcript-protein discordance module family (provisional additions)."""
