@@ -275,15 +275,6 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
-from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
-from glio_proteogen.contracts.m14_03.schema import (
-    contract_json_schema as m1403_contract_json_schema,
-)
-from glio_proteogen.contracts.m14_03.v1 import (
-    M1403_MAX_CANONICAL_REQUEST_BYTES,
-    ConstructProteinSubtypeMechanisticFeaturesRequest,
-    ProteinSubtypeMechanisticFeatureResult,
-)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -292,6 +283,15 @@ from glio_proteogen.contracts.m13_06.v1 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
     ProteotypePerturbationSensitivityResult,
     SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
+from glio_proteogen.contracts.m14_03.schema import (
+    contract_json_schema as m1403_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_03.v1 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+    ProteinSubtypeMechanisticFeatureResult,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -442,13 +442,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_03_mechanistic_feature_constructor as m1403_module,
-)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
     preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
