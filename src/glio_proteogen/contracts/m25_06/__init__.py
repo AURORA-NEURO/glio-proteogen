@@ -1,5 +1,10 @@
 """Provisional M25-06 robustness and OOD challenge contract exports."""
 
+from glio_proteogen.contracts.m25_06.canonical import (
+    canonical_request_digest,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m25_06.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -82,6 +87,9 @@ __all__ = [
     "RobustnessStatus",
     "RobustnessSurface",
     "SafeFailureReport",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_identifier",
+    "result_payload_digest",
 ]
