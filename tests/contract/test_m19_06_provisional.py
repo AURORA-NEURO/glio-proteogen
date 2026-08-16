@@ -330,3 +330,117 @@ def test_request_rejects_duplicate_blinded_reviewer_token() -> None:
                 ),
             )
         )
+
+
+@pytest.mark.parametrize(
+    ("variant", "message"),
+    [
+        ("duplicate_entries", "discrepancy ids must be unique"),
+        ("duplicate_assignments", "assignment ids must be unique"),
+        ("duplicate_history", "audit event ids and sequence numbers must be unique"),
+        ("noncontiguous_history", "audit history sequence must be contiguous"),
+        ("unknown_assignment", "assignment references an unknown discrepancy"),
+        ("duplicate_reviewer", "reviewed twice"),
+        ("resolved_defer", "resolved discrepancy requires final review decisions"),
+        ("missing_summary", "resolved record requires a resolution summary"),
+        ("resolved_unresolved_entry", "every discrepancy to be resolved"),
+        ("escalated_summary", "escalated record cannot claim final resolution"),
+        ("escalated_without_unresolved", "escalated record requires an unresolved discrepancy"),
+        ("wrong_terminal_event", "history must end with the record terminal state"),
+    ],
+)
+def test_record_rejects_each_closed_history_variant(  # noqa: C901 - adversarial matrix.
+    variant: str, message: str
+) -> None:
+    payload = _record().model_dump(mode="python")
+    if variant == "duplicate_entries":
+        payload["entries"] = (payload["entries"][0], payload["entries"][0])
+    elif variant == "duplicate_assignments":
+        payload["assignments"] = (payload["assignments"][0], payload["assignments"][0])
+    elif variant == "duplicate_history":
+        payload["history"] = (payload["history"][0], payload["history"][0])
+    elif variant == "noncontiguous_history":
+        event = dict(payload["history"][0])
+        event["sequence"] = 2
+        event["event_digest"] = audit_event_payload_digest(event)
+        payload["history"] = (event,)
+    elif variant == "unknown_assignment":
+        assignment = dict(payload["assignments"][0])
+        assignment["discrepancy_id"] = "discrepancy.unknown"
+        payload["assignments"] = (assignment,)
+    elif variant == "duplicate_reviewer":
+        assignment = dict(payload["assignments"][0])
+        assignment["assignment_id"] = "assignment.2"
+        payload["assignments"] = (payload["assignments"][0], assignment)
+    elif variant == "resolved_defer":
+        assignment = dict(payload["assignments"][0])
+        assignment["decision"] = ReviewDecision.DEFER
+        payload["assignments"] = (assignment,)
+    elif variant == "missing_summary":
+        payload["resolution_summary"] = None
+    elif variant == "resolved_unresolved_entry":
+        entry = dict(payload["entries"][0])
+        entry["state"] = QueueEntryState.IN_REVIEW
+        payload["entries"] = (entry,)
+    elif variant == "escalated_summary":
+        payload["status"] = AdjudicationRecordStatus.ESCALATED
+        payload["resolution_summary"] = "not allowed"
+    elif variant == "escalated_without_unresolved":
+        payload["status"] = AdjudicationRecordStatus.ESCALATED
+        payload["resolution_summary"] = None
+    else:
+        event = dict(payload["history"][0])
+        event["event_type"] = AuditEventType.QUEUE_CREATED
+        event["event_digest"] = audit_event_payload_digest(event)
+        payload["history"] = (event,)
+    with pytest.raises(ValueError, match=message):
+        AdjudicationRecord.model_validate(payload, strict=True)
+
+
+def test_record_requires_assignment_for_every_entry() -> None:
+    first = _entry()
+    second = _entry(discrepancy_id="discrepancy.2")
+    payload = _record().model_dump(mode="python")
+    payload["entries"] = (first.model_dump(mode="python"), second.model_dump(mode="python"))
+    with pytest.raises(ValueError, match="every discrepancy requires"):
+        AdjudicationRecord.model_validate(payload, strict=True)
+
+
+@pytest.mark.parametrize(
+    ("variant", "message"),
+    [
+        ("duplicate_assignment", "request assignment ids must be unique"),
+        ("unknown_assignment", "request assignment references an unknown discrepancy"),
+        ("duplicate_source", "request source artifact ids must be unique"),
+        ("missing_source", "request source artifacts must include the upstream result"),
+        ("missing_assignment", "every discrepancy requires a reviewer assignment"),
+        ("critical_review", "critical discrepancy requires two blinded reviewers"),
+    ],
+)
+def test_request_rejects_each_manifest_variant(variant: str, message: str) -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    if variant == "duplicate_assignment":
+        payload["assignments"] = (payload["assignments"][0], payload["assignments"][0])
+    elif variant == "unknown_assignment":
+        assignment = dict(payload["assignments"][0])
+        assignment["discrepancy_id"] = "discrepancy.unknown"
+        payload["assignments"] = (assignment,)
+    elif variant == "duplicate_source":
+        payload["source_artifacts"] = (
+            payload["source_artifacts"][0],
+            payload["source_artifacts"][0],
+        )
+    elif variant == "missing_source":
+        payload["source_artifacts"] = (_artifact("other.1"),)
+    elif variant == "missing_assignment":
+        second = _entry(discrepancy_id="discrepancy.2")
+        payload["entries"] = (payload["entries"][0], second.model_dump(mode="python"))
+    else:
+        critical = _entry(severity=DiscrepancySeverity.CRITICAL)
+        payload["entries"] = (critical.model_dump(mode="python"),)
+        payload["assignments"] = (
+            _assignment(discrepancy_id=critical.discrepancy_id).model_dump(mode="python"),
+        )
+    with pytest.raises(ValueError, match=message):
+        AdjudicateProteotypeQueueRequest.model_validate(payload, strict=True)
