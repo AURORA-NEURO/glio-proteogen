@@ -144,9 +144,7 @@ class ReviewItem(FrozenModel):
     evidence_summary: NonEmptyStr
     uncertainty_summary: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2005_MAX_EVIDENCE)
-    discrepancy_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M2005_MAX_DISCREPANCIES
-    )
+    discrepancy_ids: tuple[Identifier, ...] = Field(default=(), max_length=M2005_MAX_DISCREPANCIES)
     provenance_artifact: ArtifactReference
     next_action: NextAction | None = None
 

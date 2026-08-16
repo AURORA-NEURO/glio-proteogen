@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -297,7 +298,7 @@ def _result() -> ProteinSubtypeHumanReviewWorkspaceResult:
         source_bundle=request.aligned_evidence_bundle,
         evidence=(_evidence(request.aligned_evidence_bundle),),
     )
-    payload = {
+    payload: dict[str, Any] = {
         "output_type": "protein_subtype_human_review_workspace",
         "result_id": "result.m2005.synthetic",
         "result_version": "0.1.0-provisional",
@@ -387,6 +388,7 @@ def test_replay_digests_are_stable_and_detect_tampering() -> None:
     result = _result()
     assert verify_result_digest(result, result.result_digest)
     assert canonical_result_payload_bytes(result) == canonical_result_payload_bytes(result)
+    assert result.workspace is not None
     altered = result.model_copy(
         update={
             "workspace": result.workspace.model_copy(update={"automation_bias_warning": "tampered"})
