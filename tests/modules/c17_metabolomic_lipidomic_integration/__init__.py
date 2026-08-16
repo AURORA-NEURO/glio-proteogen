@@ -1,1 +1,1 @@
-"""M19-02 runtime test package."""
+"""Runtime tests for the stacked C17 metabolomic/lipidomic modules."""

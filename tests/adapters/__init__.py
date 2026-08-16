@@ -1,1 +1,1 @@
-"""Adapter test package."""
+"""Adapter test package for the stacked module integrations."""
