@@ -1,1 +1,1 @@
-"""Provisional M19-05 workflow presentation evaluation hooks."""
+"""M19-05 locked evaluator and benchmark wrappers."""
