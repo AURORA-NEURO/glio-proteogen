@@ -36,9 +36,25 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def result_identifier(value: BaseModel | dict[str, Any]) -> str:
+    """Return a deterministic result identifier bound to one request."""
+
+    return "m2201.result." + canonical_request_digest(value).removeprefix("sha256:")
+
+
+def reference_truth_package_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Digest a package after removing its self-referential lock digest."""
+
+    document = _dump(value)
+    document.pop("lock_digest", None)
+    return sha256_digest(document)
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "reference_truth_package_digest",
+    "result_identifier",
     "result_payload_digest",
 ]
