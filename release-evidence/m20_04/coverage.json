@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-04",
+  "scope": "contracts/m20_04 + m20_04_intended_use_adapter + adapters/m2004.py",
+  "branch_enabled": true,
+  "statements": 473,
+  "covered_statements": 470,
+  "missed_statements": 3,
+  "branches": 70,
+  "covered_branches": 70,
+  "partial_branches": 0,
+  "coverage_percent": 99.4475138121547,
+  "fail_under_percent": 95,
+  "passed": true
+}
