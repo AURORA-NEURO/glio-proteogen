@@ -1,11 +1,16 @@
 """Focused contract/schema smoke for provisional M26-03."""
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_03 import (
+    M2603_DOSSIER_SHA256,
+    M2603_DOSSIER_SLICE,
+    M2603_M2601_INPUT_MEDIA_TYPE,
+    M2603_M2602_INPUT_MEDIA_TYPE,
     M2603_OUTPUT_MEDIA_TYPE,
     M2603_PROVISIONAL_ABI,
     ExecutionAttempt,
@@ -18,27 +23,30 @@ from glio_proteogen.contracts.m26_03 import (
 _SCHEMA_COUNT = 9
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def test_provisional_schemas_require_reproducible_execution_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, object]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["workflowDagRequired"]
-        and schema["x-glio-contract"]["deterministicExecutionRequired"]
-        and schema["x-glio-contract"]["retryAndCheckpointRequired"]
-        and schema["x-glio-contract"]["environmentCaptureRequired"]
-        and schema["x-glio-contract"]["reproducibilityPackageRequired"]
-        and schema["x-glio-contract"]["quarantineUnresolvedInputs"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        _metadata(schema)["workflowDagRequired"]
+        and _metadata(schema)["deterministicExecutionRequired"]
+        and _metadata(schema)["retryAndCheckpointRequired"]
+        and _metadata(schema)["environmentCaptureRequired"]
+        and _metadata(schema)["reproducibilityPackageRequired"]
+        and _metadata(schema)["quarantineUnresolvedInputs"]
+        and _metadata(schema)["explicitAbstentionRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein subtype"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "protein subtype" for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2603_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2603_OUTPUT_MEDIA_TYPE
     assert M2603_PROVISIONAL_ABI is True
 
 
@@ -70,3 +78,15 @@ def test_workflow_and_attempt_invariants_are_explicit() -> None:
             status=StepStatus.FAILED,
             started_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
+
+
+def test_authority_and_upstream_boundaries_are_explicit() -> None:
+    assert M2603_DOSSIER_SHA256 == (
+        "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+    )
+    assert M2603_DOSSIER_SLICE.endswith(":9124-9164")
+    metadata = _metadata(cast("dict[str, dict[str, object]]", contract_json_schemas())["request"])
+    assert metadata["mediaOnlyBoundaries"] == (
+        M2603_M2601_INPUT_MEDIA_TYPE,
+        M2603_M2602_INPUT_MEDIA_TYPE,
+    )

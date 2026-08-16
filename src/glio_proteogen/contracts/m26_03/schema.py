@@ -8,7 +8,11 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m26_03.v1 import (
     M2603_CONTRACT_VERSION,
+    M2603_DOSSIER_SHA256,
+    M2603_DOSSIER_SLICE,
     M2603_GATE,
+    M2603_M2601_INPUT_MEDIA_TYPE,
+    M2603_M2602_INPUT_MEDIA_TYPE,
     M2603_MAX_CANONICAL_REQUEST_BYTES,
     M2603_MODULE_ID,
     M2603_OUTPUT_MEDIA_TYPE,
@@ -69,6 +73,12 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "provisionalAbi": M2603_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
         "pendingOwnerConfirmation": True,
+        "dossierSha256": M2603_DOSSIER_SHA256,
+        "dossierSlice": M2603_DOSSIER_SLICE,
+        "mediaOnlyBoundaries": (
+            M2603_M2601_INPUT_MEDIA_TYPE,
+            M2603_M2602_INPUT_MEDIA_TYPE,
+        ),
         "externalContentTraversal": False,
         "rawPayload": False,
         "genericAllOmicsFusion": False,

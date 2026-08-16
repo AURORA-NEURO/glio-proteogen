@@ -15,6 +15,7 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from glio_proteogen.contracts.m26_03.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -43,6 +44,12 @@ M2603_OWNER: Final = "ML engineering"
 M2603_SAFETY_CLASS: Final = "S3"
 M2603_GATE: Final = "G1"
 M2603_PROVISIONAL_ABI: Final = True
+M2603_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2603_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9124-9164"
+M2603_M2601_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-01+json"
+M2603_M2602_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-02+json"
 M2603_MAX_STEPS: Final = 256
 M2603_MAX_ATTEMPTS: Final = 1024
 M2603_MAX_ARTIFACTS: Final = 128
@@ -121,6 +128,12 @@ class WorkflowDefinition(FrozenModel):
             for dependency in step.dependencies
         ):
             raise ValueError("workflow dependency references an unknown or self step")
+        if len(self.entry_step_ids) != len(set(self.entry_step_ids)):
+            raise ValueError("workflow entry step ids must be unique")
+        if len(self.output_step_ids) != len(set(self.output_step_ids)):
+            raise ValueError("workflow output step ids must be unique")
+        if set(self.entry_step_ids) & set(self.output_step_ids) and len(step_ids) > 1:
+            raise ValueError("workflow entry and output steps must be distinct for multi-step DAGs")
         if not any(step.deterministic and step.checkpoint_required for step in self.steps):
             raise ValueError("workflow must declare deterministic checkpointed steps")
         return self
@@ -185,6 +198,12 @@ class ExecutionRecord(FrozenModel):
             raise ValueError("execution attempt ids must be unique")
         if any(item.step_id not in known_steps for item in self.attempts):
             raise ValueError("execution attempt references an unknown workflow step")
+        if (
+            self.execution_status is ExecutionStatus.COMPLETED
+            and {item.step_id for item in self.attempts if item.status is StepStatus.COMPLETED}
+            != known_steps
+        ):
+            raise ValueError("completed execution requires every workflow step")
         if self.execution_status is ExecutionStatus.COMPLETED and any(
             item.status is not StepStatus.COMPLETED for item in self.attempts
         ):
@@ -229,6 +248,23 @@ class ExecuteProteinSubtypeWorkflowRequest(FrozenModel):
     )
     supersedes_result_digest: Sha256Digest | None = None
 
+    @model_validator(mode="after")
+    def request_is_bound(self) -> ExecuteProteinSubtypeWorkflowRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
+        keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(keys) != len(set(keys)):
+            raise ValueError("source artifacts must be unique")
+        media = {item.media_type for item in self.source_artifacts}
+        if M2603_M2601_INPUT_MEDIA_TYPE not in media:
+            raise ValueError("source artifacts must retain the M26-01 media boundary")
+        if M2603_M2602_INPUT_MEDIA_TYPE not in media:
+            raise ValueError("source artifacts must retain the M26-02 media boundary")
+        return self
+
 
 class ProteinSubtypeExecutionResult(FrozenModel):
     """Execution record and reproducible result package with safe abstention."""
@@ -257,6 +293,14 @@ class ProteinSubtypeExecutionResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeExecutionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("pipeline finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("pipeline result evidence must be unique")
         if self.status is ExecutionStatus.COMPLETED:
             if (
                 self.execution_record is None
@@ -280,8 +324,12 @@ class ProteinSubtypeExecutionResult(FrozenModel):
 
 __all__ = [
     "M2603_CONTRACT_VERSION",
+    "M2603_DOSSIER_SHA256",
+    "M2603_DOSSIER_SLICE",
     "M2603_EVIDENCE_CLAIM",
     "M2603_GATE",
+    "M2603_M2601_INPUT_MEDIA_TYPE",
+    "M2603_M2602_INPUT_MEDIA_TYPE",
     "M2603_MAX_ARTIFACTS",
     "M2603_MAX_ATTEMPTS",
     "M2603_MAX_CANONICAL_REQUEST_BYTES",
