@@ -1,0 +1,10 @@
+requirement,implementation,evidence,gate,status
+uncertainty decomposition responsibility,contracts/m07_06/v1.py,tests/property/test_m07_06_adversarial.py,G0,pass
+seven explicit uncertainty dimensions,UncertaintyProfile and UncertaintyDecomposition,tests/modules/c07_copy_number_dosage/test_m07_06_uncertainty.py,G1,pass
+sensitivity envelope and 90 percent target,contracts/m07_06/v1.py and kernel.py,tests/property/test_m07_06_adversarial.py,G3,pass
+safe unsupported or uncalibrated abstention,engine.py,evals/m07_06/run.py,G3,pass
+identity consent provenance controls,expected_provenance and preflight,tests/property/test_m07_06_adversarial.py,G4,pass
+canonical replay and tamper closure,canonical.py engine.py service.py,tests/modules/c07_copy_number_dosage/test_m07_06_uncertainty.py,G4,pass
+strict transport parity,api.py cli.py plugin.py,tests/integration/test_m07_06_interfaces.py,G2,pass
+benchmark budget,evals/m07_06/benchmark.py,tests/evals/test_m07_06_evaluation.py,G3,pass
+provisional ABI boundary,schema.py and docs/modules/GLIO-PROTEOGEN-M07-06.md,docs/evidence/M07-06.md,G0,owner confirmation pending
