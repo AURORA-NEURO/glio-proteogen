@@ -1,0 +1,12 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M20-05,caller-declared M20-04 evidence binding,contracts/m20_05/v1.py request_is_bound_and_bounded,contract and evaluator tests,pass
+GLIO-PROTEOGEN-M20-05,task-specific workspace views and safe ordering,contracts/m20_05/v1.py PresentationPolicy and HumanReviewWorkspace,contract/runtime tests,pass
+GLIO-PROTEOGEN-M20-05,conflict and unresolved discrepancy visibility,engine.py findings and ReviewItem escalation,adversarial/evaluator matrix,pass
+GLIO-PROTEOGEN-M20-05,seven-control fail-closed preflight,modules/.../m20_05_workflow_presentation_service/engine.py,denial and malformed-context tests,pass
+GLIO-PROTEOGEN-M20-05,safe abstention and no unsupported-to-negative conversion,engine.py WorkspaceStatus and SupportDecision,abstention evaluator/adversarial tests,pass
+GLIO-PROTEOGEN-M20-05,seven uncertainty dimensions and provenance,engine.py _uncertainty and _provenance,focused runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M20-05,canonical request/result replay and tamper rejection,contracts/m20_05/canonical.py and engine.py,replay/adversarial tests,pass
+GLIO-PROTEOGEN-M20-05,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M20-05,FastAPI/Typer sanitized interfaces,modules/.../api.py and cli.py,interface and sanitized-error tests,pass
+GLIO-PROTEOGEN-M20-05,evaluator fixture and locked benchmark,evals/m20_05,eight scenarios and ten iterations,pass
+GLIO-PROTEOGEN-M20-05,provisional authority and prohibited boundaries,docs/modules/M20-05-workflow-presentation-service.md,owner review and release evidence,provisional
