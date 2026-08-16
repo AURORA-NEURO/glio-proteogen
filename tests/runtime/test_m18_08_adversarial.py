@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m18_08 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
     MonitorStatus,
     ObservationStatus,
     TelemetryObservation,
@@ -76,6 +77,27 @@ def test_public_operation_and_service_json_boundaries() -> None:
 def test_service_rejects_invalid_json() -> None:
     with pytest.raises((TypeError, ValueError)):
         m1808.M1808Service().execute(b"{not-json")
+
+
+def test_service_rejects_oversized_json_before_validation() -> None:
+    oversized = b'{"padding":"' + b"x" * M1808_MAX_CANONICAL_REQUEST_BYTES + b'"}'
+    with pytest.raises((TypeError, ValueError), match="byte limit"):
+        m1808.M1808Service().execute(oversized)
+
+
+def test_service_rejects_duplicate_json_keys() -> None:
+    encoded = canonical_json_bytes(_request().model_dump(mode="json"))
+    duplicate = encoded[:-1] + b',"request_id":"forged"}'
+    with pytest.raises((TypeError, ValueError), match="duplicate"):
+        m1808.M1808Service().execute(duplicate)
+
+
+def test_authorization_preflight_precedes_malformed_observations() -> None:
+    payload = _request().model_dump(mode="json")
+    payload["context"]["references"]["consent"]["state"] = "withheld"
+    payload["telemetry"] = "not-a-sequence"
+    with pytest.raises(m1808.M1808AuthorizationError):
+        m1808.M1808TranslationMonitoringEngine().infer(payload)
 
 
 def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
