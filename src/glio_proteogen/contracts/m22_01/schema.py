@@ -8,7 +8,10 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m22_01.v1 import (
     M2201_CONTRACT_VERSION,
+    M2201_DOSSIER_SHA256,
+    M2201_DOSSIER_SLICE,
     M2201_GATE,
+    M2201_M2108_INPUT_MEDIA_TYPE,
     M2201_MAX_CANONICAL_REQUEST_BYTES,
     M2201_MODULE_ID,
     M2201_OUTPUT_MEDIA_TYPE,
@@ -62,6 +65,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["x-glio-contract"] = {
         "moduleId": M2201_MODULE_ID,
         "contractVersion": CONTRACT_VERSION,
+        "dossierSha256": M2201_DOSSIER_SHA256,
+        "dossierSlice": M2201_DOSSIER_SLICE,
         "owner": M2201_OWNER,
         "safetyClass": M2201_SAFETY_CLASS,
         "gate": M2201_GATE,
@@ -80,6 +85,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "parentTarget": M2201_PARENT,
         "unsupportedToNegative": False,
         "outputMediaType": M2201_OUTPUT_MEDIA_TYPE,
+        "upstreamInputMediaType": M2201_M2108_INPUT_MEDIA_TYPE,
         "primaryArchitecture": "distributed_simulation_continuous_challenge",
         "alternateArchitecture": "locked_offline_benchmark_harness",
         "fallbackArchitecture": "independent_dual_run_validation",
