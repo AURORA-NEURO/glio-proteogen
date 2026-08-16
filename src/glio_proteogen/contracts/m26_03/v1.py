@@ -323,6 +323,12 @@ class ExecuteProteinSubtypeWorkflowRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("source artifacts must be unique")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
+        digests = tuple(item.digest for item in self.source_artifacts)
+        if len(digests) != len(set(digests)):
+            raise ValueError("source artifact digests must be unique")
         media = {item.media_type for item in self.source_artifacts}
         if M2603_M2601_INPUT_MEDIA_TYPE not in media:
             raise ValueError("source artifacts must retain the M26-01 media boundary")

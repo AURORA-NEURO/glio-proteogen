@@ -50,6 +50,24 @@ def test_request_rejects_context_source_and_media_binding_tampering() -> None:
     )
     with pytest.raises(M2603EvaluationError):
         M2603Service().execute(duplicate_source)
+    renamed_source = request.source_artifacts[0].model_copy(
+        update={"artifact_id": "m2603-renamed-source"}
+    )
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(
+            request.model_copy(
+                update={"source_artifacts": (*request.source_artifacts, renamed_source)}
+            )
+        )
+    rehashed_source = request.source_artifacts[0].model_copy(
+        update={"digest": "sha256:" + "f" * 64}
+    )
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(
+            request.model_copy(
+                update={"source_artifacts": (*request.source_artifacts, rehashed_source)}
+            )
+        )
 
     no_m2601 = tuple(item for item in request.source_artifacts if "m26-01" not in item.media_type)
     with pytest.raises(M2603EvaluationError):
