@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-03",
+  "authority_slice": "dossier:5164-5204",
+  "cases": [
+    {"case_id": "constructed_supported", "expected": "constructed"},
+    {"case_id": "limited_feature_support", "expected": "constructed"},
+    {"case_id": "unit_domain_abstention", "expected": "abstained"},
+    {"case_id": "conflicted_feature_abstention", "expected": "abstained"},
+    {"case_id": "unsupported_method_abstention", "expected": "abstained"},
+    {"case_id": "replay_and_tamper", "expected": "verified"},
+    {"case_id": "authorization_gate", "expected": "rejected"}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-05",
+  "fixture": "tests/fixtures/m17_05/scenarios.json",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "cases": [
+    "supported_workspace",
+    "conflict_visible",
+    "limited_review",
+    "unsupported_abstention",
+    "replay",
+    "authorization_gate"
+  ],
+  "passed": true,
+  "synthetic_only": true,
+  "provisional": true
+}
+
