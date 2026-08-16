@@ -179,9 +179,7 @@ def test_request_requires_upstream_artifact_and_locked_field_versions() -> None:
         ExportBiomarkerPanelDownstreamContractRequest.model_validate(
             request.model_copy(
                 update={
-                    "fields": (
-                        request.fields[0].model_copy(update={"field_version": "2.0.0"}),
-                    )
+                    "fields": (request.fields[0].model_copy(update={"field_version": "2.0.0"}),)
                 }
             ),
             strict=True,

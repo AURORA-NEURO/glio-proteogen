@@ -34,6 +34,26 @@
       "passed": true
     },
     {
+      "detail": "signature commits to request fields, configuration and owning module",
+      "name": "supported.signature_binding",
+      "passed": true
+    },
+    {
+      "detail": "M18-06 input remains explicit in the source artifact set",
+      "name": "supported.upstream_source_binding",
+      "passed": true
+    },
+    {
+      "detail": "review-required compatibility never produces an export",
+      "name": "review.compatibility",
+      "passed": true
+    },
+    {
+      "detail": "combined prohibited responsibilities remain outside the export",
+      "name": "boundary.strict_json",
+      "passed": true
+    },
+    {
       "detail": "replay reproduces the exact result",
       "name": "replay.deterministic",
       "passed": true

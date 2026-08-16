@@ -80,9 +80,7 @@ def test_withheld_consent_is_rejected_before_export_fields_are_read() -> None:
     candidate = request.model_copy(
         update={
             "context": request.context.model_copy(
-                update={
-                    "references": references.model_copy(update={"consent": withheld})
-                }
+                update={"references": references.model_copy(update={"consent": withheld})}
             )
         }
     )

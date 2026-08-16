@@ -29,16 +29,20 @@ review-required rather than silently normalized.
 ## Contract, runtime and interfaces
 
 - The contract closes unique IDs, parent binding, ownership, compatibility, support and
-  immutable signed-envelope fields. Canonical request and result digests bind replay to the
-  exact caller-declared request.
+  immutable signed-envelope fields. The M18-06 artifact must remain in the declared source set,
+  every field version must match the locked configuration, and canonical request/result digests
+  bind replay to the exact caller-declared request.
 - Runtime preflight requires approved configuration, identity lineage, provenance, consent,
   quality, support and intended use. It fails closed before constructing an export when any
-  control is withheld or unresolved.
+  control is withheld or unresolved. Canonical request/result byte limits are enforced at the
+  service boundary, and the signed payload digest commits to fields, configuration and owner.
 - Supported requests produce a signed bounded contract with explicit evidence and all seven
   uncertainty dimensions. Limited, unsupported, prohibited or review-required inputs produce
   typed abstention with human-review escalation and no unsupported-negative claim.
 - FastAPI exposes schema, export and verify routes. Typer exposes `export-schema`, `export` and
-  `verify`. Both use strict parse-once validation, sanitized errors and no-overwrite output.
+  `verify`. Both use strict parse-once validation, sanitized errors and no-overwrite output; the
+  service exposes a public `execute_validated` seam so API, CLI and plugin paths share one typed
+  execution route without a second parse.
   The plugin descriptor mirrors the Platform engineering/S2/G3 authority ceiling.
 
 ## Evidence and release posture
