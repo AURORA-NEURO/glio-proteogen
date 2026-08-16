@@ -129,7 +129,7 @@ class M2407HumanFactorsOperationalEvaluator:
             "provenance": _provenance(canonical, request_digest),
             "evidence": _evidence(canonical),
             "limitations": _LIMITATIONS,
-            "human_review_required": not supported,
+            "human_review_required": True,
         }
         provisional = BiomarkerPanelHumanFactorsResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
