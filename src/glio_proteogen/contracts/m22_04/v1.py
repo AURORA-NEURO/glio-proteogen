@@ -12,10 +12,11 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, FiniteFloat, model_validator
 
 from glio_proteogen.contracts.m22_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -34,11 +35,17 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from the M22-04 dossier slice.
+# PROVISIONAL ABI: inferred solely from the permitted M22-04 dossier slice.
 M2204_MODULE_ID: Final = "GLIO-PROTEOGEN-M22-04"
+M2204_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2204_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7728-7768"
 M2204_OPERATION: Final = "evaluate_protein_rna_discordance_external_transport"
 M2204_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2204_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m22-04+json"
+M2204_M2202_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m22-02+json"
+M2204_M2203_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m22-03+json"
 M2204_PARENT: Final = "protein-RNA discordance"
 M2204_OWNER: Final = "Scientific engineering"
 M2204_SAFETY_CLASS: Final = "S3"
@@ -112,8 +119,8 @@ class TransportEvaluation(FrozenModel):
     dimension: TransportDimension
     status: TransportStatus
     metric_name: NonEmptyStr
-    metric_value: float = Field(ge=0.0, le=1.0)
-    calibration_floor: float = Field(ge=0.0, le=1.0)
+    metric_value: FiniteFloat = Field(ge=0.0, le=1.0)
+    calibration_floor: FiniteFloat = Field(ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2204_MAX_EVIDENCE)
 
@@ -146,6 +153,8 @@ class SupportDomainUpdate(FrozenModel):
     def domains_are_disjoint(self) -> SupportDomainUpdate:
         if set(self.retained_dimensions) & set(self.narrowed_dimensions):
             raise ValueError("retained and narrowed dimensions must be disjoint")
+        if not set(self.retained_dimensions) | set(self.narrowed_dimensions):
+            raise ValueError("support-domain update must retain or narrow a dimension")
         return self
 
 
@@ -165,6 +174,8 @@ class TransportConfiguration(FrozenModel):
     def required_dimensions_are_unique(self) -> TransportConfiguration:
         if len(self.required_dimensions) != len(set(self.required_dimensions)):
             raise ValueError("required transport dimensions must be unique")
+        if set(self.required_dimensions) != set(TransportDimension):
+            raise ValueError("configuration must require all seven transport dimensions")
         return self
 
 
@@ -195,6 +206,8 @@ class TransportabilityReport(FrozenModel):
             raise ValueError("report must evaluate every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("transport evaluation dimensions must be unique")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("transport validation dimensions must be unique")
         return self
 
 
@@ -213,6 +226,7 @@ class EvaluateProteinRnaDiscordanceExternalTransportRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     benchmark_package: ArtifactReference
+    upstream_truth: ArtifactReference
     validations: tuple[TransportValidation, ...] = Field(
         min_length=1, max_length=M2204_MAX_VALIDATIONS
     )
@@ -227,6 +241,12 @@ class EvaluateProteinRnaDiscordanceExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateProteinRnaDiscordanceExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        if self.benchmark_package.media_type != M2204_M2203_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M22-03 benchmark result")
+        if self.upstream_truth.media_type != M2204_M2202_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M22-02 upstream result")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
@@ -234,6 +254,28 @@ class EvaluateProteinRnaDiscordanceExternalTransportRequest(FrozenModel):
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        validation_ids = tuple(item.validation_id for item in self.validations)
+        evaluation_ids = tuple(item.evaluation_id for item in self.evaluations)
+        if len(validation_ids) != len(set(validation_ids)):
+            raise ValueError("request validation ids must be unique")
+        if len(evaluation_ids) != len(set(evaluation_ids)):
+            raise ValueError("request evaluation ids must be unique")
+        artifact_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("request source artifacts must be unique")
+        source_keys = set(artifact_keys)
+        for required_artifact in (self.benchmark_package, self.upstream_truth):
+            key = (
+                required_artifact.artifact_id,
+                required_artifact.version,
+                required_artifact.digest,
+                required_artifact.media_type,
+            )
+            if key not in source_keys:
+                raise ValueError("source artifacts must include every upstream result")
         return self
 
 
@@ -262,9 +304,27 @@ class ProteinRnaDiscordanceExternalTransportResult(FrozenModel):
     human_review_required: bool = True
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteinRnaDiscordanceExternalTransportResult:
+    def result_is_closed(  # noqa: PLR0912 - closure validates independent safety invariants.
+        self,
+    ) -> ProteinRnaDiscordanceExternalTransportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        if self.provenance.module_id != M2204_MODULE_ID:
+            raise ValueError("provenance module id must identify M22-04")
+        required_digests = {
+            self.request.benchmark_package.digest,
+            self.request.upstream_truth.digest,
+        }
+        if not required_digests <= set(self.provenance.input_digests):
+            raise ValueError("provenance must include every upstream result digest")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -272,6 +332,12 @@ class ProteinRnaDiscordanceExternalTransportResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported transport report")
+            if self.report.configuration != self.request.configuration:
+                raise ValueError("evaluated report configuration must equal the request")
+            if self.report.validations != self.request.validations:
+                raise ValueError("evaluated report validations must equal the request")
+            if self.report.evaluations != self.request.evaluations:
+                raise ValueError("evaluated report evaluations must equal the request")
         elif (
             self.report is not None
             or self.abstention_reason is None
@@ -286,8 +352,12 @@ class ProteinRnaDiscordanceExternalTransportResult(FrozenModel):
 
 __all__ = [
     "M2204_CONTRACT_VERSION",
+    "M2204_DOSSIER_SHA256",
+    "M2204_DOSSIER_SLICE",
     "M2204_EVIDENCE_CLAIM",
     "M2204_GATE",
+    "M2204_M2202_INPUT_MEDIA_TYPE",
+    "M2204_M2203_INPUT_MEDIA_TYPE",
     "M2204_MAX_CANONICAL_REQUEST_BYTES",
     "M2204_MAX_CANONICAL_RESULT_BYTES",
     "M2204_MAX_DIMENSIONS",
