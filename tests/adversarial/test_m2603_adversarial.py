@@ -1,0 +1,136 @@
+"""Adversarial closure for M26-03 boundaries and immutable evidence."""
+
+from __future__ import annotations
+
+from typing import Any, cast
+
+import pytest
+from evals.m26_03.fixture import build_request
+from pydantic import ValidationError
+
+from glio_proteogen.contracts.m26_03 import (
+    ExecutionStatus,
+    WorkflowDefinition,
+)
+from glio_proteogen.kernel.strict_json import StrictJsonError
+from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
+    M2603Engine,
+    M2603EvaluationError,
+    M2603Plugin,
+    M2603ReplayError,
+    M2603Service,
+    ValidatedM2603Request,
+)
+
+
+def test_workflow_rejects_duplicate_and_unknown_graph_boundaries() -> None:
+    request = build_request()
+    duplicate_entry = request.workflow.model_copy(
+        update={"entry_step_ids": (request.workflow.entry_step_ids[0],) * 2}
+    )
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(request.model_copy(update={"workflow": duplicate_entry}))
+    unknown_output = request.workflow.model_copy(update={"output_step_ids": ("unknown-step",)})
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(request.model_copy(update={"workflow": unknown_output}))
+
+
+def test_request_rejects_context_source_and_media_binding_tampering() -> None:
+    request = build_request()
+    mismatched_context = request.context.model_copy(update={"request_id": "different-request"})
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(request.model_copy(update={"context": mismatched_context}))
+
+    duplicate_source = request.model_copy(
+        update={"source_artifacts": (*request.source_artifacts, request.source_artifacts[0])}
+    )
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(duplicate_source)
+
+    no_m2601 = tuple(item for item in request.source_artifacts if "m26-01" not in item.media_type)
+    with pytest.raises(M2603EvaluationError):
+        M2603Service().execute(request.model_copy(update={"source_artifacts": no_m2601}))
+
+
+def test_completed_record_requires_every_step_and_checkpoint() -> None:
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    assert result.execution_record is not None
+    incomplete = result.execution_record.model_copy(
+        update={"attempts": (result.execution_record.attempts[0],)}
+    )
+    tampered = result.model_copy(update={"execution_record": incomplete})
+    with pytest.raises(M2603ReplayError):
+        engine.verify(tampered, replay=False)
+
+
+def test_result_finding_and_evidence_identity_cannot_be_duplicated() -> None:
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    duplicate_finding = result.model_copy(update={"findings": result.findings * 2})
+    with pytest.raises(M2603ReplayError):
+        engine.verify(duplicate_finding, replay=False)
+    duplicate_evidence = result.model_copy(update={"evidence": result.evidence * 2})
+    with pytest.raises(M2603ReplayError):
+        engine.verify(duplicate_evidence, replay=False)
+
+
+def test_plugin_token_is_opaque_and_forged_token_is_rejected() -> None:
+    plugin = M2603Plugin()
+    request = build_request()
+    token = plugin.validate(request)
+    assert plugin.run(token).status is ExecutionStatus.COMPLETED
+    with pytest.raises(TypeError):
+        plugin.run(cast("Any", request))
+    forged = ValidatedM2603Request(request=token.request, _seal=object())
+    with pytest.raises(TypeError):
+        plugin.run(forged)
+
+
+def test_strict_json_rejects_duplicate_keys_and_non_object_inputs() -> None:
+    service = M2603Service()
+    with pytest.raises((StrictJsonError, ValueError)):
+        service.validate_request(b'{"request_id":"a","request_id":"b"}')
+    with pytest.raises((StrictJsonError, ValueError)):
+        service.validate_request(b"[]")
+    with pytest.raises((StrictJsonError, ValueError)):
+        service.validate_request(b"null")
+
+
+def test_unknown_request_fields_are_not_traversed_or_echoed() -> None:
+    candidate: dict[str, object] = build_request().model_dump(mode="json")
+    candidate["private_payload"] = "must-not-echo"
+    with pytest.raises((M2603EvaluationError, ValidationError, ValueError)):
+        M2603Service().execute(candidate)
+
+
+def test_replay_rejects_nested_package_and_request_changes() -> None:
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    assert result.reproducible_package is not None
+    changed_package = result.reproducible_package.model_copy(
+        update={"replay_command": "forged replay command"}
+    )
+    with pytest.raises(M2603ReplayError):
+        engine.verify(
+            result.model_copy(update={"reproducible_package": changed_package}), replay=False
+        )
+    changed_request = build_request().model_copy(
+        update={"supersedes_result_digest": "sha256:" + "e" * 64}
+    )
+    with pytest.raises(M2603ReplayError):
+        engine.verify(result.model_copy(update={"request": changed_request}), replay=False)
+
+
+def test_workflow_definition_still_rejects_self_dependency_directly() -> None:
+    request = build_request()
+    step = request.workflow.steps[0]
+    with pytest.raises(ValidationError):
+        WorkflowDefinition(
+            workflow_id="m2603.invalid",
+            version="0.1.0",
+            steps=(step.model_copy(update={"dependencies": (step.step_id,)}),),
+            entry_step_ids=(step.step_id,),
+            output_step_ids=(step.step_id,),
+            workflow_digest=step.container_digest,
+        )
