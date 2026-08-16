@@ -1,0 +1,14 @@
+{
+  "scope": [
+    "glio_proteogen.contracts.m10_03",
+    "glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator"
+  ],
+  "branch": true,
+  "statements": 500,
+  "missed_statements": 14,
+  "branches": 92,
+  "partial_branches": 8,
+  "percent": 96.0,
+  "fail_under": 95.0,
+  "tests": 35
+}
