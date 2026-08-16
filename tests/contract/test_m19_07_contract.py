@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M19-07."""
 
+from typing import cast
+
 from glio_proteogen.contracts.m19_07 import (
     M1907_OUTPUT_MEDIA_TYPE,
     M1907_PROVISIONAL_ABI,
@@ -16,26 +18,26 @@ _SCHEMA_COUNT = 8
 def test_provisional_schemas_preserve_typed_export_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
-    assert all(
-        schema["x-glio-contract"]["documentedFieldsOnly"]
-        and schema["x-glio-contract"]["versionedCompatibilityRequired"]
-        and schema["x-glio-contract"]["immutableExportRequired"]
-        and schema["x-glio-contract"]["ownershipSemanticsRequired"]
-        and schema["x-glio-contract"]["consentAware"]
-        and schema["x-glio-contract"]["supportAware"]
-        and schema["x-glio-contract"]["signatureRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
-        for schema in schemas.values()
-    )
-    assert all(
-        schema["x-glio-contract"]["upstreamInputMediaType"].endswith("m19-06+json")
-        and schema["x-glio-contract"]["parentTarget"] == "proteotype"
-        for schema in schemas.values()
-    )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1907_OUTPUT_MEDIA_TYPE
+    for schema in schemas.values():
+        assert cast("str", schema["$schema"]).endswith("2020-12/schema")
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
+        assert metadata["provisionalAbi"] is True
+        assert metadata["pendingOwnerConfirmation"] is True
+        for key in (
+            "documentedFieldsOnly",
+            "versionedCompatibilityRequired",
+            "immutableExportRequired",
+            "ownershipSemanticsRequired",
+            "consentAware",
+            "supportAware",
+            "signatureRequired",
+        ):
+            assert metadata[key] is True
+        assert metadata["unsupportedToNegative"] is False
+        assert cast("str", metadata["upstreamInputMediaType"]).endswith("m19-06+json")
+        assert metadata["parentTarget"] == "proteotype"
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M1907_OUTPUT_MEDIA_TYPE
     assert M1907_PROVISIONAL_ABI is True
 
 
