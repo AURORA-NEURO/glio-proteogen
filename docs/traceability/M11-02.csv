@@ -1,0 +1,11 @@
+requirement,authority,evidence,implementation,gate,status
+Context and subtype responsibility,lines 3680-3688,fixture and evaluator,contracts/m11_02 plus engine.py,24 focused tests,pass
+Eight context dimensions,lines 3682-3683,scenario fixture and schema metadata,ContextDimension and ContextStratificationPolicy,contract tests,pass
+Applicable mechanism set,lines 3688-3694,evaluator supported and abstained cases,MechanismApplicability and _rule_evaluation,8 evaluator checks,pass
+Support boundaries and safe abstention,lines 3696-3702,low-support missing proxy and outside-catalogue checks,engine.py and result closure,adversarial matrix,pass
+Typed uncertainty and provenance,lines 3698-3700,release evaluation and result envelope,expected_uncertainty and expected_provenance,contract/runtime tests,pass
+Identity consent and controls,lines 3684-3686,denied-consent API and engine cases,preflight_context_authorization,API/runtime tests,pass
+No prohibited ownership,lines 3684 and 3702,claims ceiling and limitations,descriptor schema metadata and limitations,safety assertions,pass
+Canonical replay and tamper,lines 3702-3704,replay and tamper evaluator cases,canonical.py and engine.verify,8 evaluator checks,pass
+Strict API CLI parity,lines 3702-3704,FastAPI/Typer parity and sanitized errors,adapters/m1102.py,interface tests,pass
+Package and rollback evidence,lines 3704-3720,package JSON and verifier,tools/verify_m1102_release.py,build/import/verifier gates,pass
