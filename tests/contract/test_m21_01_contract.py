@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
+from fastapi.testclient import TestClient
+from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m21_01 import (
     M2101_OUTPUT_MEDIA_TYPE,
@@ -26,6 +28,7 @@ from glio_proteogen.contracts.m21_01 import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -52,9 +55,13 @@ from glio_proteogen.modules.c21_reference_material.m21_01_reference_truth_benchm
     M2101Plugin,
     M2101Service,
     ReferenceTruthSubmission,
+    cli_app,
+    create_app,
 )
 
 _SCHEMA_COUNT = 9
+_HTTP_OK = 200
+_HTTP_UNPROCESSABLE = 422
 
 
 def test_provisional_schemas_preserve_reference_truth_boundaries() -> None:
@@ -484,3 +491,67 @@ def test_plugin_parses_json_once_and_requires_validation_capability() -> None:
     assert result.status is CurationStatus.CURATED
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(cast("Any", request))
+
+
+def test_fastapi_validate_curate_verify_and_sanitized_tamper() -> None:
+    request = _request()
+    client = TestClient(create_app(M2101Service()))
+    request_json = request.model_dump(mode="json")
+    schemas = client.get("/v1/modules/M21-01/schemas")
+    assert schemas.status_code == _HTTP_OK
+    assert set(schemas.json()) == {
+        "request",
+        "output",
+        "reference",
+        "endpoint",
+        "inclusion",
+        "adjudication",
+        "configuration",
+        "package",
+        "finding",
+    }
+    validated = client.post("/v1/modules/M21-01/validate", json=request_json)
+    assert validated.status_code == _HTTP_OK
+    curated = client.post("/v1/modules/M21-01/curate", json=request_json)
+    assert curated.status_code == _HTTP_OK
+    result = curated.json()
+    verified = client.post("/v1/modules/M21-01/verify", json={"result": result})
+    assert verified.status_code == _HTTP_OK
+    assert verified.json()["verified"] is True
+    tampered = {**result, "result_id": "tampered-result"}
+    assert (
+        client.post("/v1/modules/M21-01/verify", json={"result": tampered}).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+
+
+def test_typer_export_validate_and_no_overwrite(tmp_path: Any) -> None:
+    request = _request()
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(request))
+    output_path = tmp_path / "schema.json"
+    runner = CliRunner()
+    exported = runner.invoke(
+        cli_app,
+        ["export-schema", "request", "--output", str(output_path)],
+    )
+    assert exported.exit_code == 0
+    assert output_path.exists()
+    assert (
+        runner.invoke(
+            cli_app,
+            ["export-schema", "request", "--output", str(output_path)],
+        ).exit_code
+        != 0
+    )
+    validated = runner.invoke(cli_app, ["validate", str(request_path)])
+    assert validated.exit_code == 0
+    result_path = tmp_path / "result.json"
+    curated = runner.invoke(
+        cli_app,
+        ["curate", str(request_path), "--output", str(result_path)],
+    )
+    assert curated.exit_code == 0
+    verified = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert verified.exit_code == 0
+    assert '"verified": true' in verified.stdout
