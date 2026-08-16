@@ -36,18 +36,24 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def package_lock_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Hash a package after excluding its self-referential lock digest."""
+
+    document = _dump(value)
+    document.pop("lock_digest", None)
+    return sha256_digest(document)
+
+
 def result_identifier(
     request: BaseModel | dict[str, Any],
     status: str,
-    result_digest: Sha256Digest,
 ) -> str:
-    """Derive a stable opaque result identifier from request and result closure."""
+    """Derive a stable opaque result identifier from request and status."""
 
     request_digest = canonical_request_digest(request)
     token = sha256_digest(
         {
             "request_digest": request_digest,
-            "result_digest": result_digest,
             "status": status,
         }
     )
@@ -58,6 +64,7 @@ __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "package_lock_digest",
     "result_identifier",
     "result_payload_digest",
 ]

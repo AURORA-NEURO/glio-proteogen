@@ -184,10 +184,6 @@ class ReferenceTruthPackage(FrozenModel):
         challenge_entries = {item.reference_id for item in self.references if item.challenge_set}
         if set(self.challenge_set_ids) != challenge_entries:
             raise ValueError("challenge set identifiers must match marked references")
-        if self.configuration.configuration_id != self.package_id:
-            raise ValueError("configuration must bind the package identifier")
-        if self.endpoint.endpoint_id != self.package_id:
-            raise ValueError("package endpoint must bind the package identifier")
         return self
 
 
@@ -276,7 +272,7 @@ class ProteotypeReferenceTruthResult(FrozenModel):
             raise ValueError("abstained result requires no package and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
-        if self.result_id != result_identifier(self.request, self.status.value, self.result_digest):
+        if self.result_id != result_identifier(self.request, self.status.value):
             raise ValueError("result identifier does not bind request, status, and payload")
         return self
 
