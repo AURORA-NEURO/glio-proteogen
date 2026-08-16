@@ -275,6 +275,59 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m06_01.schema import (
+    ContractName as M0601ContractName,
+)
+from glio_proteogen.contracts.m06_01.schema import (
+    contract_json_schema as m0601_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_01.v1 import (
+    M0601_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateFormalProteinStateRequest,
+    ValidateFormalProteinStateResult,
+)
+from glio_proteogen.contracts.m06_03.schema import (
+    ContractName as M0603ContractName,
+)
+from glio_proteogen.contracts.m06_03.schema import (
+    contract_json_schema as m0603_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_03.v1 import (
+    M0603_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceBaselineRequest,
+    EstimateProteinAbundanceBaselineResult,
+)
+from glio_proteogen.contracts.m06_04.schema import (
+    ContractName as M0604ContractName,
+)
+from glio_proteogen.contracts.m06_04.schema import (
+    contract_json_schema as m0604_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_04.v1 import (
+    M0604_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceProbabilisticRequest,
+    EstimateProteinAbundanceProbabilisticResult,
+)
+from glio_proteogen.contracts.m06_06.schema import (
+    ContractName as M0606ContractName,
+)
+from glio_proteogen.contracts.m06_06.schema import (
+    contract_json_schema as m0606_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_06.v1 import (
+    M0606_MAX_CANONICAL_REQUEST_BYTES,
+    DecomposeProteinAbundanceUncertaintyRequest,
+    ProteinAbundanceUncertaintyDecompositionResult,
+)
+from glio_proteogen.contracts.m08_01.schema import ContractName as M0801ContractName
+from glio_proteogen.contracts.m08_01.schema import (
+    contract_json_schema as m0801_contract_json_schema,
+)
+from glio_proteogen.contracts.m08_01.v1 import (
+    M0801_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateTranscriptProteinStateRequest,
+    ValidateTranscriptProteinStateResult,
+)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -433,6 +486,44 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    PtmBaselineAuthorizationError,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0603_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
+    M0603Service,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    FormalStateAuthorizationError,
+    M0601Service,
+    preflight_formal_state_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604Service,
+    ProbabilisticEstimatorAuthorizationError,
+    preflight_probabilistic_estimator_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    M0606UncertaintyDecompositionAuthorizationError,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    _validate_json_request as _validate_m0606_json_request,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
+    M0606Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    M0801FormalStateAuthorizationError,
+    M0801Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    preflight_formal_state_authorization as preflight_m0801_formal_state_authorization,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
+    _validate_json_request as _validate_m0801_json_request,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -461,6 +552,10 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0801_FORMAL_STATE_ADAPTER: Final = TypeAdapter(ValidateTranscriptProteinStateRequest)
+_M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
+_M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
+_M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
 _M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
@@ -614,6 +709,32 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+    return m0801_contract_json_schema(name)
+
+
+def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
+    return m0601_contract_json_schema(name)
+
+
+def _m0603_baseline_contract_schema(
+    name: M0603ContractName,
+) -> dict[str, object]:
+    return m0603_contract_json_schema(name)
+
+
+def _probabilistic_estimator_contract_schema(
+    name: M0604ContractName,
+) -> dict[str, object]:
+    return m0604_contract_json_schema(name)
+
+
+def _m0606_uncertainty_contract_schema(
+    name: M0606ContractName,
+) -> dict[str, object]:
+    return m0606_contract_json_schema(name)
 
 
 def _m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
@@ -805,6 +926,51 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0801_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0801_contract_json_schema("request")}},
+        }
+    }
+
+
+def _formal_state_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0601_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0603_baseline_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0603_contract_json_schema("request")}},
+        }
+    }
+
+
+def _probabilistic_estimator_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0604_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0606_uncertainty_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0606_contract_json_schema("request")}},
         }
     }
 
@@ -1044,6 +1210,60 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m0801_body(request: Request) -> ValidateTranscriptProteinStateRequest:
+    return await _strict_json_body(
+        request,
+        _M0801_FORMAL_STATE_ADAPTER,
+        preflight_m0801_formal_state_authorization,
+        M0801_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0801_json_request,
+    )
+
+
+async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequest:
+    return await _strict_json_body(
+        request,
+        TypeAdapter(ValidateFormalProteinStateRequest),
+        preflight_formal_state_authorization,
+        M0601_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m0603_baseline_body(
+    request: Request,
+) -> EstimateProteinAbundanceBaselineRequest:
+    return await _strict_json_body(
+        request,
+        _M0603_BASELINE_ADAPTER,
+        None,
+        M0603_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0603_json_request,
+    )
+
+
+async def _probabilistic_estimator_body(
+    request: Request,
+) -> EstimateProteinAbundanceProbabilisticRequest:
+    return await _strict_json_body(
+        request,
+        _M0604_PROBABILISTIC_ADAPTER,
+        preflight_probabilistic_estimator_authorization,
+        M0604_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m0606_uncertainty_body(
+    request: Request,
+) -> DecomposeProteinAbundanceUncertaintyRequest:
+    return await _strict_json_body(
+        request,
+        _M0606_UNCERTAINTY_ADAPTER,
+        None,
+        M0606_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0606_json_request,
+    )
+
+
 async def _m1306_body(request: Request) -> SimulateProteotypePerturbationRequest:
     return await _strict_json_body(
         request,
@@ -1079,6 +1299,11 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m0801_service = M0801Service()
+    formal_state_service = M0601Service()
+    m0603_service = M0603Service()
+    probabilistic_estimator_service = M0604Service()
+    m0606_service = M0606Service()
     m1306_service = M1306Service()
 
     @asynccontextmanager
@@ -1126,6 +1351,11 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(M0801FormalStateAuthorizationError)
+    @app.exception_handler(FormalStateAuthorizationError)
+    @app.exception_handler(PtmBaselineAuthorizationError)
+    @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
+    @app.exception_handler(M0606UncertaintyDecompositionAuthorizationError)
     @app.exception_handler(M1306AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
@@ -1396,6 +1626,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
 
+    @app.get("/v1/contracts/M06-01/{name}/schema", tags=["contracts"])
+    def formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
+        return _formal_state_contract_schema(name)
+
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
         response_model=ProteoformQualityResult,
@@ -1409,6 +1643,95 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.get("/v1/contracts/M08-01/{name}/schema", tags=["contracts"])
+    def m0801_contract_schema(name: M0801ContractName) -> dict[str, object]:
+        return _m0801_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M08-01/formal-state-validation",
+        response_model=ValidateTranscriptProteinStateResult,
+        tags=["M08-01"],
+        openapi_extra=_m0801_request_body(),
+    )
+    def validate_m0801_formal_state(
+        request: Annotated[ValidateTranscriptProteinStateRequest, Depends(_m0801_body)],
+    ) -> ValidateTranscriptProteinStateResult:
+        return m0801_service._execute_validated(request)
+
+    @app.post(
+        "/v1/modules/M06-01/formal-state-validation",
+        response_model=ValidateFormalProteinStateResult,
+        tags=["M06-01"],
+        openapi_extra=_formal_state_request_body(),
+    )
+    def validate_formal_state(
+        request: Annotated[
+            ValidateFormalProteinStateRequest,
+            Depends(_formal_state_body),
+        ],
+    ) -> ValidateFormalProteinStateResult:
+        return formal_state_service.execute(request)
+
+    @app.get("/v1/contracts/M06-03/{name}/schema", tags=["contracts"])
+    def m0603_baseline_contract_schema(
+        name: M0603ContractName,
+    ) -> dict[str, object]:
+        return _m0603_baseline_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-03/estimate",
+        response_model=EstimateProteinAbundanceBaselineResult,
+        tags=["M06-03"],
+        openapi_extra=_m0603_baseline_request_body(),
+    )
+    def estimate_m0603_baseline(
+        request: Annotated[
+            EstimateProteinAbundanceBaselineRequest,
+            Depends(_m0603_baseline_body),
+        ],
+    ) -> EstimateProteinAbundanceBaselineResult:
+        return m0603_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M06-04/{name}/schema", tags=["contracts"])
+    def probabilistic_estimator_contract_schema(
+        name: M0604ContractName,
+    ) -> dict[str, object]:
+        return _probabilistic_estimator_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-04/probabilistic-estimation",
+        response_model=EstimateProteinAbundanceProbabilisticResult,
+        tags=["M06-04"],
+        openapi_extra=_probabilistic_estimator_request_body(),
+    )
+    def estimate_protein_abundance_probabilistic(
+        request: Annotated[
+            EstimateProteinAbundanceProbabilisticRequest,
+            Depends(_probabilistic_estimator_body),
+        ],
+    ) -> EstimateProteinAbundanceProbabilisticResult:
+        return probabilistic_estimator_service.estimate(request)
+
+    @app.get("/v1/contracts/M06-06/{name}/schema", tags=["contracts"])
+    def m0606_uncertainty_contract_schema(
+        name: M0606ContractName,
+    ) -> dict[str, object]:
+        return _m0606_uncertainty_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-06/decompose",
+        response_model=ProteinAbundanceUncertaintyDecompositionResult,
+        tags=["M06-06"],
+        openapi_extra=_m0606_uncertainty_request_body(),
+    )
+    def decompose_m0606_uncertainty(
+        request: Annotated[
+            DecomposeProteinAbundanceUncertaintyRequest,
+            Depends(_m0606_uncertainty_body),
+        ],
+    ) -> ProteinAbundanceUncertaintyDecompositionResult:
+        return m0606_service.execute(request)
 
     @app.get("/v1/contracts/M13-06/{name}/schema", tags=["contracts"])
     def m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:

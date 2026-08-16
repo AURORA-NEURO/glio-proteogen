@@ -1,0 +1,14 @@
+requirement,evidence,verification,owner,status
+responsibility:mechanism-and-constraint-integrator,docs/modules/GLIO-PROTEOGEN-M09-05.md,typed estimate and satisfaction report for complex_activity only,Quality engineering,implemented-provisional
+boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,Quality engineering,implemented
+inputs:content-addressed-and-no-traversal,contract and manifest,artifact references are retained without dereference,Quality engineering,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,Quality engineering,implemented
+hard-constraints,engine plus evaluator,hard violation emits abstention with no estimates,Quality engineering,implemented
+soft-conflicts,engine plus focused tests,soft violation remains visible with explicit violation and ablation effect,Quality engineering,implemented
+unsupported-evidence,engine plus evaluator,unevaluable or unsupported expression abstains safely,Quality engineering,implemented
+uncertainty:seven-dimensions,engine and result contract,all dimensions explicit not-estimable pending owner lock,Quality engineering,implemented-provisional
+replay:canonical-content-and-digest,canonical.py engine verifier replay tests,tamper and noncanonical bytes rejected,Quality engineering,implemented
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and sanitized errors,Quality engineering,implemented
+acceptance:benchmark-and-evaluator,evals/m09_05/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,Quality engineering,verified-local
+evidence:traceability-manifest-review,docs/evidence/M09-05.md and manifest,review and authenticated authority remain external,Quality engineering,provisional
+release:package-import,release-evidence/m09_05/release.json,package hashes and isolated import recorded,release engineering,verified-local
