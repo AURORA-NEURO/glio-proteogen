@@ -3,7 +3,7 @@
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m25_06 import (
-    M2506_M2505_INPUT_MEDIA_TYPE,
+    M2506_M2504_INPUT_MEDIA_TYPE,
     M2506_OUTPUT_MEDIA_TYPE,
     M2506_PROVISIONAL_ABI,
     ChallengeDisposition,
@@ -40,7 +40,7 @@ def test_provisional_schemas_require_robustness_and_safe_failure_controls() -> N
         assert metadata["unsupportedAbstentionRequired"] is True
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "proteotype"
-        assert metadata["upstreamInputMediaType"] == M2506_M2505_INPUT_MEDIA_TYPE
+        assert metadata["upstreamInputMediaType"] == M2506_M2504_INPUT_MEDIA_TYPE
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2506_OUTPUT_MEDIA_TYPE
     assert M2506_PROVISIONAL_ABI is True
 

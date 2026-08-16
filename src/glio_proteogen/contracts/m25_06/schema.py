@@ -9,7 +9,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m25_06.v1 import (
     M2506_CONTRACT_VERSION,
     M2506_GATE,
-    M2506_M2505_INPUT_MEDIA_TYPE,
+    M2506_M2504_INPUT_MEDIA_TYPE,
     M2506_MAX_CANONICAL_REQUEST_BYTES,
     M2506_MODULE_ID,
     M2506_OUTPUT_MEDIA_TYPE,
@@ -27,9 +27,7 @@ from glio_proteogen.contracts.m25_06.v1 import (
     SafeFailureReport,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M25-06:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M25-06:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2506_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -81,7 +79,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "parentTarget": M2506_PARENT,
         "unsupportedToNegative": False,
         "outputMediaType": M2506_OUTPUT_MEDIA_TYPE,
-        "upstreamInputMediaType": M2506_M2505_INPUT_MEDIA_TYPE,
+        "upstreamInputMediaType": M2506_M2504_INPUT_MEDIA_TYPE,
         "primaryArchitecture": "distributed_simulation_continuous_challenge_proteogenomic_vae",
         "alternateArchitecture": "locked_offline_benchmark_harness_proteogenomic_vae",
         "fallbackArchitecture": "independent_dual_run_validation_proteome_autoencoder",
