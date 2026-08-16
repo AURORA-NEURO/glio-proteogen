@@ -174,7 +174,8 @@ def _uncertainty() -> UncertaintyProfile:
         support=unavailable("support"),
         transport=unavailable("transport"),
         sensitivity_notes=(
-            "Registry resolution does not estimate protein subtype biology or clinical uncertainty.",
+            "Registry resolution does not estimate protein subtype biology or clinical "
+            "uncertainty.",
         ),
     )
 
@@ -262,7 +263,10 @@ class M2601RegistryEngine:
                 rationale=(
                     "Registry material was retained but cannot be activated safely."
                     if abstained
-                    else "Caller-declared registry and active configuration were structurally resolved."
+                    else (
+                        "Caller-declared registry and active configuration were "
+                        "structurally resolved."
+                    )
                 ),
             ),
             "uncertainty": _uncertainty(),
@@ -271,15 +275,24 @@ class M2601RegistryEngine:
             "limitations": (
                 Limitation(
                     code="caller_declared_authority",
-                    statement="Issuer authority and registry signatures are caller-declared and unauthenticated.",
+                    statement=(
+                        "Issuer authority and registry signatures are caller-declared "
+                        "and unauthenticated."
+                    ),
                 ),
                 Limitation(
                     code="registry_only",
-                    statement="The service resolves registry/configuration metadata and emits no protein subtype claim.",
+                    statement=(
+                        "The service resolves registry/configuration metadata and emits "
+                        "no protein subtype claim."
+                    ),
                 ),
                 Limitation(
                     code="human_review_required",
-                    statement="Human review remains required for provisional ABI confirmation and exceptions.",
+                    statement=(
+                        "Human review remains required for provisional ABI confirmation "
+                        "and exceptions."
+                    ),
                 ),
             ),
             "human_review_required": True,
