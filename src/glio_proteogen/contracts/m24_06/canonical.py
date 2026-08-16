@@ -26,6 +26,12 @@ def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_request(value))
 
 
+def result_identifier(value: BaseModel | dict[str, Any]) -> str:
+    """Derive the immutable result identifier from the canonical request."""
+
+    return "m2406.result." + canonical_request_digest(value).removeprefix("sha256:")
+
+
 def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document = _dump(value)
     document.pop("result_digest", None)
@@ -40,5 +46,6 @@ __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "result_identifier",
     "result_payload_digest",
 ]

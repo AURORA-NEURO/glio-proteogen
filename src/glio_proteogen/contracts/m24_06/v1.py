@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_06.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -54,6 +55,14 @@ M2406_MAX_FINDINGS: Final = 64
 M2406_MAX_CHALLENGE_KINDS: Final = 8
 M2406_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2406_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2406_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2406_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8536-8576"
+M2406_EVIDENCE_CLAIM: Final = (
+    "Caller-declared robustness, shift, OOD, challenge and safe-failure material; "
+    "issuer authority is not authenticated."
+)
 
 
 class ChallengeKind(StrEnum):
@@ -215,11 +224,31 @@ class ChallengeBiomarkerPanelRobustnessRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> ChallengeBiomarkerPanelRobustnessRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         if self.upstream_result.media_type != M2406_M2405_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-05 biomarker panel result")
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
+        scenario_kinds = {item.kind for item in self.scenarios}
+        required_kinds = set(self.configuration.required_challenge_kinds)
+        if required_kinds != scenario_kinds:
+            raise ValueError("request must cover exactly all configured challenge kinds")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("source artifacts must retain the upstream M24-05 result")
         return self
 
 
@@ -252,6 +281,8 @@ class BiomarkerPanelRobustnessChallengeResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelRobustnessChallengeResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is RobustnessStatus.EVALUATED:
             if (
                 self.robustness_surface is None
@@ -274,6 +305,9 @@ class BiomarkerPanelRobustnessChallengeResult(FrozenModel):
 
 __all__ = [
     "M2406_CONTRACT_VERSION",
+    "M2406_DOSSIER_SHA256",
+    "M2406_DOSSIER_SLICE",
+    "M2406_EVIDENCE_CLAIM",
     "M2406_GATE",
     "M2406_M2405_INPUT_MEDIA_TYPE",
     "M2406_MAX_CANONICAL_REQUEST_BYTES",
