@@ -206,10 +206,20 @@ class EvaluateVariantPeptideHumanFactorsRequest(FrozenModel):
             raise ValueError("request must bind the provisional M23-06 challenge result")
         metric_ids = tuple(item.metric_id for item in self.metrics)
         fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(metric_ids) != len(set(metric_ids)):
             raise ValueError("metric ids must be unique")
         if len(fallback_ids) != len(set(fallback_ids)):
             raise ValueError("fallback scenario ids must be unique")
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if not any(
+            artifact.artifact_id == self.upstream_result.artifact_id
+            and artifact.digest == self.upstream_result.digest
+            and artifact.media_type == self.upstream_result.media_type
+            for artifact in self.source_artifacts
+        ):
+            raise ValueError("source artifacts must retain the bound upstream result")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}
