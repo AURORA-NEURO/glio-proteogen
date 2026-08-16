@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-02",
+  "command": "uv run coverage run --branch -m pytest -q -o addopts='' tests/contract/test_m18_02_provisional.py tests/contract/test_m18_02_deep.py",
+  "scoped_statements": 512,
+  "scoped_missed_statements": 1,
+  "scoped_branches": 96,
+  "scoped_partial_branches": 1,
+  "branch_percent": 99,
+  "fail_under": 95,
+  "passed": true
+}

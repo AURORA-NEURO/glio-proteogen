@@ -1,1 +1,1 @@
-"""C18 Spatial proteomics projection namespace."""
+"""Runtime modules for spatial proteomics projection."""
