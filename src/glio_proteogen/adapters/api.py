@@ -717,8 +717,10 @@ def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
 def _m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
     return m1508_contract_json_schema(name)
 
+
 def _m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
     return m1502_contract_json_schema(name)
+
 
 def _m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
     return m1405_contract_json_schema(name)
