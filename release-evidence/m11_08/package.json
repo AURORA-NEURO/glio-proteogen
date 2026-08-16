@@ -1,0 +1,27 @@
+{
+  "module": "GLIO-PROTEOGEN-M11-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3944-3987",
+  "build_backend": "hatchling 1.31.0",
+  "python": "3.12",
+  "artifacts": [
+    {
+      "name": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 802493,
+      "sha256": "d53dc44fa7961cd494451c39bd44bfbcc107678914c6188749b0a03b0dce6bf6",
+      "members": 316
+    },
+    {
+      "name": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1461408,
+      "sha256": "ef6d4567e2fe40578aca89ec47bac95bbdef8889e49ec7c51d13d5dd38efd3fc",
+      "members": 780
+    }
+  ],
+  "isolated_install": {
+    "target": "temporary_target",
+    "import_check": "passed",
+    "observed": "GLIO-PROTEOGEN-M11-08; FastAPI"
+  },
+  "passed": true
+}

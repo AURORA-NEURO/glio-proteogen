@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-06",
+  "scope": [
+    "glio_proteogen.contracts.m14_06",
+    "glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_06_perturbation_sensitivity_simulator",
+    "glio_proteogen.adapters.m1406"
+  ],
+  "focused_tests": 20,
+  "statements": 539,
+  "covered_lines": 535,
+  "branches": 84,
+  "covered_branches": 82,
+  "line_coverage_percent": 99.04,
+  "branch_coverage_percent": 97.62,
+  "coverage_percent": 97.62,
+  "fail_under_percent": 95.0,
+  "fail_under": 95,
+  "passed": true
+}

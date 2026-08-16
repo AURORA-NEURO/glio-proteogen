@@ -1,0 +1,15 @@
+{
+  "branch": true,
+  "branches": 100,
+  "covered_branches": 91,
+  "covered_statements": 536,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M16-07",
+  "percent": 97.05882352941177,
+  "scope": [
+    "glio_proteogen.contracts.m16_07",
+    "glio_proteogen.modules.c16_kinophos_object_consumer",
+    "glio_proteogen.adapters.m1607"
+  ],
+  "statements": 546
+}

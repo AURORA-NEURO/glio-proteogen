@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-06",
+  "contract_version": "0.1.0-provisional",
+  "requirement_sha256": "ea623e708961c47f56b4b1699f8e06e09700191cce13641a5a0d356c64b96e31",
+  "dossier_slice": "4576-4619",
+  "data_classification": "synthetic_non_clinical",
+  "claims_ceiling": "Bounded deterministic perturbation replay only; no calibrated sensitivity, biological mechanism, kinase activity, all-omics fusion, treatment recommendation, subtype inference, or clinical use.",
+  "response_envelope": [0.0, 1.0],
+  "cases": [
+    {"id": "in_silico_supported", "kind": "in_silico", "status": "supported", "baseline": 0.2, "perturbed": 0.5, "expected": "simulated"},
+    {"id": "parameter_sweep_supported", "kind": "parameter_sweep", "status": "supported", "baseline": 0.4, "perturbed": 0.6, "expected": "simulated"},
+    {"id": "alternative_prior_supported", "kind": "alternative_prior", "status": "supported", "baseline": 0.3, "perturbed": 0.1, "expected": "simulated"},
+    {"id": "assay_perturbation_supported", "kind": "assay_perturbation", "status": "supported", "baseline": 0.7, "perturbed": 0.8, "expected": "simulated"},
+    {"id": "mechanism_stress_supported", "kind": "mechanism_stress_test", "status": "supported", "baseline": 0.9, "perturbed": 0.2, "expected": "simulated"},
+    {"id": "unsupported_abstains", "kind": "in_silico", "status": "unsupported", "baseline": 0.2, "perturbed": 0.5, "expected": "abstained"},
+    {"id": "envelope_abstains", "kind": "in_silico", "status": "supported", "baseline": 0.2, "perturbed": 1.1, "expected": "abstained"},
+    {"id": "denied_control", "kind": "in_silico", "status": "supported", "baseline": 0.2, "perturbed": 0.5, "quality": "rejected", "expected": "authorization_error"}
+  ]
+}
