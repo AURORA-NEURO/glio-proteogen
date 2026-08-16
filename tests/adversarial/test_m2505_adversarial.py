@@ -11,12 +11,19 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m25_05 import (
+    CalibrationSummary,
     CoverageStatus,
+    CoverageSummary,
     EquityStatus,
     EvaluateProteotypeSubgroupEquityRequest,
+    EvaluationConfiguration,
     ProteotypeSubgroupEvaluationResult,
+    SubgroupDimension,
+    SubgroupEvaluationReport,
+    canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c21_reference_material.m25_05_subgroup_equity_evaluator import (
     M2505AuthorizationError,
@@ -163,3 +170,156 @@ def test_result_abstention_never_contains_report() -> None:
     assert result.status.value == "abstained"
     assert result.report is None
     assert result.abstention_reason is not None
+
+
+def test_performance_bounds_and_floor_states_are_closed() -> None:
+    performance = build_request().performance[0]
+    cases = (
+        performance.model_copy(update={"lower_bound": 0.9, "upper_bound": 0.8}),
+        performance.model_copy(update={"value": 0.95}),
+        performance.model_copy(update={"equity_status": EquityStatus.BELOW_FLOOR}),
+        performance.model_copy(
+            update={
+                "equity_status": EquityStatus.WITHIN_FLOOR,
+                "value": 0.6,
+                "lower_bound": 0.5,
+                "upper_bound": 0.65,
+            }
+        ),
+    )
+
+    for candidate in cases:
+        with pytest.raises(ValidationError):
+            type(performance).model_validate(candidate.model_dump(mode="python"), strict=True)
+
+
+def test_calibration_coverage_and_configuration_closures_are_strict() -> None:
+    request = build_request()
+    calibration = request.calibration[0].model_copy(
+        update={"nominal_coverage": 0.8, "coverage_target": 0.9}
+    )
+    with pytest.raises(ValidationError, match="nominal coverage"):
+        CalibrationSummary.model_validate(calibration.model_dump(mode="python"), strict=True)
+
+    coverage = request.coverage[0].model_copy(
+        update={"supported_examples": 11, "total_examples": 10, "coverage_fraction": 1.0}
+    )
+    with pytest.raises(ValidationError, match="supported examples"):
+        CoverageSummary.model_validate(coverage.model_dump(mode="python"), strict=True)
+    coverage = request.coverage[0].model_copy(update={"coverage_fraction": 0.8})
+    with pytest.raises(ValidationError, match="coverage fraction"):
+        CoverageSummary.model_validate(coverage.model_dump(mode="python"), strict=True)
+
+    configuration = request.configuration.model_copy(
+        update={"required_dimensions": (*tuple(SubgroupDimension)[:-1], SubgroupDimension.AGE)}
+    )
+    with pytest.raises(ValidationError, match="all subgroup dimensions"):
+        EvaluationConfiguration.model_validate(configuration.model_dump(mode="python"), strict=True)
+
+
+def test_report_and_request_dimension_alignment_are_closed() -> None:
+    request = build_request()
+    report = M2505Service().execute(request).report
+    assert report is not None
+    duplicate = report.model_copy(
+        update={
+            "calibration": (report.calibration[0], report.calibration[0], *report.calibration[2:])
+        }
+    )
+    with pytest.raises(ValidationError, match="report ids"):
+        SubgroupEvaluationReport.model_validate(duplicate.model_dump(mode="python"), strict=True)
+
+    missing_report = report.model_copy(update={"performance": tuple(request.performance[:-1])})
+    with pytest.raises(ValidationError, match="every required"):
+        SubgroupEvaluationReport.model_validate(
+            missing_report.model_dump(mode="python"), strict=True
+        )
+
+    dimensions = tuple(SubgroupDimension)
+    changed = dimensions[1]
+    replacement = dimensions[2]
+
+    def changed_dimension(items: tuple[Any, ...]) -> tuple[Any, ...]:
+        return tuple(
+            item.model_copy(update={"dimension": replacement})
+            if item.dimension is changed
+            else item
+            for item in items
+        )
+
+    with pytest.raises(ValidationError, match="every required subgroup"):
+        EvaluateProteotypeSubgroupEquityRequest.model_validate(
+            request.model_copy(
+                update={
+                    "performance": changed_dimension(request.performance),
+                    "calibration": changed_dimension(request.calibration),
+                    "coverage": changed_dimension(request.coverage),
+                }
+            ).model_dump(mode="python"),
+            strict=True,
+        )
+
+    shifted_calibration = tuple(
+        item.model_copy(update={"dimension": SubgroupDimension.SEX})
+        if item.dimension is SubgroupDimension.AGE
+        else item
+        for item in request.calibration
+    )
+    with pytest.raises(ValidationError, match="performance and calibration"):
+        EvaluateProteotypeSubgroupEquityRequest.model_validate(
+            request.model_copy(update={"calibration": shifted_calibration}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+    shifted_coverage = tuple(
+        item.model_copy(update={"dimension": SubgroupDimension.SEX})
+        if item.dimension is SubgroupDimension.AGE
+        else item
+        for item in request.coverage
+    )
+    with pytest.raises(ValidationError, match="performance and coverage"):
+        EvaluateProteotypeSubgroupEquityRequest.model_validate(
+            request.model_copy(update={"coverage": shifted_coverage}).model_dump(mode="python"),
+            strict=True,
+        )
+
+
+def test_result_request_digest_and_terminal_state_closures_are_strict() -> None:
+    service = M2505Service()
+    result = service.execute(build_request())
+    bad_request_digest = result.model_copy(update={"request_digest": "sha256:" + ("f" * 64)})
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteotypeSubgroupEvaluationResult.model_validate(
+            bad_request_digest.model_dump(mode="python"), strict=True
+        )
+
+    bad_support = result.support_decision.model_copy(
+        update={"status": SupportStatus.REVIEW_REQUIRED}
+    )
+    bad_evaluated = result.model_copy(update={"support_decision": bad_support})
+    with pytest.raises(ValidationError, match="evaluated result"):
+        ProteotypeSubgroupEvaluationResult.model_validate(
+            bad_evaluated.model_dump(mode="python"), strict=True
+        )
+
+    abstained = service.execute(build_request(performance_status=EquityStatus.BELOW_FLOOR))
+    bad_abstention = abstained.model_copy(
+        update={
+            "support_decision": SupportDecision(
+                status=SupportStatus.SUPPORTED,
+                reason_code="bad-support",
+                rationale="This deliberately violates abstention closure.",
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="abstained result"):
+        ProteotypeSubgroupEvaluationResult.model_validate(
+            bad_abstention.model_dump(mode="python"), strict=True
+        )
+
+
+def test_canonical_projection_accepts_mapping_input() -> None:
+    request = build_request()
+
+    assert canonical_request_digest(request.model_dump(mode="json")).startswith("sha256:")

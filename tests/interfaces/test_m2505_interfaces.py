@@ -46,6 +46,13 @@ def test_api_unknown_schema_is_not_found() -> None:
     assert response.status_code == _HTTP_NOT_FOUND
 
 
+def test_api_returns_one_named_schema() -> None:
+    response = TestClient(create_app()).get("/v1/modules/M25-05/schemas/request")
+
+    assert response.status_code == _HTTP_OK
+    assert response.json()["$id"].endswith(":request")
+
+
 def test_api_validate_and_evaluate_share_contract() -> None:
     client = TestClient(create_app())
     payload = build_request().model_dump(mode="json")
@@ -64,9 +71,13 @@ def test_api_rejects_denied_and_tampered_requests() -> None:
     denied = client.post(
         "/v1/modules/M25-05/evaluate", json=denied_request().model_dump(mode="json")
     )
+    denied_validate = client.post(
+        "/v1/modules/M25-05/validate", json=denied_request().model_dump(mode="json")
+    )
     malformed = client.post("/v1/modules/M25-05/evaluate", json={"request_id": "malformed"})
 
     assert denied.status_code == _HTTP_UNPROCESSABLE
+    assert denied_validate.status_code == _HTTP_UNPROCESSABLE
     assert malformed.status_code == _HTTP_UNPROCESSABLE
     assert malformed.json()["detail"] == "request does not satisfy the M25-05 contract"
 
@@ -135,3 +146,18 @@ def test_cli_rejects_malformed_and_denied(tmp_path: Path) -> None:
 
     assert runner.invoke(app, ["validate", str(bad_path)]).exit_code != 0
     assert runner.invoke(app, ["evaluate", str(denied_path)]).exit_code != 0
+
+
+def test_cli_prints_evaluation_and_rejects_bad_result(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    bad_result_path = tmp_path / "bad-result.json"
+    request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+    bad_result_path.write_text("{}", encoding="utf-8")
+    runner = CliRunner()
+
+    printed = runner.invoke(app, ["evaluate", str(request_path)])
+    invalid = runner.invoke(app, ["verify", str(bad_result_path)])
+
+    assert printed.exit_code == 0
+    assert json.loads(printed.stdout)["status"] == "evaluated"
+    assert invalid.exit_code != 0
