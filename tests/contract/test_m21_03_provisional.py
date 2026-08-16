@@ -340,6 +340,20 @@ def test_request_closure_binds_identity_input_and_comparison_ids() -> None:
             ),
             strict=True,
         )
+    with pytest.raises(ValueError, match="mature baseline"):
+        RunComplexActivityInternalBenchmarkRequest.model_validate(
+            request.model_copy(
+                update={"baseline_runs": (_baseline("simple-only", BaselineKind.SIMPLE),)}
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="baseline run ids"):
+        RunComplexActivityInternalBenchmarkRequest.model_validate(
+            request.model_copy(
+                update={"baseline_runs": (request.baseline_runs[0], request.baseline_runs[0])}
+            ),
+            strict=True,
+        )
 
 
 def test_nested_dossier_closure_rejects_duplicate_or_unknown_references() -> None:
@@ -355,6 +369,21 @@ def test_nested_dossier_closure_rejects_duplicate_or_unknown_references() -> Non
                         ),
                         request.baseline_runs[1],
                     )
+                }
+            ),
+            strict=True,
+        )
+
+    mature_only = request.baseline_runs[1].model_copy(update={"run_id": "mature-2"})
+    mature_comparison = request.comparisons[0].model_copy(
+        update={"reference_run_id": "mature-run", "candidate_run_id": "mature-2"}
+    )
+    with pytest.raises(ValueError, match="simple baseline"):
+        BenchmarkDossier.model_validate(
+            dossier.model_copy(
+                update={
+                    "baselines": (request.baseline_runs[1], mature_only),
+                    "comparisons": (mature_comparison,),
                 }
             ),
             strict=True,
@@ -409,12 +438,59 @@ def test_result_replay_identity_digest_and_completion_closure() -> None:
             result.model_copy(update={"result_digest": sha256_digest("tampered")}), strict=True
         )
     assert result.dossier is not None
+    with pytest.raises(ValueError, match="supported benchmark dossier"):
+        ComplexActivityInternalBenchmarkResult.model_validate(
+            result.model_copy(update={"dossier": None}), strict=True
+        )
     with pytest.raises(ValueError, match="baseline run ids"):
         ComplexActivityInternalBenchmarkResult.model_validate(
             result.model_copy(
                 update={
                     "dossier": result.dossier.model_copy(
                         update={"baselines": (request.baseline_runs[0], request.baseline_runs[0])}
+                    )
+                }
+            ),
+            strict=True,
+        )
+
+    changed_split = result.dossier.split.model_copy(update={"split_id": "different-split"})
+    with pytest.raises(ValueError, match="dossier split"):
+        ComplexActivityInternalBenchmarkResult.model_validate(
+            result.model_copy(
+                update={"dossier": result.dossier.model_copy(update={"split": changed_split})}
+            ),
+            strict=True,
+        )
+    changed_baseline = result.dossier.baselines[0].model_copy(update={"model_name": "changed"})
+    with pytest.raises(ValueError, match="dossier baselines"):
+        ComplexActivityInternalBenchmarkResult.model_validate(
+            result.model_copy(
+                update={
+                    "dossier": result.dossier.model_copy(
+                        update={"baselines": (changed_baseline, *result.dossier.baselines[1:])}
+                    )
+                }
+            ),
+            strict=True,
+        )
+    changed_ablation = result.dossier.ablations[0].model_copy(update={"component": "changed"})
+    with pytest.raises(ValueError, match="dossier ablations"):
+        ComplexActivityInternalBenchmarkResult.model_validate(
+            result.model_copy(
+                update={
+                    "dossier": result.dossier.model_copy(update={"ablations": (changed_ablation,)})
+                }
+            ),
+            strict=True,
+        )
+    changed_comparison = result.dossier.comparisons[0].model_copy(update={"reference_score": 0.4})
+    with pytest.raises(ValueError, match="dossier comparisons"):
+        ComplexActivityInternalBenchmarkResult.model_validate(
+            result.model_copy(
+                update={
+                    "dossier": result.dossier.model_copy(
+                        update={"comparisons": (changed_comparison,)}
                     )
                 }
             ),

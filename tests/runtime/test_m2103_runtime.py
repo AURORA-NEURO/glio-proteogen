@@ -9,6 +9,8 @@ from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_abl
     M2103AuthorizationError,
     M2103ReplayError,
     M2103Service,
+    preflight_m2103_authorization,
+    run_complex_activity_internal_benchmark,
 )
 from tests.contract.test_m21_03_provisional import _request
 
@@ -24,6 +26,7 @@ def test_runtime_is_deterministic_and_replay_verifiable() -> None:
     assert first.dossier is not None
     assert first.dossier.split == request.split
     assert first.dossier.baselines == request.baseline_runs
+    assert run_complex_activity_internal_benchmark(request).result_digest == first.result_digest
 
 
 def test_runtime_rejects_denied_controls_before_benchmarking() -> None:
@@ -45,3 +48,14 @@ def test_runtime_rejects_tampered_replay_digest() -> None:
     result = service.generate(_request())
     with pytest.raises(M2103ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
+
+
+def test_runtime_replay_rejects_request_and_identifier_tampering() -> None:
+    service = M2103Service()
+    result = service.generate(_request())
+    with pytest.raises(M2103ReplayError, match="request digest"):
+        service.replay(result.model_copy(update={"request_digest": "sha256:" + "e" * 64}))
+    with pytest.raises(M2103ReplayError, match="identifier"):
+        service.replay(result.model_copy(update={"result_id": "m2103.result.tampered"}))
+    with pytest.raises(M2103AuthorizationError):
+        preflight_m2103_authorization({})
