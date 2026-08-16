@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M23-04."""
 
+from typing import Any, cast
+
 from glio_proteogen.contracts.m23_04 import (
     M2304_OUTPUT_MEDIA_TYPE,
     M2304_PROVISIONAL_ABI,
@@ -49,7 +51,7 @@ def _uncertainty() -> UncertaintyProfile:
 
 
 def test_provisional_schemas_preserve_variant_peptide_transport_boundaries() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())

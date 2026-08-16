@@ -34,6 +34,10 @@ from glio_proteogen.kernel.models import (
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 8088-8128.
+M2304_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2304_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8088-8128"
 M2304_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-04"
 M2304_OPERATION: Final = "evaluate_variant_peptide_external_transport"
 M2304_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -54,6 +58,7 @@ M2304_EVIDENCE_CLAIM: Final = (
     "Caller-declared M23-04 transport, calibration, support-domain and "
     "validation material; issuer authority is not authenticated."
 )
+M2304_RESULT_ID_PREFIX: Final = "transport.m2304."
 
 
 class TransportDimension(StrEnum):
@@ -102,6 +107,12 @@ class TransportValidation(FrozenModel):
     provenance_artifact: ArtifactReference
     uncertainty: UncertaintyProfile
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2304_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def source_and_target_are_distinct(self) -> TransportValidation:
+        if self.source_domain == self.target_domain:
+            raise ValueError("transport validation source and target domains must differ")
+        return self
 
 
 class TransportEvaluation(FrozenModel):
@@ -195,6 +206,12 @@ class TransportabilityReport(FrozenModel):
             raise ValueError("report must evaluate every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("transport evaluation dimensions must be unique")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("transport validation dimensions must be unique")
+        if self.support_domain.status is TransportStatus.SUPPORTED and (
+            self.support_domain.narrowed_dimensions
+        ):
+            raise ValueError("supported report cannot narrow transport dimensions")
         return self
 
 
@@ -230,6 +247,8 @@ class EvaluateVariantPeptideExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateVariantPeptideExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
@@ -237,6 +256,20 @@ class EvaluateVariantPeptideExternalTransportRequest(FrozenModel):
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("request validation dimensions must be unique")
+        artifact_ids = (
+            self.mass_spectrometry_proteome.artifact_id,
+            self.genome_transcriptome.artifact_id,
+            self.ptm_annotations.artifact_id,
+            self.benchmark_package.artifact_id,
+        )
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        required_artifacts = set(artifact_ids)
+        if len(artifact_ids) != len(required_artifacts):
+            raise ValueError("transport input artifact IDs must be unique")
+        if len(source_ids) != len(set(source_ids)) or set(source_ids) != required_artifacts:
+            raise ValueError("source artifacts must bind every transport input exactly once")
         return self
 
 
@@ -268,6 +301,8 @@ class VariantPeptideExternalTransportResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideExternalTransportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result identifier does not bind the request digest")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -275,6 +310,12 @@ class VariantPeptideExternalTransportResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported transport report")
+            if (
+                self.report.configuration != self.request.configuration
+                or self.report.validations != self.request.validations
+                or self.report.evaluations != self.request.evaluations
+            ):
+                raise ValueError("evaluated report must bind the exact request declarations")
         elif (
             self.report is not None
             or self.abstention_reason is None
@@ -287,8 +328,16 @@ class VariantPeptideExternalTransportResult(FrozenModel):
         return self
 
 
+def result_identifier(request_digest: Sha256Digest) -> str:
+    """Return the deterministic M23-04 result identifier for a request digest."""
+
+    return M2304_RESULT_ID_PREFIX + request_digest.removeprefix("sha256:")
+
+
 __all__ = [
     "M2304_CONTRACT_VERSION",
+    "M2304_DOSSIER_SHA256",
+    "M2304_DOSSIER_SLICE",
     "M2304_EVIDENCE_CLAIM",
     "M2304_GATE",
     "M2304_MAX_CANONICAL_REQUEST_BYTES",
@@ -304,6 +353,7 @@ __all__ = [
     "M2304_OWNER",
     "M2304_PARENT",
     "M2304_PROVISIONAL_ABI",
+    "M2304_RESULT_ID_PREFIX",
     "M2304_SAFETY_CLASS",
     "EvaluateVariantPeptideExternalTransportRequest",
     "EvaluationStatus",
@@ -317,4 +367,5 @@ __all__ = [
     "TransportValidation",
     "TransportabilityReport",
     "VariantPeptideExternalTransportResult",
+    "result_identifier",
 ]
