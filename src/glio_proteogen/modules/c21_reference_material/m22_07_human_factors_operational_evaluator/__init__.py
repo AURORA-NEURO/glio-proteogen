@@ -1,5 +1,7 @@
 """Provisional M22-07 human-factors and operational evaluator."""
 
+from .api import create_app
+from .cli import app
 from .engine import (
     M2207AuthorizationError,
     M2207OperationalEngine,
@@ -18,6 +20,8 @@ __all__ = [
     "M2207ReplayError",
     "M2207Service",
     "ValidatedM2207Request",
+    "app",
+    "create_app",
     "evaluate_protein_rna_discordance_human_factors_operational",
     "preflight_m2207_authorization",
 ]
