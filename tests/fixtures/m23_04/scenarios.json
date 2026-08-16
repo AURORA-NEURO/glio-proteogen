@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M23-04",
+  "contract_version": "0.1.0-provisional",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8088-8128",
+  "cases": [
+    {"case_id": "supported_all_dimensions", "expected_status": "evaluated"},
+    {"case_id": "domain_narrowed", "expected_status": "evaluated"},
+    {"case_id": "not_evaluable_abstention", "expected_status": "abstained"},
+    {"case_id": "no_retained_domain_abstention", "expected_status": "abstained"},
+    {"case_id": "specimen_boundary", "expected_status": "evaluated"},
+    {"case_id": "authorization_gate", "expected_status": "rejected"},
+    {"case_id": "source_binding_closure", "expected_status": "rejected"},
+    {"case_id": "replay_tamper_determinism", "expected_status": "verified"}
+  ]
+}
