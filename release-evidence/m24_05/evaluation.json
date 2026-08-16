@@ -1,0 +1,26 @@
+{
+  "adversarial_case_count": 13,
+  "adversarial_passed_count": 13,
+  "checks": {
+    "all_dimensions": true,
+    "calibration_abstention": true,
+    "denied_fail_closed": true,
+    "deterministic_repeat": true,
+    "evaluated": true,
+    "floor_abstention": true,
+    "parent_boundary": true,
+    "rare_context_abstention": true,
+    "replay_verified": true,
+    "report_present": true,
+    "seven_control_provenance": true,
+    "tamper_rejected": true,
+    "unsupported_abstention": true
+  },
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8492-8532",
+  "fixture_digest": "sha256:19b7eaa4b75b4e0f36c985e03b1e0df6ed1c73e35f890ad039e4a4df07f304aa",
+  "fixture_result_digest": "sha256:0939f06559fd7a03e1bc960bc513d595aae27c545720b1fab81f89e84d55b2cc",
+  "module_id": "GLIO-PROTEOGEN-M24-05",
+  "passed": true,
+  "scenario_count": 13
+}

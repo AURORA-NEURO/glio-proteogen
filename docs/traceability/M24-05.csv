@@ -1,0 +1,13 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M24-05,caller-declared M24-04 media binding,contracts/m24_05/v1.py upstream media closure,contract/runtime/adversarial tests,pass
+GLIO-PROTEOGEN-M24-05,all eight subgroup dimensions,contracts/m24_05/v1.py configuration and request closure,contract/evaluator tests,pass
+GLIO-PROTEOGEN-M24-05,performance bounds and equity floor,contracts/m24_05/v1.py SubgroupPerformance,runtime/adversarial floor tests,pass
+GLIO-PROTEOGEN-M24-05,calibration and coverage closure,contracts/m24_05/v1.py CalibrationSummary/CoverageSummary,evaluator and math-forgery tests,pass
+GLIO-PROTEOGEN-M24-05,deterministic result identity and replay,contracts/m24_05/canonical.py and engine.py,replay/request/result tamper tests,pass
+GLIO-PROTEOGEN-M24-05,seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+GLIO-PROTEOGEN-M24-05,safe abstention and rare-context restriction,modules/.../engine.py,coverage/floor/calibration/rare evaluator scenarios,pass
+GLIO-PROTEOGEN-M24-05,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M24-05,strict parse-once plugin,modules/.../plugin.py,plugin token and duplicate-key tests,pass
+GLIO-PROTEOGEN-M24-05,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M24-05,evaluator and locked benchmark,evals/m24_05,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M24-05,provisional authority and prohibited boundaries,docs/modules/M24-05-subgroup-equity-evaluator.md,owner review and evidence,provisional
