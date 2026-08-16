@@ -1,1 +1,1 @@
-"""Provisional M19-02 alignment and reconciliation evaluation hooks."""
+"""Executable M19-02 evaluator and benchmark entrypoints."""
