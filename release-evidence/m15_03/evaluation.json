@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-03",
+  "fixture": "tests/fixtures/m15_03/scenarios.json",
+  "fixture_digest": "sha256:5c43f9072e6ef78cb60b3525fb8140612a1da21e9c079f4013c4a5c6960f0d3b",
+  "case_ids": [
+    "constructed_supported",
+    "limited_feature_support",
+    "unit_domain_abstention",
+    "conflicted_feature_abstention",
+    "unsupported_method_abstention",
+    "replay_and_tamper",
+    "authorization_gate"
+  ],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "total_cases": 7,
+  "passed": true
+}

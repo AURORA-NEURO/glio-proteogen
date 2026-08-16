@@ -1,0 +1,6 @@
+requirement_id,authority_lines,implementation,evidence,gate
+M14-06-R01,4936-4944,"contracts/m14_06/v1.py; sensitivity surface and bounded response",evaluation.json,G0
+M14-06-R02,4946-4950,"deterministic perturbation engine; architecture metadata",docs/modules/M14-06-perturbation-sensitivity-simulator.md,G1
+M14-06-R03,4952-4956,"seven controls, seven uncertainty axes, explicit abstention",coverage.json; test_m14_06_deep.py,G3
+M14-06-R04,4958-4958,"invariants, locked configuration, units and safe failure",evaluation.json; benchmark.json,G3
+M14-06-R05,4960-4976,"provenance, replay, API/CLI, evaluator, package evidence",package.json; test_m14_06_deep.py,G4

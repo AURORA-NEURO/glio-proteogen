@@ -1,0 +1,41 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-04",
+  "schema_version": "0.1.0-provisional",
+  "operation": "adapt_variant_peptide_intended_use",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:5928-5968",
+  "owner": "ML engineering",
+  "safety_class": "S2",
+  "evidence_gate": "G3",
+  "parent_target": "variant peptide",
+  "claims_ceiling": "intended_use_bounded_object_and_policy_decision_only",
+  "forbidden_capabilities": [
+    "kinase_activity",
+    "all_omics_fusion",
+    "treatment_recommendation",
+    "identity_inference",
+    "upstream_mutation",
+    "disagreement_erasure",
+    "unsupported_to_negative"
+  ],
+  "scenario_names": [
+    "research_allowed",
+    "clinical_review_required",
+    "treatment_blocked",
+    "audience_blocked",
+    "display_blocked",
+    "control_denied",
+    "replay_tamper"
+  ],
+  "adversarial_cases": [
+    "treatment_claim_blocked",
+    "kinase_claim_blocked",
+    "unsupported_audience_blocked",
+    "evidence_tier_blocked",
+    "display_semantics_blocked",
+    "consent_control_denied",
+    "upstream_media_rejected",
+    "tampered_replay_rejected"
+  ],
+  "coverage_target_percent": 95
+}
