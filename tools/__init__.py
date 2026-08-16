@@ -1,1 +1,1 @@
-"""Repository verification tools."""
+"""Repository release and evidence tools."""

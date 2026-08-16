@@ -1,1 +1,1 @@
-"""Protein-native subtype module family (provisional)."""
+"""Protein-native subtype module implementations."""

@@ -1,1 +1,1 @@
-"""Release and tooling evidence tests."""
+"""Tests for repository tooling."""
