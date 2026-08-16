@@ -92,9 +92,7 @@ def test_contract_rejects_duplicate_requirement_id_and_unlocked_config() -> None
 
 def test_contract_rejects_source_artifact_digest_substitution() -> None:
     request = _request()
-    substituted = request.source_artifacts[0].model_copy(
-        update={"digest": "sha256:" + "f" * 64}
-    )
+    substituted = request.source_artifacts[0].model_copy(update={"digest": "sha256:" + "f" * 64})
     payload = request.model_dump(mode="python")
     payload["source_artifacts"] = (substituted, *request.source_artifacts[1:])
     with pytest.raises(ValidationError, match="bind every declared input"):

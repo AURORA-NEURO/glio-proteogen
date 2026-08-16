@@ -34,9 +34,7 @@ class ValidatedM2308Request:
 
     __slots__ = ("__weakref__", "_seal", "request")
 
-    def __init__(
-        self, request: AdjudicateVariantPeptideEvidenceGateRequest, seal: object
-    ) -> None:
+    def __init__(self, request: AdjudicateVariantPeptideEvidenceGateRequest, seal: object) -> None:
         self.request = request
         self._seal = seal
 
@@ -87,17 +85,13 @@ class M2308Plugin:
         candidate = submission.request
         if isinstance(candidate, (bytes, bytearray, str)):
             decoded = strict_json_loads(candidate, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
-            candidate = _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(decoded), strict=True
-            )
+            candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         validated = self._service.validate_request(candidate)
         token = ValidatedM2308Request(validated, self._seal)
         _TOKENS[token] = self._seal
         return token
 
-    def validate_request(
-        self, request: object
-    ) -> AdjudicateVariantPeptideEvidenceGateRequest:
+    def validate_request(self, request: object) -> AdjudicateVariantPeptideEvidenceGateRequest:
         return self._service.validate_request(request)
 
     def run(self, token: ValidatedM2308Request) -> VariantPeptideEvidenceGateResult:
