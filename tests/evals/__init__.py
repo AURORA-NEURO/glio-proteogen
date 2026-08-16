@@ -1,1 +1,1 @@
-"""Evaluator test package."""
+"""Executable evaluator and module evidence gates."""

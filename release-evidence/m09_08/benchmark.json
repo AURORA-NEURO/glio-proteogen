@@ -1,0 +1,15 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-08",
+  "contractVersion": "0.1.0-provisional",
+  "workload": "versioned complex-activity evidence and explanation publication",
+  "timedBoundary": "M0908EvidencePublisher.publish",
+  "iterations": 10,
+  "meanNs": 3143930.0,
+  "medianNs": 3065550.0,
+  "p95Ns": 3650400,
+  "meanBudgetNs": 2000000000,
+  "p95BudgetNs": 3000000000,
+  "sourceCount": 5,
+  "reconstructionStepCount": 1,
+  "passed": true
+}

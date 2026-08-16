@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-01",
+  "contract_version": "0.1.0-provisional",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": "2196-2238",
+  "scenarios": [
+    {"id": "valid_formal_state", "expected": "valid"},
+    {"id": "hard_invariant_violation", "expected": "invalid"},
+    {"id": "missingness_abstention", "expected": "abstained"},
+    {"id": "unsupported_expression_abstention", "expected": "abstained"},
+    {"id": "tamper_replay_rejection", "expected": "rejected"}
+  ]
+}
