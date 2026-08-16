@@ -125,9 +125,7 @@ class ProbabilisticEstimatorConfiguration(FrozenModel):
     version: SemanticVersion
     estimator_family: ProbabilisticEstimatorFamily
     objective: NonEmptyStr
-    priors: tuple[ProbabilisticPrior, ...] = Field(
-        min_length=1, max_length=M1004_MAX_PRIORS
-    )
+    priors: tuple[ProbabilisticPrior, ...] = Field(min_length=1, max_length=M1004_MAX_PRIORS)
     constraints: tuple[EstimatorConstraint, ...] = Field(
         default=(), max_length=M1004_MAX_CONSTRAINTS
     )
@@ -233,18 +231,14 @@ class EstimateProteinRnaDiscordanceProbabilisticRequest(FrozenModel):
 class ProteinRnaDiscordanceProbabilisticResult(FrozenModel):
     """Provisional posterior result with diagnostics and explicit abstention."""
 
-    output_type: Literal["protein_rna_discordance_posterior"] = (
-        "protein_rna_discordance_posterior"
-    )
+    output_type: Literal["protein_rna_discordance_posterior"] = "protein_rna_discordance_posterior"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1004_CONTRACT_VERSION
     request_digest: Sha256Digest
     result_digest: Sha256Digest
     request: EstimateProteinRnaDiscordanceProbabilisticRequest
     status: ProbabilisticResultStatus
-    estimates: tuple[PosteriorEstimate, ...] = Field(
-        default=(), max_length=M1004_MAX_ESTIMATES
-    )
+    estimates: tuple[PosteriorEstimate, ...] = Field(default=(), max_length=M1004_MAX_ESTIMATES)
     diagnostics: tuple[OptimizationDiagnostic, ...] = Field(
         min_length=M1004_MIN_DIAGNOSTICS, max_length=M1004_MAX_DIAGNOSTICS
     )

@@ -81,9 +81,7 @@ def _request_for_feature(
 
 
 def _rebuild(request: object, **updates: object) -> object:
-    return type(request).model_validate(
-        {**request.model_dump(mode="python"), **updates}
-    )
+    return type(request).model_validate({**request.model_dump(mode="python"), **updates})
 
 
 @pytest.mark.parametrize(

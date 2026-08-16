@@ -1,1 +1,1 @@
-"""Tests for pathway/proteotype factor modules."""
+"""Focused pathway/proteotype factor runtime tests."""
