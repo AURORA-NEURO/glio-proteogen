@@ -1,0 +1,28 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-08",
+  "fixture": "tests/fixtures/m14_08/scenarios.json",
+  "fixture_digest": "sha256:1c97958de1b671180da266d31750c70f319d6cb5c37c373f966f30debfbee09b",
+  "case_ids": [
+    "review_ready",
+    "counter_evidence_chain",
+    "validation_required_abstention",
+    "unresolved_link_abstention",
+    "unsupported_method_abstention",
+    "replay_and_tamper",
+    "authorization_gate"
+  ],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "total_cases": 7,
+  "passed": true,
+  "checks": {
+    "review_ready": true,
+    "counter_evidence_chain": true,
+    "validation_required_abstention": true,
+    "unresolved_link_abstention": true,
+    "unsupported_method_abstention": true,
+    "replay_and_tamper": true,
+    "authorization_gate": true
+  }
+}

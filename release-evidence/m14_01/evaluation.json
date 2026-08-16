@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-01",
+  "fixture_digest": "sha256:823c21c3868e5f1a769fc0a6e7836a00055c6fa2d0f8b815c0fd88745af0c4d4",
+  "fixture_version": "1.0.0",
+  "case_ids": [
+    "supported_registry",
+    "refuted_hypothesis",
+    "unknown_hypothesis",
+    "failed_falsification",
+    "unknown_falsification",
+    "multiple_supported",
+    "denied_control"
+  ],
+  "declared": 7,
+  "executed": 7,
+  "passed": true,
+  "failed": [],
+  "focused_tests": 27,
+  "coverage_percent": 98
+}
