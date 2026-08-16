@@ -8,8 +8,11 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m26_08.v1 import (
     M2608_CONTRACT_VERSION,
+    M2608_DOSSIER_SHA256,
+    M2608_DOSSIER_SLICE,
     M2608_GATE,
     M2608_MAX_CANONICAL_REQUEST_BYTES,
+    M2608_MAX_CANONICAL_RESULT_BYTES,
     M2608_MODULE_ID,
     M2608_OUTPUT_MEDIA_TYPE,
     M2608_OWNER,
@@ -28,9 +31,7 @@ from glio_proteogen.contracts.m26_08.v1 import (
     RetireProteinSubtypeServiceRequest,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M26-08:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M26-08:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2608_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -67,6 +68,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["x-glio-contract"] = {
         "moduleId": M2608_MODULE_ID,
         "contractVersion": CONTRACT_VERSION,
+        "dossierSha256": M2608_DOSSIER_SHA256,
+        "dossierSlice": M2608_DOSSIER_SLICE,
         "owner": M2608_OWNER,
         "safetyClass": M2608_SAFETY_CLASS,
         "gate": M2608_GATE,
@@ -103,6 +106,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M2608_MAX_CANONICAL_REQUEST_BYTES
+    if name == "output":
+        schema["x-glio-contract"]["maxResultBytes"] = M2608_MAX_CANONICAL_RESULT_BYTES
     return cast("dict[str, object]", schema)
 
 

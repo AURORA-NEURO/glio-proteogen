@@ -14,9 +14,12 @@ from glio_proteogen.contracts.m26_08.schema import (
     contract_json_schemas,
 )
 from glio_proteogen.contracts.m26_08.v1 import *  # noqa: F403
+from glio_proteogen.contracts.m26_08.v1 import M2608_DOSSIER_SHA256, M2608_DOSSIER_SLICE
 
 __all__ = [
     "CONTRACT_VERSION",
+    "M2608_DOSSIER_SHA256",
+    "M2608_DOSSIER_SLICE",
     "SCHEMA_ID_PREFIX",
     "ContractName",
     "canonical_request_digest",

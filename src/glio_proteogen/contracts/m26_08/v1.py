@@ -33,6 +33,8 @@ from glio_proteogen.kernel.models import (
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 9344-9384.
+M2608_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+M2608_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9344-9384"
 M2608_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-08"
 M2608_OPERATION: Final = "retire_protein_subtype_service"
 M2608_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -49,6 +51,7 @@ M2608_MAX_COMMUNICATIONS: Final = 128
 M2608_MAX_FINDINGS: Final = 64
 M2608_MAX_CANONICAL_REQUEST_BYTES: Final = 8 * 1024 * 1024
 M2608_MAX_CANONICAL_RESULT_BYTES: Final = 16 * 1024 * 1024
+M2608_REQUIRED_SOURCE_MODALITIES: Final = 3
 M2608_EVIDENCE_CLAIM: Final = (
     "Caller-declared M26-08 retirement, migration, preservation, communication "
     "and archival material; issuer authority is not authenticated."
@@ -196,6 +199,21 @@ class RetirementPackage(FrozenModel):
         groups = (criterion_ids, migration_ids, preservation_ids, communication_ids)
         if any(len(ids) != len(set(ids)) for ids in groups):
             raise ValueError("retirement package identifiers must be unique")
+        if self.configuration.parent_target != M2608_PARENT:
+            raise ValueError("retirement package configuration targets a different parent")
+        if self.archive.manifest.artifact_id not in {
+            item.artifact.artifact_id for item in self.preserved_evidence
+        }:
+            raise ValueError("archive manifest must be present in preserved evidence")
+        migration_ids_set = set(migration_ids)
+        if any(
+            item.status is MigrationStatus.COMPLETED
+            and item.target_reference == item.source_reference
+            for item in self.migrations
+        ):
+            raise ValueError("completed migration must change its dependency reference")
+        if not migration_ids_set:
+            raise ValueError("retirement package requires at least one migration")
         if self.status is RetirementStatus.EXECUTED:
             if any(not item.satisfied for item in self.criteria):
                 raise ValueError("executed package cannot contain unsatisfied criteria")
@@ -243,6 +261,38 @@ class RetireProteinSubtypeServiceRequest(FrozenModel):
         min_length=1, max_length=M2608_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_closed(self) -> RetireProteinSubtypeServiceRequest:
+        if self.configuration.parent_target != M2608_PARENT:
+            raise ValueError("request configuration targets a different parent")
+        ids = (
+            tuple(item.criterion_id for item in self.criteria),
+            tuple(item.migration_id for item in self.migrations),
+            tuple(item.preservation_id for item in self.preserved_evidence),
+            tuple(item.communication_id for item in self.communications),
+        )
+        if any(len(values) != len(set(values)) for values in ids):
+            raise ValueError("request identifiers must be unique within each evidence group")
+        if self.archive.manifest.artifact_id not in {
+            item.artifact.artifact_id for item in self.preserved_evidence
+        }:
+            raise ValueError("request archive manifest must be preserved")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if (
+            len(
+                {
+                    self.mass_spectrometry_proteome.artifact_id,
+                    self.genome_transcriptome.artifact_id,
+                    self.ptm_annotations.artifact_id,
+                }
+            )
+            != M2608_REQUIRED_SOURCE_MODALITIES
+        ):
+            raise ValueError("source modality artifacts must be distinct")
+        return self
 
 
 class ProteinSubtypeRetirementResult(FrozenModel):
@@ -294,6 +344,8 @@ class ProteinSubtypeRetirementResult(FrozenModel):
 
 __all__ = [
     "M2608_CONTRACT_VERSION",
+    "M2608_DOSSIER_SHA256",
+    "M2608_DOSSIER_SLICE",
     "M2608_EVIDENCE_CLAIM",
     "M2608_GATE",
     "M2608_MAX_CANONICAL_REQUEST_BYTES",

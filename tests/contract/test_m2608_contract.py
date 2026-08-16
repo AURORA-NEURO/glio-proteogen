@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M26-08."""
 
+from typing import cast
+
 from glio_proteogen.contracts.m26_08 import (
     M2608_OUTPUT_MEDIA_TYPE,
     M2608_PROVISIONAL_ABI,
@@ -10,6 +12,10 @@ from glio_proteogen.contracts.m26_08 import (
 from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
 _SCHEMA_COUNT = 10
+
+
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
 
 
 def _evidence() -> EvidenceReference:
@@ -28,28 +34,29 @@ def _evidence() -> EvidenceReference:
 def test_provisional_schemas_preserve_retirement_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["retirementCriteriaRequired"]
-        and schema["x-glio-contract"]["dependencyMigrationRequired"]
-        and schema["x-glio-contract"]["evidencePreservationRequired"]
-        and schema["x-glio-contract"]["communicationRequired"]
-        and schema["x-glio-contract"]["longTermArchiveRequired"]
-        and schema["x-glio-contract"]["retrievableEvidenceRequired"]
-        and schema["x-glio-contract"]["noActiveDependencies"]
-        and schema["x-glio-contract"]["signedReleaseBundleFallback"]
-        and schema["x-glio-contract"]["humanReviewRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        cast("str", schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values()
+    )
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(
+        _metadata(schema)["retirementCriteriaRequired"]
+        and _metadata(schema)["dependencyMigrationRequired"]
+        and _metadata(schema)["evidencePreservationRequired"]
+        and _metadata(schema)["communicationRequired"]
+        and _metadata(schema)["longTermArchiveRequired"]
+        and _metadata(schema)["retrievableEvidenceRequired"]
+        and _metadata(schema)["noActiveDependencies"]
+        and _metadata(schema)["signedReleaseBundleFallback"]
+        and _metadata(schema)["humanReviewRequired"]
+        and _metadata(schema)["explicitAbstentionRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein subtype"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "protein subtype" for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2608_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2608_OUTPUT_MEDIA_TYPE
     assert M2608_PROVISIONAL_ABI is True
 
 
