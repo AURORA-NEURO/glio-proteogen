@@ -1,0 +1,25 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-03",
+  "build_backend": "hatchling 1.31.0",
+  "wheel": {
+    "path": "release-evidence/m13_03/packages/glio_proteogen-0.1.0-py3-none-any.whl",
+    "sha256": "sha256:9f056133a0f1843b5edef6a22020d38be40e96dbdff823241618697c710d5963",
+    "bytes": 830080,
+    "members": 336
+  },
+  "sdist": {
+    "path": "release-evidence/m13_03/packages/glio_proteogen-0.1.0.tar.gz",
+    "sha256": "sha256:61ad84d257d75ca7b627dac067b3969f892430c812abfd1bfb17c23ceaed7e93",
+    "bytes": 1462628,
+    "members": 800
+  },
+  "coverage_percent": 98.0,
+  "coverage_statements": 570,
+  "coverage_branch_arcs": 114,
+  "isolated_import": true,
+  "isolated_imports": [
+    "glio_proteogen.contracts.m13_03",
+    "glio_proteogen.adapters.m1303",
+    "glio_proteogen.modules.c11_protein_native_subtype.m13_03_mechanistic_feature_constructor"
+  ]
+}

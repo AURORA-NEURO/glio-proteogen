@@ -1,1 +1,1 @@
-"""Runtime test package."""
+"""Runtime tests for deep-built modules."""
