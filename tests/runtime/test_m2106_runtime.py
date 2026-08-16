@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator, Mapping
 
 import pytest
 
@@ -17,6 +18,8 @@ from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_c
     M2106Engine,
     M2106ReplayError,
     M2106Service,
+    preflight_m2106_authorization,
+    run_complex_activity_robustness_challenge,
 )
 from tests.adversarial.test_m2106_adversarial import _request
 
@@ -57,6 +60,34 @@ def test_replay_rejects_tampered_result_digest() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     with pytest.raises(M2106ReplayError, match="payload digest"):
         M2106Engine().replay(tampered)
+
+
+def test_replay_closes_request_and_result_identity_and_public_entrypoint() -> None:
+    request = _supported_request()
+    result = M2106Engine().generate(request)
+    with pytest.raises(M2106ReplayError, match="request digest"):
+        M2106Engine().replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+    with pytest.raises(M2106ReplayError, match="identifier"):
+        M2106Engine().replay(result.model_copy(update={"result_id": "m2106.result.tampered"}))
+    assert run_complex_activity_robustness_challenge(request).result_digest == result.result_digest
+
+
+def test_preflight_fails_closed_for_hostile_mappings() -> None:
+    class HostileMapping(Mapping[str, object]):
+        def get(self, _field: str) -> object:
+            raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+        def __getitem__(self, _key: str) -> object:
+            raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(())
+
+        def __len__(self) -> int:
+            return 0
+
+    with pytest.raises(M2106AuthorizationError):
+        preflight_m2106_authorization(HostileMapping())
 
 
 def test_authorization_fails_before_mapping_execution() -> None:

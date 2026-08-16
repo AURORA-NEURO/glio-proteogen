@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_challenge import (
     M2106Plugin,
     M2106Service,
@@ -60,6 +61,9 @@ def test_fastapi_validate_challenge_verify_and_sanitized_errors() -> None:
     )
     malformed = client.post("/v1/modules/M21-06/verify", content=b"[")
     assert malformed.status_code == _HTTP_UNPROCESSABLE
+    assert (
+        client.post("/v1/modules/M21-06/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
+    )
     assert client.post("/v1/modules/M21-06/verify", json={}).status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in malformed.text
 
@@ -72,6 +76,23 @@ def test_fastapi_unsupported_request_is_safe_abstention() -> None:
     result = response.json()
     assert result["status"] == "abstained"
     assert result["robustness_surface"] is None
+
+
+def test_fastapi_rejects_denied_controls_without_leaking_details() -> None:
+    request = _supported_request()
+    denied = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied_context = request.context.model_copy(
+        update={"references": request.context.references.model_copy(update={"support": denied})}
+    )
+    denied_body = request.model_copy(update={"context": denied_context}).model_dump(mode="json")
+    client = TestClient(create_app(M2106Service()))
+    validated = client.post("/v1/modules/M21-06/validate", json=denied_body)
+    challenged = client.post("/v1/modules/M21-06/challenge", json=denied_body)
+    assert validated.status_code == _HTTP_UNPROCESSABLE
+    assert challenged.status_code == _HTTP_UNPROCESSABLE
+    assert "Traceback" not in validated.text
 
 
 def test_plugin_is_strict_parse_once_and_requires_token() -> None:
@@ -125,6 +146,7 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 ) -> None:
     runner = CliRunner()
     assert runner.invoke(cli_app, ["export-schema", "unknown"]).exit_code != 0
+    assert runner.invoke(cli_app, ["export-schema", "request"]).exit_code == 0
     bad_request = tmp_path / "bad-request.json"
     bad_request.write_bytes(b"[]")
     assert runner.invoke(cli_app, ["validate", str(bad_request)]).exit_code != 0
@@ -132,6 +154,9 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
     bad_result = tmp_path / "bad-result.json"
     bad_result.write_bytes(b"[]")
     assert runner.invoke(cli_app, ["verify", str(bad_result)]).exit_code != 0
+    unsupported_path = tmp_path / "unsupported.json"
+    unsupported_path.write_bytes(canonical_json_bytes(_request()))
+    assert runner.invoke(cli_app, ["challenge", str(unsupported_path)]).exit_code == 1
     request = _supported_request()
     result_path = tmp_path / "valid-result.json"
     result_path.write_bytes(canonical_json_bytes(M2106Service().generate(request)))
@@ -142,3 +167,10 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 
     monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
     assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
+
+    class MismatchedReplay:
+        def replay(self, result: object) -> object:
+            return cast("Any", result).model_copy(update={"result_digest": "sha256:" + "f" * 64})
+
+    monkeypatch.setattr(cli_module, "_SERVICE", MismatchedReplay())
+    assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code == 1
