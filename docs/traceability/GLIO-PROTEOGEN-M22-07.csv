@@ -1,0 +1,14 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M22-07-R01,dossier:7860-7864,Own deterministic human-factors and operational evaluation beneath protein-RNA discordance,literal operation parent and provisional ABI,authority metadata and module identity tests,G4
+M22-07-R02,dossier:7864-7869,Represent reviewer comprehension automation bias throughput latency downtime recovery and fallback,closed seven OperationalDimension values and exact configuration,fixture supported report and dimension-closure tests,G4
+M22-07-R03,dossier:7869-7874,Preserve caller-declared upstream without emitting a parent estimate,opaque M22-06 media ArtifactReference and emits_parent false,result envelope and source-retention checks,G4
+M22-07-R04,dossier:7874-7878,Expose explicit status target tolerance findings and user-review semantics,typed OperationalMetric FallbackScenario OperationalFinding and SupportDecision,evaluated failed-target and abstention evaluator cases,G4
+M22-07-R05,dossier:7878-7882,Require fail-closed controls consent identity provenance quality support and intended use,seven-control preflight with exact accepted states,authorization and hostile-mapping tests,G4
+M22-07-R06,dossier:7882-7886,Retain evidence provenance limitations and seven uncertainty dimensions,canonical evidence/provenance envelope and NOT_ESTIMABLE profile,runtime assertions and release evidence,G4
+M22-07-R07,dossier:7886-7890,Abstain on unsupported or not-evaluable operational material without negative conversion,ABSTAINED result with no report and review support disposition,not-evaluable evaluator/API/CLI cases,G4
+M22-07-R08,dossier:7890-7894,Close dimensions source artifacts result identity and replay,unique IDs validators and canonical digests,contract adversarial and replay-tamper tests,G4
+M22-07-R09,dossier:7894-7897,Expose strict schema API CLI and plugin seams,parse-once strict adapters sanitized errors atomic no-overwrite output,interface parity and adversarial suites,G4
+M22-07-R10,dossier:7897-7900,Provide deterministic tests benchmark traceability release and rollback evidence,locked ten-check evaluator benchmark verifier package hashes,this evidence inventory and release-evidence/m22_07,G4
+M22-07-R11,locked-boundary:M22-06,Consume only declared M22-06 media boundary without invented service ABI,application/vnd.glio-proteogen.m22-06+json ArtifactReference and exact source retention,media-boundary and drift adversarial tests,G4
+M22-07-R12,locked-risk:replay,Recompute request/result digest and reject tampered or mismatched replay,canonical request/result projections and deterministic engine replay,replay and result-closure adversarial cases,G4
+M22-07-R13,locked-risk:safety,Never emit identity consent treatment kinase all-omics or unsupported negative outputs,literal prohibited outputs descriptor and limitations,descriptor assertions and release evidence,G4
