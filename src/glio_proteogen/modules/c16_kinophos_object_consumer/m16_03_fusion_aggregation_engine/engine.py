@@ -120,8 +120,7 @@ def preflight_m1603_authorization(candidate: object) -> None:
         context = _member(candidate, "context")
         references = _member(context, "references")
         states = {
-            role: _state(_member(_member(references, role), "state"))
-            for role in _EXPECTED_CONTROLS
+            role: _state(_member(_member(references, role), "state")) for role in _EXPECTED_CONTROLS
         }
     except Exception as error:
         raise M1603AuthorizationError from error
@@ -150,19 +149,13 @@ def _evidence(
     ]
     references.extend(item.artifact for item in request.contributions)
     references.extend(
-        evidence.reference
-        for item in request.contributions
-        for evidence in item.evidence
+        evidence.reference for item in request.contributions for evidence in item.evidence
     )
     references.extend(
-        evidence.reference
-        for item in request.disagreements
-        for evidence in item.evidence
+        evidence.reference for item in request.disagreements for evidence in item.evidence
     )
     references.extend(
-        evidence.reference
-        for item in request.propagation
-        for evidence in item.evidence
+        evidence.reference for item in request.propagation for evidence in item.evidence
     )
     controls = request.context.references
     references.extend(

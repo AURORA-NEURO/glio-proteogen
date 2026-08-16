@@ -37,7 +37,10 @@ def test_provisional_schemas_preserve_context_and_safe_failure() -> None:
         "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
     )
     assert M1502_DOSSIER_SLICE.endswith(":5120-5160")
-    assert all(schema["x-glio-contract"]["dossierSlice"] == M1502_DOSSIER_SLICE for schema in schemas.values())
+    assert all(
+        schema["x-glio-contract"]["dossierSlice"] == M1502_DOSSIER_SLICE
+        for schema in schemas.values()
+    )
 
 
 def test_context_dimensions_and_abstention_are_explicit() -> None:

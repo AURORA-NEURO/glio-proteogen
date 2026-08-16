@@ -1,4 +1,4 @@
-"""Strict parse-once plugin boundary for provisional M16-04."""
+"""Strict parse-once plugin boundary for provisional M16-08."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
-from glio_proteogen.contracts.m16_04 import (
-    M1604_MAX_CANONICAL_REQUEST_BYTES,
-    AdaptProteinRnaDiscordanceIntendedUseRequest,
-    ProteinRnaDiscordanceIntendedUseResult,
+from glio_proteogen.contracts.m16_08 import (
+    M1608_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteinRnaTranslationHealthRequest,
+    ProteinRnaDiscordanceTranslationHealthResult,
     canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -21,17 +21,17 @@ from glio_proteogen.kernel.strict_json import strict_json_loads
 from .engine import _prepare
 
 if TYPE_CHECKING:
-    from .service import M1604Service
+    from .service import M1608Service
 
 _TOKEN_SEAL: Final = object()
-_REQUEST_ADAPTER: Final = TypeAdapter(AdaptProteinRnaDiscordanceIntendedUseRequest)
+_REQUEST_ADAPTER: Final = TypeAdapter(MonitorProteinRnaTranslationHealthRequest)
 _DESCRIPTOR: Final = ModuleDescriptor(
-    module_id="GLIO-PROTEOGEN-M16-04",
-    title="intended-use adapter (provisional)",
+    module_id="GLIO-PROTEOGEN-M16-08",
+    title="translation monitoring and rollback (provisional)",
     version="0.1.0-provisional",
-    owner="Bioinformatics",
+    owner="Data engineering",
     safety_class="S2",
-    gate="G3",
+    gate="G5",
     prohibited_outputs=(
         "kinase activity, generic all-omics fusion, treatment recommendation",
         "identity/consent inference or unsupported-to-negative conversion",
@@ -41,52 +41,52 @@ _DESCRIPTOR: Final = ModuleDescriptor(
 
 
 @dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
-class ValidatedM1604Request:
-    request: AdaptProteinRnaDiscordanceIntendedUseRequest
+class ValidatedM1608Request:
+    request: MonitorProteinRnaTranslationHealthRequest
     _seal: object
 
 
-_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM1604Request, tuple[object, str]]] = (
+_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM1608Request, tuple[object, str]]] = (
     WeakKeyDictionary()
 )
 
 
 class _InvalidExecutionTokenError(TypeError):
     def __init__(self) -> None:
-        super().__init__("M16-04 execution requires a validated request token")
+        super().__init__("M16-08 execution requires a validated request token")
 
 
-class M1604Plugin(
-    ModulePlugin[object, ValidatedM1604Request, ProteinRnaDiscordanceIntendedUseResult]
+class M1608Plugin(
+    ModulePlugin[object, ValidatedM1608Request, ProteinRnaDiscordanceTranslationHealthResult]
 ):
-    """Expose M16-04 through validate-then-run token semantics."""
+    """Expose M16-08 through validate-then-run token semantics."""
 
     __slots__ = ("_service",)
 
-    def __init__(self, service: M1604Service) -> None:
+    def __init__(self, service: M1608Service) -> None:
         self._service = service
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
 
-    def validate(self, request: object) -> ValidatedM1604Request:
+    def validate(self, request: object) -> ValidatedM1608Request:
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
-            parsed = strict_json_loads(serialized, max_bytes=M1604_MAX_CANONICAL_REQUEST_BYTES)
+            parsed = strict_json_loads(serialized, max_bytes=M1608_MAX_CANONICAL_REQUEST_BYTES)
             typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
         else:
             typed = self._service.validate_request(_prepare(request))
-        token = ValidatedM1604Request(request=typed, _seal=_TOKEN_SEAL)
+        token = ValidatedM1608Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token
 
-    def run(self, request: ValidatedM1604Request) -> ProteinRnaDiscordanceIntendedUseResult:
+    def run(self, request: ValidatedM1608Request) -> ProteinRnaDiscordanceTranslationHealthResult:
         try:
             snapshot = _ISSUED_TOKENS.get(request)
         except TypeError as error:
             raise _InvalidExecutionTokenError from error
         if (
-            type(request) is not ValidatedM1604Request
+            type(request) is not ValidatedM1608Request
             or request._seal is not _TOKEN_SEAL
             or snapshot is None
             or snapshot[0] is not request.request
@@ -97,8 +97,8 @@ class M1604Plugin(
 
     def verify(
         self, result: object, *, replay: bool = True
-    ) -> ProteinRnaDiscordanceIntendedUseResult:
+    ) -> ProteinRnaDiscordanceTranslationHealthResult:
         return self._service.verify(result, replay=replay)
 
 
-__all__ = ["M1604Plugin", "ValidatedM1604Request"]
+__all__ = ["M1608Plugin", "ValidatedM1608Request"]

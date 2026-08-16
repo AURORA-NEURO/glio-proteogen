@@ -27,13 +27,13 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
-    _m1508_contract_schema,
-    _m1603_contract_schema,
-    _m1606_contract_schema,
-    _m1502_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
+    _m1502_contract_schema,
+    _m1508_contract_schema,
+    _m1603_contract_schema,
+    _m1606_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -163,6 +163,22 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
+from glio_proteogen.contracts.m13_06 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+)
+from glio_proteogen.contracts.m14_05 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+)
+from glio_proteogen.contracts.m15_02 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    StratifyContextAndSubtypeRequest,
+)
 from glio_proteogen.contracts.m15_08 import (
     M1508_MAX_CANONICAL_REQUEST_BYTES,
     AssembleComplexActivityMechanismDossierRequest,
@@ -174,22 +190,6 @@ from glio_proteogen.contracts.m16_03 import (
 from glio_proteogen.contracts.m16_06 import (
     M1606_MAX_CANONICAL_REQUEST_BYTES,
     AdjudicateProteinRnaDiscordanceQueueRequest,
-)
-from glio_proteogen.contracts.m15_02 import (
-    M1502_MAX_CANONICAL_REQUEST_BYTES,
-    StratifyContextAndSubtypeRequest,
-)
-from glio_proteogen.contracts.m14_05 import (
-    M1405_MAX_CANONICAL_REQUEST_BYTES,
-    ModelProteinSubtypeLongitudinalEvolutionRequest,
-)
-from glio_proteogen.contracts.m13_06 import (
-    M1306_MAX_CANONICAL_REQUEST_BYTES,
-    SimulateProteotypePerturbationRequest,
-)
-from glio_proteogen.contracts.m14_03 import (
-    M1403_MAX_CANONICAL_REQUEST_BYTES,
-    ConstructProteinSubtypeMechanisticFeaturesRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -335,6 +335,20 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_08_mechanism_evidence_dossier as m1508,
 )
@@ -344,20 +358,6 @@ from glio_proteogen.modules.c16_kinophos_object_consumer import (
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     m16_03_fusion_aggregation_engine as m1603,
-)
-from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
-    m15_02_context_subtype_stratifier as m1502_module,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_05_protein_subtype_evolution as m1405_module,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_03_mechanistic_feature_constructor as m1403_module,
-)
-from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
-    M1306AuthorizationError,
-    M1306Service,
-    preflight_m1306_authorization,
 )
 
 if TYPE_CHECKING:

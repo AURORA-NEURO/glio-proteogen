@@ -107,7 +107,9 @@ def _prepare(candidate: object) -> object:
     return candidate
 
 
-def _evidence(request: AdaptProteinRnaDiscordanceIntendedUseRequest) -> tuple[EvidenceReference, ...]:
+def _evidence(
+    request: AdaptProteinRnaDiscordanceIntendedUseRequest,
+) -> tuple[EvidenceReference, ...]:
     refs = request.context.references
     artifacts: list[ArtifactReference] = [
         request.upstream_resolution_result,

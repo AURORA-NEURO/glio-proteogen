@@ -20,4 +20,3 @@ __all__ = [
     "adapt_protein_rna_discordance_intended_use",
     "preflight_m1604_authorization",
 ]
-
