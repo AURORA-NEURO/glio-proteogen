@@ -9,6 +9,8 @@ from glio_proteogen.contracts.m26_06.schema import (
 )
 from glio_proteogen.contracts.m26_06.v1 import (
     M2606_CONTRACT_VERSION,
+    M2606_DOSSIER_SHA256,
+    M2606_DOSSIER_SLICE,
     M2606_GATE,
     M2606_M2605_INPUT_MEDIA_TYPE,
     M2606_MAX_CANONICAL_REQUEST_BYTES,
@@ -43,6 +45,8 @@ from glio_proteogen.contracts.m26_06.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2606_CONTRACT_VERSION",
+    "M2606_DOSSIER_SHA256",
+    "M2606_DOSSIER_SLICE",
     "M2606_GATE",
     "M2606_M2605_INPUT_MEDIA_TYPE",
     "M2606_MAX_CANONICAL_REQUEST_BYTES",

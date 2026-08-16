@@ -37,6 +37,8 @@ from glio_proteogen.kernel.models import (
 # lines 9256-9296. Owner confirmation and implementation details remain
 # pending.
 M2606_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-06"
+M2606_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+M2606_DOSSIER_SLICE: Final = "source-manifest.yaml:9256-9296"
 M2606_OPERATION: Final = "evaluate_proteomics_security_access"
 M2606_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2606_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-06+json"
@@ -110,9 +112,15 @@ class SecurityControlCheck(FrozenModel):
     control: SecurityControlKind
     status: ControlStatus
     rationale: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def failed_checks_are_explainable(self) -> SecurityControlCheck:
+        """Every non-passing control must remain actionable and reviewable."""
+
+        if self.status is not ControlStatus.PASSED and not self.rationale:
+            raise ValueError("non-passing controls require a review rationale")
+        return self
 
 
 class AccessDecision(FrozenModel):
@@ -125,9 +133,7 @@ class AccessDecision(FrozenModel):
     consent_required: bool
     consent_verified: bool
     reason: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def consent_is_enforced(self) -> AccessDecision:
@@ -148,9 +154,7 @@ class AuditEvent(FrozenModel):
     action: NonEmptyStr
     decision_state: AccessDecisionState
     event_type: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
 
 
 class SecurityFinding(FrozenModel):
@@ -158,9 +162,20 @@ class SecurityFinding(FrozenModel):
     code: SecurityFindingCode
     severity: SecurityFindingSeverity
     message: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        default=(), max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def severe_findings_cannot_be_unreferenced(self) -> SecurityFinding:
+        if (
+            self.severity
+            in {
+                SecurityFindingSeverity.ERROR,
+                SecurityFindingSeverity.CRITICAL,
+            }
+            and not self.evidence
+        ):
+            raise ValueError("severe security findings require evidence")
+        return self
 
 
 class SecurityPostureRecord(FrozenModel):
@@ -171,9 +186,7 @@ class SecurityPostureRecord(FrozenModel):
         min_length=M2606_MAX_CONTROLS, max_length=M2606_MAX_CONTROLS
     )
     findings: tuple[SecurityFinding, ...] = Field(default=(), max_length=M2606_MAX_FINDINGS)
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def controls_are_unique_and_complete(self) -> SecurityPostureRecord:
@@ -182,6 +195,15 @@ class SecurityPostureRecord(FrozenModel):
             raise ValueError("security control checks must be unique")
         if set(names) != set(SecurityControlKind):
             raise ValueError("security posture must cover every required control")
+        statuses = {item.status for item in self.controls}
+        if self.status is SecurityPostureStatus.COMPLIANT and statuses != {ControlStatus.PASSED}:
+            raise ValueError("compliant posture requires every control to pass")
+        if self.status is SecurityPostureStatus.CRITICAL and ControlStatus.FAILED not in statuses:
+            raise ValueError("critical posture requires a failed control")
+        if self.status is SecurityPostureStatus.NOT_EVALUABLE and not (
+            statuses & {ControlStatus.NOT_EVALUABLE, ControlStatus.REVIEW_REQUIRED}
+        ):
+            raise ValueError("not-evaluable posture requires unresolved control evidence")
         return self
 
 
@@ -192,9 +214,7 @@ class SafeFailureReport(FrozenModel):
     action: NonEmptyStr
     abstained: Literal[True] = True
     recovery_note: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2606_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
 
 
 class EvaluateProteomicsSecurityAccessRequest(FrozenModel):
@@ -224,6 +244,8 @@ class EvaluateProteomicsSecurityAccessRequest(FrozenModel):
             raise ValueError("request must bind the provisional M26-05 standards result")
         if len(set(self.requested_controls)) != len(self.requested_controls):
             raise ValueError("requested security controls must be unique")
+        if set(self.requested_controls) != set(SecurityControlKind):
+            raise ValueError("request must declare every required security control exactly once")
         return self
 
 
@@ -247,7 +269,7 @@ class ProteomicsSecurityAccessResult(FrozenModel):
     support_decision: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2606_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
 
@@ -275,6 +297,8 @@ class ProteomicsSecurityAccessResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires safe failure and safe status")
+        if self.status is SecurityAssessmentStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained security assessments require human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -282,6 +306,8 @@ class ProteomicsSecurityAccessResult(FrozenModel):
 
 __all__ = [
     "M2606_CONTRACT_VERSION",
+    "M2606_DOSSIER_SHA256",
+    "M2606_DOSSIER_SLICE",
     "M2606_GATE",
     "M2606_M2605_INPUT_MEDIA_TYPE",
     "M2606_MAX_CANONICAL_REQUEST_BYTES",
