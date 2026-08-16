@@ -1,0 +1,17 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "maximum_ns": 1330200,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 1282480.0,
+  "module_id": "GLIO-PROTEOGEN-M20-04",
+  "p50_ns": 1273150.0,
+  "p95_budget_ns": 750000000,
+  "p95_ns": 1330200,
+  "passed": true,
+  "request_digest": "sha256:1d79b740469bff18b02dfb7d6033ca4d5c5f706d146b5625e59f3ea69e0279c2",
+  "result_digest": "sha256:9f99e3e435914b62df6387c813722307db6c7f5782c23ee3bba7364a0fa0758b",
+  "timed_boundary": "M2004Engine.adapt_only",
+  "warmup_count": 1,
+  "workload": "bounded_intended_use_policy_adaptation"
+}
