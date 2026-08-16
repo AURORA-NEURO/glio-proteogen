@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_07 import (
     M2607_MAX_CANONICAL_REQUEST_BYTES,
+    M2607_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     ControlProteinSubtypeChangeRequest,
     ProteinSubtypeChangeControlResult,
@@ -58,7 +59,7 @@ def _read_request(path: Path) -> ControlProteinSubtypeChangeRequest:
 def _read_result(path: Path) -> ProteinSubtypeChangeControlResult:
     try:
         data = path.read_bytes()
-        strict_json_loads(data, max_bytes=M2607_MAX_CANONICAL_REQUEST_BYTES)
+        strict_json_loads(data, max_bytes=M2607_MAX_CANONICAL_RESULT_BYTES)
         return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2607CliError("input must be a valid M26-07 result") from error  # noqa: TRY003
