@@ -1,10 +1,10 @@
 {
   "module_id": "GLIO-PROTEOGEN-M19-04",
   "contract_version": "0.1.0-provisional",
-  "source_commit": "94a33559d28e36e5fd7cb9983472896d39a9aad5",
+  "source_commit": "5d4dd85",
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6648-6688",
-  "focused_tests": 32,
+  "focused_tests": 35,
   "scoped_branch_coverage_percent": 97.0,
   "scoped_statements": 391,
   "scoped_branches": 72,
