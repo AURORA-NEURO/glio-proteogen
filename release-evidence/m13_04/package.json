@@ -1,0 +1,26 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-04",
+  "build_backend": "hatchling 1.31.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 829144,
+    "sha256": "c28084c85b25ac06575f243901f8136a17adcde212c26aa06a4022eabba8900d",
+    "members": 335
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 1465028,
+    "sha256": "096f34e55bbfe8d6e131a7948dd4852d65c18af90f368910f028aa561c65360b",
+    "members": 801
+  },
+  "isolated_import": {
+    "passed": true,
+    "checks": [
+      "glio_proteogen.contracts.m13_04",
+      "glio_proteogen.adapters.m1304",
+      "contract_json_schemas_count=5",
+      "M1304MechanismEngine"
+    ]
+  },
+  "passed": true
+}

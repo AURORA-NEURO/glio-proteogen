@@ -1,1 +1,1 @@
-"""Provisional M18-03 fusion and aggregation evaluation hooks."""
+"""Executable M18-03 evaluator and benchmark."""

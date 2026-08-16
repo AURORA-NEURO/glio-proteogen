@@ -3,6 +3,8 @@
 import pytest
 
 from glio_proteogen.contracts.m17_04 import (
+    M1704_DOSSIER_SHA256,
+    M1704_DOSSIER_SLICE,
     M1704_OUTPUT_MEDIA_TYPE,
     M1704_PROVISIONAL_ABI,
     AdapterFindingCode,
@@ -35,6 +37,10 @@ def test_provisional_schemas_require_bounded_use_policy() -> None:
     )
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1704_OUTPUT_MEDIA_TYPE
     assert M1704_PROVISIONAL_ABI is True
+    assert M1704_DOSSIER_SHA256.endswith(
+        "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+    )
+    assert M1704_DOSSIER_SLICE.endswith(":5928-5968")
 
 
 def test_policy_and_treatment_block_are_explicit() -> None:

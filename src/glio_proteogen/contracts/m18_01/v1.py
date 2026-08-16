@@ -164,7 +164,7 @@ class CompatibilityReport(FrozenModel):
         min_length=1, max_length=M1801_MAX_DECISIONS
     )
     selected_candidate_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1801_MAX_CANDIDATES
+        default=(), max_length=M1801_MAX_CANDIDATES
     )
     rejected_candidate_ids: tuple[Identifier, ...] = Field(
         default=(), max_length=M1801_MAX_CANDIDATES
@@ -190,6 +190,22 @@ class CompatibilityReport(FrozenModel):
             raise ValueError("report candidate outcomes must be mutually exclusive")
         if set(flattened) != set(decision_ids):
             raise ValueError("report must classify every compatibility decision")
+        statuses = {item.candidate_id: item.status for item in self.decisions}
+        if any(
+            statuses[item] is not CompatibilityStatus.COMPATIBLE
+            for item in self.selected_candidate_ids
+        ):
+            raise ValueError("selected candidates must be compatible")
+        if any(
+            statuses[item] is not CompatibilityStatus.INCOMPATIBLE
+            for item in self.rejected_candidate_ids
+        ):
+            raise ValueError("rejected candidates must be incompatible")
+        if any(
+            statuses[item] is not CompatibilityStatus.UNKNOWN
+            for item in self.unresolved_candidate_ids
+        ):
+            raise ValueError("unresolved candidates must have unknown compatibility")
         return self
 
 
@@ -213,6 +229,12 @@ class ValidatedUpstreamBundle(FrozenModel):
             raise ValueError("validated bundle cannot include incompatible candidates")
         if set(candidate_ids) != set(self.compatibility_report.selected_candidate_ids):
             raise ValueError("validated bundle must match selected compatibility candidates")
+        if any(
+            item.candidate_id
+            not in {decision.candidate_id for decision in self.compatibility_report.decisions}
+            for item in self.candidates
+        ):
+            raise ValueError("validated bundle candidates must have compatibility decisions")
         return self
 
 
@@ -230,9 +252,7 @@ class ResolveBiomarkerPanelUpstreamContractsRequest(FrozenModel):
     contract_version: Literal["0.1.0-provisional"] = M1801_CONTRACT_VERSION
     request_id: Identifier
     context: ExecutionContext
-    candidates: tuple[UpstreamCandidate, ...] = Field(
-        min_length=1, max_length=M1801_MAX_CANDIDATES
-    )
+    candidates: tuple[UpstreamCandidate, ...] = Field(min_length=1, max_length=M1801_MAX_CANDIDATES)
     configuration: ResolverConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1801_MAX_EVIDENCE
@@ -244,6 +264,9 @@ class ResolveBiomarkerPanelUpstreamContractsRequest(FrozenModel):
         candidate_ids = tuple(item.candidate_id for item in self.candidates)
         if len(candidate_ids) != len(set(candidate_ids)):
             raise ValueError("request candidate ids must be unique")
+        artifact_digests = tuple(item.artifact.digest for item in self.candidates)
+        if len(artifact_digests) != len(set(artifact_digests)):
+            raise ValueError("request candidate artifacts must be unique")
         return self
 
 
@@ -280,6 +303,8 @@ class BiomarkerPanelUpstreamResolutionResult(FrozenModel):
         report_ids = {item.candidate_id for item in self.compatibility_report.decisions}
         if request_ids != report_ids:
             raise ValueError("compatibility report must classify every request candidate")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is ResolverStatus.VALIDATED:
             if (
                 self.bundle is None
@@ -294,6 +319,8 @@ class BiomarkerPanelUpstreamResolutionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no bundle and safe status")
+        if self.status is ResolverStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
