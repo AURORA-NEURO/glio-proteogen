@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m16_06.schema import (
+    ContractName as M1606ContractName,
+)
+from glio_proteogen.contracts.m16_06.schema import (
+    contract_json_schema as m1606_contract_json_schema,
+)
+from glio_proteogen.contracts.m16_06.v1 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
+    ProteinRnaDiscordanceAdjudicationResult,
+)
 from glio_proteogen.contracts.m16_03.schema import (
     ContractName as M1603ContractName,
 )
@@ -487,6 +498,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
     _validate_json_request as _validate_m0404_json_request,
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    M1606AuthorizationError,
+    M1606Service,
+    preflight_m1606_authorization,
     m16_03_fusion_aggregation_engine as m1603,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
@@ -529,6 +543,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1606_QUEUE_ADAPTER: Final = TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest)
 _M1603_FUSION_ADAPTER: Final = TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest)
 _M1508_DOSSIER_ADAPTER: Final = TypeAdapter(AssembleComplexActivityMechanismDossierRequest)
 _M1502_ADAPTER: Final = TypeAdapter(StratifyContextAndSubtypeRequest)
@@ -688,6 +703,9 @@ def _proteoform_quality_contract_schema(
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
 
+
+def _m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+    return m1606_contract_json_schema(name)
 
 def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
     return m1603_contract_json_schema(name)
@@ -899,6 +917,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
     }
 
 
+def _m1606_queue_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1606_contract_json_schema("request")}},
+        }
+    }
+
+
 def _m1502_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -906,6 +933,17 @@ def _m1502_request_body() -> dict[str, object]:
             "content": {"application/json": {"schema": m1502_contract_json_schema("request")}},
         }
     }
+
+
+async def _m1606_queue_body(
+    request: Request,
+) -> AdjudicateProteinRnaDiscordanceQueueRequest:
+    return await _strict_json_body(
+        request,
+        _M1606_QUEUE_ADAPTER,
+        preflight_m1606_authorization,
+        M1606_MAX_CANONICAL_REQUEST_BYTES,
+    )
 
 
 def _m1405_request_body() -> dict[str, object]:
@@ -1265,6 +1303,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1606_queue_service = M1606Service()
     m1603_service = m1603.M1603Service()
     m1508_service = m1508.M1508Service()
     m1502_service = m1502_module.M1502Service()
@@ -1324,6 +1363,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(m1403_module.M1403AuthorizationError)
     @app.exception_handler(M1306AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(error)})
+
+    @app.exception_handler(M1606AuthorizationError)
+    def m1606_authorization_handler(
+        _request: Request,
+        error: M1606AuthorizationError,
+    ) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
     @app.exception_handler(InvalidProtocolLookupError)
@@ -1592,6 +1638,23 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
 
+    @app.get("/v1/contracts/M16-06/{name}/schema", tags=["contracts"])
+    def m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+        return _m1606_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M16-06/reviewer-discrepancy-adjudication",
+        response_model=ProteinRnaDiscordanceAdjudicationResult,
+        tags=["M16-06"],
+        openapi_extra=_m1606_queue_request_body(),
+    )
+    def adjudicate_m1606_queue(
+        request: Annotated[
+            AdjudicateProteinRnaDiscordanceQueueRequest,
+            Depends(_m1606_queue_body),
+        ],
+    ) -> ProteinRnaDiscordanceAdjudicationResult:
+        return m1606_queue_service.adjudicate(request)
     @app.get("/v1/contracts/M16-03/{name}/schema", tags=["contracts"])
     def m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
         return _m1603_contract_schema(name)

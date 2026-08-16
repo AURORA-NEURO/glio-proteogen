@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1606_contract_schema,
     _m1603_contract_schema,
     _m1508_contract_schema,
     _m1502_contract_schema,
@@ -161,6 +162,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m16_06 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
 )
 from glio_proteogen.contracts.m16_03 import (
     M1603_MAX_CANONICAL_REQUEST_BYTES,
@@ -331,6 +336,8 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
     _validate_json_request as _validate_m0404_json_request,
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    M1606Service,
+    preflight_m1606_authorization,
     m16_03_fusion_aggregation_engine as m1603,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
@@ -483,6 +490,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+reviewer_discrepancy_app = typer.Typer(
+    no_args_is_help=True,
+    help="M16-06 reviewer discrepancy and immutable adjudication queue.",
+)
+app.add_typer(reviewer_discrepancy_app, name="reviewer-discrepancy")
 fusion_aggregation_app = typer.Typer(
     no_args_is_help=True,
     help="M16-03 component-specific fusion and aggregation.",
@@ -3601,6 +3613,40 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@reviewer_discrepancy_app.command("export-schema")
+def export_m1606_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M16-06 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export the strict provisional M16-06 queue schema."""
+
+    typer.echo(json.dumps(_m1606_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@reviewer_discrepancy_app.command("adjudicate")
+def adjudicate_m1606_queue(request: RequestArgument) -> None:
+    """Record an authorized reviewer queue and emit its immutable result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest),
+        preflight_m1606_authorization,
+        M1606_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M1606Service().adjudicate(parsed))
 
 
 @m1502_app.command("export-schema")

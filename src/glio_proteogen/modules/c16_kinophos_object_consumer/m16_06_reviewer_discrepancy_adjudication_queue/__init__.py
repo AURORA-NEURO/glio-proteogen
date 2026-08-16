@@ -1,19 +1,23 @@
-"""KINOPHOS object-consumer module family and implementations."""
+"""M16-06 reviewer discrepancy and adjudication queue."""
 
-from .m16_06_reviewer_discrepancy_adjudication_queue import (
+from .engine import (
     M1606AuthorizationError,
     M1606Engine,
     M1606ReplayError,
-    M1606Service,
     adjudicate_protein_rna_discordance_queue,
     preflight_m1606_authorization,
 )
-from .m16_06_reviewer_discrepancy_adjudication_queue.plugin import M1606Plugin
+from .plugin import (
+    M1606Plugin,
+    M1606PluginDescriptor,
+)
+from .service import M1606Service
 
 __all__ = [
     "M1606AuthorizationError",
     "M1606Engine",
     "M1606Plugin",
+    "M1606PluginDescriptor",
     "M1606ReplayError",
     "M1606Service",
     "adjudicate_protein_rna_discordance_queue",
