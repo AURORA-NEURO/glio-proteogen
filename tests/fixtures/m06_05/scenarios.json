@@ -1,0 +1,31 @@
+{
+  "status": "provisional",
+  "module_id": "GLIO-PROTEOGEN-M06-05",
+  "contract_version": "0.1.0-provisional",
+  "fixtures_frozen": false,
+  "limits_frozen": false,
+  "fixture_builder": "tests.modules.c06_protein_abundance.test_m06_05_constraint_integrator._request",
+  "scenarios": [
+    {
+      "id": "provisional-integrated-hard-soft",
+      "expected_status": "integrated",
+      "expected_support": "supported",
+      "expected_ablation_count": 1,
+      "notes": "Observed scalar feature satisfies the hard constraint and records soft ablation effect."
+    },
+    {
+      "id": "provisional-hard-violation-abstention",
+      "expected_status": "abstained",
+      "expected_support": "review_required",
+      "expected_ablation_count": 1,
+      "notes": "Hard violation is reported explicitly and never converted to an estimate."
+    },
+    {
+      "id": "provisional-unsupported-abstention",
+      "expected_status": "abstained",
+      "expected_support": "unsupported",
+      "expected_ablation_count": 1,
+      "notes": "Unsupported feature evidence abstains without a negative finding."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-08",
+  "authority": {
+    "file": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "2504-2547"
+  },
+  "abi_status": "dossier-behavioral-brief-only",
+  "responsibility": "evidence and explanation publisher beneath Copy-number dosage/attenuation",
+  "parent_target": "proteotype",
+  "controls": ["identity", "lineage", "provenance", "consent", "quality", "support", "intended_use"],
+  "required_fields": [
+    "sources", "assumptions", "uncertainty", "support_status", "counter_evidence",
+    "diagnostics", "provenance", "limitations", "reconstruction_evidence"
+  ],
+  "safety": {
+    "unsupported_to_negative": false,
+    "parent_emission": false,
+    "kinase_activity": false,
+    "treatment_recommendation": false,
+    "raw_payload_traversal": false,
+    "human_review_on_abstention": true
+  },
+  "evidence": {
+    "contract": "tests/contract/test_m07_08_contract.py",
+    "runtime": "tests/modules/c07_copy_number_dosage/test_m07_08_runtime.py",
+    "interfaces": "tests/integration/test_m0708_interfaces.py",
+    "evaluator": "tests/evals/test_m0708_eval.py",
+    "fixtures": "tests/fixtures/m07_08",
+    "benchmark": "evals/m07_08/benchmark.py"
+  }
+}

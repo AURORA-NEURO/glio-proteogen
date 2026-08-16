@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-06",
+  "authority": {
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3496-3539"
+  },
+  "responsibility": "uncertainty decomposition beneath Pathway/proteotype factors",
+  "owner": "Data engineering",
+  "safety_class": "S2",
+  "gate": "G2",
+  "abi_status": "dossier-behavioral-brief-only",
+  "dimensions": ["measurement", "sampling", "parameter", "model_form", "identification", "support", "transport"],
+  "coverage_gate": {"nominal": 0.9, "minimum": 0.85, "maximum": 0.95},
+  "required_controls": ["approved_configuration", "identity_lineage", "provenance", "consent", "quality", "support", "intended_use"],
+  "required_inputs": ["m10_05_integrator_result", "mass_spectrometry_proteome", "genome_transcriptome", "ptm_annotations", "policy", "identity_lineage", "provenance", "consent", "quality", "support", "intended_use"],
+  "output_policy": {"parent_target": "protein_rna_discordance", "emits_parent": false, "unsupported_to_negative": false},
+  "evidence": ["contract schema", "functional invariants", "robustness", "calibration/abstention", "safety/provenance/recovery", "benchmark", "package manifest"]
+}
