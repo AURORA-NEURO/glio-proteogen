@@ -25,6 +25,7 @@ from glio_proteogen.contracts.m26_04 import (
 )
 from glio_proteogen.contracts.m26_04.canonical import canonical_request_digest
 from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
     GatewaySubmission,
     M2604AuthorizationError,
@@ -33,6 +34,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway impor
     M2604Plugin,
     M2604ReplayError,
     M2604Service,
+    M2604TokenError,
     api,
     cli,
 )
@@ -75,6 +77,25 @@ def test_replay_rejects_result_id_and_digest_tampering() -> None:
         engine.replay(result.model_copy(update={"result_id": "m2604.forged"}))
     with pytest.raises(M2604ReplayError):
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+
+
+def test_replay_rejects_request_digest_payload_and_untyped_candidates() -> None:
+    engine = M2604GatewayEngine()
+    result = engine.publish(_request())
+    with pytest.raises(M2604ReplayError):
+        engine.replay(result.model_copy(update={"request_digest": "sha256:" + "1" * 64}))
+    with pytest.raises(M2604ReplayError):
+        engine.replay(result.model_copy(update={"findings": ()}))
+    with pytest.raises(M2604ReplayError):
+        engine.replay(object())  # type: ignore[arg-type]
+
+
+def test_contract_rejects_duplicate_operation_ids_after_revalidation() -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    payload["operations"] = (request.operations[0], request.operations[0])
+    with pytest.raises(ValidationError, match="gateway operation ids"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(payload)
 
 
 def test_request_rejects_unknown_operation_references() -> None:
@@ -234,7 +255,9 @@ def test_api_valid_schema_and_authorization_error_routes() -> None:
     schema = client.get("/v1/modules/M26-04/schemas/request")
     assert schema.status_code == HTTPStatus.OK
     request = _request()
-    support = request.context.references.support.model_copy(update={"state": "rejected"})
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
     context = request.context.model_copy(
         update={"references": request.context.references.model_copy(update={"support": support})}
     )
@@ -244,6 +267,23 @@ def test_api_valid_schema_and_authorization_error_routes() -> None:
     )
     assert denied.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "rejected" not in denied.text
+
+
+def test_api_validate_sanitizes_authorization_failure() -> None:
+    client = TestClient(api.create_app())
+    request = _request()
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    context = request.context.model_copy(
+        update={"references": request.context.references.model_copy(update={"support": support})}
+    )
+    response = client.post(
+        "/v1/modules/M26-04/validate",
+        content=request.model_copy(update={"context": context}).model_dump_json(),
+    )
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "rejected" not in response.text
 
 
 def test_api_wrapped_verify_and_sdk_json_facade() -> None:
@@ -289,6 +329,28 @@ def test_service_typed_replay_and_sdk_json_publish() -> None:
         AsyncJobRecord.model_validate(
             job.model_copy(update={"status": JobStatus.CANCELLED}).model_dump(mode="python")
         )
+
+
+def test_service_descriptor_and_plugin_capability_seals_are_closed() -> None:
+    request = _request()
+    service = M2604Service()
+    assert service.descriptor["module_id"] == "GLIO-PROTEOGEN-M26-04"
+    plugin = M2604Plugin(service)
+    other = M2604Plugin(service)
+    token = plugin.validate(GatewaySubmission(request))
+    with pytest.raises(M2604TokenError):
+        other.run(token)
+    token._seal = object()
+    with pytest.raises(M2604TokenError):
+        plugin.run(token)
+
+
+def test_cli_publish_stdout_and_api_schema_boundary(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_text(_request().model_dump_json(), encoding="utf-8")
+    result = CliRunner().invoke(cli.app, ["publish", str(request_path)])
+    assert result.exit_code == 0
+    assert '"status":"published"' in result.stdout
 
 
 def test_incompatible_and_migration_rules_never_publish() -> None:
