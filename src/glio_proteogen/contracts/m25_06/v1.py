@@ -237,6 +237,13 @@ class ChallengeProteotypeRobustnessRequest(FrozenModel):
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if self.upstream_result.artifact_id not in set(source_ids):
+            raise ValueError("source artifacts must include the upstream result")
+        if {item.kind for item in self.scenarios} != M2506_REQUIRED_CHALLENGE_KINDS:
+            raise ValueError("request must declare all eight challenge kinds")
         return self
 
 
