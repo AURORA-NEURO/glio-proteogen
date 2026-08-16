@@ -208,7 +208,7 @@ class ResolveProteinRnaDiscordanceUpstreamRequest(FrozenModel):
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
-    def request_candidates_are_unique_and_complete(
+    def request_candidates_are_unique(
         self,
     ) -> ResolveProteinRnaDiscordanceUpstreamRequest:
         ids = tuple(item.candidate_id for item in self.candidates)

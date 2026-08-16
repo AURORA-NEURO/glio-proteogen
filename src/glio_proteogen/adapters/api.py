@@ -275,16 +275,16 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
-from glio_proteogen.contracts.m16_06.schema import (
-    ContractName as M1606ContractName,
+from glio_proteogen.contracts.m15_08.schema import (
+    ContractName as M1508ContractName,
 )
-from glio_proteogen.contracts.m16_06.schema import (
-    contract_json_schema as m1606_contract_json_schema,
+from glio_proteogen.contracts.m15_08.schema import (
+    contract_json_schema as m1508_contract_json_schema,
 )
-from glio_proteogen.contracts.m16_06.v1 import (
-    M1606_MAX_CANONICAL_REQUEST_BYTES,
-    AdjudicateProteinRnaDiscordanceQueueRequest,
-    ProteinRnaDiscordanceAdjudicationResult,
+from glio_proteogen.contracts.m15_08.v1 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
+    ComplexActivityMechanismDossierResult,
 )
 from glio_proteogen.contracts.m16_03.schema import (
     ContractName as M1603ContractName,
@@ -297,16 +297,16 @@ from glio_proteogen.contracts.m16_03.v1 import (
     FuseProteinRnaDiscordanceEvidenceRequest,
     ProteinRnaDiscordanceIntegratedEvidenceResult,
 )
-from glio_proteogen.contracts.m15_08.schema import (
-    ContractName as M1508ContractName,
+from glio_proteogen.contracts.m16_06.schema import (
+    ContractName as M1606ContractName,
 )
-from glio_proteogen.contracts.m15_08.schema import (
-    contract_json_schema as m1508_contract_json_schema,
+from glio_proteogen.contracts.m16_06.schema import (
+    contract_json_schema as m1606_contract_json_schema,
 )
-from glio_proteogen.contracts.m15_08.v1 import (
-    M1508_MAX_CANONICAL_REQUEST_BYTES,
-    AssembleComplexActivityMechanismDossierRequest,
-    ComplexActivityMechanismDossierResult,
+from glio_proteogen.contracts.m16_06.v1 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
+    ProteinRnaDiscordanceAdjudicationResult,
 )
 from glio_proteogen.contracts.m15_02.schema import (
     ContractName as M1502ContractName,
@@ -497,14 +497,16 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     M1606AuthorizationError,
     M1606Service,
     preflight_m1606_authorization,
-    m16_03_fusion_aggregation_engine as m1603,
 )
-from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
-    m15_08_mechanism_evidence_dossier as m1508,
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_02_context_subtype_stratifier as m1502_module,
@@ -707,8 +709,10 @@ def _proteoform_quality_contract_schema(
 def _m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
     return m1606_contract_json_schema(name)
 
+
 def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
     return m1603_contract_json_schema(name)
+
 
 def _m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
     return m1508_contract_json_schema(name)
@@ -1207,6 +1211,7 @@ def _m1603_request_body() -> dict[str, object]:
         }
     }
 
+
 def _m1508_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -1225,6 +1230,7 @@ async def _m1603_fusion_body(
         m1603.preflight_m1603_authorization,
         M1603_MAX_CANONICAL_REQUEST_BYTES,
     )
+
 
 async def _m1508_dossier_body(
     request: Request,
@@ -1655,6 +1661,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinRnaDiscordanceAdjudicationResult:
         return m1606_queue_service.adjudicate(request)
+
     @app.get("/v1/contracts/M16-03/{name}/schema", tags=["contracts"])
     def m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
         return _m1603_contract_schema(name)
@@ -1672,6 +1679,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinRnaDiscordanceIntegratedEvidenceResult:
         return m1603_service.execute(request)
+
     @app.get("/v1/contracts/M15-08/{name}/schema", tags=["contracts"])
     def m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
         return _m1508_contract_schema(name)

@@ -202,6 +202,8 @@ class IntendedUseObject(FrozenModel):
 
     @model_validator(mode="after")
     def object_matches_policy(self) -> IntendedUseObject:
+        if self.policy_decision.policy_id == "":
+            raise ValueError("intended-use object requires a policy binding")
         if (
             self.claim_ceiling is ClaimCeiling.ABSTAIN
             and self.policy_decision.status is PolicyDecisionStatus.ALLOWED

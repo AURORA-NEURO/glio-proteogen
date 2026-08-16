@@ -27,9 +27,9 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
-    _m1606_contract_schema,
-    _m1603_contract_schema,
     _m1508_contract_schema,
+    _m1603_contract_schema,
+    _m1606_contract_schema,
     _m1502_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
@@ -163,17 +163,17 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
-from glio_proteogen.contracts.m16_06 import (
-    M1606_MAX_CANONICAL_REQUEST_BYTES,
-    AdjudicateProteinRnaDiscordanceQueueRequest,
+from glio_proteogen.contracts.m15_08 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
 )
 from glio_proteogen.contracts.m16_03 import (
     M1603_MAX_CANONICAL_REQUEST_BYTES,
     FuseProteinRnaDiscordanceEvidenceRequest,
 )
-from glio_proteogen.contracts.m15_08 import (
-    M1508_MAX_CANONICAL_REQUEST_BYTES,
-    AssembleComplexActivityMechanismDossierRequest,
+from glio_proteogen.contracts.m16_06 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
 )
 from glio_proteogen.contracts.m15_02 import (
     M1502_MAX_CANONICAL_REQUEST_BYTES,
@@ -335,13 +335,15 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     M1606Service,
     preflight_m1606_authorization,
-    m16_03_fusion_aggregation_engine as m1603,
 )
-from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
-    m15_08_mechanism_evidence_dossier as m1508,
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_02_context_subtype_stratifier as m1502_module,
