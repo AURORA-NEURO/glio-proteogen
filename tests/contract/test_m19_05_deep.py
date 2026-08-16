@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m19_05 import (
     contract_json_schemas,
 )
 from glio_proteogen.contracts.m19_05.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -40,7 +41,10 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_05_workflow_presentation_service import (  # noqa: E501
     M1905AuthorizationError,
     M1905Engine,
+    M1905Plugin,
     M1905ReplayError,
+    M1905Service,
+    ValidatedM1905Request,
 )
 
 _SCHEMA_COUNT = 8
@@ -282,3 +286,30 @@ def test_strict_validation_rejects_extra_fields_and_coercion() -> None:
     invalid_item["position"] = "0"
     with pytest.raises(ValidationError):
         ReviewItem.model_validate(invalid_item, strict=True)
+
+
+def test_service_json_boundary_and_plugin_token_seam_are_parse_once() -> None:
+    request = build_request()
+    service = M1905Service()
+    payload = canonical_json_bytes(request)
+    result = service.execute(payload)
+    assert service.verify(canonical_json_bytes(result)) == result
+
+    plugin = M1905Plugin(service)
+    token = plugin.validate(payload)
+    assert isinstance(token, ValidatedM1905Request)
+    assert plugin.run(token) == result
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M19-05"
+    assert plugin.descriptor().owner == "Data engineering"
+
+    forged = ValidatedM1905Request(request=token.request, _seal=object())
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+
+
+def test_service_rejects_duplicate_json_keys_and_oversized_payload() -> None:
+    service = M1905Service()
+    with pytest.raises(ValueError, match="duplicate JSON object key"):
+        service.validate_request('{"request_id":"one","request_id":"two"}')
+    with pytest.raises(ValueError, match="JSON input exceeds configured size limit"):
+        service.validate_request(b'{"request_id":"' + b"x" * 5_000_000 + b'"}')
