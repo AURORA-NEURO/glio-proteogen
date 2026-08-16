@@ -10,6 +10,7 @@ from .engine import (
 from .plugin import (
     M1808Plugin,
     M1808PluginDescriptor,
+    M1808TokenError,
     ValidatedM1808Request,
 )
 from .service import (
@@ -22,6 +23,7 @@ __all__ = [
     "M1808PluginDescriptor",
     "M1808ReplayVerificationError",
     "M1808Service",
+    "M1808TokenError",
     "M1808TranslationMonitoringEngine",
     "ValidatedM1808Request",
     "monitor_biomarker_panel_translation_health",

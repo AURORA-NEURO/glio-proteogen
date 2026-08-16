@@ -26,17 +26,25 @@ class M1808Service:
     def execute(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:
         if isinstance(request, (bytes, bytearray, str)):
             parsed = strict_json_loads(request, max_bytes=4 * 1024 * 1024)
-            request = strict_json_loads(canonical_json_bytes(parsed), max_bytes=4 * 1024 * 1024)
+            request = MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
+                canonical_json_bytes(parsed), strict=True
+            )
         elif isinstance(request, Mapping):
-            request = dict(request)
+            request = MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
+                canonical_json_bytes(dict(request)), strict=True
+            )
         return self._engine.infer(request)
 
     def verify(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=8 * 1024 * 1024)
-            result = strict_json_loads(canonical_json_bytes(parsed), max_bytes=8 * 1024 * 1024)
+            result = BiomarkerPanelTranslationMonitoringResult.model_validate_json(
+                canonical_json_bytes(parsed), strict=True
+            )
         elif isinstance(result, Mapping):
-            result = dict(result)
+            result = BiomarkerPanelTranslationMonitoringResult.model_validate_json(
+                canonical_json_bytes(dict(result)), strict=True
+            )
         return self._engine.verify(result)
 
     def monitor(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:

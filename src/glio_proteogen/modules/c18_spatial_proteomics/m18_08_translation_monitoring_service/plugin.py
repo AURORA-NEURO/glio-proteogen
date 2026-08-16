@@ -93,4 +93,9 @@ class M1808Plugin:
         return self.verify(result)
 
 
-__all__ = ["M1808Plugin", "M1808PluginDescriptor", "ValidatedM1808Request"]
+__all__ = [
+    "M1808Plugin",
+    "M1808PluginDescriptor",
+    "M1808TokenError",
+    "ValidatedM1808Request",
+]
