@@ -1,0 +1,13 @@
+{
+  "fixture_version": "1.0.0",
+  "module_id": "GLIO-PROTEOGEN-M11-07",
+  "operation": "adjudicate_variant_peptide_plausibility",
+  "cases": [
+    {"id": "supported", "kind": "supported", "expected_status": "adjudicated", "expected_support": "supported"},
+    {"id": "failed_control", "kind": "failed", "expected_status": "abstained", "expected_support": "unsupported"},
+    {"id": "not_evaluable", "kind": "not_evaluable", "expected_status": "abstained", "expected_support": "unsupported"},
+    {"id": "unresolved_conflict", "kind": "conflict", "expected_status": "abstained", "expected_support": "review_required"},
+    {"id": "denied_upstream", "kind": "denied", "expected_status": "authorization_error", "expected_support": "none"},
+    {"id": "replay_tamper", "kind": "tamper", "expected_status": "replay_error", "expected_support": "none"}
+  ]
+}
