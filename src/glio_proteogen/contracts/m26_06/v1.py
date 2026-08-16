@@ -123,6 +123,20 @@ class SecurityControlCheck(FrozenModel):
         return self
 
 
+class SecurityControlDeclaration(FrozenModel):
+    """Caller-declared evidence for one security control.
+
+    M26-06 never inspects protected data or claims to certify a control from an
+    opaque payload.  Declarations are therefore explicit, evidence-linked, and
+    carried into the posture and provenance records unchanged.
+    """
+
+    control: SecurityControlKind
+    status: ControlStatus
+    rationale: NonEmptyStr
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
+
+
 class AccessDecision(FrozenModel):
     decision_id: Identifier
     principal: NonEmptyStr
@@ -232,6 +246,9 @@ class EvaluateProteomicsSecurityAccessRequest(FrozenModel):
     requested_controls: tuple[SecurityControlKind, ...] = Field(
         min_length=M2606_MAX_CONTROLS, max_length=M2606_MAX_CONTROLS
     )
+    control_declarations: tuple[SecurityControlDeclaration, ...] = Field(
+        min_length=M2606_MAX_CONTROLS, max_length=M2606_MAX_CONTROLS
+    )
     consent_reference: ArtifactReference | None = None
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2606_MAX_EVIDENCE
@@ -246,6 +263,15 @@ class EvaluateProteomicsSecurityAccessRequest(FrozenModel):
             raise ValueError("requested security controls must be unique")
         if set(self.requested_controls) != set(SecurityControlKind):
             raise ValueError("request must declare every required security control exactly once")
+        declared = tuple(item.control for item in self.control_declarations)
+        if len(set(declared)) != len(declared):
+            raise ValueError("security control declarations must be unique")
+        if set(declared) != set(SecurityControlKind):
+            raise ValueError("control declarations must cover every required security control")
+        if set(declared) != set(self.requested_controls):
+            raise ValueError("requested controls and declarations must match")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match request ID")
         return self
 
 
@@ -331,6 +357,7 @@ __all__ = [
     "SafeFailureReport",
     "SecurityAssessmentStatus",
     "SecurityControlCheck",
+    "SecurityControlDeclaration",
     "SecurityControlKind",
     "SecurityFinding",
     "SecurityFindingCode",

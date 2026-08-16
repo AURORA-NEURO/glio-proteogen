@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m26_06 import (
     EvaluateProteomicsSecurityAccessRequest,
     SecurityAssessmentStatus,
     SecurityControlCheck,
+    SecurityControlDeclaration,
     SecurityControlKind,
     SecurityFinding,
     SecurityFindingCode,
@@ -129,6 +130,7 @@ def _context() -> ExecutionContext:
 
 def _request() -> EvaluateProteomicsSecurityAccessRequest:
     source = _artifact("source")
+    evidence = EvidenceReference(reference=source, role="evidence", claim="Control evidence.")
     return EvaluateProteomicsSecurityAccessRequest(
         request_id="m2606.request.contract",
         context=_context(),
@@ -143,6 +145,15 @@ def _request() -> EvaluateProteomicsSecurityAccessRequest:
         action="read",
         policy_version="1.0.0",
         requested_controls=tuple(SecurityControlKind),
+        control_declarations=tuple(
+            SecurityControlDeclaration(
+                control=control,
+                status=ControlStatus.PASSED,
+                rationale="Caller supplied control evidence.",
+                evidence=(evidence,),
+            )
+            for control in SecurityControlKind
+        ),
         consent_reference=_artifact("consent.reference"),
         source_artifacts=(source,),
     )
