@@ -1,5 +1,7 @@
 """Provisional M21-06 robustness challenge runtime exports."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2106AuthorizationError,
     M2106Engine,
@@ -18,6 +20,8 @@ __all__ = [
     "M2106Service",
     "RobustnessSubmission",
     "ValidatedM2106Request",
+    "cli_app",
+    "create_app",
     "preflight_m2106_authorization",
     "run_complex_activity_robustness_challenge",
 ]
