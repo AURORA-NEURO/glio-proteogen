@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M25-04."""
 
+from typing import Any, cast
+
 from glio_proteogen.contracts.m25_04 import (
     M2504_OUTPUT_MEDIA_TYPE,
     M2504_PROVISIONAL_ABI,
@@ -16,6 +18,10 @@ from glio_proteogen.kernel.models import (
 )
 
 _SCHEMA_COUNT = 8
+
+
+def _metadata(schema: dict[str, object]) -> dict[str, Any]:
+    return cast("dict[str, Any]", schema["x-glio-contract"])
 
 
 def _evidence() -> EvidenceReference:
@@ -51,26 +57,23 @@ def _uncertainty() -> UncertaintyProfile:
 def test_provisional_schemas_preserve_proteotype_transport_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(str(schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values())
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["structureAwareProteoformModelRequired"]
-        and schema["x-glio-contract"]["externalTransportRequired"]
-        and schema["x-glio-contract"]["independentSiteLabPlatformValidationRequired"]
-        and schema["x-glio-contract"]["treatmentEraPopulationDiseaseClassSpecimenRequired"]
-        and schema["x-glio-contract"]["calibrationFloorsRequired"]
-        and schema["x-glio-contract"]["supportDomainNarrowingAllowed"]
-        and schema["x-glio-contract"]["provenanceRequired"]
-        and schema["x-glio-contract"]["humanReviewRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        _metadata(schema)["structureAwareProteoformModelRequired"]
+        and _metadata(schema)["externalTransportRequired"]
+        and _metadata(schema)["independentSiteLabPlatformValidationRequired"]
+        and _metadata(schema)["treatmentEraPopulationDiseaseClassSpecimenRequired"]
+        and _metadata(schema)["calibrationFloorsRequired"]
+        and _metadata(schema)["supportDomainNarrowingAllowed"]
+        and _metadata(schema)["provenanceRequired"]
+        and _metadata(schema)["humanReviewRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
-    assert all(
-        schema["x-glio-contract"]["parentTarget"] == "proteotype"
-        for schema in schemas.values()
-    )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2504_OUTPUT_MEDIA_TYPE
+    assert all(_metadata(schema)["parentTarget"] == "proteotype" for schema in schemas.values())
+    assert _metadata(schemas["output"])["outputMediaType"] == M2504_OUTPUT_MEDIA_TYPE
     assert M2504_PROVISIONAL_ABI is True
 
 
