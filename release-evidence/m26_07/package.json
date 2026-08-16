@@ -21,9 +21,9 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sizeBytes": 3635869,
-    "sha256": "069e0f37f20c016f6aa4c51d3ce081e27587cf8a7ab47917dd577f169748e2cb",
-    "memberCount": 4145
+    "sizeBytes": 3638353,
+    "sha256": "dcbb98096274727399c95af45567c07c7d05297a8148f9a000509710d76feccb",
+    "memberCount": 4154
   },
   "isolatedImportPassed": true,
   "generatedDirectories": [".m2607-build-final", ".m2607-install-final"],
