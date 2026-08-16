@@ -1,5 +1,7 @@
 """M26-01 registry/configuration service and strict boundaries."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2601AuthorizationError,
     M2601RegistryEngine,
@@ -26,6 +28,8 @@ __all__ = [
     "M2601TokenError",
     "RegistrySubmission",
     "ValidatedM2601Request",
+    "cli_app",
+    "create_app",
     "preflight_m2601_authorization",
     "register_protein_subtype_registry",
 ]
