@@ -18,6 +18,7 @@ from tests.contract.test_m20_03_adversarial import _artifact, _contribution, _ev
 from glio_proteogen.contracts.m20_03 import (
     DisagreementRecord,
     DisagreementStatus,
+    FuseProteinSubtypeEvidenceRequest,
     FusionStatus,
     ReliabilityBand,
 )
@@ -76,7 +77,7 @@ def _resolved_disagreement() -> DisagreementRecord:
     )
 
 
-def _scenario(name: str):  # noqa: ANN202, PLR0911 - evaluator oracle dispatch.
+def _scenario(name: str) -> FuseProteinSubtypeEvidenceRequest:  # noqa: PLR0911 - oracle dispatch.
     request = _request()
     if name == "integrated":
         return request
