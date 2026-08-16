@@ -1,0 +1,15 @@
+{
+  "iterations": 25,
+  "maximum_ns": 8924500,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 5033440.0,
+  "module_id": "GLIO-PROTEOGEN-M21-05",
+  "p50_ns": 4504700,
+  "p95_budget_ns": 750000000,
+  "p95_ns": 7918500,
+  "passed": true,
+  "request_digest": "sha256:002c29c5754e8f8757d1c5d3d9b6a63cdb2d47a697a851dff732d2e3d552493a",
+  "result_digest": "sha256:59cc03188f4b5d7e1a8fb4c22cd2717ed0125fc4f6e62aa04b1e3b0ad8a66d42",
+  "warmup_count": 1,
+  "workload": "bounded-consent-aware-complex-activity-subgroup-equity-evaluation"
+}
