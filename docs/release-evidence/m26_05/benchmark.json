@@ -1,0 +1,10 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-05",
+  "iterations": 10,
+  "samplesNs": [3436900, 2189000, 1943600, 2040900, 1959000, 2400900, 2330400, 1988500, 2026000, 2479000],
+  "meanNs": 2279420,
+  "medianNs": 2114950.0,
+  "p95Ns": 2479000,
+  "budgetsNs": {"mean": 500000000, "p95": 750000000},
+  "budgetPassed": true
+}

@@ -1,0 +1,10 @@
+requirement,authority,implementation,evidence,gate
+M26-05-R01,"dossier:9212-9252","observability and telemetry beneath protein subtype","contract/runtime/interface tests; evaluator complete_emission",G4
+M26-05-R02,"dossier:9212-9252","input quality/model behavior/uncertainty/abstention/drift/latency/error/resource signals","contracts/m26_05/v1.py; frozen request fixture",G4
+M26-05-R03,"dossier:9212-9252","reviewer actions retention dashboards and alert state are typed and closed","schema metadata; dashboard/alert/reviewer contract tests",G4
+M26-05-R04,"dossier:9212-9252","seven-control caller preflight and fail-closed authorization","engine preflight; failed_control_rejection evaluator",G4
+M26-05-R05,"dossier:9212-9252","canonical request/result IDs digests provenance evidence and replay","contracts/m26_05/canonical.py; replay/tamper tests",G4
+M26-05-R06,"dossier:9212-9252","strict FastAPI Typer and parse-once plugin parity","api.py cli.py plugin.py; interface/adversarial tests",G4
+M26-05-R07,"dossier:9212-9252","safe abstention for missing/unsupported/not-evaluable telemetry","safe_failure_report; missing_signal_abstention evaluator",G4
+M26-05-R08,"dossier:9212-9252","no kinase all-omics fusion treatment identity or consent inference","plugin descriptor; manifest; boundary tests",G4
+M26-05-R09,"dossier:9212-9252","frozen scenarios deterministic benchmark coverage package and rollback evidence","release-evidence/m26_05; evaluator/benchmark/verifier commands",G4

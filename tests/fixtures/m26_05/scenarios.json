@@ -1,0 +1,15 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M26-05",
+    "contract_version": "0.1.0-provisional",
+    "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "authority_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9212-9252",
+    "cases": [
+        {"case_id": "complete_emission", "expected": "emitted"},
+        {"case_id": "canonical_replay", "expected": "verified"},
+        {"case_id": "deterministic_digest", "expected": "stable"},
+        {"case_id": "missing_signal_abstention", "expected": "abstained"},
+        {"case_id": "failed_control_rejection", "expected": "rejected"},
+        {"case_id": "drift_review_alert", "expected": "open_review"},
+    {"case_id": "tamper_rejection", "expected": "rejected"}
+  ]
+}
