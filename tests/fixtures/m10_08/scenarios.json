@@ -1,0 +1,44 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3584-3627",
+  "scenarios": [
+    {
+      "id": "complete_caller_attribution",
+      "expected": "published",
+      "required": ["sources", "assumptions", "counter_evidence", "reconstruction", "evidence"]
+    },
+    {
+      "id": "missing_assumptions",
+      "expected": "abstained",
+      "finding": "missing_attribution"
+    },
+    {
+      "id": "missing_counter_evidence",
+      "expected": "abstained",
+      "finding": "counter_evidence_unresolved"
+    },
+    {
+      "id": "missing_reconstruction",
+      "expected": "abstained",
+      "finding": "reconstruction_incomplete"
+    },
+    {
+      "id": "missing_source_kind",
+      "expected": "abstained",
+      "finding": "missing_attribution"
+    },
+    {
+      "id": "unaccepted_control",
+      "expected": "authorization_failure"
+    },
+    {
+      "id": "duplicate_json_key",
+      "expected": "parse_failure"
+    },
+    {
+      "id": "tampered_result_digest",
+      "expected": "replay_failure"
+    }
+  ]
+}

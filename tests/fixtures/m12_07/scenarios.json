@@ -1,0 +1,14 @@
+{
+  "fixture_id": "m1207-plausibility-negative-control-adjudicator-v1",
+  "module_id": "GLIO-PROTEOGEN-M12-07",
+  "scenarios": [
+    {"case_id": "supported_high", "expected": {"status": "adjudicated", "grade": "high"}},
+    {"case_id": "failed_control", "expected": {"status": "abstained"}},
+    {"case_id": "missing_observation", "expected": {"status": "abstained"}},
+    {"case_id": "direction_mismatch", "expected": {"status": "abstained"}},
+    {"case_id": "unresolved_conflict", "expected": {"status": "abstained"}},
+    {"case_id": "denied_quality_gate", "expected": {"expected": "authorization_denied"}},
+    {"case_id": "abstained_control", "expected": {"status": "abstained"}},
+    {"case_id": "replay_tamper", "expected": {"status": "adjudicated"}}
+  ]
+}
