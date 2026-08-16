@@ -6,6 +6,7 @@ import pytest
 
 from glio_proteogen.contracts.m20_06 import QueueEntryState, ReviewDecision
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
     AdjudicationSubmission,
     M2006AuthorizationError,
@@ -41,7 +42,7 @@ def test_deferred_queue_abstains_without_record() -> None:
 
 def test_control_denial_precedes_queue_traversal() -> None:
     request = _request()
-    denied = request.context.references.consent.model_copy(update={"state": "withheld"})
+    denied = request.context.references.consent.model_copy(update={"state": ConsentState.WITHHELD})
     context = request.context.model_copy(
         update={"references": request.context.references.model_copy(update={"consent": denied})}
     )
