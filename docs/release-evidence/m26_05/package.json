@@ -1,0 +1,13 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-05",
+  "contractVersion": "0.1.0-provisional",
+  "wheel": "glio_proteogen-0.1.0-py3-none-any.whl",
+  "wheelSha256": "cb4d34b88f820c91038f659e4672563dd51b8cd50f66110182c03d38a16687f7",
+  "wheelMembers": 539,
+  "sdist": "glio_proteogen-0.1.0.tar.gz",
+  "sdistSha256": "b1dacb09760e957f9c5cc248a05897ae60fdbef0c3692349921fb6aec43d91d6",
+  "sdistMembers": 1089,
+  "isolatedImport": true,
+  "buildBackend": "hatchling 1.31.0",
+  "generatedDirectoriesRemoved": true
+}

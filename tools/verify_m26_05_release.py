@@ -46,7 +46,9 @@ def _members(path: Path) -> set[str]:
         with zipfile.ZipFile(path) as archive:
             return set(archive.namelist())
     with tarfile.open(path, "r:gz") as archive:
-        return {member.name for member in archive.getmembers()}
+        return {
+            member.name.split("/", 1)[-1].removeprefix("src/") for member in archive.getmembers()
+        }
 
 
 def verify_release(  # noqa: C901, PLR0912
