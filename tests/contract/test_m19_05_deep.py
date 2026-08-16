@@ -311,5 +311,5 @@ def test_service_rejects_duplicate_json_keys_and_oversized_payload() -> None:
     service = M1905Service()
     with pytest.raises(ValueError, match="duplicate JSON object key"):
         service.validate_request('{"request_id":"one","request_id":"two"}')
-    with pytest.raises(ValueError, match="JSON input exceeds configured size limit"):
+    with pytest.raises(ValueError, match="JSON input exceeds the byte limit"):
         service.validate_request(b'{"request_id":"' + b"x" * 5_000_000 + b'"}')
