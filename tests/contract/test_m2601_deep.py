@@ -171,8 +171,7 @@ def test_authority_schema_and_result_identity_are_locked() -> None:
     assert M2601_DOSSIER_SHA256.startswith("sha256:")
     assert M2601_DOSSIER_SLICE.endswith("9036-9076")
     assert all(
-        cast("dict[str, Any]", schema)["x-glio-contract"]["dossierSha256"]
-        == M2601_DOSSIER_SHA256
+        cast("dict[str, Any]", schema)["x-glio-contract"]["dossierSha256"] == M2601_DOSSIER_SHA256
         for schema in schemas.values()
     )
     assert all(
@@ -247,6 +246,18 @@ def test_active_configuration_rejects_duplicate_and_missing_kinds() -> None:
         ActiveConfiguration.model_validate(
             configuration.model_copy(update={"bindings": (duplicate, *configuration.bindings[1:])})
         )
+    duplicate_kind = configuration.bindings[0].model_copy(
+        update={
+            "binding_id": "m2601.binding.fresh",
+            "kind": configuration.bindings[1].kind,
+        }
+    )
+    with pytest.raises(ValidationError, match="kinds must be unique"):
+        ActiveConfiguration.model_validate(
+            configuration.model_copy(
+                update={"bindings": (duplicate_kind, *configuration.bindings[1:])}
+            )
+        )
     with pytest.raises(ValidationError, match="at least 7"):
         ActiveConfiguration(
             configuration_id=configuration.configuration_id,
@@ -254,4 +265,64 @@ def test_active_configuration_rejects_duplicate_and_missing_kinds() -> None:
             bindings=configuration.bindings[:-1],
             approved_by=configuration.approved_by,
             configuration_digest=configuration.configuration_digest,
+        )
+
+
+def test_registry_record_rejects_duplicate_and_unregistered_history() -> None:
+    request = _request()
+    duplicate_entry = request.entries[0].model_copy(
+        update={"entry_id": request.entries[1].entry_id}
+    )
+    with pytest.raises(ValidationError, match="entry ids"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=(duplicate_entry, *request.entries[1:]),
+            history=request.history,
+            lock_digest=sha256_digest(request.entries),
+        )
+    foreign = request.history[0].model_copy(update={"entry_id": "m2601.entry.foreign"})
+    with pytest.raises(ValidationError, match="unknown entry"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=(foreign, *request.history[1:]),
+            lock_digest=sha256_digest(request.entries),
+        )
+    non_register = tuple(
+        event.model_copy(
+            update={
+                "event_type": RegistryEventType.ACTIVATE,
+                "prior_digest": sha256_digest(event),
+            }
+        )
+        for event in request.history
+    )
+    with pytest.raises(ValidationError, match="registration event"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=non_register,
+            lock_digest=sha256_digest(request.entries),
+        )
+
+
+def test_request_rejects_duplicate_entries_and_missing_bound_kinds() -> None:
+    request = _request()
+    duplicate = request.entries[0].model_copy(update={"entry_id": request.entries[1].entry_id})
+    with pytest.raises(ValidationError, match="registry entry ids"):
+        type(request).model_validate(
+            request.model_copy(update={"entries": (duplicate, *request.entries[1:])})
+        )
+    missing_binding = request.active_configuration.bindings[0].model_copy(
+        update={"entry_id": "m2601.entry.foreign"}
+    )
+    configuration = request.active_configuration.model_copy(
+        update={"bindings": (missing_binding, *request.active_configuration.bindings[1:])}
+    )
+    with pytest.raises(ValidationError, match="unknown entry"):
+        type(request).model_validate(
+            request.model_copy(update={"active_configuration": configuration})
         )

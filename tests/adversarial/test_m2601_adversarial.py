@@ -21,7 +21,7 @@ from glio_proteogen.contracts.m26_01 import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.kernel.models import SupportStatus
+from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c20_biomarker_panel.m26_01_registry_configuration_service import (
     M2601AuthorizationError,
@@ -223,3 +223,111 @@ def test_result_abstention_and_registry_boundaries_remain_typed() -> None:
     assert result.active_configuration is None
     assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert canonical_request_digest(result.request) == result.request_digest
+
+
+def test_superseded_entry_is_not_resolved_as_active() -> None:
+    request = _request()
+    superseded = request.entries[0].model_copy(update={"status": RegistryEntryStatus.SUPERSEDED})
+    result = M2601RegistryEngine().register(
+        request.model_copy(update={"entries": (superseded, *request.entries[1:])})
+    )
+    assert result.status is RegistryStatus.ABSTAINED
+    assert any(item.code.value == "incompatible_configuration" for item in result.findings)
+
+
+def test_replay_digest_identifier_and_projection_guards() -> None:
+    engine = M2601RegistryEngine()
+    result = engine.register(_request())
+    for candidate in (
+        result.model_copy(update={"request_digest": "sha256:" + "0" * 64}),
+        result.model_copy(update={"result_id": "registry.m2601.forged"}),
+        result.model_copy(update={"result_digest": "sha256:" + "f" * 64}),
+    ):
+        with pytest.raises(M2601ReplayError):
+            engine.replay(candidate)
+
+
+def test_api_known_schema_and_denied_controls_are_sanitized() -> None:
+    request = _request()
+    denied_support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied_refs = request.context.references.model_copy(update={"support": denied_support})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": denied_refs})}
+    )
+    client = TestClient(m2601_api.create_app())
+    schema = client.get("/v1/modules/M26-01/schemas/request")
+    assert schema.status_code == HTTPStatus.OK
+    for route in ("validate", "register"):
+        response = client.post(
+            f"/v1/modules/M26-01/{route}",
+            content=denied.model_dump_json(),
+            headers={"content-type": "application/json"},
+        )
+        assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    malformed = client.post(
+        "/v1/modules/M26-01/verify",
+        content=b"not-json",
+        headers={"content-type": "application/json"},
+    )
+    assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "not-json" not in malformed.text
+
+
+def test_cli_register_stdout_and_denied_request(tmp_path: PathType) -> None:
+    request = _request()
+    request_path = tmp_path / "request.json"
+    request_path.write_text(request.model_dump_json(), encoding="utf-8")
+    output = CliRunner().invoke(m2601_cli.app, ["register", str(request_path)])
+    assert output.exit_code == 0
+    assert json.loads(output.stdout)["status"] == "registered"
+
+    schema_path = tmp_path / "schema.json"
+    exported = CliRunner().invoke(
+        m2601_cli.app,
+        ["export-schema", "request", "--output", str(schema_path)],
+    )
+    assert exported.exit_code == 0
+    assert json.loads(schema_path.read_text(encoding="utf-8"))["title"]
+
+    denied_support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied_refs = request.context.references.model_copy(update={"support": denied_support})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": denied_refs})}
+    )
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_text(denied.model_dump_json(), encoding="utf-8")
+    validation = CliRunner().invoke(m2601_cli.app, ["validate", str(denied_path)])
+    assert validation.exit_code != 0
+    denied_register = CliRunner().invoke(m2601_cli.app, ["register", str(denied_path)])
+    assert denied_register.exit_code != 0
+
+
+def test_plugin_public_validation_and_contract_result_closure() -> None:
+    plugin = M2601Plugin()
+    request = _request()
+    assert plugin.validate_request(request) == request
+
+    engine = M2601RegistryEngine()
+    result = engine.register(request)
+    missing_registry = result.model_copy(update={"registry": None})
+    with pytest.raises(ValidationError, match="registered result"):
+        type(result).model_validate(missing_registry.model_dump(mode="python"))
+    abstained = result.model_copy(
+        update={
+            "status": RegistryStatus.ABSTAINED,
+            "registry": None,
+            "active_configuration": None,
+            "abstention_reason": None,
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.REVIEW_REQUIRED}
+            ),
+        }
+    )
+    abstained = abstained.model_copy(update={"result_digest": result_payload_digest(abstained)})
+    with pytest.raises(ValidationError, match="abstained result"):
+        type(result).model_validate(abstained.model_dump(mode="python"))
