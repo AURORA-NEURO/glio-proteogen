@@ -1,0 +1,8 @@
+requirement,evidence,status,owner
+"versioned representation and feature lineage","contracts/m06_02/v1.py; engine.py; test_m06_02_representation_constructor.py",provisional,"Data engineering"
+"leakage-safe transformation and provenance","FeatureLineageStep; engine.py provenance; lifecycle tests",provisional,"Data engineering"
+"missing or unsupported evidence abstains","engine.py masks/support routing; safe-abstention tests",provisional,"Data engineering"
+"deterministic canonical replay","contracts/m06_02/canonical.py; engine.py verify; replay tests",provisional,"Data engineering"
+"strict API and CLI parity","api.py; cli.py; test_m06_02_interfaces.py",provisional,"Data engineering"
+"benchmark and locked evaluation","evals/m06_02/run.py; evals/m06_02/benchmark.py",provisional,"Data engineering"
+"dossier source","GLIO-PROTEOGEN_240_Module_Dossier.md lines 1880-1920 (SHA256 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181)",verified,"Data engineering"

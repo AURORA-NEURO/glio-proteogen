@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M08-02",
+  "contract_version": "0.1.0-provisional",
+  "constructed_status": "constructed",
+  "leakage_abstained_status": "abstained",
+  "duplicate_source_abstained_status": "abstained",
+  "feature_count": 2,
+  "lineage_complete": true,
+  "leakage_checks_complete": true,
+  "replay_verified": true,
+  "deterministic": true,
+  "passed": true,
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_slice": "2600-2643"
+  }
+}
