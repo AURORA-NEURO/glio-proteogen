@@ -1,7 +1,7 @@
 {
   "adversarial_case_count": 10,
   "adversarial_passed_count": 10,
-  "base_commit": "48efc9cc",
+  "base_commit": "8de74e0f",
   "checks": {
     "all_eight_challenge_kinds": true,
     "denied_fail_closed": true,
