@@ -33,6 +33,7 @@ class BenchmarkReport:
     warmup_count: int
     request_digest: str
     result_digest: str
+    replay_verified: bool
     mean_ns: float
     p50_ns: float
     p95_ns: int
@@ -46,6 +47,9 @@ def run_benchmark() -> BenchmarkReport:
     request = _request()
     engine = m1807.M1807Engine()
     warmup = engine.export(request)
+    replay_verified = engine.verify(warmup).result_digest == warmup.result_digest
+    if not replay_verified:
+        raise RuntimeError("M18-07 benchmark warmup failed replay verification")  # noqa: TRY003
     samples: list[int] = []
     for _ in range(ITERATIONS):
         started = perf_counter_ns()
@@ -65,6 +69,7 @@ def run_benchmark() -> BenchmarkReport:
         warmup_count=WARMUP_COUNT,
         request_digest=warmup.request_digest,
         result_digest=warmup.result_digest,
+        replay_verified=replay_verified,
         mean_ns=mean,
         p50_ns=median(samples),
         p95_ns=p95,

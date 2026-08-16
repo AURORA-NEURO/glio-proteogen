@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m18_07 import (
     ExportBiomarkerPanelDownstreamContractRequest,
     ExportStatus,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_07_downstream_typed_export as m1807,
@@ -161,6 +162,38 @@ def evaluate() -> EvaluationReport:
                 results["prohibited_boundary"].status is ExportStatus.ABSTAINED
                 and bool(results["prohibited_boundary"].findings),
                 "kinase and prohibited boundaries abstain",
+            ),
+            EvalCheck(
+                "supported.signature_binding",
+                results["supported_export"].contract is not None
+                and results["supported_export"].contract.signature.signed_payload_digest
+                == sha256_digest(
+                    {
+                        "request_digest": results["supported_export"].request_digest,
+                        "fields": results["supported_export"].request.fields,
+                        "configuration": results["supported_export"].request.configuration,
+                        "ownership_module": MODULE_ID,
+                    }
+                ),
+                "signature commits to request fields, configuration and owning module",
+            ),
+            EvalCheck(
+                "supported.upstream_source_binding",
+                results["supported_export"].request.upstream_result
+                in results["supported_export"].request.source_artifacts,
+                "M18-06 input remains explicit in the source artifact set",
+            ),
+            EvalCheck(
+                "review.compatibility",
+                results["review_compatibility"].status is ExportStatus.ABSTAINED
+                and results["review_compatibility"].contract is None,
+                "review-required compatibility never produces an export",
+            ),
+            EvalCheck(
+                "boundary.strict_json",
+                results["strict_json_boundary"].status is ExportStatus.ABSTAINED
+                and results["strict_json_boundary"].contract is None,
+                "combined prohibited responsibilities remain outside the export",
             ),
         )
     )
