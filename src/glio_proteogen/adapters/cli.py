@@ -30,6 +30,10 @@ from glio_proteogen.adapters.api import (
     _m1606_contract_schema,
     _m1603_contract_schema,
     _m1508_contract_schema,
+    _m1502_contract_schema,
+    _m1306_contract_schema,
+    _m1403_contract_schema,
+    _m1405_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -170,6 +174,22 @@ from glio_proteogen.contracts.m16_03 import (
 from glio_proteogen.contracts.m15_08 import (
     M1508_MAX_CANONICAL_REQUEST_BYTES,
     AssembleComplexActivityMechanismDossierRequest,
+)
+from glio_proteogen.contracts.m15_02 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    StratifyContextAndSubtypeRequest,
+)
+from glio_proteogen.contracts.m14_05 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+)
+from glio_proteogen.contracts.m13_06 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -323,6 +343,20 @@ from glio_proteogen.modules.c16_kinophos_object_consumer import (
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_08_mechanism_evidence_dossier as m1508,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -471,6 +505,26 @@ mechanism_dossier_app = typer.Typer(
     help="M15-08 bounded mechanism evidence dossier assembly.",
 )
 app.add_typer(mechanism_dossier_app, name="mechanism-dossier")
+m1502_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-02 caller-declared context and subtype stratification.",
+)
+app.add_typer(m1502_app, name="context-stratifier")
+m1405_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-05 provisional longitudinal protein-subtype evolution.",
+)
+app.add_typer(m1405_app, name="longitudinal-evolution")
+m1403_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-03 provisional caller-declared mechanistic feature construction.",
+)
+app.add_typer(m1403_app, name="mechanistic-features")
+m1306_app = typer.Typer(
+    no_args_is_help=True,
+    help="M13-06 bounded variant-peptide perturbation sensitivity.",
+)
+app.add_typer(m1306_app, name="proteotype-sensitivity")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -814,7 +868,7 @@ def _emit(value: object) -> None:
     typer.echo(canonical_json_bytes(value).decode("utf-8"))
 
 
-def _load_request[RequestT](
+def _load_request[RequestT](  # noqa: C901
     path: Path,
     adapter: TypeAdapter[RequestT],
     preflight: Callable[[object], None] | None = None,
@@ -848,6 +902,8 @@ def _load_request[RequestT](
     except ProteoformRawInputAuthorizationError:
         raise
     except ProteoformQualityAuthorizationError:
+        raise
+    except m1502_module.M1502AuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3593,6 +3649,43 @@ def adjudicate_m1606_queue(request: RequestArgument) -> None:
     _emit(M1606Service().adjudicate(parsed))
 
 
+@m1502_app.command("export-schema")
+def export_m1502_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "attribute",
+            "mechanism",
+            "profile",
+            "evaluation",
+            "finding",
+        ],
+        typer.Argument(help="M15-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M15-02 contract."""
+
+    typer.echo(json.dumps(_m1502_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1502_app.command("stratify")
+def stratify_m1502(request: RequestArgument) -> None:
+    """Replay caller-declared context and applicable mechanisms safely."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(StratifyContextAndSubtypeRequest),
+            m1502_module.preflight_m1502_authorization,
+            M1502_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1502_module.M1502Service().execute(parsed))
+    except m1502_module.M1502AuthorizationError as error:
+        typer.echo(f"context stratification authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+
+
 @app.command("export-schema")
 def export_schema(
     contract: Annotated[
@@ -3612,6 +3705,122 @@ def export_schema(
     """Export a machine-readable public contract for agents and tools."""
 
     typer.echo(json.dumps(_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("export-schema")
+def export_m1405_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "observation",
+            "trajectory-state",
+            "change-point",
+            "configuration",
+            "policy",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-05 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict provisional M14-05 schema."""
+
+    typer.echo(json.dumps(_m1405_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("infer")
+def infer_m1405(
+    request: RequestArgument,
+) -> None:
+    """Replay an ordered M14-05 request into a bounded trajectory result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest),
+        m1405_module.preflight_m1405_authorization,
+        M1405_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1405_module.M1405Service().execute(parsed))
+
+
+@m1403_app.command("export-schema")
+def export_m1403_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "feature-object",
+            "feature",
+            "lineage",
+            "relation",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M14-03 feature contract."""
+
+    typer.echo(json.dumps(_m1403_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1403_app.command("construct")
+def construct_m1403_features(request: RequestArgument) -> None:
+    """Construct caller-declared mechanistic feature metadata and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest),
+            m1403_module.preflight_m1403_authorization,
+            M1403_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1403_module.M1403Service().execute(parsed))
+    except m1403_module.M1403AuthorizationError as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1306_app.command("export-schema")
+def export_m1306_schema(
+    contract: Annotated[
+        Literal[
+            "scenario",
+            "response",
+            "sensitivity-surface",
+            "configuration",
+            "policy",
+            "finding",
+        ],
+        typer.Argument(help="M13-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M13-06 perturbation contract."""
+
+    typer.echo(json.dumps(_m1306_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1306_app.command("simulate")
+def simulate_m1306(request: RequestArgument) -> None:
+    """Replay bounded variant-peptide perturbations and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(SimulateProteotypePerturbationRequest),
+            preflight_m1306_authorization,
+            M1306_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1306Service().execute(parsed))
+    except M1306AuthorizationError as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @app.command("serve")

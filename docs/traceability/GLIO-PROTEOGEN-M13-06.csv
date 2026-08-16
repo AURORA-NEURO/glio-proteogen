@@ -1,0 +1,14 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M13-06-R01,dossier:4576-4619,Own perturbation and sensitivity simulation beneath the proteotype parent,literal module identity and operation,contract identity assertions,G2
+M13-06-R02,dossier:4576-4619,Emit sensitivity surface and bounded perturbation response,strict surface/response models with declared envelope,canonical supported cases,G2
+M13-06-R03,dossier:4576-4619,Preserve explicit abstention and uncertainty,abstained result status plus uncertainty/provenance envelope,unsupported and envelope cases,G2
+M13-06-R04,dossier:4576-4619,Keep ABI provisional where dossier leaves ABI open,provisional version and pending-owner metadata,manifest and schema metadata,G2
+M13-06-R05,locked-scope:parent,Remain within Variant-peptide channel and proteotype parent,parent_target proteotype and variant_peptide_result reference,parent scope assertions,G2
+M13-06-R06,locked-scope:exclusions,Do not emit kinase/all-omics/treatment/inference claims,claims ceiling and literal limitations,recursive result/descriptor checks,G2
+M13-06-R07,locked-risk:controls,Require seven accepted upstream controls before scenario traversal,fail-closed authorization preflight,denied-control and malformed-control tests,G2
+M13-06-R08,locked-risk:bounds,Reject unsupported or out-of-envelope responses rather than coerce them,closed status mapping and finite bounds,unsupported/envelope evaluator cases,G2
+M13-06-R09,locked-risk:replay,Recompute request and result digests from immutable typed payloads,canonical request/result digest helpers,JSON replay and result closure tests,G2
+M13-06-R10,locked-risk:interfaces,Expose strict API/CLI/plugin boundaries with schema parity,shared service and eight schema registry,interface integration tests,G2
+M13-06-R11,locked-risk:adversarial,Provide a locked synthetic adversarial corpus with at least 95 percent executable coverage,eight preregistered cases and boundary tests,evals/m13_06/run.py and focused suite,G2
+M13-06-R12,locked-risk:benchmark,Record representative bounded replay timing after warm-up,100-call public benchmark,evals/m13_06/benchmark.py,G2
+M13-06-R13,locked-risk:release,Bind release evidence to authority hash,source,fixture,schemas,tests,eval,benchmark,and package,manifest/evidence/traceability plus package gate,release record and clean-worktree check,G2

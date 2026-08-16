@@ -1,0 +1,14 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "maximum_ns": 1323600,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 991420.0,
+  "module_id": "GLIO-PROTEOGEN-M12-06",
+  "p50_ns": 944400.0,
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1323600,
+  "passed": true,
+  "request_digest": "sha256:64b6482f03d4b346f45cc959af6f1ec46b8b3883e4c08225acbe59a2e7a0df76",
+  "result_digest": "sha256:7483dc09272374720c825dbb2e17bb65e2778edda9115288d7d73440ee3fd412"
+}

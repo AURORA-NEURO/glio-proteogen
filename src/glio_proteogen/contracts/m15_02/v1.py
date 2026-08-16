@@ -35,6 +35,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from the M15-02 dossier slice.
 M1502_MODULE_ID: Final = "GLIO-PROTEOGEN-M15-02"
+M1502_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1502_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:5120-5160"
 M1502_OPERATION: Final = "stratify_context_and_subtype"
 M1502_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1502_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m15-02+json"
@@ -261,6 +265,8 @@ class LongitudinalRecurrenceContextStratificationResult(FrozenModel):
 
 __all__ = [
     "M1502_CONTRACT_VERSION",
+    "M1502_DOSSIER_SHA256",
+    "M1502_DOSSIER_SLICE",
     "M1502_EVIDENCE_CLAIM",
     "M1502_GATE",
     "M1502_M1501_INPUT_MEDIA_TYPE",

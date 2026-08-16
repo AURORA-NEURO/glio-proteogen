@@ -1,0 +1,22 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-07",
+  "operation": "adjudicate_proteotype_plausibility",
+  "fixture_version": "1.0.0",
+  "fixture_digest": "sha256:284c26a62ad62de735eb8de1497612dd1d98acb2bfd551796d80f3b0705e064c",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "all_passed": true,
+  "focused_tests": 31,
+  "branch_coverage_percent": 99,
+  "covered_statements": 536,
+  "covered_branches": 94,
+  "case_ids": [
+    "supported",
+    "failed_control",
+    "not_evaluable",
+    "unresolved_conflict",
+    "denied_upstream",
+    "replay_tamper"
+  ]
+}
