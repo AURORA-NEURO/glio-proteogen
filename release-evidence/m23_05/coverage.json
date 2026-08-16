@@ -1,0 +1,11 @@
+{
+  "branch_enabled": true,
+  "branches": 96,
+  "covered_branches": 96,
+  "coverage_percent": 100.0,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M23-05",
+  "passed": true,
+  "statements": 564,
+  "covered_statements": 564
+}
