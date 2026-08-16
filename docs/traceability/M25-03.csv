@@ -1,0 +1,12 @@
+requirement,implementation,evidence,gate
+authority,dossier SHA and exact slice pinned in provisional contracts and docs,release-evidence/m25_03/evaluation.json,G0
+upstream-boundary,M25-02 media type only with no runtime import,contract request validator and dependency verifier,G0
+locked-split,nested validation and immutable locked split required,LockedSplit schema plus evaluator completed case,G1
+baseline-comparison,explicit simple/mature baseline and compute-matched comparison contracts,request/dossier closure validators and evaluator,G2
+ablation,component ablation score delta is canonical,ComponentAblation validator and hostile mismatch test,G2
+safe-failure,non-passing and unsupported declarations abstain without dossier,engine findings plus evaluator/adversarial tests,G2
+replay,request/result IDs and digests are canonical and tamper checked,engine replay and API/CLI verify tests,G2
+controls,seven caller-declared controls preflight before execution,preflight runtime and denial tests,G2
+uncertainty,seven explicit uncertainty dimensions and limitations,typed result envelope and evidence audit,G2
+interfaces,FastAPI Typer and parse-once plugin parity,interface tests and sanitized errors,G3
+release,coverage benchmark package hashes and independent verifier,release-evidence/m25_03 and verify_m2503_release.py,G4

@@ -1,0 +1,8 @@
+requirement_id,dossier_slice,requirement,implementation,evidence,gate
+M26-03-R01,9124-9164,Bind ML engineering S3 G1 reproducible orchestration beneath protein subtype,contract constants and schema metadata,authority contract tests,G1
+M26-03-R02,9124-9164,Require locked workflow DAG deterministic steps container pins retries checkpoints and environment capture,WorkflowDefinition ExecutionAttempt ExecutionRecord EnvironmentCapture,contract runtime and evaluator matrix,G1
+M26-03-R03,9124-9164,Consume M26-01 and M26-02 only at declared media boundaries,Exact media-type validators with no upstream imports,missing-media adversarial test and fixture manifest,G1
+M26-03-R04,9124-9164,Fail closed on authorization identity provenance consent quality support and intended-use controls,seven-control preflight,denied-control runtime evaluator and API tests,G1
+M26-03-R05,9124-9164,Provide deterministic replay tamper detection and reproducible result packaging,canonical request/result digests execution manifest replay command,replay tamper evaluator and release verifier,G1
+M26-03-R06,9124-9164,Expose strict service FastAPI Typer and parse-once plugin parity,strict JSON adapters sanitized errors no-overwrite output,interface parity tests,G1
+M26-03-R07,9124-9164,Preserve uncertainty limitations human review and no unsupported parent claim,seven NOT_ESTIMABLE dimensions emits_parent false claim ceiling,adversarial evaluator and result evidence,G1

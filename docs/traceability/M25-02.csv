@@ -1,0 +1,13 @@
+requirement,implementation,evidence,status
+caller-declared M25-01 media boundary,contracts/m25_02/v1.py upstream media closure,contract/runtime/adversarial tests,pass
+closed fixture kinds and case IDs,contracts/m25_02/v1.py corpus/manifest validators,evaluator/adversarial tests,pass
+locked configuration and reproducible seeds,contracts/m25_02/v1.py GenerationConfiguration,runtime/evaluator determinism tests,pass
+deterministic result identity and replay,contracts/m25_02/canonical.py and engine.py,replay/request/result tamper tests,pass
+seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+safe abstention and unsupported boundary,contracts/m25_02/v1.py,result closure tests,pass
+strict parse-once plugin,modules/.../plugin.py,plugin token and duplicate-key tests,pass
+FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+evaluator and locked benchmark,evals/m25_02,evaluator matrix and ten iterations,pass
+provisional authority and prohibited boundaries,docs/modules/M25-02-synthetic-truth-simulation-generator.md,owner review and evidence,provisional
+reproducible release,evaluator benchmark coverage verifier package manifests,release verifier,pass
