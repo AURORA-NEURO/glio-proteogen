@@ -1,1 +1,1 @@
-"""Longitudinal recurrence proteotype module implementations and namespace."""
+"""Longitudinal recurrence module family."""
