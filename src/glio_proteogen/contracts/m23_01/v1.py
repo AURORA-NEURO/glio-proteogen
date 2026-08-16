@@ -237,6 +237,20 @@ class CurateVariantPeptideReferenceTruthRequest(FrozenModel):
         if len(ids) != len(set(ids)):
             raise ValueError("request reference and control ids must be unique")
         known = set(ids)
+        if any(
+            item.kind not in {
+                ReferenceKind.CALIBRATOR,
+                ReferenceKind.SPIKE_IN,
+                ReferenceKind.CHALLENGE_SET,
+            }
+            for item in self.references
+        ):
+            raise ValueError("reference partition contains a control kind")
+        if any(
+            item.kind not in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            for item in self.controls
+        ):
+            raise ValueError("control partition contains a reference kind")
         inclusion_ids = tuple(item.reference_id for item in self.inclusions)
         adjudication_ids = tuple(item.reference_id for item in self.adjudications)
         if len(inclusion_ids) != len(set(inclusion_ids)) or set(inclusion_ids) != known:
