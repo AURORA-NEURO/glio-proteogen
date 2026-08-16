@@ -8,7 +8,10 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m21_04.v1 import (
     M2104_CONTRACT_VERSION,
+    M2104_DOSSIER_SHA256,
+    M2104_DOSSIER_SLICE,
     M2104_GATE,
+    M2104_M2103_INPUT_MEDIA_TYPE,
     M2104_MAX_CANONICAL_REQUEST_BYTES,
     M2104_MODULE_ID,
     M2104_OUTPUT_MEDIA_TYPE,
@@ -26,9 +29,7 @@ from glio_proteogen.contracts.m21_04.v1 import (
     TransportValidation,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M21-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M21-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2104_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -68,6 +69,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "provisionalAbi": M2104_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
         "pendingOwnerConfirmation": True,
+        "dossierSha256": M2104_DOSSIER_SHA256,
+        "dossierSlice": M2104_DOSSIER_SLICE,
         "externalContentTraversal": False,
         "rawPayload": False,
         "allOmicsFusion": False,
@@ -76,6 +79,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "parentTarget": M2104_PARENT,
         "unsupportedToNegative": False,
         "outputMediaType": M2104_OUTPUT_MEDIA_TYPE,
+        "upstreamInputMediaType": M2104_M2103_INPUT_MEDIA_TYPE,
         "primaryArchitecture": "distributed_simulation_continuous_challenge",
         "alternateArchitecture": "locked_offline_benchmark_harness",
         "fallbackArchitecture": "independent_dual_run_validation",

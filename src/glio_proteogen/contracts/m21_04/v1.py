@@ -11,10 +11,11 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, FiniteFloat, model_validator
 
 from glio_proteogen.contracts.m21_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -38,11 +39,16 @@ M2104_MODULE_ID: Final = "GLIO-PROTEOGEN-M21-04"
 M2104_OPERATION: Final = "evaluate_complex_activity_external_transport"
 M2104_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2104_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-04+json"
+M2104_M2103_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-03+json"
 M2104_PARENT: Final = "complex activity"
 M2104_OWNER: Final = "Platform engineering"
 M2104_SAFETY_CLASS: Final = "S3"
 M2104_GATE: Final = "G3"
 M2104_PROVISIONAL_ABI: Final = True
+M2104_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2104_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7368-7408"
 M2104_MAX_EVALUATIONS: Final = 128
 M2104_MAX_VALIDATIONS: Final = 128
 M2104_MAX_DIMENSIONS: Final = 16
@@ -111,8 +117,8 @@ class TransportEvaluation(FrozenModel):
     dimension: TransportDimension
     status: TransportStatus
     metric_name: NonEmptyStr
-    metric_value: float = Field(ge=0.0, le=1.0)
-    calibration_floor: float = Field(ge=0.0, le=1.0)
+    metric_value: FiniteFloat = Field(ge=0.0, le=1.0)
+    calibration_floor: FiniteFloat = Field(ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2104_MAX_EVIDENCE)
 
@@ -194,6 +200,11 @@ class TransportabilityReport(FrozenModel):
             raise ValueError("report must evaluate every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("transport evaluation dimensions must be unique")
+        support_dims = set(self.support_domain.retained_dimensions) | set(
+            self.support_domain.narrowed_dimensions
+        )
+        if support_dims != required_dimensions:
+            raise ValueError("support-domain update must close every configured dimension")
         return self
 
 
@@ -226,6 +237,10 @@ class EvaluateComplexActivityExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateComplexActivityExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        if self.benchmark_package.media_type != M2104_M2103_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M21-03 benchmark result")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
@@ -233,6 +248,19 @@ class EvaluateComplexActivityExternalTransportRequest(FrozenModel):
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        if (
+            self.benchmark_package.artifact_id,
+            self.benchmark_package.version,
+            self.benchmark_package.digest,
+            self.benchmark_package.media_type,
+        ) not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-03 result")
         return self
 
 
@@ -264,6 +292,14 @@ class ComplexActivityExternalTransportResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityExternalTransportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -271,6 +307,12 @@ class ComplexActivityExternalTransportResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported transport report")
+            if self.report.configuration != self.request.configuration:
+                raise ValueError("evaluated report configuration must equal the request")
+            if self.report.validations != self.request.validations:
+                raise ValueError("evaluated report validations must equal the request")
+            if self.report.evaluations != self.request.evaluations:
+                raise ValueError("evaluated report evaluations must equal the request")
         elif (
             self.report is not None
             or self.abstention_reason is None
@@ -285,8 +327,11 @@ class ComplexActivityExternalTransportResult(FrozenModel):
 
 __all__ = [
     "M2104_CONTRACT_VERSION",
+    "M2104_DOSSIER_SHA256",
+    "M2104_DOSSIER_SLICE",
     "M2104_EVIDENCE_CLAIM",
     "M2104_GATE",
+    "M2104_M2103_INPUT_MEDIA_TYPE",
     "M2104_MAX_CANONICAL_REQUEST_BYTES",
     "M2104_MAX_CANONICAL_RESULT_BYTES",
     "M2104_MAX_DIMENSIONS",
