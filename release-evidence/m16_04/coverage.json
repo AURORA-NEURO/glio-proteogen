@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-04",
+  "statements": 525,
+  "covered_statements": 522,
+  "branches": 88,
+  "covered_branches": 86,
+  "branch_coverage_percent": 97.72727272727273,
+  "combined_coverage_percent": 98.46678023850085,
+  "fail_under_percent": 95.0,
+  "passed": true,
+  "command": "uv run coverage run --branch -m pytest tests/contract/test_m16_04_provisional.py tests/contract/test_m16_04_deep.py"
+}

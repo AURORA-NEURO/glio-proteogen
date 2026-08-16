@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-03",
+  "command": "uv run pytest -o addopts='' --cov=glio_proteogen.contracts.m15_03 --cov=glio_proteogen.modules.c15_longitudinal_recurrence_proteotype.m15_03_mechanistic_feature_constructor --cov=glio_proteogen.adapters.m1503 --cov-branch tests/contract/test_m15_03_deep.py",
+  "statements": 495,
+  "covered_lines": 493,
+  "branches": 74,
+  "covered_branches": 74,
+  "line_coverage_percent": 99.5959595959596,
+  "branch_coverage_percent": 100.0,
+  "coverage_percent": 99.5959595959596,
+  "fail_under_percent": 95.0,
+  "passed": true
+}
