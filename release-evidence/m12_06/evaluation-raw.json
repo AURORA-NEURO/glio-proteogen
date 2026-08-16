@@ -1,0 +1,45 @@
+{
+  "checks": [
+    {
+      "case_id": "supported_bounded_surface",
+      "detail": "status=simulated;expected=simulated",
+      "passed": true
+    },
+    {
+      "case_id": "supported_bounded_surface:replay",
+      "detail": "exact request/result replay",
+      "passed": true
+    },
+    {
+      "case_id": "unsupported_perturbation_abstains",
+      "detail": "status=abstained;expected=abstained",
+      "passed": true
+    },
+    {
+      "case_id": "out_of_envelope_abstains",
+      "detail": "status=abstained;expected=abstained",
+      "passed": true
+    },
+    {
+      "case_id": "consent_denied",
+      "detail": "authorization rejected before payload traversal",
+      "passed": true
+    },
+    {
+      "case_id": "identity_denied",
+      "detail": "authorization rejected before payload traversal",
+      "passed": true
+    },
+    {
+      "case_id": "support_denied",
+      "detail": "authorization rejected before payload traversal",
+      "passed": true
+    }
+  ],
+  "contract_version": "0.1.0-provisional",
+  "declared_case_count": 6,
+  "executed_case_count": 6,
+  "fixture": "tests\\fixtures\\m12_06\\scenarios.json",
+  "module_id": "GLIO-PROTEOGEN-M12-06",
+  "passed": true
+}

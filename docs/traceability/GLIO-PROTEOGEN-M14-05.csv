@@ -1,0 +1,9 @@
+requirement_id,dossier_slice,requirement,evidence,verification,status
+M14-05-AUTH,4892-4932,Bind responsibility owner safety gate and provisional ABI,contracts/m14_05/v1.py;docs/modules/M14-05.manifest.md;docs/evidence/M14-05.md,Exact dossier SHA and slice metadata plus schema assertions,covered
+M14-05-TEMPORAL,4892-4932,Preserve temporal ordering and prevent future leakage,contracts/m14_05/v1.py;modules/.../engine.py;tests/modules/.../test_m14_05_runtime.py,Strict request ordering diagnostics and replay test,covered
+M14-05-CHANGEPOINT,4892-4932,Emit explicit time-indexed trajectory and change-point object,contracts/m14_05/v1.py;modules/.../engine.py,Trajectory states and not-evaluable change points are deterministic and evidence-linked,covered
+M14-05-UNCERTAINTY,4892-4932,Quantify or expose uncertainty and explicit abstention,modules/.../engine.py;tests/contract/test_m14_05_provisional.py;evals/m14_05/run.py,Seven uncertainty dimensions plus owner-review limitation and negative cases,covered
+M14-05-SAFETY,4892-4932,Preserve provenance support consent identity and safe failure,modules/.../engine.py;tests/modules/.../test_m14_05_runtime.py,Seven-control preflight immutable provenance and denied-control test,covered
+M14-05-INTERFACE,4892-4932,Provide bounded API CLI and plugin interfaces,adapters/api.py;adapters/cli.py;tests/integration/test_m14_05_interfaces.py,Schema and result parity plus strict media boundary,covered
+M14-05-EVAL,4892-4932,Lock adversarial evaluator and benchmark evidence,tests/fixtures/m14_05/scenarios.json;evals/m14_05/run.py;evals/m14_05/benchmark.py,8-case closure and 100-call benchmark,covered
+M14-05-RELEASE,4892-4932,Provide traceability package and release evidence,docs/evidence/M14-05.md;tools/verify_release_artifacts.py,Fresh wheel install and artifact verifier with exact hashes,covered
