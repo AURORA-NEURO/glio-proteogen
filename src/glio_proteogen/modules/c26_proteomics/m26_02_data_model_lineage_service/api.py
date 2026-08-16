@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 from glio_proteogen.contracts.m26_02 import (
     BuildProteinSubtypeLineageRequest,
     ProteinSubtypeLineageResult,
+    canonical_request_digest,
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import (
@@ -70,7 +71,9 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
     async def validate(request: Request) -> JSONResponse:
         raw = await request.body()
         validated = _validated_payload(raw, active_service)
-        return JSONResponse({"valid": True, "requestDigest": str(validated.request_id)})
+        return JSONResponse(
+            {"valid": True, "requestDigest": canonical_request_digest(validated)}
+        )
 
     @app.post("/m26-02/construct")
     async def construct(request: Request) -> JSONResponse:

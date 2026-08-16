@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_02 import canonical_request_digest
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.api import (
     create_m2602_app,
@@ -31,6 +32,10 @@ def test_fastapi_validate_construct_verify_and_schema() -> None:
     raw = _encoded_request()
     validated = client.post("/m26-02/validate", content=raw)
     assert validated.status_code == _HTTP_OK
+    assert validated.json() == {
+        "valid": True,
+        "requestDigest": canonical_request_digest(_request()),
+    }
     constructed = client.post("/m26-02/construct", content=raw)
     assert constructed.status_code == _HTTP_OK
     result = constructed.json()
