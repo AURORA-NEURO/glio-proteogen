@@ -1,8 +1,12 @@
 """Focused schema and deterministic-fixture smoke for provisional M21-02."""
 
-from jsonschema import Draft202012Validator
+from typing import cast
+
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m21_02 import (
+    M2102_DOSSIER_SHA256,
+    M2102_DOSSIER_SLICE,
     M2102_M2101_INPUT_MEDIA_TYPE,
     M2102_OUTPUT_MEDIA_TYPE,
     M2102_PROVISIONAL_ABI,
@@ -30,7 +34,7 @@ def test_provisional_schemas_require_reproducible_truth_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["analyticallyKnownFixturesRequired"] is True
         assert metadata["semiSyntheticFixturesRequired"] is True
@@ -40,7 +44,10 @@ def test_provisional_schemas_require_reproducible_truth_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "complex activity"
         assert metadata["upstreamInputMediaType"] == M2102_M2101_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2102_OUTPUT_MEDIA_TYPE
+        assert metadata["dossierSha256"] == M2102_DOSSIER_SHA256
+        assert metadata["dossierSlice"] == M2102_DOSSIER_SLICE
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2102_OUTPUT_MEDIA_TYPE
     assert M2102_PROVISIONAL_ABI is True
 
 
