@@ -1,0 +1,17 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-07",
+  "scope": [
+    "glio_proteogen.contracts.m26_07",
+    "glio_proteogen.modules.c20_biomarker_panel.m26_07_change_control_rollback"
+  ],
+  "tests": 29,
+  "branchEnabled": true,
+  "statements": {"total": 589, "covered": 566, "missing": 23},
+  "branches": {"total": 70, "covered": 61, "missing": 9, "partial": 9},
+  "combinedPercent": 95.14415781487102,
+  "statementPercent": 96.09507640067912,
+  "branchPercent": 87.14285714285714,
+  "failUnder": 95,
+  "passed": true,
+  "command": "python -m pytest tests/contract/test_m26_07_provisional.py tests/runtime/test_m2607_runtime.py tests/interfaces/test_m2607_interfaces.py tests/evals/test_m2607_evaluator.py tests/adversarial/test_m2607_adversarial.py --cov=glio_proteogen.contracts.m26_07 --cov=glio_proteogen.modules.c20_biomarker_panel.m26_07_change_control_rollback --cov-branch"
+}
