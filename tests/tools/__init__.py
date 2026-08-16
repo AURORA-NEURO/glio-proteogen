@@ -1,1 +1,1 @@
-"""Tooling tests for M14-06 release evidence."""
+"""Release verifier and tooling tests."""
