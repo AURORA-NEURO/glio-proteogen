@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M08-06",
+  "contract_version": "0.1.0-provisional",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "2776-2819",
+  "scenario_count": 5,
+  "passed": true,
+  "status": "abstained",
+  "cases": [
+    "safe-abstention-with-explicit-seven-dimension-uncertainty",
+    "deterministic-request-replay",
+    "tamper-rejected-by-result-replay",
+    "withheld-consent-rejected-before-engine",
+    "ownership-claim-ceiling"
+  ],
+  "result_digest": "sha256:fa6c87b0d12aca005d1c89ea2ca0295e9a812b865c80fe7308c5186e7e2a3103"
+}
