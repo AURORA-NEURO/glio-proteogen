@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-06",
+  "authority_lines": "6016-6056",
+  "cases": [
+    {"case_id": "resolved_queue_recorded", "expected": "recorded"},
+    {"case_id": "unresolved_review_abstention", "expected": "abstained"},
+    {"case_id": "escalated_abstention", "expected": "abstained"},
+    {"case_id": "unsupported_abstention", "expected": "abstained"},
+    {"case_id": "prohibited_scope_abstention", "expected": "abstained"},
+    {"case_id": "replay_and_tamper", "expected": "verified"},
+    {"case_id": "authorization_gate", "expected": "rejected"},
+    {"case_id": "deterministic_reconstruction", "expected": "equal"},
+    {"case_id": "uncertainty_provenance_complete", "expected": "explicit"},
+    {"case_id": "complete_blinded_assignment", "expected": "complete"}
+  ]
+}
