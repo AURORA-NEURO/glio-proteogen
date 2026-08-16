@@ -13,6 +13,7 @@ from typing import Final, Literal
 from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m19_06.canonical import (
+    audit_event_payload_digest,
     canonical_request_digest,
     result_payload_digest,
 )
@@ -43,11 +44,16 @@ M1906_OWNER: Final = "Platform engineering"
 M1906_SAFETY_CLASS: Final = "S2"
 M1906_GATE: Final = "G4"
 M1906_PROVISIONAL_ABI: Final = True
+M1906_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1906_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6736-6776"
 M1906_MAX_QUEUE_ENTRIES: Final = 256
 M1906_MAX_ASSIGNMENTS: Final = 256
 M1906_MAX_HISTORY: Final = 1_024
 M1906_MAX_EVIDENCE: Final = 64
 M1906_MAX_FINDINGS: Final = 64
+M1906_MIN_CRITICAL_REVIEWERS: Final = 2
 M1906_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1906_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1906_EVIDENCE_CLAIM: Final = (
@@ -87,6 +93,17 @@ class ReviewDecision(StrEnum):
     ABSTAIN = "abstain"
 
 
+class AuditEventType(StrEnum):
+    """Closed lifecycle vocabulary for append-only adjudication history."""
+
+    QUEUE_CREATED = "queue_created"
+    ASSIGNMENT_CREATED = "assignment_created"
+    REVIEW_RECORDED = "review_recorded"
+    ESCALATED = "escalated"
+    RESOLVED = "resolved"
+    ABSTAINED = "abstained"
+
+
 class AdjudicationRecordStatus(StrEnum):
     RESOLVED = "resolved"
     ESCALATED = "escalated"
@@ -112,7 +129,7 @@ class DiscrepancyQueueEntry(FrozenModel):
     severity: DiscrepancySeverity
     description: NonEmptyStr
     state: QueueEntryState
-    blinded_review_required: bool = True
+    blinded_review_required: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1906_MAX_EVIDENCE)
 
 
@@ -130,11 +147,19 @@ class ReviewerAssignment(FrozenModel):
 class ImmutableAuditEvent(FrozenModel):
     sequence: int = Field(ge=1, le=M1906_MAX_HISTORY)
     event_id: Identifier
-    event_type: NonEmptyStr
+    event_type: AuditEventType
     actor_token: Identifier
     action: NonEmptyStr
     record_digest: Sha256Digest
+    previous_event_digest: Sha256Digest | None = None
+    event_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1906_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def event_digest_is_content_addressed(self) -> ImmutableAuditEvent:
+        if self.event_digest != audit_event_payload_digest(self):
+            raise ValueError("audit event digest does not match canonical event content")
+        return self
 
 
 class AdjudicationRecord(FrozenModel):
@@ -155,7 +180,7 @@ class AdjudicationRecord(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1906_MAX_EVIDENCE)
 
     @model_validator(mode="after")
-    def record_is_closed(self) -> AdjudicationRecord:
+    def record_is_closed(self) -> AdjudicationRecord:  # noqa: PLR0912 - ordered closure audit
         entry_ids = tuple(item.discrepancy_id for item in self.entries)
         assignment_ids = tuple(item.assignment_id for item in self.assignments)
         event_ids = tuple(item.event_id for item in self.history)
@@ -166,16 +191,71 @@ class AdjudicationRecord(FrozenModel):
             raise ValueError("assignment ids must be unique")
         if len(event_ids) != len(set(event_ids)) or len(sequences) != len(set(sequences)):
             raise ValueError("audit event ids and sequence numbers must be unique")
+        if sequences != tuple(range(1, len(self.history) + 1)):
+            raise ValueError("audit history sequence must be contiguous from one")
+        for index, event in enumerate(self.history):
+            expected_previous = None if index == 0 else self.history[index - 1].event_digest
+            if event.previous_event_digest != expected_previous:
+                raise ValueError("audit history previous digest does not link to its predecessor")
         known_entries = set(entry_ids)
         if any(item.discrepancy_id not in known_entries for item in self.assignments):
             raise ValueError("assignment references an unknown discrepancy")
+        assignments_by_entry: dict[str, list[ReviewerAssignment]] = {
+            discrepancy_id: [] for discrepancy_id in known_entries
+        }
+        for assignment in self.assignments:
+            assignments_by_entry[assignment.discrepancy_id].append(assignment)
+        for entry in self.entries:
+            assignments = assignments_by_entry[entry.discrepancy_id]
+            if not assignments:
+                raise ValueError("every discrepancy requires a reviewer assignment")
+            reviewer_tokens = tuple(item.reviewer_token for item in assignments)
+            if len(reviewer_tokens) != len(set(reviewer_tokens)):
+                raise ValueError("a discrepancy cannot be reviewed twice by one reviewer token")
+            if (
+                entry.severity is DiscrepancySeverity.CRITICAL
+                and len(reviewer_tokens) < M1906_MIN_CRITICAL_REVIEWERS
+            ):
+                raise ValueError("critical discrepancy requires two blinded reviewers")
+            decisions = {item.decision for item in assignments}
+            if entry.state is QueueEntryState.RESOLVED and not decisions <= {
+                ReviewDecision.ACCEPT,
+                ReviewDecision.REJECT,
+            }:
+                raise ValueError("resolved discrepancy requires final review decisions")
+            if entry.state is QueueEntryState.ESCALATED and not decisions & {
+                ReviewDecision.DEFER,
+                ReviewDecision.ABSTAIN,
+            }:
+                raise ValueError("escalated discrepancy requires an unresolved review decision")
         if self.status is AdjudicationRecordStatus.RESOLVED and self.resolution_summary is None:
             raise ValueError("resolved record requires a resolution summary")
+        if self.status is AdjudicationRecordStatus.RESOLVED and any(
+            item.state is not QueueEntryState.RESOLVED for item in self.entries
+        ):
+            raise ValueError("resolved record requires every discrepancy to be resolved")
         if (
             self.status is AdjudicationRecordStatus.ESCALATED
             and self.resolution_summary is not None
         ):
             raise ValueError("escalated record cannot claim final resolution")
+        if self.status is AdjudicationRecordStatus.ESCALATED and not any(
+            item.state
+            in {
+                QueueEntryState.ESCALATED,
+                QueueEntryState.IN_REVIEW,
+                QueueEntryState.NOT_EVALUABLE,
+            }
+            for item in self.entries
+        ):
+            raise ValueError("escalated record requires an unresolved discrepancy")
+        expected_terminal_event = (
+            AuditEventType.RESOLVED
+            if self.status is AdjudicationRecordStatus.RESOLVED
+            else AuditEventType.ESCALATED
+        )
+        if self.history[-1].event_type is not expected_terminal_event:
+            raise ValueError("audit history must end with the record terminal state")
         return self
 
 
@@ -229,6 +309,28 @@ class AdjudicateProteotypeQueueRequest(FrozenModel):
         allowed = set(entry_ids)
         if any(item.discrepancy_id not in allowed for item in self.assignments):
             raise ValueError("request assignment references an unknown discrepancy")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("request source artifact ids must be unique")
+        if self.upstream_result.artifact_id not in set(source_ids):
+            raise ValueError("request source artifacts must include the upstream result")
+        assignments_by_entry: dict[str, list[ReviewerAssignment]] = {
+            discrepancy_id: [] for discrepancy_id in allowed
+        }
+        for assignment in self.assignments:
+            assignments_by_entry[assignment.discrepancy_id].append(assignment)
+        for entry in self.entries:
+            assignments = assignments_by_entry[entry.discrepancy_id]
+            if not assignments:
+                raise ValueError("every discrepancy requires a reviewer assignment")
+            reviewer_tokens = tuple(item.reviewer_token for item in assignments)
+            if len(reviewer_tokens) != len(set(reviewer_tokens)):
+                raise ValueError("a discrepancy cannot be reviewed twice by one reviewer token")
+            if (
+                entry.severity is DiscrepancySeverity.CRITICAL
+                and len(reviewer_tokens) < M1906_MIN_CRITICAL_REVIEWERS
+            ):
+                raise ValueError("critical discrepancy requires two blinded reviewers")
         return self
 
 
@@ -265,6 +367,8 @@ class ProteotypeAdjudicationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("recorded result requires a supported immutable record")
+            if self.record.status is not AdjudicationRecordStatus.RESOLVED:
+                raise ValueError("recorded result requires a resolved immutable record")
             request_ids = {item.discrepancy_id for item in self.request.entries}
             record_ids = {item.discrepancy_id for item in self.record.entries}
             if request_ids != record_ids:
@@ -283,6 +387,8 @@ class ProteotypeAdjudicationResult(FrozenModel):
 
 __all__ = [
     "M1906_CONTRACT_VERSION",
+    "M1906_DOSSIER_SHA256",
+    "M1906_DOSSIER_SLICE",
     "M1906_EVIDENCE_CLAIM",
     "M1906_GATE",
     "M1906_M1905_INPUT_MEDIA_TYPE",
@@ -293,6 +399,7 @@ __all__ = [
     "M1906_MAX_FINDINGS",
     "M1906_MAX_HISTORY",
     "M1906_MAX_QUEUE_ENTRIES",
+    "M1906_MIN_CRITICAL_REVIEWERS",
     "M1906_MODULE_ID",
     "M1906_OPERATION",
     "M1906_OUTPUT_MEDIA_TYPE",
@@ -303,6 +410,7 @@ __all__ = [
     "AdjudicateProteotypeQueueRequest",
     "AdjudicationRecord",
     "AdjudicationRecordStatus",
+    "AuditEventType",
     "DiscrepancyQueueEntry",
     "DiscrepancyReasonCode",
     "DiscrepancySeverity",
