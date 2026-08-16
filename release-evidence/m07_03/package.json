@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-03",
+  "abi_status": "dossier-behavioral-brief-only",
+  "build_backend": "hatchling 1.31.0",
+  "artifacts": ["wheel", "sdist"],
+  "wheel_bytes": 749001,
+  "sdist_bytes": 1433401,
+  "wheel_sha256": "1A66E39B63F0C504EA9726942E4FA43D6B25E1323AE5C2C615645E50EF076AF9",
+  "sdist_sha256": "3C8B24BD60C17665DA32E702A7D71B71428768AC5832C1D41E5492E0D0F9C927",
+  "checks": [
+    "wheel-build",
+    "sdist-build",
+    "temporary-target-install",
+    "installed-import"
+  ],
+  "passed": true,
+  "note": "Built with hatchling 1.31.0; wheel installed into an isolated target and contract/adapter imports passed. Provisional ABI is not frozen."
+}
