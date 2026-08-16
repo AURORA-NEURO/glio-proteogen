@@ -652,6 +652,16 @@ def _verify_m2607_package(package_report: Mapping[str, object]) -> None:
             or members <= 0
         ):
             raise ReleaseArtifactError(f"M26-07 {label} package evidence is incomplete")
+    required_members = _sequence(
+        _mapping(package_report.get("wheel"), "M26-07 wheel package").get(
+            "requiredRuntimeMembers"
+        ),
+        "M26-07 required runtime members",
+    )
+    if not required_members or any(
+        not isinstance(member, str) or not member for member in required_members
+    ):
+        raise ReleaseArtifactError("M26-07 required runtime member closure is incomplete")
     if package_report.get("isolatedImportPassed") is not True:
         raise ReleaseArtifactError("M26-07 isolated import evidence did not pass")
 

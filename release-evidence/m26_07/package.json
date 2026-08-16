@@ -11,7 +11,12 @@
       "glio_proteogen/contracts/m26_07/v1.py",
       "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/engine.py",
       "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/api.py",
-      "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/cli.py"
+      "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/cli.py",
+      "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/plugin.py",
+      "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/sdk.py",
+      "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/service.py",
+      "glio_proteogen/contracts/m26_07/schema.py",
+      "glio_proteogen/contracts/m26_07/canonical.py"
     ]
   },
   "sdist": {
