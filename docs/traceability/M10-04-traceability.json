@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "authority": {
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3408-3451"
+  },
+  "responsibility": "probabilistic or advanced estimator beneath Pathway/proteotype factors",
+  "owner": "Quality engineering",
+  "safety_class": "S2",
+  "gate": "G2",
+  "abi_status": "dossier-behavioral-brief-only",
+  "required_controls": ["approved_configuration", "identity_lineage", "provenance", "consent", "quality", "support", "intended_use"],
+  "required_inputs": ["m10_03_baseline", "mass_spectrometry_proteome", "genome_transcriptome", "ptm_annotations", "configuration", "identity_lineage", "provenance", "consent", "quality", "support", "intended_use"],
+  "output_policy": {"parent_target": "protein_rna_discordance", "emits_parent": false, "unsupported_to_negative": false},
+  "uncertainty_dimensions": ["measurement", "sampling", "parameter", "model_form", "identification", "support", "transport"],
+  "evidence": ["contract tests", "functional invariants", "robustness", "uncertainty/abstention", "safety/provenance/recovery", "benchmark", "package manifest"]
+}

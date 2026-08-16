@@ -1,0 +1,9 @@
+requirement,evidence,status,owner
+"mechanism and constraint integrator boundary","contracts/m06_05/v1.py; engine.py; lifecycle tests",provisional,"Computational biology"
+"hard constraints hold and soft conflicts are quantified","engine.py evaluations/ablations; test_m06_05_constraint_integrator.py",provisional,"Computational biology"
+"missing, unsupported, and unknown expressions abstain","engine.py safe routing; lifecycle and evaluator tests",provisional,"Computational biology"
+"typed uncertainty and provenance are exposed","engine.py _uncertainty/_provenance; result contract",provisional,"Computational biology"
+"deterministic canonical replay","contracts/m06_05/canonical.py; engine.verify; replay tests",provisional,"Computational biology"
+"strict API, CLI, and plugin parity","api.py; cli.py; plugin.py; test_m06_05_interfaces.py",provisional,"Computational biology"
+"benchmark and locked evaluation","evals/m06_05/run.py; evals/m06_05/benchmark.py",provisional,"Computational biology"
+"dossier source","GLIO-PROTEOGEN_240_Module_Dossier.md lines 2012-2052 (SHA256 0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181)",verified,"Computational biology"

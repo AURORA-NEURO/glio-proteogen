@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M09-05",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3092-3135"
+  },
+  "scenarios": [
+    {"id": "supported", "expression": "conservation_hold", "expected": "estimated"},
+    {"id": "hard_violation", "expression": "force_violation", "expected": "abstained"},
+    {"id": "soft_conflict", "expression": "soft force_violation", "expected": "estimated"},
+    {"id": "unsupported", "expression": "unsupported ontology", "expected": "abstained"}
+  ]
+}
