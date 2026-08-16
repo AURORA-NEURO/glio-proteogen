@@ -10,6 +10,7 @@ from evals.m25_06.fixture import build_request
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m25_06 import ChallengeProteotypeRobustnessRequest
+from glio_proteogen.contracts.m25_06 import ChallengeDisposition
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_challenge import (
     M2506AuthorizationError,
@@ -24,7 +25,7 @@ _REQUEST_ADAPTER = TypeAdapter(ChallengeProteotypeRobustnessRequest)
 class _ExplodingMapping(dict[str, object]):
     def get(self, key: str, default: object = None) -> object:
         del key, default
-        raise RuntimeError("hostile mapping")
+        raise RuntimeError("hostile mapping")  # noqa: TRY003
 
 
 def test_hostile_mapping_fails_closed_before_access() -> None:
@@ -75,8 +76,6 @@ def test_tampering_nested_surface_observation_fails_replay() -> None:
 
 
 def test_safe_abstention_does_not_emit_parent_or_surface() -> None:
-    from glio_proteogen.contracts.m25_06 import ChallengeDisposition
-
     result = M2506RobustnessEngine().challenge(
         build_request(disposition=ChallengeDisposition.ABSTAIN_UNSUPPORTED)
     )

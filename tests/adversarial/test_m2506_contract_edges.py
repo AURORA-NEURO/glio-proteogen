@@ -1,5 +1,8 @@
 """Direct validator edge closure for the provisional M25-06 contract."""
 
+# Validator-edge tests intentionally assert broad ValueError for multiple Pydantic paths.
+# ruff: noqa: PT011
+
 from __future__ import annotations
 
 import pytest

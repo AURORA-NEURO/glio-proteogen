@@ -160,7 +160,7 @@ def test_cli_error_edges_and_stdout_paths(tmp_path: Path, monkeypatch: object) -
 
     def fail_replay(self: M2506Service, result: object) -> object:
         del self, result
-        raise ValueError("replay failure")
+        raise ValueError("replay failure")  # noqa: TRY003
 
     monkeypatch.setattr(M2506Service, "verify_replay", fail_replay)
     output = tmp_path / "result.json"
