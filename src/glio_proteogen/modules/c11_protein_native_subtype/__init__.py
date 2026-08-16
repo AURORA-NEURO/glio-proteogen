@@ -1,2 +1,1 @@
-"""Protein-native subtype module family (provisional M11 slices)."""
-
+"""Protein-native subtype module group."""
