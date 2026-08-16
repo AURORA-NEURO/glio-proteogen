@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
+from evals.m21_03.fixture import denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -15,6 +16,9 @@ from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_abl
     M2103Service,
     cli_app,
     create_app,
+)
+from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_ablation import (
+    cli as cli_module,
 )
 from tests.contract.test_m21_03_provisional import _request
 
@@ -51,11 +55,25 @@ def test_fastapi_validate_benchmark_verify_and_sanitized_errors() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert client.get("/v1/modules/M21-03/schemas/unknown").status_code == _HTTP_NOT_FOUND
+    assert client.get("/v1/modules/M21-03/schemas/unknown").status_code == _HTTP_NOT_FOUND
     assert (
         client.post("/v1/modules/M21-03/validate", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
     malformed = client.post("/v1/modules/M21-03/verify", content=b"[")
     assert malformed.status_code == _HTTP_UNPROCESSABLE
+    assert (
+        client.post("/v1/modules/M21-03/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
+    )
+    assert client.post("/v1/modules/M21-03/verify", json={}).status_code == _HTTP_UNPROCESSABLE
+    denied_body = denied_request().model_dump(mode="json")
+    assert (
+        client.post("/v1/modules/M21-03/validate", json=denied_body).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+    assert (
+        client.post("/v1/modules/M21-03/benchmark", json=denied_body).status_code
+        == _HTTP_UNPROCESSABLE
+    )
     assert "Traceback" not in malformed.text
 
 
@@ -88,6 +106,7 @@ def test_typer_export_validate_benchmark_verify_and_no_overwrite(tmp_path: Path)
         != 0
     )
     assert runner.invoke(cli_app, ["validate", str(request_path)]).exit_code == 0
+    assert runner.invoke(cli_app, ["benchmark", str(request_path)]).exit_code == 0
     assert (
         runner.invoke(
             cli_app, ["benchmark", str(request_path), "--output", str(result_path)]
@@ -101,3 +120,33 @@ def test_typer_export_validate_benchmark_verify_and_no_overwrite(tmp_path: Path)
         ).exit_code
         != 0
     )
+
+
+def test_typer_sanitizes_bad_inputs_and_replay_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = CliRunner()
+    assert runner.invoke(cli_app, ["export-schema", "unknown"]).exit_code != 0
+    assert runner.invoke(cli_app, ["export-schema", "request"]).exit_code == 0
+    bad_request = tmp_path / "bad-request.json"
+    bad_request.write_bytes(b"[]")
+    assert runner.invoke(cli_app, ["validate", str(bad_request)]).exit_code != 0
+    assert runner.invoke(cli_app, ["benchmark", str(bad_request)]).exit_code != 0
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(denied_request()))
+    assert runner.invoke(cli_app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["benchmark", str(denied_path)]).exit_code != 0
+    bad_result = tmp_path / "bad-result.json"
+    bad_result.write_bytes(b"[]")
+    assert runner.invoke(cli_app, ["verify", str(bad_result)]).exit_code != 0
+    request = _request()
+    result_path = tmp_path / "valid-result.json"
+    result_path.write_bytes(canonical_json_bytes(M2103Service().generate(request)))
+
+    class ReplayFailure:
+        def replay(self, _result: object) -> object:
+            raise ValueError
+
+    monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
+    assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
