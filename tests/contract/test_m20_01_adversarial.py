@@ -377,6 +377,12 @@ def _result(
 
 
 def test_candidate_and_evidence_references_are_content_addressed_and_unique() -> None:
+    with pytest.raises(ValidationError, match="granted consent"):
+        _candidate(consent_state=ConsentState.UNKNOWN)
+    with pytest.raises(ValidationError, match="supported status"):
+        _candidate(support_status=SupportStatus.REVIEW_REQUIRED)
+    with pytest.raises(ValidationError, match="provenance evidence"):
+        _candidate(provenance=False)
     with pytest.raises(ValidationError, match="artifact and provenance digests"):
         UpstreamCandidate.model_validate(
             _candidate().model_dump(mode="python") | {"provenance_artifact": _candidate().artifact}
@@ -390,6 +396,12 @@ def test_candidate_and_evidence_references_are_content_addressed_and_unique() ->
     with pytest.raises(ValidationError, match="rule evidence digests"):
         CompatibilityRule.model_validate(
             _rule().model_dump(mode="python")
+            | {"evidence": (duplicate_evidence, duplicate_evidence)}
+        )
+    duplicate_evidence = _evidence("decision.duplicate")
+    with pytest.raises(ValidationError, match="decision evidence digests"):
+        CompatibilityDecision.model_validate(
+            _decision().model_dump(mode="python")
             | {"evidence": (duplicate_evidence, duplicate_evidence)}
         )
 
@@ -426,6 +438,10 @@ def test_decision_reason_codes_and_report_buckets_cannot_disagree() -> None:
 
 
 def test_configuration_and_request_closure_reject_duplicates_and_mismatches() -> None:
+    with pytest.raises(ValidationError, match="rule ids"):
+        ResolverConfiguration.model_validate(
+            _configuration().model_dump(mode="python") | {"rules": (_rule(), _rule())}
+        )
     with pytest.raises(ValidationError, match="accepted intended uses"):
         ResolverConfiguration.model_validate(
             _configuration().model_dump(mode="python")
@@ -434,6 +450,12 @@ def test_configuration_and_request_closure_reject_duplicates_and_mismatches() ->
     with pytest.raises(ValidationError, match="every compatibility rule"):
         ResolverConfiguration.model_validate(
             _configuration().model_dump(mode="python") | {"accepted_intended_uses": ("other use",)}
+        )
+    duplicate_evidence = _evidence("config.duplicate")
+    with pytest.raises(ValidationError, match="configuration evidence digests"):
+        ResolverConfiguration.model_validate(
+            _configuration().model_dump(mode="python")
+            | {"evidence": (duplicate_evidence, duplicate_evidence)}
         )
     with pytest.raises(ValidationError, match="context request id"):
         ResolveProteinSubtypeUpstreamContractsRequest.model_validate(
@@ -444,6 +466,57 @@ def test_configuration_and_request_closure_reject_duplicates_and_mismatches() ->
         ResolveProteinSubtypeUpstreamContractsRequest.model_validate(
             _request().model_dump(mode="python")
             | {"source_artifacts": (duplicate_source, duplicate_source)}
+        )
+    with pytest.raises(ValidationError, match="candidate ids"):
+        ResolveProteinSubtypeUpstreamContractsRequest.model_validate(
+            _request(candidates=(_candidate(), _candidate())).model_dump(mode="python")
+        )
+
+
+def test_report_bundle_and_result_closure_reject_nested_tampering() -> None:
+    report = _report()
+    with pytest.raises(ValidationError, match="decision candidate ids"):
+        CompatibilityReport.model_validate(
+            report.model_dump(mode="python") | {"decisions": (_decision(), _decision())}
+        )
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        CompatibilityReport.model_validate(
+            report.model_dump(mode="python") | {"rejected_candidate_ids": ("candidate.proteome",)}
+        )
+    duplicate_evidence = _evidence("report.duplicate")
+    with pytest.raises(ValidationError, match="report evidence digests"):
+        CompatibilityReport.model_validate(
+            report.model_dump(mode="python")
+            | {"evidence": (duplicate_evidence, duplicate_evidence)}
+        )
+
+    with pytest.raises(ValidationError, match="validated candidate ids"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.duplicate",
+            version="1.0.0",
+            candidates=(_candidate(), _candidate()),
+            compatibility_report=report,
+            evidence=(_evidence("bundle.duplicate"),),
+        )
+    with pytest.raises(ValidationError, match="cannot include incompatible"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.incompatible",
+            version="1.0.0",
+            candidates=(_candidate(compatibility=CompatibilityStatus.INCOMPATIBLE),),
+            compatibility_report=report,
+            evidence=(_evidence("bundle.incompatible"),),
+        )
+    mismatch = _report(
+        _decision("candidate.other"),
+        selected=("candidate.other",),
+    )
+    with pytest.raises(ValidationError, match="match selected"):
+        ValidatedUpstreamBundle(
+            bundle_id="bundle.mismatch",
+            version="1.0.0",
+            candidates=(_candidate(),),
+            compatibility_report=mismatch,
+            evidence=(_evidence("bundle.mismatch"),),
         )
 
 
@@ -485,9 +558,48 @@ def test_result_identity_replay_and_safe_abstention_are_closed() -> None:
         ProteinSubtypeUpstreamResolutionResult.model_validate(
             result.model_copy(update={"result_id": "result.tampered"})
         )
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(update={"request_digest": "sha256:" + "0" * 64})
+        )
+    with pytest.raises(ValidationError, match="provenance"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(
+                update={
+                    "provenance": result.provenance.model_copy(
+                        update={"module_id": "GLIO-PROTEOGEN-M19-01"}
+                    )
+                }
+            )
+        )
+    with pytest.raises(ValidationError, match="finding ids"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(update={"findings": (result.findings[0], result.findings[0])})
+        )
+    duplicate_evidence = result.evidence[0]
+    with pytest.raises(ValidationError, match="result evidence digests"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(update={"evidence": (duplicate_evidence, duplicate_evidence)})
+        )
     with pytest.raises(ValidationError, match="result digest"):
         ProteinSubtypeUpstreamResolutionResult.model_validate(
             result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+        )
+    with pytest.raises(ValidationError, match="supported upstream"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(
+                update={
+                    "support_decision": SupportDecision(
+                        status=SupportStatus.REVIEW_REQUIRED,
+                        reason_code="review",
+                        rationale="Forced review.",
+                    )
+                }
+            )
+        )
+    with pytest.raises(ValidationError, match="human review"):
+        ProteinSubtypeUpstreamResolutionResult.model_validate(
+            result.model_copy(update={"human_review_required": True})
         )
     unknown = _candidate(
         "candidate.unknown",

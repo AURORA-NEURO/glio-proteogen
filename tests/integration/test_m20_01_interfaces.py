@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 HTTP_OK = 200
 HTTP_FORBIDDEN = 403
 HTTP_UNSUPPORTED_MEDIA_TYPE = 415
+HTTP_NOT_FOUND = 404
+HTTP_UNPROCESSABLE = 422
+CLI_USAGE_ERROR = 2
 
 
 def test_schema_endpoint_and_cli_export_are_identical() -> None:
@@ -39,6 +42,13 @@ def test_schema_endpoint_and_cli_export_are_identical() -> None:
         == json.loads(cli.stdout)
         == contract_json_schema(cast("ContractName", name))
     )
+
+    with TestClient(m2001.app) as client:
+        missing = client.get("/v1/m20-01/schema/not-a-schema")
+    bad_cli = CliRunner().invoke(m2001.m2001_app, ["export-schema", "not-a-schema"])
+    assert missing.status_code == HTTP_NOT_FOUND
+    assert bad_cli.exit_code == CLI_USAGE_ERROR
+    assert "unknown M20-01 schema" in bad_cli.output
 
 
 def test_api_cli_and_library_emit_canonical_result_parity(tmp_path: Path) -> None:
@@ -111,6 +121,30 @@ def test_interfaces_reject_wrong_media_type_and_control_before_validation(tmp_pa
     assert cli.exit_code == 1
     assert "resolution failed" in cli.output
     assert "Traceback" not in cli.output
+
+
+def test_interfaces_sanitize_malformed_json_and_tampered_results(tmp_path: Path) -> None:
+    with TestClient(m2001.app) as client:
+        malformed = client.post(
+            "/v1/modules/M20-01/resolve",
+            content=b"{not-json",
+            headers={"content-type": "application/json"},
+        )
+        bad_verify = client.post(
+            "/v1/modules/M20-01/verify",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
+    assert malformed.status_code == HTTP_UNPROCESSABLE
+    assert malformed.json() == {"detail": "invalid JSON request"}
+    assert bad_verify.status_code == HTTP_UNPROCESSABLE
+    assert bad_verify.json() == {"detail": "M20-01 result verification failed"}
+
+    result_path = tmp_path / "tampered-result.json"
+    result_path.write_text("{}", encoding="utf-8")
+    cli = CliRunner().invoke(m2001.m2001_app, ["verify", str(result_path)])
+    assert cli.exit_code == 1
+    assert "verification failed: M20-01 result is invalid" in cli.output
 
 
 def test_cli_refuses_overwrite(tmp_path: Path) -> None:

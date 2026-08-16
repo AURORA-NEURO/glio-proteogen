@@ -15,6 +15,10 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_01_upstrea
     M2001Plugin,
     M2001ReplayError,
     preflight_m2001_authorization,
+    resolve_protein_subtype_upstream_contracts,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_01_upstream_contract_resolver.service import (  # noqa: E501
+    M2001Service,
 )
 from tests.contract.test_m20_01_adversarial import (
     _candidate,
@@ -97,6 +101,8 @@ def test_replay_rejects_tampered_request_identity_and_digest() -> None:
         engine.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(M2001ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+    with pytest.raises(M2001ReplayError, match="request digest"):
+        engine.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
 
 
 def test_plugin_descriptor_is_sealed_to_safe_m20_01_boundary() -> None:
@@ -111,3 +117,15 @@ def test_plugin_descriptor_is_sealed_to_safe_m20_01_boundary() -> None:
     assert plugin.descriptor.kinase_activity is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.replay(result) == result
+
+
+def test_service_plugin_and_public_wrapper_share_strict_engine_boundary() -> None:
+    request = _request()
+    service = M2001Service()
+    plugin = M2001Plugin()
+    assert service.validate_request(request) == request
+    assert plugin.validate_request(request) == request
+    assert (
+        resolve_protein_subtype_upstream_contracts(request).result_digest
+        == M2001Engine().resolve(request).result_digest
+    )
