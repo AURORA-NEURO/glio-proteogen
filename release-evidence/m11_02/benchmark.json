@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-02",
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "mean_ns": 1897050,
+  "median_ns": 1732500,
+  "p95_ns": 1815500,
+  "budget_mean_ns": 2000000000,
+  "budget_p95_ns": 3000000000,
+  "passed": true,
+  "measurement": "isolated deterministic engine.stratify call; synthetic non-clinical request"
+}

@@ -275,6 +275,79 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
+from glio_proteogen.contracts.m13_06.schema import (
+    contract_json_schema as m1306_contract_json_schema,
+)
+from glio_proteogen.contracts.m13_06.v1 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    ProteotypePerturbationSensitivityResult,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
+from glio_proteogen.contracts.m14_03.schema import (
+    contract_json_schema as m1403_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_03.v1 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+    ProteinSubtypeMechanisticFeatureResult,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    ContractName as M1405ContractName,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    contract_json_schema as m1405_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_05.v1 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+    ProteinSubtypeLongitudinalEvolutionResult,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    ContractName as M1502ContractName,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    contract_json_schema as m1502_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_02.v1 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    LongitudinalRecurrenceContextStratificationResult,
+    StratifyContextAndSubtypeRequest,
+)
+from glio_proteogen.contracts.m15_08.schema import (
+    ContractName as M1508ContractName,
+)
+from glio_proteogen.contracts.m15_08.schema import (
+    contract_json_schema as m1508_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_08.v1 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
+    ComplexActivityMechanismDossierResult,
+)
+from glio_proteogen.contracts.m16_03.schema import (
+    ContractName as M1603ContractName,
+)
+from glio_proteogen.contracts.m16_03.schema import (
+    contract_json_schema as m1603_contract_json_schema,
+)
+from glio_proteogen.contracts.m16_03.v1 import (
+    M1603_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteinRnaDiscordanceEvidenceRequest,
+    ProteinRnaDiscordanceIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m16_06.schema import (
+    ContractName as M1606ContractName,
+)
+from glio_proteogen.contracts.m16_06.schema import (
+    contract_json_schema as m1606_contract_json_schema,
+)
+from glio_proteogen.contracts.m16_06.v1 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
+    ProteinRnaDiscordanceAdjudicationResult,
+)
 from glio_proteogen.contracts.m17_01.schema import (
     ContractName as M1701ContractName,
 )
@@ -455,6 +528,31 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    M1606AuthorizationError,
+    M1606Service,
+    preflight_m1606_authorization,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
+)
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_01_upstream_contract_resolver as m1701_resolver,
 )
@@ -490,6 +588,13 @@ _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsReque
 _M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
 _M1704_REQUEST_ADAPTER: Final = TypeAdapter(AdaptVariantPeptideIntendedUseRequest)
 _M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
+_M1606_QUEUE_ADAPTER: Final = TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest)
+_M1603_FUSION_ADAPTER: Final = TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest)
+_M1508_DOSSIER_ADAPTER: Final = TypeAdapter(AssembleComplexActivityMechanismDossierRequest)
+_M1502_ADAPTER: Final = TypeAdapter(StratifyContextAndSubtypeRequest)
+_M1405_ADAPTER: Final = TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest)
+_M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest)
+_M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -654,6 +759,34 @@ def _m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
 
 def _m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
     return m1708_contract_json_schema(name)
+
+
+def _m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+    return m1606_contract_json_schema(name)
+
+
+def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
+    return m1603_contract_json_schema(name)
+
+
+def _m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+    return m1508_contract_json_schema(name)
+
+
+def _m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+    return m1502_contract_json_schema(name)
+
+
+def _m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
+    return m1405_contract_json_schema(name)
+
+
+def _m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+    return m1403_contract_json_schema(name)
+
+
+def _m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
+    return m1306_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -868,6 +1001,62 @@ def _m1708_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m1708_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1606_queue_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1606_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1502_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1502_contract_json_schema("request")}},
+        }
+    }
+
+
+async def _m1606_queue_body(
+    request: Request,
+) -> AdjudicateProteinRnaDiscordanceQueueRequest:
+    return await _strict_json_body(
+        request,
+        _M1606_QUEUE_ADAPTER,
+        preflight_m1606_authorization,
+        M1606_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+def _m1405_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1405_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1403_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1403_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1306_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1306_contract_json_schema("request")}},
         }
     }
 
@@ -1098,6 +1287,86 @@ async def _proteoform_quality_body(
     )
 
 
+def _m1603_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1603_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1508_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1508_contract_json_schema("request")}},
+        }
+    }
+
+
+async def _m1603_fusion_body(
+    request: Request,
+) -> FuseProteinRnaDiscordanceEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1603_FUSION_ADAPTER,
+        m1603.preflight_m1603_authorization,
+        M1603_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1508_dossier_body(
+    request: Request,
+) -> AssembleComplexActivityMechanismDossierRequest:
+    return await _strict_json_body(
+        request,
+        _M1508_DOSSIER_ADAPTER,
+        m1508.preflight_m1508_authorization,
+        M1508_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1502_body(request: Request) -> StratifyContextAndSubtypeRequest:
+    return await _strict_json_body(
+        request,
+        _M1502_ADAPTER,
+        m1502_module.preflight_m1502_authorization,
+        M1502_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1405_body(
+    request: Request,
+) -> ModelProteinSubtypeLongitudinalEvolutionRequest:
+    return await _strict_json_body(
+        request,
+        _M1405_ADAPTER,
+        m1405_module.preflight_m1405_authorization,
+        M1405_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1403_body(
+    request: Request,
+) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
+    return await _strict_json_body(
+        request,
+        _M1403_ADAPTER,
+        m1403_module.preflight_m1403_authorization,
+        M1403_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1306_body(request: Request) -> SimulateProteotypePerturbationRequest:
+    return await _strict_json_body(
+        request,
+        _M1306_ADAPTER,
+        preflight_m1306_authorization,
+        M1306_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 async def _m1701_body(
     request: Request,
 ) -> ResolveVariantPeptideUpstreamContractsRequest:
@@ -1155,6 +1424,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1606_queue_service = M1606Service()
+    m1603_service = m1603.M1603Service()
+    m1508_service = m1508.M1508Service()
+    m1502_service = m1502_module.M1502Service()
+    m1405_service = m1405_module.M1405Service()
+    m1403_service = m1403_module.M1403Service()
+    m1306_service = M1306Service()
     m1701_service = m1701_resolver.M1701Service()
     m1704_service = m1704_adapter.M1704Service()
     m1708_service = m1708_monitoring.M1708Service()
@@ -1204,10 +1480,23 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(m1603.M1603AuthorizationError)
+    @app.exception_handler(m1508.M1508AuthorizationError)
+    @app.exception_handler(m1502_module.M1502AuthorizationError)
+    @app.exception_handler(m1405_module.M1405AuthorizationError)
+    @app.exception_handler(m1403_module.M1403AuthorizationError)
+    @app.exception_handler(M1306AuthorizationError)
     @app.exception_handler(m1701_resolver.M1701AuthorizationError)
     @app.exception_handler(m1704_adapter.M1704AuthorizationError)
     @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(error)})
+
+    @app.exception_handler(M1606AuthorizationError)
+    def m1606_authorization_handler(
+        _request: Request,
+        error: M1606AuthorizationError,
+    ) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
     @app.exception_handler(InvalidProtocolLookupError)
@@ -1530,6 +1819,78 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> VariantPeptideTranslationMonitoringResult:
         return m1708_service.monitor(request)
 
+    @app.get("/v1/contracts/M16-06/{name}/schema", tags=["contracts"])
+    def m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+        return _m1606_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M16-06/reviewer-discrepancy-adjudication",
+        response_model=ProteinRnaDiscordanceAdjudicationResult,
+        tags=["M16-06"],
+        openapi_extra=_m1606_queue_request_body(),
+    )
+    def adjudicate_m1606_queue(
+        request: Annotated[
+            AdjudicateProteinRnaDiscordanceQueueRequest,
+            Depends(_m1606_queue_body),
+        ],
+    ) -> ProteinRnaDiscordanceAdjudicationResult:
+        return m1606_queue_service.adjudicate(request)
+
+    @app.get("/v1/contracts/M16-03/{name}/schema", tags=["contracts"])
+    def m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
+        return _m1603_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M16-03/fusion-aggregation",
+        response_model=ProteinRnaDiscordanceIntegratedEvidenceResult,
+        tags=["M16-03"],
+        openapi_extra=_m1603_request_body(),
+    )
+    def fuse_m1603_evidence(
+        request: Annotated[
+            FuseProteinRnaDiscordanceEvidenceRequest,
+            Depends(_m1603_fusion_body),
+        ],
+    ) -> ProteinRnaDiscordanceIntegratedEvidenceResult:
+        return m1603_service.execute(request)
+
+    @app.get("/v1/contracts/M15-08/{name}/schema", tags=["contracts"])
+    def m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+        return _m1508_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-08/mechanism-evidence-dossier",
+        response_model=ComplexActivityMechanismDossierResult,
+        tags=["M15-08"],
+        openapi_extra=_m1508_request_body(),
+    )
+    def assemble_m1508_dossier(
+        request: Annotated[
+            AssembleComplexActivityMechanismDossierRequest,
+            Depends(_m1508_dossier_body),
+        ],
+    ) -> ComplexActivityMechanismDossierResult:
+        return m1508_service.execute(request)
+
+    @app.get("/v1/contracts/M15-02/{name}/schema", tags=["contracts"])
+    def m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+        return _m1502_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-02/context-stratification",
+        response_model=LongitudinalRecurrenceContextStratificationResult,
+        tags=["M15-02"],
+        openapi_extra=_m1502_request_body(),
+    )
+    def stratify_m1502_context(
+        request: Annotated[
+            StratifyContextAndSubtypeRequest,
+            Depends(_m1502_body),
+        ],
+    ) -> LongitudinalRecurrenceContextStratificationResult:
+        return m1502_service.execute(request)
+
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
         response_model=ProteoformQualityResult,
@@ -1543,6 +1904,60 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.get("/v1/contracts/M14-05/{name}/schema", tags=["contracts"])
+    def m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
+        return _m1405_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M14-05/longitudinal-evolution",
+        response_model=ProteinSubtypeLongitudinalEvolutionResult,
+        tags=["M14-05"],
+        openapi_extra=_m1405_request_body(),
+    )
+    def infer_m1405_evolution(
+        request: Annotated[
+            ModelProteinSubtypeLongitudinalEvolutionRequest,
+            Depends(_m1405_body),
+        ],
+    ) -> ProteinSubtypeLongitudinalEvolutionResult:
+        return m1405_service.execute(request)
+
+    @app.get("/v1/contracts/M14-03/{name}/schema", tags=["contracts"])
+    def m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+        return _m1403_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M14-03/mechanistic-feature-construction",
+        response_model=ProteinSubtypeMechanisticFeatureResult,
+        tags=["M14-03"],
+        openapi_extra=_m1403_request_body(),
+    )
+    def construct_m1403_features(
+        request: Annotated[
+            ConstructProteinSubtypeMechanisticFeaturesRequest,
+            Depends(_m1403_body),
+        ],
+    ) -> ProteinSubtypeMechanisticFeatureResult:
+        return m1403_service.execute(request)
+
+    @app.get("/v1/contracts/M13-06/{name}/schema", tags=["contracts"])
+    def m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
+        return _m1306_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M13-06/perturbations",
+        response_model=ProteotypePerturbationSensitivityResult,
+        tags=["M13-06"],
+        openapi_extra=_m1306_request_body(),
+    )
+    def simulate_m1306_perturbations(
+        request: Annotated[
+            SimulateProteotypePerturbationRequest,
+            Depends(_m1306_body),
+        ],
+    ) -> ProteotypePerturbationSensitivityResult:
+        return m1306_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",

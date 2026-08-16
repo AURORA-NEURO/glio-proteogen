@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {"detail": "ready", "name": "bayesian_dossier_ready", "passed": true},
+    {"detail": "ready", "name": "state_space_dossier_ready", "passed": true},
+    {"detail": "ready", "name": "mechanistic_dossier_ready", "passed": true},
+    {"detail": "abstained", "name": "unsupported_family_abstention", "passed": true},
+    {"detail": "ready", "name": "claim_ceiling_visible", "passed": true},
+    {"detail": "replay and tamper", "name": "replay_and_tamper", "passed": true},
+    {"detail": "denied controls rejected", "name": "authorization_gate", "passed": true}
+  ],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "fixture": "tests/fixtures/m13_08/scenarios.json",
+  "fixture_digest": "sha256:eb929387f8ebe0e28b2fe66e4baa0fde4e2ff35ae7a5b94fa54704551e97303e",
+  "module_id": "GLIO-PROTEOGEN-M13-08",
+  "passed": true,
+  "passed_cases": 7,
+  "total_cases": 7
+}

@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-08",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "healthy_continue", "purpose": "Signals remain within the declared envelope."},
+    {"case_id": "support_drift_suspend", "purpose": "Support drift suspends translation use and requires review."},
+    {"case_id": "critical_discrepancy_rollback", "purpose": "Critical discrepancy drift selects rollback."},
+    {"case_id": "unsupported_abstention", "purpose": "Not-evaluable monitoring inputs abstain safely."},
+    {"case_id": "replay_and_tamper", "purpose": "Canonical replay succeeds and digest tampering fails."},
+    {"case_id": "authorization_gate", "purpose": "Rejected controls fail before signal traversal."}
+  ]
+}
