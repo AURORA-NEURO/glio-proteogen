@@ -156,6 +156,15 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
+from glio_proteogen.contracts.m19_04 import (
+    M1904_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptProteotypeIntendedUseRequest,
+    ProteotypeIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m19_04 import (
+    contract_json_schema as m1904_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_04.schema import ContractName as M1904ContractName  # noqa: TC001
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -300,6 +309,11 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904AuthorizationError,
+    M1904ReplayError,
+    M1904Service,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +447,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1904_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1904_app, name="m1904-intended-use")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3436,6 +3455,53 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@m1904_app.command("export-schema")
+def export_m1904_schema(
+    contract: Annotated[
+        M1904ContractName,
+        typer.Argument(help="M19-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-04 contract schema."""
+
+    typer.echo(json.dumps(m1904_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1904_app.command("adapt")
+def adapt_m1904_intended_use(request: RequestArgument) -> None:
+    """Adapt one strict M19-04 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdaptProteotypeIntendedUseRequest),
+            max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1904Service().adapt(parsed))
+    except M1904AuthorizationError as error:
+        typer.echo(f"M19-04 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-04 adaptation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1904_app.command("verify")
+def verify_m1904_intended_use(result: RequestArgument) -> None:
+    """Verify an M19-04 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntendedUseAdapterResult),
+            max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1904Service().replay(parsed))
+    except M1904ReplayError as error:
+        typer.echo(f"M19-04 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @app.command("export-schema")
