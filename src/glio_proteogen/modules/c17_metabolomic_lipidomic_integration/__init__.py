@@ -1,1 +1,1 @@
-"""C17 metabolomic/lipidomic integration module slices."""
+"""Metabolomic/lipidomic integration module implementations."""
