@@ -1,0 +1,9 @@
+requirement_id,authority_lines,implementation,tests_or_evidence,gate,status
+M1802-R01,6200-6204,contracts/m18_02/v1.py;schema.py,contract schema smoke,G0,implemented
+M1802-R02,6206-6208,contracts/m18_02/v1.py,source/media/parent closure adversaries,G0,implemented
+M1802-R03,6210-6216,engine.py;service.py,seven-dimension alignment tests,G1,implemented
+M1802-R04,6218,engine.py,uncertainty and abstention scenarios,G3,implemented
+M1802-R05,6220,engine.py;adapters/m1802.py,conflict review and API/CLI tests,G4,implemented
+M1802-R06,6222,engine.py;plugin.py,locked deterministic result and replay tests,G1/G3,implemented
+M1802-R07,6224,docs;release-evidence;tools/verify_m1802_release.py,release verifier,G4,implemented
+M1802-R08,6234-6240,tests/contract/test_m18_02_deep.py,24 focused tests;99 percent scoped branch coverage,G0/G1/G3/G4,implemented

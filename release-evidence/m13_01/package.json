@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-01",
+  "coverage_percent": 97.0,
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sha256": "5be750b56db27ec620d934d04d0bab2d85210702789995c6a358a3391a846841",
+    "size_bytes": 823363,
+    "members": 332
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "93a51a02923bef4f748ff0bed4514c6ee448b9f1dceffea0ab59efefcb82a98f",
+    "size_bytes": 1456875,
+    "members": 795
+  },
+  "isolated_import": true
+}

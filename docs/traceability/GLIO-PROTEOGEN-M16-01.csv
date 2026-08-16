@@ -1,0 +1,14 @@
+requirement,authority,implementation,evidence,gate
+typed upstream discovery,"dossier:5436-5476",contracts/m16_01/v1.py,tests/contract/test_m16_01_deep.py,G0
+protein_rna_discordance parent binding,"dossier:5436-5476",contracts/m16_01/v1.py,tests/contract/test_m16_01_deep.py,G0
+version compatibility,"dossier:5436-5476",engine.py,evals/m16_01/run.py,G0
+media type compatibility,"dossier:5436-5476",engine.py,evals/m16_01/run.py,G0
+required kind quarantine,"dossier:5436-5476",engine.py,tests/contract/test_m16_01_deep.py,G0
+consent and intended use preservation,"dossier:5436-5476",engine.py,tests/contract/test_m16_01_deep.py,G0
+support and provenance preservation,"dossier:5436-5476",v1.py and engine.py,tests/contract/test_m16_01_deep.py,G0
+seven uncertainty dimensions,"dossier:5436-5476",engine.py,tests/contract/test_m16_01_deep.py,G0
+typed rejection and safe abstention,"dossier:5436-5476",v1.py and engine.py,evals/m16_01/run.py,G0
+replay and tamper closure,"dossier:5436-5476",canonical.py and engine.py,tests/contract/test_m16_01_deep.py,G0
+strict API CLI plugin parity,"dossier:5436-5476",adapters/m1601.py and plugin.py,tests/contract/test_m16_01_deep.py,G0
+prohibited outputs,"dossier:5436-5476",schema.py and engine.py,docs/evidence/M16-01.md,G0
+reproducible release,"dossier:5436-5476",tools/verify_m1601_release.py,tests/tools/test_m1601_release.py,G0

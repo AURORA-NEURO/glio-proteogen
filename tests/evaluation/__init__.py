@@ -1,1 +1,1 @@
-"""Evaluator tests."""
+"""Evaluator and benchmark assertions."""

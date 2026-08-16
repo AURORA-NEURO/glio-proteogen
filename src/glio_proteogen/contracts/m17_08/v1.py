@@ -43,6 +43,10 @@ M1708_OWNER: Final = "Platform engineering"
 M1708_SAFETY_CLASS: Final = "S2"
 M1708_GATE: Final = "G5"
 M1708_PROVISIONAL_ABI: Final = True
+M1708_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1708_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6104-6144"
 M1708_MAX_TELEMETRY: Final = 256
 M1708_MAX_SUPPORT_DRIFT: Final = 128
 M1708_MAX_WORKFLOW_EFFECTS: Final = 128
@@ -275,6 +279,8 @@ class VariantPeptideTranslationMonitoringResult(FrozenModel):
 
 __all__ = [
     "M1708_CONTRACT_VERSION",
+    "M1708_DOSSIER_SHA256",
+    "M1708_DOSSIER_SLICE",
     "M1708_EVIDENCE_CLAIM",
     "M1708_GATE",
     "M1708_M1707_INPUT_MEDIA_TYPE",

@@ -1,0 +1,11 @@
+requirement_id,authority_lines,implementation,tests_or_evidence,gate,status
+M1707-R01,6060-6064,contracts/m17_07/v1.py;schema.py,contract schema smoke,G0,implemented
+M1707-R02,6065-6070,contracts/m17_07/v1.py,deep closure adversaries,G0/G4,implemented
+M1707-R03,6071-6076,engine.py;service.py,source and evidence binding tests,G1,implemented
+M1707-R04,6077-6080,engine.py,typed signed export assertions,G1/G3,implemented
+M1707-R05,6081-6084,engine.py;plugin.py,seven-control authorization and token tests,G1/G4,implemented
+M1707-R06,6085-6088,engine.py,uncertainty and safe-abstention scenarios,G3,implemented
+M1707-R07,6089-6092,engine.py;adapters/m1707.py,compatibility review API/CLI tests,G4,implemented
+M1707-R08,6093-6096,engine.py;evals/m17_07,deterministic evaluator and benchmark,G1/G3,implemented
+M1707-R09,6097-6099,docs;release-evidence;tools/verify_m1707_release.py,release verifier,G4,implemented
+M1707-R10,6100,tests/contract/test_m17_07_deep.py,26 focused tests;98 percent scoped branch coverage,G0/G1/G3/G4,implemented

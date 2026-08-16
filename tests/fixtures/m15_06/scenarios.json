@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-06",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "simulated_bounded", "expected": "simulated"},
+    {"case_id": "multi_scenario_surface", "expected": "simulated"},
+    {"case_id": "input_incomplete_abstention", "expected": "abstained"},
+    {"case_id": "negative_control_abstention", "expected": "abstained"},
+    {"case_id": "out_of_envelope_abstention", "expected": "abstained"},
+    {"case_id": "replay_and_tamper", "expected": "verified"},
+    {"case_id": "authorization_gate", "expected": "rejected"}
+  ]
+}

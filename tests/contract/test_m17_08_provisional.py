@@ -3,6 +3,8 @@
 import pytest
 
 from glio_proteogen.contracts.m17_08 import (
+    M1708_DOSSIER_SHA256,
+    M1708_DOSSIER_SLICE,
     M1708_OUTPUT_MEDIA_TYPE,
     M1708_PROVISIONAL_ABI,
     RollbackDecision,
@@ -35,6 +37,12 @@ def test_provisional_schemas_require_translation_health_controls() -> None:
     )
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1708_OUTPUT_MEDIA_TYPE
     assert M1708_PROVISIONAL_ABI is True
+    assert schemas["request"]["x-glio-contract"]["dossierSha256"].endswith(
+        M1708_DOSSIER_SHA256.removeprefix("sha256:")
+    )
+    assert schemas["request"]["x-glio-contract"]["dossierSlice"].endswith(
+        M1708_DOSSIER_SLICE
+    )
 
 
 def test_health_and_rollback_states_are_explicit() -> None:
