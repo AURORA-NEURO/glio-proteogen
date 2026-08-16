@@ -2,9 +2,9 @@
   "module_id": "GLIO-PROTEOGEN-M26-03",
   "fixture_digest": "sha256:1fb46711bebddedb57439c23fe6379544e0d3d3e421b635eb5f57159957cdcc1",
   "iterations": 10,
-  "mean_ns": 5259760,
-  "median_ns": 5160100,
-  "p95_ns": 8668500,
+  "mean_ns": 2829400,
+  "median_ns": 2649350,
+  "p95_ns": 3126200,
   "budgets_ns": {"mean_max": 500000000, "p95_max": 750000000},
   "passed": true
 }

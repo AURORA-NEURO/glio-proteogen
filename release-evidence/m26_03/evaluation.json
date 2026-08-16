@@ -13,7 +13,7 @@
   "passed": 7,
   "adversarial_case_count": 13,
   "adversarial_passed_count": 13,
-  "focused_test_count": 40,
+  "focused_test_count": 44,
   "scenarios": [
     "nominal_completed_package",
     "denied_control_abstention",
