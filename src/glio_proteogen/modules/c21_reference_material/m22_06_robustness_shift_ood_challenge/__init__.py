@@ -1,5 +1,7 @@
 """M22-06 deterministic robustness and OOD challenge runtime exports."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2206AuthorizationError,
     M2206Engine,
@@ -20,5 +22,7 @@ __all__ = [
     "M2206Service",
     "ValidatedM2206Request",
     "challenge_protein_rna_discordance_robustness",
+    "cli_app",
+    "create_app",
     "preflight_m2206_authorization",
 ]
