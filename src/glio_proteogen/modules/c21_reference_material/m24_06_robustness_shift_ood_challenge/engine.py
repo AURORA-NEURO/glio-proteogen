@@ -10,7 +10,6 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m24_06 import (
     M2406_CONTRACT_VERSION,
     M2406_EVIDENCE_CLAIM,
-    M2406_M2405_INPUT_MEDIA_TYPE,
     M2406_MODULE_ID,
     BiomarkerPanelRobustnessChallengeResult,
     ChallengeBiomarkerPanelRobustnessRequest,
@@ -95,8 +94,6 @@ class M2406RobustnessEngine:
         preflight_m2406_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         canonical = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(validated), strict=True)
-        if canonical.upstream_result.media_type != M2406_M2405_INPUT_MEDIA_TYPE:
-            raise ValueError("M24-06 requires the declared M24-05 input media type")  # noqa: TRY003
         request_digest = canonical_request_digest(canonical)
         observations = tuple(_observation(scenario, canonical) for scenario in canonical.scenarios)
         adverse = tuple(
