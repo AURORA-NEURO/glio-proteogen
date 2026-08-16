@@ -46,6 +46,10 @@ M2007_OWNER: Final = "Computational biology"
 M2007_SAFETY_CLASS: Final = "S2"
 M2007_GATE: Final = "G3"
 M2007_PROVISIONAL_ABI: Final = True
+M2007_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2007_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7140-7180"
 M2007_MAX_FIELDS: Final = 128
 M2007_MAX_EVIDENCE: Final = 64
 M2007_MAX_FINDINGS: Final = 64
@@ -99,6 +103,13 @@ class ExportField(FrozenModel):
     value_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2007_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def evidence_is_unique(self) -> ExportField:
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("export field evidence must be unique")
+        return self
+
 
 class ExportOwnershipBinding(FrozenModel):
     """Explicit owner and boundary for the downstream contract object."""
@@ -110,6 +121,13 @@ class ExportOwnershipBinding(FrozenModel):
     kinase_activity_owned_elsewhere: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2007_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def evidence_is_unique(self) -> ExportOwnershipBinding:
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("ownership evidence must be unique")
+        return self
+
 
 class SignedContractEnvelope(FrozenModel):
     """Signature binding for an immutable downstream contract projection."""
@@ -120,6 +138,13 @@ class SignedContractEnvelope(FrozenModel):
     signature_digest: Sha256Digest
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2007_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def evidence_is_unique(self) -> SignedContractEnvelope:
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("signature evidence must be unique")
+        return self
+
 
 class DownstreamExportConfiguration(FrozenModel):
     configuration_id: Identifier
@@ -129,7 +154,18 @@ class DownstreamExportConfiguration(FrozenModel):
     documented_fields_only: Literal[True] = True
     immutable: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2007_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2007_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def configuration_is_closed(self) -> DownstreamExportConfiguration:
+        if not self.documented_fields_only or not self.immutable or not self.locked:
+            raise ValueError(
+                "downstream export configuration must be documented, immutable, and locked"
+            )
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("configuration evidence must be unique")
+        return self
 
 
 class DownstreamContractObject(FrozenModel):
@@ -163,6 +199,12 @@ class DownstreamContractObject(FrozenModel):
             raise ValueError("downstream contract requires supported status")
         if self.ownership.owning_module != M2007_MODULE_ID:
             raise ValueError("ownership binding must name M20-07")
+        if (
+            not self.configuration.documented_fields_only
+            or not self.configuration.immutable
+            or not self.configuration.locked
+        ):
+            raise ValueError("downstream contract configuration is not locked")
         return self
 
 
@@ -200,6 +242,9 @@ class ExportProteinSubtypeDownstreamContractRequest(FrozenModel):
             raise ValueError("request export field ids must be unique")
         if len(field_names) != len(set(field_names)):
             raise ValueError("request export field names must be unique")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request source artifact ids must be unique")
         return self
 
 
@@ -231,12 +276,22 @@ class ProteinSubtypeDownstreamExportResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeDownstreamExportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("export finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("export result evidence digests must be unique")
         if self.status is ExportStatus.EXPORTED:
             if (
                 self.contract is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
                 or self.request.consent.state is not ConsentState.GRANTED
+                or self.human_review_required
             ):
                 raise ValueError("exported result requires supported status and granted consent")
         elif (
@@ -244,6 +299,7 @@ class ProteinSubtypeDownstreamExportResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no contract and safe status")
         if self.result_digest != result_payload_digest(self):
@@ -253,6 +309,8 @@ class ProteinSubtypeDownstreamExportResult(FrozenModel):
 
 __all__ = [
     "M2007_CONTRACT_VERSION",
+    "M2007_DOSSIER_SHA256",
+    "M2007_DOSSIER_SLICE",
     "M2007_EVIDENCE_CLAIM",
     "M2007_GATE",
     "M2007_M2006_INPUT_MEDIA_TYPE",
