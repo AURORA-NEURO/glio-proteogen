@@ -1,5 +1,11 @@
 """M21-05 subgroup equity evaluator."""
 
+from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator.api import (
+    create_app,
+)
+from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator.cli import (
+    app as cli_app,
+)
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator.engine import (
     M2105AuthorizationError,
     M2105Engine,
@@ -24,6 +30,8 @@ __all__ = [
     "M2105ReplayError",
     "M2105Service",
     "ValidatedM2105Request",
+    "cli_app",
+    "create_app",
     "evaluate_complex_activity_subgroup_equity",
     "preflight_m2105_authorization",
 ]
