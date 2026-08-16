@@ -1,0 +1,78 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-06",
+  "contract_version": "0.1.0-provisional",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": "2416-2457",
+  "claims_ceiling": [
+    "typed_uncertainty_object",
+    "sensitivity_envelope",
+    "safe_abstention",
+    "no_parent_proteotype_emission",
+    "no_kinase_activity",
+    "no_treatment_recommendation"
+  ],
+  "request": {
+    "request_id": "request.m0706.fixture",
+    "context": {
+      "request_id": "request.m0706.fixture",
+      "actor_id": "actor.m0706.fixture",
+      "occurred_at": "2026-01-01T00:00:00Z",
+      "references": {
+        "approved_configuration": {
+          "decision_id": "decision.m0706.configuration",
+          "state": "accepted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.configuration", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}
+        },
+        "identity_lineage": {
+          "decision_id": "decision.m0706.identity",
+          "state": "resolved",
+          "policy_version": "1.0.0",
+          "binding_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "evidence": {"artifact_id": "evidence.identity", "version": "1.0.0", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "media_type": "application/json"}
+        },
+        "provenance": {
+          "decision_id": "decision.m0706.provenance",
+          "state": "accepted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.provenance", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}
+        },
+        "consent": {
+          "decision_id": "decision.m0706.consent",
+          "state": "granted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.consent", "version": "1.0.0", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "media_type": "application/json"}
+        },
+        "quality": {
+          "decision_id": "decision.m0706.quality",
+          "state": "accepted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.quality", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}
+        },
+        "support": {
+          "decision_id": "decision.m0706.support",
+          "state": "accepted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.support", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}
+        },
+        "intended_use": {
+          "decision_id": "decision.m0706.intended-use",
+          "state": "accepted",
+          "policy_version": "1.0.0",
+          "evidence": {"artifact_id": "evidence.intended-use", "version": "1.0.0", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "media_type": "application/json"}
+        }
+      }
+    },
+    "constraint_result": {"artifact_id": "constraint.m0705", "version": "1.0.0", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "media_type": "application/vnd.glio-proteogen.m07-05+json"},
+    "policy": {
+      "policy_id": "policy.m0706.fixture",
+      "version": "1.0.0",
+      "method": "provisional-no-calibration",
+      "calibration_reference": {"artifact_id": "calibration.m0706", "version": "1.0.0", "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "media_type": "application/json"}
+    },
+    "source_artifacts": [
+      {"artifact_id": "constraint.m0705", "version": "1.0.0", "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "media_type": "application/vnd.glio-proteogen.m07-05+json"},
+      {"artifact_id": "source.proteome", "version": "1.0.0", "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "media_type": "application/json"}
+    ]
+  }
+}

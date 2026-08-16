@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-07",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3540, 3583]
+  },
+  "provisional_abi": true,
+  "scenarios": [
+    {"id": "supported_scoped_calibration", "expected_status": "calibrated"},
+    {"id": "support_threshold_abstention", "expected_finding": "support_threshold_not_met"},
+    {"id": "ood_threshold_abstention", "expected_finding": "ood_unsupported"},
+    {"id": "unsupported_media_abstention", "expected_finding": "ood_unsupported"},
+    {"id": "canonical_replay_and_tamper", "expected_verified": true}
+  ]
+}
