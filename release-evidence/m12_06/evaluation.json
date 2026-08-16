@@ -1,0 +1,51 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-06",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "4216-4259",
+    "abi_status": "provisional-dossier-behavioral-brief-only"
+  },
+  "fixture": "tests/fixtures/m12_06/scenarios.json",
+  "fixture_sha256": "22da720fed49ecb789a26a6e3785f6044536137747ed2635fea644e68363d9ba",
+  "declared_case_ids": [
+    "supported_bounded_surface",
+    "unsupported_perturbation_abstains",
+    "out_of_envelope_abstains",
+    "consent_denied",
+    "identity_denied",
+    "support_denied"
+  ],
+  "executed_case_ids": [
+    "supported_bounded_surface",
+    "unsupported_perturbation_abstains",
+    "out_of_envelope_abstains",
+    "consent_denied",
+    "identity_denied",
+    "support_denied"
+  ],
+  "declared_case_count": 6,
+  "executed_case_count": 6,
+  "checks": [
+    {"case_id": "supported_bounded_surface", "passed": true},
+    {"case_id": "supported_bounded_surface:replay", "passed": true},
+    {"case_id": "unsupported_perturbation_abstains", "passed": true},
+    {"case_id": "out_of_envelope_abstains", "passed": true},
+    {"case_id": "consent_denied", "passed": true},
+    {"case_id": "identity_denied", "passed": true},
+    {"case_id": "support_denied", "passed": true}
+  ],
+  "coverage": {
+    "total_percent": 100.0,
+    "branch_percent": 100.0,
+    "statements": 490,
+    "branches": 74,
+    "scoped_packages": [
+      "glio_proteogen.contracts.m12_06",
+      "glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator",
+      "glio_proteogen.adapters.m1206"
+    ],
+    "report": "release-evidence/m12_06/coverage.json"
+  },
+  "passed": true
+}

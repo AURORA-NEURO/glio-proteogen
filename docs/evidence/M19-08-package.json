@@ -1,0 +1,54 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-08",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6824-6864"
+  },
+  "source_commit_before_package_evidence": "858de4c",
+  "tests": {
+    "focused_passed": 38,
+    "scoped_branch_coverage_percent": 96.0,
+    "scoped_statements": 488,
+    "scoped_branches": 84,
+    "ruff": "pass",
+    "mypy_strict": "pass",
+    "compileall": "pass"
+  },
+  "evaluator": {
+    "scenario_count": 8,
+    "adversarial_case_count": 8,
+    "adversarial_passed_count": 8,
+    "coverage_target_percent": 95,
+    "passed": true,
+    "fixture_dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+  },
+  "benchmark": {
+    "iterations": 25,
+    "warmup_count": 1,
+    "mean_ns": 2942496.0,
+    "p50_ns": 2943000,
+    "p95_ns": 3453600,
+    "mean_budget_ns": 500000000,
+    "p95_budget_ns": 750000000,
+    "request_digest": "sha256:960602ce1fa3751b9683e067feb0399fcf26fe855ea62c2cee4023f970c2e393",
+    "result_digest": "sha256:667a38ddeccc907f372ee7a8c46d33448a2e326159c6e0dbb2a5f1f3383dbce6",
+    "passed": true
+  },
+  "packages": [
+    {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 931272,
+      "sha256": "d8fa27d7b55c816ac180ed1f206e9b83579cde2cdd9e5c0463bc715e0d18ef25",
+      "isolated_import": "pass"
+    },
+    {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1500922,
+      "sha256": "36dc6f3cfa54cd580c9ac5125f7305aef58d317c82c00d4a7bebff725acbf409",
+      "isolated_import": "not_applicable"
+    }
+  ],
+  "claims_ceiling": "Synthetic metadata contract and deterministic software control-flow evidence only; no telemetry truth, issuer authority, rollback approval, biological or clinical claim.",
+  "passed": true
+}

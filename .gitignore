@@ -26,3 +26,7 @@ __pycache__/
 *.sqlite3-journal
 benchmark-results/
 evidence-bundles/
+coverage-m18-06*.json
+runtime-m18-06.txt
+release-m18-*/
+evidence-m18-06/

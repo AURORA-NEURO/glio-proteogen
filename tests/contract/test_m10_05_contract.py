@@ -21,8 +21,7 @@ def test_provisional_schemas_require_constraint_ablation_metadata() -> None:
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["softConstraintAblationRequired"]
-        for schema in schemas.values()
+        schema["x-glio-contract"]["softConstraintAblationRequired"] for schema in schemas.values()
     )
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1005_OUTPUT_MEDIA_TYPE
     assert M1005_MAX_EVIDENCE > 0

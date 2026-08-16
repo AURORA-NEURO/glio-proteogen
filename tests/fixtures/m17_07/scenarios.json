@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-07",
+  "contract_version": "0.1.0-provisional",
+  "parent_target": "variant peptide",
+  "scenarios": [
+    "supported_export",
+    "unsupported_abstention",
+    "compatibility_abstention",
+    "replay",
+    "tamper",
+    "authorization_gate"
+  ],
+  "synthetic_only": true
+}
+

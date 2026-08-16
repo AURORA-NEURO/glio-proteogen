@@ -4,6 +4,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m18_06 import (
+    M1806_DOSSIER_SHA256,
+    M1806_DOSSIER_SLICE,
     M1806_M1805_INPUT_MEDIA_TYPE,
     M1806_OUTPUT_MEDIA_TYPE,
     M1806_PROVISIONAL_ABI,
@@ -42,6 +44,12 @@ def test_provisional_schemas_require_review_queue_invariants() -> None:
         assert metadata["upstreamInputMediaType"] == M1806_M1805_INPUT_MEDIA_TYPE
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1806_OUTPUT_MEDIA_TYPE
     assert M1806_PROVISIONAL_ABI is True
+    assert schemas["request"]["x-glio-contract"]["dossierSha256"].endswith(
+        M1806_DOSSIER_SHA256.removeprefix("sha256:")
+    )
+    assert schemas["request"]["x-glio-contract"]["dossierSlice"].endswith(
+        M1806_DOSSIER_SLICE
+    )
 
 
 def test_queue_reason_and_safe_state_are_explicit() -> None:

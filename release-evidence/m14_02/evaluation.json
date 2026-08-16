@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {"detail": "stratified", "name": "curated_context_stratified", "passed": true},
+    {"detail": "stratified", "name": "bayesian_context_stratified", "passed": true},
+    {"detail": "stratified", "name": "state_space_context_stratified", "passed": true},
+    {"detail": "stratified", "name": "foundation_context_stratified", "passed": true},
+    {"detail": "abstained", "name": "unsupported_method_abstention", "passed": true},
+    {"detail": "abstained", "name": "conflict_abstention", "passed": true},
+    {"detail": "abstained", "name": "proxy_blocked", "passed": true},
+    {"detail": "replay and tamper", "name": "replay_and_tamper", "passed": true},
+    {"detail": "denied controls rejected", "name": "authorization_gate", "passed": true}
+  ],
+  "declared_cases": 9,
+  "executed_cases": 9,
+  "fixture": "tests/fixtures/m14_02/scenarios.json",
+  "fixture_digest": "sha256:a6222caae33611ae49f087793ee6aa7ec5762867585a2f9ed594ee4999e17ea4",
+  "module_id": "GLIO-PROTEOGEN-M14-02",
+  "passed": true,
+  "passed_cases": 9,
+  "total_cases": 9
+}
