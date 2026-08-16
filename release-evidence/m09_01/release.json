@@ -1,0 +1,74 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-01",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [2916, 2959]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "f2549d5 Scaffold provisional M09-01 formal state contract",
+    "fb10358 feat(m09-01): close formal-state schema invariants",
+    "b1a31f9 feat(m09-01): implement replay-bound formal-state runtime",
+    "1a8b6f9 feat(m09-01): add strict API CLI and sealed plugin parity",
+    "965c97c test(m09-01): add evaluator matrix and deterministic benchmark",
+    "8b0529b test(m09-01): close API replay parity and interface coverage",
+    "2a2a7c3 test(m09-01): close adversarial coverage and strict typing"
+  ],
+  "focusedTests": {
+    "count": 45,
+    "command": "python -W error -m pytest --no-cov tests/contract/test_m09_01_contract.py tests/contract/test_m09_01_adversarial.py tests/modules/c09_complex_stoichiometry tests/integration/test_m09_01_interfaces.py",
+    "passed": true
+  },
+  "coverage": {
+    "scope": "contracts/m09_01 plus c09_complex_stoichiometry/m09_01_formal_state_feature_schema",
+    "branchEnabled": true,
+    "percent": 95,
+    "statements": 671,
+    "branches": 160,
+    "failUnder": 95
+  },
+  "quality": {
+    "ruff": "clean",
+    "mypyStrict": "clean for 14 source/eval files",
+    "compileall": "clean",
+    "warningsAsErrors": true
+  },
+  "evaluator": {
+    "valid": "valid",
+    "invalid": "invalid",
+    "missing": "abstained",
+    "unknownExpression": "abstained",
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 1159260,
+    "medianNs": 1167650,
+    "p95Ns": 1302500,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "builder": "hatchling via python -m build --wheel --sdist --no-isolation",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 753779,
+      "sha256": "eee1a50581613d559ec395e96143840aa32ffc514b8f2ccde7128119ea6863d0"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1432209,
+      "sha256": "02e51544f49142c2b27071460d4c646913fbd988ae8ba8d0749040480f5d6b97"
+    },
+    "isolatedImport": "passed; installed wheel exposes 10 M09-01 schemas"
+  },
+  "limitations": [
+    "ABI, feature catalogue, endpoint media types, estimator choice, and operational capacities remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "External reviewer sign-off and GitHub CI status are outside this local evidence record."
+  ]
+}
