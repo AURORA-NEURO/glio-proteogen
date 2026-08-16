@@ -18,7 +18,7 @@ from glio_proteogen.kernel.models import (
     SupportStatus,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (
+from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     M2603AuthorizationError,
     M2603Engine,
     M2603EvaluationError,

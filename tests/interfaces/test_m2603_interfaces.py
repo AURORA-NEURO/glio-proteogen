@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     api as m2603_api,
 )
-from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (
+from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     cli as m2603_cli,
 )
 
