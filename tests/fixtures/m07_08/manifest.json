@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-08",
+  "abi_status": "dossier-behavioral-brief-only",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": "2504-2547",
+  "scenario_count": 8,
+  "required_scenarios": [
+    "safe_abstention",
+    "transitive_replay",
+    "tampered_receipt",
+    "unresolved_controls",
+    "wrong_upstream_media",
+    "duplicate_json_keys",
+    "opaque_source_attribution",
+    "prohibited_parent_emission"
+  ]
+}

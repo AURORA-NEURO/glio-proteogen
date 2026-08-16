@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M13-04."""
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m13_04 import (
@@ -14,21 +16,25 @@ from glio_proteogen.contracts.m13_04 import (
 _SCHEMA_COUNT = 5
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def test_provisional_schemas_require_counter_evidence_and_abstention() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["counterEvidenceRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
+        _metadata(schema)["counterEvidenceRequired"]
+        and _metadata(schema)["explicitAbstentionRequired"]
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["primaryArchitecture"] == "isoform_aware_quantification"
+        _metadata(schema)["primaryArchitecture"] == "isoform_aware_quantification"
         for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1304_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M1304_OUTPUT_MEDIA_TYPE
     assert M1304_PROVISIONAL_ABI is True
 
 

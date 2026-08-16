@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M20-01."""
 
+from typing import Any, cast
+
 from glio_proteogen.contracts.m20_01 import (
     M2001_OUTPUT_MEDIA_TYPE,
     M2001_PROVISIONAL_ABI,
@@ -10,6 +12,10 @@ from glio_proteogen.contracts.m20_01 import (
 from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
 _SCHEMA_COUNT = 9
+
+
+def _metadata(schema: dict[str, object]) -> dict[str, Any]:
+    return cast("dict[str, Any]", schema["x-glio-contract"])
 
 
 def _evidence() -> EvidenceReference:
@@ -28,25 +34,26 @@ def _evidence() -> EvidenceReference:
 def test_provisional_schemas_preserve_typed_resolution_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["typedDiscoveryRequired"]
-        and schema["x-glio-contract"]["versionCompatibilityRequired"]
-        and schema["x-glio-contract"]["consentRequired"]
-        and schema["x-glio-contract"]["intendedUseRequired"]
-        and schema["x-glio-contract"]["supportRequired"]
-        and schema["x-glio-contract"]["provenancePreserved"]
-        and schema["x-glio-contract"]["typedRejectionsRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        cast("str", schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values()
+    )
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(
+        _metadata(schema)["typedDiscoveryRequired"]
+        and _metadata(schema)["versionCompatibilityRequired"]
+        and _metadata(schema)["consentRequired"]
+        and _metadata(schema)["intendedUseRequired"]
+        and _metadata(schema)["supportRequired"]
+        and _metadata(schema)["provenancePreserved"]
+        and _metadata(schema)["typedRejectionsRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein subtype"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "protein subtype" for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2001_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2001_OUTPUT_MEDIA_TYPE
     assert M2001_PROVISIONAL_ABI is True
 
 

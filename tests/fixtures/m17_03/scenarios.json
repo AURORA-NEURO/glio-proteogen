@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-03",
+  "contract_version": "0.1.0-provisional",
+  "scenarios": [
+    "healthy_integrated",
+    "disagreement_visible",
+    "low_reliability_review",
+    "unsupported_abstention",
+    "replay",
+    "authorization_gate"
+  ],
+  "provisional": true
+}

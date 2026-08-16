@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-08",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:5384-5424",
+  "cases": [
+    {"id": "supported-reconstructable-dossier", "kind": "supported", "expected": "ready"},
+    {"id": "withheld-consent", "kind": "denied_control", "expected": "authorization_error"},
+    {"id": "wrong-upstream-media", "kind": "wrong_upstream_media", "expected": "validation_error"},
+    {"id": "unknown-field", "kind": "unknown_field", "expected": "validation_error"},
+    {"id": "duplicate-source", "kind": "duplicate_source", "expected": "validation_error"},
+    {"id": "missing-configuration-manifest", "kind": "missing_manifest", "expected": "validation_error"},
+    {"id": "missing-source-evidence", "kind": "missing_counter_input", "expected": "validation_error"},
+    {"id": "tampered-result", "kind": "tampered_result", "expected": "replay_error"}
+  ]
+}
