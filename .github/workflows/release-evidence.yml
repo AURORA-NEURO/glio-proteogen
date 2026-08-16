@@ -68,7 +68,9 @@ jobs:
           uv run python -m evals.m04_02.run --output evidence/m04-02-eval.json
           uv run python -m evals.m04_03.run --output evidence/m04-03-eval.json
           uv run python -m evals.m04_04.run --output evidence/m04-04-eval.json
-          uv run python -m evals.m18_03.run --output evidence/m18-03-eval.json
+          uv run python -m evals.m17_01.run --output evidence/m17-01-eval.json
+          uv run python -m evals.m17_04.run --output evidence/m17-04-eval.json
+          uv run python -m evals.m17_08.run --output evidence/m17-08-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
           uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
           uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=evidence/m01-03-benchmark.json --no-cov
@@ -97,7 +99,9 @@ jobs:
           uv run python -m evals.m04_02.benchmark --output evidence/m04-02-benchmark.json
           uv run python -m evals.m04_03.benchmark --output evidence/m04-03-benchmark.json
           uv run python -m evals.m04_04.benchmark --output evidence/m04-04-benchmark.json
-          uv run python -m evals.m18_03.benchmark --output evidence/m18-03-benchmark.json
+          uv run python -m evals.m17_01.benchmark --output evidence/m17-01-benchmark.json
+          uv run python -m evals.m17_04.benchmark --output evidence/m17-04-benchmark.json
+          uv run python -m evals.m17_08.benchmark --output evidence/m17-08-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-03-evidence \
             evidence/m04-03-eval.json evidence/m04-03-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-04-evidence \

@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-04",
+  "scope": [
+    "glio_proteogen.contracts.m13_04",
+    "glio_proteogen.modules.c11_protein_native_subtype.m13_04_network_state_mechanism_inference",
+    "glio_proteogen.adapters.m1304"
+  ],
+  "branch_enabled": true,
+  "statements": 476,
+  "covered_statements": 476,
+  "branches": 74,
+  "covered_branches": 74,
+  "coverage_percent": 100.0,
+  "fail_under_percent": 95.0,
+  "focused_tests": 27,
+  "passed": true
+}

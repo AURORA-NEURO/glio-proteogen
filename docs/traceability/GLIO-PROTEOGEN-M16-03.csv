@@ -1,0 +1,18 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M16-03-R01,"Bind implementation to the exact authoritative dossier slice and SHA-256","M1603_DOSSIER_SHA256 and M1603_DOSSIER_SLICE","contract metadata assertions and evaluator report",G2
+M16-03-R02,"Require the provisional M16-02 alignment result media type","request upstream media-type invariant","wrong-upstream-media fixture",G2
+M16-03-R03,"Preserve source attribution and component-specific source kind","SourceContribution and SourceKind","supported integration contribution assertions",G2
+M16-03-R04,"Retain reliability score, band, and uncertainty for every contribution","SourceContribution reliability fields","supported and low-reliability evaluator cases",G2
+M16-03-R05,"Preserve open disagreement without silent resolution","DisagreementRecord and disagreement finding","supported conflict assertion and evaluator report",G2
+M16-03-R06,"Retain signed propagation links without claiming signature authority","SignedPropagationRecord","propagation digest assertion and limitation",G2
+M16-03-R07,"Abstain for low or non-evaluable reliability","threshold boundary and FusionStatus.ABSTAINED","low-reliability and not-evaluable fixtures",G2
+M16-03-R08,"Check all seven controls before contribution traversal","preflight_m1603_authorization","denied-control fixture and HTTP 403 test",G2
+M16-03-R09,"Reject unknown, duplicate, malformed, and wrong-upstream inputs","strict Pydantic request boundary","unknown-field, duplicate-source, and media fixtures",G2
+M16-03-R10,"Bind results to exact request and verify deterministic replay","canonical request/result digests","tampered-result and replay-mismatch tests",G2
+M16-03-R11,"Expose measurement, sampling, parameter, model-form, identification, support, and transport uncertainty","UncertaintyProfile with not-estimable estimates","runtime uncertainty and limitation assertions",G2
+M16-03-R12,"Stay inside the protein-RNA discordance context and ownership ceiling","emits_parent=false and plugin descriptor prohibitions","descriptor and result assertions",G2
+M16-03-R13,"Reject KINOPHOS kinase, generic all-omics, treatment, identity, and unsupported-negative outputs","claim/descriptor limitations","descriptor and evaluator output-boundary assertions",G2
+M16-03-R14,"Expose strict HTTP, CLI, and sealed plugin interfaces","FastAPI/Typer/plugin adapters","integration interface tests and installed CLI smoke",G2
+M16-03-R15,"Provide adversarial evaluator coverage at or above release threshold","locked eight-case synthetic corpus","evals.m16_03.run (8/8 outcomes)",G2
+M16-03-R16,"Report representative replay performance","bounded component-specific metadata benchmark","evals.m16_03.benchmark (100 calls)",G2
+M16-03-R17,"Verify wheel build, installation, and installed imports","release artifact verification","uv build/uv pip install/verify_release_artifacts report",G2
