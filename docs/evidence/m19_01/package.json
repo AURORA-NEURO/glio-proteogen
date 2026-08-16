@@ -1,0 +1,15 @@
+{
+  "isolated_import": true,
+  "module_id": "GLIO-PROTEOGEN-M19-01",
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "fe4274f095a564c7d94c3e9f20f1d4e9b03c7b0dd7cb0e8730d9c82ca411950a",
+    "size_bytes": 2895670
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "member_count": 1244,
+    "sha256": "4d91e313729af2a43b398549fb047ab6cb3bd92387e5d3bb3dd9cd72f873fe12",
+    "size_bytes": 2380665
+  }
+}

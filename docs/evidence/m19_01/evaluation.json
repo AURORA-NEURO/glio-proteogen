@@ -1,0 +1,63 @@
+{
+  "adversarial_case_count": 10,
+  "adversarial_coverage_percent": 100.0,
+  "adversarial_passed_count": 10,
+  "checks": [
+    {
+      "detail": "observed=9 expected=9",
+      "name": "corpus.scenario_count",
+      "passed": true
+    },
+    {
+      "detail": "every declared scenario executes against an explicit oracle",
+      "name": "corpus.executable_oracles",
+      "passed": true
+    },
+    {
+      "detail": "resolver does not emit the parent proteotype",
+      "name": "mixed.parent_boundary",
+      "passed": true
+    },
+    {
+      "detail": "all seven uncertainty dimensions remain explicit",
+      "name": "mixed.uncertainty_explicit",
+      "passed": true
+    },
+    {
+      "detail": "evaluator is bound to the permitted dossier authority slice",
+      "name": "authority.module_identity",
+      "passed": true
+    },
+    {
+      "detail": "plugin descriptor preserves scope and safety boundaries",
+      "name": "descriptor.boundaries",
+      "passed": true
+    },
+    {
+      "detail": "payload digest is bound",
+      "name": "replay.tamper_denied",
+      "passed": true
+    },
+    {
+      "detail": "a forged payload cannot pass by recomputing its digest",
+      "name": "replay.reconstruction_denied",
+      "passed": true
+    },
+    {
+      "detail": "same canonical request yields the same result digest",
+      "name": "determinism.reconstruction",
+      "passed": true
+    },
+    {
+      "detail": "passed=10/10",
+      "name": "adversarial.coverage",
+      "passed": true
+    }
+  ],
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "6516-6556",
+  "module_id": "GLIO-PROTEOGEN-M19-01",
+  "passed": true,
+  "scenario_count": 9,
+  "target_percent": 100
+}

@@ -1,0 +1,19 @@
+{
+  "candidate_count": 3,
+  "contract_version": "0.1.0-provisional",
+  "iterations": 25,
+  "maximum_ns": 12306000,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 5610080.0,
+  "module_id": "GLIO-PROTEOGEN-M19-01",
+  "p50_ns": 5480200,
+  "p95_budget_ns": 750000000,
+  "p95_ns": 6532600,
+  "passed": true,
+  "replay_verified": true,
+  "request_digest": "sha256:8cbf1b5b06d0ad23e9c1e3278c4ec8c4685be8ebcec89122da2bad5bc950dbdb",
+  "result_digest": "sha256:8b3f18b5f17e10d2efb66504c18b2a54d65b16a9d15c48b7b152ab70eb6c60f9",
+  "timed_boundary": "M1901Engine.resolve_only",
+  "warmup_count": 1,
+  "workload": "mixed_compatible_rejected_unknown_upstream_candidates"
+}
