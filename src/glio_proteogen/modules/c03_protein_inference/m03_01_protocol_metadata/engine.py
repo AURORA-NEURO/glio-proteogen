@@ -127,6 +127,10 @@ class M0301ProteinInferenceProtocolEngine:
             "status": status,
             "disposition": disposition,
             "parent_target": "complex_activity",
+            "infers_protein": False,
+            "infers_proteoform": False,
+            "infers_isoform": False,
+            "infers_glioma_specific_biology": False,
             "support": _support(disposition),
             "uncertainty": _uncertainty(),
             "provenance": _provenance(

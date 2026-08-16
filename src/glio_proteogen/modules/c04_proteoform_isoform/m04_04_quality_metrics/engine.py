@@ -197,6 +197,7 @@ def _compute_result(
         "infers_protein": False,
         "infers_proteoform": False,
         "infers_isoform": False,
+        "infers_glioma_specific_biology": False,
         "localizes_modification": False,
         "infers_kinase_activity": False,
         "performs_cn_to_protein_regression": False,

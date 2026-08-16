@@ -106,6 +106,8 @@ class M0402ProteoformIdentityLineageReconciler:
             "infers_consent": False,
             "infers_protein": False,
             "infers_proteoform": False,
+            "infers_isoform": False,
+            "infers_glioma_specific_biology": False,
             "infers_kinase_activity": False,
             "performs_cn_to_protein_regression": False,
             "performs_all_omics_fusion": False,

@@ -174,6 +174,8 @@ def _harmonization_result(
         "infers_identity": False,
         "infers_protein": False,
         "infers_proteoform": False,
+        "infers_isoform": False,
+        "infers_glioma_specific_biology": False,
         "infers_kinase_activity": False,
         "support": expected_support(disposition),
         "uncertainty": expected_uncertainty(disposition),
