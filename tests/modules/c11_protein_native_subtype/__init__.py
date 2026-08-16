@@ -1,1 +1,1 @@
-"""M11-07 runtime test package."""
+"""Protein-native subtype module tests."""
