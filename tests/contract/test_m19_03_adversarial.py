@@ -11,12 +11,20 @@ from glio_proteogen.contracts.m19_03 import (
     DisagreementRecord,
     DisagreementStatus,
     FuseProteotypeEvidenceRequest,
+    FusionFinding,
+    FusionFindingCode,
+    FusionStatus,
+    IntegratedEvidenceObject,
+    ProteotypeIntegratedEvidenceResult,
     ReliabilityBand,
     SourceContribution,
     SourceKind,
     canonical_request_bytes,
     canonical_request_digest,
+    canonical_result_payload_bytes,
+    result_payload_digest,
     verify_request_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -28,8 +36,14 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    SupportDecision,
+    SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903Engine,
+    fuse_proteotype_evidence,
 )
 
 _HIGH_RELIABILITY_THRESHOLD = 0.8
@@ -154,6 +168,10 @@ def _request(
     )
 
 
+def _validate_result(value: object) -> ProteotypeIntegratedEvidenceResult:
+    return ProteotypeIntegratedEvidenceResult.model_validate(value, strict=True)
+
+
 def test_reliability_band_cannot_overstate_numeric_score() -> None:
     artifact = _artifact("mismatch")
     with pytest.raises(ValueError, match="reliability band"):
@@ -203,6 +221,18 @@ def test_request_rejects_duplicate_disagreement_ids() -> None:
     with pytest.raises(ValueError, match="disagreement ids"):
         _request(disagreements=(disagreement, disagreement))
 
+    unknown = disagreement.model_copy(
+        update={
+            "disagreement_id": "disagreement.m1903.unknown.source",
+            "source_ids": (
+                "source.m1903.unknown",
+                "source.m1903.genome",
+            ),
+        }
+    )
+    with pytest.raises(ValueError, match="unknown source"):
+        _request(disagreements=(unknown,))
+
 
 def test_request_digest_is_stable_and_tamper_sensitive() -> None:
     request = _request()
@@ -211,3 +241,184 @@ def test_request_digest_is_stable_and_tamper_sensitive() -> None:
     assert canonical_request_bytes(request) == canonical_request_bytes(request)
     altered = request.model_copy(update={"aggregate_values": ("integrated_signal=0.85",)})
     assert not verify_request_digest(altered, digest)
+
+
+def test_canonical_result_helpers_accept_mapping_and_detect_tamper() -> None:
+    payload = {"result_digest": "sha256:" + "0" * 64, "value": "stable"}
+    digest = result_payload_digest(payload)
+    assert canonical_result_payload_bytes(payload) == canonical_result_payload_bytes(payload)
+    assert verify_result_digest(payload, digest)
+    assert not verify_result_digest({**payload, "value": "changed"}, digest)
+
+    assert canonical_request_digest(payload) == canonical_request_digest(dict(payload))
+
+
+def test_disagreement_closure_rejects_invalid_resolution_and_source_ids() -> None:
+    evidence = (_evidence(_artifact("invalid-disagreement")),)
+    with pytest.raises(ValueError, match="resolved disagreement"):
+        DisagreementRecord(
+            disagreement_id="disagreement.m1903.invalid.resolved",
+            source_ids=("source.m1903.proteome", "source.m1903.genome"),
+            description="Invalid resolved disagreement.",
+            status=DisagreementStatus.RESOLVED,
+            evidence=evidence,
+        )
+    with pytest.raises(ValueError, match="unresolved disagreement"):
+        DisagreementRecord(
+            disagreement_id="disagreement.m1903.invalid.open",
+            source_ids=("source.m1903.proteome", "source.m1903.genome"),
+            description="Invalid open disagreement.",
+            status=DisagreementStatus.OPEN,
+            resolution="Must not be present.",
+            evidence=evidence,
+        )
+    with pytest.raises(ValueError, match="source ids"):
+        DisagreementRecord(
+            disagreement_id="disagreement.m1903.invalid.duplicate",
+            source_ids=("source.m1903.proteome", "source.m1903.proteome"),
+            description="Duplicate source disagreement.",
+            status=DisagreementStatus.OPEN,
+            evidence=evidence,
+        )
+
+
+def test_integrated_object_closure_rejects_duplicates_and_unknown_sources() -> None:
+    request = _request()
+
+    with pytest.raises(ValueError, match="source contribution ids"):
+        IntegratedEvidenceObject(
+            integrated_id="integrated.m1903.duplicate",
+            version="1.0.0",
+            aggregate_claim="Duplicate integrated object.",
+            contributions=(request.contributions[0], request.contributions[0]),
+            aggregate_values=request.aggregate_values,
+            configuration=request.configuration,
+            evidence=request.contributions[0].evidence,
+        )
+
+    disagreement = DisagreementRecord(
+        disagreement_id="disagreement.m1903.unknown",
+        source_ids=("source.m1903.unknown", "source.m1903.genome"),
+        description="Unknown source disagreement.",
+        status=DisagreementStatus.OPEN,
+        evidence=(_evidence(_artifact("unknown")),),
+    )
+    with pytest.raises(ValueError, match="unknown source"):
+        IntegratedEvidenceObject(
+            integrated_id="integrated.m1903.invalid",
+            version="1.0.0",
+            aggregate_claim="Invalid integrated object.",
+            contributions=request.contributions,
+            disagreements=(disagreement,),
+            aggregate_values=request.aggregate_values,
+            configuration=request.configuration,
+            evidence=request.contributions[0].evidence,
+        )
+
+
+def test_result_closure_rejects_request_and_evidence_tampering() -> None:
+    result = M1903Engine().adapt(_request())
+    zero = "sha256:" + "0" * 64
+    with pytest.raises(ValueError, match="request digest"):
+        _validate_result(result.model_copy(update={"request_digest": zero}))
+
+    with pytest.raises(ValueError, match="supported attributable"):
+        _validate_result(
+            result.model_copy(
+                update={
+                    "support_decision": SupportDecision(
+                        status=SupportStatus.REVIEW_REQUIRED,
+                        reason_code="review.required",
+                        rationale="Synthetic review.",
+                    )
+                }
+            )
+        )
+
+    assert result.integrated_evidence is not None
+    changed_source = result.request.contributions[0].model_copy(update={"claim": "changed"})
+    changed_integrated = result.integrated_evidence.model_copy(
+        update={
+            "contributions": (changed_source, result.request.contributions[1]),
+        }
+    )
+    with pytest.raises(ValueError, match="exact source contributions"):
+        _validate_result(result.model_copy(update={"integrated_evidence": changed_integrated}))
+
+    with pytest.raises(ValueError, match="aggregate values"):
+        _validate_result(
+            result.model_copy(
+                update={
+                    "integrated_evidence": result.integrated_evidence.model_copy(
+                        update={"aggregate_values": ("changed",)}
+                    )
+                }
+            )
+        )
+
+    with pytest.raises(ValueError, match="locked configuration"):
+        _validate_result(
+            result.model_copy(
+                update={
+                    "integrated_evidence": result.integrated_evidence.model_copy(
+                        update={
+                            "configuration": result.request.configuration.model_copy(
+                                update={"method": "changed"}
+                            )
+                        }
+                    )
+                }
+            )
+        )
+
+
+def test_result_closure_rejects_bad_abstention_findings_review_and_digest() -> None:
+    result = M1903Engine().adapt(_request())
+    zero = "sha256:" + "0" * 64
+    with pytest.raises(ValueError, match="abstained result"):
+        _validate_result(
+            result.model_copy(
+                update={
+                    "status": FusionStatus.ABSTAINED,
+                    "integrated_evidence": None,
+                    "abstention_reason": None,
+                    "support_decision": SupportDecision(
+                        status=SupportStatus.SUPPORTED,
+                        reason_code="supported.invalid",
+                        rationale="Invalid abstention.",
+                    ),
+                }
+            )
+        )
+
+    finding = FusionFinding(
+        finding_id="finding.m19.duplicate",
+        code=FusionFindingCode.INPUT_INCOMPLETE,
+        message="Duplicate finding.",
+    )
+    with pytest.raises(ValueError, match="finding ids"):
+        _validate_result(result.model_copy(update={"findings": (finding, finding)}))
+
+    disagreement = DisagreementRecord(
+        disagreement_id="disagreement.m1903.review",
+        source_ids=("source.m1903.proteome", "source.m1903.genome"),
+        description="Open review disagreement.",
+        status=DisagreementStatus.OPEN,
+        evidence=(_evidence(_artifact("review")),),
+    )
+    reviewed = M1903Engine().adapt(_request(disagreements=(disagreement,)))
+    with pytest.raises(ValueError, match="human review"):
+        _validate_result(reviewed.model_copy(update={"human_review_required": False}))
+
+    with pytest.raises(ValueError, match="result digest"):
+        _validate_result(result.model_copy(update={"result_digest": zero}))
+
+
+def test_runtime_entrypoints_and_replay_request_mismatch_are_covered() -> None:
+    request = _request()
+    result = fuse_proteotype_evidence(request)
+    assert result.status is FusionStatus.INTEGRATED
+    changed_request = request.model_copy(update={"aggregate_values": ("changed",)})
+    tampered = result.model_copy(update={"request": changed_request})
+    with pytest.raises(ValueError, match="request digest"):
+        M1903Engine().replay(tampered)
