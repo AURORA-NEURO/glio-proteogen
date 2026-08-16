@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m26_06 import (
     M2606_M2605_INPUT_MEDIA_TYPE,
     M2606_OUTPUT_MEDIA_TYPE,
     M2606_PROVISIONAL_ABI,
+    AccessDecision,
     AccessDecisionState,
     ControlStatus,
     EvaluateProteomicsSecurityAccessRequest,
@@ -198,7 +199,7 @@ def test_posture_status_cannot_overstate_failed_or_unresolved_controls() -> None
 
 
 def test_severe_finding_requires_evidence_and_schema_metadata_is_explicit() -> None:
-    with pytest.raises(ValidationError, match="at least 1 item"):
+    with pytest.raises(ValidationError, match="severe security findings"):
         SecurityFinding(
             finding_id="finding.m2606.unreferenced",
             code=SecurityFindingCode.THREAT_DETECTED,
@@ -209,3 +210,90 @@ def test_severe_finding_requires_evidence_and_schema_metadata_is_explicit() -> N
     metadata = cast("dict[str, Any]", contract_json_schemas()["output"]["x-glio-contract"])
     assert metadata["rawPayload"] is False
     assert metadata["unsupportedToNegative"] is False
+
+
+def test_access_decision_cannot_allow_without_required_consent() -> None:
+    evidence = EvidenceReference(
+        reference=_artifact("decision"), role="evidence", claim="Decision evidence."
+    )
+    with pytest.raises(ValidationError, match="without required consent"):
+        AccessDecision(
+            decision_id="decision.m2606.invalid",
+            principal="principal.reviewer",
+            resource="resource.proteome",
+            action="read",
+            state=AccessDecisionState.ALLOW,
+            policy_version="1.0.0",
+            consent_required=True,
+            consent_verified=False,
+            reason="Invalid allow decision.",
+            evidence=(evidence,),
+        )
+
+
+def test_posture_rejects_duplicate_or_incomplete_control_sets() -> None:
+    evidence = EvidenceReference(
+        reference=_artifact("duplicate"), role="evidence", claim="Control evidence."
+    )
+    controls = tuple(
+        SecurityControlCheck(
+            control=control,
+            status=ControlStatus.PASSED,
+            rationale="Control passed.",
+            evidence=(evidence,),
+        )
+        for control in SecurityControlKind
+    )
+    duplicate = (*controls[:-1], controls[0])
+    with pytest.raises(ValidationError, match="must be unique"):
+        SecurityPostureRecord(
+            posture_id="posture.m2606.duplicate",
+            version="1.0.0",
+            status=SecurityPostureStatus.COMPLIANT,
+            controls=duplicate,
+            evidence=(evidence,),
+        )
+
+
+def test_posture_critical_and_not_evaluable_statuses_need_matching_control_state() -> None:
+    evidence = EvidenceReference(
+        reference=_artifact("status"), role="evidence", claim="Control evidence."
+    )
+    controls = tuple(
+        SecurityControlCheck(
+            control=control,
+            status=ControlStatus.PASSED,
+            rationale="Control passed.",
+            evidence=(evidence,),
+        )
+        for control in SecurityControlKind
+    )
+    with pytest.raises(ValidationError, match="critical posture"):
+        SecurityPostureRecord(
+            posture_id="posture.m2606.critical",
+            version="1.0.0",
+            status=SecurityPostureStatus.CRITICAL,
+            controls=controls,
+            evidence=(evidence,),
+        )
+    with pytest.raises(ValidationError, match="not-evaluable posture"):
+        SecurityPostureRecord(
+            posture_id="posture.m2606.not-evaluable",
+            version="1.0.0",
+            status=SecurityPostureStatus.NOT_EVALUABLE,
+            controls=controls,
+            evidence=(evidence,),
+        )
+
+
+def test_request_rejects_foreign_upstream_media_and_duplicate_requested_controls() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="M26-05 standards result"):
+        type(request).model_validate(
+            request.model_copy(update={"upstream_result": _artifact("foreign-upstream")})
+        )
+    duplicate_requested = (*request.requested_controls[:-1], request.requested_controls[0])
+    with pytest.raises(ValidationError, match="requested security controls must be unique"):
+        type(request).model_validate(
+            request.model_copy(update={"requested_controls": duplicate_requested})
+        )

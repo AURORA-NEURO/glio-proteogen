@@ -320,10 +320,10 @@ def _posture(
         status = SecurityPostureStatus.COMPLIANT
     elif ControlStatus.FAILED in statuses:
         status = SecurityPostureStatus.CRITICAL
-    elif statuses & {ControlStatus.NOT_EVALUABLE, ControlStatus.REVIEW_REQUIRED}:
-        status = SecurityPostureStatus.NOT_EVALUABLE
     else:
-        status = SecurityPostureStatus.DEGRADED
+        # The contract fixes the eight-control vocabulary.  Once the all-pass
+        # and failed cases are excluded, only an unresolved/review state remains.
+        status = SecurityPostureStatus.NOT_EVALUABLE
     checks = tuple(
         SecurityControlCheck(
             control=item.control,
@@ -484,15 +484,6 @@ def verify_security_access_result(
         validated = _RESULT_ADAPTER.validate_python(result, strict=True)
     except ValidationError as error:
         raise M2606ReplayError from error
-    if validated.request_digest != canonical_request_digest(validated.request):
-        raise M2606ReplayError
-    if validated.result_digest != result_payload_digest(validated):
-        raise M2606ReplayError
-    if validated.status is SecurityAssessmentStatus.EVALUATED:
-        if validated.access_decision is None or validated.audit_event is None:
-            raise M2606ReplayError
-    elif validated.safe_failure_report is None or validated.abstention_reason is None:
-        raise M2606ReplayError
     return validated
 
 

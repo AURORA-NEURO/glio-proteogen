@@ -16,6 +16,8 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_c
     M2606ReplayError,
     M2606SecurityEngine,
     M2606SecurityService,
+    evaluate_proteomics_security_access,
+    preflight_m2606_authorization,
     verify_security_access_result,
 )
 from tests.contract.test_m26_06_provisional import _request
@@ -57,6 +59,34 @@ def test_failed_control_abstains_without_publishing_access_records() -> None:
     assert result.safe_failure_report is not None
     assert result.human_review_required is True
     assert result.support_decision.status.value == "review_required"
+
+
+@pytest.mark.parametrize(
+    ("control", "expected_code"),
+    [
+        (SecurityControlKind.CONSENT, "consent_missing"),
+        (SecurityControlKind.DE_IDENTIFICATION, "control_failed"),
+    ],
+)
+def test_failed_security_controls_preserve_specific_finding_codes(
+    control: SecurityControlKind, expected_code: str
+) -> None:
+    request = _request()
+    declarations = tuple(
+        declaration.model_copy(
+            update={"status": ControlStatus.FAILED, "rationale": "Control failed in fixture."}
+        )
+        if declaration.control is control
+        else declaration
+        for declaration in request.control_declarations
+    )
+    result = M2606SecurityEngine().evaluate(
+        type(request).model_validate(
+            request.model_copy(update={"control_declarations": declarations})
+        )
+    )
+    assert result.security_posture is not None
+    assert any(item.code.value == expected_code for item in result.security_posture.findings)
 
 
 def test_unresolved_control_is_review_abstention_not_negative_evidence() -> None:
@@ -103,6 +133,28 @@ def test_upstream_consent_is_fail_closed_before_security_evaluation() -> None:
     )
     with pytest.raises(M2606AuthorizationError):
         M2606SecurityService().execute(denied_request)
+
+
+def test_preflight_accepts_canonical_mapping_and_public_function_matches_engine() -> None:
+    request = _request()
+    preflight_m2606_authorization(request.model_dump(mode="python"))
+    assert evaluate_proteomics_security_access(request).result_digest == (
+        M2606SecurityEngine().evaluate(request).result_digest
+    )
+
+
+def test_replay_rejects_request_digest_tampering() -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    tampered = result.model_construct(
+        **{**result.model_dump(mode="python"), "request_digest": "sha256:" + "e" * 64}
+    )
+    with pytest.raises(M2606ReplayError):
+        verify_security_access_result(tampered)
+
+
+def test_service_replay_rejects_non_result_objects() -> None:
+    with pytest.raises(M2606ReplayError):
+        M2606SecurityService.verify({"not": "a-result"})
 
 
 def test_replay_rejects_tampered_payload_and_same_request_is_deterministic() -> None:

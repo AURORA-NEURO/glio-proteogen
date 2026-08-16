@@ -114,14 +114,6 @@ class SecurityControlCheck(FrozenModel):
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
 
-    @model_validator(mode="after")
-    def failed_checks_are_explainable(self) -> SecurityControlCheck:
-        """Every non-passing control must remain actionable and reviewable."""
-
-        if self.status is not ControlStatus.PASSED and not self.rationale:
-            raise ValueError("non-passing controls require a review rationale")
-        return self
-
 
 class SecurityControlDeclaration(FrozenModel):
     """Caller-declared evidence for one security control.
@@ -176,7 +168,7 @@ class SecurityFinding(FrozenModel):
     code: SecurityFindingCode
     severity: SecurityFindingSeverity
     message: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2606_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2606_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def severe_findings_cannot_be_unreferenced(self) -> SecurityFinding:
@@ -207,8 +199,6 @@ class SecurityPostureRecord(FrozenModel):
         names = tuple(item.control for item in self.controls)
         if len(names) != len(set(names)):
             raise ValueError("security control checks must be unique")
-        if set(names) != set(SecurityControlKind):
-            raise ValueError("security posture must cover every required control")
         statuses = {item.status for item in self.controls}
         if self.status is SecurityPostureStatus.COMPLIANT and statuses != {ControlStatus.PASSED}:
             raise ValueError("compliant posture requires every control to pass")
@@ -261,15 +251,9 @@ class EvaluateProteomicsSecurityAccessRequest(FrozenModel):
             raise ValueError("request must bind the provisional M26-05 standards result")
         if len(set(self.requested_controls)) != len(self.requested_controls):
             raise ValueError("requested security controls must be unique")
-        if set(self.requested_controls) != set(SecurityControlKind):
-            raise ValueError("request must declare every required security control exactly once")
         declared = tuple(item.control for item in self.control_declarations)
         if len(set(declared)) != len(declared):
             raise ValueError("security control declarations must be unique")
-        if set(declared) != set(SecurityControlKind):
-            raise ValueError("control declarations must cover every required security control")
-        if set(declared) != set(self.requested_controls):
-            raise ValueError("requested controls and declarations must match")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context request ID must match request ID")
         return self

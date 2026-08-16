@@ -9,10 +9,17 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_06 import (
+    ControlStatus,
+    EvaluateProteomicsSecurityAccessRequest,
+    ProteomicsSecurityAccessResult,
+    SecurityControlKind,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
     M2606SecurityPlugin,
+    M2606SecurityService,
     M2606TokenError,
     SecuritySubmission,
 )
@@ -30,6 +37,7 @@ from tests.contract.test_m26_06_provisional import _request
 _HTTP_OK = 200
 _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
+_CLI_ABSTAINED = 3
 
 
 def test_fastapi_validate_evaluate_and_verify_are_canonical() -> None:
@@ -40,6 +48,8 @@ def test_fastapi_validate_evaluate_and_verify_are_canonical() -> None:
     schemas = client.get("/v1/modules/M26-06/schemas")
     assert schemas.status_code == _HTTP_OK
     assert schemas.json()["output"]["x-glio-contract"]["safeFailureRequired"] is True
+    single_schema = client.get("/v1/modules/M26-06/schemas/output")
+    assert single_schema.status_code == _HTTP_OK
     validated = client.post("/v1/modules/M26-06/validate", json=payload)
     evaluated = client.post("/v1/modules/M26-06/evaluate", json=payload)
     assert validated.status_code == _HTTP_OK
@@ -70,19 +80,58 @@ def test_fastapi_sanitizes_invalid_and_unauthorized_requests() -> None:
     unauthorized = client.post("/v1/modules/M26-06/evaluate", json=denied.model_dump(mode="json"))
     assert unauthorized.status_code == _HTTP_FORBIDDEN
     assert unauthorized.json()["detail"] == "M26-06 authorization controls rejected request"
+    unauthorized_validate = client.post(
+        "/v1/modules/M26-06/validate", json=denied.model_dump(mode="json")
+    )
+    assert unauthorized_validate.status_code == _HTTP_FORBIDDEN
+
+
+def test_fastapi_validation_error_paths_are_sanitized() -> None:
+    request = _request().model_dump(mode="json")
+
+    class RejectingService(M2606SecurityService):
+        @staticmethod
+        def validate_request(
+            _request: object,
+        ) -> EvaluateProteomicsSecurityAccessRequest:
+            raise ValueError("internal detail must not escape")  # noqa: TRY003
+
+        def execute(self, _request: object) -> ProteomicsSecurityAccessResult:
+            raise ValueError("internal detail must not escape")  # noqa: TRY003
+
+    client = TestClient(create_m2606_app(RejectingService()))
+    validated = client.post("/v1/modules/M26-06/validate", json=request)
+    evaluated = client.post("/v1/modules/M26-06/evaluate", json=request)
+    assert validated.status_code == _HTTP_UNPROCESSABLE
+    assert evaluated.status_code == _HTTP_UNPROCESSABLE
+    assert "internal detail" not in validated.text
+    assert "internal detail" not in evaluated.text
+
+    invalid_replay = client.post("/v1/modules/M26-06/verify", json={"result": {"bad": True}})
+    assert invalid_replay.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_plugin_requires_opaque_token_and_sdk_matches_service() -> None:
     request = _request()
     plugin = M2606SecurityPlugin()
     token = plugin.validate(SecuritySubmission(canonical_json_bytes(request)))
+    assert plugin.validate(SecuritySubmission(request)).request.request_id == request.request_id
     plugin_result = plugin.run(token)
     sdk_result = M2606SecurityClient().evaluate(request)
     assert plugin_result.result_digest == sdk_result.result_digest
+    client = M2606SecurityClient()
+    assert client.validate(request).request_id == request.request_id
+    assert client.verify(sdk_result).result_digest == sdk_result.result_digest
+    assert client.evaluate_json(request)["status"] == "evaluated"
+    assert plugin.validate_request(request).request_id == request.request_id
+    assert plugin.replay(plugin_result).result_digest == plugin_result.result_digest
     with pytest.raises(M2606TokenError):
         M2606SecurityPlugin().run(token)
     with pytest.raises(M2606TokenError):
         plugin.run(object())  # type: ignore[arg-type]
+    token._seal = object()
+    with pytest.raises(M2606TokenError):
+        plugin.run(token)
 
 
 def test_cli_schema_evaluate_and_verify_refuse_overwrite(tmp_path: Path) -> None:
@@ -99,6 +148,13 @@ def test_cli_schema_evaluate_and_verify_refuse_overwrite(tmp_path: Path) -> None
     )
     overwrite = runner.invoke(cli_app, ["export-schema", "output", "--output", str(schema_path)])
     assert overwrite.exit_code != 0
+    stdout_schema = runner.invoke(cli_app, ["export-schema", "output"])
+    assert stdout_schema.exit_code == 0
+    unknown_schema = runner.invoke(cli_app, ["export-schema", "unknown"])
+    assert unknown_schema.exit_code != 0
+
+    validated = runner.invoke(cli_app, ["validate", str(request_path)])
+    assert validated.exit_code == 0
 
     evaluated = runner.invoke(
         cli_app, ["evaluate", str(request_path), "--output", str(result_path)]
@@ -107,3 +163,29 @@ def test_cli_schema_evaluate_and_verify_refuse_overwrite(tmp_path: Path) -> None
     verified = runner.invoke(cli_app, ["verify", str(result_path)])
     assert verified.exit_code == 0
     assert json.loads(verified.stdout)["verified"] is True
+    failed_request = _request()
+    failed_declarations = tuple(
+        declaration.model_copy(
+            update={
+                "status": ControlStatus.NOT_EVALUABLE,
+                "rationale": "Security evidence is unavailable.",
+            }
+        )
+        if declaration.control is SecurityControlKind.ENCRYPTION
+        else declaration
+        for declaration in failed_request.control_declarations
+    )
+    failed_path = tmp_path / "failed.json"
+    failed_path.write_bytes(
+        canonical_json_bytes(
+            type(failed_request).model_validate(
+                failed_request.model_copy(update={"control_declarations": failed_declarations})
+            )
+        )
+    )
+    abstained = runner.invoke(cli_app, ["evaluate", str(failed_path)])
+    assert abstained.exit_code == _CLI_ABSTAINED
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("{not-json", encoding="utf-8")
+    assert runner.invoke(cli_app, ["validate", str(malformed)]).exit_code != 0
+    assert runner.invoke(cli_app, ["verify", str(malformed)]).exit_code != 0
