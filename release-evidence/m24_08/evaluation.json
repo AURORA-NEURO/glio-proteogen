@@ -1,0 +1,67 @@
+{
+  "case_ids": [
+    "pass_complete",
+    "block_failed_requirement",
+    "block_failed_benchmark",
+    "block_open_critical_risk",
+    "review_deferred_approval",
+    "authorization_gate",
+    "source_binding_boundary",
+    "replay_tamper_determinism"
+  ],
+  "checks": [
+    {
+      "detail": "adjudicated",
+      "name": "pass_complete",
+      "passed": true
+    },
+    {
+      "detail": "adjudicated",
+      "name": "block_failed_requirement",
+      "passed": true
+    },
+    {
+      "detail": "adjudicated",
+      "name": "block_failed_benchmark",
+      "passed": true
+    },
+    {
+      "detail": "adjudicated",
+      "name": "block_open_critical_risk",
+      "passed": true
+    },
+    {
+      "detail": "adjudicated",
+      "name": "review_deferred_approval",
+      "passed": true
+    },
+    {
+      "detail": "denied controls rejected",
+      "name": "authorization_gate",
+      "passed": true
+    },
+    {
+      "detail": "declared inputs must be source-bound",
+      "name": "source_binding_boundary",
+      "passed": true
+    },
+    {
+      "detail": "sha256:a4e751413abac6f1ef920724f361612e482f196c657b5bcdce78a0db2045696b",
+      "name": "replay_tamper_determinism",
+      "passed": true
+    }
+  ],
+  "declared_cases": 8,
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8580-8620",
+  "executed_cases": 8,
+  "fixture": "C:\\Users\\murar\\Documents\\Codex\\2026-08-11\\gpa\\worktrees\\m2408-spec\\tests\\fixtures\\m24_08\\scenarios.json",
+  "fixture_digest": "sha256:6f449763dc1c095279e8b32948a515f218e27126438544c248d4716f9bb0aa9a",
+  "module_id": "GLIO-PROTEOGEN-M24-08",
+  "passed": true,
+  "passed_cases": 8,
+  "request_digest": "sha256:eb1ec03472a9af9e70c8bbed89b0bdcbabf3861b32142d973a4c1feb9f0bd867",
+  "schema_count": 10,
+  "total_cases": 8,
+  "uncertainty_dimensions": 7
+}
