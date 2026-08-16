@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
+from evals.m20_05.benchmark import main as benchmark_main
+from evals.m20_05.benchmark import run_benchmark
+from evals.m20_05.evaluator import main as evaluator_main
+from evals.m20_05.evaluator import run_evaluator
 from evals.m20_05.fixture import build_request, denied_request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -27,6 +31,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_ser
     cli_app,
     create_app,
     preflight_m2005_authorization,
+    present_protein_subtype_human_review_workspace,
 )
 from tests.contract.test_m20_05_adversarial import _item
 
@@ -39,6 +44,14 @@ def test_preflight_rejects_non_mapping_and_missing_controls() -> None:
         preflight_m2005_authorization(object())
     with pytest.raises(M2005AuthorizationError):
         preflight_m2005_authorization({"context": {"references": {}}})
+
+    class ExplodingContext:
+        @property
+        def context(self) -> object:
+            raise RuntimeError
+
+    with pytest.raises(M2005AuthorizationError):
+        preflight_m2005_authorization(ExplodingContext())
 
 
 def test_policy_rejects_duplicate_and_incomplete_required_views() -> None:
@@ -168,3 +181,19 @@ def test_plugin_rejects_bad_submission_and_json() -> None:
         plugin.validate(build_request())
     with pytest.raises((TypeError, ValueError)):
         plugin.validate(WorkflowPresentationSubmission(request=b"[]"))
+
+
+def test_public_wrapper_plugin_replay_and_evaluator_entrypoints(capsys: Any) -> None:
+    request = build_request()
+    result = present_protein_subtype_human_review_workspace(request)
+    plugin = M2005Plugin(M2005Service())
+    assert plugin.replay(result).result_digest == result.result_digest
+    with pytest.raises(ValueError, match="positive"):
+        run_benchmark(0)
+    benchmark = run_benchmark(1)
+    assert benchmark["passed"] is True
+    benchmark_main()
+    evaluator = run_evaluator()
+    assert evaluator["passed"] == evaluator["scenario_count"]
+    evaluator_main()
+    assert "M20-05" in capsys.readouterr().out

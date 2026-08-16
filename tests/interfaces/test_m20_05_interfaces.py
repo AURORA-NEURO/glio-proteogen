@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
+from evals.m20_05.fixture import abstained_request, denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -50,6 +51,15 @@ def test_fastapi_schema_validate_present_verify_and_sanitized_errors() -> None:
     invalid = client.post("/v1/modules/M20-05/validate", content=b"[]")
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in invalid.text
+    assert (
+        client.post(
+            "/v1/modules/M20-05/present", json=denied_request().model_dump(mode="json")
+        ).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+    assert client.post("/v1/modules/M20-05/verify", json={"result": {}}).status_code == (
+        _HTTP_UNPROCESSABLE
+    )
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
@@ -97,3 +107,16 @@ def test_typer_export_validate_present_verify_and_no_overwrite(tmp_path: Any) ->
     verified = runner.invoke(cli_app, ["verify", str(result_path)])
     assert verified.exit_code == 0
     assert '"verified": true' in verified.stdout
+
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(denied_request()))
+    assert runner.invoke(cli_app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["present", str(denied_path)]).exit_code != 0
+
+    abstained_path = tmp_path / "abstained.json"
+    abstained_path.write_bytes(canonical_json_bytes(abstained_request()))
+    abstained_result = tmp_path / "abstained-result.json"
+    abstained_run = runner.invoke(
+        cli_app, ["present", str(abstained_path), "--output", str(abstained_result)]
+    )
+    assert abstained_run.exit_code == 1
