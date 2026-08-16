@@ -1,0 +1,19 @@
+requirement,evidence,verification,owner,status
+authority:dossier-slice,docs/modules/M09-08.manifest.md,exact SHA and lines 3224-3267 recorded,Platform engineering,verified-local
+responsibility:evidence-explanation-publisher,docs/modules/GLIO-PROTEOGEN-M09-08.md,versioned bundle and explanation only,Platform engineering,implemented-provisional
+boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,Platform engineering,implemented
+boundary:no-parent-emission,contract result and evaluator,emits_parent remains false,Platform engineering,implemented
+inputs:opaque-content-addressed-references,contract and manifest,raw payloads are not traversed or mutated,Platform engineering,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and adversarial tests,denied control fails closed,Platform engineering,implemented
+attribution:required-source-kinds,engine and evaluator,missing source attribution abstains,Platform engineering,implemented
+assumptions:explicit-retention,contract and evaluator,missing assumptions abstain and published explanation covers exact IDs,Platform engineering,implemented
+counter-evidence:visible-and-reviewable,contract runtime and evaluator,counter-evidence retained; critical conflict marks human review,Platform engineering,implemented
+reconstruction:digest-closed-chain,engine and boundary tests,unknown root/output/sequence/tamper cases abstain or fail replay,Platform engineering,implemented
+uncertainty:seven-dimensions,engine and result contract,all dimensions explicit not-estimable pending owner lock,Platform engineering,implemented-provisional
+support:unsupported-never-negative,result and evaluator,unsupported/missing evidence uses safe status and no bundle,Platform engineering,implemented
+replay:canonical-content-and-digest,canonical.py engine verifier tests,tamper and noncanonical bytes rejected,Platform engineering,implemented
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and sanitized errors,Platform engineering,implemented
+acceptance:benchmark-and-evaluator,evals/m09_08/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,Platform engineering,verified-local
+evidence:manifest-traceability-review,docs/evidence/M09-08.md and manifest,review and issuer authentication remain external,Platform engineering,provisional
+release:package-import,release-evidence/m09_08/package.json,wheel/sdist hashes and isolated import recorded,Release engineering,verified-local
+recovery:rollback-supersession,manifest and result supersedes field,no in-place mutation; immutable branch and digest supersession,Platform engineering,implemented-provisional

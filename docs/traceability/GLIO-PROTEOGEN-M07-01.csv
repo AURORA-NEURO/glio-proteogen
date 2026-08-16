@@ -1,0 +1,25 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M07-01-R01,dossier:2196-2198,Own formal state and feature schema beneath copy-number dosage/attenuation,FormalCopyNumberStateSchema and eight provisional schemas,test_formal_feature_shape_and_canonical_smoke,G0
+M07-01-R02,dossier:2198,Support parent target proteotype without emitting parent output,parent_target=proteotype and emits_parent=false,test_valid_state_is_deterministic_and_replay_closed,G0
+M07-01-R03,dossier:2200,Do not infer kinase state all-omics fusion treatment identity or consent,prohibited plugin descriptor and limitations,test_schema_inventory_stays_explicitly_provisional,G0
+M07-01-R04,dossier:2202,Accept typed upstream references and controls,ExecutionContext and ContextReferences, test_non_request_preflight_and_control_gate_variants,G0
+M07-01-R05,dossier:2204,Emit formal state validation typed uncertainty support evidence and limitations,ValidateCopyNumberStateResult,test_valid_state_is_deterministic_and_replay_closed,G0
+M07-01-R06,dossier:2206-2210,Record architecture options while narrowing execution to deterministic schema-first runtime,manifest model declaration and engine,docs/modules/M07-01.manifest.md,G0
+M07-01-R07,dossier:2212,Validate identity version units completeness assay support and parent-specific quality,strict controls and value/schema closure,test_request_domain_and_value_closure_errors,G0
+M07-01-R08,dossier:2214,Quantify uncertainty dimensions and expose explicit abstention,seven not-estimable uncertainty fields and support decision,test_missingness_abstains_and_never_imputes,G0
+M07-01-R09,dossier:2216,Require human review for discrepancy novel or unsupported states,review_required support for abstention and limited invalid support,test_hard_invariant_violation_is_invalid_not_negative_abstention,G0
+M07-01-R10,dossier:2218,Represent legal states and reject illegal states,strict field validators and executable invariants,test_feature_value_rejects_multiple_and_malformed_representations,G0
+M07-01-R11,dossier:2218,Version implementation and lock invariant positive/negative tests,contract/runtime tests and provisional version,evaluator report and focused coverage gate,G0
+M07-01-R12,dossier:2220,Provide benchmark traceability risk manifest review and rollback evidence,docs/evidence fixture benchmark and traceability artifacts,docs/evidence/M07-01.md,G0
+M07-01-R13,dossier:2230-2236,Meet contract functional robustness uncertainty and safety testing requirements,strict tests evaluator and benchmark,40 focused tests plus evaluator and benchmark,G0
+M07-01-R14,locked-risk:canonical,Bind exact request and result content by digest,canonical_request_digest and result_payload_digest,test_replay_rejects_tampered_result_and_bytes,G0
+M07-01-R15,locked-risk:missingness,Never turn missing or unsupported evidence into a negative finding,CopyNumberMissingness and not_evaluable status,test_missingness_abstains_and_never_imputes,G0
+M07-01-R16,locked-risk:domain,Reject wrong units representations and numeric bounds,values_match_schema and representation kind checks,test_contract_rejects_kind_and_domain_mismatch,G0
+M07-01-R17,locked-risk:expression,Unknown invariant grammar must abstain safely,regex-bounded comparison and between evaluator,test_unknown_expression_abstains,G0
+M07-01-R18,locked-risk:authorization,Consent identity and upstream decisions fail closed,preflight_formal_state_authorization,test_authorization_fails_before_execution,G0
+M07-01-R19,locked-risk:interfaces,Expose strict API and CLI without leaking submitted values,FastAPI/Typer adapters and sanitized errors,test_api_strict_errors_and_cli_bad_inputs,G0
+M07-01-R20,locked-risk:plugin,Execution requires a parsed validated capability token,FormalStateSubmission and ValidatedM0701Request,test_plugin_requires_submission_and_validated_token,G0
+M07-01-R21,locked-risk:benchmark,Check representative public execution latency,ten-iteration benchmark report,evals/m07_01/benchmark.py,G0
+M07-01-R22,locked-risk:package,Build and import the exact wheel and sdist,release package gate,package/install evidence,G0
+M07-01-R23,locked-risk:review,Do not self-approve ABI or biological interpretation,provisional limitations and external reviewer plan,docs/modules/M07-01.manifest.md,G0
+M07-01-R24,locked-risk:rollback,Retain immutable results and supersede corrections,request supersedes_result_digest and digest-bound result,docs/evidence/M07-01.md,G0

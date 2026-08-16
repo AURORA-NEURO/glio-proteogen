@@ -1,0 +1,2 @@
+module_id,authority_sha256,authority_lines,responsibility,boundary,implementation,evidence
+GLIO-PROTEOGEN-M08-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,2556-2597,formal state and feature schema beneath Transcript-protein discordance,"No kinase state, generic all-omics fusion, treatment recommendation, identity inference, evidence mutation, or missing-to-negative conversion",contracts/m08_01/v1.py;modules/c08_transcript_protein/m08_01_formal_state;adversarial contract/lifecycle/API/CLI/evaluator/replay evidence
