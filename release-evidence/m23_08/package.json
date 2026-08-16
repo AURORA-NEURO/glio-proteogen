@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "builder": "hatchling 1.31.0 via python -m build",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 2889467,
+    "sha256": "cc53fc12086e5589ae0062725d5e65ddf2df859679a47c909d6efdca2b363fd1",
+    "members": 1543
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 3378788,
+    "sha256": "53709e55ab51a44551170ea2c08b46a17165916066aa8ac9b0b3576e9f5829c6"
+  },
+  "isolated_import": {
+    "passed": true,
+    "target": "isolated-m2308"
+  },
+  "generated_dirs_removed_after_commit": true
+}
