@@ -1,0 +1,80 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-03",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3004, 3047]
+  },
+  "status": "local-deep-build",
+  "commits": [
+    "6001f0d Scaffold provisional M09-03 baseline contract",
+    "e8abc46 feat(m09-03): harden baseline contract closure",
+    "b52bf00 feat(m09-03): add deterministic baseline runtime and replay",
+    "3737d06 feat(m09-03): expose strict service api cli and plugin",
+    "344d461 test(m09-03): cover estimator safety and replay lifecycle",
+    "1c66e1b test(m09-03): prove api cli and plugin parity",
+    "fcc5deb feat(m09-03): add evaluator fixtures and benchmark gate",
+    "ad62df4 test(m09-03): close adversarial coverage and fixture matrix",
+    "c4ba8b0 test(m09-03): enforce warning-free interface gates"
+  ],
+  "focusedTests": {
+    "count": 21,
+    "command": "python -W error -m pytest -o addopts='' tests/modules/c09_complex_activity/test_m09_03_estimator.py tests/integration/test_m09_03_interfaces.py tests/evals/test_m09_03_evaluation.py",
+    "passed": true
+  },
+  "coverage": {
+    "scope": "M09-03 contract/runtime/service/api/cli/plugin boundary",
+    "command": "python -m pytest -o addopts='' --cov=glio_proteogen.modules.c09_complex_activity.m09_03_mature_baseline_estimator --cov-branch --cov-fail-under=95 ...",
+    "branchEnabled": true,
+    "percent": 96.2,
+    "statements": 296,
+    "branches": 46,
+    "failUnder": 95
+  },
+  "quality": {
+    "ruff": "clean for M09-03 contracts, runtime, interfaces, evaluator, and focused tests",
+    "mypyStrict": "clean across 13 source/evaluator files",
+    "compileall": "clean",
+    "warningsAsErrors": true
+  },
+  "evaluator": {
+    "estimated": "estimated",
+    "unsupported": "abstained",
+    "outOfDomain": "abstained",
+    "missing": "abstained",
+    "replay": true,
+    "tamperRejected": true,
+    "deterministic": true,
+    "uncertaintyExplicit": true,
+    "ownershipBoundaryClosed": true
+  },
+  "benchmark": {
+    "iterations": 10,
+    "meanNs": 2898000,
+    "medianNs": 2843050,
+    "p95Ns": 3245300,
+    "meanBudgetNs": 2000000000,
+    "p95BudgetNs": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "builder": "hatchling 1.31.0 via python -m build --wheel --sdist --no-isolation",
+    "wheel": {
+      "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 757192,
+      "sha256": "0bc6bbce691bbd7ce7661510f3d8783a9c504ae9338eb7a1a68dbcce63372282"
+    },
+    "sdist": {
+      "file": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1431852,
+      "sha256": "886ffa404486ee87518a6631d8a87530ac5c6243545d7b103a17e473ea590054"
+    },
+    "isolatedImport": "passed; installed wheel exposes M09-03 contracts and M0903BaselineEstimator"
+  },
+  "limitations": [
+    "ABI, estimator catalogue, endpoint, media type, and thresholds remain provisional.",
+    "Caller-declared evidence issuers and biological truth are not authenticated.",
+    "Calibration, transportability, reviewer sign-off, and clinical use are outside this local software gate.",
+    "GitHub CI status and final owner approval remain external release conditions."
+  ]
+}
