@@ -1,0 +1,8 @@
+{
+  "distribution": "glio-proteogen",
+  "module_id": "GLIO-PROTEOGEN-M18-08",
+  "wheel_sha256": "5a91e5e7a7e9d812d7f8f15d31fda5e3f9cc268c4b63877d35201e2081e96db2",
+  "isolated_target": "isolated-m18-08-final",
+  "isolated_import": true,
+  "imported_module_id": "GLIO-PROTEOGEN-M18-08"
+}

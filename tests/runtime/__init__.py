@@ -1,1 +1,1 @@
-"""Runtime test package."""
+"""Runtime fixtures for module-focused tests."""
