@@ -139,6 +139,9 @@ def test_all_eight_schemas_are_draft_2020_strict_and_authority_bounded() -> None
         "rawPayloadInSchema": False,
         "identityInference": False,
         "proteinInference": False,
+        "proteoformInference": False,
+        "isoformInference": False,
+        "gliomaSpecificBiologyInference": False,
         "complexActivityInference": False,
         "kinaseActivityInference": False,
     }
