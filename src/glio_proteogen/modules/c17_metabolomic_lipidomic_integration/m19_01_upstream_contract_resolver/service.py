@@ -28,11 +28,24 @@ class M1901Service:
     def resolve(self, request: object) -> ProteotypeUpstreamResolutionResult:
         return self._engine.resolve(request)
 
+    def execute(self, request: object) -> ProteotypeUpstreamResolutionResult:
+        """Execute the bounded resolver operation through the service seam."""
+
+        return self.resolve(request)
+
     def replay(
         self,
         result: ProteotypeUpstreamResolutionResult,
     ) -> ProteotypeUpstreamResolutionResult:
         return self._engine.replay(result)
+
+    def verify(
+        self,
+        result: ProteotypeUpstreamResolutionResult,
+    ) -> ProteotypeUpstreamResolutionResult:
+        """Verify and reconstruct an immutable result through the service seam."""
+
+        return self.replay(result)
 
 
 __all__ = ["M1901Service"]

@@ -72,10 +72,22 @@ class M1901Plugin:
     def run(self, request: object) -> ProteotypeUpstreamResolutionResult:
         return self._engine.resolve(request)
 
+    def execute(self, request: object) -> ProteotypeUpstreamResolutionResult:
+        """Execute the strict plugin operation."""
+
+        return self.run(request)
+
     def replay(
         self, result: ProteotypeUpstreamResolutionResult
     ) -> ProteotypeUpstreamResolutionResult:
         return self._engine.replay(result)
+
+    def verify(
+        self, result: ProteotypeUpstreamResolutionResult
+    ) -> ProteotypeUpstreamResolutionResult:
+        """Verify an exact result through the strict plugin seam."""
+
+        return self.replay(result)
 
 
 __all__ = ["M1901Plugin", "M1901PluginDescriptor"]

@@ -138,7 +138,9 @@ def test_preflight_rejects_missing_or_denied_control_before_validation() -> None
 def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
     service = m1901.M1901Service()
     result = service.resolve(_request())
+    assert service.execute(_request()) == result
     assert service.replay(result) == result
+    assert service.verify(result) == result
     with pytest.raises(m1901.M1901ReplayError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1901.M1901ReplayError, match="payload"):
@@ -167,7 +169,9 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
     request = _request()
     parsed = plugin.validate_json(canonical_json_bytes(request))
     result = plugin.run(parsed)
+    assert plugin.execute(parsed) == result
     assert plugin.replay(result) == result
+    assert plugin.verify(result) == result
     with pytest.raises(ValueError, match="valid JSON"):
         plugin.validate_json(b"not-json")
     with pytest.raises(ValueError, match="valid JSON"):
