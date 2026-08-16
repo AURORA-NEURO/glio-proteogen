@@ -316,7 +316,11 @@ def _findings(
     findings.extend(
         _finding(
             f"finding.{coverage_item.coverage_id}.status",
-            SubgroupFindingCode.COVERAGE_LIMITED,
+            (
+                SubgroupFindingCode.UPSTREAM_UNSUPPORTED
+                if coverage_item.status is CoverageStatus.UNSUPPORTED
+                else SubgroupFindingCode.COVERAGE_LIMITED
+            ),
             "Coverage status does not support a safe subgroup evaluation.",
             evidence,
         )
