@@ -9,12 +9,13 @@ ABI is provisional pending Bioinformatics owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -50,10 +51,16 @@ M2404_MAX_EVIDENCE: Final = 64
 M2404_MAX_FINDINGS: Final = 64
 M2404_MAX_CANONICAL_REQUEST_BYTES: Final = 8 * 1024 * 1024
 M2404_MAX_CANONICAL_RESULT_BYTES: Final = 16 * 1024 * 1024
+M2404_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2404_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8448-8488"
 M2404_EVIDENCE_CLAIM: Final = (
     "Caller-declared M24-04 transport, calibration, support-domain and "
     "validation material; issuer authority is not authenticated."
 )
+
+FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class TransportDimension(StrEnum):
@@ -111,8 +118,8 @@ class TransportEvaluation(FrozenModel):
     dimension: TransportDimension
     status: TransportStatus
     metric_name: NonEmptyStr
-    metric_value: float = Field(ge=0.0, le=1.0)
-    calibration_floor: float = Field(ge=0.0, le=1.0)
+    metric_value: FiniteFloat = Field(ge=0.0, le=1.0)
+    calibration_floor: FiniteFloat = Field(ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2404_MAX_EVIDENCE)
 
@@ -145,6 +152,10 @@ class SupportDomainUpdate(FrozenModel):
     def domains_are_disjoint(self) -> SupportDomainUpdate:
         if set(self.retained_dimensions) & set(self.narrowed_dimensions):
             raise ValueError("retained and narrowed dimensions must be disjoint")
+        if self.status is TransportStatus.DOMAIN_NARROWED and not self.narrowed_dimensions:
+            raise ValueError("narrowed support status requires narrowed dimensions")
+        if self.status is TransportStatus.SUPPORTED and self.narrowed_dimensions:
+            raise ValueError("supported domain cannot carry narrowed dimensions")
         return self
 
 
@@ -189,6 +200,8 @@ class TransportabilityReport(FrozenModel):
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required_dimensions = set(self.configuration.required_dimensions)
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("transport validation dimensions must be unique")
         if not required_dimensions <= validation_dims:
             raise ValueError("report must validate every configured transport dimension")
         if not required_dimensions <= evaluation_dims:
@@ -230,13 +243,34 @@ class EvaluateBiomarkerPanelExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateBiomarkerPanelExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("request validation dimensions must be unique")
         if not required <= validation_dims or not required <= evaluation_dims:
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        required_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in (
+                self.mass_spectrometry_proteome,
+                self.genome_transcriptome,
+                self.ptm_annotations,
+                self.benchmark_package,
+            )
+        }
+        if set(source_keys) != required_keys:
+            raise ValueError("source artifacts must retain exactly all declared transport inputs")
         return self
 
 
@@ -268,6 +302,8 @@ class BiomarkerPanelExternalTransportResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelExternalTransportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -289,6 +325,8 @@ class BiomarkerPanelExternalTransportResult(FrozenModel):
 
 __all__ = [
     "M2404_CONTRACT_VERSION",
+    "M2404_DOSSIER_SHA256",
+    "M2404_DOSSIER_SLICE",
     "M2404_EVIDENCE_CLAIM",
     "M2404_GATE",
     "M2404_MAX_CANONICAL_REQUEST_BYTES",
@@ -308,6 +346,7 @@ __all__ = [
     "BiomarkerPanelExternalTransportResult",
     "EvaluateBiomarkerPanelExternalTransportRequest",
     "EvaluationStatus",
+    "FiniteFloat",
     "SupportDomainUpdate",
     "TransportConfiguration",
     "TransportDimension",
