@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, FiniteFloat, model_validator
 
 from glio_proteogen.contracts.m21_08.canonical import (
     canonical_request_digest,
@@ -37,11 +37,17 @@ M2108_MODULE_ID: Final = "GLIO-PROTEOGEN-M21-08"
 M2108_OPERATION: Final = "adjudicate_complex_activity_evidence_gate"
 M2108_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2108_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-08+json"
+M2108_M2107_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-07+json"
+M2108_M2106_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-06+json"
 M2108_PARENT: Final = "complex activity"
 M2108_OWNER: Final = "ML engineering"
 M2108_SAFETY_CLASS: Final = "S3"
 M2108_GATE: Final = "G5"
 M2108_PROVISIONAL_ABI: Final = True
+M2108_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2108_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7544-7584"
 M2108_MAX_REQUIREMENTS: Final = 128
 M2108_MAX_BENCHMARKS: Final = 128
 M2108_MAX_RISKS: Final = 128
@@ -112,8 +118,8 @@ class BenchmarkOutcome(FrozenModel):
     benchmark_id: Identifier
     name: NonEmptyStr
     metric_name: NonEmptyStr
-    observed_value: float
-    required_floor: float
+    observed_value: FiniteFloat
+    required_floor: FiniteFloat
     passed: bool
     report_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2108_MAX_EVIDENCE)
@@ -160,7 +166,7 @@ class GateConfiguration(FrozenModel):
     require_signed_release_record: Literal[True] = True
     require_post_release_obligations: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2108_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2108_MAX_EVIDENCE)
 
 
 class SignedReleaseRecord(FrozenModel):
@@ -172,9 +178,7 @@ class SignedReleaseRecord(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2108_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2108_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2108_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2108_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2108_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -195,6 +199,9 @@ class SignedReleaseRecord(FrozenModel):
         groups = (requirement_ids, benchmark_ids, risk_ids, approval_ids, obligation_ids)
         if any(len(group) != len(set(group)) for group in groups):
             raise ValueError("gate record identifiers must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gate record evidence must be unique")
         if self.decision is GateDecision.PASS:
             if any(not item.satisfied for item in self.requirements):
                 raise ValueError("passing gate cannot contain unsatisfied requirements")
@@ -228,9 +235,7 @@ class AdjudicateComplexActivityEvidenceGateRequest(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2108_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2108_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2108_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2108_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2108_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -241,6 +246,31 @@ class AdjudicateComplexActivityEvidenceGateRequest(FrozenModel):
         min_length=1, max_length=M2108_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_bound(self) -> AdjudicateComplexActivityEvidenceGateRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
+        if self.upstream_evidence.media_type != M2108_M2107_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M21-07 operational result")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        if (
+            self.upstream_evidence.artifact_id,
+            self.upstream_evidence.version,
+            self.upstream_evidence.digest,
+            self.upstream_evidence.media_type,
+        ) not in set(source_keys):
+            raise ValueError("request source artifacts must include M21-07 evidence")
+        if not any(
+            item.media_type == M2108_M2106_INPUT_MEDIA_TYPE for item in self.source_artifacts
+        ):
+            raise ValueError("request source artifacts must retain M21-06 robustness evidence")
+        return self
 
 
 class ComplexActivityEvidenceGateResult(FrozenModel):
@@ -269,6 +299,15 @@ class ComplexActivityEvidenceGateResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityEvidenceGateResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("gate finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gate result evidence must be unique")
         if self.status is GateRunStatus.ADJUDICATED:
             if (
                 self.release_record is None
@@ -290,8 +329,12 @@ class ComplexActivityEvidenceGateResult(FrozenModel):
 
 __all__ = [
     "M2108_CONTRACT_VERSION",
+    "M2108_DOSSIER_SHA256",
+    "M2108_DOSSIER_SLICE",
     "M2108_EVIDENCE_CLAIM",
     "M2108_GATE",
+    "M2108_M2106_INPUT_MEDIA_TYPE",
+    "M2108_M2107_INPUT_MEDIA_TYPE",
     "M2108_MAX_APPROVALS",
     "M2108_MAX_BENCHMARKS",
     "M2108_MAX_CANONICAL_REQUEST_BYTES",
