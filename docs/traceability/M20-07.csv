@@ -1,0 +1,15 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M20-07,caller-declared M20-06 upstream binding,contracts/m20_07/v1.py request_is_bound,contract and evaluator tests,pass
+GLIO-PROTEOGEN-M20-07,seven-control fail-closed preflight,modules/.../m20_07_downstream_typed_export/engine.py preflight_m2007_authorization,denial malformed-context and adversarial tests,pass
+GLIO-PROTEOGEN-M20-07,unique documented typed export fields,contracts/m20_07/v1.py ExportField and request validators,contract and duplicate-field tests,pass
+GLIO-PROTEOGEN-M20-07,immutable ownership and parent boundary,contracts/m20_07/v1.py DownstreamContractObject and ExportOwnershipBinding,contract/runtime ownership tests,pass
+GLIO-PROTEOGEN-M20-07,versioned compatibility and locked configuration,contracts/m20_07/v1.py DownstreamExportConfiguration,compatibility evaluator and contract tests,pass
+GLIO-PROTEOGEN-M20-07,consent-aware support-aware export,engine.py supported/exported and abstention branches,consent support evaluator/adversarial tests,pass
+GLIO-PROTEOGEN-M20-07,signature and provenance closure,engine.py SignedContractEnvelope and _provenance,runtime/evaluator assertions,pass
+GLIO-PROTEOGEN-M20-07,safe abstention without unsupported-to-negative conversion,engine.py ExportStatus and ExportFinding,unsupported prohibited missing/consent tests,pass
+GLIO-PROTEOGEN-M20-07,seven uncertainty dimensions,engine.py _uncertainty,runtime/evaluator assertions,pass
+GLIO-PROTEOGEN-M20-07,canonical request/result replay and tamper rejection,contracts/m20_07/canonical.py and engine.py verify,replay payload/ownership tests,pass
+GLIO-PROTEOGEN-M20-07,strict parse-once plugin,modules/.../plugin.py,plugin token malformed-input parity tests,pass
+GLIO-PROTEOGEN-M20-07,FastAPI and Typer sanitized interfaces,modules/.../api.py and cli.py,interface lifecycle/error/no-overwrite tests,pass
+GLIO-PROTEOGEN-M20-07,evaluator fixture and locked benchmark,evals/m20_07 and tests/fixtures/m20_07,9 cases and 25 iterations,pass
+GLIO-PROTEOGEN-M20-07,provisional authority and prohibited boundaries,docs/modules/M20-07-downstream-typed-export.md,owner review and release evidence,provisional
