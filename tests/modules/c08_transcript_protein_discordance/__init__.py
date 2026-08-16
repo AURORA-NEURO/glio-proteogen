@@ -1,1 +1,1 @@
-"""C08 transcript-protein discordance runtime test package."""
+"""C08 transcript-protein discordance focused module tests."""

@@ -1,1 +1,1 @@
-"""Executable evaluator and module evidence gates for M08-05."""
+"""Executable evaluator and module evidence gates."""
