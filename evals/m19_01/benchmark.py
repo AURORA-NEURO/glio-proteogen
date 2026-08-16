@@ -18,7 +18,7 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_01_upstream_contract_resolver as m1901,
 )
 
-ITERATIONS: Final = 10
+ITERATIONS: Final = 25
 WARMUP_COUNT: Final = 1
 MEAN_BUDGET_NS: Final = 500_000_000
 P95_BUDGET_NS: Final = 750_000_000
@@ -39,6 +39,7 @@ class BenchmarkReport:
     p50_ns: float
     p95_ns: int
     maximum_ns: int
+    replay_verified: bool
     mean_budget_ns: int
     p95_budget_ns: int
     passed: bool
@@ -54,6 +55,7 @@ def run_benchmark() -> BenchmarkReport:
     )
     engine = m1901.M1901Engine()
     warmup = engine.resolve(request)
+    replay_verified = engine.replay(warmup) == warmup
     samples: list[int] = []
     for _ in range(ITERATIONS):
         started = perf_counter_ns()
@@ -61,6 +63,7 @@ def run_benchmark() -> BenchmarkReport:
         samples.append(perf_counter_ns() - started)
         if result != warmup:
             raise RuntimeError("M19-01 benchmark result was not deterministic")  # noqa: TRY003
+        replay_verified = replay_verified and engine.replay(result) == result
     ordered = sorted(samples)
     p95 = ordered[(95 * len(ordered) - 1) // 100]
     mean = fmean(samples)
@@ -78,6 +81,7 @@ def run_benchmark() -> BenchmarkReport:
         p50_ns=median(samples),
         p95_ns=p95,
         maximum_ns=max(samples),
+        replay_verified=replay_verified,
         mean_budget_ns=MEAN_BUDGET_NS,
         p95_budget_ns=P95_BUDGET_NS,
         passed=mean <= MEAN_BUDGET_NS and p95 <= P95_BUDGET_NS,
