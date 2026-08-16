@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-02",
+  "fixture_id": "m13-02-context-subtype-stratifier-v1",
+  "fixture_digest": "sha256:632ae56d0c883a7ea81024448e407b29d55abf574d969d8d4addd561e69fb911",
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "all_passed": true,
+  "cases": [
+    {"case_id": "supported_context", "expected": "stratified", "actual": "stratified", "passed": true},
+    {"case_id": "limited_context", "expected": "stratified", "actual": "stratified", "passed": true},
+    {"case_id": "unresolved_context", "expected": "abstained", "actual": "abstained", "passed": true},
+    {"case_id": "conflicted_context", "expected": "abstained", "actual": "abstained", "passed": true},
+    {"case_id": "missing_required_dimension", "expected": "abstained", "actual": "abstained", "passed": true},
+    {"case_id": "denied_control", "expected": "authorization_error", "actual": "authorization_error", "passed": true},
+    {"case_id": "tampered_result", "expected": "replay_rejected", "actual": "replay_rejected", "passed": true}
+  ]
+}
