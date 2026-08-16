@@ -1,0 +1,12 @@
+{
+  "ablation_present": true,
+  "abstained_status": "abstained",
+  "contract_version": "0.1.0-provisional",
+  "deterministic": true,
+  "hard_violation_reported": true,
+  "integrated_status": "integrated",
+  "module_id": "GLIO-PROTEOGEN-M06-05",
+  "passed": true,
+  "replay_verified": true,
+  "unsupported_status": "abstained"
+}

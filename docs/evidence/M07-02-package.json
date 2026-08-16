@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-02",
+  "contract_version": "0.1.0-provisional",
+  "build": {
+    "wheel": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "wheel_bytes": 750545,
+    "sdist": "glio_proteogen-0.1.0.tar.gz",
+    "sdist_bytes": 1427660,
+    "command": "python -m build --wheel --sdist --no-isolation",
+    "passed": true
+  },
+  "isolated_import": {
+    "target_install": true,
+    "import_glio_proteogen": true,
+    "import_m0702_contracts": true,
+    "import_m0702_engine": true,
+    "module_id": "GLIO-PROTEOGEN-M07-02",
+    "passed": true
+  },
+  "abi_status": "provisional-no-frozen-abi"
+}

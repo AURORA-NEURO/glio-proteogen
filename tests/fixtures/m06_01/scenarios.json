@@ -1,0 +1,50 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M06-01",
+  "schema_version": "0.1.0-provisional",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "formal-state-validation-not-biomarker-inference",
+  "scenarios": [
+    {
+      "case_id": "all_invariants_satisfied",
+      "request_case": "valid",
+      "outcome": "result",
+      "expected_status": "valid",
+      "expected_support": "supported"
+    },
+    {
+      "case_id": "hard_invariant_violated",
+      "request_case": "violated",
+      "outcome": "result",
+      "expected_status": "invalid",
+      "expected_support": "unsupported"
+    },
+    {
+      "case_id": "missing_value_abstains",
+      "request_case": "missing",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "unsupported_expression_abstains",
+      "request_case": "unsupported_expression",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "incompatible_comparison_abstains",
+      "request_case": "incompatible",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "denied_control_rejected",
+      "request_case": "denied",
+      "outcome": "validation_rejected",
+      "expected_status": null,
+      "expected_support": null
+    }
+  ]
+}
