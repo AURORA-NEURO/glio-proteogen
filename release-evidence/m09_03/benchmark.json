@@ -1,0 +1,14 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 2898000.0,
+  "median_ns": 2843050.0,
+  "method": "statistical_rule_based",
+  "module_id": "GLIO-PROTEOGEN-M09-03",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 3245300,
+  "passed": true,
+  "timed_boundary": "M0903BaselineEstimator.construct",
+  "workload": "deterministic transparent complex-activity baseline estimation"
+}
