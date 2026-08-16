@@ -27,6 +27,10 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1808_contract_schema,
+    _m1806_contract_schema,
+    _m1906_contract_schema,
+    _m1908_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -156,12 +160,44 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_03.v1 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m19_04 import (
+    M1904_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptProteotypeIntendedUseRequest,
+    ProteotypeIntendedUseAdapterResult,
+    contract_json_schema as m1904_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_04.schema import ContractName as M1904ContractName
+from glio_proteogen.contracts.m19_06 import (
+    M1906_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteotypeQueueRequest,
+    ProteotypeAdjudicationResult,
+)
+from glio_proteogen.contracts.m19_06.schema import ContractName as M1906ContractName
 from glio_proteogen.contracts.m19_08 import (
     M1908_MAX_CANONICAL_REQUEST_BYTES,
     MonitorProteotypeTranslationHealthRequest,
-)
-from glio_proteogen.contracts.m19_08 import (
+    ProteotypeTranslationMonitoringResult,
     contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_08.schema import ContractName as M1908ContractName
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorBiomarkerPanelTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m18_06 import (
+    M1806_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateBiomarkerPanelQueueRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -307,6 +343,27 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903ReplayError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_06_reviewer_adjudication as m1806_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904AuthorizationError,
+    M1904ReplayError,
+    M1904Service,
+    preflight_m1904_authorization,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
+    m19_06_reviewer_adjudication as m1906_adjudication,
+)
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_08_translation_monitoring_service as m1908_monitoring,
 )
@@ -443,6 +500,31 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1903_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-03 component-specific fusion and aggregation.",
+)
+app.add_typer(m1903_app, name="m1903-fusion")
+m1808_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1808_app, name="m1808-translation-health")
+m1806_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-06 reviewer discrepancy and adjudication queue.",
+)
+app.add_typer(m1806_app, name="m18-06-adjudication")
+m1904_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1904_app, name="m1904-intended-use")
+m1906_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-06 reviewer discrepancy adjudication.",
+)
+app.add_typer(m1906_app, name="m19-06-adjudication")
 m1908_app = typer.Typer(
     no_args_is_help=True,
     help="M19-08 translation-health monitoring and rollback.",
@@ -3398,6 +3480,79 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=1) from error
 
 
+@m1808_app.command("export-schema")
+def export_m1808_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M18-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M18-08 contract schema."""
+
+    typer.echo(json.dumps(_m1808_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1808_app.command("monitor")
+def monitor_m1808_translation_health(request: RequestArgument) -> None:
+    """Monitor translation health and emit a bounded state or explicit abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest),
+            m1808_monitoring.preflight_m1808_authorization,
+            M1808_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1808_monitoring.M1808Service().execute(parsed))
+    except m1808_monitoring.M1808AuthorizationError as error:
+        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+@m1806_app.command("export-schema")
+def export_m1806_schema(
+    contract: Annotated[
+        Literal[
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M18-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M18-06 contract."""
+
+    typer.echo(json.dumps(_m1806_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1806_app.command("adjudicate")
+def adjudicate_m1806_queue(request: RequestArgument) -> None:
+    """Adjudicate one bounded reviewer discrepancy queue with safe abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdjudicateBiomarkerPanelQueueRequest),
+        m1806_adjudication.preflight_m1806_authorization,
+        M1806_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1806_adjudication.M1806Service().adjudicate(parsed))
+
+
 @protein_inference_release_app.command("build")
 def build_protein_inference_release_archive(
     request: RequestArgument,
@@ -3453,20 +3608,154 @@ def verify_protein_inference_release_archive(
         raise typer.Exit(code=1)
 
 
+@m1903_app.command("export-schema")
+def export_m1903_schema(
+    contract: Annotated[
+        M1903ContractName,
+        typer.Argument(help="M19-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-03 contract schema."""
+
+    typer.echo(json.dumps(m1903_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1903_app.command("fuse")
+def fuse_m1903_evidence(request: RequestArgument) -> None:
+    """Fuse one strict M19-03 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(FuseProteotypeEvidenceRequest),
+            preflight_m1903_authorization,
+            M1903_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1903Service().fuse(parsed))
+    except M1903AuthorizationError as error:
+        typer.echo(f"M19-03 fusion authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-03 fusion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1903_app.command("verify")
+def verify_m1903_evidence(result: RequestArgument) -> None:
+    """Verify an M19-03 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntegratedEvidenceResult),
+            max_bytes=M1903_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1903Service().replay(parsed))
+    except M1903ReplayError as error:
+        typer.echo(f"M19-03 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1904_app.command("export-schema")
+def export_m1904_schema(
+    contract: Annotated[
+        M1904ContractName,
+        typer.Argument(help="M19-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-04 contract schema."""
+
+    typer.echo(json.dumps(m1904_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1904_app.command("adapt")
+def adapt_m1904_intended_use(request: RequestArgument) -> None:
+    """Adapt one strict M19-04 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdaptProteotypeIntendedUseRequest),
+            preflight_m1904_authorization,
+            M1904_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1904Service().adapt(parsed))
+    except M1904AuthorizationError as error:
+        typer.echo(f"M19-04 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-04 adaptation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1904_app.command("verify")
+def verify_m1904_intended_use(result: RequestArgument) -> None:
+    """Verify an M19-04 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntendedUseAdapterResult),
+            max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1904Service().replay(parsed))
+    except M1904ReplayError as error:
+        typer.echo(f"M19-04 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1906_app.command("export-schema")
+def export_m1906_schema(
+    contract: Annotated[
+        M1906ContractName,
+        typer.Argument(help="M19-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-06 contract schema."""
+
+    typer.echo(json.dumps(_m1906_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1906_app.command("adjudicate")
+def adjudicate_m1906(request: RequestArgument) -> None:
+    """Adjudicate one strict M19-06 reviewer queue request."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdjudicateProteotypeQueueRequest),
+            m1906_adjudication.preflight_m1906_authorization,
+            M1906_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1906_adjudication.M1906Service().adjudicate(parsed))
+    except m1906_adjudication.M1906AuthorizationError as error:
+        typer.echo(f"M19-06 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-06 adjudication failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1906_app.command("verify")
+def verify_m1906(result: RequestArgument) -> None:
+    """Verify an M19-06 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeAdjudicationResult),
+            max_bytes=M1906_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(m1906_adjudication.M1906Service().replay(parsed))
+    except m1906_adjudication.M1906ReplayError as error:
+        typer.echo(f"M19-06 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
 @m1908_app.command("export-schema")
 def export_m1908_schema(
     contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "health-report",
-            "telemetry",
-            "support-drift",
-            "workflow-effect",
-            "discrepancy",
-            "rollback-policy",
-            "finding",
-        ],
+        M1908ContractName,
         typer.Argument(help="M19-08 public contract to export as JSON Schema 2020-12."),
     ],
 ) -> None:
@@ -3477,7 +3766,7 @@ def export_m1908_schema(
 
 @m1908_app.command("monitor")
 def monitor_m1908_translation_health(request: RequestArgument) -> None:
-    """Monitor declared translation health and emit a replay-safe result."""
+    """Monitor translation health and emit a bounded state or explicit abstention."""
 
     try:
         parsed = _load_request(
@@ -3486,7 +3775,7 @@ def monitor_m1908_translation_health(request: RequestArgument) -> None:
             m1908_monitoring.preflight_m1908_authorization,
             M1908_MAX_CANONICAL_REQUEST_BYTES,
         )
-        _emit(m1908_monitoring.M1908Service().monitor(parsed))
+        _emit(m1908_monitoring.M1908Service().execute(parsed))
     except m1908_monitoring.M1908AuthorizationError as error:
         typer.echo(f"M19-08 authorization failed: {error}", err=True)
         raise typer.Exit(code=2) from error

@@ -8,6 +8,7 @@ provisional pending Platform engineering owner confirmation.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -32,17 +33,19 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 6464-6503.
+# PROVISIONAL ABI: inferred solely from dossier lines 6464-6504.
 M1808_MODULE_ID: Final = "GLIO-PROTEOGEN-M18-08"
 M1808_OPERATION: Final = "monitor_biomarker_panel_translation_health"
 M1808_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1808_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m18-08+json"
 M1808_M1807_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m18-07+json"
 M1808_PARENT: Final = "biomarker panel"
-M1808_OWNER: Final = "Platform engineering"
+M1808_OWNER: Final = "Scientific engineering"
 M1808_SAFETY_CLASS: Final = "S2"
-M1808_GATE: Final = "G3"
+M1808_GATE: Final = "G5"
 M1808_PROVISIONAL_ABI: Final = True
+M1808_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+M1808_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6464-6504"
 M1808_MAX_TELEMETRY: Final = 256
 M1808_MAX_SUPPORT_DRIFT: Final = 128
 M1808_MAX_WORKFLOW_EFFECTS: Final = 128
@@ -103,6 +106,15 @@ class TelemetryObservation(FrozenModel):
     allowed_delta: float = Field(ge=0.0)
     status: ObservationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1808_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def finite_measurements(self) -> TelemetryObservation:
+        if not all(
+            isfinite(value)
+            for value in (self.observed_value, self.baseline_value, self.allowed_delta)
+        ):
+            raise ValueError("telemetry measurements must be finite")
+        return self
 
 
 class SupportDriftObservation(FrozenModel):
@@ -167,20 +179,23 @@ class TranslationHealthReport(FrozenModel):
     def decision_matches_state(self) -> TranslationHealthReport:
         required_decisions = {
             TranslationHealthState.HEALTHY: RollbackDecision.NONE,
+            TranslationHealthState.DEGRADED: RollbackDecision.REVIEW_REQUIRED,
             TranslationHealthState.SUSPENDED: RollbackDecision.SUSPEND,
             TranslationHealthState.ROLLBACK_REQUIRED: RollbackDecision.ROLLBACK,
+            TranslationHealthState.NOT_EVALUABLE: RollbackDecision.REVIEW_REQUIRED,
         }
         required = required_decisions.get(self.health_state)
-        if required is not None and self.rollback_decision is not required:
+        if self.rollback_decision is not required:
             raise ValueError("rollback decision must match declared health state")
         observation_ids = (
             tuple(item.observation_id for item in self.telemetry)
             + tuple(item.observation_id for item in self.support_drift)
             + tuple(item.observation_id for item in self.workflow_effects)
         )
-        if len(observation_ids) != len(set(observation_ids)):
-            raise ValueError("health observation ids must be unique")
         discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancies)
+        all_ids = observation_ids + discrepancy_ids
+        if len(all_ids) != len(set(all_ids)):
+            raise ValueError("health observation ids must be unique")
         if len(discrepancy_ids) != len(set(discrepancy_ids)):
             raise ValueError("discrepancy observation ids must be unique")
         return self
@@ -214,6 +229,7 @@ class MonitorBiomarkerPanelTranslationHealthRequest(FrozenModel):
         min_length=1, max_length=M1808_MAX_DISCREPANCIES
     )
     rollback_policy: RollbackPolicy
+    support_decision: SupportDecision
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1808_MAX_EVIDENCE
     )
@@ -223,6 +239,37 @@ class MonitorBiomarkerPanelTranslationHealthRequest(FrozenModel):
     def request_is_bound(self) -> MonitorBiomarkerPanelTranslationHealthRequest:
         if self.upstream_result.media_type != M1808_M1807_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M18-07 export result")
+        artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request source artifacts must be unique")
+        source_ids = set(artifact_ids)
+        if self.upstream_result.artifact_id not in source_ids:
+            raise ValueError("upstream result must be listed in source artifacts")
+        if self.rollback_policy.rollback_artifact.artifact_id not in source_ids:
+            raise ValueError("rollback artifact must be listed in source artifacts")
+        evidence_ids = {
+            evidence.reference.artifact_id for item in self.telemetry for evidence in item.evidence
+        }
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.support_drift
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.workflow_effects
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.discrepancies
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id for evidence in self.rollback_policy.evidence
+        )
+        if not evidence_ids <= source_ids:
+            raise ValueError("monitor evidence references an unknown source artifact")
         return self
 
 
@@ -268,6 +315,12 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no report and safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        finding_codes = tuple(finding.code for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("translation finding ids must be unique")
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("translation finding codes must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -275,6 +328,8 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
 
 __all__ = [
     "M1808_CONTRACT_VERSION",
+    "M1808_DOSSIER_SHA256",
+    "M1808_DOSSIER_SLICE",
     "M1808_EVIDENCE_CLAIM",
     "M1808_GATE",
     "M1808_M1807_INPUT_MEDIA_TYPE",

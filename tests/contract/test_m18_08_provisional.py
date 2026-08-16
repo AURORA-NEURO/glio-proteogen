@@ -1,7 +1,5 @@
 """Focused contract/schema smoke for provisional M18-08."""
 
-import pytest
-
 from glio_proteogen.contracts.m18_08 import (
     M1808_OUTPUT_MEDIA_TYPE,
     M1808_PROVISIONAL_ABI,
@@ -41,5 +39,4 @@ def test_health_and_rollback_states_are_explicit() -> None:
     assert TranslationHealthState.ROLLBACK_REQUIRED.value == "rollback_required"
     assert RollbackDecision.SUSPEND.value == "suspend"
     assert TranslationFindingCode.SUPPORT_DRIFT.value == "support_drift"
-    with pytest.raises(AssertionError):
-        assert RollbackDecision.SUSPEND is RollbackDecision.NONE
+    assert str(RollbackDecision.SUSPEND.value) != str(RollbackDecision.NONE.value)

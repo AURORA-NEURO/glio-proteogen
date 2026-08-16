@@ -1,0 +1,21 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M19-04-R01,dossier:6648-6650,Own intended-use adaptation beneath Immunopeptidomic evidence,typed module identity and provisional operation,contract identity assertions,G3
+M19-04-R02,dossier:6650-6652,Bind one exact M19-03 proteotype evidence result,strict upstream media and exact source artifact inclusion,request binding and evaluator supported scenario,G3
+M19-04-R03,dossier:6652,Require seven controls before traversal,fail-closed preflight over configuration lineage provenance consent quality support intended use,seven-control adversarial matrix,G3
+M19-04-R04,dossier:6652-6654,Preserve intended-use registration and evidence tier,closed intended-use enum and tier thresholds,internal/release tier tests,G3
+M19-04-R05,dossier:6654,Enforce claim ceiling and display semantics,unique prohibited claims and required disclosure sections,policy block and incomplete-display cases,G3
+M19-04-R06,dossier:6654-6656,Abstain safely on unsupported policy,typed abstention with no adapted object and unsupported support status,9-scenario evaluator and policy tests,G3
+M19-04-R07,dossier:6656,Keep clinical/release use review-gated,review_required policy and human review flag,clinical and release review tests,G3
+M19-04-R08,dossier:6656-6658,Emit uncertainty support provenance evidence and limitations,closed result envelope with seven not-estimable dimensions,runtime envelope assertions,G3
+M19-04-R09,dossier:6658,Do not infer identity or consent,caller-declared control references and false authority metadata,authority and privacy tests,G3
+M19-04-R10,dossier:6658-6660,Exclude kinase all-omics treatment and identity claims,forbidden maximum-claim vocabulary and limitations,treatment/kinase/all-omics adversarial case,G3
+M19-04-R11,dossier:6660,Preserve disagreement and unsupported states,blocked findings remain explicit and no negative object is emitted,safe-abstention evaluator oracle,G3
+M19-04-R12,dossier:6660-6662,Close canonical replay identity and tamper behavior,request/result digests and deterministic result IDs,contract replay and interface verify tests,G3
+M19-04-R13,dossier:6662,Keep implementation deterministic and stateless,engine/service/plugin parity without persistence,service/plugin focused suite,G3
+M19-04-R14,dossier:6662-6664,Expose strict schema/API/CLI seams,8 JSON Schema contracts plus FastAPI/Typer operations,interface parity tests,G3
+M19-04-R15,dossier:6664,Reject malformed or coerced input,strict Pydantic TypeAdapter and sanitized errors,mapping/wrong-media/API error cases,G3
+M19-04-R16,dossier:6664-6666,Preserve exact evidence and provenance,source and registration evidence with seven control decision records,result evidence assertions,G3
+M19-04-R17,dossier:6666,Require human review for critical discrepancy and exceptions,review flag and external-review manifest,review and manifest evidence,G3
+M19-04-R18,dossier:6666-6668,Provide locked executable corpus and benchmark,9 scenarios/8 adversarial plus 25-call bounded benchmark,evals/m19_04/run.py and benchmark.py,G3
+M19-04-R19,dossier:6668,Meet software regression budgets,mean <=500ms and p95 <=750ms,benchmark report mean 1.460896ms p95 1.5647ms,G3
+M19-04-R20,dossier:6668,Provide release traceability and rollback evidence,manifest/evidence/package hashes and append-only recovery plan,release package record and external review plan,G3
