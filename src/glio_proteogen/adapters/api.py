@@ -275,6 +275,46 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
+from glio_proteogen.contracts.m13_06.schema import (
+    contract_json_schema as m1306_contract_json_schema,
+)
+from glio_proteogen.contracts.m13_06.v1 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    ProteotypePerturbationSensitivityResult,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
+from glio_proteogen.contracts.m14_03.schema import (
+    contract_json_schema as m1403_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_03.v1 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+    ProteinSubtypeMechanisticFeatureResult,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    ContractName as M1405ContractName,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    contract_json_schema as m1405_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_05.v1 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+    ProteinSubtypeLongitudinalEvolutionResult,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    ContractName as M1502ContractName,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    contract_json_schema as m1502_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_02.v1 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    LongitudinalRecurrenceContextStratificationResult,
+    StratifyContextAndSubtypeRequest,
+)
 from glio_proteogen.contracts.m15_08.schema import (
     ContractName as M1508ContractName,
 )
@@ -307,46 +347,6 @@ from glio_proteogen.contracts.m16_06.v1 import (
     M1606_MAX_CANONICAL_REQUEST_BYTES,
     AdjudicateProteinRnaDiscordanceQueueRequest,
     ProteinRnaDiscordanceAdjudicationResult,
-)
-from glio_proteogen.contracts.m15_02.schema import (
-    ContractName as M1502ContractName,
-)
-from glio_proteogen.contracts.m15_02.schema import (
-    contract_json_schema as m1502_contract_json_schema,
-)
-from glio_proteogen.contracts.m15_02.v1 import (
-    M1502_MAX_CANONICAL_REQUEST_BYTES,
-    LongitudinalRecurrenceContextStratificationResult,
-    StratifyContextAndSubtypeRequest,
-)
-from glio_proteogen.contracts.m14_05.schema import (
-    ContractName as M1405ContractName,
-)
-from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
-from glio_proteogen.contracts.m13_06.schema import (
-    contract_json_schema as m1306_contract_json_schema,
-)
-from glio_proteogen.contracts.m13_06.v1 import (
-    M1306_MAX_CANONICAL_REQUEST_BYTES,
-    ProteotypePerturbationSensitivityResult,
-    SimulateProteotypePerturbationRequest,
-)
-from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
-from glio_proteogen.contracts.m14_03.schema import (
-    contract_json_schema as m1403_contract_json_schema,
-)
-from glio_proteogen.contracts.m14_03.v1 import (
-    M1403_MAX_CANONICAL_REQUEST_BYTES,
-    ConstructProteinSubtypeMechanisticFeaturesRequest,
-    ProteinSubtypeMechanisticFeatureResult,
-)
-from glio_proteogen.contracts.m14_05.schema import (
-    contract_json_schema as m1405_contract_json_schema,
-)
-from glio_proteogen.contracts.m14_05.v1 import (
-    M1405_MAX_CANONICAL_REQUEST_BYTES,
-    ModelProteinSubtypeLongitudinalEvolutionRequest,
-    ProteinSubtypeLongitudinalEvolutionResult,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -497,6 +497,20 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_08_mechanism_evidence_dossier as m1508,
 )
@@ -507,20 +521,6 @@ from glio_proteogen.modules.c16_kinophos_object_consumer import (
 )
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     m16_03_fusion_aggregation_engine as m1603,
-)
-from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
-    m15_02_context_subtype_stratifier as m1502_module,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_05_protein_subtype_evolution as m1405_module,
-)
-from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
-    m14_03_mechanistic_feature_constructor as m1403_module,
-)
-from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
-    M1306AuthorizationError,
-    M1306Service,
-    preflight_m1306_authorization,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
