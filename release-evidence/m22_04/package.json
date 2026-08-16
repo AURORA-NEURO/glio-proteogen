@@ -9,8 +9,8 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "bytes": 3317789,
-    "sha256": "0c03652353e3979c80485b1b83095c96fb6a3e662dab2ad4bebc3a08a6d41d73"
+    "bytes": 3318504,
+    "sha256": "bc11448c4664e905ed927fe422653917763dee9b7b06ca2e88bf719f041c7786"
   },
   "isolated_import": true,
   "release_verifier": true,
