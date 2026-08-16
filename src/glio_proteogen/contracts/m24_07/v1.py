@@ -183,8 +183,6 @@ class HumanFactorsOperationalReport(FrozenModel):
             <= fallback_dimensions
         ):
             raise ValueError("report must cover downtime, recovery and fallback scenarios")
-        if not required <= metric_dimensions:
-            raise ValueError("report metric dimensions are not closed")
         return self
 
 

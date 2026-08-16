@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m24_07 import (
     OperationalMetric,
     OperationalStatus,
     canonical_request_digest,
+    normalized_request,
     result_identifier,
 )
 from glio_proteogen.kernel.models import (
@@ -163,6 +164,7 @@ def test_request_fixture_is_canonical_and_result_identity_is_deterministic() -> 
     assert canonical_request_digest(typed).startswith("sha256:")
     assert result_identifier(typed).startswith("m2407.result.")
     assert M2407_OUTPUT_MEDIA_TYPE.endswith("+json")
+    assert normalized_request({"caller": "declared"}) == {"caller": "declared"}
 
 
 def test_pass_metric_must_satisfy_declared_tolerance() -> None:

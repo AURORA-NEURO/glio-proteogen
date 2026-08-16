@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m24_07 import (
     BiomarkerPanelHumanFactorsResult,
     EvaluationStatus,
+    HumanFactorsOperationalReport,
     OperationalConfiguration,
     OperationalDimension,
     OperationalFinding,
@@ -90,6 +91,18 @@ def test_service_rejects_unknown_fields_wrong_media_and_incomplete_dimensions() 
         m2407.M2407Service().validate_request(
             typed.model_copy(update={"metrics": typed.metrics[:-1]})
         )
+    with pytest.raises(ValidationError, match="cover downtime"):
+        m2407.M2407Service().validate_request(
+            typed.model_copy(update={"fallbacks": (typed.fallbacks[0],)})
+        )
+    duplicate_metrics = typed.model_copy(update={"metrics": (typed.metrics[0], *typed.metrics)})
+    with pytest.raises(ValidationError, match="metric ids must be unique"):
+        m2407.M2407Service().validate_request(duplicate_metrics)
+    duplicate_fallbacks = typed.model_copy(
+        update={"fallbacks": (typed.fallbacks[0], *typed.fallbacks)}
+    )
+    with pytest.raises(ValidationError, match="fallback ids must be unique"):
+        m2407.M2407Service().validate_request(duplicate_fallbacks)
 
 
 def test_contract_rejects_invalid_metric_math_and_configuration_closure() -> None:
@@ -114,6 +127,54 @@ def test_contract_rejects_invalid_metric_math_and_configuration_closure() -> Non
             | {"required_dimensions": (OperationalDimension.LATENCY,) * _SCHEMA_COUNT},
             strict=True,
         )
+    with pytest.raises(ValidationError, match="operational metric ids"):
+        HumanFactorsOperationalReport.model_validate(
+            {
+                "report_id": "m2407.report.duplicate",
+                "version": "1.0.0",
+                "metrics": (typed.metrics[0], *typed.metrics),
+                "fallbacks": typed.fallbacks,
+                "configuration": typed.configuration,
+                "evidence": typed.configuration.evidence,
+            },
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="fallback scenario ids"):
+        HumanFactorsOperationalReport.model_validate(
+            {
+                "report_id": "m2407.report.duplicate-fallback",
+                "version": "1.0.0",
+                "metrics": typed.metrics,
+                "fallbacks": (typed.fallbacks[0], *typed.fallbacks),
+                "configuration": typed.configuration,
+                "evidence": typed.configuration.evidence,
+            },
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="measure every"):
+        HumanFactorsOperationalReport.model_validate(
+            {
+                "report_id": "m2407.report.missing-metric",
+                "version": "1.0.0",
+                "metrics": typed.metrics[:-1],
+                "fallbacks": typed.fallbacks,
+                "configuration": typed.configuration,
+                "evidence": typed.configuration.evidence,
+            },
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="cover downtime"):
+        HumanFactorsOperationalReport.model_validate(
+            {
+                "report_id": "m2407.report.missing-fallback",
+                "version": "1.0.0",
+                "metrics": typed.metrics,
+                "fallbacks": (typed.fallbacks[0],),
+                "configuration": typed.configuration,
+                "evidence": typed.configuration.evidence,
+            },
+            strict=True,
+        )
 
 
 def test_result_closure_rejects_identity_provenance_and_duplicate_finding_forgery() -> None:
@@ -132,6 +193,7 @@ def test_result_closure_rejects_identity_provenance_and_duplicate_finding_forger
         {"request_digest": "sha256:" + "0" * 64},
         {"provenance": result.provenance.model_copy(update={"module_id": "GLIO-PROTEOGEN-M24-06"})},
         {"findings": (finding, finding)},
+        {"report": None},
     )
     for update in updates:
         with pytest.raises(ValidationError):
@@ -173,6 +235,9 @@ def test_api_rejects_nonobject_duplicate_and_tampered_verify_payloads() -> None:
     )
     assert duplicate.status_code == _HTTP_UNPROCESSABLE
     assert "sensitive-second" not in duplicate.text
+    assert client.get("/v1/modules/M24-07/schemas/request").status_code == _HTTP_OK
+    invalid_json = client.post("/v1/modules/M24-07/verify", content=b"{")
+    assert invalid_json.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_api_denial_is_sanitized() -> None:
@@ -189,9 +254,15 @@ def test_api_denial_is_sanitized() -> None:
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in response.text
+    validate_response = TestClient(m2407.create_app(m2407.M2407Service())).post(
+        "/v1/modules/M24-07/validate", json=denied.model_dump(mode="json")
+    )
+    assert validate_response.status_code == _HTTP_UNPROCESSABLE
 
 
-def test_cli_bad_input_and_no_overwrite_are_sanitized(tmp_path: Path) -> None:
+def test_cli_bad_input_and_no_overwrite_are_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     runner = CliRunner()
     assert runner.invoke(m2407.cli_app, ["export-schema", "unknown"]).exit_code != 0
     bad_request = tmp_path / "bad-request.json"
@@ -214,6 +285,50 @@ def test_cli_bad_input_and_no_overwrite_are_sanitized(tmp_path: Path) -> None:
         != 0
     )
     assert result_path.read_bytes() == original
+    schema_path = tmp_path / "schema.json"
+    assert (
+        runner.invoke(
+            m2407.cli_app, ["export-schema", "request", "--output", str(schema_path)]
+        ).exit_code
+        == 0
+    )
+    assert runner.invoke(m2407.cli_app, ["evaluate", str(request_path)]).exit_code == 0
+    bad_result = tmp_path / "bad-result.json"
+    bad_result.write_bytes(b"{}")
+    assert runner.invoke(m2407.cli_app, ["verify", str(bad_result)]).exit_code != 0
+    denied = fixture_request()
+    support = denied.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied_references = denied.context.references.model_copy(update={"support": support})
+    denied = denied.model_copy(
+        update={"context": denied.context.model_copy(update={"references": denied_references})}
+    )
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(denied))
+    assert runner.invoke(m2407.cli_app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(m2407.cli_app, ["evaluate", str(denied_path)]).exit_code != 0
+    baseline = fixture_request()
+    failed_metric = baseline.metrics[0].model_copy(update={"status": OperationalStatus.FAIL})
+    failed = baseline.model_copy(update={"metrics": (failed_metric, *baseline.metrics[1:])})
+    failed_path = tmp_path / "failed.json"
+    failed_path.write_bytes(canonical_json_bytes(failed))
+    assert runner.invoke(m2407.cli_app, ["evaluate", str(failed_path)]).exit_code == 1
+
+    class ReplayFailure:
+        def verify_replay(self, _result: object) -> object:
+            raise ValueError("replay failure")  # noqa: TRY003
+
+    monkeypatch.setattr(m2407.cli, "_SERVICE", ReplayFailure())
+    assert runner.invoke(m2407.cli_app, ["verify", str(result_path)]).exit_code != 0
+
+    class ReplayMismatch:
+        def verify_replay(self, _result: object) -> object:
+            result = m2407.M2407Service().evaluate(fixture_request())
+            return result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+
+    monkeypatch.setattr(m2407.cli, "_SERVICE", ReplayMismatch())
+    assert runner.invoke(m2407.cli_app, ["verify", str(result_path)]).exit_code == 1
 
 
 def test_public_entry_point_and_strict_json_size_limit_are_deterministic() -> None:
@@ -225,6 +340,7 @@ def test_public_entry_point_and_strict_json_size_limit_are_deterministic() -> No
         m2407.M2407Plugin(m2407.M2407Service()).validate(
             m2407.HumanFactorsSubmission(b"{" + b"x" * (4 * 1024 * 1024) + b"}")
         )
+    assert m2407.M2407Plugin(m2407.M2407Service()).descriptor().module_id == "GLIO-PROTEOGEN-M24-07"
 
 
 def test_media_boundary_is_caller_declared_and_never_imports_m24_06() -> None:
