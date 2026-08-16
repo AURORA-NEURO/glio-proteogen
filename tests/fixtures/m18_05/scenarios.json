@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-05",
+  "contract_version": "0.1.0-provisional",
+  "parent_target": "biomarker panel",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "6332-6372",
+  "scenarios": [
+    "presented_workspace",
+    "unsupported_abstention",
+    "six_sections",
+    "replay",
+    "tamper",
+    "authorization_gate"
+  ],
+  "synthetic_only": true,
+  "provisional": true
+}
