@@ -64,6 +64,13 @@ _M1904_BENCHMARK_ITERATIONS = 25
 _M1904_BENCHMARK_WARMUPS = 1
 _M1904_MEAN_BUDGET_NS = 500_000_000
 _M1904_P95_BUDGET_NS = 750_000_000
+_M2604_MODULE_ID = "GLIO-PROTEOGEN-M26-04"
+_M2604_CASE_COUNT = 8
+_M2604_SCHEMA_COUNT = 12
+_M2604_UNCERTAINTY_DIMENSIONS = 7
+_M2604_BENCHMARK_ITERATIONS = 10
+_M2604_MEAN_BUDGET_NS = 500_000_000
+_M2604_P95_BUDGET_NS = 750_000_000
 _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("export-schema", "protocol-schema"),
@@ -511,6 +518,58 @@ def verify_m1904_evidence(evaluation: Path, benchmark: Path) -> None:
     _verify_m1904_benchmark(_load_json_evidence(benchmark, "M19-04 benchmark report"))
 
 
+def _verify_m2604_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report did not pass")
+    for field, expected in (
+        ("scenarioCount", _M2604_CASE_COUNT),
+        ("passedCases", _M2604_CASE_COUNT),
+        ("schemaCount", _M2604_SCHEMA_COUNT),
+        ("uncertaintyDimensions", _M2604_UNCERTAINTY_DIMENSIONS),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M26-04 evaluation report")
+    cases = _sequence(evaluation_report.get("cases"), "M26-04 evaluation cases")
+    if len(cases) != _M2604_CASE_COUNT or any(not isinstance(case, str) for case in cases):
+        raise ReleaseArtifactError("M26-04 evaluation report lacks exact scenario closure")
+    if evaluation_report.get("replayTamperRejected") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks tamper rejection")
+    if evaluation_report.get("deterministicRepeat") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks deterministic replay")
+
+
+def _verify_m2604_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 benchmark report did not pass")
+    _require_exact_integer(
+        benchmark_report, "iterations", _M2604_BENCHMARK_ITERATIONS, "M26-04 benchmark report"
+    )
+    budgets = _mapping(benchmark_report.get("budgetsNs"), "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "mean", _M2604_MEAN_BUDGET_NS, "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "p95", _M2604_P95_BUDGET_NS, "M26-04 benchmark budgets")
+    samples = _sequence(benchmark_report.get("samplesNs"), "M26-04 benchmark samples")
+    if len(samples) != _M2604_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample < 0 for sample in samples
+    ):
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid samples")
+    mean = benchmark_report.get("meanNs")
+    p95 = benchmark_report.get("p95Ns")
+    if type(mean) is not int or type(p95) is not int:
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid summary values")
+    if mean > _M2604_MEAN_BUDGET_NS or p95 > _M2604_P95_BUDGET_NS:
+        raise ReleaseArtifactError("M26-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m2604_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M26-04 scenario closure and locked gateway timing budgets."""
+
+    _verify_m2604_evaluation(_load_json_evidence(evaluation, "M26-04 evaluation report"))
+    _verify_m2604_benchmark(_load_json_evidence(benchmark, "M26-04 benchmark report"))
+
+
 def _verify_reproducible_cyclonedx_header(
     document: Mapping[str, object],
 ) -> Mapping[str, object]:
@@ -777,6 +836,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     m1904_evidence.add_argument("evaluation", type=Path)
     m1904_evidence.add_argument("benchmark", type=Path)
+    m2604_evidence = commands.add_parser(
+        "m26-04-evidence", help="verify M26-04 evaluation and benchmark evidence"
+    )
+    m2604_evidence.add_argument("evaluation", type=Path)
+    m2604_evidence.add_argument("benchmark", type=Path)
     return parser
 
 
@@ -796,6 +860,8 @@ def main() -> int:
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m19-04-evidence":
             verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m26-04-evidence":
+            verify_m2604_evidence(arguments.evaluation, arguments.benchmark)
         else:
             verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
     except ReleaseArtifactError as error:
