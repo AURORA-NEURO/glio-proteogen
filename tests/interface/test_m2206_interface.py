@@ -1,6 +1,6 @@
 """FastAPI, Typer and strict plugin interface parity for M22-06."""
 
-# ruff: noqa: INP001, PLR2004
+# ruff: noqa: PLR2004
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import json
 from pathlib import Path  # noqa: TC003 - used in temporary path annotations.
 
 from fastapi.testclient import TestClient
-from tests.adversarial.test_m2206_contract_adversarial import _request
 from typer.testing import CliRunner
 
 from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_challenge import (
@@ -16,6 +15,7 @@ from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_c
     cli_app,
     create_app,
 )
+from tests.adversarial.test_m2206_contract_adversarial import _request
 
 
 def test_fastapi_schema_validate_challenge_and_verify() -> None:

@@ -1,6 +1,6 @@
 """Executable M22-06 evaluator and benchmark checks."""
 
-# ruff: noqa: INP001, PLR2004
+# ruff: noqa: PLR2004
 
 from evals.m22_06.benchmark import run_benchmark
 from evals.m22_06.run import run_evaluator
