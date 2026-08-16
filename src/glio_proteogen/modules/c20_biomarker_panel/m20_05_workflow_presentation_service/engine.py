@@ -221,7 +221,7 @@ def _evidence(
         ),
         EvidenceReference(
             reference=request.policy.configuration.model_reference,
-            role="configuration",
+            role="evidence",
             claim="Locked caller-declared presentation model reference.",
         ),
         *(evidence for item in request.review_items for evidence in item.evidence),
