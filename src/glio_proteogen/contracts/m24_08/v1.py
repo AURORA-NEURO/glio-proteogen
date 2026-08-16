@@ -2,8 +2,7 @@
 
 M24-08 owns traceability, risk controls, benchmark outcomes, claim ceilings,
 residual risk, approvals and post-release obligations beneath Batch/missing-
-protein sensitivity. The ABI is provisional pending Data engineering owner
-confirmation.
+protein sensitivity. The ABI is provisional pending Data engineering owner confirmation.
 """
 
 from __future__ import annotations
@@ -15,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -33,16 +33,20 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8624-8664.
+# PROVISIONAL ABI: inferred solely from dossier lines 8580-8620.
 M2408_MODULE_ID: Final = "GLIO-PROTEOGEN-M24-08"
 M2408_OPERATION: Final = "adjudicate_biomarker_panel_evidence_gate"
 M2408_CONTRACT_VERSION: Final = "0.1.0-provisional"
-M2408_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m24-08+json"
+M2408_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m23-08+json"
 M2408_PARENT: Final = "biomarker panel"
 M2408_OWNER: Final = "Data engineering"
 M2408_SAFETY_CLASS: Final = "S3"
 M2408_GATE: Final = "G5"
 M2408_PROVISIONAL_ABI: Final = True
+M2408_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2408_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8580-8620"
 M2408_MAX_REQUIREMENTS: Final = 128
 M2408_MAX_BENCHMARKS: Final = 128
 M2408_MAX_RISKS: Final = 128
@@ -121,8 +125,9 @@ class BenchmarkOutcome(FrozenModel):
 
     @model_validator(mode="after")
     def pass_matches_floor(self) -> BenchmarkOutcome:
-        if self.passed and self.observed_value < self.required_floor:
-            raise ValueError("passed benchmark must meet its required floor")
+        expected = self.observed_value >= self.required_floor
+        if self.passed != expected:
+            raise ValueError("benchmark passed flag must match its required floor")
         return self
 
 
@@ -164,7 +169,7 @@ class GateConfiguration(FrozenModel):
     require_signed_release_record: Literal[True] = True
     require_post_release_obligations: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2408_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2408_MAX_EVIDENCE)
 
 
 class SignedReleaseRecord(FrozenModel):
@@ -176,9 +181,7 @@ class SignedReleaseRecord(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2408_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2408_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2408_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2408_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2408_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -199,6 +202,9 @@ class SignedReleaseRecord(FrozenModel):
         groups = (requirement_ids, benchmark_ids, risk_ids, approval_ids, obligation_ids)
         if any(len(group) != len(set(group)) for group in groups):
             raise ValueError("gate record identifiers must be unique")
+        categories = {item.category for item in self.requirements}
+        if categories != set(RequirementCategory):
+            raise ValueError("gate record must cover every required requirement category")
         if self.decision is GateDecision.PASS:
             if any(not item.satisfied for item in self.requirements):
                 raise ValueError("passing gate cannot contain unsatisfied requirements")
@@ -235,9 +241,7 @@ class AdjudicateBiomarkerPanelEvidenceGateRequest(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2408_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2408_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2408_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2408_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2408_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -248,6 +252,34 @@ class AdjudicateBiomarkerPanelEvidenceGateRequest(FrozenModel):
         min_length=1, max_length=M2408_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_closed(self) -> AdjudicateBiomarkerPanelEvidenceGateRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
+        collections = (
+            tuple(item.requirement_id for item in self.requirements),
+            tuple(item.benchmark_id for item in self.benchmarks),
+            tuple(item.risk_id for item in self.residual_risks),
+            tuple(item.approval_id for item in self.approvals),
+            tuple(item.obligation_id for item in self.post_release_obligations),
+        )
+        if any(len(values) != len(set(values)) for values in collections):
+            raise ValueError("request record identifiers must be unique")
+        if {item.category for item in self.requirements} != set(RequirementCategory):
+            raise ValueError("request must cover every required requirement category")
+        required = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.upstream_evidence,
+        )
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifacts must have unique artifact IDs")
+        if any(source_by_id.get(item.artifact_id) != item for item in required):
+            raise ValueError("source artifacts must bind every declared input exactly")
+        return self
 
 
 class BiomarkerPanelEvidenceGateResult(FrozenModel):
@@ -273,9 +305,11 @@ class BiomarkerPanelEvidenceGateResult(FrozenModel):
     human_review_required: Literal[True] = True
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> BiomarkerPanelEvidenceGateResult:
+    def result_is_closed(self) -> BiomarkerPanelEvidenceGateResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result identifier must bind the request digest")
         if self.status is GateRunStatus.ADJUDICATED:
             if (
                 self.release_record is None
@@ -283,6 +317,21 @@ class BiomarkerPanelEvidenceGateResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("adjudicated result requires a supported release record")
+            if self.release_record.requirements != self.request.requirements:
+                raise ValueError("release requirements must bind the request")
+            if self.release_record.benchmarks != self.request.benchmarks:
+                raise ValueError("release benchmarks must bind the request")
+            if self.release_record.residual_risks != self.request.residual_risks:
+                raise ValueError("release risks must bind the request")
+            if self.release_record.approvals != self.request.approvals:
+                raise ValueError("release approvals must bind the request")
+            if (
+                self.release_record.post_release_obligations
+                != self.request.post_release_obligations
+            ):
+                raise ValueError("release obligations must bind the request")
+            if self.findings and not all(item.evidence for item in self.findings):
+                raise ValueError("adjudicated findings must carry evidence")
         elif (
             self.release_record is not None
             or self.abstention_reason is None
@@ -290,6 +339,8 @@ class BiomarkerPanelEvidenceGateResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no release record and safe status")
+        if self.status is GateRunStatus.ABSTAINED and not self.findings:
+            raise ValueError("abstained result must retain at least one finding")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -297,6 +348,8 @@ class BiomarkerPanelEvidenceGateResult(FrozenModel):
 
 __all__ = [
     "M2408_CONTRACT_VERSION",
+    "M2408_DOSSIER_SHA256",
+    "M2408_DOSSIER_SLICE",
     "M2408_EVIDENCE_CLAIM",
     "M2408_GATE",
     "M2408_MAX_APPROVALS",
@@ -332,3 +385,4 @@ __all__ = [
     "RiskSeverity",
     "SignedReleaseRecord",
 ]
+

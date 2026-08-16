@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m24_08.v1 import (
     M2408_CONTRACT_VERSION,
+    M2408_DOSSIER_SHA256,
+    M2408_DOSSIER_SLICE,
     M2408_GATE,
     M2408_MAX_CANONICAL_REQUEST_BYTES,
     M2408_MODULE_ID,
@@ -28,9 +30,7 @@ from glio_proteogen.contracts.m24_08.v1 import (
     SignedReleaseRecord,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M24-08:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M24-08:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2408_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -66,6 +66,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M2408_MODULE_ID,
+        "dossierSha256": M2408_DOSSIER_SHA256,
+        "dossierSlice": M2408_DOSSIER_SLICE,
         "contractVersion": CONTRACT_VERSION,
         "owner": M2408_OWNER,
         "safetyClass": M2408_SAFETY_CLASS,
@@ -91,6 +93,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "networkFactorHybridRequired": True,
         "bayesianModelAveragingAvailable": True,
         "baselineStackFallback": True,
+        "bayesianModelAveragingRequired": True,
+        "disagreementReviewRequired": True,
         "traceabilityRequired": True,
         "qualityControlsRequired": True,
         "riskControlsRequired": True,
