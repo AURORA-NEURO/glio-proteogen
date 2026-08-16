@@ -827,6 +827,8 @@ class ProteinInferenceSupportRouteResult(FrozenModel):
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile

@@ -1649,6 +1649,8 @@ class ProteinInferenceHarmonizedAnalysis(FrozenModel):
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
 
     @field_validator("retain_unit_ids", "review_unit_ids", "exclude_unit_ids")
@@ -1757,6 +1759,8 @@ class ProteinInferenceHarmonizationComputationReceipt(FrozenModel):
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     disposition: ProteinInferenceHarmonizationDisposition
 
@@ -1793,6 +1797,8 @@ class ProteinInferenceHarmonizationResult(FrozenModel):
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile

@@ -713,6 +713,12 @@ class ProteinInferenceProtocolConformanceResult(FrozenModel):
     status: ProtocolConformanceStatus
     disposition: ProtocolConformanceDisposition
     parent_target: Literal["complex_activity"] = "complex_activity"
+    # M03-01 is a protocol/conformance boundary.  It never emits biological
+    # identity, protein, proteoform, isoform, or glioma-specific claims.
+    infers_protein: Literal[False] = False
+    infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord

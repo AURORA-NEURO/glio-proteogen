@@ -1306,6 +1306,10 @@ class ProteinInferenceIdentityLineageResolution(FrozenModel):
     parent_target: Literal["complex_activity"] = M0302_PARENT
     emits_complex_activity: Literal[False] = False
     infers_identity: Literal[False] = False
+    infers_protein: Literal[False] = False
+    infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord
