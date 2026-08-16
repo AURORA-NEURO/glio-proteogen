@@ -7,16 +7,21 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m20_08 import (
     DriftAssessment,
+    HealthSignal,
     MonitorDiagnostic,
     MonitorDiagnosticStatus,
     MonitorFindingCode,
     ProteinSubtypeTranslationHealthResult,
+    RollbackDecision,
+    RollbackPlan,
     TranslationHealthReport,
+    TranslationHealthStatus,
+    TranslationMonitoringConfiguration,
 )
 from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_rollback import (
     M2008TranslationMonitoringEngine,
 )
-from tests.contract.test_m20_08_hardening import _report, _request, _signal
+from tests.contract.test_m20_08_hardening import _artifact, _report, _request, _signal
 
 
 def test_report_cannot_drop_or_repeat_a_signal_assessment() -> None:
@@ -67,3 +72,74 @@ def test_diagnostic_shape_is_strict_and_finding_codes_are_typed() -> None:
     )
     assert diagnostic.status is MonitorDiagnosticStatus.FAIL
     assert MonitorFindingCode.ROLLBACK_REQUIRED.value == "rollback_required"
+
+
+def test_signal_configuration_and_rollback_bounds_are_closed() -> None:
+    signal = _signal()
+    with pytest.raises(ValidationError, match="bounds must be ordered"):
+        HealthSignal.model_validate(
+            signal.model_copy(update={"lower_bound": 2.0, "upper_bound": 1.0})
+        )
+    config = _request().configuration
+    with pytest.raises(ValidationError, match="evidence must be unique"):
+        TranslationMonitoringConfiguration.model_validate(
+            config.model_copy(update={"evidence": config.evidence * 2})
+        )
+    plan = _report().rollback_plan
+    with pytest.raises(ValidationError, match="recovery steps"):
+        RollbackPlan.model_validate(
+            plan.model_copy(update={"recovery_steps": plan.recovery_steps * 2})
+        )
+
+
+def test_request_requires_retained_upstream_and_unique_sources() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="retain the upstream"):
+        type(request).model_validate(
+            request.model_copy(update={"source_artifacts": (_artifact("other"),)})
+        )
+    with pytest.raises(ValidationError, match="source artifact references"):
+        type(request).model_validate(
+            request.model_copy(update={"source_artifacts": (request.source_artifacts[0],) * 2})
+        )
+
+
+def test_result_closure_rejects_digest_identifier_and_state_tampering() -> None:
+    result = M2008TranslationMonitoringEngine().infer(_request())
+    adapter = TypeAdapter(ProteinSubtypeTranslationHealthResult)
+    with pytest.raises(ValidationError, match="request digest"):
+        adapter.validate_python(
+            result.model_copy(update={"request_digest": "sha256:" + "f" * 64}), strict=True
+        )
+    with pytest.raises(ValidationError, match="identifier"):
+        adapter.validate_python(
+            result.model_copy(update={"result_id": "result.forged"}), strict=True
+        )
+    with pytest.raises(ValidationError, match="result digest"):
+        adapter.validate_python(
+            result.model_copy(update={"result_digest": "sha256:" + "f" * 64}), strict=True
+        )
+    with pytest.raises(ValidationError, match="healthy result"):
+        adapter.validate_python(
+            result.model_copy(update={"rollback_decision": RollbackDecision.SUSPEND}), strict=True
+        )
+    degraded = result.model_copy(update={"health_status": TranslationHealthStatus.DEGRADED})
+    with pytest.raises(ValidationError, match="degraded result"):
+        adapter.validate_python(degraded, strict=True)
+    abstained = result.model_copy(update={"health_status": TranslationHealthStatus.ABSTAINED})
+    with pytest.raises(ValidationError, match="abstained result"):
+        adapter.validate_python(abstained, strict=True)
+
+
+def test_result_evidence_and_report_evidence_must_remain_unique() -> None:
+    result = M2008TranslationMonitoringEngine().infer(_request())
+    adapter = TypeAdapter(ProteinSubtypeTranslationHealthResult)
+    with pytest.raises(ValidationError, match="result evidence"):
+        adapter.validate_python(
+            result.model_copy(update={"evidence": result.evidence * 2}), strict=True
+        )
+    report = _report()
+    with pytest.raises(ValidationError, match="report evidence"):
+        TranslationHealthReport.model_validate(
+            report.model_copy(update={"evidence": report.evidence * 2})
+        )
