@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -33,11 +34,17 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8808-8848.
+# PROVISIONAL ABI: inferred solely from dossier lines 8744-8786.
 M2504_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-04"
+M2504_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2504_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8744-8786"
 M2504_OPERATION: Final = "evaluate_proteotype_external_transport"
 M2504_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2504_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-04+json"
+M2504_M2502_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-02+json"
+M2504_M2503_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-03+json"
 M2504_PARENT: Final = "proteotype"
 M2504_OWNER: Final = "ML engineering"
 M2504_SAFETY_CLASS: Final = "S3"
@@ -64,6 +71,9 @@ class TransportDimension(StrEnum):
     POPULATION = "population"
     DISEASE_CLASS = "disease_class"
     SPECIMEN = "specimen"
+
+
+M2504_REQUIRED_DIMENSIONS: Final = frozenset(TransportDimension)
 
 
 class TransportStatus(StrEnum):
@@ -145,6 +155,13 @@ class SupportDomainUpdate(FrozenModel):
     def domains_are_disjoint(self) -> SupportDomainUpdate:
         if set(self.retained_dimensions) & set(self.narrowed_dimensions):
             raise ValueError("retained and narrowed dimensions must be disjoint")
+        covered = set(self.retained_dimensions) | set(self.narrowed_dimensions)
+        if covered != M2504_REQUIRED_DIMENSIONS:
+            raise ValueError("support domain must account for all seven transport dimensions")
+        if self.status is TransportStatus.SUPPORTED and self.narrowed_dimensions:
+            raise ValueError("supported domain cannot contain narrowed dimensions")
+        if self.status is TransportStatus.DOMAIN_NARROWED and not self.narrowed_dimensions:
+            raise ValueError("narrowed domain must identify narrowed dimensions")
         return self
 
 
@@ -165,6 +182,8 @@ class TransportConfiguration(FrozenModel):
     def required_dimensions_are_unique(self) -> TransportConfiguration:
         if len(self.required_dimensions) != len(set(self.required_dimensions)):
             raise ValueError("required transport dimensions must be unique")
+        if set(self.required_dimensions) != M2504_REQUIRED_DIMENSIONS:
+            raise ValueError("configuration must require all seven transport dimensions")
         return self
 
 
@@ -193,8 +212,15 @@ class TransportabilityReport(FrozenModel):
             raise ValueError("report must validate every configured transport dimension")
         if not required_dimensions <= evaluation_dims:
             raise ValueError("report must evaluate every configured transport dimension")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("transport validation dimensions must be unique")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("transport evaluation dimensions must be unique")
+        if (
+            self.support_domain.status is TransportStatus.SUPPORTED
+            and self.support_domain.narrowed_dimensions
+        ):
+            raise ValueError("supported report cannot narrow its support domain")
         return self
 
 
@@ -230,13 +256,26 @@ class EvaluateProteotypeExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateProteotypeExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        if self.benchmark_package.media_type != M2504_M2503_INPUT_MEDIA_TYPE:
+            raise ValueError("benchmark package must bind the provisional M25-03 result media")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if self.benchmark_package.artifact_id not in set(source_ids):
+            raise ValueError("source artifacts must include the benchmark package")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
-        if not required <= validation_dims or not required <= evaluation_dims:
-            raise ValueError("request must cover every configured transport dimension")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("request validation dimensions must be unique")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        if not required <= validation_dims or not required <= evaluation_dims:
+            raise ValueError("request must cover every configured transport dimension")
+        if not required == M2504_REQUIRED_DIMENSIONS:
+            raise ValueError("request configuration must cover all seven transport dimensions")
         return self
 
 
@@ -266,13 +305,18 @@ class ProteotypeExternalTransportResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeExternalTransportResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.request.context.request_id != self.request.request_id:
+            raise ValueError("result request context id must match request id")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status
+                not in {SupportStatus.SUPPORTED, SupportStatus.LIMITED}
             ):
-                raise ValueError("evaluated result requires a supported transport report")
+                raise ValueError(
+                    "evaluated result requires a supported or limited transport report"
+                )
         elif (
             self.report is not None
             or self.abstention_reason is None
@@ -282,13 +326,24 @@ class ProteotypeExternalTransportResult(FrozenModel):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        if self.result_id != result_identifier(self.request, self.status.value):
+            raise ValueError("result identifier does not bind request and status")
+        if self.provenance.module_id != M2504_MODULE_ID:
+            raise ValueError("result provenance must identify M25-04")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding identifiers must be unique")
         return self
 
 
 __all__ = [
     "M2504_CONTRACT_VERSION",
+    "M2504_DOSSIER_SHA256",
+    "M2504_DOSSIER_SLICE",
     "M2504_EVIDENCE_CLAIM",
     "M2504_GATE",
+    "M2504_M2502_INPUT_MEDIA_TYPE",
+    "M2504_M2503_INPUT_MEDIA_TYPE",
     "M2504_MAX_CANONICAL_REQUEST_BYTES",
     "M2504_MAX_CANONICAL_RESULT_BYTES",
     "M2504_MAX_DIMENSIONS",
@@ -302,6 +357,7 @@ __all__ = [
     "M2504_OWNER",
     "M2504_PARENT",
     "M2504_PROVISIONAL_ABI",
+    "M2504_REQUIRED_DIMENSIONS",
     "M2504_SAFETY_CLASS",
     "EvaluateProteotypeExternalTransportRequest",
     "EvaluationStatus",
