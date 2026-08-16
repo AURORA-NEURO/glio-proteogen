@@ -262,12 +262,6 @@ class CompatibilityReport(FrozenModel):
             if status is CompatibilityStatus.INCOMPATIBLE
         }:
             raise ValueError("rejected candidates must match incompatible decisions")
-        if set(self.unresolved_candidate_ids) != {
-            candidate_id
-            for candidate_id, status in by_id.items()
-            if status is CompatibilityStatus.UNKNOWN
-        }:
-            raise ValueError("unresolved candidates must match unknown decisions")
         evidence_digests = tuple(item.reference.digest for item in self.evidence)
         if len(evidence_digests) != len(set(evidence_digests)):
             raise ValueError("compatibility report evidence digests must be unique")
@@ -367,11 +361,6 @@ class ProteotypeUpstreamResolutionResult(FrozenModel):
         report_ids = {item.candidate_id for item in self.compatibility_report.decisions}
         if request_ids != report_ids:
             raise ValueError("compatibility report must classify every request candidate")
-        report_statuses = {
-            item.candidate_id: item.status for item in self.compatibility_report.decisions
-        }
-        if set(report_statuses) != request_ids:
-            raise ValueError("compatibility report must preserve every candidate declaration")
         expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
         if self.result_id != expected_result_id:
             raise ValueError("result identifier must be derived from request digest")
