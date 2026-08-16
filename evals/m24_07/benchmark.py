@@ -19,10 +19,13 @@ _MAX_ITERATIONS = 1000
 class M2407BenchmarkError(ValueError):
     """Raised when a benchmark request is outside locked bounds."""
 
+    def __init__(self) -> None:
+        super().__init__("iterations must be between 1 and 1000")
+
 
 def run(iterations: int = 10) -> dict[str, float | int]:
     if iterations < 1 or iterations > _MAX_ITERATIONS:
-        raise M2407BenchmarkError("iterations must be between 1 and 1000")
+        raise M2407BenchmarkError
     service = m2407.M2407Service()
     candidate = request()
     samples: list[int] = []
