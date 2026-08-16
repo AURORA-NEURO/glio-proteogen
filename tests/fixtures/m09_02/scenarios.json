@@ -1,0 +1,15 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-02",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [2960, 3000]
+  },
+  "scenarios": [
+    {"id": "constructed", "expected": "constructed", "lineage": "complete"},
+    {"id": "unsupported", "marker": "unsupported", "expected": "abstained"},
+    {"id": "leakage-failure", "marker": "leakage_failure", "expected": "abstained"},
+    {"id": "tamper", "expected": "rejected"},
+    {"id": "deterministic-replay", "expected": "equal-canonical-bytes"}
+  ]
+}
