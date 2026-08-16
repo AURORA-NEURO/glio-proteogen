@@ -57,6 +57,7 @@ class M1808PluginDescriptor:
     unsupported_to_negative: bool = False
     explicit_abstention: bool = True
 
+
 class M1808Plugin:
     """Strict plugin with non-forgeable validation token."""
 

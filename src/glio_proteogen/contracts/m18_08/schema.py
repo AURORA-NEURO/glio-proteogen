@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final, Literal, cast
+from typing import Any, Final, Literal, cast
 
 from pydantic import TypeAdapter
 
@@ -56,7 +56,7 @@ _CONTRACTS: Final = {
 }
 
 
-def contract_json_schema(name: ContractName) -> dict[str, object]:
+def contract_json_schema(name: ContractName) -> dict[str, Any]:
     """Return one strict, metadata-only provisional M18-08 schema."""
 
     schema = TypeAdapter(_CONTRACTS[name]).json_schema(mode="validation")
@@ -96,10 +96,10 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1808_MAX_CANONICAL_REQUEST_BYTES
-    return cast("dict[str, object]", schema)
+    return schema
 
 
-def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
+def contract_json_schemas() -> dict[ContractName, dict[str, Any]]:
     """Return all nine provisional M18-08 schemas in ABI order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))

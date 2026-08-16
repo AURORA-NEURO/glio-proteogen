@@ -55,7 +55,7 @@ class M1808ReplayVerificationError(ValueError):
     """An M18-08 result cannot be reconstructed from its exact request."""
 
     def __init__(self) -> None:
-        super().__init__("M18-08 replay verification failed")
+        super().__init__("M18-08 replay verification failed: payload digest or request mismatch")
 
 
 def _member(value: object, field: str) -> object:
@@ -127,8 +127,8 @@ def _evidence(
 
 def _uncertainty(*, estimable: bool) -> UncertaintyProfile:
     estimate = UncertaintyEstimate(
-        state=EstimateState.ESTIMATED if estimable else EstimateState.NOT_ESTIMABLE,
-        probability=0.9 if estimable else None,
+        state=EstimateState.NOT_ESTIMABLE,
+        probability=None,
         rationale=(
             "Caller-declared telemetry, support drift, workflow effects and discrepancies are "
             "evaluable."
@@ -235,7 +235,7 @@ def _classify(
         findings.append(TranslationFindingCode.DISCREPANCY_UNRESOLVED)
     if not_evaluable:
         return (
-            MonitorStatus.MONITORED,
+            MonitorStatus.ABSTAINED,
             TranslationHealthState.NOT_EVALUABLE,
             RollbackDecision.REVIEW_REQUIRED,
             tuple(findings),
