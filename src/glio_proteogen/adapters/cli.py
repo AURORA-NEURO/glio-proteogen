@@ -34,6 +34,7 @@ from glio_proteogen.adapters.api import (
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
+    _m1502_contract_schema,
     _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
@@ -196,6 +197,10 @@ from glio_proteogen.contracts.m14_03 import (
 from glio_proteogen.contracts.m14_05 import (
     M1405_MAX_CANONICAL_REQUEST_BYTES,
     ModelProteinSubtypeLongitudinalEvolutionRequest,
+)
+from glio_proteogen.contracts.m15_02 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    StratifyContextAndSubtypeRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -386,6 +391,9 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405_module,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -559,6 +567,11 @@ m1405_app = typer.Typer(
     help="M14-05 provisional longitudinal protein-subtype evolution.",
 )
 app.add_typer(m1405_app, name="longitudinal-evolution")
+m1502_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-02 caller-declared context and subtype stratification.",
+)
+app.add_typer(m1502_app, name="context-stratifier")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3814,6 +3827,43 @@ def infer_m1405(request: RequestArgument) -> None:
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@m1502_app.command("export-schema")
+def export_m1502_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "attribute",
+            "mechanism",
+            "profile",
+            "evaluation",
+            "finding",
+        ],
+        typer.Argument(help="M15-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M15-02 contract."""
+
+    typer.echo(json.dumps(_m1502_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1502_app.command("stratify")
+def stratify_m1502(request: RequestArgument) -> None:
+    """Replay caller-declared context and applicable mechanisms safely."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(StratifyContextAndSubtypeRequest),
+            m1502_module.preflight_m1502_authorization,
+            M1502_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1502_module.M1502Service().execute(parsed))
+    except m1502_module.M1502AuthorizationError as error:
+        typer.echo(f"context stratification authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
 
 
 @m1306_app.command("export-schema")

@@ -355,6 +355,15 @@ from glio_proteogen.contracts.m14_05.v1 import (
     ModelProteinSubtypeLongitudinalEvolutionRequest,
     ProteinSubtypeLongitudinalEvolutionResult,
 )
+from glio_proteogen.contracts.m15_02.schema import ContractName as M1502ContractName
+from glio_proteogen.contracts.m15_02.schema import (
+    contract_json_schema as m1502_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_02.v1 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    LongitudinalRecurrenceContextStratificationResult,
+    StratifyContextAndSubtypeRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -553,6 +562,9 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405_module,
 )
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -583,6 +595,7 @@ _M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncerta
 _M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
 _M1405_ADAPTER: Final = TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest)
 _M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest)
+_M1502_ADAPTER: Final = TypeAdapter(StratifyContextAndSubtypeRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -773,6 +786,10 @@ def _m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
 
 def _m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
     return m1403_contract_json_schema(name)
+
+
+def _m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+    return m1502_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1032,6 +1049,15 @@ def _m1403_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m1403_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1502_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1502_contract_json_schema("request")}},
         }
     }
 
@@ -1347,6 +1373,15 @@ async def _m1403_body(
     )
 
 
+async def _m1502_body(request: Request) -> StratifyContextAndSubtypeRequest:
+    return await _strict_json_body(
+        request,
+        _M1502_ADAPTER,
+        m1502_module.preflight_m1502_authorization,
+        M1502_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1381,6 +1416,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     m1306_service = M1306Service()
     m1405_service = m1405_module.M1405Service()
     m1403_service = m1403_module.M1403Service()
+    m1502_service = m1502_module.M1502Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1435,6 +1471,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(M1306AuthorizationError)
     @app.exception_handler(m1405_module.M1405AuthorizationError)
     @app.exception_handler(m1403_module.M1403AuthorizationError)
+    @app.exception_handler(m1502_module.M1502AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1864,6 +1901,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinSubtypeMechanisticFeatureResult:
         return m1403_service.execute(request)
+
+    @app.get("/v1/contracts/M15-02/{name}/schema", tags=["contracts"])
+    def m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+        return _m1502_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-02/context-stratification",
+        response_model=LongitudinalRecurrenceContextStratificationResult,
+        tags=["M15-02"],
+        openapi_extra=_m1502_request_body(),
+    )
+    def stratify_m1502_context(
+        request: Annotated[
+            StratifyContextAndSubtypeRequest,
+            Depends(_m1502_body),
+        ],
+    ) -> LongitudinalRecurrenceContextStratificationResult:
+        return m1502_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
