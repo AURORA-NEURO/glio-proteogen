@@ -1,0 +1,25 @@
+{
+  "adversarial_case_count": 20,
+  "adversarial_passed_count": 20,
+  "base_commit": "fcb2f97b",
+  "checks": {
+    "completed_benchmark_dossier": true,
+    "control_denial": true,
+    "determinism": true,
+    "metric_abstention": true,
+    "ablation_abstention": true,
+    "compute_match_abstention": true,
+    "plugin_parity": true,
+    "replay": true,
+    "fixture_identity": true
+  },
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8764-8804",
+  "fixture_request_digest": "sha256:a704e2cb555bfcc94a961a8e27d6a4c7add9023c582314f9d1a6432591837caf",
+  "fixture_result_digest": "sha256:146183d68b9ecd9c361507c17aed661deb8f4a441f7fd3043e69b87ba239ad31",
+  "module_id": "GLIO-PROTEOGEN-M25-03",
+  "passed": true,
+  "scenario_count": 9,
+  "upstream_dependency": "GLIO-PROTEOGEN-M25-02 (provisional media only)",
+  "parent_target": "proteotype"
+}
