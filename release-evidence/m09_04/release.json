@@ -1,0 +1,68 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-04",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3048, 3091]
+  },
+  "commitChain": [
+    "8c63201",
+    "01eb2e2",
+    "d6f83c7",
+    "68a33a3",
+    "6d9ec4b",
+    "9352225",
+    "246034d"
+  ],
+  "gates": {
+    "focusedTests": {"passed": 23, "failed": 0, "command": "pytest M09-04 contract/runtime/interface/evaluator tests"},
+    "ruff": {"check": "passed", "format": "passed", "files": 19},
+    "compileall": "passed",
+    "scopedBranchCoverage": {
+      "percent": 96,
+      "statements": 579,
+      "failUnder": 95,
+      "command": "coverage report --include M09-04 contract/runtime paths --fail-under=95"
+    },
+    "evaluator": {
+      "passed": true,
+      "supported": "estimated",
+      "unsupported": "abstained",
+      "ood": "abstained",
+      "nonconverged": "abstained",
+      "replay": true,
+      "tamperRejected": true,
+      "deterministic": true,
+      "uncertaintyExplicit": true
+    },
+    "benchmark": {
+      "iterations": 10,
+      "meanNs": 2829920,
+      "medianNs": 2602700,
+      "p95Ns": 5192000,
+      "meanBudgetNs": 2000000000,
+      "p95BudgetNs": 3000000000,
+      "passed": true
+    },
+    "package": {
+      "builder": "hatchling 1.31.0",
+      "wheel": {
+        "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+        "bytes": 759406,
+        "sha256": "f783aae3e3c9ebc3093cc64c13b96025c63d639664f31f568342b5c6a73e42fc"
+      },
+      "sdist": {
+        "file": "glio_proteogen-0.1.0.tar.gz",
+        "bytes": 1665283,
+        "sha256": "b7e6b1bfe2a6c0499080c759b1b8c513b5aa58d85f501ce10bde32fc07b02ef0"
+      },
+      "isolatedImport": "passed"
+    }
+  },
+  "provisionalLimitations": [
+    "The ABI, estimator catalogue, posterior representation, and endpoint media types remain provisional.",
+    "Hash-derived values are deterministic reference fixtures, not trained model predictions.",
+    "Software gates do not authenticate external issuers or establish scientific calibration, transportability, or clinical utility.",
+    "Owner review and preregistered locked metrics remain required before promotion."
+  ]
+}

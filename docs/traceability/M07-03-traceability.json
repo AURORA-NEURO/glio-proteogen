@@ -1,0 +1,71 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-03",
+  "authority": {
+    "file": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "2284-2327"
+  },
+  "responsibility": "mature baseline estimator under copy-number dosage/attenuation",
+  "parent_target": "proteotype",
+  "safety_class": "S2",
+  "gate": "G1",
+  "abi_status": "dossier-behavioral-brief-only",
+  "implementation": {
+    "contract": [
+      "src/glio_proteogen/contracts/m07_03/v1.py",
+      "src/glio_proteogen/contracts/m07_03/schema.py"
+    ],
+    "runtime": [
+      "src/glio_proteogen/modules/c07_copy_number_dosage/m07_03_mature_baseline_estimator/engine.py",
+      "src/glio_proteogen/modules/c07_copy_number_dosage/m07_03_mature_baseline_estimator/service.py"
+    ],
+    "interfaces": ["src/glio_proteogen/adapters/m0703.py"],
+    "evaluator": ["evals/m07_03/run.py", "evals/m07_03/benchmark.py"],
+    "tests": [
+      "tests/contract/test_m07_03_provisional.py",
+      "tests/modules/c07_copy_number_dosage/test_m07_03_runtime.py",
+      "tests/integration/test_m07_03_interfaces.py",
+      "tests/evals/test_m07_03_eval.py"
+    ]
+  },
+  "controls": {
+    "inputs": [
+      "mass-spectrometry proteome",
+      "genome/transcriptome",
+      "PTM annotations",
+      "approved configuration",
+      "identity/lineage",
+      "provenance",
+      "consent",
+      "quality",
+      "support",
+      "intended use"
+    ],
+    "outputs": [
+      "baseline estimate",
+      "uncertainty",
+      "diagnostics",
+      "support decision",
+      "provenance",
+      "evidence",
+      "limitations"
+    ],
+    "prohibited": [
+      "KINOPHOS kinase activity",
+      "generic all-omics fusion",
+      "direct treatment recommendation",
+      "unsupported-to-negative conversion",
+      "parent proteotype emission"
+    ]
+  },
+  "acceptance": {
+    "analytic_or_published_behavior_reproduction": false,
+    "safe_abstention": true,
+    "transitive_replay": true,
+    "tamper_rejection": true,
+    "human_review_on_abstention": true,
+    "seven_uncertainty_dimensions": true,
+    "locked_benchmark": true,
+    "install_smoke": true
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-08",
+  "abi_status": "dossier-behavioral-brief-only",
+  "build_backend": "hatchling 1.31.0",
+  "artifacts": ["wheel", "sdist"],
+  "wheel_bytes": 766790,
+  "sdist_bytes": 1447224,
+  "checks": ["wheel-build", "sdist-build", "temporary-target-install", "installed-import"],
+  "passed": true,
+  "note": "Artifact sizes are from the local Python 3.12.10 build; hashes are intentionally environment-specific."
+}
