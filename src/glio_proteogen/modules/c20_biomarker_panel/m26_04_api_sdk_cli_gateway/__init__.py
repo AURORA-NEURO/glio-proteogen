@@ -8,11 +8,13 @@ from .engine import (
     publish_protein_subtype_access_surface,
 )
 from .plugin import GatewaySubmission, M2604Plugin, M2604PluginDescriptor, M2604TokenError
+from .sdk import M2604Client
 from .service import M2604Service
 
 __all__ = [
     "GatewaySubmission",
     "M2604AuthorizationError",
+    "M2604Client",
     "M2604GatewayEngine",
     "M2604Plugin",
     "M2604PluginDescriptor",

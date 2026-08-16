@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -201,30 +202,33 @@ def _request(
 
 
 def test_provisional_schemas_preserve_gateway_boundaries() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, object]]", contract_json_schemas())
+
+    def metadata(schema: dict[str, object]) -> dict[str, Any]:
+        return cast("dict[str, Any]", schema["x-glio-contract"])
+
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["typedOperationsRequired"]
-        and schema["x-glio-contract"]["authorizationRequired"]
-        and schema["x-glio-contract"]["idempotencyRequired"]
-        and schema["x-glio-contract"]["asynchronousJobsRequired"]
-        and schema["x-glio-contract"]["errorTaxonomyRequired"]
-        and schema["x-glio-contract"]["auditRequired"]
-        and schema["x-glio-contract"]["compatibilityRequired"]
-        and schema["x-glio-contract"]["signedReleaseBundleFallback"]
-        and schema["x-glio-contract"]["humanReviewRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        cast("str", schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values()
+    )
+    assert all(metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(
+        metadata(schema)["typedOperationsRequired"]
+        and metadata(schema)["authorizationRequired"]
+        and metadata(schema)["idempotencyRequired"]
+        and metadata(schema)["asynchronousJobsRequired"]
+        and metadata(schema)["errorTaxonomyRequired"]
+        and metadata(schema)["auditRequired"]
+        and metadata(schema)["compatibilityRequired"]
+        and metadata(schema)["signedReleaseBundleFallback"]
+        and metadata(schema)["humanReviewRequired"]
+        and metadata(schema)["explicitAbstentionRequired"]
+        and metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
-    assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein subtype"
-        for schema in schemas.values()
-    )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2604_OUTPUT_MEDIA_TYPE
+    assert all(metadata(schema)["parentTarget"] == "protein subtype" for schema in schemas.values())
+    assert metadata(schemas["output"])["outputMediaType"] == M2604_OUTPUT_MEDIA_TYPE
     assert M2604_PROVISIONAL_ABI is True
 
 
