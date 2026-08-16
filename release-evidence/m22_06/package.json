@@ -1,0 +1,19 @@
+{
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7816-7856",
+  "isolated_import_passed": true,
+  "module_id": "GLIO-PROTEOGEN-M22-06",
+  "release_verifier_passed": true,
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "members": 1014,
+    "sha256": "bbdf5b2c0d25a94118a3501880048d0f05e8e8c1bc66d6a0577249df53157e14",
+    "size_bytes": 2808917
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "members": 494,
+    "sha256": "2d3a70c5318069f5d697ee8fe12b652dedfec6858841ddece924ef527abebd82",
+    "size_bytes": 1061893
+  }
+}
