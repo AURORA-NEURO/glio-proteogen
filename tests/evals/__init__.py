@@ -1,1 +1,1 @@
-"""Focused evaluator tests."""
+"""Executable evaluator and module evidence gates."""
