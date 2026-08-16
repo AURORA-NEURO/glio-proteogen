@@ -1,1 +1,1 @@
-"""M07 copy-number dosage tests."""
+"""Copy-number dosage module tests."""

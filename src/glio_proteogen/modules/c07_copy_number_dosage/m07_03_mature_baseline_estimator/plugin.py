@@ -6,12 +6,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
 from weakref import WeakKeyDictionary
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m07_03 import (
     M0703_MAX_CANONICAL_REQUEST_BYTES,
     EstimateCopyNumberDosageBaselineRequest,
     EstimateCopyNumberDosageBaselineResult,
     canonical_request_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -19,6 +22,7 @@ if TYPE_CHECKING:
     from .service import M0703Service
 
 _TOKEN_SEAL: Final = object()
+_REQUEST_ADAPTER: Final = TypeAdapter(EstimateCopyNumberDosageBaselineRequest)
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M07-03",
     title="copy-number dosage mature baseline estimator (provisional)",
@@ -72,11 +76,13 @@ class M0703Plugin(
         candidate = request
         if type(candidate) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", candidate)
-            candidate = strict_json_loads(
+            parsed = strict_json_loads(
                 serialized,
                 max_bytes=M0703_MAX_CANONICAL_REQUEST_BYTES,
             )
-        typed = self._service.validate_request(candidate)
+            typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
+        else:
+            typed = self._service.validate_request(candidate)
         token = ValidatedM0703Request(request=typed, _seal=_TOKEN_SEAL)
         _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
         return token
@@ -92,6 +98,16 @@ class M0703Plugin(
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
+
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> EstimateCopyNumberDosageBaselineResult:
+        """Verify a result through the same service boundary as execution."""
+
+        return self._service.verify(result, replay=replay)
 
 
 __all__ = ["M0703Plugin", "ValidatedM0703Request"]

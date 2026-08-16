@@ -1,1 +1,1 @@
-"""Evaluator tests for provisional module lanes."""
+"""Executable evaluator and module evidence gates."""
