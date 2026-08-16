@@ -12,5 +12,5 @@ M21-01 reference-truth curator. The ABI is not a production release.
 - Evaluator: 6/6 scenarios
 - Benchmark: mean 9,548,720 ns; median 8,181,050 ns; p95 19,865,200 ns; budgets 500,000,000/750,000,000 ns
 - Wheel: 967,950 bytes; SHA-256 `4635e040cd43a7467ab89177a2d4c53306eb26a4f0ec4e366a7d0e5c764f5d84`
-- Sdist: 1,522,134 bytes; SHA-256 `ca1e607d02596bd05f43875157790c345134168b68ee84aaf6b6719605e5c4cf`
+- Sdist: 1,516,895 bytes; SHA-256 `e4434781eb3b4f11d41f6313401768dff4e143f42c932fdab874ccb0d7979805`
 - Release status: wheel/sdist build, isolated import, and hash capture passed
