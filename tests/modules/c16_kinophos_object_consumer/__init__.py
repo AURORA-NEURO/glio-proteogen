@@ -1,1 +1,1 @@
-"""M16-02 runtime tests."""
+"""KINOPHOS object-consumer runtime tests."""
