@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-07",
+  "abi_status": "0.1.0-provisional",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "2460-2503",
+  "fixture": "evals/m07_07/scenarios.json",
+  "fixture_sha256": "23e5f756577e6254385ac47778f8b28fc8ea9307e58978db715389a08daaa2088",
+  "declared": 8,
+  "executed": 8,
+  "passed": 8,
+  "failed": 0,
+  "status": "passed",
+  "case_ids": ["calibrated_selection", "upstream_not_evaluable", "missing_calibration_dimension", "withheld_consent", "no_candidate_passes", "replay_round_trip", "tamper_replay", "deterministic_reorder"]
+}

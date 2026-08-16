@@ -1,0 +1,44 @@
+{
+  "check_count": 7,
+  "checks": [
+    {
+      "detail": "abstention exposes seven uncertainty dimensions and explicit sensitivity state",
+      "id": "safe_abstention_has_seven_dimensions_and_envelope",
+      "passed": true
+    },
+    {
+      "detail": "exact request replay reproduced the canonical result envelope",
+      "id": "transitive_replay_is_byte_stable",
+      "passed": true
+    },
+    {
+      "detail": "changed abstention text cannot pass canonical verification",
+      "id": "tampered_receipt_rejected",
+      "passed": true
+    },
+    {
+      "detail": "identity, consent, and upstream controls are never inferred",
+      "id": "unresolved_controls_fail_closed",
+      "passed": true
+    },
+    {
+      "detail": "M10-05 handoff media type is explicit",
+      "id": "wrong_integrator_media_rejected",
+      "passed": true
+    },
+    {
+      "detail": "strict parser rejects duplicate object members",
+      "id": "duplicate_json_keys_rejected",
+      "passed": true
+    },
+    {
+      "detail": "engine does not emit parent claims, kinase activity, or treatment advice",
+      "id": "prohibited_parent_emission_is_false",
+      "passed": true
+    }
+  ],
+  "evaluator_version": "0.1.0-provisional",
+  "generated_at": "2026-01-01T00:00:00Z",
+  "module_id": "GLIO-PROTEOGEN-M10-06",
+  "passed": true
+}
