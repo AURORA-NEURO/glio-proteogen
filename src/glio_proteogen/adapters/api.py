@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_03.v1 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -424,6 +435,11 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -447,6 +463,8 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1903_ADAPTER: Final = TypeAdapter(FuseProteotypeEvidenceRequest)
+_M1903_RESULT_ADAPTER: Final = TypeAdapter(ProteotypeIntegratedEvidenceResult)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -599,6 +617,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1903_contract_schema(name: M1903ContractName) -> dict[str, object]:
+    return m1903_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -786,6 +808,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1903_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1903_contract_json_schema("request")}},
         }
     }
 
@@ -1004,6 +1035,19 @@ async def _proteoform_lineage_body(
     )
 
 
+async def _m1903_body(request: Request) -> FuseProteotypeEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1903_ADAPTER,
+        preflight_m1903_authorization,
+        M1903_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1903_result_body(request: Request) -> ProteotypeIntegratedEvidenceResult:
+    return await _strict_json_body(request, _M1903_RESULT_ADAPTER)
+
+
 async def _proteoform_quality_body(
     request: Request,
 ) -> ComputeProteoformQualityMetricsRequest:
@@ -1042,6 +1086,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1903_service = M1903Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1088,6 +1133,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(M1903AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1666,6 +1712,31 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     )
     def verify_identity_events() -> M0102ChainVerification:
         return _require_valid_identity_chain(identity_service.verify_event_chain())
+
+    @app.get("/v1/contracts/M19-03/{name}/schema", tags=["contracts"])
+    def m1903_contract_schema(name: M1903ContractName) -> dict[str, object]:
+        return _m1903_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-03/fusion",
+        response_model=ProteotypeIntegratedEvidenceResult,
+        tags=["M19-03"],
+        openapi_extra=_m1903_request_body(),
+    )
+    def fuse_m1903_evidence(
+        request: Annotated[FuseProteotypeEvidenceRequest, Depends(_m1903_body)],
+    ) -> ProteotypeIntegratedEvidenceResult:
+        return m1903_service.fuse(request)
+
+    @app.post(
+        "/v1/modules/M19-03/verify",
+        response_model=ProteotypeIntegratedEvidenceResult,
+        tags=["M19-03"],
+    )
+    def verify_m1903_evidence(
+        result: Annotated[ProteotypeIntegratedEvidenceResult, Depends(_m1903_result_body)],
+    ) -> ProteotypeIntegratedEvidenceResult:
+        return m1903_service.replay(result)
 
     return app
 
