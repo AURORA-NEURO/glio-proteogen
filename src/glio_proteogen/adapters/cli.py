@@ -33,6 +33,7 @@ from glio_proteogen.adapters.api import (
     _m0801_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
+    _m1405_contract_schema,
     _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
@@ -191,6 +192,10 @@ from glio_proteogen.contracts.m13_06 import (
 from glio_proteogen.contracts.m14_03 import (
     M1403_MAX_CANONICAL_REQUEST_BYTES,
     ConstructProteinSubtypeMechanisticFeaturesRequest,
+)
+from glio_proteogen.contracts.m14_05 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -378,6 +383,9 @@ from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity impor
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_03_mechanistic_feature_constructor as m1403_module,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -546,6 +554,11 @@ m1403_app = typer.Typer(
     help="M14-03 provisional caller-declared mechanistic feature construction.",
 )
 app.add_typer(m1403_app, name="mechanistic-features")
+m1405_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-05 provisional longitudinal protein-subtype evolution.",
+)
+app.add_typer(m1405_app, name="longitudinal-evolution")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3760,6 +3773,46 @@ def construct_m1403_features(request: RequestArgument) -> None:
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1405_app.command("export-schema")
+def export_m1405_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "trajectory",
+            "state",
+            "evidence",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-05 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict provisional M14-05 schema."""
+
+    typer.echo(json.dumps(_m1405_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("infer")
+def infer_m1405(request: RequestArgument) -> None:
+    """Replay an ordered M14-05 request into a bounded trajectory result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest),
+            m1405_module.preflight_m1405_authorization,
+            M1405_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1405_module.M1405Service().execute(parsed))
+    except m1405_module.M1405AuthorizationError as error:
+        typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
