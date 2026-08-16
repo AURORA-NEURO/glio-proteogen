@@ -1,1 +1,1 @@
-"""Adversarial M21-01 safety and replay tests."""
+"""Adversarial safety and replay tests for provisional modules, including M22-05."""
