@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-04",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "posterior_inference", "expected_status": "inferred"},
+    {"case_id": "state_inference", "expected_status": "inferred"},
+    {"case_id": "explicit_abstention", "expected_status": "abstained"},
+    {"case_id": "unknown_method_abstention", "expected_status": "abstained"},
+    {"case_id": "invalid_bounds_abstention", "expected_status": "abstained"},
+    {"case_id": "replay_and_tamper", "expected_status": "verified"},
+    {"case_id": "authorization_gate", "expected_status": "rejected"}
+  ]
+}
+
+

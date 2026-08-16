@@ -1,1 +1,1 @@
-"""M15-04 evaluator tests."""
+"""Evaluator tests for provisional modules."""

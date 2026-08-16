@@ -1,0 +1,19 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M14-04",
+    "scope": [
+        "glio_proteogen.contracts.m14_04",
+        "glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_04_network_state_mechanism_inference",
+        "glio_proteogen.adapters.m1404"
+    ],
+    "focused_tests": 27,
+    "statements": 476,
+    "covered_lines": 476,
+    "branches": 74,
+    "covered_branches": 74,
+    "line_coverage_percent": 100.0,
+    "branch_coverage_percent": 100.0,
+    "coverage_percent": 100.0,
+    "fail_under_percent": 95.0,
+    "fail_under": 95,
+    "passed": true
+}
