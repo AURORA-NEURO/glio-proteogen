@@ -5,12 +5,12 @@ from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m27_02 import (
-    LineageEdge,
-    LineageGraph,
-    LineageNode,
     M2702_M2701_INPUT_MEDIA_TYPE,
     M2702_OUTPUT_MEDIA_TYPE,
     M2702_PROVISIONAL_ABI,
+    LineageEdge,
+    LineageGraph,
+    LineageNode,
     LineageNodeKind,
     LineageRelation,
     LineageStatus,
@@ -145,16 +145,16 @@ def test_graph_rejects_unknown_endpoints_and_cycles() -> None:
     with pytest.raises(ValidationError, match="unknown node"):
         LineageGraph.model_validate(
             graph.model_copy(
-                update={
-                    "edges": (
-                        edge.model_copy(update={"target_node_id": "node.missing"}),
-                    )
-                }
+                update={"edges": (edge.model_copy(update={"target_node_id": "node.missing"}),)}
             ),
             strict=True,
         )
     reverse = edge.model_copy(
-        update={"edge_id": "edge.reverse", "source_node_id": second.node_id, "target_node_id": first.node_id}
+        update={
+            "edge_id": "edge.reverse",
+            "source_node_id": second.node_id,
+            "target_node_id": first.node_id,
+        }
     )
     with pytest.raises(ValidationError, match="directed cycle"):
         LineageGraph.model_validate(
