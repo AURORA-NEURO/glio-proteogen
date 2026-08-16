@@ -58,6 +58,8 @@ def run_evaluator() -> dict[str, Any]:
     else:
         checks["tamper_rejected"] = False
     return {
+        "adversarial_case_count": len(checks),
+        "adversarial_passed_count": sum(checks.values()),
         "module_id": "GLIO-PROTEOGEN-M24-02",
         "checks": checks,
         "fixture_digest": sha256_digest(request),
