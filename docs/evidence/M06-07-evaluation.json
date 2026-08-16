@@ -1,0 +1,12 @@
+{
+  "calibrated_status": "calibrated",
+  "contract_version": "0.1.0-provisional",
+  "coverage_abstained_status": "abstained",
+  "deterministic": true,
+  "module_id": "GLIO-PROTEOGEN-M06-07",
+  "passed": true,
+  "prediction_set_present": true,
+  "replay_verified": true,
+  "selected_estimate": true,
+  "upstream_abstained_status": "abstained"
+}
