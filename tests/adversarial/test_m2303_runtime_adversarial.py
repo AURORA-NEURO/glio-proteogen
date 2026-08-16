@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
+from evals.m23_03.fixture import denied_request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m23_03 import ValidationStatus
+from glio_proteogen.contracts.m23_03 import BaselineRun, BenchmarkDossier, ValidationStatus
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
     BenchmarkSubmission,
@@ -20,6 +21,10 @@ from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_abl
     cli_app,
     create_app,
     preflight_m2303_authorization,
+    run_variant_peptide_internal_benchmark,
+)
+from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
+    cli as cli_module,
 )
 from tests.contract.test_m23_03_hardening import _request
 
@@ -27,6 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _HTTP_UNPROCESSABLE = 422
+_HTTP_OK = 200
 
 
 def test_preflight_rejects_non_mapping_and_missing_context() -> None:
@@ -34,6 +40,69 @@ def test_preflight_rejects_non_mapping_and_missing_context() -> None:
         preflight_m2303_authorization(object())
     with pytest.raises(M2303AuthorizationError):
         preflight_m2303_authorization({"context": None})
+
+
+def test_service_accepts_canonical_json_and_engine_public_entrypoint() -> None:
+    request = _request()
+    assert (
+        M2303Service().validate_request(request.model_dump_json()).request_id == request.request_id
+    )
+    assert run_variant_peptide_internal_benchmark(request).status.value == "completed"
+
+
+def test_replay_closes_request_and_identifier_identity() -> None:
+    service = M2303Service()
+    result = service.generate(_request())
+    with pytest.raises(ValueError, match="request digest"):
+        service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+    with pytest.raises(ValueError, match="identifier"):
+        service.replay(result.model_copy(update={"result_id": "wrong-result-id"}))
+
+
+def test_contract_nested_identity_closures_reject_duplicates() -> None:
+    request = _request()
+    metric = request.baseline_runs[0].metrics[0]
+    with pytest.raises(ValidationError, match="metric ids"):
+        BaselineRun.model_validate(
+            request.baseline_runs[0].model_dump(mode="python") | {"metrics": (metric, metric)},
+            strict=True,
+        )
+    dossier = M2303Service().generate(request).dossier
+    assert dossier is not None
+    duplicate_run = dossier.baselines[1].model_copy(update={"run_id": dossier.baselines[0].run_id})
+    with pytest.raises(ValidationError, match="dossier ids"):
+        BenchmarkDossier.model_validate(
+            dossier.model_dump(mode="python")
+            | {"baselines": (dossier.baselines[0], duplicate_run)},
+            strict=True,
+        )
+    duplicate_metric = dossier.baselines[1].model_copy(
+        update={"metrics": (dossier.baselines[0].metrics[0],)}
+    )
+    with pytest.raises(ValidationError, match="nested baseline metric ids"):
+        BenchmarkDossier.model_validate(
+            dossier.model_dump(mode="python")
+            | {"baselines": (dossier.baselines[0], duplicate_metric)},
+            strict=True,
+        )
+    duplicate_comparison = dossier.comparisons[0].model_copy(
+        update={"candidate_run_id": dossier.comparisons[0].reference_run_id}
+    )
+    with pytest.raises(ValidationError, match="distinct"):
+        BenchmarkDossier.model_validate(
+            dossier.model_dump(mode="python") | {"comparisons": (duplicate_comparison,)},
+            strict=True,
+        )
+
+
+def test_preflight_mapping_exception_fails_closed() -> None:
+    class ExplodingMapping(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise RuntimeError
+
+    with pytest.raises(M2303AuthorizationError):
+        preflight_m2303_authorization(ExplodingMapping())
 
 
 def test_not_evaluable_ablation_and_comparison_are_safe_abstentions() -> None:
@@ -84,6 +153,17 @@ def test_fastapi_verify_rejects_tampered_result_without_traceback() -> None:
     assert "Traceback" not in response.text
 
 
+def test_fastapi_known_schema_and_sanitized_auth_and_json_errors() -> None:
+    client = TestClient(create_app(M2303Service()))
+    assert client.get("/v1/modules/M23-03/schemas/request").status_code == _HTTP_OK
+    denied_json = denied_request().model_dump_json()
+    validate = client.post("/v1/modules/M23-03/validate", content=denied_json)
+    benchmark = client.post("/v1/modules/M23-03/benchmark", content=denied_json)
+    assert validate.status_code == benchmark.status_code == _HTTP_UNPROCESSABLE
+    malformed = client.post("/v1/modules/M23-03/verify", content=b"not-json")
+    assert malformed.status_code == _HTTP_UNPROCESSABLE
+
+
 def test_typer_abstention_writes_result_and_returns_nonzero(tmp_path: Path) -> None:
     # Exercise the CLI's safe-abstention exit after the immutable result is written.
     path = tmp_path / "request.json"
@@ -107,6 +187,30 @@ def test_typer_abstention_writes_result_and_returns_nonzero(tmp_path: Path) -> N
     assert invoked.exit_code == 1
     assert result_path.exists()
     assert json.loads(result_path.read_text(encoding="utf-8"))["status"] == "abstained"
+
+
+def test_typer_sanitizes_auth_unknown_schema_and_replay_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_text(denied_request().model_dump_json(), encoding="utf-8")
+    assert runner.invoke(cli_app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["benchmark", str(denied_path)]).exit_code != 0
+    assert runner.invoke(cli_app, ["export-schema", "unknown"]).exit_code != 0
+    assert runner.invoke(cli_app, ["export-schema", "request"]).exit_code == 0
+    result_path = tmp_path / "result.json"
+    result_path.write_text(M2303Service().generate(_request()).model_dump_json(), encoding="utf-8")
+    invalid_path = tmp_path / "invalid-result.json"
+    invalid_path.write_text("[]", encoding="utf-8")
+    assert runner.invoke(cli_app, ["verify", str(invalid_path)]).exit_code != 0
+
+    class FakeService:
+        def replay(self, result: Any) -> Any:
+            return result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+
+    monkeypatch.setattr(cli_module, "_SERVICE", FakeService())
+    assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code == 1
 
 
 __all__ = []
