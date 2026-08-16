@@ -1,0 +1,26 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-05",
+  "contractVersion": "0.1.0-provisional",
+  "sourceCommits": ["fc64dcb", "7534793", "c63139b", "3e70d06", "c8e23b2", "7271010"],
+  "staticGates": {
+    "ruffCheck": "passed",
+    "ruffFormatCheck": "passed"
+  },
+  "pythonGates": {
+    "compileall": "passed",
+    "manualContractHarness": "3 passed",
+    "manualFocusedHarness": "9 passed",
+    "manualEvaluatorHarness": "2 passed",
+    "pytestFocused": "not-runnable: pytest package unavailable",
+    "pytestEvaluator": "not-runnable: pytest package unavailable",
+    "mypy": "not-runnable: mypy package unavailable",
+    "coverage": "not-runnable: pytest-cov package unavailable",
+    "wheelBuild": "blocked: uv cannot read managed Python installation",
+    "packageImport": "manual source import passed; wheel import pending"
+  },
+  "environment": {
+    "python": "bundled Python 3.12.13 available; project pytest/mypy packages absent",
+    "uv": "managed installation directory denied (Access is denied)"
+  },
+  "releaseStatus": "local-only-provisional"
+}

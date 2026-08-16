@@ -1,0 +1,24 @@
+{
+  "status": "provisional",
+  "module_id": "GLIO-PROTEOGEN-M06-02",
+  "contract_version": "0.1.0-provisional",
+  "fixtures_frozen": false,
+  "limits_frozen": false,
+  "fixture_builder": "tests.contract.test_m06_02_contract._request",
+  "scenarios": [
+    {
+      "id": "provisional-observed-construction",
+      "expected_status": "constructed",
+      "expected_support": "supported",
+      "expected_masks": 0,
+      "notes": "Caller-declared observed features are preserved with complete lineage."
+    },
+    {
+      "id": "provisional-unsupported-abstention",
+      "expected_status": "abstained",
+      "expected_support": "unsupported",
+      "expected_masks": 1,
+      "notes": "Unsupported evidence is explicitly masked and never converted into a negative finding."
+    }
+  ]
+}
