@@ -1,0 +1,14 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3584-3627",
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1808110,
+  "median_ns": 1801600,
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1948900,
+  "samples_ns": [1789300, 1802700, 1821100, 1948900, 1800500, 1828800, 1818000, 1790300, 1736800, 1744700],
+  "timed_boundary": "M1008EvidencePublisherService.execute_only",
+  "passed": true
+}

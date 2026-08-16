@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-01",
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "mean_ns": 2194080,
+  "median_ns": 1970900,
+  "p95_ns": 3029900,
+  "max_ns": 3065300,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "deterministic": true,
+  "request_case": "supported_registry"
+}
