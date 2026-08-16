@@ -45,6 +45,10 @@ M2004_OWNER: Final = "Data engineering"
 M2004_SAFETY_CLASS: Final = "S2"
 M2004_GATE: Final = "G3"
 M2004_PROVISIONAL_ABI: Final = True
+M2004_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2004_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7008-7048"
 M2004_MAX_PROHIBITED_INTERPRETATIONS: Final = 64
 M2004_MAX_DISPLAY_SECTIONS: Final = 32
 M2004_MAX_EVIDENCE: Final = 64
@@ -95,6 +99,12 @@ class ClaimCeiling(FrozenModel):
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2004_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def prohibited_interpretations_are_unique(self) -> ClaimCeiling:
+        if len(self.prohibited_interpretations) != len(set(self.prohibited_interpretations)):
+            raise ValueError("prohibited interpretations must be unique")
+        return self
+
 
 class DisplaySemantics(FrozenModel):
     section_order: tuple[NonEmptyStr, ...] = Field(
@@ -123,6 +133,13 @@ class IntendedUseRegistration(FrozenModel):
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2004_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def registration_is_closed(self) -> IntendedUseRegistration:
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("intended-use registration evidence must be unique")
+        return self
+
 
 class PolicyDecision(FrozenModel):
     status: PolicyDecisionStatus
@@ -132,6 +149,12 @@ class PolicyDecision(FrozenModel):
         default=(), max_length=M2004_MAX_PROHIBITED_INTERPRETATIONS
     )
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2004_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def blocked_claims_are_unique(self) -> PolicyDecision:
+        if len(self.blocked_claims) != len(set(self.blocked_claims)):
+            raise ValueError("blocked claims must be unique")
+        return self
 
 
 class IntendedUseSpecificObject(FrozenModel):
@@ -172,6 +195,9 @@ class AdaptProteinSubtypeIntendedUseRequest(FrozenModel):
     def request_is_bound(self) -> AdaptProteinSubtypeIntendedUseRequest:
         if self.upstream_result.media_type != M2004_M2003_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M20-03 integrated evidence")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("intended-use source artifact ids must be unique")
         return self
 
 
@@ -204,6 +230,15 @@ class ProteinSubtypeIntendedUseAdapterResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeIntendedUseAdapterResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("adapter finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("adapter result evidence digests must be unique")
         if self.status is AdapterStatus.ADAPTED:
             if (
                 self.adapted_object is None
@@ -218,8 +253,9 @@ class ProteinSubtypeIntendedUseAdapterResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
-            raise ValueError("abstained result requires no adapted object and safe status")
+            raise ValueError("abstained result requires no adapted object, safe status, and review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -227,6 +263,8 @@ class ProteinSubtypeIntendedUseAdapterResult(FrozenModel):
 
 __all__ = [
     "M2004_CONTRACT_VERSION",
+    "M2004_DOSSIER_SHA256",
+    "M2004_DOSSIER_SLICE",
     "M2004_EVIDENCE_CLAIM",
     "M2004_GATE",
     "M2004_M2003_INPUT_MEDIA_TYPE",

@@ -1,0 +1,36 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-05",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_slice": "GLIO-PROTEOGEN-M19-05:6692-6732"
+  },
+  "distribution": {
+    "project": "glio-proteogen",
+    "version": "0.1.0",
+    "builder": "uv 0.11.14 / hatchling 1.31.0 backend",
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "sha256": "498f4b67bc95574a436250e95be7826c885af52f457d76c436fba771e77917c1",
+      "bytes": 934396,
+      "members": 407
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "sha256": "e9336846a13406c1e800e2eed536ae7152e632a9a1945739c2757432a07ac8a1",
+      "bytes": 1498294
+    }
+  },
+  "verification": {
+    "wheel_built": true,
+    "sdist_built": true,
+    "isolated_target_install": true,
+    "isolated_import": [
+      "glio_proteogen",
+      "glio_proteogen.adapters.m1905",
+      "glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_05_workflow_presentation_service"
+    ],
+    "runtime_dependency_install": false,
+    "generated_build_directories_removed": true
+  },
+  "qualification": "Package integrity and importability only; this evidence does not approve a release or establish biological, identity, consent, clinical, kinase, treatment or all-omics claims."
+}

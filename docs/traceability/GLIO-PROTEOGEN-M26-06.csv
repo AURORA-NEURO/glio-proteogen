@@ -1,0 +1,10 @@
+requirement_id,requirement,implementation,evidence,verification
+M2606-R01,"Caller-declared eight-control security posture","contracts/m26_06/v1.py; modules/.../engine.py","evaluation.json supported_all_controls","contract/runtime tests"
+M2606-R02,"Least privilege, encryption, secrets, isolation, consent, de-identification, audit, and threat detection statuses","SecurityControlKind; SecurityControlDeclaration; SecurityControlCheck","evaluation.json scenario records","test_m2606_provisional.py; test_m2606_runtime.py"
+M2606-R03,"Fail-closed configuration, identity, provenance, consent, quality, support, and intended-use preflight","engine.preflight_m2606_authorization; service.validate_request","evaluation.json consent_revoked_fail_closed","test_m2606_runtime.py; adversarial tests"
+M2606-R04,"Explicit unsupported and unresolved abstention","engine._safe_abstention; SecurityAssessmentResult closure","evaluation.json encryption_not_evaluable","runtime/evaluator/adversarial tests"
+M2606-R05,"Findings, evidence, audit, provenance, and seven uncertainty dimensions","SecurityFinding; AuditEvent; ProvenanceRecord; UncertaintyRecord","docs/evidence/M26-06.md","contract/runtime tests"
+M2606-R06,"Canonical request/result bytes and replay/tamper verification","canonical.py; engine.verify_security_access_result","evaluation.json replay_verified; verification.json","runtime/interface/adversarial tests"
+M2606-R07,"Bounded strict parse-once API, CLI, SDK, and plugin parity","api.py; cli.py; sdk.py; plugin.py","package.json required members","interface/adversarial tests"
+M2606-R08,"No identity, consent, treatment, kinase, or all-omics inference","manifest boundary and contract metadata","docs/modules/M26-06.manifest.md","contract/adversarial tests"
+M2606-R09,"Release quality and reproducible package evidence","tools/verify_m2606_release.py","coverage.json; benchmark.json; package.json","release verifier"

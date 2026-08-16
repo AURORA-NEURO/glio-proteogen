@@ -1,0 +1,70 @@
+"""Canonical projections for the provisional M25-01 contract spine."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel
+
+from glio_proteogen.kernel.canonical import sha256_digest
+
+if TYPE_CHECKING:
+    from glio_proteogen.kernel.models import Sha256Digest
+
+
+def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    return dict(value)
+
+
+def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    return _dump(value)
+
+
+def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    return sha256_digest(normalized_request(value))
+
+
+def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    document = _dump(value)
+    document.pop("result_digest", None)
+    return document
+
+
+def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    return sha256_digest(normalized_result_payload(value))
+
+
+def package_lock_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Hash a package after excluding its self-referential lock digest."""
+
+    document = _dump(value)
+    document.pop("lock_digest", None)
+    return sha256_digest(document)
+
+
+def result_identifier(
+    request: BaseModel | dict[str, Any],
+    status: str,
+) -> str:
+    """Derive a stable opaque result identifier from request and status."""
+
+    request_digest = canonical_request_digest(request)
+    token = sha256_digest(
+        {
+            "request_digest": request_digest,
+            "status": status,
+        }
+    )
+    return f"result-{token.removeprefix('sha256:')}"
+
+
+__all__ = [
+    "canonical_request_digest",
+    "normalized_request",
+    "normalized_result_payload",
+    "package_lock_digest",
+    "result_identifier",
+    "result_payload_digest",
+]

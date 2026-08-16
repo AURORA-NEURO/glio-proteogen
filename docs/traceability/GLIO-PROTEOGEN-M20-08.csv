@@ -1,0 +1,7 @@
+requirement_id,requirement,implementation,evidence,gate
+M20-08-R01,"Bind translation monitoring to M20-07 typed upstream media","MonitorProteinSubtypeTranslationHealthRequest upstream_result and exact media validator","tests/contract/test_m20_08_hardening.py; evals/m20_08/run.py",G1
+M20-08-R02,"Retain usage telemetry support drift workflow effects and discrepancies","HealthSignal HealthSignalKind HealthSignalStatus and DriftAssessment","src/glio_proteogen/contracts/m20_08/v1.py; tests/contract/test_m20_08_adversarial.py",G1
+M20-08-R03,"Make suspension and rollback explicit and recoverable","TranslationHealthReport and RollbackPlan with typed decisions","src/glio_proteogen/modules/c20_biomarker_panel/m20_08_translation_monitoring_rollback/engine.py",G3
+M20-08-R04,"Abstain safely on non-evaluable inputs","ABSTAINED result with no report and human review","tests/runtime/test_m20_08_monitoring.py; tests/evals/test_m20_08_evaluator.py",G3
+M20-08-R05,"Expose uncertainty provenance evidence and limitations","UncertaintyProfile ProvenanceRecord EvidenceReference and Limitation","engine.py; docs/evidence/M20-08.md",G4
+M20-08-R06,"Provide strict replay-verifiable interfaces","FastAPI Typer service and opaque plugin","tests/interface/test_m20_08_interface.py; engine.py",G5

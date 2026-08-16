@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M21-08",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "supported_adjudicated"},
+    {"case_id": "unsatisfied_requirement_abstention"},
+    {"case_id": "failed_benchmark_abstention"},
+    {"case_id": "critical_risk_abstention"},
+    {"case_id": "deferred_approval_abstention"},
+    {"case_id": "authorization_gate"},
+    {"case_id": "upstream_media_boundary"},
+    {"case_id": "source_media_boundary"},
+    {"case_id": "replay_tamper"},
+    {"case_id": "deterministic_repeat"}
+  ]
+}

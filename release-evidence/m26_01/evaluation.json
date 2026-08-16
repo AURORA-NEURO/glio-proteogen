@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M26-01",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9036-9076",
+  "fixture": "tests/fixtures/m26_01/scenarios.json",
+  "fixture_digest": "sha256:86aa4004d9883a81051c7933ad90055da96071e40c86aef3818a21400db67f7f",
+  "case_ids": ["registered_complete", "quarantined_abstention", "incompatible_configuration", "authorization_gate", "source_binding_boundary", "replay_tamper_determinism", "service_plugin_parity", "schema_authority"],
+  "declared_cases": 8,
+  "executed_cases": 8,
+  "passed_cases": 8,
+  "total_cases": 8,
+  "passed": true,
+  "schema_count": 8,
+  "uncertainty_dimensions": 7,
+  "request_digest": "sha256:801fa0306e6df89a1834068274808e5c0a25a288e2eaf81855b1724154393af5"
+}

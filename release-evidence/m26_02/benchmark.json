@@ -1,0 +1,17 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-02",
+  "benchmark": "benchmarks/m26_02_lineage.py::test_m26_02_lineage_construction",
+  "sampleCount": 513,
+  "iterations": 1,
+  "meanNs": 2358895,
+  "medianNs": 2206500,
+  "p95Ns": 3348800,
+  "maxNs": 17447400,
+  "budgetsNs": {
+    "mean": 500000000,
+    "p95": 750000000
+  },
+  "passed": true,
+  "sourceJson": ".m2602-benchmark.json",
+  "command": "uv run pytest benchmarks/m26_02_lineage.py --benchmark-only --benchmark-min-rounds=10 --benchmark-warmup=on --benchmark-json=.m2602-benchmark.json -q -o addopts='' --no-cov"
+}

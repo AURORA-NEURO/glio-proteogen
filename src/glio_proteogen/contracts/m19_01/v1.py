@@ -84,6 +84,9 @@ class ResolverStatus(StrEnum):
 
 
 class ResolverFindingCode(StrEnum):
+    COMPATIBLE_ACCEPTED = "compatible_accepted"
+    INCOMPATIBLE = "incompatible"
+    UNKNOWN = "unknown"
     INCOMPATIBLE_VERSION = "incompatible_version"
     MEDIA_TYPE_MISMATCH = "media_type_mismatch"
     CONSENT_NOT_GRANTED = "consent_not_granted"
@@ -101,6 +104,13 @@ class CompatibilityRule(FrozenModel):
     required_media_type: NonEmptyStr
     required_intended_use: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1901_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def evidence_references_are_unique(self) -> CompatibilityRule:
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("compatibility rule evidence digests must be unique")
+        return self
 
 
 class UpstreamCandidate(FrozenModel):
@@ -127,6 +137,14 @@ class UpstreamCandidate(FrozenModel):
                 raise ValueError("compatible candidate requires supported status")
             if self.provenance_artifact is None:
                 raise ValueError("compatible candidate requires provenance evidence")
+        references = (self.artifact.digest,) + (
+            (self.provenance_artifact.digest,) if self.provenance_artifact is not None else ()
+        )
+        if len(references) != len(set(references)):
+            raise ValueError("candidate artifact and provenance digests must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("candidate evidence digests must be unique")
         return self
 
 
@@ -136,6 +154,38 @@ class CompatibilityDecision(FrozenModel):
     reason_code: ResolverFindingCode
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1901_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def reason_code_matches_status(self) -> CompatibilityDecision:
+        compatible_codes = {
+            ResolverFindingCode.COMPATIBLE_ACCEPTED,
+            ResolverFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+        }
+        incompatible_codes = {
+            ResolverFindingCode.INCOMPATIBLE,
+            ResolverFindingCode.INCOMPATIBLE_VERSION,
+            ResolverFindingCode.MEDIA_TYPE_MISMATCH,
+            ResolverFindingCode.CONSENT_NOT_GRANTED,
+            ResolverFindingCode.SUPPORT_NOT_AVAILABLE,
+            ResolverFindingCode.INTENDED_USE_MISMATCH,
+            ResolverFindingCode.PROVENANCE_MISSING,
+        }
+        unknown_codes = {
+            ResolverFindingCode.UNKNOWN,
+            ResolverFindingCode.COMPATIBILITY_UNKNOWN,
+            ResolverFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+        }
+        allowed = {
+            CompatibilityStatus.COMPATIBLE: compatible_codes,
+            CompatibilityStatus.INCOMPATIBLE: incompatible_codes,
+            CompatibilityStatus.UNKNOWN: unknown_codes,
+        }[self.status]
+        if self.reason_code not in allowed:
+            raise ValueError("compatibility decision reason code does not match status")
+        digests = tuple(item.reference.digest for item in self.evidence)
+        if len(digests) != len(set(digests)):
+            raise ValueError("compatibility decision evidence digests must be unique")
+        return self
 
 
 class ResolverConfiguration(FrozenModel):
@@ -152,6 +202,15 @@ class ResolverConfiguration(FrozenModel):
         rule_ids = tuple(item.rule_id for item in self.rules)
         if len(rule_ids) != len(set(rule_ids)):
             raise ValueError("compatibility rule ids must be unique")
+        intended_uses = tuple(self.accepted_intended_uses)
+        if len(intended_uses) != len(set(intended_uses)):
+            raise ValueError("accepted intended uses must be unique")
+        rule_uses = tuple(item.required_intended_use for item in self.rules)
+        if any(use not in set(intended_uses) for use in rule_uses):
+            raise ValueError("every compatibility rule must use an accepted intended use")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("configuration evidence digests must be unique")
         return self
 
 
@@ -164,7 +223,7 @@ class CompatibilityReport(FrozenModel):
         min_length=1, max_length=M1901_MAX_DECISIONS
     )
     selected_candidate_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1901_MAX_CANDIDATES
+        default=(), max_length=M1901_MAX_CANDIDATES
     )
     rejected_candidate_ids: tuple[Identifier, ...] = Field(
         default=(), max_length=M1901_MAX_CANDIDATES
@@ -190,6 +249,22 @@ class CompatibilityReport(FrozenModel):
             raise ValueError("report candidate outcomes must be mutually exclusive")
         if set(flattened) != set(decision_ids):
             raise ValueError("report must classify every compatibility decision")
+        by_id = {item.candidate_id: item.status for item in self.decisions}
+        if set(self.selected_candidate_ids) != {
+            candidate_id
+            for candidate_id, status in by_id.items()
+            if status is CompatibilityStatus.COMPATIBLE
+        }:
+            raise ValueError("selected candidates must match compatible decisions")
+        if set(self.rejected_candidate_ids) != {
+            candidate_id
+            for candidate_id, status in by_id.items()
+            if status is CompatibilityStatus.INCOMPATIBLE
+        }:
+            raise ValueError("rejected candidates must match incompatible decisions")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("compatibility report evidence digests must be unique")
         return self
 
 
@@ -213,6 +288,11 @@ class ValidatedUpstreamBundle(FrozenModel):
             raise ValueError("validated bundle cannot include incompatible candidates")
         if set(candidate_ids) != set(self.compatibility_report.selected_candidate_ids):
             raise ValueError("validated bundle must match selected compatibility candidates")
+        if any(item.consent_state is not ConsentState.GRANTED for item in self.candidates):
+            raise ValueError("validated bundle candidates require granted consent")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("validated bundle evidence digests must be unique")
         return self
 
 
@@ -230,9 +310,7 @@ class ResolveProteotypeUpstreamContractsRequest(FrozenModel):
     contract_version: Literal["0.1.0-provisional"] = M1901_CONTRACT_VERSION
     request_id: Identifier
     context: ExecutionContext
-    candidates: tuple[UpstreamCandidate, ...] = Field(
-        min_length=1, max_length=M1901_MAX_CANDIDATES
-    )
+    candidates: tuple[UpstreamCandidate, ...] = Field(min_length=1, max_length=M1901_MAX_CANDIDATES)
     configuration: ResolverConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1901_MAX_EVIDENCE
@@ -244,6 +322,11 @@ class ResolveProteotypeUpstreamContractsRequest(FrozenModel):
         candidate_ids = tuple(item.candidate_id for item in self.candidates)
         if len(candidate_ids) != len(set(candidate_ids)):
             raise ValueError("request candidate ids must be unique")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        source_digests = tuple(item.digest for item in self.source_artifacts)
+        if len(source_digests) != len(set(source_digests)):
+            raise ValueError("request source artifact digests must be unique")
         return self
 
 
@@ -271,13 +354,24 @@ class ProteotypeUpstreamResolutionResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteotypeUpstreamResolutionResult:
+    def result_is_closed(self) -> ProteotypeUpstreamResolutionResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         request_ids = {item.candidate_id for item in self.request.candidates}
         report_ids = {item.candidate_id for item in self.compatibility_report.decisions}
         if request_ids != report_ids:
             raise ValueError("compatibility report must classify every request candidate")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if self.provenance.module_id != M1901_MODULE_ID:
+            raise ValueError("result provenance must identify M19-01")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence digests must be unique")
         if self.status is ResolverStatus.VALIDATED:
             if (
                 self.bundle is None
@@ -285,13 +379,23 @@ class ProteotypeUpstreamResolutionResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("validated result requires a supported upstream bundle")
+            if not self.compatibility_report.selected_candidate_ids:
+                raise ValueError("validated result requires at least one selected candidate")
+            if self.human_review_required:
+                raise ValueError("validated result cannot require human review")
         elif (
             self.bundle is not None
             or self.abstention_reason is None
             or self.support_decision.status
-            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            not in {
+                SupportStatus.LIMITED,
+                SupportStatus.UNSUPPORTED,
+                SupportStatus.REVIEW_REQUIRED,
+            }
         ):
             raise ValueError("abstained result requires no bundle and safe status")
+        elif not self.findings or not self.human_review_required:
+            raise ValueError("abstained result requires typed findings and human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

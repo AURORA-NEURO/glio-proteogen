@@ -15,6 +15,8 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m21_01.canonical import (
     canonical_request_digest,
+    package_lock_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -132,8 +134,11 @@ class AdjudicationRecord(FrozenModel):
     def disagreement_is_visible(self) -> AdjudicationRecord:
         if len(self.reviewer_tokens) != len(set(self.reviewer_tokens)):
             raise ValueError("adjudication reviewer tokens must be unique")
-        if self.status is AdjudicationStatus.REJECTED and self.disagreement_statement is None:
-            raise ValueError("rejected adjudication requires a disagreement statement")
+        if self.status is AdjudicationStatus.REJECTED:
+            if self.disagreement_statement is None:
+                raise ValueError("rejected adjudication requires a disagreement statement")
+        elif self.disagreement_statement is not None:
+            raise ValueError("only rejected adjudication may carry disagreement")
         return self
 
 
@@ -157,9 +162,7 @@ class ReferenceTruthPackage(FrozenModel):
     endpoint: EndpointDefinition
     references: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2101_MAX_REFERENCES)
     controls: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2101_MAX_CONTROLS)
-    inclusions: tuple[InclusionDecision, ...] = Field(
-        min_length=1, max_length=M2101_MAX_REFERENCES
-    )
+    inclusions: tuple[InclusionDecision, ...] = Field(min_length=1, max_length=M2101_MAX_REFERENCES)
     adjudications: tuple[AdjudicationRecord, ...] = Field(
         min_length=1, max_length=M2101_MAX_ADJUDICATIONS
     )
@@ -172,20 +175,70 @@ class ReferenceTruthPackage(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2101_MAX_EVIDENCE)
 
     @model_validator(mode="after")
-    def package_is_closed(self) -> ReferenceTruthPackage:
+    def package_is_closed(self) -> ReferenceTruthPackage:  # noqa: PLR0912 - closure matrix
         references = tuple(item.reference_id for item in self.references)
         controls = tuple(item.reference_id for item in self.controls)
-        if len(references) != len(set(references)) or len(controls) != len(set(controls)):
-            raise ValueError("reference and control ids must be unique")
-        all_ids = set(references) | set(controls)
+        all_ids = (*references, *controls)
+        if len(all_ids) != len(set(all_ids)):
+            raise ValueError("reference and control ids must be globally unique")
+        if any(
+            item.kind
+            not in {
+                ReferenceKind.CALIBRATOR,
+                ReferenceKind.SPIKE_IN,
+                ReferenceKind.CHALLENGE_SET,
+            }
+            for item in self.references
+        ):
+            raise ValueError("references may only be calibrators, spike-ins, or challenge sets")
+        if any(
+            (item.kind is ReferenceKind.CHALLENGE_SET) is not item.challenge_set
+            for item in self.references
+        ):
+            raise ValueError("challenge-set kind and challenge-set flag must agree")
+        if any(
+            item.kind not in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            or item.challenge_set
+            for item in self.controls
+        ):
+            raise ValueError("controls must be positive/negative controls and not challenge items")
+        all_id_set = set(all_ids)
         inclusion_ids = tuple(item.reference_id for item in self.inclusions)
         adjudication_ids = tuple(item.reference_id for item in self.adjudications)
-        if set(inclusion_ids) != all_ids:
+        if len(inclusion_ids) != len(set(inclusion_ids)) or set(inclusion_ids) != all_id_set:
             raise ValueError("inclusion decisions must classify every reference and control")
-        if set(adjudication_ids) != all_ids:
+        if (
+            len(adjudication_ids) != len(set(adjudication_ids))
+            or set(adjudication_ids) != all_id_set
+        ):
             raise ValueError("adjudications must cover every reference and control")
-        if not set(self.challenge_set_ids) <= set(references):
-            raise ValueError("challenge set must reference known entries")
+        challenge_ids = {item.reference_id for item in self.references if item.challenge_set}
+        if len(self.challenge_set_ids) != len(set(self.challenge_set_ids)):
+            raise ValueError("challenge set ids must be unique")
+        if set(self.challenge_set_ids) != challenge_ids:
+            raise ValueError("challenge set ids must exactly match challenge references")
+        if self.configuration.version != self.version:
+            raise ValueError("package and locked configuration versions must match")
+        if self.configuration.parent_target != self.endpoint.target:
+            raise ValueError("locked configuration must target the package endpoint")
+        adjudications = {item.reference_id: item for item in self.adjudications}
+        inclusions = {item.reference_id: item for item in self.inclusions}
+        if any(
+            adjudications[item_id].status
+            in {AdjudicationStatus.PENDING, AdjudicationStatus.REVIEWED}
+            for item_id in all_id_set
+        ):
+            raise ValueError(
+                "locked package cannot contain pending or merely reviewed adjudications"
+            )
+        if any(
+            adjudications[item_id].status is AdjudicationStatus.REJECTED
+            and inclusions[item_id].included
+            for item_id in all_id_set
+        ):
+            raise ValueError("rejected adjudications must be excluded from a locked package")
+        if self.lock_digest != package_lock_digest(self):
+            raise ValueError("package lock digest does not match canonical package contents")
         return self
 
 
@@ -204,13 +257,9 @@ class CurateComplexActivityReferenceTruthRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     endpoint: EndpointDefinition
-    references: tuple[ReferenceEntry, ...] = Field(
-        min_length=1, max_length=M2101_MAX_REFERENCES
-    )
+    references: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2101_MAX_REFERENCES)
     controls: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2101_MAX_CONTROLS)
-    inclusions: tuple[InclusionDecision, ...] = Field(
-        min_length=1, max_length=M2101_MAX_REFERENCES
-    )
+    inclusions: tuple[InclusionDecision, ...] = Field(min_length=1, max_length=M2101_MAX_REFERENCES)
     adjudications: tuple[AdjudicationRecord, ...] = Field(
         min_length=1, max_length=M2101_MAX_ADJUDICATIONS
     )
@@ -222,14 +271,42 @@ class CurateComplexActivityReferenceTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> CurateComplexActivityReferenceTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
         ids = tuple(item.reference_id for item in (*self.references, *self.controls))
         if len(ids) != len(set(ids)):
             raise ValueError("request reference and control ids must be unique")
+        if any(
+            item.kind
+            not in {
+                ReferenceKind.CALIBRATOR,
+                ReferenceKind.SPIKE_IN,
+                ReferenceKind.CHALLENGE_SET,
+            }
+            for item in self.references
+        ):
+            raise ValueError("request references may not be control items")
+        if any(
+            (item.kind is ReferenceKind.CHALLENGE_SET) is not item.challenge_set
+            for item in self.references
+        ):
+            raise ValueError("challenge-set kind and challenge-set flag must agree")
+        if any(
+            item.kind not in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            or item.challenge_set
+            for item in self.controls
+        ):
+            raise ValueError("request controls must be positive/negative controls")
         known = set(ids)
-        if {item.reference_id for item in self.inclusions} != known:
+        inclusion_ids = tuple(item.reference_id for item in self.inclusions)
+        adjudication_ids = tuple(item.reference_id for item in self.adjudications)
+        if len(inclusion_ids) != len(set(inclusion_ids)) or set(inclusion_ids) != known:
             raise ValueError("request inclusions must classify every item")
-        if {item.reference_id for item in self.adjudications} != known:
+        if len(adjudication_ids) != len(set(adjudication_ids)) or set(adjudication_ids) != known:
             raise ValueError("request adjudications must cover every item")
+        challenge_ids = {item.reference_id for item in self.references if item.challenge_set}
+        if not challenge_ids:
+            raise ValueError("request must include at least one challenge-set item")
         return self
 
 
@@ -256,9 +333,11 @@ class ComplexActivityReferenceTruthResult(FrozenModel):
     human_review_required: bool = True
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ComplexActivityReferenceTruthResult:
+    def result_is_closed(self) -> ComplexActivityReferenceTruthResult:  # noqa: PLR0912 - closure matrix
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None
@@ -266,6 +345,20 @@ class ComplexActivityReferenceTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("curated result requires a supported truth package")
+            if self.package.endpoint != self.request.endpoint:
+                raise ValueError("curated package endpoint must equal the request endpoint")
+            if self.package.references != self.request.references:
+                raise ValueError("curated package references must equal the request references")
+            if self.package.controls != self.request.controls:
+                raise ValueError("curated package controls must equal the request controls")
+            if self.package.inclusions != self.request.inclusions:
+                raise ValueError("curated package inclusions must equal the request decisions")
+            if self.package.adjudications != self.request.adjudications:
+                raise ValueError("curated package adjudications must equal the request records")
+            if self.package.configuration != self.request.configuration:
+                raise ValueError(
+                    "curated package configuration must equal the request configuration"
+                )
         elif (
             self.package is not None
             or self.abstention_reason is None
@@ -273,6 +366,8 @@ class ComplexActivityReferenceTruthResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no package and safe status")
+        if len(self.findings) != len({finding.finding_id for finding in self.findings}):
+            raise ValueError("result finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

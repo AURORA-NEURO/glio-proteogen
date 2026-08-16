@@ -1,0 +1,17 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M19-05-R01,dossier:6692-6694,Own workflow presentation beneath Immunopeptidomic evidence and support proteotype,human-review workspace operation and module identity,supported_workspace and module identity assertions,G4
+M19-05-R02,dossier:6694-6696,Exclude kinase all-omics treatment and unsafe relabeling or negative inference,closed claims ceiling limitations and source preservation,authority and nonmutation contract cases,G4
+M19-05-R03,dossier:6698-6700,Accept declared proteome genome transcriptome PTM configuration identity provenance consent quality support intended-use inputs,strict request and aligned M19-04 bundle,canonical request builder and request closure tests,G4
+M19-05-R04,dossier:6700,Return only human-review workspace with typed uncertainty support provenance evidence and limitations,closed result envelope and safe output ceiling,supported and abstained evaluator cases,G4
+M19-05-R05,dossier:6702-6706,Record reference advanced and fallback architecture without executing prohibited models,stateless deterministic service with manifest declarations,manifest and dependency inspection,G4
+M19-05-R06,dossier:6708,Validate identity version units completeness assay support and parent quality before presentation,seven-control preflight and M19-04 media binding,authorization and wrong-media adversarial tests,G4
+M19-05-R07,dossier:6710,Expose seven uncertainty dimensions sensitivity and explicit abstention,typed uncertainty profile and abstained result,abstained_item and result contract tests,G4
+M19-05-R08,dossier:6712,Require human review for critical discrepancy novel/OOD support override promotion exception or unresolved conflict,review-visible findings and safe statuses,conflicted_review_visible and limited_review_visible evaluator cases,G4
+M19-05-R09,dossier:6714,Provide versioned implementation declared uncertainty locked integration benchmark and safe failure,provisional ABI strict schemas interfaces evaluator benchmark,20 focused tests and evaluator report,G4
+M19-05-R10,dossier:6716,Evidence must include tests benchmark traceability risk data/model/reference review and rollback evidence,manifest evidence traceability package record,docs and package evidence files,G4
+M19-05-R11,dossier:6718,Bind owner Data engineering safety S2 and gate G4,contract metadata and authority manifest,module identity and authority assertions,G4
+M19-05-R12,required:G0,All critical contract cases behave as specified with zero silent coercions,strict Pydantic and duplicate-free JSON reconstruction,20 focused contract and interface tests,G0
+M19-05-R13,required:G1,All hard invariants pass within preregistered tolerance,canonical result closure and deterministic view ordering,20 tests and evaluator 7/7,G1
+M19-05-R14,required:G3,Supported perturbations remain bounded and unsupported cases abstain,typed limited/conflicted/abstained statuses and safe failure,7 evaluator scenarios and adversarial tests,G3
+M19-05-R15,required:G3,Nominal coverage criterion is either met or support domain narrowed,explicit not-estimable uncertainty and no unsupported calibration claim,uncertainty manifest and abstention evidence,G3
+M19-05-R16,required:G4,Zero ownership or consent violations and auditable recovery,authorization-first preflight immutable provenance replay/tamper and append-only recovery,preflight/replay tests and rollback plan,G4

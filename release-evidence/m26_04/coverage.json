@@ -1,0 +1,17 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-04",
+  "scope": [
+    "glio_proteogen.contracts.m26_04",
+    "glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway"
+  ],
+  "tests": 45,
+  "branchEnabled": true,
+  "statements": {"total": 668, "covered": 654, "missing": 14},
+  "branches": {"total": 110, "covered": 104, "missing": 6, "partial": 6},
+  "combinedPercent": 97.4293059125964,
+  "statementPercent": 97.9041916167665,
+  "branchPercent": 94.5454545454545,
+  "failUnder": 95,
+  "passed": true,
+  "command": "python -m pytest tests/contract/test_m2604_contract.py tests/runtime/test_m2604_runtime.py tests/interfaces/test_m2604_interfaces.py tests/evals/test_m2604_evaluator.py tests/adversarial/test_m2604_adversarial.py --cov=glio_proteogen.contracts.m26_04 --cov=glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway --cov-branch"
+}

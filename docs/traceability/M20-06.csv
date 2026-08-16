@@ -1,0 +1,15 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M20-06,caller-declared M20-05 workflow binding,contracts/m20_06/v1.py request_is_bound_and_bounded,contract and evaluator tests,pass
+GLIO-PROTEOGEN-M20-06,seven-control fail-closed preflight,modules/.../m20_06_reviewer_discrepancy_adjudication/engine.py preflight_m2006_authorization,denial malformed-context and adversarial tests,pass
+GLIO-PROTEOGEN-M20-06,blinded unique reviewer assignments,contracts/m20_06/v1.py ReviewerAssignment and validators,contract adversarial tests,pass
+GLIO-PROTEOGEN-M20-06,discrepancy state and severity preservation,contracts/m20_06/v1.py DiscrepancyQueueEntry,contract runtime evaluator matrix,pass
+GLIO-PROTEOGEN-M20-06,resolved record closure and final decisions,contracts/m20_06/v1.py AdjudicationRecord,nominal runtime and replay tests,pass
+GLIO-PROTEOGEN-M20-06,escalation and non-evaluable safe failure,contracts/m20_06/v1.py status validators and engine findings,evaluator and abstention tests,pass
+GLIO-PROTEOGEN-M20-06,contiguous immutable audit history,contracts/m20_06/v1.py ImmutableAuditEvent and engine.py _history,audit tamper adversarial tests,pass
+GLIO-PROTEOGEN-M20-06,safe abstention without unsupported-to-negative conversion,engine.py QueueResultStatus and SupportDecision,unresolved missing-assignment and upstream tests,pass
+GLIO-PROTEOGEN-M20-06,seven uncertainty dimensions provenance and controls,engine.py _uncertainty _provenance _control_decisions,runtime and evaluator assertions,pass
+GLIO-PROTEOGEN-M20-06,canonical request/result replay and tamper rejection,contracts/m20_06/canonical.py and engine.py replay,replay and payload/history tamper tests,pass
+GLIO-PROTEOGEN-M20-06,strict parse-once plugin,modules/.../plugin.py,plugin token malformed-input parity tests,pass
+GLIO-PROTEOGEN-M20-06,FastAPI and Typer sanitized interfaces,modules/.../api.py and cli.py,interface lifecycle and error tests,pass
+GLIO-PROTEOGEN-M20-06,evaluator fixture and locked benchmark,evals/m20_06 and tests/fixtures/m20_06,9 cases and 25 iterations,pass
+GLIO-PROTEOGEN-M20-06,provisional authority and prohibited boundaries,docs/modules/M20-06-reviewer-discrepancy-adjudication.md,owner review and release evidence,provisional

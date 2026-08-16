@@ -1,0 +1,8 @@
+[
+  {"scenario_id": "supported_all_controls", "control_mode": "passed", "consent": "granted"},
+  {"scenario_id": "least_privilege_denied", "control_mode": "least_privilege_failed", "consent": "granted"},
+  {"scenario_id": "threat_detection_denied", "control_mode": "threat_detection_failed", "consent": "granted"},
+  {"scenario_id": "encryption_not_evaluable", "control_mode": "encryption_unknown", "consent": "granted"},
+  {"scenario_id": "consent_revoked_fail_closed", "control_mode": "passed", "consent": "revoked"},
+  {"scenario_id": "audit_review_required", "control_mode": "audit_review", "consent": "granted"}
+]

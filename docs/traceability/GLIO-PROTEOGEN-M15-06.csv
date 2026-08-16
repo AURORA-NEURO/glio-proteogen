@@ -1,0 +1,13 @@
+requirement,authority,implementation,evidence,gate
+responsibility perturbation sensitivity simulator,"dossier:5296-5336",contracts/m15_06/v1.py,tests/contract/test_m15_06_deep.py,G2
+parent complex_activity,"dossier:5296-5336",contracts/m15_06/v1.py,tests/contract/test_m15_06_deep.py,G2
+opaque M15-05 upstream binding,"dossier:5296-5336",contracts/m15_06/v1.py,tests/contract/test_m15_06_deep.py,G2
+bounded perturbation response,"dossier:5296-5336",engine.py,evals/m15_06/run.py,G2
+alternative priors and assay perturbations,"dossier:5296-5336",v1.py and engine.py,tests/contract/test_m15_06_deep.py,G2
+mechanism stress negative-control gate,"dossier:5296-5336",engine.py,evals/m15_06/run.py,G2
+seven uncertainty dimensions,"dossier:5296-5336",v1.py,tests/contract/test_m15_06_deep.py,G2
+safe abstention and human review,"dossier:5296-5336",engine.py,tests/contract/test_m15_06_deep.py,G2
+replay and tamper closure,"dossier:5296-5336",canonical.py and engine.py,tests/contract/test_m15_06_deep.py,G2
+strict API CLI plugin parity,"dossier:5296-5336",adapters/m1506.py and plugin.py,tests/contract/test_m15_06_deep.py,G2
+prohibited outputs,"dossier:5296-5336",schema.py and engine.py,docs/evidence/M15-06.md,G2
+reproducible release,"dossier:5296-5336",tools/verify_m1506_release.py,tests/tools/test_m1506_release.py,G2

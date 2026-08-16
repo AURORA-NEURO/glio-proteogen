@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M21-07",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 2700583,
+    "sha256": "29bea142bac71ddf74ec88ca9f30a6b4961c7cc3da44615318f98daeb4026210",
+    "members": 1433
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 3206047,
+    "sha256": "f0ac4d24d7d61df89612f27a9458e3dfd43c5f2afb44ed8ab3a06d66b040b293"
+  },
+  "isolated_import": true,
+  "release_verifier": true,
+  "passed": true
+}

@@ -1,0 +1,26 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-08",
+  "contract_version": "0.1.0-provisional",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7184-7224",
+  "fixture_digest": "sha256:023de100f42060a27d58f0e70a7f74fc58496107c29d44fb58db270679c12cd9",
+  "scenario_count": 8,
+  "passed_cases": 8,
+  "declared_cases": 8,
+  "adversarial_case_count": 8,
+  "adversarial_passed_count": 8,
+  "adversarial_coverage_percent": 100.0,
+  "uncertainty_dimensions": 7,
+  "request_digest": "sha256:8573afdd0765ee983889741b3212a06575b12316e07e15857697efeeabea918a",
+  "checks": [
+    "healthy continue",
+    "support drift suspend",
+    "critical discrepancy rollback",
+    "non-evaluable abstention",
+    "replay and tamper rejection",
+    "seven-control authorization gate",
+    "M20-07 upstream media boundary",
+    "deterministic repeat"
+  ],
+  "passed": true
+}

@@ -1,0 +1,12 @@
+requirement,authority,implementation,evidence,gate
+M26-07-R01,"dossier:9300-9340","caller-declared change classification and rollback beneath protein subtype","contracts/m26_07/v1.py; contract tests",G5
+M26-07-R02,"dossier:9300-9340","required revalidation IDs and proposal-bound completion records","request/package validators; gate variant tests",G5
+M26-07-R03,"dossier:9300-9340","champion-challenger shadow comparisons with regression block","ShadowComparison; regression evaluator and adversarial tests",G5
+M26-07-R04,"dossier:9300-9340","staged rollout approval and tested immutable rollback point","ChangePackage; runtime approved_complete evaluator",G5
+M26-07-R05,"dossier:9300-9340","seven-control preflight and fail-closed authorization","engine preflight; authorization_gate evaluator",G5
+M26-07-R06,"dossier:9300-9340","safe abstention on failed or unresolved change material","runtime abstention; failed_revalidation evaluator",G5
+M26-07-R07,"dossier:9300-9340","canonical request/result IDs, digests, provenance and replay","canonical.py; runtime and adversarial tamper tests",G5
+M26-07-R08,"dossier:9300-9340","strict API, SDK, CLI and parse-once plugin parity","api.py sdk.py cli.py plugin.py; interface tests",G5
+M26-07-R09,"dossier:9300-9340","seven uncertainty dimensions, evidence, limitations and review flag","engine result envelope; manifest and evaluator",G5
+M26-07-R10,"dossier:9300-9340","no kinase, all-omics, treatment, identity or consent inference","descriptor; boundary tests; release checklist",G5
+M26-07-R11,"dossier:9300-9340","frozen scenarios, benchmark, coverage and package evidence","release-evidence/m26_07; evaluator/benchmark commands",G5

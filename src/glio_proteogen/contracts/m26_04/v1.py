@@ -33,6 +33,10 @@ from glio_proteogen.kernel.models import (
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 9168-9208.
+M2604_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2604_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9168-9208"
 M2604_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-04"
 M2604_OPERATION: Final = "publish_protein_subtype_access_surface"
 M2604_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -246,6 +250,8 @@ class AccessSurface(FrozenModel):
             raise ValueError("authorization references unknown operation")
         if any(job.operation_id not in operation_ids for job in self.jobs):
             raise ValueError("async job references unknown operation")
+        if any(record.operation_id not in operation_ids for record in self.idempotency_records):
+            raise ValueError("idempotency record references unknown operation")
         if any(rule.operation_id not in operation_ids for rule in self.compatibility_rules):
             raise ValueError("compatibility rule references unknown operation")
         if any(event.operation_id not in operation_ids for event in self.audit_events):
@@ -293,6 +299,35 @@ class PublishProteinSubtypeAccessSurfaceRequest(FrozenModel):
         min_length=1, max_length=M2604_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_closed(self) -> PublishProteinSubtypeAccessSurfaceRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
+        operation_ids = tuple(operation.operation_id for operation in self.operations)
+        if len(operation_ids) != len(set(operation_ids)):
+            raise ValueError("gateway operation ids must be unique")
+        known = set(operation_ids)
+        references = (
+            self.authorizations,
+            self.idempotency_records,
+            self.jobs,
+            self.compatibility_rules,
+            self.audit_events,
+        )
+        if any(item.operation_id not in known for group in references for item in group):
+            raise ValueError("gateway material references an unknown operation")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifacts must have unique artifact IDs")
+        required_sources = {
+            self.mass_spectrometry_proteome.artifact_id,
+            self.genome_transcriptome.artifact_id,
+            self.ptm_annotations.artifact_id,
+        }
+        if not required_sources.issubset(source_ids):
+            raise ValueError("source artifacts must bind every declared gateway modality")
+        return self
 
 
 class ProteinSubtypeAccessSurfaceResult(FrozenModel):
@@ -342,6 +377,8 @@ class ProteinSubtypeAccessSurfaceResult(FrozenModel):
 
 __all__ = [
     "M2604_CONTRACT_VERSION",
+    "M2604_DOSSIER_SHA256",
+    "M2604_DOSSIER_SLICE",
     "M2604_EVIDENCE_CLAIM",
     "M2604_GATE",
     "M2604_MAX_AUDIT_EVENTS",

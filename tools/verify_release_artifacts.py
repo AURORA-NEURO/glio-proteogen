@@ -56,6 +56,29 @@ _M0404_BENCHMARK_SHAPE = {
     "evidence_count": 45,
     "limitation_count": 3,
 }
+_M1904_MODULE_ID = "GLIO-PROTEOGEN-M19-04"
+_M1904_SCENARIO_COUNT = 9
+_M1904_ADVERSARIAL_CASE_COUNT = 8
+_M1904_ADVERSARIAL_COVERAGE_PERCENT = 100.0
+_M1904_BENCHMARK_ITERATIONS = 25
+_M1904_BENCHMARK_WARMUPS = 1
+_M1904_MEAN_BUDGET_NS = 500_000_000
+_M1904_P95_BUDGET_NS = 750_000_000
+_M2604_MODULE_ID = "GLIO-PROTEOGEN-M26-04"
+_M2604_CASE_COUNT = 8
+_M2604_SCHEMA_COUNT = 12
+_M2604_UNCERTAINTY_DIMENSIONS = 7
+_M2604_BENCHMARK_ITERATIONS = 10
+_M2604_MEAN_BUDGET_NS = 500_000_000
+_M2604_P95_BUDGET_NS = 750_000_000
+_M2607_MODULE_ID = "GLIO-PROTEOGEN-M26-07"
+_M2607_CASE_COUNT = 8
+_M2607_SCHEMA_COUNT = 8
+_M2607_BENCHMARK_ITERATIONS = 10
+_M2607_MEAN_BUDGET_NS = 500_000_000
+_M2607_P95_BUDGET_NS = 750_000_000
+_M2607_DOSSIER_SHA256 = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+_M2607_DOSSIER_SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:9300-9340"
 _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("export-schema", "protocol-schema"),
@@ -431,6 +454,227 @@ def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
     _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
 
 
+def _verify_m1904_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 evaluation report did not pass")
+    _require_exact_integer(
+        evaluation_report,
+        "scenario_count",
+        _M1904_SCENARIO_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_case_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_passed_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    if evaluation_report.get("adversarial_coverage_percent") != _M1904_ADVERSARIAL_COVERAGE_PERCENT:
+        raise ReleaseArtifactError("M19-04 adversarial coverage is incomplete")
+    checks = _sequence(evaluation_report.get("checks"), "M19-04 evaluation checks")
+    if not checks or any(
+        _mapping(check, "M19-04 evaluation check").get("passed") is not True for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report contains a failed check")
+    if not any(
+        _mapping(check, "M19-04 evaluation check").get("name") == "corpus.executable_oracles"
+        for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report lacks executable oracle closure")
+
+
+def _verify_m1904_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M1904_BENCHMARK_ITERATIONS),
+        ("warmup_count", _M1904_BENCHMARK_WARMUPS),
+        ("mean_budget_ns", _M1904_MEAN_BUDGET_NS),
+        ("p95_budget_ns", _M1904_P95_BUDGET_NS),
+    ):
+        _require_exact_integer(benchmark_report, field, expected, "M19-04 benchmark report")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M1904_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M1904_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M19-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m1904_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M19-04 scenario closure, adversarial coverage, and timing budgets."""
+
+    _verify_m1904_evaluation(_load_json_evidence(evaluation, "M19-04 evaluation report"))
+    _verify_m1904_benchmark(_load_json_evidence(benchmark, "M19-04 benchmark report"))
+
+
+def _verify_m2604_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report did not pass")
+    for field, expected in (
+        ("scenarioCount", _M2604_CASE_COUNT),
+        ("passedCases", _M2604_CASE_COUNT),
+        ("schemaCount", _M2604_SCHEMA_COUNT),
+        ("uncertaintyDimensions", _M2604_UNCERTAINTY_DIMENSIONS),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M26-04 evaluation report")
+    cases = _sequence(evaluation_report.get("cases"), "M26-04 evaluation cases")
+    if len(cases) != _M2604_CASE_COUNT or any(not isinstance(case, str) for case in cases):
+        raise ReleaseArtifactError("M26-04 evaluation report lacks exact scenario closure")
+    if evaluation_report.get("replayTamperRejected") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks tamper rejection")
+    if evaluation_report.get("deterministicRepeat") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks deterministic replay")
+
+
+def _verify_m2604_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 benchmark report did not pass")
+    _require_exact_integer(
+        benchmark_report, "iterations", _M2604_BENCHMARK_ITERATIONS, "M26-04 benchmark report"
+    )
+    budgets = _mapping(benchmark_report.get("budgetsNs"), "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "mean", _M2604_MEAN_BUDGET_NS, "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "p95", _M2604_P95_BUDGET_NS, "M26-04 benchmark budgets")
+    samples = _sequence(benchmark_report.get("samplesNs"), "M26-04 benchmark samples")
+    if len(samples) != _M2604_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample < 0 for sample in samples
+    ):
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid samples")
+    mean = benchmark_report.get("meanNs")
+    p95 = benchmark_report.get("p95Ns")
+    if type(mean) is not int or type(p95) is not int:
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid summary values")
+    if mean > _M2604_MEAN_BUDGET_NS or p95 > _M2604_P95_BUDGET_NS:
+        raise ReleaseArtifactError("M26-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m2604_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M26-04 scenario closure and locked gateway timing budgets."""
+
+    _verify_m2604_evaluation(_load_json_evidence(evaluation, "M26-04 evaluation report"))
+    _verify_m2604_benchmark(_load_json_evidence(benchmark, "M26-04 benchmark report"))
+
+
+def _verify_m2607_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-07 evaluation report did not pass")
+    authority = _mapping(evaluation_report.get("authority"), "M26-07 authority")
+    if (
+        authority.get("dossierSha256") != _M2607_DOSSIER_SHA256
+        or authority.get("slice") != _M2607_DOSSIER_SLICE
+    ):
+        raise ReleaseArtifactError("M26-07 evaluation authority is not locked")
+    for field, expected in (
+        ("scenarioCount", _M2607_CASE_COUNT),
+        ("passedCases", _M2607_CASE_COUNT),
+        ("schemaCount", _M2607_SCHEMA_COUNT),
+        ("uncertaintyDimensions", 7),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M26-07 evaluation report")
+    cases = _sequence(evaluation_report.get("cases"), "M26-07 evaluation cases")
+    if len(cases) != _M2607_CASE_COUNT or len(set(cases)) != _M2607_CASE_COUNT:
+        raise ReleaseArtifactError("M26-07 evaluation report lacks exact scenario closure")
+
+
+def _verify_m2607_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-07 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M2607_BENCHMARK_ITERATIONS),
+        ("budgetsNs", {"mean": _M2607_MEAN_BUDGET_NS, "p95": _M2607_P95_BUDGET_NS}),
+    ):
+        if benchmark_report.get(field) != expected:
+            raise ReleaseArtifactError(f"M26-07 benchmark report has an unexpected {field}")
+    samples = _sequence(benchmark_report.get("samplesNs"), "M26-07 benchmark samples")
+    if len(samples) != _M2607_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample < 0 for sample in samples
+    ):
+        raise ReleaseArtifactError("M26-07 benchmark samples are invalid")
+    mean = benchmark_report.get("meanNs")
+    p95 = benchmark_report.get("p95Ns")
+    if (
+        type(mean) is not int
+        or type(p95) is not int
+        or mean < 0
+        or p95 < 0
+        or mean > _M2607_MEAN_BUDGET_NS
+        or p95 > _M2607_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M26-07 benchmark report exceeds timing budgets")
+
+
+def _verify_m2607_package(package_report: Mapping[str, object]) -> None:
+    if package_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 package report has the wrong module identity")
+    if package_report.get("contractVersion") != "0.1.0-provisional":
+        raise ReleaseArtifactError("M26-07 package report has the wrong contract version")
+    for label in ("wheel", "sdist"):
+        artifact = _mapping(package_report.get(label), f"M26-07 {label} package")
+        filename = artifact.get("filename")
+        digest = artifact.get("sha256")
+        size = artifact.get("sizeBytes")
+        members = artifact.get("memberCount")
+        if (
+            not isinstance(filename, str)
+            or not filename
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or type(size) is not int
+            or size <= 0
+            or type(members) is not int
+            or members <= 0
+        ):
+            raise ReleaseArtifactError(f"M26-07 {label} package evidence is incomplete")
+    required_members = _sequence(
+        _mapping(package_report.get("wheel"), "M26-07 wheel package").get(
+            "requiredRuntimeMembers"
+        ),
+        "M26-07 required runtime members",
+    )
+    if not required_members or any(
+        not isinstance(member, str) or not member for member in required_members
+    ):
+        raise ReleaseArtifactError("M26-07 required runtime member closure is incomplete")
+    if package_report.get("isolatedImportPassed") is not True:
+        raise ReleaseArtifactError("M26-07 isolated import evidence did not pass")
+
+
+def verify_m2607_evidence(evaluation: Path, benchmark: Path, package: Path | None = None) -> None:
+    """Verify M26-07 scenario, benchmark, and optional package evidence."""
+
+    _verify_m2607_evaluation(_load_json_evidence(evaluation, "M26-07 evaluation report"))
+    _verify_m2607_benchmark(_load_json_evidence(benchmark, "M26-07 benchmark report"))
+    if package is not None:
+        _verify_m2607_package(_load_json_evidence(package, "M26-07 package report"))
+
+
 def _verify_reproducible_cyclonedx_header(
     document: Mapping[str, object],
 ) -> Mapping[str, object]:
@@ -692,6 +936,22 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0404_evidence.add_argument("evaluation", type=Path)
     m0404_evidence.add_argument("benchmark", type=Path)
+    m1904_evidence = commands.add_parser(
+        "m19-04-evidence", help="verify M19-04 evaluation and benchmark evidence"
+    )
+    m1904_evidence.add_argument("evaluation", type=Path)
+    m1904_evidence.add_argument("benchmark", type=Path)
+    m2604_evidence = commands.add_parser(
+        "m26-04-evidence", help="verify M26-04 evaluation and benchmark evidence"
+    )
+    m2604_evidence.add_argument("evaluation", type=Path)
+    m2604_evidence.add_argument("benchmark", type=Path)
+    m2607_evidence = commands.add_parser(
+        "m26-07-evidence", help="verify M26-07 evaluation and benchmark evidence"
+    )
+    m2607_evidence.add_argument("evaluation", type=Path)
+    m2607_evidence.add_argument("benchmark", type=Path)
+    m2607_evidence.add_argument("package", type=Path)
     return parser
 
 
@@ -709,6 +969,12 @@ def main() -> int:
             verify_runtime_sbom(arguments.sbom, arguments.wheel)
         elif arguments.command == "m04-03-evidence":
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m19-04-evidence":
+            verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m26-04-evidence":
+            verify_m2604_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m26-07-evidence":
+            verify_m2607_evidence(arguments.evaluation, arguments.benchmark, arguments.package)
         else:
             verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
     except ReleaseArtifactError as error:

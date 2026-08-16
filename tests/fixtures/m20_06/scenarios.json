@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-06",
+  "contract_version": "0.1.0-provisional",
+  "operation": "adjudicate_protein_subtype_discrepancy_queue",
+  "dossier_sha256": "0A6B200CBE073DB13A4BCF315EDC23AB97EDFE6F500BC7EA2785F5E1C70DA181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7096-7136",
+  "owner": "Scientific engineering",
+  "safety_class": "S2",
+  "evidence_gate": "G4",
+  "parent_target": "protein subtype",
+  "schema_names": ["request", "output", "record", "queue-entry", "assignment", "audit-event", "configuration", "finding"],
+  "scenario_groups": [
+    {"group": "nominal", "case_ids": ["resolved_records"]},
+    {"group": "adversarial", "case_ids": ["unresolved_queue_abstains", "not_evaluable_abstains", "consent_denied_preflight", "upstream_media_rejected", "replay_tamper_rejected", "audit_history_tamper_rejected", "duplicate_discrepancy_rejected", "assignment_missing_abstains"]}
+  ],
+  "claims_ceiling": "structured reviewer discrepancy adjudication only; no identity, mutation, all-omics, kinase, treatment, or biological truth inference"
+}

@@ -1,0 +1,8 @@
+module_id,requirement,implementation,evidence,negative_boundary,status
+GLIO-PROTEOGEN-M21-08,deterministic evidence gate,src/glio_proteogen/modules/c21_reference_material/m21_08_evidence_gate_release_adjudicator/engine.py,tests/runtime/test_m2108_evidence_gate.py,does not emit complex-activity estimate,covered
+GLIO-PROTEOGEN-M21-08,seven-control fail-closed preflight,engine.py and service.py,tests/adversarial/test_m2108_interface_adversarial.py,does not infer identity consent or provenance,covered
+GLIO-PROTEOGEN-M21-08,M21-07 media binding,contracts/m21_08/v1.py and evaluator,tests/evals/test_m21_08_evaluator.py,media boundary only no upstream runtime import,covered
+GLIO-PROTEOGEN-M21-08,M21-06 evidence retention,contracts/m21_08/v1.py and evaluator,tests/adversarial/test_m2108_adversarial.py,does not consume M21-06 runtime ABI,covered
+GLIO-PROTEOGEN-M21-08,requirements benchmark risk approval closure,contracts/m21_08/v1.py and engine.py,release-evidence/m21_08/evaluation.json,failed closure abstains without release record,covered
+GLIO-PROTEOGEN-M21-08,canonical replay and tamper verification,contracts/m21_08/canonical.py and engine.py,tests/runtime/test_m2108_evidence_gate.py,never treats tampered payload as verified,covered
+GLIO-PROTEOGEN-M21-08,strict API CLI plugin parity,api.py cli.py plugin.py,tests/interface/test_m2108_interface.py,errors sanitized and outputs never overwrite,covered

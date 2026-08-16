@@ -2,8 +2,11 @@
 
 from glio_proteogen.contracts.m21_01.canonical import (
     canonical_request_digest,
+    normalized_package_lock_payload,
     normalized_request,
     normalized_result_payload,
+    package_lock_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.contracts.m21_01.schema import (
@@ -22,7 +25,10 @@ __all__ = [
     "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_package_lock_payload",
     "normalized_request",
     "normalized_result_payload",
+    "package_lock_digest",
+    "result_identifier",
     "result_payload_digest",
 ]
