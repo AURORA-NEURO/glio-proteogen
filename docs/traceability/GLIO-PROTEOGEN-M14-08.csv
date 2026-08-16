@@ -1,0 +1,20 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M14-08-R01,dossier:5024-5026,Own mechanism evidence dossier beneath microenvironment protein deconvolution,literal module identity operation and protein_subtype parent,tests/contract/test_m14_08_deep.py::test_review_ready_dossier_has_provenance_and_claim_ceiling,G3
+M14-08-R02,dossier:5026-5028,Produce review-ready evidence dossier with mechanism and counter-evidence,MechanismEvidenceDossier links claims and claim ceiling,evals/m14_08/run.py::run_evaluator,G3
+M14-08-R03,dossier:5028-5030,Retain competing explanations and falsification routes,required counter_evidence and ValidationRoute records,tests/contract/test_m14_08_deep.py::test_counter_evidence_and_claim_gate_are_explicit,G3
+M14-08-R04,dossier:5030-5032,Support Bayesian/state-space/mechanistic and network-factor options without freezing a model,closed provisional method catalogue and caller configuration,tests/contract/test_m14_08_deep.py::test_unsafe_dossier_states_abstain,G3
+M14-08-R05,dossier:5032-5034,Provide curated/enrichment and orthogonal-consensus alternatives,closed method policy with safe unsupported fallback,evals/m14_08/run.py::run_evaluator,G3
+M14-08-R06,dossier:5034-5036,Require upstream protein subtype mechanism result,exact M14-07 media-type binding,tests/contract/test_m14_08_deep.py::test_dossier_link_claim_and_upstream_closures_reject_tampering,G3
+M14-08-R07,dossier:5036-5038,Make reviewer reconstruction explicit,locked dossier fields and human review flag,tests/contract/test_m14_08_deep.py::test_review_ready_dossier_has_provenance_and_claim_ceiling,G3
+M14-08-R08,dossier:5038-5040,Expose seven uncertainty dimensions,expected_uncertainty with explicit not-estimable abstention values,tests/contract/test_m14_08_deep.py::test_uncertainty_is_explicit_on_supported_and_abstained_paths,G3
+M14-08-R09,dossier:5040-5042,Bind seven controls and provenance,authorization firewall and expected_provenance,tests/contract/test_m14_08_deep.py::test_authorization_runs_before_typed_traversal,G3
+M14-08-R10,dossier:5042-5044,Abstain on missing or unsafe validation,route status gate before release,evals/m14_08/run.py::run_evaluator,G3
+M14-08-R11,dossier:5044-5046,Abstain on unresolved or unsupported evidence,link disposition and method closure,tests/contract/test_m14_08_deep.py::test_unsafe_dossier_states_abstain,G3
+M14-08-R12,dossier:5046-5048,Verify replay and reject tampering,canonical request/result digest and result ID derivation,tests/contract/test_m14_08_deep.py::test_replay_and_tamper_detection,G3
+M14-08-R13,dossier:5048-5050,Provide API CLI and plugin access,shared service adapter and parse-once token binding,tests/contract/test_m14_08_deep.py::test_fastapi_and_cli_interfaces,G3
+M14-08-R14,dossier:5050-5052,Keep interfaces strict and sanitized,duplicate-free JSON and no-overwrite output,tests/contract/test_m14_08_deep.py::test_cli_duplicate_json_and_canonical_bytes,G3
+M14-08-R15,dossier:5052-5054,Require deterministic evaluation and benchmark,fixture closure and ten-call timing wrapper,evals/m14_08/run.py;evals/m14_08/benchmark.py,G3
+M14-08-R16,dossier:5054-5056,Preserve claim ceiling and prohibited interpretations,limitations and parent emission flags,docs/modules/GLIO-PROTEOGEN-M14-08.md,G3
+M14-08-R17,dossier:5056-5058,Provide adversarial coverage,hostile traversal duplicate closure and tamper tests,tests/contract/test_m14_08_deep.py,G3
+M14-08-R18,dossier:5058-5060,Provide release traceability and package evidence,release JSON evidence and standard-library verifier,tools/verify_m1408_release.py,G3
+M14-08-R19,dossier:5060-5064,Keep ABI provisional and safe failure explicit,provisional contract metadata and abstention result closure,release-evidence/m14_08/evaluation.json,G3

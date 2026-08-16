@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-08",
+  "scope": [
+    "glio_proteogen.contracts.m12_08",
+    "glio_proteogen.modules.c12_driver_to_protein_consequence.m12_08_mechanism_evidence_dossier",
+    "glio_proteogen.adapters.m1208"
+  ],
+  "tests": 27,
+  "statements": 528,
+  "covered_statements": 528,
+  "branches": 80,
+  "covered_branches": 80,
+  "coverage_percent": 100.0,
+  "branch_coverage_percent": 100.0,
+  "fail_under_percent": 95.0,
+  "passed": true
+}

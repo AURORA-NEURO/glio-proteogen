@@ -1,0 +1,22 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-05",
+  "dossier_slice": "4892-4932",
+  "requirement_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "cases": [
+    {"id": "ordered_metadata_replay", "kind": "supported", "expected": "modeled"},
+    {"id": "denied_control_fails_closed", "kind": "denied_control", "expected": "authorization_error"},
+    {"id": "out_of_order_rejects", "kind": "out_of_order", "expected": "validation_error"},
+    {"id": "insufficient_history_rejects", "kind": "insufficient_history", "expected": "validation_error"},
+    {"id": "unknown_field_rejects", "kind": "unknown_field", "expected": "validation_error"},
+    {"id": "wrong_upstream_media_rejects", "kind": "wrong_upstream_media", "expected": "validation_error"},
+    {"id": "duplicate_observation_rejects", "kind": "duplicate_observation", "expected": "validation_error"},
+    {"id": "tampered_result_fails_replay", "kind": "tampered_result", "expected": "replay_error"}
+  ],
+  "claims_ceiling": [
+    "caller-declared ordered references only",
+    "no source-byte traversal",
+    "no biological state or change-point inference",
+    "no kinase activity, generic all-omics fusion, treatment recommendation, identity inference, or consent inference",
+    "unsupported or missing evidence is never converted to a negative finding"
+  ]
+}

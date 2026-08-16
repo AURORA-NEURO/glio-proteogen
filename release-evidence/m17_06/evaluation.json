@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {"detail": "recorded", "name": "resolved_queue_recorded", "passed": true},
+    {"detail": "abstained", "name": "unresolved_review_abstention", "passed": true},
+    {"detail": "abstained", "name": "escalated_abstention", "passed": true},
+    {"detail": "abstained", "name": "unsupported_abstention", "passed": true},
+    {"detail": "abstained", "name": "prohibited_scope_abstention", "passed": true},
+    {"detail": "replay verified; tamper rejected", "name": "replay_and_tamper", "passed": true},
+    {"detail": "invalid controls rejected", "name": "authorization_gate", "passed": true},
+    {"detail": "byte-equivalent result", "name": "deterministic_reconstruction", "passed": true},
+    {"detail": "seven uncertainty dimensions and seven controls are explicit", "name": "uncertainty_provenance_complete", "passed": true},
+    {"detail": "every queue entry has a blinded assignment", "name": "complete_blinded_assignment", "passed": true}
+  ],
+  "declared_cases": 10,
+  "executed_cases": 10,
+  "fixture": "tests/fixtures/m17_06/scenarios.json",
+  "fixture_digest": "sha256:37f794e2cefa2900aae00acc66b1f8d949bf269f3ee63bbc31d25c3910b4ac6d",
+  "module_id": "GLIO-PROTEOGEN-M17-06",
+  "passed": true,
+  "passed_cases": 10,
+  "total_cases": 10
+}

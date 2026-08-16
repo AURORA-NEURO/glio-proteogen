@@ -164,12 +164,28 @@ class AlignedEvidenceBundle(FrozenModel):
 
     @model_validator(mode="after")
     def bundle_is_closed(self) -> AlignedEvidenceBundle:
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         observation_ids = tuple(item.observation_id for item in self.observations)
         discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancies)
+        dimensions = tuple(item.dimension for item in self.observations)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("aligned bundle source artifacts must be unique")
         if len(observation_ids) != len(set(observation_ids)):
             raise ValueError("alignment observation ids must be unique")
         if len(discrepancy_ids) != len(set(discrepancy_ids)):
             raise ValueError("discrepancy ids must be unique")
+        if len(dimensions) != len(set(dimensions)) or set(dimensions) != set(AlignmentDimension):
+            raise ValueError("aligned bundle must cover all seven alignment dimensions")
+        if any(
+            item.status is AlignmentObservationStatus.ALIGNED
+            and any(value != item.reference_value for value in item.observed_values)
+            for item in self.observations
+        ):
+            raise ValueError("aligned observations must equal their reference value")
+        if any(not set(item.source_ids) <= set(source_ids) for item in self.observations):
+            raise ValueError("bundle entries reference unknown source artifacts")
+        if any(not set(item.source_ids) <= set(source_ids) for item in self.discrepancies):
+            raise ValueError("bundle entries reference unknown source artifacts")
         return self
 
 
@@ -196,15 +212,29 @@ class AlignBiomarkerPanelSourcesRequest(FrozenModel):
         default=(), max_length=M1802_MAX_DISCREPANCIES
     )
     configuration: AlignmentConfiguration
+    support_decision: SupportDecision
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
     def request_is_bound(self) -> AlignBiomarkerPanelSourcesRequest:
         if self.upstream_result.media_type != M1802_M1801_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M18-01 resolver result")
-        source_ids = {artifact.artifact_id for artifact in self.source_artifacts}
+        artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request source artifacts must be unique")
+        source_ids = set(artifact_ids)
+        if self.upstream_result.artifact_id not in source_ids:
+            raise ValueError("upstream result must be listed in source artifacts")
         if any(not set(item.source_ids) <= source_ids for item in self.observations):
             raise ValueError("observation references an unknown source artifact")
+        if any(not set(item.source_ids) <= source_ids for item in self.discrepancies):
+            raise ValueError("discrepancy references an unknown source artifact")
+        observation_ids = tuple(item.observation_id for item in self.observations)
+        discrepancy_ids = tuple(item.discrepancy_id for item in self.discrepancies)
+        if len(observation_ids) != len(set(observation_ids)):
+            raise ValueError("request observation ids must be unique")
+        if len(discrepancy_ids) != len(set(discrepancy_ids)):
+            raise ValueError("request discrepancy ids must be unique")
         return self
 
 
@@ -248,6 +278,12 @@ class BiomarkerPanelAlignmentResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no bundle and safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        finding_codes = tuple(finding.code for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("alignment finding ids must be unique")
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("alignment finding codes must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

@@ -1,0 +1,18 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M16-06-R01,"Bind implementation to exact authoritative dossier slice and SHA-256","M1606_DOSSIER_SHA256 and M1606_DOSSIER_SLICE","contract metadata assertions and evaluator report",G4
+M16-06-R02,"Require the provisional M16-05 workspace result media type","request upstream media-type invariant","wrong-upstream-media fixture",G4
+M16-06-R03,"Represent structured disagreement with explicit reason and severity","DiscrepancyQueueEntry, DiscrepancyReasonCode, DiscrepancySeverity","resolved queue and schema assertions",G4
+M16-06-R04,"Require blinded reviewer assignments addressed by opaque token","ReviewerAssignment.blinded and reviewer_token","immutable history actor-token assertion",G4
+M16-06-R05,"Retain every decision in an immutable sequenced audit history","ImmutableAuditEvent and AdjudicationRecord.locked","resolved queue history assertions",G4
+M16-06-R06,"Escalate unresolved/deferred/critical queue state safely","QueueResultStatus and QueueFindingCode","deferred abstention and critical review fixtures",G4
+M16-06-R07,"Require complete assignment coverage before resolution","request and record closure validators","duplicate and missing/abstention runtime cases",G4
+M16-06-R08,"Check all seven controls before traversal","preflight_m1606_authorization","withheld-consent and conflicted-identity fixtures",G4
+M16-06-R09,"Reject unknown, duplicate, malformed, and wrong-upstream inputs","strict Pydantic request boundary","unknown-field, duplicate, and media fixtures",G4
+M16-06-R10,"Bind results to exact request and verify deterministic replay","canonical request/result digests","tampered-result replay case",G4
+M16-06-R11,"Expose seven uncertainty dimensions and explicit abstention","UncertaintyProfile with not-estimable estimates","runtime uncertainty and limitation assertions",G4
+M16-06-R12,"Stay within protein-RNA discordance and ownership ceiling","emits_parent=false and plugin prohibitions","descriptor and result assertions",G4
+M16-06-R13,"Reject kinase, all-omics, treatment, identity, and unsupported-negative outputs","claim/descriptor limitations","plugin descriptor and evidence record",G4
+M16-06-R14,"Expose strict HTTP, CLI, and sealed plugin interfaces","FastAPI/Typer/plugin adapters","integration tests and installed CLI smoke",G4
+M16-06-R15,"Provide adversarial evaluator coverage at release threshold","locked eight-case synthetic corpus","evals.m16_06.run (8/8 outcomes)",G4
+M16-06-R16,"Report representative replay performance","bounded typed queue benchmark","evals.m16_06.benchmark (100 calls)",G4
+M16-06-R17,"Verify wheel build, installation, and installed imports","release artifact verification","uv build/uv pip install/verify_release_artifacts report",G4

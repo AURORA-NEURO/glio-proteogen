@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-02",
+  "fixture": "tests/fixtures/m18_02/scenarios.json",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "6200-6240",
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "cases": [
+    "supported_alignment",
+    "conflict_abstention",
+    "incomplete_abstention",
+    "unsupported_abstention",
+    "replay",
+    "tamper",
+    "authorization_gate"
+  ],
+  "passed": true,
+  "synthetic_only": true,
+  "provisional": true
+}

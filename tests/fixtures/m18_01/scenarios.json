@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-01",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "6156-6196",
+  "coverage_target_percent": 95,
+  "scenario_names": [
+    "validated_compatible",
+    "mixed_review",
+    "unknown_abstention",
+    "incompatible_abstention",
+    "media_mismatch",
+    "replay_tamper",
+    "identity_gate",
+    "deterministic_reconstruction"
+  ]
+}
+
