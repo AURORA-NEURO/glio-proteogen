@@ -1,0 +1,11 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1307410,
+  "median_ns": 1297700,
+  "module_id": "GLIO-PROTEOGEN-M07-03",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 1394800,
+  "passed": true
+}
