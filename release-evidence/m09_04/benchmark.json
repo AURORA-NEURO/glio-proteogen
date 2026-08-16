@@ -1,0 +1,16 @@
+{
+  "constraint_count": 2,
+  "contract_version": "0.1.0-provisional",
+  "feature_count": 2,
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 2829920.0,
+  "median_ns": 2602700.0,
+  "module_id": "GLIO-PROTEOGEN-M09-04",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 5192000,
+  "passed": true,
+  "prior_count": 1,
+  "timed_boundary": "M0904ProbabilisticEstimator.build",
+  "workload": "probabilistic posterior estimation with explicit soft diagnostics"
+}
