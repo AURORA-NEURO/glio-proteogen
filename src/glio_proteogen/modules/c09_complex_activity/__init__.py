@@ -1,1 +1,1 @@
-"""C09 complex-activity module implementations (provisional)."""
+"""Complex-activity modules (provisional dossier implementations)."""
