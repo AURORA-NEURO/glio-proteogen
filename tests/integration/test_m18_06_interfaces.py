@@ -64,6 +64,8 @@ def test_service_plugin_api_cli_and_function_emit_exact_parity(tmp_path: Path) -
     service = M1806Service()
     plugin = M1806Plugin()
     expected = adjudicate_biomarker_panel_queue(request)
+    assert plugin.validate_request(request) == request
+    assert service.validate_request(request) == request
     assert expected == M1806Engine().adapt(request) == service.adjudicate(request)
     assert expected == plugin.run(request)
 
@@ -88,3 +90,4 @@ def test_service_plugin_api_cli_and_function_emit_exact_parity(tmp_path: Path) -
     assert plugin.descriptor.blinded_review is True
     assert plugin.descriptor.immutable_history is True
     assert plugin.replay(expected) == expected
+    assert service.replay(expected) == expected

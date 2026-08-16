@@ -7,7 +7,7 @@ import json
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, TypedDict, cast
 
 from pydantic import ValidationError
 from tests.runtime.test_m18_06_adjudication import _request
@@ -41,8 +41,21 @@ class EvalCheck:
     detail: str
 
 
-def _fixture() -> dict[str, object]:
-    return json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
+class ScenarioGroup(TypedDict):
+    group: str
+    case_ids: list[str]
+
+
+class Fixture(TypedDict):
+    module_id: str
+    dossier_sha256: str
+    dossier_slice: str
+    schema_names: list[str]
+    scenario_groups: list[ScenarioGroup]
+
+
+def _fixture() -> Fixture:
+    return cast("Fixture", json.loads(SCENARIO_PATH.read_text(encoding="utf-8")))
 
 
 def _checks() -> list[EvalCheck]:
