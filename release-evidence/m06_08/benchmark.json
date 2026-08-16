@@ -1,0 +1,10 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M06-08",
+  "iterations": 10,
+  "timed_boundary": "M0608Service.execute_only",
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true,
+  "measurement_source": "evals/m06_08/benchmark.py",
+  "note": "Exact samples are environment-dependent; rerun the locked wrapper for a measured receipt."
+}
