@@ -1,5 +1,7 @@
 """M20-08 deterministic translation monitoring and rollback service."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2008AuthorizationError,
     M2008ReplayVerificationError,
@@ -19,6 +21,8 @@ __all__ = [
     "M2008TokenError",
     "M2008TranslationMonitoringEngine",
     "ValidatedM2008Request",
+    "cli_app",
+    "create_app",
     "monitor_protein_subtype_translation_health",
     "preflight_m2008_authorization",
 ]
