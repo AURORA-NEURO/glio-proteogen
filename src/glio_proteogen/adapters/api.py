@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m04_05.schema import (
+    ContractName as M0405ContractName,
+)
+from glio_proteogen.contracts.m04_05.schema import (
+    contract_json_schema as m0405_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_05.v1 import (
+    M0405_MAX_CANONICAL_REQUEST_BYTES,
+    DetectProteoformArtifactsRequest,
+    ProteoformArtifactDetectionResult,
+)
 from glio_proteogen.contracts.m06_01.schema import (
     ContractName as M0601ContractName,
 )
@@ -435,6 +446,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection import (
+    M0405Service,
+    ProteoformArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0405_json_request,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     FormalStateAuthorizationError,
     M0601Service,
@@ -463,6 +481,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0405_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteoformArtifactsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -619,6 +638,12 @@ def _proteoform_quality_contract_schema(
 
 def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
     return m0601_contract_json_schema(name)
+
+
+def _proteoform_artifact_contract_schema(
+    name: M0405ContractName,
+) -> dict[str, object]:
+    return m0405_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -819,6 +844,15 @@ def _formal_state_request_body() -> dict[str, object]:
     }
 
 
+def _proteoform_artifact_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0405_contract_json_schema("request")}},
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
@@ -848,7 +882,12 @@ async def _strict_json_body[ModelT](
     except (TypeError, ValueError) as error:
         if json_validator is None:
             raise
-        raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
+        detail = (
+            "M04-04 request validation failed"
+            if adapter is _M0404_QUALITY_ADAPTER
+            else "request validation failed"
+        )
+        raise HTTPException(status_code=422, detail=detail) from error
 
 
 async def _register_body(request: Request) -> RegisterProtocolRequest:
@@ -1054,6 +1093,18 @@ async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequ
     )
 
 
+async def _proteoform_artifact_body(
+    request: Request,
+) -> DetectProteoformArtifactsRequest:
+    return await _strict_json_body(
+        request,
+        _M0405_ARTIFACT_ADAPTER,
+        None,
+        M0405_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0405_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1081,6 +1132,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
     formal_state_service = M0601Service()
+    proteoform_artifact_service = M0405Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1128,6 +1180,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
     @app.exception_handler(FormalStateAuthorizationError)
+    @app.exception_handler(ProteoformArtifactAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1401,6 +1454,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
         return _formal_state_contract_schema(name)
 
+    @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
+    def proteoform_artifact_contract_schema(
+        name: M0405ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_artifact_contract_schema(name)
+
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
         response_model=ProteoformQualityResult,
@@ -1428,6 +1487,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ValidateFormalProteinStateResult:
         return formal_state_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M04-05/artifact-detection",
+        response_model=ProteoformArtifactDetectionResult,
+        tags=["M04-05"],
+        openapi_extra=_proteoform_artifact_request_body(),
+    )
+    def detect_proteoform_artifacts(
+        request: Annotated[
+            DetectProteoformArtifactsRequest,
+            Depends(_proteoform_artifact_body),
+        ],
+    ) -> ProteoformArtifactDetectionResult:
+        return proteoform_artifact_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",

@@ -135,8 +135,13 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   stateless module replays the exact full M04-03 result and computes 32 fixed-point metrics from
   four caller-declared aggregate fact records under reviewed assay profiles. It never opens
   referenced content, authenticates measurements, executes models, or infers biology.
+- `GLIO-PROTEOGEN-M04-05` — deterministic proteoform/isoform artifact and contamination
+  detection. This stateless module replays the exact full M04-04 result, evaluates seven aggregate
+  artifact classes under a version-and-configuration-bound profile, and emits only explicit
+  categorical posteriors, triggered contamination flags, and excluded-only mask entries. Its ppm
+  fractions are not calibrated probabilities, and missing or unsupported evidence abstains.
 
-The twenty-seven published module slices and the M04-04 release candidate expose strict JSON Schema
+The twenty-eight published module slices and the M04-05 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -180,6 +185,7 @@ uv run python -m evals.m04_01.run
 uv run python -m evals.m04_02.run
 uv run python -m evals.m04_03.run
 uv run python -m evals.m04_04.run
+uv run python -m evals.m04_05.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -208,6 +214,7 @@ uv run python -m evals.m04_01.benchmark
 uv run python -m evals.m04_02.benchmark
 uv run python -m evals.m04_03.benchmark
 uv run python -m evals.m04_04.benchmark
+uv run python -m evals.m04_05.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -228,7 +235,7 @@ harmonization, M03-07 protein-inference support and abstention routing, M03-08 l
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
 proteoform/isoform protocol conformance, M04-02 stateless proteoform/isoform identity and lineage
 reconciliation, M04-03 directory-backed raw-manifest ingestion, and M04-04 metadata-only fixed-point
-quality metric computation.
+quality metric computation, plus M04-05 aggregate artifact and contamination detection.
 For example:
 
 ```bash

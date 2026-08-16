@@ -1,0 +1,41 @@
+requirement_id,source,requirement,implementation,evidence,gate
+M04-05-R01,dossier:1292,Own artifact and contamination detection beneath proteoform inference,M04-05 strict contract and runtime,contract and lifecycle suites,G1
+M04-05-R02,dossier:1294,Detect seven named artifact classes,closed ProteoformArtifactDetectorClass and seven-event target invariant,seven seeded critical lifecycle cases,G1
+M04-05-R03,dossier:1294,Emit only posterior flags and exclusion mask,closed result output and false authority fields,output authority and parity tests,G1
+M04-05-R04,dossier:1294,Support parent protein-RNA discordance without emitting it,parent_target literal and emits_parent false,receipt and authority assertions,G1
+M04-05-R05,dossier:1296,Do not own kinase fusion or treatment,plugin prohibitions false authority fields and limitations,descriptor and output authority tests,G1
+M04-05-R06,dossier:1296,Do not mutate relabel erase disagreement or infer identity/consent,full embedded upstream preservation and append-only supersession,receipt provenance and immutability tests,G1
+M04-05-R07,dossier:1296,Never convert missing or unsupported to negative,indeterminate posterior with no numeric score,missing and unsupported lifecycle cases,G1
+M04-05-R08,dossier:1298,Accept declared aggregate proteome genome transcriptome PTM and seven controls,exact M04-04 replay plus seven-control context,preflight and genuine builder tests,G1
+M04-05-R09,dossier:1300,Return typed uncertainty support provenance evidence and limitations,fully rederived result bundle,public helper replay test,G1
+M04-05-R10,dossier:1302-1306,Record architecture choices and narrow G1 execution to deterministic rules,zero-model manifest and stateless runtime,manifest and dependency inspection,G1
+M04-05-R11,dossier:1308,Validate identity version units completeness assay support and parent quality,verbatim controls full upstream replay and version/config profile domain,compatibility and receipt tests,G1
+M04-05-R12,dossier:1310,Expose seven uncertainty dimensions sensitivity and abstention,all dimensions not_estimable no probability and explicit notes,noncalibrated narrow-or-abstain eval,G1
+M04-05-R13,dossier:1312,Require review for critical discrepancy OOD override promotion exception or conflict,quarantine/abstain review semantics and manifest review plan,lifecycle support and review tests,G1
+M04-05-R14,dossier:1314,Meet seeded sensitivity and false-exclusion criteria,locked 900000 ppm floor and 50000 ppm ceiling,15-case executable eval,G1
+M04-05-R15,dossier:1314,Provide versioned implementation uncertainty tests benchmark and safe failure,contract runtime eval benchmark API CLI and docs,87 focused tests 96.0723 percent weighted coverage and release verifier,G1
+M04-05-R16,dossier:1316,Provide traceability risk data model reference review and rollback evidence,documentation and workflow artifacts,release publication audit,G1
+M04-05-R17,dossier:1318,Bind owner safety and gate to Platform engineering S2 G1,literal constants plugin descriptor manifest and fixture,module identity assertions,G1
+M04-05-R18,dossier:1322,Declare schema-first plus latent-class reference option without installing model,schema boundary and zero-model manifest,manifest inspection,G1
+M04-05-R19,dossier:1323,Declare event-sourced open-set advanced option without event log or anomaly model,stateless runtime and typed open-set abstention,dependency and uncertainty audits,G1
+M04-05-R20,dossier:1324,Use quarantine-first fallback semantics without semi-supervised classifier,deterministic thresholds quarantine and abstention,lifecycle safe failures and model manifest,G1
+M04-05-R21,dossier:1328,Require critical contract behavior and zero silent coercion,strict Pydantic duplicate-free JSON and unknown/coercion rejection,contract and interface boundaries,G1
+M04-05-R22,dossier:1329,Close invariants and preregister primary tolerance,seven-class ledger exact integer thresholds and result replay,contract lifecycle eval and max totality,G1
+M04-05-R23,dossier:1330,Keep supported perturbations in envelope and abstain unsupported,explicit observation states version/config matching and zero-traversal safe failure,unsupported and stale-binding tests,G1
+M04-05-R24,dossier:1331,Meet coverage or narrow support domain,no probability all dimensions not_estimable and OOD abstention,substantive eval oracle,G1
+M04-05-R25,dossier:1332,Prevent ownership/consent violations and make failures auditable/recoverable,verbatim authority provenance review and append-only supersession,privacy authority and recovery evidence,G1
+M04-05-R26,locked-risk:upstream,Require exact full M04-04 replay and reject re-signed mutation,issued full-snapshot weak capability,mutated-upstream stale-digest test,G1
+M04-05-R27,locked-risk:authorization,Complete seven checks before governed traversal,bounded exact-key built-in preflight,seven denials hostile key and zero-traversal tests,G1
+M04-05-R28,locked-risk:capability,Prevent copied-seal token forgery,issued token identity request identity and canonical digest registry,plugin forgery and parse-once tests,G1
+M04-05-R29,locked-risk:profile,Bind contract and assay/specimen/unit/applicability configuration,approved version plus configuration digest domain,unsupported configuration abstention test,G1
+M04-05-R30,locked-risk:ledger,Avoid stale-ledger event traversal while strictly validating bound ledgers,compact binding projection and full-ledger self-digest,hostile stale and bound-digest tests,G1
+M04-05-R31,locked-risk:capacity,Advertise only a total benchmarkable maximum,64 targets 448 events 4MiB request 8MiB result,max totality and benchmark tests,G1
+M04-05-R32,locked-risk:evidence,Constrain owned references and prevent identity contradictions,evidence namespace MIME allowlist and identity closure,seven-surface privacy and consistency tests,G1
+M04-05-R33,locked-risk:privacy,Reject nested canaries without reflection,generic sanitized library error and sanitized adapters,library API CLI canary tests,G1
+M04-05-R34,locked-risk:posterior,Do not misrepresent deterministic fractions as probabilities,score flag false and not-estimable uncertainty,posterior and eval assertions,G1
+M04-05-R35,locked-risk:negative,Represent clear explicitly and absence as unknown,seven observed clear posteriors and excluded-only mask,canonical clear and missing tests,G1
+M04-05-R36,locked-risk:replay,Rederive every result region and generated identifier,expected_detection_bundle and after-validator,re-signed forgery and normalized replay tests,G1
+M04-05-R37,locked-risk:interfaces,Expose 13 schemas metadata POST and strict atomic CLI,API CLI plugin shared sealed validator,15 interface tests,G1
+M04-05-R38,locked-risk:json,Cap and decode duplicate-free JSON once before sealed execution,strict_json boundary and private execute_validated,duplicate cap parse-count and no-double-replay tests,G1
+M04-05-R39,locked-risk:benchmark,Time 25 maximum public calls after one warmup,evals.m04_05.benchmark with 2s mean 3s p95,benchmark report and verifier,G1
+M04-05-R40,locked-risk:recovery,Recover only through immutable supersession,supersedes digest chronology docs and atomic new output,supersession and filesystem tests,G1
