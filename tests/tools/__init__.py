@@ -1,1 +1,1 @@
-"""Release tooling tests."""
+"""Release verifier tests."""
