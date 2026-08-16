@@ -129,8 +129,35 @@ def test_library_engine_service_plugin_api_and_cli_emit_exact_parity(tmp_path: P
     expected = evaluate_proteoform_protocol(request)
     assert expected == M0401ProteoformProtocolEngine().evaluate(request)
     assert expected == service.execute(request) == plugin.run(token) == api_result == cli_result
+    assert api_result.infers_protein is False
+    assert api_result.infers_proteoform is False
+    assert api_result.infers_isoform is False
+    assert api_result.infers_glioma_specific_biology is False
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M04-01"
     assert not FORBIDDEN_RESULT_KEYS.intersection(_nested_keys(api_result.model_dump(mode="json")))
+
+
+def test_api_and_cli_reject_a_true_glioma_claim_at_request_boundary(tmp_path: Path) -> None:
+    payload = build_scenario_request().model_dump(mode="json")
+    payload["infers_glioma_specific_biology"] = True
+    serialized = json.dumps(payload)
+    request_path = tmp_path / "forbidden-claim.json"
+    request_path.write_text(serialized, encoding="utf-8")
+
+    with TestClient(create_app(tmp_path / "forbidden-claim.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M04-01/protocol-conformance",
+            content=serialized,
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(
+        cli_app,
+        ["proteoform-protocol", "validate", str(request_path)],
+    )
+
+    assert response.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert cli.exit_code == CLI_USAGE_ERROR
+    assert "Traceback" not in cli.output
 
 
 @pytest.mark.parametrize(("control", "state"), DENIED_CONTROLS)

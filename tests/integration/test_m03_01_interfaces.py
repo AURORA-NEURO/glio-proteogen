@@ -126,9 +126,36 @@ def test_service_api_and_cli_emit_one_closed_private_result(tmp_path: Path) -> N
     assert service_result == api_result == cli_result
     assert api_result.disposition.value == "conformant"
     assert api_result.result_digest != "sha256:" + ("0" * 64)
+    assert api_result.infers_protein is False
+    assert api_result.infers_proteoform is False
+    assert api_result.infers_isoform is False
+    assert api_result.infers_glioma_specific_biology is False
     assert not FORBIDDEN_RESULT_KEYS.intersection(
         _nested_keys(api_result.model_dump(mode="json"))
     )
+
+
+def test_api_and_cli_reject_a_true_glioma_claim_at_request_boundary(tmp_path: Path) -> None:
+    payload = build_scenario_request("canonical").model_dump(mode="json")
+    payload["infers_glioma_specific_biology"] = True
+    serialized = json.dumps(payload)
+    request_path = tmp_path / "forbidden-claim.json"
+    request_path.write_text(serialized, encoding="utf-8")
+
+    with TestClient(create_app(tmp_path / "forbidden-claim.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-01/protocol-conformance",
+            content=serialized,
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(
+        cli_app,
+        ["protein-inference-protocol", "validate", str(request_path)],
+    )
+
+    assert response.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert cli.exit_code == CLI_USAGE_ERROR
+    assert "Traceback" not in cli.output
 
 
 def test_api_and_cli_authorize_before_hostile_protocol_traversal(tmp_path: Path) -> None:

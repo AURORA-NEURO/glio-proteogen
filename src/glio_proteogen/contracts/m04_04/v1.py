@@ -958,6 +958,7 @@ class ProteoformQualityResult(FrozenModel):
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
     infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     localizes_modification: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     performs_cn_to_protein_regression: Literal[False] = False

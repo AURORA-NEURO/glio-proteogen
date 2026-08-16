@@ -144,6 +144,8 @@ def test_all_eight_schemas_are_strict_and_authority_bounded() -> None:
             "consentInference": False,
             "proteinInference": False,
             "proteoformInference": False,
+            "isoformInference": False,
+            "gliomaSpecificBiologyInference": False,
             "copyNumberRegression": False,
             "proteinRnaDiscordanceInference": False,
             "kinaseActivityInference": False,

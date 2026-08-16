@@ -159,6 +159,9 @@ def test_every_exported_schema_is_strict_versioned_and_authority_bounded() -> No
             "rawPayload": False,
             "observedPeptideAssignment": False,
             "proteinInference": False,
+            "proteoformInference": False,
+            "isoformInference": False,
+            "gliomaSpecificBiologyInference": False,
             "biologicalInterpretation": False,
         }
         definitions = cast("dict[str, dict[str, Any]]", schema.get("$defs", {}))

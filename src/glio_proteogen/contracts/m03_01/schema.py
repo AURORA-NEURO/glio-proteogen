@@ -47,6 +47,9 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "rawPayload": False,
         "observedPeptideAssignment": False,
         "proteinInference": False,
+        "proteoformInference": False,
+        "isoformInference": False,
+        "gliomaSpecificBiologyInference": False,
         "biologicalInterpretation": False,
     }
     return schema

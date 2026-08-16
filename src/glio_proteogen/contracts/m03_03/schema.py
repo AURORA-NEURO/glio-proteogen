@@ -57,6 +57,9 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "rawPayloadInSchema": False,
         "identityInference": False,
         "proteinInference": False,
+        "proteoformInference": False,
+        "isoformInference": False,
+        "gliomaSpecificBiologyInference": False,
         "complexActivityInference": False,
         "kinaseActivityInference": False,
     }
