@@ -1,0 +1,18 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M15-08-R01,"Bind implementation to the exact authoritative dossier slice and SHA-256","M1508_DOSSIER_SHA256 and M1508_DOSSIER_SLICE","contract metadata assertions and evaluator report",G3
+M15-08-R02,"Require the provisional M15-07 plausibility result media type","request upstream media-type invariant","wrong-upstream-media fixture",G3
+M15-08-R03,"Represent input, mechanism, counter-evidence, validation, uncertainty, and claim-ceiling links","MechanismEvidenceLinkKind and MechanismEvidenceDossier","supported chain assertions",G3
+M15-08-R04,"Make every link reconstructable with explicit predecessor and evidence","dossier closure validator and deterministic link chain","supported runtime result and chain test",G3
+M15-08-R05,"Preserve counter-evidence and its impact on promotion","CounterEvidenceRecord","counter-evidence assertion and evaluator report",G3
+M15-08-R06,"Declare a validation route, required experiment, and acceptance criterion","ValidationRoute with planned status","validation-route result assertion",G3
+M15-08-R07,"Expose measurement, sampling, parameter, model-form, identification, support, and transport uncertainty","UncertaintyProfile with not-estimable estimates","uncertainty and limitation assertions",G3
+M15-08-R08,"Keep weak links and conflicts visible; do not erase disagreement","diagnostics, findings, and claim ceiling","descriptor/output boundary assertions",G3
+M15-08-R09,"Check all seven controls before evidence traversal","preflight_m1508_authorization","denied-control fixture and HTTP 403 test",G3
+M15-08-R10,"Reject unknown, duplicate, incomplete, and malformed input","strict Pydantic request boundary","unknown-field, duplicate-source, missing-manifest/source fixtures",G3
+M15-08-R11,"Bind result to exact request and verify deterministic replay","canonical request/result digests","tampered-result and replay-mismatch tests",G3
+M15-08-R12,"Stay inside the complex-activity context and prohibited-output ceiling","emits_parent=false, descriptor prohibitions, ClaimCeiling","plugin descriptor and result assertions",G3
+M15-08-R13,"Expose strict HTTP, CLI, and sealed plugin interfaces","FastAPI/Typer/plugin adapters","integration interface tests and installed CLI smoke",G3
+M15-08-R14,"Require explicit review and safe abstention before claim promotion","human_review_required, provisional finding, limitations","supported result and evaluator report",G3
+M15-08-R15,"Provide adversarial evaluator coverage at or above release threshold","locked eight-case synthetic corpus","evals.m15_08.run (8/8 outcomes)",G3
+M15-08-R16,"Report representative replay performance","bounded metadata-only service benchmark","evals.m15_08.benchmark (100 calls)",G3
+M15-08-R17,"Verify wheel build, installation, and installed imports","release artifact verification","uv build/uv pip install/verify_release_artifacts report",G3

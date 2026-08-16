@@ -1,0 +1,2 @@
+module_id,dossier_sha256,dossier_lines,responsibility,parent_target,owner,safety_class,gate,contract,runtime,interfaces,evaluator,coverage,evidence
+GLIO-PROTEOGEN-M12-07,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,4260-4303,plausibility and negative-control adjudicator,biomarker_panel,Computational biology,S2,G3,src/glio_proteogen/contracts/m12_07,src/glio_proteogen/modules/c12_driver_protein_consequence/m12_07_plausibility_adjudicator,src/glio_proteogen/adapters/m1207.py,evals/m12_07,97.50% branch,docs/evidence/M12-07.md

@@ -1,0 +1,21 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-08",
+  "title": "Evidence and explanation publisher",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "exact_lines": "3584-3627"
+  },
+  "contract_version": "0.1.0-provisional",
+  "fixture_policy": {
+    "raw_external_payloads": false,
+    "caller_declared_artifacts_only": true,
+    "unsupported_to_negative": false,
+    "kinase_activity": false,
+    "treatment_recommendation": false,
+    "all_omics_fusion": false,
+    "provisional_abi": true
+  },
+  "files": [
+    "scenarios.json"
+  ]
+}

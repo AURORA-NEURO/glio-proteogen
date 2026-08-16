@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-03",
+  "fixture_version": "1.0.0",
+  "scenarios": [
+    {"id": "supported_reference", "source_label": "source.proteome", "negative_label": "negative.control", "expected_status": "constructed"},
+    {"id": "unsupported_upstream", "source_label": "unsupported.upstream", "negative_label": "negative.control", "expected_status": "abstained"},
+    {"id": "missing_evidence", "source_label": "missing.evidence", "negative_label": "negative.control", "expected_status": "abstained"},
+    {"id": "ood_state", "source_label": "ood.state", "negative_label": "negative.control", "expected_status": "abstained"},
+    {"id": "negative_control_failure", "source_label": "source.proteome", "negative_label": "control.fail", "expected_status": "abstained"},
+    {"id": "denied_quality_control", "source_label": "source.proteome", "negative_label": "negative.control", "control_state": "rejected", "expected_status": "authorization_failed"},
+    {"id": "replay_tamper", "source_label": "source.proteome", "negative_label": "negative.control", "expected_status": "tamper_rejected"}
+  ]
+}

@@ -1,0 +1,21 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M14-04",
+    "fixture_digest": "sha256:36403b923926f0c1de7eda06fae922d2ee9a63253b3ea09f697d6e2dc3b1b9e6",
+    "fixture_sha256": "sha256:36403b923926f0c1de7eda06fae922d2ee9a63253b3ea09f697d6e2dc3b1b9e6",
+    "fixture_version": "1.0.0",
+    "case_ids": [
+        "posterior_inference",
+        "state_inference",
+        "explicit_abstention",
+        "unknown_method_abstention",
+        "invalid_bounds_abstention",
+        "replay_and_tamper",
+        "authorization_gate"
+    ],
+    "declared_cases": 7,
+    "executed_cases": 7,
+    "passed_cases": 7,
+    "all_passed": true,
+    "passed": true,
+    "focused_tests": 27
+}

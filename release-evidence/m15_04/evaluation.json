@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-04",
+  "fixture": "tests/fixtures/m15_04/scenarios.json",
+  "fixture_digest": "sha256:ab3d8585b87675b2312c2e4ac6dfb9c2e0eab1f6c494559dbe97c14963f9aa1d",
+  "declared_cases": 9,
+  "executed_cases": 9,
+  "passed_cases": 9,
+  "total_cases": 9,
+  "passed": true,
+  "checks": [
+    {"name": "posterior_positive_control", "passed": true, "detail": "inferred"},
+    {"name": "state_positive_control", "passed": true, "detail": "inferred"},
+    {"name": "unsupported_abstention", "passed": true, "detail": "abstained"},
+    {"name": "negative_control_rejection", "passed": true, "detail": "abstained"},
+    {"name": "prohibited_boundary_abstention", "passed": true, "detail": "abstained"},
+    {"name": "replay_and_tamper", "passed": true, "detail": "replay verified; tamper rejected"},
+    {"name": "authorization_gate", "passed": true, "detail": "denied controls rejected"},
+    {"name": "deterministic_reconstruction", "passed": true, "detail": "byte-equivalent result"},
+    {"name": "counter_evidence_uncertainty_complete", "passed": true, "detail": "counter-evidence, seven controls, and uncertainty are explicit"}
+  ]
+}
