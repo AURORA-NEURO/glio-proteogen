@@ -1,0 +1,11 @@
+{
+  "command": "uv run coverage run --branch --source=glio_proteogen.contracts.m12_05,glio_proteogen.modules.c12_driver_to_protein_consequence.m12_05_longitudinal_evolution,glio_proteogen.adapters.m1205 -m pytest -o addopts='' tests/contract/test_m12_05_provisional.py tests/contract/test_m12_05_deep.py tests/integration/test_m12_05_interfaces.py tests/evals/test_m12_05.py -q",
+  "branch_enabled": true,
+  "statements": 562,
+  "covered_statements": 560,
+  "branches": 118,
+  "covered_branches": 116,
+  "coverage_percent": 98.3,
+  "line_coverage_percent": 99.6,
+  "fail_under_percent": 95.0
+}

@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-07",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "all_controls_pass"},
+    {"case_id": "failed_control_abstention"},
+    {"case_id": "not_evaluable_abstention"},
+    {"case_id": "explicit_abstention"},
+    {"case_id": "unresolved_conflict"},
+    {"case_id": "missing_control_abstention"},
+    {"case_id": "replay_and_tamper"},
+    {"case_id": "authorization_gate"},
+    {"case_id": "deterministic_reconstruction"}
+  ]
+}

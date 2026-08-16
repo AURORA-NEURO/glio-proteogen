@@ -36,6 +36,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from the M17-04 dossier slice.
 M1704_MODULE_ID: Final = "GLIO-PROTEOGEN-M17-04"
+M1704_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1704_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:5928-5968"
 M1704_OPERATION: Final = "adapt_variant_peptide_intended_use"
 M1704_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1704_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m17-04+json"
@@ -77,6 +81,7 @@ class AdapterStatus(StrEnum):
 
 
 class AdapterFindingCode(StrEnum):
+    ALLOWED = "allowed"
     CLAIM_EXCEEDS_CEILING = "claim_exceeds_ceiling"
     EVIDENCE_TIER_MISSING = "evidence_tier_missing"
     INTENDED_USE_UNREGISTERED = "intended_use_unregistered"
@@ -226,6 +231,8 @@ class VariantPeptideIntendedUseAdapterResult(FrozenModel):
 
 __all__ = [
     "M1704_CONTRACT_VERSION",
+    "M1704_DOSSIER_SHA256",
+    "M1704_DOSSIER_SLICE",
     "M1704_EVIDENCE_CLAIM",
     "M1704_GATE",
     "M1704_M1703_INPUT_MEDIA_TYPE",

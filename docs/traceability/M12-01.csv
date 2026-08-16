@@ -1,0 +1,6 @@
+requirement_id,source_lines,implementation,evidence
+M1201-R01,"3996-4004","versioned hypothesis/falsification registry under biomarker_panel","contracts/m12_01/v1.py; tests/contract/test_m12_01_contract.py"
+M1201-R02,"4000-4002","prohibited outputs and opaque immutable source references","runtime engine limitations; adapter tests"
+M1201-R03,"4012-4014","seven control preflight and seven-axis uncertainty","engine.py; expected_provenance; expected_uncertainty"
+M1201-R04,"4016-4018","human review and safe abstention closure","result validator; abstention tests"
+M1201-R05,"4030-4036","G0/G1/G3/G4 contract, robustness, uncertainty, safety evidence","evaluator fixture; adversarial matrix; release verifier"

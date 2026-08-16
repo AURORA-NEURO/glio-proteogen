@@ -1,0 +1,5 @@
+module_id,authority_sha256,authority_lines,owner,safety_class,gate,parent_target,requirement,evidence
+GLIO-PROTEOGEN-M16-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,5612-5652,ML engineering,S2,G4,protein_rna_discordance,six required safe workspace views,src/glio_proteogen/modules/c16_kinophos_object_consumer/m16_05_workflow_presentation_service/engine.py
+GLIO-PROTEOGEN-M16-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,5612-5652,ML engineering,S2,G4,protein_rna_discordance,typed contract and explicit abstention,src/glio_proteogen/contracts/m16_05/v1.py
+GLIO-PROTEOGEN-M16-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,5612-5652,ML engineering,S2,G4,protein_rna_discordance,strict API CLI plugin parity,src/glio_proteogen/adapters/m1605.py
+GLIO-PROTEOGEN-M16-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,5612-5652,ML engineering,S2,G4,protein_rna_discordance,locked evaluator and release evidence,evals/m16_05/run.py

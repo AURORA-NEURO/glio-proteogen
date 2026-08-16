@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M16-08-R01,"Bind monitoring to the exact provisional M16-07 upstream result","media, version, and artifact reference closure","request contract and request-binding tests",G0
+M16-08-R02,"Require deterministic translation-health state and rollback decision","closed health-status and rollback-decision state machine","healthy, drift, critical, and abstention evaluator cases",G1
+M16-08-R03,"Represent support drift and discrepancy without erasure","typed HealthSignal, DriftAssessment, and findings","support-drift and critical-discrepancy scenarios",G1
+M16-08-R04,"Trigger suspension or rollback for declared critical conditions","critical metric/discrepancy decision policy","critical_discrepancy_rollback evaluator case",G3
+M16-08-R05,"Abstain safely on unsupported or not-evaluable input","no-report abstention closure with human review","unsupported_abstention evaluator and contract tests",G0
+M16-08-R06,"Reject denied consent, identity, lineage, and control gates before traversal","authorization-first preflight","authorization_gate evaluator and hostile-object test",G0
+M16-08-R07,"Preserve seven typed uncertainty dimensions","explicit UncertaintyProfile construction","runtime result assertions and schema evidence",G3
+M16-08-R08,"Bind result to exact request and canonical replay","request/result SHA-256 digests and replay verification","replay_and_tamper evaluator and service/plugin tests",G3
+M16-08-R09,"Keep API, CLI, plugin, service, and library semantics aligned","strict parse-once adapter and tokenized plugin","FastAPI/Typer parity tests",G1
+M16-08-R10,"Reject malformed, duplicate, out-of-envelope, and inconsistent references","Pydantic after-model closure validators","adversarial contract suite",G0
+M16-08-R11,"Do not emit kinase, all-omics, treatment, or identity outputs","descriptor, parent target, limitations, and prohibited-output metadata","schema/descriptor assertions and manifest",G4
+M16-08-R12,"Provide reproducible evaluation and representative latency evidence","frozen fixture and benchmark wrapper","6/6 evaluator; 10-call benchmark under 2e9/3e9 ns",G1
+M16-08-R13,"Package a reviewable provisional release","coverage, wheel/sdist, isolated import, and clean-tree verifier","release evidence and verifier script",G4

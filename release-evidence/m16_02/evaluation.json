@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {"detail": "reconciled", "name": "aligned_reconciled", "passed": true},
+    {"detail": "review_required", "name": "warning_review_required", "passed": true},
+    {"detail": "review_required", "name": "critical_conflict_review", "passed": true},
+    {"detail": "reconciled", "name": "resolved_conflict_reconciled", "passed": true},
+    {"detail": "abstained", "name": "unsupported_abstention", "passed": true},
+    {"detail": "abstained", "name": "prohibited_boundary_abstention", "passed": true},
+    {"detail": "replay verified; tamper rejected", "name": "replay_and_tamper", "passed": true},
+    {"detail": "denied controls rejected", "name": "authorization_gate", "passed": true},
+    {"detail": "byte-equivalent result", "name": "deterministic_reconstruction", "passed": true},
+    {"detail": "seven uncertainty dimensions, controls, and digest are explicit", "name": "uncertainty_provenance_complete", "passed": true}
+  ],
+  "declared_cases": 10,
+  "executed_cases": 10,
+  "fixture": "tests/fixtures/m16_02/scenarios.json",
+  "fixture_digest": "sha256:555ef5945bf3c70d69e05ce71d828545f664958113308fd2c5ac6bfbd08d4af6",
+  "module_id": "GLIO-PROTEOGEN-M16-02",
+  "passed": true,
+  "passed_cases": 10,
+  "total_cases": 10
+}

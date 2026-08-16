@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-08",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "5744-5786"
+  },
+  "fixture": "tests/fixtures/m16_08/scenarios.json",
+  "fixture_digest": "sha256:6be754e0cac1420f28db5f5137e654c8da6665b5585821ea88babd28ad403d93",
+  "request_digest": "sha256:221ef4504beafe3b11eccb58d908281745f8a025f2f73541d6c6d2d5a515a7d4",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "passed": true,
+  "uncertainty_dimensions": 7,
+  "provisional": true
+}

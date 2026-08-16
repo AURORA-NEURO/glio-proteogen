@@ -1,0 +1,28 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-07",
+  "build_backend": "hatchling",
+  "build_command": "uv build",
+  "artifacts": [
+    {
+      "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
+      "kind": "wheel",
+      "bytes": 749631,
+      "sha256": "32bc14f766985ec06f6ac10cf1979176484f346568c31190fb1ee6b15a183579"
+    },
+    {
+      "path": "dist/glio_proteogen-0.1.0.tar.gz",
+      "kind": "sdist",
+      "bytes": 1430193,
+      "sha256": "91f5346e6e92f94933433e329edb3673fe5691713b263ec614f39970474a8e23"
+    }
+  ],
+  "isolated_import": {
+    "target": "isolated-m1707-import",
+    "command": "uv pip install --target isolated-m1707-import --no-deps dist/glio_proteogen-0.1.0-py3-none-any.whl",
+    "import": "import glio_proteogen; from glio_proteogen.adapters.m1707 import create_app",
+    "result": "passed",
+    "app_title": "GLIO-PROTEOGEN M17-07"
+  },
+  "passed": true,
+  "provisional": true
+}
