@@ -29,9 +29,7 @@ from glio_proteogen.contracts.m20_05.v1 import (
     WorkflowFinding,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-05:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-05:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2005_CONTRACT_VERSION
 ContractName = Literal[
     "request",
