@@ -34,6 +34,7 @@ from glio_proteogen.adapters.api import (
     _m1508_contract_schema,
     _m1603_contract_schema,
     _m1606_contract_schema,
+    _m1701_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -190,6 +191,10 @@ from glio_proteogen.contracts.m16_03 import (
 from glio_proteogen.contracts.m16_06 import (
     M1606_MAX_CANONICAL_REQUEST_BYTES,
     AdjudicateProteinRnaDiscordanceQueueRequest,
+)
+from glio_proteogen.contracts.m17_01 import (
+    M1701_MAX_CANONICAL_REQUEST_BYTES,
+    ResolveVariantPeptideUpstreamContractsRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -359,6 +364,9 @@ from glio_proteogen.modules.c16_kinophos_object_consumer import (
 from glio_proteogen.modules.c16_kinophos_object_consumer import (
     m16_03_fusion_aggregation_engine as m1603,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_01_upstream_contract_resolver as m1701_resolver,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -492,6 +500,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1701_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
+)
+app.add_typer(m1701_app, name="m1701-upstream")
 reviewer_discrepancy_app = typer.Typer(
     no_args_is_help=True,
     help="M16-06 reviewer discrepancy and immutable adjudication queue.",
@@ -3479,12 +3492,45 @@ def compute_proteoform_quality_metrics(
         raise typer.Exit(code=1) from error
 
 
-@fusion_aggregation_app.command("export-schema")
-def export_m1603_fusion_schema(
+@m1701_app.command("export-schema")
+def export_m1701_schema(
     contract: Annotated[
         Literal[
             "request",
             "output",
+            "candidate",
+            "compatibility-rule",
+            "compatibility-decision",
+            "compatibility-report",
+            "configuration",
+            "bundle",
+            "finding",
+        ],
+        typer.Argument(help="M17-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-01 contract schema."""
+
+    typer.echo(json.dumps(_m1701_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1701_app.command("resolve")
+def resolve_m1701_upstream(request: RequestArgument) -> None:
+    """Resolve typed upstream compatibility with explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest),
+        m1701_resolver.preflight_m1701_authorization,
+        M1701_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1701_resolver.M1701Service().resolve(parsed))
+
+
+@fusion_aggregation_app.command("export-schema")
+def export_m1603_fusion_schema(
+    contract: Annotated[
+        Literal[
             "source-contribution",
             "disagreement",
             "propagation",
