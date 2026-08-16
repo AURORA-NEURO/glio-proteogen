@@ -55,6 +55,10 @@ M2502_MAX_EVIDENCE: Final = 64
 M2502_MAX_FINDINGS: Final = 64
 M2502_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2502_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2502_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M25-02 synthetic truth, perturbation and reproducibility evidence; "
+    "issuer authority is not authenticated."
+)
 
 
 class FixtureKind(StrEnum):
@@ -95,6 +99,12 @@ class SyntheticTruthCase(FrozenModel):
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2502_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2502_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def truth_shape_is_closed(self) -> SyntheticTruthCase:
+        if len(self.expected_features) != len(self.truth_values):
+            raise ValueError("expected features and truth values must have equal length")
+        return self
 
 
 class GenerationConfiguration(FrozenModel):
@@ -149,6 +159,8 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("corpus case ids must be unique")
         if set(case_ids) != set(self.manifest.case_ids):
             raise ValueError("manifest must enumerate every corpus case")
+        if self.manifest.configuration.version != self.version:
+            raise ValueError("manifest configuration version must match corpus version")
         return self
 
 
@@ -217,6 +229,10 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result identifier must bind the request digest")
+        if self.provenance.module_id != M2502_MODULE_ID:
+            raise ValueError("provenance module id must identify M25-02")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         finding_ids = tuple(item.finding_id for item in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("result finding IDs must be unique")
@@ -251,6 +267,7 @@ __all__ = [
     "M2502_CONTRACT_VERSION",
     "M2502_DOSSIER_SHA256",
     "M2502_DOSSIER_SLICE",
+    "M2502_EVIDENCE_CLAIM",
     "M2502_GATE",
     "M2502_M2501_INPUT_MEDIA_TYPE",
     "M2502_MAX_CANONICAL_REQUEST_BYTES",
