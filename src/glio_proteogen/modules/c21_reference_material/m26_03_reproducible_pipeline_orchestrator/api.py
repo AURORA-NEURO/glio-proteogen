@@ -25,6 +25,7 @@ _RESULT_ADAPTER = TypeAdapter(ProteinSubtypeExecutionResult)
 _CONTRACT_NAMES = {
     "request",
     "output",
+    "step",
     "attempt",
     "execution",
     "package",
