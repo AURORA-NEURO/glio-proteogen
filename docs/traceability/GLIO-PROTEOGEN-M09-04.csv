@@ -1,0 +1,14 @@
+requirement,evidence,verification,owner,status
+responsibility:probabilistic-advanced-estimator,docs/modules/GLIO-PROTEOGEN-M09-04.md,posterior or abstention only with diagnostics,ML engineering,implemented-provisional
+boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,ML engineering,implemented
+inputs:content-addressed-and-no-traversal,contract and manifest,artifact references retained without dereference,ML engineering,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and tests,denied control fails closed,ML engineering,implemented
+posterior:shape-and-finite-values,contract plus adversarial tests,interval bounds and finite fields close,ML engineering,implemented
+optimization:objective-priors-constraints-seed,configuration and runtime,diagnostics bind locked declaration,ML engineering,implemented-provisional
+unsupported-evidence,engine plus evaluator,unsupported/OOD/missing declarations abstain safely,ML engineering,verified-local
+uncertainty:seven-dimensions,engine and result contract,all dimensions explicit estimated or not-estimable,ML engineering,implemented-provisional
+replay:canonical-content-and-digest,canonical.py engine verifier tests,tamper and noncanonical bytes rejected,ML engineering,verified-local
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and sanitized errors,ML engineering,verified-local
+acceptance:benchmark-and-evaluator,evals/m09_04/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,ML engineering,verified-local
+evidence:traceability-manifest-review,docs/evidence/M09-04.md and manifest,review and authenticated authority remain external,ML engineering,provisional
+release:package-import,release-evidence/m09_04/release.json,package gates recorded with environment truth,release engineering,pending-final-build

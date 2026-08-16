@@ -1,1 +1,1 @@
-"""Repository-local verification tools that are exercised by CI."""
+"""Repository verification tools."""

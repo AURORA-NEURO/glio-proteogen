@@ -1,1 +1,1 @@
-"""M10-06 evaluator tests."""
+"""Executable evaluator and module evidence gates."""

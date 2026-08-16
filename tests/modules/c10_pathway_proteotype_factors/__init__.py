@@ -1,1 +1,1 @@
-"""M10-06 module tests."""
+"""Tests for pathway/proteotype factor modules."""
