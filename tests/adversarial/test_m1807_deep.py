@@ -118,7 +118,7 @@ def test_frozen_request_and_contract_objects_cannot_be_mutated() -> None:
     result = M1807Engine().export(request)
     assert result.contract is not None
     with pytest.raises(ValidationError):
-        result.contract.parent_target = "kinase"  # type: ignore[assignment]
+        result.contract.parent_target = "kinase"  # type: ignore[misc, assignment]
 
 
 def test_abstained_support_never_becomes_a_negative_export() -> None:
