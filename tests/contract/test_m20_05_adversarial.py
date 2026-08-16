@@ -21,6 +21,8 @@ from glio_proteogen.contracts.m20_05 import (
     ReviewItem,
     ReviewItemStatus,
     ViewKind,
+    WorkflowFinding,
+    WorkflowFindingCode,
     WorkspaceStatus,
     canonical_request_bytes,
     canonical_request_digest,
@@ -363,6 +365,39 @@ def test_request_binds_context_items_and_aligned_source() -> None:
         )
 
 
+def test_request_rejects_context_limits_views_and_duplicate_sources() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="context must bind"):
+        PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_copy(update={"context": _context("request.m2005.other")}),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="item limit"):
+        PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_copy(
+                update={"policy": request.policy.model_copy(update={"maximum_items": 1})}
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="every policy-required"):
+        PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_copy(update={"review_items": request.review_items[:-1]}),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="unique by id"):
+        PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_copy(
+                update={
+                    "source_artifacts": (
+                        *request.source_artifacts,
+                        request.source_artifacts[0],
+                    )
+                }
+            ),
+            strict=True,
+        )
+
+
 def test_workspace_positions_are_contiguous() -> None:
     request = _request()
     with pytest.raises(ValueError, match="contiguous"):
@@ -405,6 +440,87 @@ def test_result_rejects_workspace_or_support_closure_breaks() -> None:
                 update={
                     "workspace": None,
                     "result_digest": result.result_digest,
+                }
+            ),
+            strict=True,
+        )
+
+
+def test_result_rejects_digest_ordering_evidence_source_and_finding_breaks() -> None:
+    result = _result()
+    assert result.workspace is not None
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(update={"request_digest": sha256_digest("bad-request")}),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="output evidence"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(update={"evidence": (), "result_digest": result.result_digest}),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="ordering"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(
+                update={
+                    "workspace": result.workspace.model_copy(
+                        update={"ordering": OrderingPolicy.REVIEW_PRIORITY}
+                    ),
+                    "result_digest": result.result_digest,
+                }
+            ),
+            strict=True,
+        )
+    reordered = tuple(
+        item.model_copy(update={"item_id": f"item.m2005.reordered.{index}"})
+        for index, item in enumerate(result.workspace.items)
+    )
+    with pytest.raises(ValidationError, match="preserve request"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(
+                update={
+                    "workspace": result.workspace.model_copy(update={"items": reordered}),
+                    "result_digest": result.result_digest,
+                }
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="source bundle"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(
+                update={
+                    "workspace": result.workspace.model_copy(
+                        update={"source_bundle": _artifact("wrong-source")}
+                    ),
+                    "result_digest": result.result_digest,
+                }
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="abstained result"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(
+                update={"status": WorkspaceStatus.ABSTAINED, "result_digest": result.result_digest}
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="result digest"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(update={"result_digest": sha256_digest("bad-result")}),
+            strict=True,
+        )
+    finding = WorkflowFinding(
+        finding_id="finding.m2005.duplicate",
+        code=WorkflowFindingCode.AUTOMATION_BIAS_GUARD,
+        message="Review ordering before use.",
+    )
+    duplicate_findings = result.model_copy(update={"findings": (finding, finding)})
+    with pytest.raises(ValidationError, match="finding ids"):
+        ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
+            result.model_copy(
+                update={
+                    "findings": duplicate_findings.findings,
+                    "result_digest": result_payload_digest(duplicate_findings),
                 }
             ),
             strict=True,
