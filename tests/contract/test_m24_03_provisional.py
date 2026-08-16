@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M24-03."""
 
+from typing import Any, cast
+
 import pytest
 
 from glio_proteogen.contracts.m24_03 import (
@@ -15,7 +17,7 @@ _SCHEMA_COUNT = 9
 
 
 def test_provisional_schemas_require_locked_benchmark_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
@@ -54,4 +56,6 @@ def test_benchmark_states_and_baseline_kinds_are_explicit() -> None:
     assert BenchmarkStatus.ABSTAINED.value == "abstained"
     assert ValidationStatus.NOT_EVALUABLE.value == "not_evaluable"
     with pytest.raises(AssertionError):
-        assert BenchmarkStatus.ABSTAINED is BenchmarkStatus.COMPLETED
+        assert cast("object", BenchmarkStatus.ABSTAINED) is cast(
+            "object", BenchmarkStatus.COMPLETED
+        )
