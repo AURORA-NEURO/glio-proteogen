@@ -1,1 +1,1 @@
-"""M10-03 release verifier tests."""
+"""Tooling and release verifier tests."""
