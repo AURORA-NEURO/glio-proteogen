@@ -170,7 +170,9 @@ def _candidate(
         support_status=support_status,
         provenance_artifact=_artifact(f"{candidate_id}.provenance") if provenance else None,
         uncertainty=_uncertainty(),
-        evidence=(_evidence(candidate_id),),
+        evidence=(_evidence(candidate_id), _evidence(f"{candidate_id}.provenance"))
+        if provenance
+        else (_evidence(candidate_id),),
     )
 
 
@@ -187,12 +189,28 @@ def _configuration() -> ResolverConfiguration:
 def _request(
     candidates: tuple[UpstreamCandidate, ...] = (_candidate(),),
 ) -> ResolveProteotypeUpstreamContractsRequest:
+    source_artifacts = [
+        _artifact("source.proteome"),
+        _artifact("source.ptm"),
+        *(candidate.artifact for candidate in candidates),
+        *(
+            candidate.provenance_artifact
+            for candidate in candidates
+            if candidate.provenance_artifact is not None
+        ),
+        *(evidence.reference for candidate in candidates for evidence in candidate.evidence),
+        *(evidence.reference for rule in _configuration().rules for evidence in rule.evidence),
+        *(evidence.reference for evidence in _configuration().evidence),
+    ]
+    unique_source_artifacts = tuple(
+        {artifact.digest: artifact for artifact in source_artifacts}.values()
+    )
     return ResolveProteotypeUpstreamContractsRequest(
         request_id="request.m1901",
         context=_context(),
         candidates=candidates,
         configuration=_configuration(),
-        source_artifacts=(_artifact("source.proteome"), _artifact("source.ptm")),
+        source_artifacts=unique_source_artifacts,
     )
 
 

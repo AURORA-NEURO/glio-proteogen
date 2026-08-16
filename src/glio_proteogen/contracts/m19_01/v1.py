@@ -145,6 +145,12 @@ class UpstreamCandidate(FrozenModel):
         evidence_digests = tuple(item.reference.digest for item in self.evidence)
         if len(evidence_digests) != len(set(evidence_digests)):
             raise ValueError("candidate evidence digests must be unique")
+        if self.artifact.digest not in set(evidence_digests):
+            raise ValueError("candidate evidence must bind the candidate artifact")
+        if self.provenance_artifact is not None and self.provenance_artifact.digest not in set(
+            evidence_digests
+        ):
+            raise ValueError("candidate evidence must bind the provenance artifact")
         return self
 
 
@@ -327,6 +333,29 @@ class ResolveProteotypeUpstreamContractsRequest(FrozenModel):
         source_digests = tuple(item.digest for item in self.source_artifacts)
         if len(source_digests) != len(set(source_digests)):
             raise ValueError("request source artifact digests must be unique")
+        source_digest_set = set(source_digests)
+        required_digests = {
+            digest
+            for candidate in self.candidates
+            for digest in (
+                candidate.artifact.digest,
+                candidate.provenance_artifact.digest
+                if candidate.provenance_artifact is not None
+                else None,
+                *(evidence.reference.digest for evidence in candidate.evidence),
+            )
+            if digest is not None
+        }
+        required_digests.update(
+            evidence.reference.digest
+            for rule in self.configuration.rules
+            for evidence in rule.evidence
+        )
+        required_digests.update(
+            evidence.reference.digest for evidence in self.configuration.evidence
+        )
+        if not required_digests <= source_digest_set:
+            raise ValueError("request source artifacts must bind all resolver evidence")
         return self
 
 
@@ -383,6 +412,8 @@ class ProteotypeUpstreamResolutionResult(FrozenModel):
                 raise ValueError("validated result requires at least one selected candidate")
             if self.human_review_required:
                 raise ValueError("validated result cannot require human review")
+            if self.bundle.compatibility_report != self.compatibility_report:
+                raise ValueError("validated result report must match the validated bundle report")
         elif (
             self.bundle is not None
             or self.abstention_reason is None
