@@ -45,6 +45,17 @@ def test_fastapi_schema_validate_adjudicate_verify_parity() -> None:
     assert verified.json() == {"verified": True, "result_digest": result["result_digest"]}
 
 
+def test_fastapi_named_schema_and_denied_validation_are_closed() -> None:
+    client = TestClient(m2508_api.create_app())
+    named = client.get("/v1/modules/M25-08/schemas/request")
+    denied = client.post(
+        "/v1/modules/M25-08/validate", json=denied_request().model_dump(mode="json")
+    )
+    assert named.status_code == HTTPStatus.OK
+    assert named.json()["$id"].endswith(":request")
+    assert denied.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
 def test_fastapi_rejects_denied_and_sanitizes_contract_details() -> None:
     client = TestClient(m2508_api.create_app())
     denied = client.post(
@@ -66,6 +77,16 @@ def test_fastapi_verify_sanitizes_invalid_json() -> None:
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert non_object.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "request JSON is invalid" in malformed.text
+
+
+def test_fastapi_verify_rejects_tampered_digest() -> None:
+    client = TestClient(m2508_api.create_app())
+    result = client.post(
+        "/v1/modules/M25-08/adjudicate", json=build_request().model_dump(mode="json")
+    ).json()
+    result["result_digest"] = "sha256:" + ("f" * 64)
+    tampered = client.post("/v1/modules/M25-08/verify", json={"result": result})
+    assert tampered.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_typer_round_trip_no_overwrite_and_schema_validation(tmp_path: Path) -> None:
@@ -93,6 +114,19 @@ def test_typer_round_trip_no_overwrite_and_schema_validation(tmp_path: Path) -> 
     assert "refusing to overwrite" in overwrite.output
 
 
+def test_typer_export_to_file_and_denied_request_errors(tmp_path: Path) -> None:
+    output = tmp_path / "schema.json"
+    request_path = tmp_path / "denied.json"
+    request_path.write_text(denied_request().model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    exported = runner.invoke(m2508_cli.app, ["export-schema", "request", "--output", str(output)])
+    denied = runner.invoke(m2508_cli.app, ["validate", str(request_path)])
+    assert exported.exit_code == 0
+    assert output.exists()
+    assert denied.exit_code != 0
+    assert "M25-08 contract" in denied.output
+
+
 def test_typer_sanitizes_unknown_schema_and_invalid_request(tmp_path: Path) -> None:
     runner = CliRunner()
     unknown = runner.invoke(m2508_cli.app, ["export-schema", "secret-internal-schema"])
@@ -117,3 +151,11 @@ def test_typer_abstention_is_non_constructed_and_nonzero(tmp_path: Path) -> None
     assert response.exit_code != 0
     assert result_path.exists()
     assert json.loads(result_path.read_text(encoding="utf-8"))["status"] == "abstained"
+
+
+def test_typer_invalid_result_is_sanitized(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid-result.json"
+    invalid.write_text('{"secret_result":"do-not-echo"}', encoding="utf-8")
+    response = CliRunner().invoke(m2508_cli.app, ["verify", str(invalid)])
+    assert response.exit_code != 0
+    assert "secret_result" not in response.output

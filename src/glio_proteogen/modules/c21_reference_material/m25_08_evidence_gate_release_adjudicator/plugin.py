@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m25_08 import (
     M2508_MAX_CANONICAL_REQUEST_BYTES,
+    M2508_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateProteotypeEvidenceGateRequest,
     ProteotypeEvidenceGateResult,
 )
@@ -77,8 +78,12 @@ class M2508Plugin:
         *,
         replay: bool = True,
     ) -> ProteotypeEvidenceGateResult:
-        _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(result, replay=replay)
+        if isinstance(result, (bytes, bytearray, str)):
+            decoded = strict_json_loads(result, max_bytes=M2508_MAX_CANONICAL_RESULT_BYTES)
+            typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+        else:
+            typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+        return self._service.verify(typed, replay=replay)
 
 
 __all__ = ["M2508Plugin", "ValidatedM2508Request"]

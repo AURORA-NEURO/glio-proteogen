@@ -124,6 +124,7 @@ def test_service_accepts_mapping_and_canonical_json() -> None:
     from_json = service.execute(encoded)
     assert from_mapping == from_json
     assert service.verify(from_json.model_dump(mode="json")) == from_json
+    assert service.verify(from_json.model_dump_json()) == from_json
 
 
 def test_replay_rejects_payload_and_request_tampering() -> None:
@@ -149,6 +150,14 @@ def test_public_function_and_invalid_result_are_closed() -> None:
     invalid.pop("benchmarks")
     with pytest.raises(M2508EvaluationError):
         M2508Engine().evaluate(invalid)
+
+
+def test_plugin_validates_typed_request_and_verifies_json_result() -> None:
+    request = build_request()
+    plugin = M2508Plugin()
+    token = plugin.validate(request)
+    result = plugin.run(token)
+    assert plugin.verify(result.model_dump_json()).result_id == result.result_id
 
 
 def test_denied_fixture_is_never_converted_to_negative_gate_evidence() -> None:
