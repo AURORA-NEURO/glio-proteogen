@@ -1,0 +1,12 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M22-03,caller-declared M22-02 media binding,contracts/m22_03/v1.py upstream media closure,contract/runtime/adversarial tests,pass
+GLIO-PROTEOGEN-M22-03,locked split and exact simple/mature baselines,contracts/m22_03/v1.py LockedSplit/BaselineRun,contract/evaluator tests,pass
+GLIO-PROTEOGEN-M22-03,finite metrics and compute-matched comparisons,contracts/m22_03/v1.py validators,contract/adversarial tests,pass
+GLIO-PROTEOGEN-M22-03,closed dossier and finding identity,contracts/m22_03/v1.py dossier/result validators,adversarial tests,pass
+GLIO-PROTEOGEN-M22-03,deterministic result identity and replay,contracts/m22_03/canonical.py and engine.py,replay/request/result tamper tests,pass
+GLIO-PROTEOGEN-M22-03,seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+GLIO-PROTEOGEN-M22-03,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M22-03,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M22-03,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M22-03,evaluator and locked benchmark,evals/m22_03,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M22-03,provisional authority and prohibited boundaries,docs/modules/M22-03-internal-benchmark-ablation.md,owner review and evidence,provisional

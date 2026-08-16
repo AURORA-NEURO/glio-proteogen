@@ -1,0 +1,12 @@
+requirement,implementation,evidence,status
+caller-declared reference truth,contracts/m25_01/v1.py,contract and evaluator fixtures,pass
+endpoint and proteotype parent ceiling,EndpointDefinition and result closure,runtime/evaluator/adversarial,pass
+reference and control inclusion closure,CurateProteotypeReferenceTruthRequest.request_is_closed,contract/adversarial tests,pass
+leakage audit and challenge set,InclusionDecision and ReferenceTruthPackage.package_is_closed,evaluator and adversarial tests,pass
+reviewer adjudication,AdjudicationRecord and _findings,runtime/review abstention tests,pass
+lock procedure,package_lock_digest and locked package construction,replay and tamper tests,pass
+seven controls,preflight_m2501_authorization,denied and hostile mapping tests,pass
+uncertainty/provenance/evidence,engine result envelope,runtime/evaluator tests,pass
+strict interfaces,plugin.py api.py cli.py,interface/adversarial parity tests,pass
+reproducible release,evaluator benchmark coverage verifier package manifests,release verifier,pass
+prohibited output ceiling,schema metadata and limitations,adversarial schema test,pass

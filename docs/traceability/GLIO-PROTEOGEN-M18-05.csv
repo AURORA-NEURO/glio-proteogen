@@ -1,0 +1,15 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M18-05-R01,dossier:6332-6335,Own workflow presentation beneath Spatial proteomics,Literal module operation and biomarker-panel parent target,contract identity and evaluator,G4
+M18-05-R02,dossier:6335-6338,Present task-specific views and evidence summaries,Six closed WorkspaceSectionKind values and locked configuration,six_sections evaluator and workspace closure tests,G4
+M18-05-R03,dossier:6338-6341,Preserve uncertainty discrepancies provenance and limitations,Typed uncertainty provenance evidence findings and limitations,contract and runtime tests,G4
+M18-05-R04,dossier:6341-6344,Keep parent output human-review only,emits_parent=false and human_review_required=true,parent ceiling assertions,G4
+M18-05-R05,dossier:6344-6347,Exclude kinase all-omics treatment and inference claims,Explicit prohibited-output limitation and no-parent emission,non-claims and result tests,G4
+M18-05-R06,dossier:6347-6350,Bind MS proteome genome transcriptome PTM and approved context,Caller-declared upstream/source artifact closure,wrong-media and source closure tests,G4
+M18-05-R07,dossier:6350-6353,Check identity lineage provenance consent quality support intended use,Seven-control authorization-first preflight,authorization and broken-context tests,G4
+M18-05-R08,dossier:6353-6356,Quarantine unresolved or unsupported input,Typed abstention with no workspace and safe support status,unsupported evaluator and runtime tests,G4
+M18-05-R09,dossier:6356-6359,Require safe default ordering,Task-summary-first order and exact section-set closure,unsafe-order and duplicate-order tests,G4
+M18-05-R10,dossier:6359-6362,Expose human-review actions and automation-bias warning,Locked configuration and next-action fields,configuration and evaluator tests,G4
+M18-05-R11,dossier:6362-6365,Retain seven uncertainty dimensions,UncertaintyProfile with explicit sensitivity notes,uncertainty assertions,G4
+M18-05-R12,dossier:6365-6368,Support replay and tamper evidence,Canonical request/result digests and exact reconstruction,service/plugin replay and tamper tests,G4
+M18-05-R13,dossier:6368-6370,Provide strict service interfaces,FastAPI and Typer parse-once adapters with sanitized failures,API/CLI parity tests,G4
+M18-05-R14,dossier:6370-6372,Provide reproducible tests benchmark traceability and release evidence,Frozen scenarios evaluator benchmark coverage and package verifier,release gate suite,G4

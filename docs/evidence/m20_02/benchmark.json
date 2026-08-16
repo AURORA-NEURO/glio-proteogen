@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-02",
+  "contract_version": "0.1.0-provisional",
+  "passed": true,
+  "iterations": 10,
+  "samples_ns": [2751100, 1783400, 1766600, 1879500, 1817500, 2086200, 1826700, 1795900, 1817300, 1838300],
+  "mean_ns": 1936250.0,
+  "median_ns": 1822100.0,
+  "p95_ns": 2751100,
+  "mean_budget_ns": 500000000,
+  "p95_budget_ns": 750000000,
+  "fixture": "aligned seven-dimension request; no source I/O"
+}

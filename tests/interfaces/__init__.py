@@ -1,1 +1,1 @@
-"""Interface parity tests for provisional modules, including M26-04."""
+"""Interface test package, including M22-08 parity coverage."""

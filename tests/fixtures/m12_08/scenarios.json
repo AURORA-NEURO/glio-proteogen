@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-08",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "bayesian_graph_dossier", "model_family": "bayesian_graph_baseline_stack", "expected_status": "ready"},
+    {"case_id": "network_factor_dossier", "model_family": "network_factor_hybrid", "expected_status": "ready"},
+    {"case_id": "curated_rule_dossier", "model_family": "curated_rule_enrichment", "expected_status": "ready"},
+    {"case_id": "orthogonal_consensus_dossier", "model_family": "orthogonal_consensus_baseline_stack", "expected_status": "ready"},
+    {"case_id": "unsupported_architecture_abstention", "model_family": "foundation_assisted", "expected_status": "abstained"},
+    {"case_id": "unsafe_upstream_abstention", "upstream_label": "m1207-ood", "expected_status": "abstained"},
+    {"case_id": "replay_and_tamper", "model_family": "network_factor_hybrid", "expected_status": "ready"},
+    {"case_id": "authorization_gate", "accepted": false, "expected_status": "authorization_error"}
+  ]
+}

@@ -1,0 +1,16 @@
+requirement_id,requirement,evidence,verification
+M1106-G0-01,Strict provisional request/result schemas,contracts/m11_06/{v1.py,schema.py},29 contract/runtime tests and schema serialization
+M1106-G0-02,No silent coercion or unknown fields,kernel FrozenModel plus adapters/m1106.py,strict JSON and typed-validation error matrix
+M1106-G1-01,Bounded one-response-per-perturbation closure,contracts/m11_06/v1.py and runtime engine,surface closure tests and supported evaluator cases
+M1106-G1-02,Locked configuration and negative-control gating,contracts/m11_06/v1.py and runtime engine,missing-control and capacity abstention tests
+M1106-G3-01,Supported perturbations stay inside the envelope,runtime engine and fixture scenarios.json,all five perturbation kinds evaluated with bounded responses
+M1106-G3-02,Unsupported/OOD cases abstain,runtime engine and fixture scenarios.json,OOD/prohibited/missing-input evaluator cases have no surface
+M1106-G3-03,Uncertainty on seven axes,contracts/m11_06/v1.py,expected_uncertainty helper and supported/abstained result assertions
+M1106-G4-01,Seven-control authorization before traversal,runtime engine and m1106 adapter,denied-control and malformed preflight tests
+M1106-G4-02,Replay/tamper rejection,engine verify and adapter verify route,result digest and replay matrix
+M1106-API-01,Schema and JSON POST routes,adapters/m1106.py,API schema/simulation/invalid-content tests
+M1106-CLI-01,Typer export/simulate/verify parity,adapters/m1106.py,CLI success/no-overwrite/error tests
+M1106-PERF-01,Deterministic benchmark,evals/m11_06/benchmark.py,release-evidence/m11_06/benchmark.json
+M1106-EVID-01,Fixture-bound evaluator,evals/m11_06/run.py,release-evidence/m11_06/evaluation.json
+M1106-SAFE-01,Prohibited output and opaque-artifact boundary,docs/modules/M11-06-perturbation-sensitivity-simulator.md,descriptor metadata and limitation assertions
+M1106-REC-01,Auditable rollback/docs,docs/evidence/M11-06.md,release evidence and branch-local commit chain

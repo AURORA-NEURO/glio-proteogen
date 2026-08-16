@@ -27,9 +27,7 @@ from glio_proteogen.contracts.m20_04.v1 import (
     ProteinSubtypeIntendedUseAdapterResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2004_CONTRACT_VERSION
 ContractName = Literal[
     "request",

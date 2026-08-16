@@ -1,0 +1,8 @@
+requirement_id,dossier_slice,requirement,implementation,evidence,gate
+M25-08-R01,8984-9024,Bind Platform engineering S3 G5 proteotype evidence gate,contract constants and schema metadata,contract tests and schema export,G5
+M25-08-R02,8984-9024,Require traceability risk benchmark claim ceiling approval and post-release closure,typed gate records and release record,fixture matrix and evaluator,G5
+M25-08-R03,8984-9024,Retain M25-06 as media-only without importing an unfrozen ABI,exact media boundary validator,dependency adversarial tests,G5
+M25-08-R04,8984-9024,Reject denied identity consent quality support provenance and intended-use controls,seven-control preflight,denied-control evaluator and runtime tests,G5
+M25-08-R05,8984-9024,Provide deterministic replay and tamper detection,canonical request/result digests and verifier,replay and tamper tests,G5
+M25-08-R06,8984-9024,Expose strict API CLI and plugin parity,FastAPI Typer and parse-once capability routes,interface parity tests,G5
+M25-08-R07,8984-9024,Preserve abstention and prohibit unsupported parent claims,review status uncertainty limitations and emits_parent false,adversarial and evaluator evidence,G5

@@ -1,0 +1,40 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-04",
+  "contract_version": "0.1.0-provisional",
+  "source_commit": "5d4dd85",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6648-6688",
+  "focused_tests": 35,
+  "scoped_branch_coverage_percent": 97.0,
+  "scoped_statements": 391,
+  "scoped_branches": 72,
+  "evaluator_scenarios": 9,
+  "evaluator_adversarial_cases": 8,
+  "benchmark_iterations": 25,
+  "benchmark_warmup_count": 1,
+  "benchmark_mean_ns": 1619728.0,
+  "benchmark_p95_ns": 1963800,
+  "benchmark_mean_budget_ns": 500000000,
+  "benchmark_p95_budget_ns": 750000000,
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "size_bytes": 936016,
+    "member_count": 410,
+    "sha256": "a2c30d4cad3f0e788796eccc030558787de711e2fa673ae2086f39a19db58edd"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "size_bytes": 1507931,
+    "sha256": "cb3869ee980c0d15c30da54494ff67f7829b0fdca0965b652a221b76b45200c8"
+  },
+  "isolated_import": {
+    "passed": true,
+    "module_id": "GLIO-PROTEOGEN-M19-04"
+  },
+  "release_verifier": {
+    "command": "python tools/verify_release_artifacts.py m19-04-evidence docs/evidence/M19-04-evaluation.json docs/evidence/M19-04-benchmark.json",
+    "passed": true
+  },
+  "external_review_required": true,
+  "provisional_abi": true
+}

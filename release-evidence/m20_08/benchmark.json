@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-08",
+  "contract_version": "0.1.0-provisional",
+  "iterations": 10,
+  "mean_ns": 1742330,
+  "median_ns": 1624250,
+  "p95_ns": 2929300,
+  "mean_budget_ns": 500000000,
+  "p95_budget_ns": 750000000,
+  "request_digest": "sha256:8573afdd0765ee983889741b3212a06575b12316e07e15857697efeeabea918a",
+  "timed_boundary": "M2008TranslationMonitoringEngine.infer",
+  "warmup_count": 0,
+  "passed": true
+}

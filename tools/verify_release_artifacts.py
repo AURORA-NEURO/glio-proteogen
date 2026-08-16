@@ -56,6 +56,14 @@ _M0404_BENCHMARK_SHAPE = {
     "evidence_count": 45,
     "limitation_count": 3,
 }
+_M1904_MODULE_ID = "GLIO-PROTEOGEN-M19-04"
+_M1904_SCENARIO_COUNT = 9
+_M1904_ADVERSARIAL_CASE_COUNT = 8
+_M1904_ADVERSARIAL_COVERAGE_PERCENT = 100.0
+_M1904_BENCHMARK_ITERATIONS = 25
+_M1904_BENCHMARK_WARMUPS = 1
+_M1904_MEAN_BUDGET_NS = 500_000_000
+_M1904_P95_BUDGET_NS = 750_000_000
 _M2604_MODULE_ID = "GLIO-PROTEOGEN-M26-04"
 _M2604_CASE_COUNT = 8
 _M2604_SCHEMA_COUNT = 12
@@ -438,6 +446,78 @@ def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
     _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
 
 
+def _verify_m1904_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 evaluation report did not pass")
+    _require_exact_integer(
+        evaluation_report,
+        "scenario_count",
+        _M1904_SCENARIO_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_case_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_passed_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    if evaluation_report.get("adversarial_coverage_percent") != _M1904_ADVERSARIAL_COVERAGE_PERCENT:
+        raise ReleaseArtifactError("M19-04 adversarial coverage is incomplete")
+    checks = _sequence(evaluation_report.get("checks"), "M19-04 evaluation checks")
+    if not checks or any(
+        _mapping(check, "M19-04 evaluation check").get("passed") is not True for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report contains a failed check")
+    if not any(
+        _mapping(check, "M19-04 evaluation check").get("name") == "corpus.executable_oracles"
+        for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report lacks executable oracle closure")
+
+
+def _verify_m1904_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M1904_BENCHMARK_ITERATIONS),
+        ("warmup_count", _M1904_BENCHMARK_WARMUPS),
+        ("mean_budget_ns", _M1904_MEAN_BUDGET_NS),
+        ("p95_budget_ns", _M1904_P95_BUDGET_NS),
+    ):
+        _require_exact_integer(benchmark_report, field, expected, "M19-04 benchmark report")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M1904_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M1904_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M19-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m1904_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M19-04 scenario closure, adversarial coverage, and timing budgets."""
+
+    _verify_m1904_evaluation(_load_json_evidence(evaluation, "M19-04 evaluation report"))
+    _verify_m1904_benchmark(_load_json_evidence(benchmark, "M19-04 benchmark report"))
+
+
 def _verify_m2604_evaluation(evaluation_report: Mapping[str, object]) -> None:
     if evaluation_report.get("moduleId") != _M2604_MODULE_ID:
         raise ReleaseArtifactError("M26-04 evaluation report has the wrong module identity")
@@ -751,6 +831,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0404_evidence.add_argument("evaluation", type=Path)
     m0404_evidence.add_argument("benchmark", type=Path)
+    m1904_evidence = commands.add_parser(
+        "m19-04-evidence", help="verify M19-04 evaluation and benchmark evidence"
+    )
+    m1904_evidence.add_argument("evaluation", type=Path)
+    m1904_evidence.add_argument("benchmark", type=Path)
     m2604_evidence = commands.add_parser(
         "m26-04-evidence", help="verify M26-04 evaluation and benchmark evidence"
     )
@@ -773,6 +858,8 @@ def main() -> int:
             verify_runtime_sbom(arguments.sbom, arguments.wheel)
         elif arguments.command == "m04-03-evidence":
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m19-04-evidence":
+            verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m26-04-evidence":
             verify_m2604_evidence(arguments.evaluation, arguments.benchmark)
         else:

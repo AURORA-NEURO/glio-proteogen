@@ -1,0 +1,71 @@
+{
+  "case_ids": [
+    "supported_in_domain",
+    "review_required_abstention",
+    "unsupported_abstention",
+    "authorization_gate",
+    "upstream_media_boundary",
+    "source_upstream_retention",
+    "duplicate_scenario_rejection",
+    "replay_tamper",
+    "deterministic_repeat"
+  ],
+  "checks": [
+    {
+      "detail": "evaluated",
+      "name": "supported_in_domain",
+      "passed": true
+    },
+    {
+      "detail": "abstained",
+      "name": "review_required_abstention",
+      "passed": true
+    },
+    {
+      "detail": "abstained",
+      "name": "unsupported_abstention",
+      "passed": true
+    },
+    {
+      "detail": "denied control rejected",
+      "name": "authorization_gate",
+      "passed": true
+    },
+    {
+      "detail": "application/vnd.glio-proteogen.m22-05+json",
+      "name": "upstream_media_boundary",
+      "passed": true
+    },
+    {
+      "detail": "M22-05 source retained",
+      "name": "source_upstream_retention",
+      "passed": true
+    },
+    {
+      "detail": "duplicate rejected",
+      "name": "duplicate_scenario_rejection",
+      "passed": true
+    },
+    {
+      "detail": "replay and tamper",
+      "name": "replay_tamper",
+      "passed": true
+    },
+    {
+      "detail": "sha256:9898eacb25a2bfbdfa093b4855ef472cce7d466afaa0bf44ce3f2daae3569ac0",
+      "name": "deterministic_repeat",
+      "passed": true
+    }
+  ],
+  "declared_cases": 9,
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7816-7856",
+  "executed_cases": 9,
+  "fixture": "C:\\Users\\murar\\Documents\\Codex\\2026-08-11\\gpa\\worktrees\\m2206\\tests\\fixtures\\m22_06\\scenarios.json",
+  "fixture_digest": "sha256:aa04f6327b788de9635a3e3790b88b93a962150704fe67b06c0c27560d3aafc2",
+  "module_id": "GLIO-PROTEOGEN-M22-06",
+  "passed": true,
+  "passed_cases": 9,
+  "total_cases": 9,
+  "uncertainty_dimensions": 7
+}

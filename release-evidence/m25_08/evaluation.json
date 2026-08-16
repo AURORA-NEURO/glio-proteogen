@@ -1,0 +1,27 @@
+{
+  "adversarial_case_count": 4,
+  "adversarial_passed_count": 4,
+  "base_commit": "883527648b51272cbc5d2f3e829ff83f3d945329",
+  "checks": {
+    "approval_abstention": true,
+    "benchmark_abstention": true,
+    "canonical_replay": true,
+    "critical_risk_abstention": true,
+    "denied_controls": true,
+    "deterministic_identity": true,
+    "dimension_closure": true,
+    "nominal_adjudication": true,
+    "requirement_abstention": true,
+    "tamper_rejection": true
+  },
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8984-9024",
+  "fixture_request_digest": "sha256:5064073a0cc85a1bf01b20d7f2cf8c9bf2f1dee8d23a99490a528a4831a4dd98",
+  "fixture_result_digest": "sha256:11f82dac17aca1dd043f04c64bd7574fc93cf4e447c96e351addeb2e5f8439b4",
+  "media_only_boundary": "GLIO-PROTEOGEN-M25-06 (provisional media only; ABI unfrozen)",
+  "module_id": "GLIO-PROTEOGEN-M25-08",
+  "parent_target": "proteotype",
+  "passed": true,
+  "scenario_count": 9,
+  "upstream_dependency": "GLIO-PROTEOGEN-M25-07 (provisional media boundary)"
+}

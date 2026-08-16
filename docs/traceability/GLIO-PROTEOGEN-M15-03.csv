@@ -1,0 +1,19 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M15-03-R01,dossier:5164-5166,Own mechanistic feature construction beneath Longitudinal recurrence proteotype,literal module identity and complex_activity parent,tests/contract/test_m15_03_deep.py::test_constructed_result_has_parent_provenance_and_invariants,G1
+M15-03-R02,dossier:5166-5172,Emit only mechanistic feature object with source evidence,MechanisticFeatureObject and parent emission flag,evals/m15_03/run.py::run_evaluator,G1
+M15-03-R03,dossier:5168,Exclude kinase all-omics treatment identity and consent inference,explicit limitations and descriptor prohibition,docs/modules/GLIO-PROTEOGEN-M15-03.md,G1
+M15-03-R04,dossier:5170,Bind proteome genome/transcriptome PTM and control references,opaque upstream media and source-artifact bindings,tests/contract/test_m15_03_deep.py::test_request_feature_and_upstream_closures_reject_tampering,G1
+M15-03-R05,dossier:5174-5178,Record primary alternate and fallback architectures,closed provisional method catalogue,evals/m15_03/run.py::run_evaluator,G1
+M15-03-R06,dossier:5180,Validate identity version units completeness assay support and parent quality,seven-control preflight plus unit/support gates,tests/contract/test_m15_03_deep.py::test_authorization_runs_before_typed_traversal,G1
+M15-03-R07,dossier:5182,Quantify seven uncertainty dimensions and sensitivity,expected_uncertainty with explicit not-estimable abstention,tests/contract/test_m15_03_deep.py::test_uncertainty_is_explicit_on_supported_and_abstained_paths,G1
+M15-03-R08,dossier:5184,Require review for critical discrepancy OOD override promotion exception or conflict,human review on safe abstention and explicit limitations,tests/contract/test_m15_03_deep.py::test_unsafe_feature_states_abstain,G1
+M15-03-R09,dossier:5186,Reproduce locked references and pass topology perturbation and unit invariants,finite values unit domain and invariant gates,tests/contract/test_m15_03_deep.py::test_invariant_requirements_fail_closed,G1
+M15-03-R10,dossier:5188,Provide locked tests benchmark traceability risk manifest review and rollback evidence,fixture/evaluator/benchmark/docs/release evidence,tools/verify_m1503_release.py,G1
+M15-03-R11,dossier:5190,Bind Scientific engineering S2 G1 ownership,descriptor and schema metadata,tests/contract/test_m15_03_deep.py::test_plugin_token_boundary_and_service_parity,G1
+M15-03-R12,dossier:5192-5196,Preserve three architecture options while narrowing provisional runtime,method selection and safe unsupported fallback,evals/m15_03/run.py::run_evaluator,G1
+M15-03-R13,dossier:5200,Close contract and schema cases with zero silent coercions,strict Pydantic schemas and duplicate-free JSON,tests/contract/test_m15_03_deep.py::test_schema_metadata_and_unknown_schema_are_closed,G0
+M15-03-R14,dossier:5201,Pass functional correctness and hard invariants,result/request digest closure and feature uniqueness,tests/contract/test_m15_03_deep.py::test_result_closure_rejects_forged_digest_id_evidence_and_review,G1
+M15-03-R15,dossier:5202,Abstain unsupported robustness shift and perturbation cases,unit/support/method safe failure,tests/contract/test_m15_03_deep.py::test_unsafe_feature_states_abstain,G3
+M15-03-R16,dossier:5203,Keep nominal uncertainty coverage or narrow support domain,explicit seven dimensions and no unsupported numeric claim,tests/contract/test_m15_03_deep.py::test_uncertainty_is_explicit_on_supported_and_abstained_paths,G3
+M15-03-R17,dossier:5204,Provide safety provenance and recovery evidence,authorization-first controls immutable provenance replay and release verifier,tests/contract/test_m15_03_deep.py::test_replay_and_tamper_detection,G4
+M15-03-R18,locked-risk:interfaces,Expose strict API CLI and plugin surfaces,shared service seam and no-overwrite output,tests/contract/test_m15_03_deep.py::test_fastapi_interfaces_and_sanitized_errors,G1

@@ -27,9 +27,7 @@ from glio_proteogen.contracts.m19_01.v1 import (
     ValidatedUpstreamBundle,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-01:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-01:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1901_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -91,6 +89,13 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "uncertaintyRequired": True,
         "typedRejectionsRequired": True,
         "explicitAbstentionRequired": True,
+        "closedCandidateOutcomeBuckets": ("selected", "rejected", "unresolved"),
+        "emptySelectionAllowed": True,
+        "resultIdRule": "result.<request_digest_without_sha256_prefix>",
+        "canonicalReplayRequired": True,
+        "safeAbstentionSupportStatuses": ("limited", "unsupported", "review_required"),
+        "allSevenUncertaintyDimensions": True,
+        "provenanceModuleBinding": M1901_MODULE_ID,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1901_MAX_CANONICAL_REQUEST_BYTES

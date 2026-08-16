@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-03",
+  "contract_version": "0.1.0-provisional",
+  "requirement_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "4804-4847",
+  "responsibility": "mechanistic feature constructor",
+  "owner": "Platform engineering",
+  "claims_ceiling": "Caller-declared categorical feature metadata only; no mechanistic, kinase, all-omics, treatment, identity, consent, or clinical inference.",
+  "cases": [
+    {"id": "constructed_supported", "kind": "supported", "expected": "constructed"},
+    {"id": "unsupported_model_family_abstains", "kind": "unsupported_family", "expected": "abstained"},
+    {"id": "duplicate_negative_control_abstains", "kind": "duplicate_negative_control", "expected": "abstained"},
+    {"id": "denied_control_fails_closed", "kind": "denied_control", "expected": "authorization_error"},
+    {"id": "wrong_upstream_media_rejects", "kind": "wrong_upstream", "expected": "validation_error"},
+    {"id": "unknown_field_rejects", "kind": "unknown_field", "expected": "validation_error"},
+    {"id": "self_loop_relation_rejects", "kind": "self_loop", "expected": "validation_error"},
+    {"id": "empty_source_rejects", "kind": "empty_source", "expected": "validation_error"}
+  ]
+}
