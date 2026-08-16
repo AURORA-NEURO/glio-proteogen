@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import cast
 from zipfile import BadZipFile, ZipFile
 
 MODULE = "GLIO-PROTEOGEN-M20-06"
@@ -34,6 +35,11 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _number(payload: dict[str, object], key: str, default: float) -> float:
+    value = payload.get(key)
+    return float(value) if isinstance(value, (int, float)) else default
+
+
 def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> dict[str, object]:
     evidence = root / "release-evidence" / "m20_06"
     evaluation = _load(evidence / "evaluation.json")
@@ -51,33 +57,36 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
         and evaluation.get("adversarial_passed_count") == evaluation.get("adversarial_case_count"),
         "benchmark": benchmark.get("passed") is True
         and benchmark.get("iterations") == BENCHMARK_ITERATIONS
-        and benchmark.get("mean_ns", MEAN_BUDGET_NS + 1) <= MEAN_BUDGET_NS
-        and benchmark.get("p95_ns", P95_BUDGET_NS + 1) <= P95_BUDGET_NS,
+        and _number(benchmark, "mean_ns", MEAN_BUDGET_NS + 1) <= MEAN_BUDGET_NS
+        and _number(benchmark, "p95_ns", P95_BUDGET_NS + 1) <= P95_BUDGET_NS,
         "coverage": coverage.get("branch_enabled") is True
-        and coverage.get("coverage_percent", 0) >= MIN_COVERAGE
+        and _number(coverage, "coverage_percent", 0) >= MIN_COVERAGE
         and coverage.get("passed") is True,
     }
     if wheel is not None and sdist is not None:
         package = _load(evidence / "package.json")
         wheel_record = package.get("wheel")
         sdist_record = package.get("sdist")
+        if not isinstance(wheel_record, dict) or not isinstance(sdist_record, dict):
+            checks["package"] = False
+            return {"module_id": MODULE, "checks": checks, "passed": False}
+        wheel_data = cast("dict[str, object]", wheel_record)
+        sdist_data = cast("dict[str, object]", sdist_record)
         checks["package"] = (
             package.get("module_id") == MODULE
             and package.get("passed") is True
-            and isinstance(wheel_record, dict)
-            and isinstance(sdist_record, dict)
-            and wheel.name == wheel_record.get("filename")
-            and sdist.name == sdist_record.get("filename")
-            and wheel.stat().st_size == wheel_record.get("size_bytes")
-            and _sha256(wheel) == wheel_record.get("sha256")
-            and sdist.stat().st_size == sdist_record.get("size_bytes")
-            and _sha256(sdist) == sdist_record.get("sha256")
+            and wheel.name == wheel_data.get("filename")
+            and sdist.name == sdist_data.get("filename")
+            and wheel.stat().st_size == wheel_data.get("size_bytes")
+            and _sha256(wheel) == wheel_data.get("sha256")
+            and sdist.stat().st_size == sdist_data.get("size_bytes")
+            and _sha256(sdist) == sdist_data.get("sha256")
             and package.get("isolated_import") is True
         )
         if checks["package"]:
             try:
                 with ZipFile(wheel) as archive:
-                    checks["wheel_members"] = len(archive.namelist()) == wheel_record.get(
+                    checks["wheel_members"] = len(archive.namelist()) == wheel_data.get(
                         "member_count"
                     )
             except (BadZipFile, OSError):
