@@ -4,6 +4,11 @@
   "authoritySha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "authoritySlice": "source-manifest.yaml:9256-9296",
   "focusedTests": 33,
+  "pythonLoc": {
+    "moduleSpecificAdded": 2786,
+    "stackedDiffAdded": 5116,
+    "repositoryTracked": 527183
+  },
   "ruff": "clean",
   "mypy": "strict clean across 20 targeted files",
   "compileall": "clean",
