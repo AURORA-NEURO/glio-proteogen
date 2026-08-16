@@ -1,1 +1,1 @@
-"""Interface tests."""
+"""Interface test package."""
