@@ -1,4 +1,4 @@
-"""KINOPHOS object-consumer module implementations."""
+"""KINOPHOS object-consumer module family and implementations."""
 
 from .m16_06_reviewer_discrepancy_adjudication_queue import (
     M1606AuthorizationError,
