@@ -1,0 +1,2 @@
+"""Spatial proteomics projection modules."""
+
