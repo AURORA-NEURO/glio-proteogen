@@ -1,6 +1,6 @@
 """Focused contract/schema smoke for provisional M25-01."""
 
-import pytest
+from typing import Any, cast
 
 from glio_proteogen.contracts.m25_01 import (
     M2501_OUTPUT_MEDIA_TYPE,
@@ -15,7 +15,7 @@ _SCHEMA_COUNT = 9
 
 
 def test_provisional_schemas_require_locked_truth_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
@@ -47,5 +47,3 @@ def test_reference_and_curation_states_are_explicit() -> None:
     assert ReferenceKind.CHALLENGE_SET.value == "challenge_set"
     assert AdjudicationStatus.LOCKED.value == "locked"
     assert CurationStatus.ABSTAINED.value == "abstained"
-    with pytest.raises(AssertionError):
-        assert CurationStatus.ABSTAINED is CurationStatus.CURATED

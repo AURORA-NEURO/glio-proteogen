@@ -36,9 +36,28 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def result_identifier(
+    request: BaseModel | dict[str, Any],
+    status: str,
+    result_digest: Sha256Digest,
+) -> str:
+    """Derive a stable opaque result identifier from request and result closure."""
+
+    request_digest = canonical_request_digest(request)
+    token = sha256_digest(
+        {
+            "request_digest": request_digest,
+            "result_digest": result_digest,
+            "status": status,
+        }
+    )
+    return f"result-{token.removeprefix('sha256:')}"
+
+
 __all__ = [
     "canonical_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "result_identifier",
     "result_payload_digest",
 ]

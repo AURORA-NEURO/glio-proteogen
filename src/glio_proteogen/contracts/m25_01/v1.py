@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_01.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -178,6 +179,15 @@ class ReferenceTruthPackage(FrozenModel):
             raise ValueError("adjudications must cover every reference and control")
         if not set(self.challenge_set_ids) <= set(references):
             raise ValueError("challenge set must reference known entries")
+        if len(self.challenge_set_ids) != len(set(self.challenge_set_ids)):
+            raise ValueError("challenge set identifiers must be unique")
+        challenge_entries = {item.reference_id for item in self.references if item.challenge_set}
+        if set(self.challenge_set_ids) != challenge_entries:
+            raise ValueError("challenge set identifiers must match marked references")
+        if self.configuration.configuration_id != self.package_id:
+            raise ValueError("configuration must bind the package identifier")
+        if self.endpoint.endpoint_id != self.package_id:
+            raise ValueError("package endpoint must bind the package identifier")
         return self
 
 
@@ -216,6 +226,13 @@ class CurateProteotypeReferenceTruthRequest(FrozenModel):
             raise ValueError("request inclusions must classify every item")
         if {item.reference_id for item in self.adjudications} != known:
             raise ValueError("request adjudications must cover every item")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if self.configuration.parent_target != M2501_PARENT:
+            raise ValueError("configuration parent target must be proteotype")
+        if self.endpoint.target != M2501_PARENT:
+            raise ValueError("endpoint target must be proteotype")
         return self
 
 
@@ -259,6 +276,8 @@ class ProteotypeReferenceTruthResult(FrozenModel):
             raise ValueError("abstained result requires no package and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        if self.result_id != result_identifier(self.request, self.status.value, self.result_digest):
+            raise ValueError("result identifier does not bind request, status, and payload")
         return self
 
 
