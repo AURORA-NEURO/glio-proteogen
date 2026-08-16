@@ -1,0 +1,27 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-07",
+  "release_stage": "draft",
+  "contract_version": "0.1.0-provisional",
+  "owner": "Platform engineering",
+  "safety_class": "S2",
+  "gate": "G3",
+  "parent_target": "protein_rna_discordance",
+  "emits_parent": false,
+  "prohibited_outputs": [
+    "kinase activity",
+    "generic all-omics fusion",
+    "treatment recommendation",
+    "identity or consent inference",
+    "unsupported-to-negative conversion"
+  ],
+  "evaluator": "evals/m10_07/run.py",
+  "benchmark": "evals/m10_07/benchmark.py",
+  "coverage_target_percent": 95,
+  "coverage_observed_percent": 98,
+  "benchmark_iterations": 10,
+  "benchmark_mean_budget_ns": 2000000000,
+  "benchmark_p95_budget_ns": 3000000000,
+  "benchmark_evidence": "release-evidence/m10_07/benchmark.json",
+  "package_evidence": "release-evidence/m10_07/package.json",
+  "traceability": "release-evidence/m10_07/traceability.json"
+}
