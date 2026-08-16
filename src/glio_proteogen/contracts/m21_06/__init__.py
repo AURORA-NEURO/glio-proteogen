@@ -1,5 +1,12 @@
 """Provisional M21-06 robustness and OOD challenge contract exports."""
 
+from glio_proteogen.contracts.m21_06.canonical import (
+    canonical_request_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m21_06.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -9,6 +16,9 @@ from glio_proteogen.contracts.m21_06.schema import (
 )
 from glio_proteogen.contracts.m21_06.v1 import (
     M2106_CONTRACT_VERSION,
+    M2106_DOSSIER_SHA256,
+    M2106_DOSSIER_SLICE,
+    M2106_EVIDENCE_CLAIM,
     M2106_GATE,
     M2106_M2105_INPUT_MEDIA_TYPE,
     M2106_MAX_CANONICAL_REQUEST_BYTES,
@@ -44,6 +54,9 @@ from glio_proteogen.contracts.m21_06.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2106_CONTRACT_VERSION",
+    "M2106_DOSSIER_SHA256",
+    "M2106_DOSSIER_SLICE",
+    "M2106_EVIDENCE_CLAIM",
     "M2106_GATE",
     "M2106_M2105_INPUT_MEDIA_TYPE",
     "M2106_MAX_CANONICAL_REQUEST_BYTES",
@@ -76,6 +89,11 @@ __all__ = [
     "RobustnessStatus",
     "RobustnessSurface",
     "SafeFailureReport",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_identifier",
+    "result_payload_digest",
 ]
