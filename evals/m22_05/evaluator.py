@@ -27,8 +27,7 @@ def run_evaluator() -> dict[str, Any]:
         "report_present": result.report is not None,
         "all_required_dimensions": (
             result.report is not None
-            and set(result.report.configuration.required_dimensions)
-            == set(SubgroupDimension)
+            and set(result.report.configuration.required_dimensions) == set(SubgroupDimension)
         ),
         "deterministic_result": result.result_digest == repeated.result_digest,
         "replay_verified": service.replay(result).result_digest == result.result_digest,
