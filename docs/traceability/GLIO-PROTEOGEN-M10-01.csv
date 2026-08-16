@@ -1,0 +1,13 @@
+requirement_id,authority,implementation,evidence,status
+M10-01-responsibility,dossier:3276-3319,contracts/m10_01;modules/c10_pathway_proteotype/m10_01_formal_state_feature_schema,tests/modules/c10_pathway_proteotype,covered
+M10-01-units-domains,lines:3276-3319,ProteinRnaFeatureDefinition,tests/modules/c10_pathway_proteotype/test_m10_01_edge_paths.py,covered
+M10-01-missingness,lines:3276-3319,ProteinRnaFeatureValue;safe abstention evaluator,tests/modules/c10_pathway_proteotype/test_m10_01_formal_state.py,covered
+M10-01-invariants,lines:3276-3319,ProteinRnaInvariant;declarative evaluator,tests/contract/test_m10_01_provisional.py;tests/modules/c10_pathway_proteotype/test_m10_01_edge_paths.py,covered
+M10-01-compatibility-migration,lines:3276-3319,ProteinRnaMigrationRule;schema closure,tests/modules/c10_pathway_proteotype/test_m10_01_edge_paths.py,covered
+M10-01-controls,lines:3276-3319,preflight_m1001_authorization,tests/evals/test_m10_01_evaluation.py,covered
+M10-01-uncertainty,lines:3276-3319,UncertaintyProfile with seven explicit dimensions,tests/modules/c10_pathway_proteotype/test_m10_01_formal_state.py,covered
+M10-01-replay,lines:3276-3319,canonical digest and verification,tests/modules/c10_pathway_proteotype/test_m10_01_edge_paths.py,covered
+M10-01-interfaces,lines:3276-3319,FastAPI Typer parse-once plugin,tests/integration/test_m10_01_interfaces.py,covered
+M10-01-coverage,lines:3276-3319,scoped branch coverage gate,coverage report,covered
+M10-01-ownership,lines:3276-3319,parent ceiling and prohibited outputs,docs/modules/GLIO-PROTEOGEN-M10-01.md,covered
+M10-01-release,lines:3276-3319,wheel-sdist isolated import,docs/evidence/M10-01.md,provisional

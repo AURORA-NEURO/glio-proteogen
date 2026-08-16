@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-04",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "6288-6328",
+  "coverage_target_percent": 95,
+  "scenario_names": [
+    "research_allowed",
+    "clinical_review_required",
+    "audience_blocked",
+    "evidence_tier_blocked",
+    "display_blocked",
+    "treatment_blocked",
+    "forbidden_claim_blocked",
+    "replay_tamper"
+  ]
+}

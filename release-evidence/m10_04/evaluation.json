@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "evaluator_version": "0.1.0-provisional",
+  "passed": true,
+  "check_count": 7,
+  "checks": [
+    "safe_abstention_has_diagnostic_and_uncertainty",
+    "transitive_replay_is_byte_stable",
+    "tampered_receipt_rejected",
+    "unresolved_controls_fail_closed",
+    "wrong_baseline_media_rejected",
+    "duplicate_json_keys_rejected",
+    "prohibited_parent_emission_is_false"
+  ],
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3408-3451"
+}

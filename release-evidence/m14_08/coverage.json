@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-08",
+  "command": "uv run pytest -o addopts='' --cov=glio_proteogen.contracts.m14_08 --cov=glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_08_mechanism_evidence_dossier --cov=glio_proteogen.adapters.m1408 --cov-branch tests/contract/test_m14_08_deep.py",
+  "statements": 511,
+  "covered_lines": 510,
+  "branches": 74,
+  "covered_branches": 74,
+  "line_coverage_percent": 99.80430528375734,
+  "branch_coverage_percent": 100.0,
+  "coverage_percent": 99.80430528375734,
+  "fail_under_percent": 95.0,
+  "passed": true
+}

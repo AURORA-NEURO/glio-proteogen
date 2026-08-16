@@ -43,6 +43,10 @@ M1903_OWNER: Final = "Quality engineering"
 M1903_SAFETY_CLASS: Final = "S2"
 M1903_GATE: Final = "G2"
 M1903_PROVISIONAL_ABI: Final = True
+M1903_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1903_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6604-6644"
 M1903_MAX_CONTRIBUTIONS: Final = 128
 M1903_MAX_DISAGREEMENTS: Final = 128
 M1903_MAX_AGGREGATES: Final = 256
@@ -54,6 +58,8 @@ M1903_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-03 source attribution, reliability, aggregation and "
     "disagreement material; issuer authority is not authenticated."
 )
+_HIGH_RELIABILITY_THRESHOLD: Final = 0.8
+_MODERATE_RELIABILITY_THRESHOLD: Final = 0.5
 
 
 class SourceKind(StrEnum):
@@ -109,6 +115,24 @@ class SourceContribution(FrozenModel):
     reliability_band: ReliabilityBand
     uncertainty_note: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1903_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def reliability_band_matches_score(self) -> SourceContribution:
+        """Reject an optimistic band or a non-evaluable score declaration."""
+
+        expected = (
+            ReliabilityBand.HIGH
+            if self.reliability_score >= _HIGH_RELIABILITY_THRESHOLD
+            else ReliabilityBand.MODERATE
+            if self.reliability_score >= _MODERATE_RELIABILITY_THRESHOLD
+            else ReliabilityBand.LOW
+        )
+        if self.reliability_band is ReliabilityBand.NOT_EVALUABLE:
+            if self.reliability_score != 0.0:
+                raise ValueError("not-evaluable contribution must use a zero reliability score")
+        elif self.reliability_band is not expected:
+            raise ValueError("reliability band does not match reliability score")
+        return self
 
 
 class DisagreementRecord(FrozenModel):
@@ -209,6 +233,13 @@ class FuseProteotypeEvidenceRequest(FrozenModel):
         allowed = set(source_ids)
         if any(not set(item.source_ids) <= allowed for item in self.disagreements):
             raise ValueError("request disagreement references an unknown source")
+        artifact_ids = {item.artifact.artifact_id for item in self.contributions}
+        declared_ids = {item.artifact_id for item in self.source_artifacts}
+        if not artifact_ids <= declared_ids:
+            raise ValueError("source artifacts must declare every contribution artifact")
+        disagreement_ids = tuple(item.disagreement_id for item in self.disagreements)
+        if len(disagreement_ids) != len(set(disagreement_ids)):
+            raise ValueError("request disagreement ids must be unique")
         return self
 
 
@@ -250,6 +281,15 @@ class ProteotypeIntegratedEvidenceResult(FrozenModel):
                 or has_unsafe_source
             ):
                 raise ValueError("integrated result requires supported attributable sources")
+            integrated_evidence = self.integrated_evidence
+            if integrated_evidence.contributions != self.request.contributions:
+                raise ValueError("integrated result must preserve exact source contributions")
+            if integrated_evidence.disagreements != self.request.disagreements:
+                raise ValueError("integrated result must preserve exact disagreements")
+            if integrated_evidence.aggregate_values != self.request.aggregate_values:
+                raise ValueError("integrated result must preserve exact aggregate values")
+            if integrated_evidence.configuration != self.request.configuration:
+                raise ValueError("integrated result must preserve the locked configuration")
         elif (
             self.integrated_evidence is not None
             or self.abstention_reason is None
@@ -257,6 +297,14 @@ class ProteotypeIntegratedEvidenceResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no integrated object and safe status")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        requires_review = any(
+            item.status is not DisagreementStatus.RESOLVED for item in self.request.disagreements
+        )
+        if requires_review and not self.human_review_required:
+            raise ValueError("unresolved disagreement requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -264,6 +312,8 @@ class ProteotypeIntegratedEvidenceResult(FrozenModel):
 
 __all__ = [
     "M1903_CONTRACT_VERSION",
+    "M1903_DOSSIER_SHA256",
+    "M1903_DOSSIER_SLICE",
     "M1903_EVIDENCE_CLAIM",
     "M1903_GATE",
     "M1903_M1902_INPUT_MEDIA_TYPE",

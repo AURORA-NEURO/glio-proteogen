@@ -19,6 +19,9 @@ from glio_proteogen.contracts.m14_06.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -30,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -91,6 +95,10 @@ class SensitivityFindingCode(StrEnum):
     ASSUMPTION_UNRESOLVED = "assumption_unresolved"
     NEGATIVE_CONTROL_FAILED = "negative_control_failed"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
+    COUNTER_EVIDENCE_REQUIRED = "counter_evidence_required"
+    METHOD_OUTSIDE_SUPPORT = "method_outside_support"
+    INVALID_BOUNDS = "invalid_bounds"
+    CONTROL_NOT_ACCEPTED = "control_not_accepted"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
@@ -124,6 +132,9 @@ class SensitivityResponse(FrozenModel):
     lower_bound: float | None = None
     upper_bound: float | None = None
     assumptions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=64)
+    counter_evidence: tuple[EvidenceReference, ...] = Field(
+        default=(), max_length=M1406_MAX_EVIDENCE
+    )
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1406_MAX_EVIDENCE)
 
     @model_validator(mode="after")
@@ -136,8 +147,11 @@ class SensitivityResponse(FrozenModel):
                 or self.upper_bound is None
                 or self.lower_bound > self.upper_bound
                 or not self.lower_bound <= self.response_value <= self.upper_bound
+                or not self.counter_evidence
             ):
-                raise ValueError("bounded response requires ordered bounds containing response")
+                raise ValueError(
+                    "bounded response requires ordered bounds, response, and counter-evidence"
+                )
         elif self.response_value is not None or has_bounds:
             raise ValueError("non-bounded response cannot carry response values")
         return self
@@ -162,9 +176,7 @@ class SensitivitySurface(FrozenModel):
     perturbations: tuple[PerturbationSpecification, ...] = Field(
         min_length=1, max_length=M1406_MAX_SCENARIOS
     )
-    responses: tuple[SensitivityResponse, ...] = Field(
-        min_length=1, max_length=M1406_MAX_RESPONSES
-    )
+    responses: tuple[SensitivityResponse, ...] = Field(min_length=1, max_length=M1406_MAX_RESPONSES)
     configuration: SensitivitySimulationConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1406_MAX_EVIDENCE)
 
@@ -233,9 +245,7 @@ class ProteinSubtypeSensitivitySimulationResult(FrozenModel):
     diagnostics: tuple[SensitivityDiagnostic, ...] = Field(
         min_length=1, max_length=M1406_MAX_DIAGNOSTICS
     )
-    findings: tuple[SensitivityFindingCode, ...] = Field(
-        default=(), max_length=M1406_MAX_FINDINGS
-    )
+    findings: tuple[SensitivityFindingCode, ...] = Field(default=(), max_length=M1406_MAX_FINDINGS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["protein_subtype"] = M1406_PARENT
     emits_parent: Literal[False] = False
@@ -260,7 +270,10 @@ class ProteinSubtypeSensitivitySimulationResult(FrozenModel):
                 self.surface is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
-                or any(item.status in unsafe_statuses for item in self.surface.responses)
+                or any(
+                    item.status in unsafe_statuses or not item.counter_evidence
+                    for item in self.surface.responses
+                )
             ):
                 raise ValueError("simulated result requires supported bounded responses")
         elif (
@@ -270,9 +283,119 @@ class ProteinSubtypeSensitivitySimulationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no surface and safe status")
+        if self.status is SensitivitySimulationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, supported: bool) -> UncertaintyProfile:
+    """Construct all seven uncertainty dimensions without hiding abstention."""
+
+    estimate = UncertaintyEstimate(
+        state=EstimateState.ESTIMATED if supported else EstimateState.NOT_ESTIMABLE,
+        probability=0.9 if supported else None,
+        rationale=(
+            "Locked perturbation configuration and bounded response evidence are present; "
+            "transport beyond the declared support domain is not inferred."
+            if supported
+            else "Perturbation support, quality, or controls were not safely evaluable."
+        ),
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Sensitivity, assumptions, alternative priors, and counter-evidence are retained.",
+            "Unsupported or missing evidence is never converted into a negative response.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: SimulateProteinSubtypePerturbationsRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project the seven caller-declared controls into auditable provenance."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1406_MODULE_ID,
+        module_version=M1406_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=(
+            request_digest,
+            request.upstream_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+            *(item.evidence_digest for item in decisions),
+        ),
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -307,4 +430,6 @@ __all__ = [
     "SensitivitySimulationStatus",
     "SensitivitySurface",
     "SimulateProteinSubtypePerturbationsRequest",
+    "expected_provenance",
+    "expected_uncertainty",
 ]

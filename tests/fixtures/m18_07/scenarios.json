@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-07",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "6420-6460",
+  "coverage_target_percent": 100,
+  "scenario_names": [
+    "supported_export",
+    "prohibited_boundary",
+    "unsupported_material",
+    "review_support",
+    "review_compatibility",
+    "missing_consent",
+    "replay",
+    "strict_json_boundary"
+  ]
+}
+

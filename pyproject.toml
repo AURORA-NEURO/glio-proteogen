@@ -46,13 +46,15 @@ dev = [
 packages = ["src/glio_proteogen"]
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-  "/.coverage*",
-  "/.tmp-*",
-  "/dist-*",
-  "/evidence",
-  "/glio-proteogen-evidence.tar.gz",
+  exclude = [
+    "/.coverage*",
+    "/.tmp-*",
+    "/dist-*",
+    "/evidence",
+    "/release-evidence",
+    "/glio-proteogen-evidence.tar.gz",
   "/release-build-*",
+  "/release-evidence",
 ]
 
 [tool.pytest.ini_options]

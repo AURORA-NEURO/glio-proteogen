@@ -1,0 +1,43 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-04",
+  "schema_version": "0.1.0-provisional",
+  "operation": "adapt_proteotype_intended_use",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6648-6688",
+  "owner": "Clinical science",
+  "safety_class": "S2",
+  "evidence_gate": "G3",
+  "parent_target": "proteotype",
+  "claims_ceiling": "registered intended-use object and policy decision only",
+  "forbidden_capabilities": [
+    "kinase_activity",
+    "all_omics_fusion",
+    "treatment_recommendation",
+    "identity_inference",
+    "consent_inference",
+    "disagreement_erasure",
+    "unsupported_to_negative"
+  ],
+  "scenario_names": [
+    "supported_research",
+    "clinical_review",
+    "unsupported_audience",
+    "evidence_tier_too_low",
+    "incomplete_display",
+    "forbidden_treatment_claim",
+    "control_denied",
+    "upstream_media_rejected",
+    "replay_tamper"
+  ],
+  "adversarial_cases": [
+    "unsupported_audience_abstains",
+    "evidence_tier_abstains",
+    "incomplete_display_abstains",
+    "forbidden_claim_abstains",
+    "consent_control_denied",
+    "upstream_media_rejected",
+    "tampered_replay_rejected",
+    "unbound_source_artifact_rejected"
+  ],
+  "coverage_target_percent": 95
+}
