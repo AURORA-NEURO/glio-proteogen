@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-03",
+  "contract_version": "0.1.0-provisional",
+  "fixture_id": "m11-03-mechanistic-feature-constructor-v1",
+  "fixture_digest": "sha256:88caacf751fa63f232ab7461ab6a096bf3dbbe6297a7b6da9d98fcfb82e5000f",
+  "declared_case_ids": ["supported", "upstream_unsupported", "incomplete", "unit_failure", "negative_control_failure", "replay_tamper", "denied_control"],
+  "executed_case_ids": ["supported", "upstream_unsupported", "incomplete", "unit_failure", "negative_control_failure", "replay_tamper", "denied_control"],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "passed": true,
+  "evaluator_command": "uv run python -c 'from evals.m11_03.run import run_evaluator; assert run_evaluator()[\"passed\"]'"
+}
