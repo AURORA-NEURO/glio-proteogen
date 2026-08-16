@@ -27,10 +27,6 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
-    _m1808_contract_schema,
-    _m1808_contract_schema,
-    _m1806_contract_schema,
-    _m1803_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
@@ -41,6 +37,9 @@ from glio_proteogen.adapters.api import (
     _m1701_contract_schema,
     _m1704_contract_schema,
     _m1708_contract_schema,
+    _m1803_contract_schema,
+    _m1806_contract_schema,
+    _m1808_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -170,22 +169,6 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
-from glio_proteogen.contracts.m18_08.v1 import (
-    M1808_MAX_CANONICAL_REQUEST_BYTES,
-    MonitorBiomarkerPanelTranslationHealthRequest,
-)
-from glio_proteogen.contracts.m18_08.v1 import (
-    M1808_MAX_CANONICAL_REQUEST_BYTES,
-    MonitorBiomarkerPanelTranslationHealthRequest,
-)
-from glio_proteogen.contracts.m18_06 import (
-    M1806_MAX_CANONICAL_REQUEST_BYTES,
-    AdjudicateBiomarkerPanelQueueRequest,
-)
-from glio_proteogen.contracts.m18_03 import (
-    M1803_MAX_CANONICAL_REQUEST_BYTES,
-    FuseBiomarkerPanelEvidenceRequest,
-)
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
     SimulateProteotypePerturbationRequest,
@@ -225,6 +208,18 @@ from glio_proteogen.contracts.m17_04 import (
 from glio_proteogen.contracts.m17_08 import (
     M1708_MAX_CANONICAL_REQUEST_BYTES,
     MonitorVariantPeptideTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m18_03 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    FuseBiomarkerPanelEvidenceRequest,
+)
+from glio_proteogen.contracts.m18_06 import (
+    M1806_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateBiomarkerPanelQueueRequest,
+)
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorBiomarkerPanelTranslationHealthRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -370,18 +365,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c18_spatial_proteomics import (
-    m18_08_translation_monitoring_service as m1808_monitoring,
-)
-from glio_proteogen.modules.c18_spatial_proteomics import (
-    m18_08_translation_monitoring_service as m1808_monitoring,
-)
-from glio_proteogen.modules.c18_spatial_proteomics_projection import (
-    m18_06_reviewer_adjudication as m1806_adjudication,
-)
-from glio_proteogen.modules.c18_spatial_proteomics_projection import (
-    m18_03_fusion_aggregation as m1803_fusion,
-)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -414,6 +397,15 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
 )
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_08_translation_monitoring as m1708_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_06_reviewer_adjudication as m1806_adjudication,
 )
 
 if TYPE_CHECKING:
@@ -548,11 +540,6 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
-m1808_app = typer.Typer(
-    no_args_is_help=True,
-    help="M18-08 translation health monitoring and rollback.",
-)
-app.add_typer(m1808_app, name="m1808-translation-health")
 m1808_app = typer.Typer(
     no_args_is_help=True,
     help="M18-08 translation health monitoring and rollback.",
@@ -3611,47 +3598,6 @@ def monitor_m1808_translation_health(request: RequestArgument) -> None:
         typer.echo(f"M18-08 monitoring failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-
-@m1808_app.command("export-schema")
-def export_m1808_schema(
-    contract: Annotated[
-        Literal[
-            "request",
-            "output",
-            "health-report",
-            "telemetry",
-            "support-drift",
-            "workflow-effect",
-            "discrepancy",
-            "rollback-policy",
-            "finding",
-        ],
-        typer.Argument(help="M18-08 public contract to export as JSON Schema 2020-12."),
-    ],
-) -> None:
-    """Export one strict, provisional M18-08 contract schema."""
-
-    typer.echo(json.dumps(_m1808_contract_schema(contract), indent=2, sort_keys=True))
-
-
-@m1808_app.command("monitor")
-def monitor_m1808_translation_health(request: RequestArgument) -> None:
-    """Monitor translation health and emit a bounded state or explicit abstention."""
-
-    try:
-        parsed = _load_request(
-            request,
-            TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest),
-            m1808_monitoring.preflight_m1808_authorization,
-            M1808_MAX_CANONICAL_REQUEST_BYTES,
-        )
-        _emit(m1808_monitoring.M1808Service().execute(parsed))
-    except m1808_monitoring.M1808AuthorizationError as error:
-        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
-        raise typer.Exit(code=2) from error
-    except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
-        raise typer.Exit(code=1) from error
 
 @m1806_app.command("export-schema")
 def export_m1806_schema(
