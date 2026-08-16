@@ -30,6 +30,29 @@ def test_supported_candidate_is_validated_and_bound_to_proteotype() -> None:
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.request_digest == canonical_request_digest(result.request)
+    assert result.compatibility_report.report_id == (
+        f"report.{result.request_digest.removeprefix('sha256:')}"
+    )
+    assert result.bundle is not None
+    assert result.bundle.bundle_id == f"bundle.{result.request_digest.removeprefix('sha256:')}"
+    assert result.provenance.activity_id == (
+        f"activity.{result.request_digest.removeprefix('sha256:')}"
+    )
+
+
+def test_declared_version_mismatch_is_typed_and_abstains() -> None:
+    request = _request()
+    configuration = request.configuration.model_copy(
+        update={
+            "rules": (
+                request.configuration.rules[0].model_copy(update={"required_version": "2.0.0"}),
+            )
+        }
+    )
+    request = request.model_copy(update={"configuration": configuration})
+    result = m1901.M1901Engine().resolve(request)
+    assert result.status is ResolverStatus.ABSTAINED
+    assert result.findings[0].code is ResolverFindingCode.INCOMPATIBLE_VERSION
 
 
 def test_unknown_candidate_abstains_without_negative_inference() -> None:

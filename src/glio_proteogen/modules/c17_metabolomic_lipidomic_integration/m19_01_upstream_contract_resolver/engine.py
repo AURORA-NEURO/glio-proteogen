@@ -145,16 +145,22 @@ def _control_decisions(
 
 def _provenance(request: ResolveProteotypeUpstreamContractsRequest) -> ProvenanceRecord:
     refs = request.context.references
+    request_digest = canonical_request_digest(request)
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                *(candidate.artifact.digest for candidate in request.candidates),
+                *(artifact.digest for artifact in request.source_artifacts),
+            )
+        )
+    )
     return ProvenanceRecord(
-        activity_id=f"activity.{request.request_id}",
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
         actor_id=request.context.actor_id,
         module_id=M1901_MODULE_ID,
         module_version=M1901_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            *(candidate.artifact.digest for candidate in request.candidates),
-            *(artifact.digest for artifact in request.source_artifacts),
-        ),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -198,13 +204,33 @@ def _limitations() -> tuple[Limitation, ...]:
 def _rule_match(
     candidate: UpstreamCandidate,
     request: ResolveProteotypeUpstreamContractsRequest,
-) -> bool:
-    return any(
-        rule.required_source_kind is candidate.source_kind
+) -> ResolverFindingCode | None:
+    structural_matches = tuple(
+        rule
+        for rule in request.configuration.rules
+        if rule.required_source_kind is candidate.source_kind
         and rule.required_media_type == candidate.artifact.media_type
         and rule.required_intended_use == candidate.intended_use
-        for rule in request.configuration.rules
     )
+    if not structural_matches:
+        return ResolverFindingCode.MEDIA_TYPE_MISMATCH
+    if any(
+        rule.required_version is None or rule.required_version == candidate.artifact.version
+        for rule in structural_matches
+    ):
+        return None
+    return ResolverFindingCode.INCOMPATIBLE_VERSION
+
+
+def _rule_rationale(code: ResolverFindingCode) -> str:
+    return {
+        ResolverFindingCode.MEDIA_TYPE_MISMATCH: (
+            "No configured source-kind, media-type, and intended-use rule matched."
+        ),
+        ResolverFindingCode.INCOMPATIBLE_VERSION: (
+            "Candidate artifact version does not satisfy the configured compatibility rule."
+        ),
+    }[code]
 
 
 def _decision_for(
@@ -233,11 +259,12 @@ def _decision_for(
             ),
             "rejected",
         )
+    rule_failure = _rule_match(candidate, request)
     checks: tuple[tuple[bool, ResolverFindingCode, str], ...] = (
         (
-            _rule_match(candidate, request),
-            ResolverFindingCode.MEDIA_TYPE_MISMATCH,
-            "No configured source-kind, media-type, and intended-use rule matched.",
+            rule_failure is None,
+            rule_failure or ResolverFindingCode.MEDIA_TYPE_MISMATCH,
+            _rule_rationale(rule_failure or ResolverFindingCode.MEDIA_TYPE_MISMATCH),
         ),
         (
             candidate.consent_state is ConsentState.GRANTED,
@@ -311,7 +338,7 @@ class M1901Engine:
             else:
                 rejected.append(item.candidate_id)
         report = CompatibilityReport(
-            report_id=f"report.{request.request_id}",
+            report_id=f"report.{request_digest.removeprefix('sha256:')}",
             version=M1901_CONTRACT_VERSION,
             decisions=tuple(decisions),
             selected_candidate_ids=tuple(item.candidate_id for item in selected),
@@ -321,7 +348,9 @@ class M1901Engine:
         )
         findings = tuple(
             ResolverFinding(
-                finding_id=f"finding.{request.request_id}.{decision.candidate_id}",
+                finding_id=(
+                    f"finding.{request_digest.removeprefix('sha256:')}.{decision.candidate_id}"
+                ),
                 code=decision.reason_code,
                 message=decision.rationale,
                 evidence=decision.evidence,
@@ -332,7 +361,7 @@ class M1901Engine:
         can_validate = bool(selected) and not unresolved
         bundle = (
             ValidatedUpstreamBundle(
-                bundle_id=f"bundle.{request.request_id}",
+                bundle_id=f"bundle.{request_digest.removeprefix('sha256:')}",
                 version=M1901_CONTRACT_VERSION,
                 candidates=tuple(selected),
                 compatibility_report=report,
@@ -395,6 +424,9 @@ class M1901Engine:
             raise M1901ReplayError("M19-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1901ReplayError("M19-01 result payload digest mismatch")  # noqa: TRY003
+        expected = self.resolve(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1901ReplayError("M19-01 replay reconstruction mismatch")  # noqa: TRY003
         return result
 
 

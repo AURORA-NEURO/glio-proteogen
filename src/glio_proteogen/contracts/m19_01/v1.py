@@ -103,6 +103,7 @@ class CompatibilityRule(FrozenModel):
     required_source_kind: UpstreamSourceKind
     required_media_type: NonEmptyStr
     required_intended_use: NonEmptyStr
+    required_version: SemanticVersion | None = None
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1901_MAX_EVIDENCE)
 
     @model_validator(mode="after")

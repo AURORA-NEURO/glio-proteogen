@@ -140,13 +140,18 @@ def _context() -> ExecutionContext:
     )
 
 
-def _rule(rule_id: str = "rule.proteome") -> CompatibilityRule:
+def _rule(
+    rule_id: str = "rule.proteome",
+    *,
+    required_version: str | None = None,
+) -> CompatibilityRule:
     return CompatibilityRule(
         rule_id=rule_id,
         name="Immunopeptidomic proteome compatibility",
         required_source_kind=UpstreamSourceKind.MASS_SPECTROMETRY_PROTEOME,
         required_media_type=_MEDIA_TYPE,
         required_intended_use=_INTENDED_USE,
+        required_version=required_version,
         evidence=(_evidence(rule_id),),
     )
 
