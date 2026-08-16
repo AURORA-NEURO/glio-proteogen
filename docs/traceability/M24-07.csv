@@ -1,0 +1,7 @@
+requirement_id,authority_slice,implementation,evidence,verification
+M24-07-R01,8580-8620,contracts/m24_07/v1.py,release-evidence/m24_07/evaluation.json,contract and adversarial tests
+M24-07-R02,8580-8620,modules/c21_reference_material/m24_07_human_factors_operational_evaluator/engine.py,release-evidence/m24_07/evaluation.json,locked evaluator matrix
+M24-07-R03,8580-8620,modules/c21_reference_material/m24_07_human_factors_operational_evaluator/api.py;cli.py;plugin.py,release-evidence/m24_07/evaluation.json,API CLI plugin parity tests
+M24-07-R04,8580-8620,contracts/m24_07/canonical.py,release-evidence/m24_07/evaluation.json,replay and tamper tests
+M24-07-R05,8580-8620,evals/m24_07,release-evidence/m24_07/benchmark.json,10-iteration benchmark and fixture digest
+M24-07-R06,8580-8620,tools/verify_m2407_release.py,release-evidence/m24_07/package.json,release verifier and isolated import
