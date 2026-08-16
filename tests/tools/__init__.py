@@ -1,1 +1,1 @@
-"""Tooling test package."""
+"""Release verifier tests."""

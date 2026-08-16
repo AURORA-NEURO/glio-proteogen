@@ -1,1 +1,1 @@
-"""Evaluation test package."""
+"""Evaluator tests."""
