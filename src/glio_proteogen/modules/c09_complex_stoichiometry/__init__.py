@@ -1,1 +1,1 @@
-"""Complex-stoichiometry module family (provisional)."""
+"""Complex-stoichiometry module family (provisional additions)."""
