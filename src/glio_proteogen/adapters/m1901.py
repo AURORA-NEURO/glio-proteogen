@@ -64,6 +64,13 @@ async def _validated_body(request: Request) -> ResolveProteotypeUpstreamContract
         raise _json_error(403, str(error)) from error
 
 
+def _validated_result(body: bytes) -> ProteotypeUpstreamResolutionResult:
+    """Parse a result through the strict JSON boundary exactly once."""
+
+    document = strict_json_loads(body, max_bytes=M1901_MAX_CANONICAL_RESULT_BYTES)
+    return _RESULT_ADAPTER.validate_json(canonical_json_bytes(document), strict=True)
+
+
 @app.get("/v1/m19-01/schema/{name}")
 def schema(name: str) -> JSONResponse:
     try:
@@ -91,8 +98,7 @@ async def verify(request: Request) -> JSONResponse:
         raise _json_error(415, "content-type must be application/json")
     try:
         body = await request.body()
-        strict_json_loads(body, max_bytes=M1901_MAX_CANONICAL_RESULT_BYTES)
-        result = _RESULT_ADAPTER.validate_json(body, strict=True)
+        result = _validated_result(body)
         verified = _SERVICE.replay(result)
     except (StrictJsonError, ValidationError, m1901.M1901ReplayError) as error:
         raise _json_error(422, "M19-01 result verification failed") from error
@@ -146,8 +152,7 @@ def verify_command(
 ) -> None:
     try:
         raw = result_path.read_bytes()
-        strict_json_loads(raw, max_bytes=M1901_MAX_CANONICAL_RESULT_BYTES)
-        result = _RESULT_ADAPTER.validate_json(raw, strict=True)
+        result = _validated_result(raw)
         verified = _SERVICE.replay(result)
     except (OSError, StrictJsonError, ValidationError, m1901.M1901ReplayError) as error:
         typer.echo("verification failed: M19-01 result is invalid", err=True)
