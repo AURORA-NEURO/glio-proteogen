@@ -1,0 +1,21 @@
+{
+  "module": "GLIO-PROTEOGEN-M11-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3944-3987",
+  "fixture": "tests/fixtures/m11_08/scenarios.json",
+  "fixture_sha256": "sha256:ae207215ea765c855ac25ac204a4234092b3fda7b725883f6af7832d3898c8ab",
+  "declared_scenarios": 9,
+  "executed_scenarios": 9,
+  "checks": {
+    "complete_dossier": true,
+    "deterministic_replay": true,
+    "duplicate_json_rejected": true,
+    "failed_route_abstention": true,
+    "incomplete_abstention": true,
+    "missing_source_abstention": true,
+    "tampered_digest_rejected": true,
+    "unaccepted_controls_fail_closed": true,
+    "wrong_upstream_media_rejected": true
+  },
+  "passed": true
+}
