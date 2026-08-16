@@ -48,7 +48,7 @@ def run_benchmark(iterations: int = ITERATIONS) -> dict[str, Any]:
     }
 
 
-def main() -> int:
+def main() -> int:  # pragma: no cover - exercised through the locked wrapper command.
     parser = argparse.ArgumentParser()
     parser.add_argument("--iterations", type=int, default=ITERATIONS)
     args = parser.parse_args()

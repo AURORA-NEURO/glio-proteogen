@@ -115,7 +115,7 @@ def run_evaluator() -> dict[str, Any]:
     }
 
 
-def main() -> int:
+def main() -> int:  # pragma: no cover - exercised through the locked wrapper command.
     report = run_evaluator()
     sys.stdout.write(json.dumps(report, indent=2, sort_keys=True) + "\n")
     return 0 if report["passed"] else 1
