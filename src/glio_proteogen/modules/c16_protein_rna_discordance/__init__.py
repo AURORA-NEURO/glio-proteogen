@@ -1,2 +1,1 @@
-"""Protein-RNA discordance module group (provisional)."""
-
+"""Provisional protein-RNA discordance consumer module group and family."""
