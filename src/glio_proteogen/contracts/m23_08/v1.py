@@ -181,9 +181,7 @@ class SignedReleaseRecord(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2308_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2308_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2308_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2308_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2308_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -243,9 +241,7 @@ class AdjudicateVariantPeptideEvidenceGateRequest(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2308_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2308_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2308_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2308_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2308_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(

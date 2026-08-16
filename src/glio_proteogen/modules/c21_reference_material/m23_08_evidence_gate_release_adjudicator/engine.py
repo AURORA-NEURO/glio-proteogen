@@ -101,8 +101,7 @@ def _gate_decision(request: AdjudicateVariantPeptideEvidenceGateRequest) -> Gate
     if any(not item.passed for item in request.benchmarks):
         return GateDecision.BLOCK
     if any(
-        item.severity.value == "critical" and not item.accepted
-        for item in request.residual_risks
+        item.severity.value == "critical" and not item.accepted for item in request.residual_risks
     ):
         return GateDecision.BLOCK
     if any(item.decision is not ApprovalDecision.APPROVE for item in request.approvals):
@@ -330,8 +329,7 @@ class M2308EvidenceGateEngine:
                 Limitation(
                     code="caller_declared_authority",
                     statement=(
-                        "Issuer authority and signatures are caller-declared and "
-                        "unauthenticated."
+                        "Issuer authority and signatures are caller-declared and unauthenticated."
                     ),
                 ),
                 Limitation(
@@ -355,9 +353,7 @@ class M2308EvidenceGateEngine:
         payload["result_digest"] = result_payload_digest(provisional)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
 
-    def replay(
-        self, result: VariantPeptideEvidenceGateResult
-    ) -> VariantPeptideEvidenceGateResult:
+    def replay(self, result: VariantPeptideEvidenceGateResult) -> VariantPeptideEvidenceGateResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
             if validated.request_digest != canonical_request_digest(validated.request):

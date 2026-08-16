@@ -28,18 +28,14 @@ class M2308Service:
     def __init__(self, engine: M2308EvidenceGateEngine | None = None) -> None:
         self._engine = engine or M2308EvidenceGateEngine()
 
-    def validate_request(
-        self, request: object
-    ) -> AdjudicateVariantPeptideEvidenceGateRequest:
+    def validate_request(self, request: object) -> AdjudicateVariantPeptideEvidenceGateRequest:
         if isinstance(request, (bytes, bytearray, str)):
             decoded = strict_json_loads(request, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2308_authorization(decoded)
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         preflight_m2308_authorization(request)
         if isinstance(request, Mapping):
-            return _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(dict(request)), strict=True
-            )
+            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(request)), strict=True)
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def adjudicate(self, request: object) -> VariantPeptideEvidenceGateResult:
