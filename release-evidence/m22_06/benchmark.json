@@ -1,0 +1,24 @@
+{
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7816-7856",
+  "iterations": 10,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 3296780,
+  "median_ns": 2970450,
+  "module_id": "GLIO-PROTEOGEN-M22-06",
+  "p95_budget_ns": 750000000,
+  "p95_ns": 4493200,
+  "passed": true,
+  "samples_ns": [
+    2979500,
+    2961400,
+    2800400,
+    2771900,
+    2801900,
+    2764700,
+    4493200,
+    4271700,
+    3773100,
+    3350000
+  ]
+}
