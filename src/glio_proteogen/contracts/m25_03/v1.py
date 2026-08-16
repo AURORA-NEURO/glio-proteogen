@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_03.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -169,6 +170,12 @@ class BenchmarkDossier(FrozenModel):
         )
         if len(ids) != len(set(ids)):
             raise ValueError("benchmark dossier ids must be unique")
+        baseline_ids = {item.run_id for item in self.baselines}
+        for comparison in self.comparisons:
+            if comparison.reference_run_id not in baseline_ids:
+                raise ValueError("comparison reference run must be a declared baseline")
+            if comparison.candidate_run_id not in baseline_ids:
+                raise ValueError("comparison candidate run must be a declared baseline")
         return self
 
 
@@ -200,6 +207,25 @@ class RunProteotypeInternalBenchmarkRequest(FrozenModel):
     def request_is_bound(self) -> RunProteotypeInternalBenchmarkRequest:
         if self.upstream_result.media_type != M2503_M2502_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M25-02 synthetic truth result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact identifiers must be unique")
+        if self.upstream_result.artifact_id not in set(source_ids):
+            raise ValueError("source artifacts must include the declared upstream result")
+        baseline_ids = tuple(item.run_id for item in self.baseline_runs)
+        if len(baseline_ids) != len(set(baseline_ids)):
+            raise ValueError("baseline run identifiers must be unique")
+        known_baselines = set(baseline_ids)
+        for comparison in self.comparisons:
+            if comparison.reference_run_id not in known_baselines:
+                raise ValueError("comparison reference run must be a declared baseline")
+            if comparison.candidate_run_id not in known_baselines:
+                raise ValueError("comparison candidate run must be a declared baseline")
+        ablation_ids = tuple(item.ablation_id for item in self.ablations)
+        if len(ablation_ids) != len(set(ablation_ids)):
+            raise ValueError("ablation identifiers must be unique")
         return self
 
 
@@ -227,6 +253,8 @@ class ProteotypeInternalBenchmarkResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeInternalBenchmarkResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.request.context.request_id != self.request.request_id:
+            raise ValueError("result request context id must match request id")
         if self.status is BenchmarkStatus.COMPLETED:
             if (
                 self.dossier is None
@@ -243,6 +271,11 @@ class ProteotypeInternalBenchmarkResult(FrozenModel):
             raise ValueError("abstained result requires no dossier and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        if self.result_id != result_identifier(self.request, self.status.value):
+            raise ValueError("result identifier does not bind request and status")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding identifiers must be unique")
         return self
 
 
