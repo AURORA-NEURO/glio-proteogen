@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, cast
 
 import pytest
+from evals.m19_05.benchmark import run_benchmark
+from evals.m19_05.run import run_evaluator
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
@@ -389,3 +391,11 @@ def test_typer_schema_present_verify_no_overwrite_and_safe_errors(tmp_path: Path
     missing = runner.invoke(cli, ["verify", str(tmp_path / "missing.json")])
     assert missing.exit_code == _CLI_ERROR
     assert "Traceback" not in missing.output
+
+
+def test_locked_evaluator_and_benchmark_wrappers_pass() -> None:
+    evaluation = run_evaluator()
+    assert evaluation["passed"] is True
+    assert evaluation["passed_cases"] == evaluation["declared_cases"]
+    benchmark = run_benchmark(iterations=3)
+    assert benchmark["passed"] is True
