@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M09-06",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_lines": "3136-3179",
+    "owner": "Clinical science",
+    "safety_class": "S2",
+    "gate": "G2",
+    "parent_target": "complex_activity"
+  },
+  "scenarios": [
+    {"id": "supported", "method": "deterministic-calibrated-uncertainty", "expected_status": "decomposed"},
+    {"id": "unsupported", "method": "unsupported:masked-foundation-model", "expected_status": "abstained"},
+    {"id": "uncalibrated", "method": "uncalibrated-estimator", "expected_status": "abstained"},
+    {"id": "tamper", "method": "deterministic-calibrated-uncertainty", "expected_status": "replay-rejected"}
+  ]
+}

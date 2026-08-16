@@ -1,0 +1,14 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "deterministic": true,
+  "estimated_status": "estimated",
+  "missing_status": "abstained",
+  "module_id": "GLIO-PROTEOGEN-M09-03",
+  "ood_status": "abstained",
+  "ownership_boundary_closed": true,
+  "passed": true,
+  "replay_verified": true,
+  "tamper_rejected": true,
+  "uncertainty_explicit": true,
+  "unsupported_status": "abstained"
+}
