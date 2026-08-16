@@ -30,13 +30,6 @@ def _read(path: Path) -> bytes:
     return path.read_bytes()
 
 
-def _request(path: Path) -> object:
-    try:
-        return strict_json_loads(_read(path))
-    except ValueError as error:
-        raise typer.BadParameter("input is not strict JSON") from error  # noqa: TRY003
-
-
 def _validated_request(path: Path) -> BuildProteinSubtypeLineageRequest:
     raw = _read(path)
     strict_json_loads(raw)

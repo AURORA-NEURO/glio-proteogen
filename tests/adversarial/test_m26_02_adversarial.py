@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_02 import (
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service import (
+    LineageAuthorizationError,
     M2602LineagePlugin,
     M2602LineageService,
 )
@@ -85,6 +86,9 @@ def test_plugin_rejects_duplicate_keys_and_unvalidated_tokens() -> None:
         plugin.validate('{"context": {}, "context": {}}')
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M26-02"
+    with pytest.raises(LineageAuthorizationError):
+        plugin.validate(object())
 
 
 def test_replay_rejects_graph_tampering() -> None:

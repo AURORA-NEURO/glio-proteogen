@@ -108,6 +108,24 @@ def test_required_node_kind_cardinality_is_closed() -> None:
             graph_digest="sha256:" + "a" * 64,
             environment_digest="sha256:" + "b" * 64,
         )
+    with pytest.raises(ValidationError, match="every lineage node kind"):
+        ReproducibilityBundle(
+            bundle_id="bundle-duplicate-kind",
+            version="1.0.0",
+            root_node_ids=("node-1",),
+            required_kinds=(LineageNodeKind.SOURCE_DATA,) * 7,
+            graph_digest="sha256:" + "a" * 64,
+            environment_digest="sha256:" + "b" * 64,
+        )
+    with pytest.raises(ValidationError, match="root ids must be unique"):
+        ReproducibilityBundle(
+            bundle_id="bundle-duplicate-root",
+            version="1.0.0",
+            root_node_ids=("node-1", "node-1"),
+            required_kinds=tuple(LineageNodeKind),
+            graph_digest="sha256:" + "a" * 64,
+            environment_digest="sha256:" + "b" * 64,
+        )
 
 
 def test_node_versions_and_graph_cycles_cannot_be_silently_accepted() -> None:
@@ -145,6 +163,58 @@ def test_node_versions_and_graph_cycles_cannot_be_silently_accepted() -> None:
                     relation=LineageRelation.DERIVED_FROM,
                 ),
             ),
+            graph_digest="sha256:" + "d" * 64,
+        )
+
+
+def test_graph_closure_rejects_duplicate_ids_unknown_links_and_missing_kinds() -> None:
+    nodes = _nodes()
+    edges = tuple(
+        LineageEdge(
+            edge_id=f"edge-{index}",
+            parent_node_id=f"node-{index}",
+            child_node_id=f"node-{index + 1}",
+            relation=LineageRelation.DERIVED_FROM,
+        )
+        for index in range(1, 7)
+    )
+    with pytest.raises(ValidationError, match="node ids must be unique"):
+        LineageGraph(
+            graph_id="graph-invalid",
+            version="1.0.0",
+            nodes=(*nodes, nodes[0]),
+            edges=edges,
+            graph_digest="sha256:" + "d" * 64,
+        )
+    with pytest.raises(ValidationError, match="edge ids must be unique"):
+        LineageGraph(
+            graph_id="graph-invalid",
+            version="1.0.0",
+            nodes=nodes,
+            edges=(*edges, edges[0]),
+            graph_digest="sha256:" + "d" * 64,
+        )
+    unknown_edge = LineageEdge(
+        edge_id="edge-unknown",
+        parent_node_id="node-1",
+        child_node_id="missing-node",
+        relation=LineageRelation.DERIVED_FROM,
+    )
+    with pytest.raises(ValidationError, match="unknown node"):
+        LineageGraph(
+            graph_id="graph-invalid",
+            version="1.0.0",
+            nodes=nodes,
+            edges=(*edges[:-1], unknown_edge),
+            graph_digest="sha256:" + "d" * 64,
+        )
+    missing_kind = nodes[0].model_copy(update={"kind": LineageNodeKind.MODEL})
+    with pytest.raises(ValidationError, match="cover every required"):
+        LineageGraph(
+            graph_id="graph-invalid",
+            version="1.0.0",
+            nodes=(missing_kind, *nodes[1:]),
+            edges=edges,
             graph_digest="sha256:" + "d" * 64,
         )
 

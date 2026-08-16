@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m26_02 import (
     LineageNodeKind,
     LineageRelation,
     LineageStatus,
+    ProteinSubtypeLineageResult,
     ReproducibilityBundle,
     canonical_request_digest,
     graph_payload_digest,
@@ -36,6 +37,7 @@ from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service imp
     M2602LineageEngine,
     M2602LineagePlugin,
     M2602LineageService,
+    build_lineage_graph,
 )
 
 _ZERO = "sha256:" + ("0" * 64)
@@ -170,6 +172,8 @@ def test_supported_lineage_is_deterministic_and_replayable() -> None:
     assert first.reproducibility_bundle is not None
     assert first.support_decision.status is SupportStatus.SUPPORTED
     assert service.verify(first).result_digest == first.result_digest
+    assert build_lineage_graph(request).result_digest == first.result_digest
+    assert str(LineageReplayError()) == "lineage replay verification failed"
 
 
 def test_bad_graph_digest_abstains_without_negative_finding() -> None:
@@ -201,3 +205,33 @@ def test_plugin_parse_once_and_raw_tamper_are_closed() -> None:
     tampered = result.model_copy(update={"result_id": "tampered-result"})
     with pytest.raises((ValidationError, LineageReplayError)):
         M2602LineageService.verify(tampered)
+
+
+def test_request_and_result_closure_reject_invalid_bindings() -> None:
+    request = _request()
+    missing_root = request.model_copy(
+        update={
+            "reproducibility_bundle": request.reproducibility_bundle.model_copy(
+                update={"root_node_ids": ("missing-root",)}
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="unknown root"):
+        M2602LineageService().execute(missing_root)
+    missing_kind = request.nodes[0].model_copy(update={"kind": LineageNodeKind.MODEL})
+    missing_kind_request = request.model_copy(update={"nodes": (missing_kind, *request.nodes[1:])})
+    with pytest.raises(ValidationError, match="cover every required"):
+        M2602LineageService().execute(missing_kind_request)
+    result = M2602LineageService().execute(request)
+    bad_request_digest = result.model_copy(update={"request_digest": "sha256:" + "a" * 64})
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteinSubtypeLineageResult.model_validate(bad_request_digest, strict=True)
+    missing_graph = result.model_copy(update={"lineage_graph": None})
+    with pytest.raises(ValidationError, match="requires supported graph"):
+        ProteinSubtypeLineageResult.model_validate(missing_graph, strict=True)
+    abstained = M2602LineageService().execute(_request(graph_digest="sha256:" + "f" * 64))
+    with pytest.raises(ValidationError, match="requires no graph"):
+        ProteinSubtypeLineageResult.model_validate(
+            abstained.model_copy(update={"lineage_graph": result.lineage_graph}),
+            strict=True,
+        )
