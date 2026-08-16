@@ -2,11 +2,11 @@
   "module_id": "GLIO-PROTEOGEN-M24-08",
   "passed": true,
   "wheel": "glio_proteogen-0.1.0-py3-none-any.whl",
-  "wheel_bytes": 2924199,
-  "wheel_sha256": "2e901352429b8ff97422d3a3f3c5e8c26e83efa9f2fd096f0d4477b756d1434a",
+  "wheel_bytes": 2924185,
+  "wheel_sha256": "b72e833f9d393c61855145d401908a407b121eed0b0adc450cd9d41cf5fef3c3",
   "wheel_members": 1563,
   "sdist": "glio_proteogen-0.1.0.tar.gz",
-  "sdist_bytes": 3411954,
-  "sdist_sha256": "def5a962ec8334f8cc40e39f1a998033b43b35fb07aa8ff629dd65704d9c2f26",
+  "sdist_bytes": 3406986,
+  "sdist_sha256": "142ef9a8685d3cb47c486cfba8043878377a5023686a14e2fb742ba3100ea712",
   "isolated_import": "GLIO-PROTEOGEN M2408Service"
 }

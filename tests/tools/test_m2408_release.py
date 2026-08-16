@@ -20,5 +20,5 @@ def test_package_evidence_is_machine_readable() -> None:
     path = Path(__file__).parents[2] / "release-evidence" / "m24_08" / "package.json"
     package = json.loads(path.read_text(encoding="utf-8"))
     assert package["module_id"] == "GLIO-PROTEOGEN-M24-08"
-    assert package["wheel_sha256"].startswith("2e901352")
-    assert package["sdist_sha256"].startswith("def5a962")
+    assert package["wheel_sha256"].startswith("b72e833f")
+    assert package["sdist_sha256"].startswith("142ef9a8")
