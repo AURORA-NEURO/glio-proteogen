@@ -424,20 +424,22 @@ def test_replay_detects_digest_request_and_payload_tampering() -> None:
         engine.verify({"not": "a result"})
 
     wrong_request_digest = result.model_construct(
-        **result.model_dump(mode="python") | {"request_digest": "sha256:" + "b" * 64}
+        **result.model_dump(mode="python", warnings=False)
+        | {"request_digest": "sha256:" + "b" * 64}
     )
     with pytest.raises(M1905ReplayError):
         engine.verify(wrong_request_digest)
 
     wrong_result_digest = result.model_construct(
-        **result.model_dump(mode="python") | {"result_digest": "sha256:" + "c" * 64}
+        **result.model_dump(mode="python", warnings=False) | {"result_digest": "sha256:" + "c" * 64}
     )
     with pytest.raises(M1905ReplayError):
         engine.verify(wrong_result_digest)
 
     changed = result.model_copy(update={"human_review_required": False})
     changed = changed.model_construct(
-        **changed.model_dump(mode="python") | {"result_digest": result_payload_digest(changed)}
+        **changed.model_dump(mode="python", warnings=False)
+        | {"result_digest": result_payload_digest(changed)}
     )
     with pytest.raises(M1905ReplayError):
         engine.verify(changed)
@@ -474,28 +476,35 @@ def test_result_contract_rejects_identity_workspace_status_and_digest_drift() ->
 
     def validate(candidate: ProteotypeHumanReviewWorkspaceResult) -> None:
         ProteotypeHumanReviewWorkspaceResult.model_validate(
-            candidate.model_dump(mode="python"), strict=True
+            candidate.model_dump(mode="python", warnings=False), strict=True
         )
 
     with pytest.raises(ValidationError, match="request digest"):
         validate(
             result.model_construct(
-                **result.model_dump(mode="python") | {"request_digest": "sha256:" + "b" * 64}
+                **result.model_dump(mode="python", warnings=False)
+                | {"request_digest": "sha256:" + "b" * 64}
             )
         )
     with pytest.raises(ValidationError, match="identifier"):
         validate(
             result.model_construct(
-                **result.model_dump(mode="python") | {"result_id": "result.other"}
+                **result.model_dump(mode="python", warnings=False) | {"result_id": "result.other"}
             )
         )
     provenance = result.provenance.model_copy(update={"module_id": "GLIO-PROTEOGEN-M19-04"})
     with pytest.raises(ValidationError, match="provenance"):
         validate(
-            result.model_construct(**result.model_dump(mode="python") | {"provenance": provenance})
+            result.model_construct(
+                **result.model_dump(mode="python", warnings=False) | {"provenance": provenance}
+            )
         )
     with pytest.raises(ValidationError, match="presented result"):
-        validate(result.model_construct(**result.model_dump(mode="python") | {"workspace": None}))
+        validate(
+            result.model_construct(
+                **result.model_dump(mode="python", warnings=False) | {"workspace": None}
+            )
+        )
     changed_items = (
         (
             result.workspace.items[0].model_copy(update={"title": "Changed review title"}),
@@ -507,7 +516,7 @@ def test_result_contract_rejects_identity_workspace_status_and_digest_drift() ->
     with pytest.raises(ValidationError, match="exact request"):
         validate(
             result.model_construct(
-                **result.model_dump(mode="python")
+                **result.model_dump(mode="python", warnings=False)
                 | {
                     "workspace": result.workspace.model_copy(update={"items": changed_items})
                     if result.workspace is not None
@@ -520,7 +529,7 @@ def test_result_contract_rejects_identity_workspace_status_and_digest_drift() ->
         with pytest.raises(ValidationError, match="aligned evidence"):
             validate(
                 result.model_construct(
-                    **result.model_dump(mode="python")
+                    **result.model_dump(mode="python", warnings=False)
                     | {
                         "workspace": result.workspace.model_copy(
                             update={"source_bundle": other_bundle}
@@ -534,13 +543,15 @@ def test_result_contract_rejects_identity_workspace_status_and_digest_drift() ->
     with pytest.raises(ValidationError, match="safe status"):
         validate(
             abstained.model_construct(
-                **abstained.model_dump(mode="python") | {"support_decision": supported}
+                **abstained.model_dump(mode="python", warnings=False)
+                | {"support_decision": supported}
             )
         )
     with pytest.raises(ValidationError, match="result digest"):
         validate(
             result.model_construct(
-                **result.model_dump(mode="python") | {"result_digest": "sha256:" + "d" * 64}
+                **result.model_dump(mode="python", warnings=False)
+                | {"result_digest": "sha256:" + "d" * 64}
             )
         )
 
