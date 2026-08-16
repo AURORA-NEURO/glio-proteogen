@@ -1,0 +1,31 @@
+{
+  "module": "GLIO-PROTEOGEN-M20-02",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "6920-6960"
+  },
+  "scenarios": [
+    {"id": "aligned", "expected_status": "aligned", "review_required": false},
+    {"id": "conflicted", "expected_status": "abstained", "review_required": true},
+    {"id": "not_evaluable", "expected_status": "abstained", "review_required": true}
+  ],
+  "required_dimensions": [
+    "sample",
+    "time",
+    "territory",
+    "analyte",
+    "modality",
+    "reference",
+    "biological_context"
+  ],
+  "safe_boundaries": {
+    "external_content_traversal": false,
+    "identity_inference": false,
+    "consent_inference": false,
+    "kinase_activity": false,
+    "treatment_recommendation": false,
+    "generic_all_omics_fusion": false,
+    "unsupported_to_negative": false
+  }
+}
