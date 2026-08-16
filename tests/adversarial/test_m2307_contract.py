@@ -171,6 +171,22 @@ def test_request_rejects_duplicate_metric_ids_and_missing_dimensions() -> None:
         EvaluateVariantPeptideHumanFactorsRequest(**missing_dimension)
 
 
+def test_request_retains_exact_upstream_artifact_and_unique_sources() -> None:
+    request = _request()
+    missing_upstream = request.model_dump(mode="python")
+    missing_upstream["source_artifacts"] = (_artifact("unrelated-source"),)
+    with pytest.raises(ValueError, match="retain the bound upstream result"):
+        EvaluateVariantPeptideHumanFactorsRequest(**missing_upstream)
+
+    duplicate_source = request.model_dump(mode="python")
+    duplicate_source["source_artifacts"] = (
+        duplicate_source["source_artifacts"][0],
+        duplicate_source["source_artifacts"][0],
+    )
+    with pytest.raises(ValueError, match="source artifact ids must be unique"):
+        EvaluateVariantPeptideHumanFactorsRequest(**duplicate_source)
+
+
 def test_canonical_request_and_result_identity_change_with_bound_input() -> None:
     first = _request("request-1")
     second = _request("request-2")
