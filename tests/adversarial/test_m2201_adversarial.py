@@ -408,3 +408,68 @@ def test_adjudication_and_result_replay_closure_are_fail_closed() -> None:
     tampered["findings"] = (finding, finding)
     with pytest.raises(ValidationError, match="finding ids"):
         ProteinRnaDiscordanceReferenceTruthResult(**tampered)
+
+
+def test_adjudication_partition_and_package_sets_are_closed() -> None:
+    with pytest.raises(ValidationError, match="reviewer tokens must be unique"):
+        AdjudicationRecord(
+            reference_id="duplicate-reviewer",
+            status=AdjudicationStatus.LOCKED,
+            reviewer_tokens=("a", "a"),
+            agreement_statement="Duplicate reviewer token.",
+            evidence=(_evidence("duplicate-reviewer.evidence"),),
+        )
+    package = _package()
+    cases = (
+        ("reference and control ids", {"references": (package.references[0],) * 2}),
+        ("inclusion decisions", {"inclusions": package.inclusions[:-1]}),
+        ("adjudications must", {"adjudications": package.adjudications[:-1]}),
+        ("challenge set must", {"challenge_set_ids": ("unknown",)}),
+        ("challenge set ids", {"challenge_set_ids": ("m2201.challenge",) * 2}),
+    )
+    for message, updates in cases:
+        payload = package.model_dump(mode="python")
+        payload.update(updates)
+        with pytest.raises(ValidationError, match=message):
+            ReferenceTruthPackage(**payload)
+
+
+def test_result_and_request_digest_status_closure_is_strict() -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    payload["references"][0]["reference_id"] = payload["controls"][0]["reference_id"]
+    with pytest.raises(ValidationError, match="reference and control ids"):
+        CurateProteinRnaDiscordanceReferenceTruthRequest(**payload)
+
+    payload = request.model_dump(mode="python")
+    payload["adjudications"] = payload["adjudications"][:-1]
+    with pytest.raises(ValidationError, match="adjudications must cover"):
+        CurateProteinRnaDiscordanceReferenceTruthRequest(**payload)
+
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = payload["source_artifacts"] + (payload["source_artifacts"][0],)
+    with pytest.raises(ValidationError, match="source artifacts must be unique"):
+        CurateProteinRnaDiscordanceReferenceTruthRequest(**payload)
+
+    result = _result(request)
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = "sha256:" + "a" * 64
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteinRnaDiscordanceReferenceTruthResult(**payload)
+
+    payload = result.model_dump(mode="python")
+    payload["provenance"]["input_digests"] = ("sha256:" + "c" * 64,)
+    with pytest.raises(ValidationError, match="upstream result digest"):
+        ProteinRnaDiscordanceReferenceTruthResult(**payload)
+
+    payload = result.model_dump(mode="python")
+    payload["package"] = None
+    with pytest.raises(ValidationError, match="curated result requires"):
+        ProteinRnaDiscordanceReferenceTruthResult(**payload)
+
+
+def test_canonical_dict_projection_is_stable() -> None:
+    request = _request()
+    assert canonical_request_digest(request.model_dump(mode="json")) == canonical_request_digest(
+        request
+    )
