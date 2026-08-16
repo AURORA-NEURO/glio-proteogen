@@ -1,0 +1,18 @@
+{
+  "module": "GLIO-PROTEOGEN-M08-04",
+  "contract_version": "0.1.0-provisional",
+  "authority": {"sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181", "lines": "2688-2731"},
+  "tests": {"focused_count": 20, "passed": 20},
+  "scenarios": [
+    {"name": "observed-learned", "observed": "estimated", "support": "supported", "passed": true},
+    {"name": "mechanism-guided-architecture", "observed": "estimated", "support": "supported", "passed": true},
+    {"name": "proteoform-architecture", "observed": "estimated", "support": "supported", "passed": true},
+    {"name": "missing-feature-abstain", "observed": "abstained", "support": "unsupported", "passed": true},
+    {"name": "out-of-domain-abstain", "observed": "abstained", "support": "unsupported", "passed": true},
+    {"name": "withheld-consent", "observed": "authorization_error", "support": "unsupported", "passed": true}
+  ],
+  "replay_and_tamper": {"replay": true, "tamper_rejected": true},
+  "coverage": {"scope": "M08-04 contracts/runtime/plugin/service/API", "statements": 523, "branches": 84, "percent": 95.88, "fail_under": 95.0},
+  "gates": {"ruff": "pass", "mypy_strict": "pass", "compileall": "pass", "replay_tamper": "pass", "api_cli_parity": "pass", "benchmark_input_guard": "pass"},
+  "passed": true
+}

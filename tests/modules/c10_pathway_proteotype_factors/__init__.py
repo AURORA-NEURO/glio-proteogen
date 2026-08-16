@@ -1,1 +1,1 @@
-"""Focused M10-08 runtime tests."""
+"""Focused pathway/proteotype factor runtime tests."""

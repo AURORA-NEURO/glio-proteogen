@@ -1,0 +1,14 @@
+requirement,evidence,verification,owner,status
+responsibility:mechanism-and-constraint-integrator,docs/modules/GLIO-PROTEOGEN-M08-05.md,typed estimate and satisfaction report only,ML engineering,implemented-provisional
+boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,ML engineering,implemented
+inputs:content-addressed-and-no-traversal,contract and manifest,artifact references are retained without dereference,ML engineering,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,ML engineering,implemented
+hard-constraints,engine plus evaluator,hard violation emits abstention with no estimates,ML engineering,implemented
+soft-conflicts,engine plus focused tests,soft violation remains visible with explicit score,ML engineering,implemented
+unsupported-evidence,engine plus evaluator,unevaluable/unsupported expression abstains safely,ML engineering,implemented
+uncertainty:seven-dimensions,engine and result contract,all dimensions explicit not-estimable pending owner lock,ML engineering,implemented-provisional
+replay:canonical-content-and-digest,canonical.py engine verifier replay tests,tamper and noncanonical bytes rejected,ML engineering,implemented
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and sanitized errors,ML engineering,implemented
+acceptance:benchmark-and-evaluator,evals/m08_05/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,ML engineering,verified-local
+evidence:traceability-manifest-review,docs/evidence/M08-05.md and manifest,review and authenticated authority remain external,ML engineering,provisional
+release:package-import,release-evidence/m08_05/release.json,package gates recorded with environment truth,release engineering,pending-final-build

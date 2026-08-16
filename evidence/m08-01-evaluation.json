@@ -1,0 +1,22 @@
+{
+  "module": "GLIO-PROTEOGEN-M08-01",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "2556-2597"
+  },
+  "tests": {
+    "focused_count": 24,
+    "passed": 24,
+    "command": "pytest contract, lifecycle, API, CLI, evaluator, and replay suites"
+  },
+  "scenarios": [
+    {"name": "observed-satisfied", "observed": "valid", "support": "supported", "passed": true},
+    {"name": "observed-violated", "observed": "invalid", "support": "limited", "passed": true},
+    {"name": "missing-abstain", "observed": "abstained", "support": "unsupported", "passed": true},
+    {"name": "unknown-expression-abstain", "observed": "abstained", "support": "review_required", "passed": true},
+    {"name": "withheld-consent", "observed": "authorization_error", "support": "unsupported", "passed": true}
+  ],
+  "coverage": {"scope": "M08-01 runtime/plugin/service", "statements": 210, "branches": 46, "percent": 97.0, "fail_under": 95.0},
+  "gates": {"ruff": "pass", "mypy_strict": "pass", "compileall": "pass", "replay_tamper": "pass", "api_cli_parity": "pass"}
+}
