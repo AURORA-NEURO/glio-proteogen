@@ -4,9 +4,9 @@
   "buildTool": "hatchling 1.31.0 via uv build",
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "sizeBytes": 1008418,
-    "sha256": "4a2c19cd053072f5f4691edeae28e63c7788a3461b036f095d7c44b514a7eb60",
-    "memberCount": 461,
+    "sizeBytes": 3181272,
+    "sha256": "750d7bdfbb82b6fccee20e3e949add137131815426122d3adb93ce13376b16de",
+    "memberCount": 1719,
     "requiredRuntimeMembers": [
       "glio_proteogen/contracts/m26_07/v1.py",
       "glio_proteogen/modules/c20_biomarker_panel/m26_07_change_control_rollback/engine.py",
@@ -16,9 +16,9 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sizeBytes": 1532929,
-    "sha256": "e268d98577b9394c0544e7f47c092dc727c5f1d201a6ce2c254b8399e8477478",
-    "memberCount": 965
+    "sizeBytes": 3635869,
+    "sha256": "069e0f37f20c016f6aa4c51d3ce081e27587cf8a7ab47917dd577f169748e2cb",
+    "memberCount": 4145
   },
   "isolatedImportPassed": true,
   "generatedDirectories": [".m2607-build-final", ".m2607-install-final"],
