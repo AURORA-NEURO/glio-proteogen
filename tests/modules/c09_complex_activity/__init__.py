@@ -1,1 +1,1 @@
-"""M09 complex-activity test package."""
+"""M09 complex-activity runtime tests."""
