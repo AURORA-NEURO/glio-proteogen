@@ -238,7 +238,8 @@ class CurateVariantPeptideReferenceTruthRequest(FrozenModel):
             raise ValueError("request reference and control ids must be unique")
         known = set(ids)
         if any(
-            item.kind not in {
+            item.kind
+            not in {
                 ReferenceKind.CALIBRATOR,
                 ReferenceKind.SPIKE_IN,
                 ReferenceKind.CHALLENGE_SET,
