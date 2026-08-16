@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m10_01.v1 import (
     ProteinRnaMigrationRule,
     ValidateProteinRnaDiscordanceStateRequest,
     ValidateProteinRnaDiscordanceStateResult,
+    ValidateProteinRnaDiscordanceStateVerification,
 )
 
 SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M10-01:0.1.0-provisional"
@@ -36,6 +37,7 @@ ContractName = Literal[
     "invariant-result",
     "schema",
     "migration",
+    "verification",
 ]
 _CONTRACTS: Final = {
     "request": ValidateProteinRnaDiscordanceStateRequest,
@@ -46,6 +48,7 @@ _CONTRACTS: Final = {
     "invariant-result": ProteinRnaInvariantResult,
     "schema": FormalProteinRnaDiscordanceStateSchema,
     "migration": ProteinRnaMigrationRule,
+    "verification": ValidateProteinRnaDiscordanceStateVerification,
 }
 
 
@@ -80,7 +83,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
 
 
 def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
-    """Return all eight provisional M10-01 schemas in ABI order."""
+    """Return all nine provisional M10-01 schemas in ABI order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))
     return {name: contract_json_schema(name) for name in names}
