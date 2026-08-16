@@ -37,6 +37,9 @@ M2602_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-02"
 M2602_OPERATION: Final = "build_protein_subtype_lineage_graph"
 M2602_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2602_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-02+json"
+# M26-01 is not imported at runtime.  This is the caller-declared media
+# boundary from the upstream registry/configuration service.
+M2602_UPSTREAM_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m26-01+json"
 M2602_PARENT: Final = "protein subtype"
 M2602_OWNER: Final = "Bioinformatics"
 M2602_SAFETY_CLASS: Final = "S3"
@@ -45,6 +48,7 @@ M2602_PROVISIONAL_ABI: Final = True
 M2602_MAX_NODES: Final = 256
 M2602_MAX_EDGES: Final = 512
 M2602_MAX_ROOTS: Final = 32
+M2602_REQUIRED_NODE_KINDS: Final = 7
 M2602_MAX_EVIDENCE: Final = 64
 M2602_MAX_FINDINGS: Final = 64
 M2602_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
@@ -100,6 +104,12 @@ class LineageNode(FrozenModel):
     immutable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2602_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def artifact_version_is_exact(self) -> LineageNode:
+        if self.artifact.version != self.version:
+            raise ValueError("lineage node version must match its artifact version")
+        return self
+
 
 class LineageEdge(FrozenModel):
     """One directed, versioned relationship in the lineage graph."""
@@ -126,7 +136,10 @@ class ReproducibilityBundle(FrozenModel):
     bundle_id: Identifier
     version: SemanticVersion
     root_node_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M2602_MAX_ROOTS)
-    required_kinds: tuple[LineageNodeKind, ...] = Field(min_length=7, max_length=7)
+    required_kinds: tuple[LineageNodeKind, ...] = Field(
+        min_length=M2602_REQUIRED_NODE_KINDS,
+        max_length=M2602_REQUIRED_NODE_KINDS,
+    )
     graph_digest: Sha256Digest
     environment_digest: Sha256Digest
     locked: Literal[True] = True
@@ -134,7 +147,9 @@ class ReproducibilityBundle(FrozenModel):
 
     @model_validator(mode="after")
     def all_lineage_kinds_are_required(self) -> ReproducibilityBundle:
-        if set(self.required_kinds) != set(LineageNodeKind):
+        if set(self.required_kinds) != set(LineageNodeKind) or len(self.required_kinds) != len(
+            set(self.required_kinds)
+        ):
             raise ValueError("reproducibility bundle must require every lineage node kind")
         if len(self.root_node_ids) != len(set(self.root_node_ids)):
             raise ValueError("reproducibility root ids must be unique")
@@ -146,7 +161,10 @@ class LineageGraph(FrozenModel):
 
     graph_id: Identifier
     version: SemanticVersion
-    nodes: tuple[LineageNode, ...] = Field(min_length=7, max_length=M2602_MAX_NODES)
+    nodes: tuple[LineageNode, ...] = Field(
+        min_length=M2602_REQUIRED_NODE_KINDS,
+        max_length=M2602_MAX_NODES,
+    )
     edges: tuple[LineageEdge, ...] = Field(min_length=6, max_length=M2602_MAX_EDGES)
     graph_digest: Sha256Digest
     locked: Literal[True] = True
@@ -168,6 +186,15 @@ class LineageGraph(FrozenModel):
             raise ValueError("lineage edge references an unknown node")
         if {item.kind for item in self.nodes} != set(LineageNodeKind):
             raise ValueError("lineage graph must cover every required node kind")
+        parents = {edge.child_node_id: edge.parent_node_id for edge in self.edges}
+        for node_id in known:
+            seen: set[str] = set()
+            current = node_id
+            while current in parents:
+                if current in seen:
+                    raise ValueError("lineage graph cannot contain a directed cycle")
+                seen.add(current)
+                current = parents[current]
         return self
 
 
@@ -187,9 +214,13 @@ class BuildProteinSubtypeLineageRequest(FrozenModel):
     context: ExecutionContext
     graph_id: Identifier
     graph_version: SemanticVersion
-    nodes: tuple[LineageNode, ...] = Field(min_length=7, max_length=M2602_MAX_NODES)
+    nodes: tuple[LineageNode, ...] = Field(
+        min_length=M2602_REQUIRED_NODE_KINDS,
+        max_length=M2602_MAX_NODES,
+    )
     edges: tuple[LineageEdge, ...] = Field(min_length=6, max_length=M2602_MAX_EDGES)
     reproducibility_bundle: ReproducibilityBundle
+    upstream_registry_artifact: ArtifactReference
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2602_MAX_EVIDENCE
     )
@@ -210,6 +241,12 @@ class BuildProteinSubtypeLineageRequest(FrozenModel):
             raise ValueError("reproducibility bundle references an unknown root")
         if {item.kind for item in self.nodes} != set(LineageNodeKind):
             raise ValueError("request must cover every required lineage node kind")
+        if self.upstream_registry_artifact.media_type != M2602_UPSTREAM_MEDIA_TYPE:
+            raise ValueError("upstream registry artifact must use the declared M26-01 media type")
+        if self.upstream_registry_artifact not in self.source_artifacts:
+            raise ValueError("upstream registry artifact must be included in source artifacts")
+        if len(self.edges) != len({edge.edge_id for edge in self.edges}):
+            raise ValueError("request lineage edge ids must be unique")
         return self
 
 
@@ -278,7 +315,9 @@ __all__ = [
     "M2602_OWNER",
     "M2602_PARENT",
     "M2602_PROVISIONAL_ABI",
+    "M2602_REQUIRED_NODE_KINDS",
     "M2602_SAFETY_CLASS",
+    "M2602_UPSTREAM_MEDIA_TYPE",
     "BuildProteinSubtypeLineageRequest",
     "LineageEdge",
     "LineageFinding",
