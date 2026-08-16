@@ -8,6 +8,9 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m22_02.v1 import (
     M2202_CONTRACT_VERSION,
+    M2202_DOSSIER_SHA256,
+    M2202_DOSSIER_SLICE,
+    M2202_EVIDENCE_CLAIM,
     M2202_GATE,
     M2202_M2201_INPUT_MEDIA_TYPE,
     M2202_MAX_CANONICAL_REQUEST_BYTES,
@@ -26,9 +29,7 @@ from glio_proteogen.contracts.m22_02.v1 import (
     SyntheticTruthCorpus,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M22-02:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M22-02:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2202_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -58,6 +59,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M2202_MODULE_ID,
+        "dossierSha256": M2202_DOSSIER_SHA256,
+        "dossierSlice": M2202_DOSSIER_SLICE,
         "contractVersion": CONTRACT_VERSION,
         "owner": M2202_OWNER,
         "safetyClass": M2202_SAFETY_CLASS,
@@ -93,6 +96,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "independentRecoveryChecksRequired": True,
         "uncertaintyRequired": True,
         "explicitAbstentionRequired": True,
+        "evidenceClaim": M2202_EVIDENCE_CLAIM,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M2202_MAX_CANONICAL_REQUEST_BYTES
