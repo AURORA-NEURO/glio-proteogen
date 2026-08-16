@@ -1,6 +1,8 @@
 """Focused schema and automation-bias smoke for provisional M19-05."""
 
-from jsonschema import Draft202012Validator
+from typing import Any, cast
+
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m19_05 import (
     M1905_DOSSIER_SHA256,
@@ -14,19 +16,20 @@ from glio_proteogen.contracts.m19_05 import (
     ViewKind,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
 _SCHEMA_COUNT = 8
-_SOURCE_ARTIFACT = {
-    "artifact_id": "source-1",
-    "version": "1.0.0",
-    "digest": "sha256:" + "a" * 64,
-    "media_type": "application/json",
-}
-_EVIDENCE = {
-    "reference": _SOURCE_ARTIFACT,
-    "role": "evidence",
-    "claim": "Review evidence is retained.",
-}
+_SOURCE_ARTIFACT = ArtifactReference(
+    artifact_id="source-1",
+    version="1.0.0",
+    digest="sha256:" + "a" * 64,
+    media_type="application/json",
+)
+_EVIDENCE = EvidenceReference(
+    reference=_SOURCE_ARTIFACT,
+    role="evidence",
+    claim="Review evidence is retained.",
+)
 
 
 def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
@@ -42,9 +45,10 @@ def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
         "policy",
         "finding",
     )
-    for schema in schemas.values():
+    for schema_value in schemas.values():
+        schema = cast("dict[str, Any]", schema_value)
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["dossierSha256"] == M1905_DOSSIER_SHA256
         assert metadata["dossierSlice"] == M1905_DOSSIER_SLICE
@@ -53,7 +57,9 @@ def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "proteotype"
         assert metadata["upstreamInputMediaType"] == M1905_M1904_RESULT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1905_OUTPUT_MEDIA_TYPE
+    output_schema = cast("dict[str, Any]", schemas["output"])
+    output_metadata = cast("dict[str, Any]", output_schema["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M1905_OUTPUT_MEDIA_TYPE
     assert M1905_PROVISIONAL_ABI is True
 
 
