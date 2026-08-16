@@ -1,2 +1,1 @@
-"""Runtime tests for C17 integration modules."""
-
+"""Runtime tests for the stacked C17 metabolomic/lipidomic modules."""

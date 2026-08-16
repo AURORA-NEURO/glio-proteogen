@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-05",
+  "fixture": "tests/fixtures/m18_05/scenarios.json",
+  "declared_cases": 6,
+  "executed_cases": 6,
+  "passed_cases": 6,
+  "passed": true,
+  "checks": [
+    {"name": "presented_workspace", "passed": true},
+    {"name": "unsupported_abstention", "passed": true},
+    {"name": "six_sections", "passed": true},
+    {"name": "replay", "passed": true},
+    {"name": "tamper", "passed": true},
+    {"name": "authorization_gate", "passed": true}
+  ]
+}

@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m19_04.v1 import (
     M1904_CONTRACT_VERSION,
+    M1904_DOSSIER_SHA256,
+    M1904_DOSSIER_SLICE,
     M1904_GATE,
     M1904_M1903_INPUT_MEDIA_TYPE,
     M1904_MAX_CANONICAL_REQUEST_BYTES,
@@ -27,9 +29,7 @@ from glio_proteogen.contracts.m19_04.v1 import (
     ProteotypeIntendedUseAdapterResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M19-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M1904_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -68,6 +68,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "strict": True,
         "provisionalAbi": M1904_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
+        "dossierSha256": M1904_DOSSIER_SHA256,
+        "dossierSlice": M1904_DOSSIER_SLICE,
         "pendingOwnerConfirmation": True,
         "externalContentTraversal": False,
         "rawPayload": False,
@@ -78,9 +80,9 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "unsupportedToNegative": False,
         "outputMediaType": M1904_OUTPUT_MEDIA_TYPE,
         "upstreamInputMediaType": M1904_M1903_INPUT_MEDIA_TYPE,
-        "primaryArchitecture": "ptm_aware_state_model",
-        "alternateArchitecture": "isoform_aware_quantification",
-        "fallbackArchitecture": "proteoform_probabilistic_model",
+        "primaryArchitecture": "event_driven_reliability_aware_orchestration",
+        "alternateArchitecture": "typed_service_oriented_integration",
+        "fallbackArchitecture": "human_in_the_loop_signed_review_package",
         "intendedUseRegistrationRequired": True,
         "evidenceTierRequired": True,
         "claimCeilingRequired": True,
@@ -88,6 +90,13 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "policyDecisionRequired": True,
         "uncertaintyRequired": True,
         "explicitAbstentionRequired": True,
+        "identityInference": False,
+        "consentInference": False,
+        "disagreementErasure": False,
+        "kinaseOwnershipInference": False,
+        "sourceMutation": False,
+        "claimPromotionWithoutReview": False,
+        "humanReviewForCriticalDiscrepancy": True,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1904_MAX_CANONICAL_REQUEST_BYTES
