@@ -1,0 +1,10 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-04",
+  "scenarios": [
+    {"id": "numeric_projection", "expect_status": "estimated", "expect_estimates": 2},
+    {"id": "categorical_observation", "expect_status": "abstained", "expect_human_review": true},
+    {"id": "unfrozen_family", "expect_status": "abstained", "expect_human_review": true},
+    {"id": "unresolved_controls", "expect_error": "authorization"},
+    {"id": "tampered_result", "expect_error": "replay"}
+  ]
+}

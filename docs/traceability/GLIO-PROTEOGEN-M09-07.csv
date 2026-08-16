@@ -1,0 +1,13 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M09-07-R01,dossier:3180-3182,Own calibration and selective prediction beneath Complex stoichiometry,provisional module identity and parent target,contract metadata and runtime result closure,G3
+M09-07-R02,dossier:3182,Support site platform disease and subgroup calibration plus support OOD and abstention,CalibrationScope and deterministic candidate gate,tests/modules/test_m09_07_runtime.py,G3
+M09-07-R03,dossier:3184,Do not mutate upstream relabel erase disagreement infer identity consent or convert unsupported to negative,immutable references seven-control preflight safe status,contract hardening and evaluator matrix,G3
+M09-07-R04,dossier:3186-3188,Bind declared proteome genome transcriptome PTM configuration identity provenance consent quality support and intended use,strict request and provenance projection,contract tests and evaluator fixture,G3
+M09-07-R05,dossier:3196,Quarantine unresolved inputs,authorization and support/OOD/coverage gates,tests/modules/test_m09_07_runtime.py,G3
+M09-07-R06,dossier:3198,Quantify uncertainty and expose explicit abstention,seven-dimension uncertainty profile and typed abstained result,missing candidate and unsupported evaluator scenarios,G3
+M09-07-R07,dossier:3200,Require human review for critical discrepancy novel/OOD state support override promotion exception or conflict,human_review_required and review support status,evaluator OOD/coverage/disparity scenarios,G3
+M09-07-R08,dossier:3202-3204,Meet calibration coverage without material subgroup disparity and provide locked evidence,85%-95% coverage gate calibration error/disparity ceiling evaluator benchmark evidence,evals/m09_07/run.py and benchmark.py,G3
+M09-07-R09,dossier:3214-3220,Pass contract functional robustness uncertainty safety provenance and recovery tests,strict schemas runtime gates replay and sanitized interfaces,focused contract/runtime/API/CLI suites,G3
+M09-07-R10,locked-risk:replay,Recompute request/result digests and reject tampering,canonical digest and verify_result_replay,test_m09_07_interfaces.py tamper case,G3
+M09-07-R11,locked-risk:interfaces,Expose strict schema/API/CLI/plugin parity with no silent coercion,duplicate-free bounded parser and validate-then-run capability,interface integration tests,G3
+M09-07-R12,locked-risk:recovery,Preserve immutable prior evidence and supersede append-only,content-addressed result and supersedes_result_digest,manifest recovery section,G3
