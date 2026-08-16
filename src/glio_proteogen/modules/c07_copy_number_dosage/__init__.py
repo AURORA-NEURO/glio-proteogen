@@ -1,1 +1,1 @@
-"""C07 copy-number dosage/attenuation runtime modules (provisional additions)."""
+"""Copy-number dosage/attenuation modules."""
