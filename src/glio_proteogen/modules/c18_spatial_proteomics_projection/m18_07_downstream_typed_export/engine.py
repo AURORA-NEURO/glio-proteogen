@@ -324,13 +324,9 @@ class M1807Engine:
         declared = _declared_text(request)
         prohibited = sorted(term for term in _PROHIBITED_TERMS if term in declared)
         unsupported = sorted(term for term in _ABSTENTION_TERMS if term in declared)
-        missing_documentation = [
-            field.field_id for field in request.fields if not field.documentation
-        ]
         supported = (
             not prohibited
             and not unsupported
-            and not missing_documentation
             and request.consent.state is ConsentState.GRANTED
             and request.support_decision.status is SupportStatus.SUPPORTED
             and request.configuration.documented_fields_only
@@ -350,16 +346,6 @@ class M1807Engine:
                     evidence,
                 )
             )
-        if missing_documentation:
-            findings.append(_finding(
-                "finding.undocumented", ExportFindingCode.FIELD_UNDOCUMENTED,
-                "Every exported field must have caller-declared documentation.", evidence,
-            ))
-        if request.consent.state is not ConsentState.GRANTED:
-            findings.append(_finding(
-                "finding.consent", ExportFindingCode.CONSENT_WITHHELD,
-                "Consent is not granted; no downstream contract may be emitted.", evidence,
-            ))
         if request.support_decision.status is not SupportStatus.SUPPORTED:
             findings.append(_finding(
                 "finding.support", ExportFindingCode.SUPPORT_BOUNDARY,

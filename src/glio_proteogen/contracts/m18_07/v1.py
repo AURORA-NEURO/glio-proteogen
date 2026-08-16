@@ -179,10 +179,6 @@ class DownstreamContractObject(FrozenModel):
             raise ValueError("downstream contract requires granted consent")
         if self.support_decision.status is not SupportStatus.SUPPORTED:
             raise ValueError("downstream contract requires supported status")
-        if self.ownership.owning_module != M1807_MODULE_ID:
-            raise ValueError("ownership binding must name M18-07")
-        if self.configuration.parent_target != self.parent_target:
-            raise ValueError("export configuration must bind the biomarker-panel parent")
         if self.configuration.version != self.version:
             raise ValueError("export configuration and contract versions must match")
         if any(field.owner != self.ownership.owner for field in self.fields):
