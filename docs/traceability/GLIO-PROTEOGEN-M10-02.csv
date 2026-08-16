@@ -1,0 +1,16 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M10-02-R01,dossier:3320-3322,Own versioned representation and feature construction beneath pathway/proteotype,typed provisional request/result and analysis representation,contract and evaluator,G1
+M10-02-R02,dossier:3324,Preserve boundaries and do not infer identity consent or unsupported negative findings,seven-control preflight and safe abstention,adversarial and evaluator tests,G1
+M10-02-R03,dossier:3326,Consume proteome genome/transcriptome PTM and governed controls as caller-declared inputs,strict source artifacts formal schema and input feature model,contract tests and manifest,G1
+M10-02-R04,dossier:3328,Emit versioned representation feature lineage uncertainty support provenance evidence and limitations,closed result envelope and provenance builder,replay and evaluator tests,G1
+M10-02-R05,dossier:3330-3334,Record advanced alternate and fallback architecture options without widening runtime,method enum and bounded operation catalogue,module manifest and schema evidence,G1
+M10-02-R06,dossier:3336,Validate identity version units completeness assay support and parent-specific quality,strict units controls and upstream media-type binding,contract and runtime tests,G1
+M10-02-R07,dossier:3338,Expose seven uncertainty dimensions explicit abstention and sensitivity notes,UncertaintyProfile with estimated or not-estimable states,evaluator abstention and result tests,G1
+M10-02-R08,dossier:3340,Require human review for critical discrepancy novel or unsupported states,human_review_required on every abstention,adversarial and evaluator tests,G1
+M10-02-R09,dossier:3342,Ensure deterministic locked-input representations complete lineage and leakage tests,locked transformations and lineage closure,replay and adversarial tests,G1
+M10-02-R10,dossier:3344,Provide locked tests benchmark traceability manifests review and rollback evidence,fixture evaluator benchmark docs manifest and supersession limitation,release evidence,G1
+M10-02-R11,dossier:3346,Bind owner safety and gate to Bioinformatics S2 G1,literal descriptor and provisional metadata,descriptor/interface tests,G1
+M10-02-R12,locked-risk:replay,Bind exact request and result payload digests,canonical digest helpers and replay verifier,tamper replay test,G1
+M10-02-R13,locked-risk:strict,Reject duplicate JSON keys nonfinite values unknown fields and coercion,strict parser and frozen models,API/plugin/adversarial tests,G1
+M10-02-R14,locked-risk:ownership,Do not emit kinase activity all-omics fusion treatment advice or parent output,descriptor prohibition flags and emits_parent false,evaluator and manifest audit,G1
+M10-02-R15,locked-risk:recovery,Preserve append-only supersession and no-overwrite interface behavior,immutable models and CLI no-overwrite,interface tests and docs,G1
