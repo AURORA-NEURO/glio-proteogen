@@ -3,6 +3,8 @@
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m18_03 import (
+    M1803_DOSSIER_SHA256,
+    M1803_DOSSIER_SLICE,
     M1803_M1802_INPUT_MEDIA_TYPE,
     M1803_OUTPUT_MEDIA_TYPE,
     M1803_PROVISIONAL_ABI,
@@ -40,6 +42,12 @@ def test_provisional_schemas_require_attribution_and_conflict_controls() -> None
         M1803_M1802_INPUT_MEDIA_TYPE
     )
     assert M1803_PROVISIONAL_ABI is True
+    assert schemas["request"]["x-glio-contract"]["dossierSha256"].endswith(
+        M1803_DOSSIER_SHA256.removeprefix("sha256:")
+    )
+    assert schemas["request"]["x-glio-contract"]["dossierSlice"].endswith(
+        M1803_DOSSIER_SLICE
+    )
 
 
 def test_fusion_states_keep_reliability_and_safe_abstention_explicit() -> None:

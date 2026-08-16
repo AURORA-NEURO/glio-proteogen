@@ -1,0 +1,45 @@
+{
+  "all_passed": true,
+  "cases": [
+    {
+      "id": "supported_reference",
+      "observed": "constructed",
+      "passed": true
+    },
+    {
+      "id": "unsupported_upstream",
+      "observed": "abstained",
+      "passed": true
+    },
+    {
+      "id": "missing_evidence",
+      "observed": "abstained",
+      "passed": true
+    },
+    {
+      "id": "ood_state",
+      "observed": "abstained",
+      "passed": true
+    },
+    {
+      "id": "negative_control_failure",
+      "observed": "abstained",
+      "passed": true
+    },
+    {
+      "id": "denied_quality_control",
+      "observed": "authorization_failed",
+      "passed": true
+    },
+    {
+      "id": "replay_tamper",
+      "observed": "tamper_rejected",
+      "passed": true
+    }
+  ],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "fixture_digest": "sha256:8b90ff72b65f8b8bb9ed704039a4a78a6affc95f9b0b46b0efcab4f4f1e6c607",
+  "module_id": "GLIO-PROTEOGEN-M13-03",
+  "passed_cases": 7
+}

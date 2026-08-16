@@ -49,11 +49,20 @@ M1107_MAX_CONFLICTS: Final = 128
 M1107_MAX_MECHANISMS: Final = 64
 M1107_MAX_EVIDENCE: Final = 64
 M1107_MAX_FINDINGS: Final = 64
+M1107_MIN_COMPETING_MECHANISMS: Final = 2
 M1107_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1107_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M1107_EVIDENCE_CLAIM: Final = (
     "Caller-declared M11-04 mechanism and M11-07 control evidence; issuer authority "
     "is not authenticated."
+)
+M1107_REQUIRED_CONTROL_KINDS: Final = (
+    "orthogonal_evidence",
+    "known_control",
+    "direction",
+    "conservation",
+    "assay_physics",
+    "competing_mechanism",
 )
 
 
@@ -100,7 +109,19 @@ class PlausibilityControl(FrozenModel):
     required_evidence: tuple[EvidenceReference, ...] = Field(
         min_length=1, max_length=M1107_MAX_EVIDENCE
     )
+    # The assessment is an explicitly caller-declared observation.  The
+    # module never opens or interprets the referenced artifact, so an
+    # unauthenticated assertion cannot silently become a negative finding.
+    declared_outcome: ControlOutcome = ControlOutcome.NOT_EVALUABLE
+    observed_direction: NonEmptyStr | None = None
+    is_negative_control: bool = False
     release_blocking: Literal[True] = True
+
+    @model_validator(mode="after")
+    def negative_control_is_known_control(self) -> PlausibilityControl:
+        if self.is_negative_control and self.kind is not ControlKind.KNOWN_CONTROL:
+            raise ValueError("negative controls must use the known_control kind")
+        return self
 
 
 class ControlEvaluation(FrozenModel):
@@ -137,6 +158,10 @@ class AdjudicateVariantPeptidePlausibilityRequest(FrozenModel):
     context: ExecutionContext
     mechanism_inference_result: ArtifactReference
     controls: tuple[PlausibilityControl, ...] = Field(min_length=1, max_length=M1107_MAX_CONTROLS)
+    candidate_mechanisms: tuple[NonEmptyStr, ...] = Field(
+        min_length=2, max_length=M1107_MAX_MECHANISMS
+    )
+    conflict_declared: bool = False
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1107_MAX_EVIDENCE
     )
@@ -149,6 +174,16 @@ class AdjudicateVariantPeptidePlausibilityRequest(FrozenModel):
         ids = tuple(item.control_id for item in self.controls)
         if len(ids) != len(set(ids)):
             raise ValueError("control ids must be unique")
+        kinds = {item.kind.value for item in self.controls}
+        if kinds != set(M1107_REQUIRED_CONTROL_KINDS):
+            raise ValueError("all six required plausibility control kinds must be present")
+        if not any(item.is_negative_control for item in self.controls):
+            raise ValueError("at least one known negative control is required")
+        if (
+            self.conflict_declared
+            and len(self.candidate_mechanisms) < M1107_MIN_COMPETING_MECHANISMS
+        ):
+            raise ValueError("declared conflicts require competing mechanisms")
         return self
 
 
@@ -186,6 +221,17 @@ class VariantPeptidePlausibilityAdjudicationResult(FrozenModel):
         evaluation_ids = tuple(item.control_id for item in self.evaluations)
         if set(evaluation_ids) != control_ids or len(evaluation_ids) != len(set(evaluation_ids)):
             raise ValueError("every control must have exactly one evaluation")
+        evaluation_by_id = {item.control_id: item for item in self.evaluations}
+        control_by_id = {item.control_id: item for item in self.request.controls}
+        for control_id, control in control_by_id.items():
+            evaluation = evaluation_by_id[control_id]
+            if evaluation.outcome is not control.declared_outcome:
+                raise ValueError("evaluation outcome must bind the caller-declared control outcome")
+            if evaluation.observed_direction != control.observed_direction:
+                raise ValueError("evaluation direction must bind the caller-declared direction")
+        conflict_ids = tuple(item.conflict_id for item in self.conflicts)
+        if len(conflict_ids) != len(set(conflict_ids)):
+            raise ValueError("conflict ids must be unique")
         blocking_outcomes = {
             ControlOutcome.FAILED,
             ControlOutcome.NOT_EVALUABLE,
@@ -198,6 +244,7 @@ class VariantPeptidePlausibilityAdjudicationResult(FrozenModel):
                 or self.abstention_reason is not None
                 or has_blocking_outcome
                 or self.conflicts
+                or self.request.conflict_declared
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("adjudicated result requires all controls passed and no conflicts")
@@ -206,6 +253,8 @@ class VariantPeptidePlausibilityAdjudicationResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or (self.request.conflict_declared and not self.conflicts)
+            or (self.conflicts and not self.human_review_required)
         ):
             raise ValueError("abstained result requires no grade and safe status")
         if self.result_digest != result_payload_digest(self):
@@ -226,12 +275,14 @@ __all__ = [
     "M1107_MAX_EVIDENCE",
     "M1107_MAX_FINDINGS",
     "M1107_MAX_MECHANISMS",
+    "M1107_MIN_COMPETING_MECHANISMS",
     "M1107_MODULE_ID",
     "M1107_OPERATION",
     "M1107_OUTPUT_MEDIA_TYPE",
     "M1107_OWNER",
     "M1107_PARENT",
     "M1107_PROVISIONAL_ABI",
+    "M1107_REQUIRED_CONTROL_KINDS",
     "M1107_SAFETY_CLASS",
     "AdjudicateVariantPeptidePlausibilityRequest",
     "ControlEvaluation",

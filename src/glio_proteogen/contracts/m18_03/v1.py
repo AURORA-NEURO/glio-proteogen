@@ -44,6 +44,10 @@ M1803_OWNER: Final = "ML engineering"
 M1803_SAFETY_CLASS: Final = "S2"
 M1803_GATE: Final = "G2"
 M1803_PROVISIONAL_ABI: Final = True
+M1803_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1803_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6244-6284"
 M1803_MAX_CONTRIBUTIONS: Final = 128
 M1803_MAX_DISAGREEMENTS: Final = 128
 M1803_MAX_AGGREGATES: Final = 256
@@ -156,9 +160,7 @@ class IntegratedEvidenceObject(FrozenModel):
     disagreements: tuple[DisagreementRecord, ...] = Field(
         default=(), max_length=M1803_MAX_DISAGREEMENTS
     )
-    aggregate_values: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1803_MAX_AGGREGATES
-    )
+    aggregate_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1803_MAX_AGGREGATES)
     configuration: AggregationConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1803_MAX_EVIDENCE)
 
@@ -195,9 +197,7 @@ class FuseBiomarkerPanelEvidenceRequest(FrozenModel):
     disagreements: tuple[DisagreementRecord, ...] = Field(
         default=(), max_length=M1803_MAX_DISAGREEMENTS
     )
-    aggregate_values: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1803_MAX_AGGREGATES
-    )
+    aggregate_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1803_MAX_AGGREGATES)
     configuration: AggregationConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1803_MAX_EVIDENCE
@@ -271,6 +271,8 @@ class BiomarkerPanelIntegratedEvidenceResult(FrozenModel):
 
 __all__ = [
     "M1803_CONTRACT_VERSION",
+    "M1803_DOSSIER_SHA256",
+    "M1803_DOSSIER_SLICE",
     "M1803_EVIDENCE_CLAIM",
     "M1803_GATE",
     "M1803_M1802_INPUT_MEDIA_TYPE",

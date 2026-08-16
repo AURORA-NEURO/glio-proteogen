@@ -1,1 +1,1 @@
-"""Evaluator assertions for module-focused release evidence."""
+"""Evaluator and benchmark assertions."""

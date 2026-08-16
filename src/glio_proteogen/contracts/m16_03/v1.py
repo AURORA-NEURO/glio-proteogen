@@ -35,6 +35,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from the M16-03 dossier slice.
 M1603_MODULE_ID: Final = "GLIO-PROTEOGEN-M16-03"
+M1603_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1603_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:5524-5564"
 M1603_OPERATION: Final = "fuse_protein_rna_discordance_evidence"
 M1603_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M1603_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m16-03+json"
@@ -281,6 +285,8 @@ class ProteinRnaDiscordanceIntegratedEvidenceResult(FrozenModel):
 
 __all__ = [
     "M1603_CONTRACT_VERSION",
+    "M1603_DOSSIER_SHA256",
+    "M1603_DOSSIER_SLICE",
     "M1603_EVIDENCE_CLAIM",
     "M1603_GATE",
     "M1603_M1602_INPUT_MEDIA_TYPE",
