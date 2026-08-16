@@ -92,7 +92,9 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
     plugin = M2603Plugin(service)
     token = plugin.validate(request.model_dump_json())
     assert isinstance(token, ValidatedM2603Request)
-    assert plugin.run(token).result_digest == result.result_digest
+    plugin_result = plugin.run(token)
+    assert plugin_result.result_digest == result.result_digest
+    assert plugin.verify(plugin_result.model_dump_json()).result_digest == result.result_digest
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M26-03"
     assert plugin.descriptor().owner == "ML engineering"
     with pytest.raises(TypeError):

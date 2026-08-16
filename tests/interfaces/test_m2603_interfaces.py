@@ -138,3 +138,17 @@ def test_typer_invalid_result_is_sanitized(tmp_path: Path) -> None:
     response = CliRunner().invoke(m2603_cli.app, ["verify", str(invalid)])
     assert response.exit_code != 0
     assert "secret_result" not in response.output
+
+
+def test_typer_execute_stdout_and_invalid_inputs(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    stdout = runner.invoke(m2603_cli.app, ["execute", str(request_path)])
+    assert stdout.exit_code == 0
+    assert json.loads(stdout.stdout)["status"] == "completed"
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("not-json", encoding="utf-8")
+    invalid_response = runner.invoke(m2603_cli.app, ["validate", str(invalid)])
+    assert invalid_response.exit_code != 0
+    assert "strict M26-03 request contract" in invalid_response.output

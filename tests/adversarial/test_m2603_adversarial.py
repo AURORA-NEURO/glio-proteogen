@@ -9,11 +9,15 @@ from evals.m26_03.fixture import build_request
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_03 import (
+    ExecutionAttempt,
+    ExecutionRecord,
     ExecutionStatus,
+    StepStatus,
     WorkflowDefinition,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
+    M2603AuthorizationError,
     M2603Engine,
     M2603EvaluationError,
     M2603Plugin,
@@ -134,3 +138,107 @@ def test_workflow_definition_still_rejects_self_dependency_directly() -> None:
             output_step_ids=(step.step_id,),
             workflow_digest=step.container_digest,
         )
+
+
+def test_contract_closure_rejects_duplicate_steps_and_outputs() -> None:
+    request = build_request()
+    first, second = request.workflow.steps
+    with pytest.raises(ValidationError, match="step ids must be unique"):
+        WorkflowDefinition(
+            workflow_id="m2603.duplicate-steps",
+            version="0.1.0",
+            steps=(first, first),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(second.step_id,),
+            workflow_digest=first.container_digest,
+        )
+    with pytest.raises(ValidationError, match="output step ids must be unique"):
+        WorkflowDefinition(
+            workflow_id="m2603.duplicate-outputs",
+            version="0.1.0",
+            steps=(first, second),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(second.step_id, second.step_id),
+            workflow_digest=first.container_digest,
+        )
+    with pytest.raises(ValidationError, match="entry and output steps must be distinct"):
+        WorkflowDefinition(
+            workflow_id="m2603.overlap-boundary",
+            version="0.1.0",
+            steps=(first, second),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(first.step_id,),
+            workflow_digest=first.container_digest,
+        )
+
+
+def test_contract_closure_rejects_non_checkpointed_workflow() -> None:
+    request = build_request()
+    step_data = request.workflow.steps[0].model_dump(mode="python")
+    false_value: Any = False
+    step_data.update({"deterministic": false_value, "checkpoint_required": false_value})
+    step = request.workflow.steps[0].model_construct(**step_data)
+    invalid_workflow = WorkflowDefinition.model_construct(
+        workflow_id="m2603.no-checkpoint",
+        version="0.1.0",
+        steps=(step,),
+        entry_step_ids=(step.step_id,),
+        output_step_ids=(step.step_id,),
+        workflow_digest=step.container_digest,
+    )
+    with pytest.raises(ValueError, match="deterministic checkpointed"):
+        cast("Any", invalid_workflow.workflow_is_closed)()
+
+
+def test_attempt_and_record_closure_rejects_missing_or_unknown_attempts() -> None:
+    request = build_request()
+    step = request.workflow.steps[0]
+    with pytest.raises(ValidationError, match="completed attempts require"):
+        ExecutionAttempt(
+            attempt_id="m2603.incomplete",
+            step_id=step.step_id,
+            retry_index=0,
+            status=StepStatus.COMPLETED,
+            started_at=request.context.occurred_at,
+        )
+    attempt = ExecutionAttempt(
+        attempt_id="m2603.unknown",
+        step_id="unknown-step",
+        retry_index=0,
+        status=StepStatus.PENDING,
+        started_at=request.context.occurred_at,
+    )
+    with pytest.raises(ValidationError, match="unknown workflow step"):
+        ExecutionRecord(
+            execution_id="m2603.invalid-record",
+            workflow=request.workflow,
+            environment=request.environment,
+            attempts=(attempt,),
+            execution_status=ExecutionStatus.FAILED,
+            execution_digest=step.container_digest,
+        )
+
+
+def test_engine_preflight_and_result_closure_failure_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = M2603Engine()
+    with pytest.raises(M2603AuthorizationError):
+        engine.validate_request(object())
+    result = engine.execute(build_request())
+    with pytest.raises(M2603ReplayError):
+        engine.verify(result.model_copy(update={"result_id": "forged-result-id"}), replay=False)
+    with pytest.raises(M2603ReplayError):
+        engine.verify(result.model_copy(update={"execution_record": None}), replay=False)
+    abstained = result.model_copy(
+        update={
+            "status": ExecutionStatus.ABSTAINED,
+            "execution_record": None,
+            "reproducible_package": None,
+            "abstention_reason": None,
+        }
+    )
+    with pytest.raises(M2603ReplayError):
+        engine.verify(abstained, replay=False)
+    different = result.model_copy(update={"findings": ()})
+    monkeypatch.setattr(engine, "execute", lambda _request: different)
+    with pytest.raises(M2603ReplayError):
+        engine.verify(result)
