@@ -286,6 +286,17 @@ from glio_proteogen.contracts.m04_05.v1 import (
     DetectProteoformArtifactsRequest,
     ProteoformArtifactDetectionResult,
 )
+from glio_proteogen.contracts.m06_01.schema import (
+    ContractName as M0601ContractName,
+)
+from glio_proteogen.contracts.m06_01.schema import (
+    contract_json_schema as m0601_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_01.v1 import (
+    M0601_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateFormalProteinStateRequest,
+    ValidateFormalProteinStateResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -441,6 +452,11 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection imp
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0405_json_request,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    FormalStateAuthorizationError,
+    M0601Service,
+    preflight_formal_state_authorization,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
@@ -618,6 +634,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
+    return m0601_contract_json_schema(name)
 
 
 def _proteoform_artifact_contract_schema(
@@ -811,6 +831,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _formal_state_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0601_contract_json_schema("request")}},
         }
     }
 
@@ -1055,6 +1084,15 @@ async def _proteoform_quality_body(
     )
 
 
+async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequest:
+    return await _strict_json_body(
+        request,
+        TypeAdapter(ValidateFormalProteinStateRequest),
+        preflight_formal_state_authorization,
+        M0601_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 async def _proteoform_artifact_body(
     request: Request,
 ) -> DetectProteoformArtifactsRequest:
@@ -1093,6 +1131,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    formal_state_service = M0601Service()
     proteoform_artifact_service = M0405Service()
 
     @asynccontextmanager
@@ -1140,6 +1179,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(FormalStateAuthorizationError)
     @app.exception_handler(ProteoformArtifactAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
@@ -1410,6 +1450,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
 
+    @app.get("/v1/contracts/M06-01/{name}/schema", tags=["contracts"])
+    def formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
+        return _formal_state_contract_schema(name)
+
     @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
     def proteoform_artifact_contract_schema(
         name: M0405ContractName,
@@ -1429,6 +1473,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M06-01/formal-state-validation",
+        response_model=ValidateFormalProteinStateResult,
+        tags=["M06-01"],
+        openapi_extra=_formal_state_request_body(),
+    )
+    def validate_formal_state(
+        request: Annotated[
+            ValidateFormalProteinStateRequest,
+            Depends(_formal_state_body),
+        ],
+    ) -> ValidateFormalProteinStateResult:
+        return formal_state_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-05/artifact-detection",
