@@ -1,0 +1,34 @@
+{
+  "status": "provisional",
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "contract_version": "0.1.0-provisional",
+  "fixtures_frozen": false,
+  "limits_frozen": false,
+  "fixture_builder": "tests.modules.c05_ptm_localization.test_m05_08_release_packaging._valid_fixture",
+  "package_profile": {
+    "member_paths": [
+      "manifest/policy.json",
+      "manifest/reproducibility.json",
+      "manifest/signature.json",
+      "parent/variant-peptide.json"
+    ],
+    "encoding": "canonical USTAR",
+    "default_verifier": "none (must quarantine)"
+  },
+  "scenarios": [
+    {
+      "id": "provisional-authorized-release",
+      "expected_disposition": "released",
+      "notes": "Executable fixture builder releases only with an allow-listed injected verifier.",
+      "expected_package_members": 4,
+      "expected_signature_calls": 1
+    },
+    {
+      "id": "provisional-upstream-quarantine",
+      "expected_disposition": "quarantined",
+      "notes": "Verifier-unavailable, unsupported, malformed and tampered inputs fail closed without package bytes.",
+      "expected_package_members": 0,
+      "expected_signature_calls": 0
+    }
+  ]
+}
