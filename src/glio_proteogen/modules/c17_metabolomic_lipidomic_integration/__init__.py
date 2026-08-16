@@ -1,1 +1,1 @@
-"""C17 metabolomic/lipidomic integration module namespace."""
+"""Runtime modules for metabolomic/lipidomic integration."""

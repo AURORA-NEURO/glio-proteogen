@@ -1,0 +1,13 @@
+requirement_id,authority,implementation,evidence,acceptance
+M1604-R01,"Dossier 5568-5611","contracts/m16_04/v1.py","test_m16_04_provisional.py","registered policy and provisional ABI are explicit"
+M1604-R02,"Dossier responsibility","contracts/m16_04/v1.py","test_m16_04_deep.py","context audience tier ceiling display semantics are typed"
+M1604-R03,"Dossier boundary","engine.py and plugin.py","test_m16_04_deep.py","opaque upstream reference is not dereferenced or relabeled"
+M1604-R04,"Dossier acceptance","engine.py","evals/m16_04/run.py","every output is bound to registered policy"
+M1604-R05,"Dossier claim ceiling","v1.py and engine.py","test_m16_04_deep.py","prohibited claims block with typed abstention"
+M1604-R06,"Dossier display semantics","v1.py and engine.py","evals/m16_04/run.py","hidden/abstaining display requires review"
+M1604-R07,"Dossier uncertainty","engine.py","test_m16_04_deep.py","seven uncertainty dimensions are emitted"
+M1604-R08,"Dossier provenance","engine.py","test_m16_04_deep.py","seven controls and source digests are auditable"
+M1604-R09,"Dossier safe failure","engine.py","evals/m16_04/run.py","unsafe policies abstain and never become negative findings"
+M1604-R10,"Dossier replay","canonical.py and engine.py","test_m16_04_deep.py","canonical replay succeeds and tamper fails"
+M1604-R11,"Dossier interfaces","adapters/m1604.py","test_m16_04_deep.py","FastAPI/Typer/plugin strict parity and sanitized errors"
+M1604-R12,"Dossier evidence","tools/verify_m1604_release.py","test_m1604_release.py","fixture, coverage, benchmark, traceability, package gates close"

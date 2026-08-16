@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-01",
+  "scenarios": [
+    {"case_id": "supported_registry", "expected": "supported"},
+    {"case_id": "refuted_hypothesis", "expected": "abstained"},
+    {"case_id": "unknown_hypothesis", "expected": "abstained"},
+    {"case_id": "failed_falsification", "expected": "abstained"},
+    {"case_id": "unknown_falsification", "expected": "abstained"},
+    {"case_id": "multiple_supported", "expected": "supported"},
+    {"case_id": "denied_control", "expected": "authorization_rejected"}
+  ]
+}

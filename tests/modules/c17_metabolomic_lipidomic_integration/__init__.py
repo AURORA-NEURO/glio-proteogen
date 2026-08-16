@@ -1,1 +1,1 @@
-"""Focused M18-01 module tests."""
+"""Tests for C17 metabolomic/lipidomic integration modules."""

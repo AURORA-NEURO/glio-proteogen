@@ -1,0 +1,13 @@
+requirement_id,dossier_source,requirement,implementation,evidence,evidence_gate
+M17-04-R01,"dossier:5928-5930","Own intended-use adaptation beneath metabolomic/lipidomic integration","M1704 contract identity, operation, parent ceiling, and provisional ABI metadata","contract authority assertions; schema metadata",G0
+M17-04-R02,"dossier:5930-5936","Convert upstream output into intended-use object and policy decision","IntendedUseRegistration, IntendedUseSpecificObject, PolicyDecision, and result envelope","contract tests; runtime adaptation",G1
+M17-04-R03,"dossier:5932-5934","Preserve prohibited boundary and never infer identity/consent or treatment","blocked claim vocabulary, false plugin authority flags, no content traversal","runtime claim tests; plugin boundary test",G3
+M17-04-R04,"dossier:5934-5946","Validate seven controls and preserve support, provenance, uncertainty and evidence","control preflight, provenance records, seven not-estimable dimensions and evidence references","control denial; uncertainty oracle",G3
+M17-04-R05,"dossier:5946-5950","Expose explicit abstention for unsupported claims and incomplete display policy","typed blocked findings, no adapted object, unsupported support decision","treatment, audience, display and tier cases",G3
+M17-04-R06,"dossier:5948","Require external review for critical discrepancy, OOD, promotion and exception","clinical/release policy status REVIEW_REQUIRED and human_review_required","clinical review scenario; manifest review plan",G4
+M17-04-R07,"dossier:5938-5942","Record primary/alternate/fallback architectures without claiming execution","manifest marks graph/state/probabilistic architectures declared_not_executed","manifest and dependency audit",G3
+M17-04-R08,"dossier:5950-5952","Provide versioned implementation, locked tests, benchmark and safe failure","engine/service/plugin, API, CLI, evaluator, benchmark and docs","focused suites and evidence inventory",G3
+M17-04-R09,"dossier:5952-5954","Bind owner, safety class, and gate","literal ML engineering/S2/G3 metadata across contract, schema, plugin and fixture","identity assertions",G3
+M17-04-R10,"dossier:5954-5960","Make result replay-safe and tamper-evident","canonical request/result digests and replay verifier","tampered replay test and benchmark digests",G3
+M17-04-R11,"dossier:5962-5968","Exercise critical cases with zero silent coercions and safe failure","strict Pydantic models and 8-case adversarial matrix","evaluator 8/8 = 100%",G3
+M17-04-R12,"dossier:5962-5968","Expose strict schema, API, CLI, plugin, package and release surfaces","eight schemas, GET/POST, Typer commands, descriptor, workflow hooks","interface, package, and workflow evidence",G3
