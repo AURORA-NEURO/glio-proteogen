@@ -1,0 +1,12 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M24-02,caller-declared M24-01 media binding,contracts/m24_02/v1.py upstream media closure,contract/runtime/adversarial tests,pass
+GLIO-PROTEOGEN-M24-02,closed fixture kinds and case IDs,contracts/m24_02/v1.py corpus/manifest validators,evaluator/adversarial tests,pass
+GLIO-PROTEOGEN-M24-02,locked configuration and reproducible seeds,contracts/m24_02/v1.py GenerationConfiguration,runtime/evaluator determinism tests,pass
+GLIO-PROTEOGEN-M24-02,deterministic result identity and replay,contracts/m24_02/canonical.py and engine.py,replay/request/result tamper tests,pass
+GLIO-PROTEOGEN-M24-02,seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+GLIO-PROTEOGEN-M24-02,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M24-02,safe abstention and unsupported boundary,contracts/m24_02/v1.py,result closure tests,pass
+GLIO-PROTEOGEN-M24-02,strict parse-once plugin,modules/.../plugin.py,plugin token and duplicate-key tests,pass
+GLIO-PROTEOGEN-M24-02,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M24-02,evaluator and locked benchmark,evals/m24_02,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M24-02,provisional authority and prohibited boundaries,docs/modules/M24-02-synthetic-truth-simulation-generator.md,owner review and evidence,provisional
