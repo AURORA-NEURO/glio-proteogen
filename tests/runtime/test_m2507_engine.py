@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from evals.m25_07.fixture import build_request, denied_request
 
@@ -36,7 +38,7 @@ def test_supported_evaluation_is_deterministic_and_replayable() -> None:
     ],
 )
 def test_non_passing_operational_controls_abstain(
-    kwargs: dict[str, object],
+    kwargs: dict[str, Any],
     code: str,
 ) -> None:
     result = m2507.M2507HumanFactorsEngine().generate(build_request(**kwargs))

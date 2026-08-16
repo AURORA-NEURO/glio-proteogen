@@ -1,6 +1,6 @@
 """Focused smoke coverage for the provisional M25-07 contract spine."""
 
-from typing import Final
+from typing import Any, Final, cast
 
 import pytest
 from pydantic import ValidationError
@@ -31,17 +31,15 @@ def _evidence() -> tuple[EvidenceReference, ...]:
 
 def test_m25_07_provisional_schema_and_safe_fallback() -> None:
     schemas = contract_json_schemas()
+    metadata = [cast("dict[str, Any]", schema["x-glio-contract"]) for schema in schemas.values()]
     assert len(schemas) == EXPECTED_SCHEMA_COUNT
-    assert all(
-        schema["x-glio-contract"]["provisionalAbi"] is M2507_PROVISIONAL_ABI
-        for schema in schemas.values()
-    )
-    metadata = schemas["request"]["x-glio-contract"]
-    assert metadata["outputMediaType"] == M2507_OUTPUT_MEDIA_TYPE
-    assert metadata["upstreamInputMediaType"] == M2507_M2506_INPUT_MEDIA_TYPE
-    assert metadata["primaryArchitecture"] == "longitudinal_state_space"
-    assert metadata["alternateArchitecture"] == "longitudinal_state_space"
-    assert metadata["pendingOwnerConfirmation"] is True
+    assert all(item["provisionalAbi"] is M2507_PROVISIONAL_ABI for item in metadata)
+    request_metadata = cast("dict[str, Any]", schemas["request"]["x-glio-contract"])
+    assert request_metadata["outputMediaType"] == M2507_OUTPUT_MEDIA_TYPE
+    assert request_metadata["upstreamInputMediaType"] == M2507_M2506_INPUT_MEDIA_TYPE
+    assert request_metadata["primaryArchitecture"] == "longitudinal_state_space"
+    assert request_metadata["alternateArchitecture"] == "longitudinal_state_space"
+    assert request_metadata["pendingOwnerConfirmation"] is True
 
     with pytest.raises(ValidationError, match="unavailable fallback cannot pass"):
         FallbackScenario(
