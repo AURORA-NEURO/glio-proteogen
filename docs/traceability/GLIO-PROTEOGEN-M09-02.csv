@@ -1,0 +1,15 @@
+requirement,evidence,verification,owner,status
+responsibility:representation-feature-constructor,docs/modules/GLIO-PROTEOGEN-M09-02.md,typed versioned representation with complete feature lineage,Computational biology,implemented-provisional
+boundary:no-kinase-all-omics-treatment,engine.py plus module docs,prohibited outputs absent and documented,Computational biology,implemented
+inputs:content-addressed-and-no-traversal,contract and manifest,source references are retained without dereference,Computational biology,implemented
+controls:consent-identity-quality-support-intended-use,engine preflight and provenance tests,denied control fails closed,Computational biology,implemented
+lineage:ordered-leakage-safe-transformations,contract plus focused tests,unique ordered transformations and complete source fields required,Computational biology,implemented
+representation:deterministic-masked-values,engine plus evaluator,locked request yields byte-identical bounded values and explicit masks,Computational biology,verified-local
+unsupported-evidence,engine plus evaluator,missing unsupported OOD and not-evaluable markers abstain with no features,Computational biology,implemented
+leakage:failed-check-abstention,engine plus evaluator,failed held-out isolation abstains and records affected group,Computational biology,implemented
+uncertainty:seven-dimensions,engine and result contract,all dimensions explicit not-estimable pending owner lock,Computational biology,implemented-provisional
+replay:canonical-content-and-digest,canonical.py engine verifier replay tests,tamper and noncanonical bytes rejected,Computational biology,implemented
+interfaces:strict-api-cli-plugin,API CLI plugin parity tests,parse-once strict validation and schema export,Computational biology,implemented
+acceptance:benchmark-and-evaluator,evals/m09_02/run.py and benchmark.py,10-call deterministic benchmark and matrix pass,Computational biology,verified-local
+evidence:traceability-manifest-review,docs/evidence/M09-02.md and manifest,review and authenticated authority remain external,Computational biology,provisional
+release:package-import,release-evidence/m09_02/release.json,package gates recorded with environment truth,release engineering,pending-final-build
