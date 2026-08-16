@@ -159,7 +159,7 @@ def test_supported_report_cannot_narrow_support_domain() -> None:
     support = result.report.support_domain.model_construct(**support_data)
     invalid_report = result.report.model_copy(update={"support_domain": support})
     with pytest.raises(ValueError, match="supported report"):
-        invalid_report.report_is_closed()
+        invalid_report.report_is_closed()  # type: ignore[operator]
 
 
 def test_request_context_and_configuration_boundaries_are_rejected() -> None:
@@ -205,7 +205,7 @@ def test_result_context_request_id_is_closed() -> None:
     )
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
     with pytest.raises(ValueError, match="result request context id"):
-        tampered.result_is_closed()
+        tampered.result_is_closed()  # type: ignore[operator]
 
 
 def test_result_provenance_module_is_closed() -> None:
