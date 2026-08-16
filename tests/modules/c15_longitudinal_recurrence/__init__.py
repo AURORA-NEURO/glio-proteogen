@@ -1,1 +1,1 @@
-"""Longitudinal recurrence runtime tests."""
+"""Longitudinal recurrence module runtime tests."""
