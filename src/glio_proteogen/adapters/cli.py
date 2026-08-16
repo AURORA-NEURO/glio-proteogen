@@ -35,6 +35,7 @@ from glio_proteogen.adapters.api import (
     _m1603_contract_schema,
     _m1606_contract_schema,
     _m1701_contract_schema,
+    _m1704_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -195,6 +196,10 @@ from glio_proteogen.contracts.m16_06 import (
 from glio_proteogen.contracts.m17_01 import (
     M1701_MAX_CANONICAL_REQUEST_BYTES,
     ResolveVariantPeptideUpstreamContractsRequest,
+)
+from glio_proteogen.contracts.m17_04 import (
+    M1704_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptVariantPeptideIntendedUseRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -367,6 +372,9 @@ from glio_proteogen.modules.c16_kinophos_object_consumer import (
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_01_upstream_contract_resolver as m1701_resolver,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_04_intended_use_adapter as m1704_adapter,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -505,6 +513,11 @@ m1701_app = typer.Typer(
     help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
 )
 app.add_typer(m1701_app, name="m1701-upstream")
+m1704_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1704_app, name="m1704-intended-use")
 reviewer_discrepancy_app = typer.Typer(
     no_args_is_help=True,
     help="M16-06 reviewer discrepancy and immutable adjudication queue.",
@@ -3527,6 +3540,40 @@ def resolve_m1701_upstream(request: RequestArgument) -> None:
     _emit(m1701_resolver.M1701Service().resolve(parsed))
 
 
+@m1704_app.command("export-schema")
+def export_m1704_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "claim-ceiling",
+            "display-semantics",
+            "registration",
+            "policy-decision",
+            "intended-use-object",
+            "finding",
+        ],
+        typer.Argument(help="M17-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-04 contract schema."""
+
+    typer.echo(json.dumps(_m1704_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1704_app.command("adapt")
+def adapt_m1704_intended_use(request: RequestArgument) -> None:
+    """Apply registered intended-use policy and emit a bounded object or abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdaptVariantPeptideIntendedUseRequest),
+        m1704_adapter.preflight_m1704_authorization,
+        M1704_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1704_adapter.M1704Service().adapt(parsed))
+
+
 @fusion_aggregation_app.command("export-schema")
 def export_m1603_fusion_schema(
     contract: Annotated[
@@ -3571,7 +3618,6 @@ def export_m1508_dossier_schema(
     contract: Annotated[
         Literal[
             "request",
-            "output",
             "dossier",
             "link",
             "counter-evidence",
