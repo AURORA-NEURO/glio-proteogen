@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m23_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -199,8 +200,16 @@ class EvaluateVariantPeptideHumanFactorsRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EvaluateVariantPeptideHumanFactorsRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("context must bind the request identifier")
         if self.upstream_result.media_type != M2307_M2306_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M23-06 challenge result")
+        metric_ids = tuple(item.metric_id for item in self.metrics)
+        fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError("metric ids must be unique")
+        if len(fallback_ids) != len(set(fallback_ids)):
+            raise ValueError("fallback scenario ids must be unique")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}
@@ -246,6 +255,8 @@ class VariantPeptideHumanFactorsResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideHumanFactorsResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id does not bind exact request")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

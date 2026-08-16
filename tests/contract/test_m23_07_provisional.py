@@ -1,6 +1,6 @@
 """Focused smoke coverage for the provisional M23-07 contract spine."""
 
-from typing import Final
+from typing import Final, cast
 
 import pytest
 from pydantic import ValidationError
@@ -33,10 +33,11 @@ def test_m23_07_provisional_schema_and_safe_fallback() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == EXPECTED_SCHEMA_COUNT
     assert all(
-        schema["x-glio-contract"]["provisionalAbi"] is M2307_PROVISIONAL_ABI
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"]
+        is M2307_PROVISIONAL_ABI
         for schema in schemas.values()
     )
-    metadata = schemas["request"]["x-glio-contract"]
+    metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
     assert metadata["outputMediaType"] == M2307_OUTPUT_MEDIA_TYPE
     assert metadata["upstreamInputMediaType"] == M2307_M2306_INPUT_MEDIA_TYPE
     assert metadata["primaryArchitecture"] == "spatial_proteotype_field"
