@@ -1,0 +1,13 @@
+requirement,implementation,evidence,gate
+authority,dossier SHA and exact slice pinned in provisional contracts and docs,release-evidence/m25_05/evaluation.json,G0
+upstream-boundary,M25-04 media type only with no runtime import,contract request validator and dependency verifier,G0
+subgroup-dimensions,eight subgroup strata are required and aligned,configuration/request/report validators and evaluator,G1
+equity-floor,performance bounds and below-floor state are canonical,SubgroupPerformance validator plus floor abstention tests,G1
+calibration,nominal coverage target and calibration status are closed,CalibrationSummary validator and evaluator,G2
+coverage,supported/total examples and fraction are canonical,CoverageSummary validator and coverage abstention tests,G2
+safe-failure,non-passing and unsupported declarations abstain without report,engine findings plus evaluator/adversarial tests,G2
+replay,request/result IDs and digests are canonical and tamper checked,engine replay and API/CLI verify tests,G2
+controls,seven caller-declared controls preflight before execution,preflight runtime and denial tests,G2
+uncertainty,seven explicit uncertainty dimensions and limitations,typed result envelope and evidence audit,G2
+interfaces,FastAPI Typer and parse-once plugin parity,interface tests and sanitized errors,G3
+release,coverage benchmark package hashes and independent verifier,release-evidence/m25_05 and verify_m2505_release.py,G4
