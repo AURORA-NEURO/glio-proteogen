@@ -275,6 +275,26 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m17_01.schema import (
+    ContractName as M1701ContractName,
+)
+from glio_proteogen.contracts.m17_01.schema import (
+    contract_json_schema as m1701_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_01.v1 import (
+    ResolveVariantPeptideUpstreamContractsRequest,
+    VariantPeptideUpstreamResolutionResult,
+)
+from glio_proteogen.contracts.m17_04.schema import (
+    ContractName as M1704ContractName,
+)
+from glio_proteogen.contracts.m17_04.schema import (
+    contract_json_schema as m1704_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_04.v1 import (
+    AdaptVariantPeptideIntendedUseRequest,
+    VariantPeptideIntendedUseAdapterResult,
+)
 from glio_proteogen.contracts.m17_08.schema import (
     ContractName as M1708ContractName,
 )
@@ -436,6 +456,8 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
     _validate_json_request as _validate_m0404_json_request,
 )
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_01_upstream_contract_resolver as m1701_resolver,
+    m17_04_intended_use_adapter as m1704_adapter,
     m17_08_translation_monitoring as m1708_monitoring,
 )
 
@@ -461,6 +483,8 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
+_M1704_REQUEST_ADAPTER: Final = TypeAdapter(AdaptVariantPeptideIntendedUseRequest)
 _M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
@@ -614,6 +638,14 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
+    return m1701_contract_json_schema(name)
+
+
+def _m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
+    return m1704_contract_json_schema(name)
 
 
 def _m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
@@ -805,6 +837,24 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1701_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1701_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1704_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1704_contract_json_schema("request")}},
         }
     }
 
@@ -1044,6 +1094,26 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m1701_body(
+    request: Request,
+) -> ResolveVariantPeptideUpstreamContractsRequest:
+    return await _strict_json_body(
+        request,
+        _M1701_REQUEST_ADAPTER,
+        m1701_resolver.preflight_m1701_authorization,
+    )
+
+
+async def _m1704_body(
+    request: Request,
+) -> AdaptVariantPeptideIntendedUseRequest:
+    return await _strict_json_body(
+        request,
+        _M1704_REQUEST_ADAPTER,
+        m1704_adapter.preflight_m1704_authorization,
+    )
+
+
 async def _m1708_body(
     request: Request,
 ) -> MonitorVariantPeptideTranslationHealthRequest:
@@ -1081,6 +1151,8 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1701_service = m1701_resolver.M1701Service()
+    m1704_service = m1704_adapter.M1704Service()
     m1708_service = m1708_monitoring.M1708Service()
 
     @asynccontextmanager
@@ -1128,6 +1200,8 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(m1701_resolver.M1701AuthorizationError)
+    @app.exception_handler(m1704_adapter.M1704AuthorizationError)
     @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
@@ -1397,6 +1471,42 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0404ContractName,
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M17-01/{name}/schema", tags=["contracts"])
+    def m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
+        return _m1701_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-01/upstream-contract-resolution",
+        response_model=VariantPeptideUpstreamResolutionResult,
+        tags=["M17-01"],
+        openapi_extra=_m1701_request_body(),
+    )
+    def resolve_m1701_upstream_contracts(
+        request: Annotated[
+            ResolveVariantPeptideUpstreamContractsRequest,
+            Depends(_m1701_body),
+        ],
+    ) -> VariantPeptideUpstreamResolutionResult:
+        return m1701_service.resolve(request)
+
+    @app.get("/v1/contracts/M17-04/{name}/schema", tags=["contracts"])
+    def m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
+        return _m1704_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-04/intended-use-adaptation",
+        response_model=VariantPeptideIntendedUseAdapterResult,
+        tags=["M17-04"],
+        openapi_extra=_m1704_request_body(),
+    )
+    def adapt_m1704_intended_use(
+        request: Annotated[
+            AdaptVariantPeptideIntendedUseRequest,
+            Depends(_m1704_body),
+        ],
+    ) -> VariantPeptideIntendedUseAdapterResult:
+        return m1704_service.adapt(request)
 
     @app.get("/v1/contracts/M17-08/{name}/schema", tags=["contracts"])
     def m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:

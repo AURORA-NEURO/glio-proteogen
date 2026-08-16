@@ -27,6 +27,8 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1701_contract_schema,
+    _m1704_contract_schema,
     _m1708_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
@@ -156,6 +158,14 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m17_01 import (
+    M1701_MAX_CANONICAL_REQUEST_BYTES,
+    ResolveVariantPeptideUpstreamContractsRequest,
+)
+from glio_proteogen.contracts.m17_04 import (
+    M1704_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptVariantPeptideIntendedUseRequest,
 )
 from glio_proteogen.contracts.m17_08 import (
     M1708_MAX_CANONICAL_REQUEST_BYTES,
@@ -306,6 +316,8 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine
     _validate_json_request as _validate_m0404_json_request,
 )
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_01_upstream_contract_resolver as m1701_resolver,
+    m17_04_intended_use_adapter as m1704_adapter,
     m17_08_translation_monitoring as m1708_monitoring,
 )
 
@@ -441,6 +453,16 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1701_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
+)
+app.add_typer(m1701_app, name="m1701-upstream")
+m1704_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1704_app, name="m1704-intended-use")
 m1708_app = typer.Typer(
     no_args_is_help=True,
     help="M17-08 translation health monitoring and rollback.",
@@ -3394,6 +3416,75 @@ def compute_proteoform_quality_metrics(
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@m1701_app.command("export-schema")
+def export_m1701_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "candidate",
+            "compatibility-rule",
+            "compatibility-decision",
+            "compatibility-report",
+            "configuration",
+            "bundle",
+            "finding",
+        ],
+        typer.Argument(help="M17-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-01 contract schema."""
+
+    typer.echo(json.dumps(_m1701_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1701_app.command("resolve")
+def resolve_m1701_upstream(request: RequestArgument) -> None:
+    """Resolve typed upstream compatibility with explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest),
+        m1701_resolver.preflight_m1701_authorization,
+        M1701_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1701_resolver.M1701Service().resolve(parsed))
+
+
+@m1704_app.command("export-schema")
+def export_m1704_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "claim-ceiling",
+            "display-semantics",
+            "registration",
+            "policy-decision",
+            "intended-use-object",
+            "finding",
+        ],
+        typer.Argument(help="M17-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-04 contract schema."""
+
+    typer.echo(json.dumps(_m1704_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1704_app.command("adapt")
+def adapt_m1704_intended_use(request: RequestArgument) -> None:
+    """Apply registered intended-use policy and emit a bounded object or abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdaptVariantPeptideIntendedUseRequest),
+        m1704_adapter.preflight_m1704_authorization,
+        M1704_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1704_adapter.M1704Service().adapt(parsed))
 
 
 @m1708_app.command("export-schema")

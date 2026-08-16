@@ -1,0 +1,16 @@
+{
+  "branch": true,
+  "branches": 100,
+  "covered_branches": 89,
+  "covered_statements": 593,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M17-02",
+  "percent": 95.11854951185495,
+  "scope": [
+    "glio_proteogen.contracts.m17_02",
+    "glio_proteogen.modules.c17_metabolomic_lipidomic_integration",
+    "glio_proteogen.adapters.m1702",
+    "evals.m17_02"
+  ],
+  "statements": 617
+}
