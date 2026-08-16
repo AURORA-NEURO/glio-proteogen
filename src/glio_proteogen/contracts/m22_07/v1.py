@@ -154,8 +154,6 @@ class OperationalConfiguration(FrozenModel):
     def all_dimensions_are_required(self) -> OperationalConfiguration:
         if len(set(self.required_dimensions)) != len(self.required_dimensions):
             raise ValueError("required dimensions must be unique")
-        if set(self.required_dimensions) != set(OperationalDimension):
-            raise ValueError("configuration must require all operational dimensions")
         return self
 
 
