@@ -1,0 +1,19 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-08",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3224, 3267]
+  },
+  "supportedStatus": "published",
+  "missingAssumptionsStatus": "abstained",
+  "missingCounterEvidenceStatus": "abstained",
+  "incompleteReconstructionStatus": "abstained",
+  "missingSourceStatus": "abstained",
+  "replayVerified": true,
+  "tamperRejected": true,
+  "deterministic": true,
+  "bundleClosed": true,
+  "explanationClosed": true,
+  "passed": true
+}
