@@ -158,9 +158,7 @@ class DriftAssessment(FrozenModel):
 
 class RollbackPlan(FrozenModel):
     plan_id: Identifier
-    trigger_conditions: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1608_MAX_TRIGGERS
-    )
+    trigger_conditions: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1608_MAX_TRIGGERS)
     target_version: SemanticVersion
     action: NonEmptyStr
     recovery_steps: tuple[NonEmptyStr, ...] = Field(
@@ -193,9 +191,7 @@ class TranslationHealthReport(FrozenModel):
     report_id: Identifier
     version: SemanticVersion
     signals: tuple[HealthSignal, ...] = Field(min_length=1, max_length=M1608_MAX_SIGNALS)
-    assessments: tuple[DriftAssessment, ...] = Field(
-        min_length=1, max_length=M1608_MAX_ASSESSMENTS
-    )
+    assessments: tuple[DriftAssessment, ...] = Field(min_length=1, max_length=M1608_MAX_ASSESSMENTS)
     rollback_plan: RollbackPlan
     configuration: TranslationMonitoringConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1608_MAX_EVIDENCE)
@@ -318,10 +314,10 @@ class ProteinRnaDiscordanceTranslationHealthResult(FrozenModel):
             self.report is not None
             or self.rollback_decision is not RollbackDecision.ABSTAIN
             or self.abstention_reason is None
-                or self.support_decision.status
-                not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
-                or not self.human_review_required
-            ):
+            or self.support_decision.status
+            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
+        ):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
