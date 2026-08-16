@@ -314,6 +314,17 @@ from glio_proteogen.contracts.m05_03.schema import (
 from glio_proteogen.contracts.m05_03.schema import (
     contract_json_schema as m0503_contract_json_schema,
 )
+from glio_proteogen.contracts.m05_05.schema import (
+    ContractName as M0505ContractName,
+)
+from glio_proteogen.contracts.m05_05.schema import (
+    contract_json_schema as m0505_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_05.v1 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
+    PtmLocalizationArtifactDetectionResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -484,6 +495,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import 
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
     _validate_json_request as _validate_m0502_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
+    M0505Service,
+    PtmLocalizationArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0505_json_request,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -510,6 +528,7 @@ _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsReque
 _M0405_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteoformArtifactsRequest)
 _M0501_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluatePtmLocalizationProtocolRequest)
 _M0502_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest)
+_M0505_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectPtmLocalizationArtifactsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -686,6 +705,12 @@ def _ptm_localization_raw_contract_schema(
     name: M0503ContractName,
 ) -> dict[str, object]:
     return m0503_contract_json_schema(name)
+
+
+def _ptm_localization_artifact_contract_schema(
+    name: M0505ContractName,
+) -> dict[str, object]:
+    return m0505_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -900,6 +925,15 @@ def _ptm_localization_lineage_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0502_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_artifact_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0505_contract_json_schema("request")}},
         }
     }
 
@@ -1172,6 +1206,18 @@ async def _ptm_localization_lineage_body(
     )
 
 
+async def _ptm_localization_artifact_body(
+    request: Request,
+) -> DetectPtmLocalizationArtifactsRequest:
+    return await _strict_json_body(
+        request,
+        _M0505_ARTIFACT_ADAPTER,
+        None,
+        M0505_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0505_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1201,6 +1247,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_artifact_service = M0405Service()
     ptm_localization_protocol_service = M0501Service()
     ptm_localization_lineage_service = M0502Service()
+    ptm_localization_artifact_service = M0505Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1250,6 +1297,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformArtifactAuthorizationError)
     @app.exception_handler(PtmLocalizationProtocolAuthorizationError)
     @app.exception_handler(PtmLocalizationIdentityLineageAuthorizationError)
+    @app.exception_handler(PtmLocalizationArtifactAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1570,6 +1618,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0503ContractName,
     ) -> dict[str, object]:
         return _ptm_localization_raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-05/{name}/schema", tags=["contracts"])
+    def ptm_localization_artifact_contract_schema(
+        name: M0505ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_artifact_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-05/artifact-detection",
+        response_model=PtmLocalizationArtifactDetectionResult,
+        tags=["M05-05"],
+        openapi_extra=_ptm_localization_artifact_request_body(),
+    )
+    def detect_ptm_localization_artifacts(
+        request: Annotated[
+            DetectPtmLocalizationArtifactsRequest,
+            Depends(_ptm_localization_artifact_body),
+        ],
+    ) -> PtmLocalizationArtifactDetectionResult:
+        return ptm_localization_artifact_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M05-02/identity-lineage-reconciliation",
