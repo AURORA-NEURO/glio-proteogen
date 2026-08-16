@@ -44,6 +44,10 @@ M1808_OWNER: Final = "Scientific engineering"
 M1808_SAFETY_CLASS: Final = "S2"
 M1808_GATE: Final = "G5"
 M1808_PROVISIONAL_ABI: Final = True
+M1808_DOSSIER_SHA256: Final = (
+    "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1808_DOSSIER_SLICE: Final = "6464-6504"
 M1808_MAX_TELEMETRY: Final = 256
 M1808_MAX_SUPPORT_DRIFT: Final = 128
 M1808_MAX_WORKFLOW_EFFECTS: Final = 128
@@ -246,16 +250,26 @@ class MonitorBiomarkerPanelTranslationHealthRequest(FrozenModel):
         if self.rollback_policy.rollback_artifact.artifact_id not in source_ids:
             raise ValueError("rollback artifact must be listed in source artifacts")
         evidence_ids = {
-            evidence.reference.artifact_id
-            for item in (
-                *self.telemetry,
-                *self.support_drift,
-                *self.workflow_effects,
-                *self.discrepancies,
-                self.rollback_policy,
-            )
-            for evidence in item.evidence
+            evidence.reference.artifact_id for item in self.telemetry for evidence in item.evidence
         }
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.support_drift
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.workflow_effects
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id
+            for item in self.discrepancies
+            for evidence in item.evidence
+        )
+        evidence_ids.update(
+            evidence.reference.artifact_id for evidence in self.rollback_policy.evidence
+        )
         if not evidence_ids <= source_ids:
             raise ValueError("monitor evidence references an unknown source artifact")
         return self
@@ -316,6 +330,8 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
 
 __all__ = [
     "M1808_CONTRACT_VERSION",
+    "M1808_DOSSIER_SHA256",
+    "M1808_DOSSIER_SLICE",
     "M1808_EVIDENCE_CLAIM",
     "M1808_GATE",
     "M1808_M1807_INPUT_MEDIA_TYPE",
