@@ -1,1 +1,1 @@
-"""M13 proteotype hypothesis modules (provisional)."""
+"""Protein-native subtype module group."""
