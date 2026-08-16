@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m18_08.schema import (
+    ContractName as M1808ContractName,
+)
+from glio_proteogen.contracts.m18_08.schema import (
+    contract_json_schema as m1808_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelTranslationMonitoringResult,
+    MonitorBiomarkerPanelTranslationHealthRequest,
+)
 from glio_proteogen.contracts.m18_06.schema import (
     ContractName as M1806ContractName,
 )
@@ -550,6 +561,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_06_reviewer_adjudication as m1806_adjudication,
 )
@@ -613,6 +627,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1808_REQUEST_ADAPTER: Final = TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest)
 _M1806_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateBiomarkerPanelQueueRequest)
 _M1803_REQUEST_ADAPTER: Final = TypeAdapter(FuseBiomarkerPanelEvidenceRequest)
 _M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
@@ -777,6 +792,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1808_contract_schema(name: M1808ContractName) -> dict[str, object]:
+    return m1808_contract_json_schema(name)
 
 
 def _m1806_contract_schema(name: M1806ContractName) -> dict[str, object]:
@@ -1343,6 +1362,17 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m1808_body(
+    request: Request,
+) -> MonitorBiomarkerPanelTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1808_REQUEST_ADAPTER,
+        m1808_monitoring.preflight_m1808_authorization,
+        M1808_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 async def _m1806_body(request: Request) -> AdjudicateBiomarkerPanelQueueRequest:
     return await _strict_json_body(
         request,
@@ -1500,6 +1530,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1808_service = m1808_monitoring.M1808Service()
     m1806_service = m1806_adjudication.M1806Service()
     m1803_service = m1803_fusion.M1803Service()
     m1606_queue_service = M1606Service()
@@ -1558,6 +1589,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(m1808_monitoring.M1808AuthorizationError)
     @app.exception_handler(m1806_adjudication.M1806AuthorizationError)
     @app.exception_handler(m1803_fusion.M1803AuthorizationError)
     @app.exception_handler(m1603.M1603AuthorizationError)
@@ -1844,6 +1876,29 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0404ContractName,
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M18-08/{name}/schema", tags=["contracts"])
+    def m1808_contract_schema(name: M1808ContractName) -> dict[str, object]:
+        return _m1808_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M18-08/translation-health",
+        response_model=BiomarkerPanelTranslationMonitoringResult,
+        tags=["M18-08"],
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {"application/json": {"schema": m1808_contract_json_schema("request")}},
+            }
+        },
+    )
+    def monitor_m1808_translation_health(
+        request: Annotated[
+            MonitorBiomarkerPanelTranslationHealthRequest,
+            Depends(_m1808_body),
+        ],
+    ) -> BiomarkerPanelTranslationMonitoringResult:
+        return m1808_service.execute(request)
 
     @app.get("/v1/contracts/M18-06/{name}/schema", tags=["contracts"])
     def m1806_contract_schema(name: M1806ContractName) -> dict[str, object]:
