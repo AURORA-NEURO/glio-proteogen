@@ -104,7 +104,14 @@ def _context() -> ExecutionContext:
     )
 
 
-def _request() -> MonitorProteotypeTranslationHealthRequest:
+def _request(
+    *,
+    telemetry: tuple[TelemetryObservation, ...] | None = None,
+    support_drift: tuple[SupportDriftObservation, ...] | None = None,
+    workflow_effects: tuple[WorkflowEffectObservation, ...] | None = None,
+    discrepancies: tuple[DiscrepancyObservation, ...] | None = None,
+    rollback_policy: RollbackPolicy | None = None,
+) -> MonitorProteotypeTranslationHealthRequest:
     health = _artifact("health")
     evidence = (_evidence(health),)
     upstream = _artifact(
@@ -117,7 +124,9 @@ def _request() -> MonitorProteotypeTranslationHealthRequest:
         request_id="request.synthetic.m1908",
         context=_context(),
         upstream_result=upstream,
-        telemetry=(
+        telemetry=telemetry
+        if telemetry is not None
+        else (
             TelemetryObservation(
                 observation_id="observation.m1908.telemetry",
                 metric_name="translation_latency",
@@ -128,7 +137,9 @@ def _request() -> MonitorProteotypeTranslationHealthRequest:
                 evidence=evidence,
             ),
         ),
-        support_drift=(
+        support_drift=support_drift
+        if support_drift is not None
+        else (
             SupportDriftObservation(
                 observation_id="observation.m1908.support",
                 support_dimension="assay_support",
@@ -138,7 +149,9 @@ def _request() -> MonitorProteotypeTranslationHealthRequest:
                 evidence=evidence,
             ),
         ),
-        workflow_effects=(
+        workflow_effects=workflow_effects
+        if workflow_effects is not None
+        else (
             WorkflowEffectObservation(
                 observation_id="observation.m1908.workflow",
                 workflow="translation_export",
@@ -147,7 +160,9 @@ def _request() -> MonitorProteotypeTranslationHealthRequest:
                 evidence=evidence,
             ),
         ),
-        discrepancies=(
+        discrepancies=discrepancies
+        if discrepancies is not None
+        else (
             DiscrepancyObservation(
                 discrepancy_id="discrepancy.m1908.synthetic",
                 description="synthetic discrepancy is resolved",
@@ -156,7 +171,8 @@ def _request() -> MonitorProteotypeTranslationHealthRequest:
                 evidence=evidence,
             ),
         ),
-        rollback_policy=RollbackPolicy(
+        rollback_policy=rollback_policy
+        or RollbackPolicy(
             policy_id="rollback-policy.m1908.synthetic",
             version="1.0.0",
             critical_failure_threshold=2,
