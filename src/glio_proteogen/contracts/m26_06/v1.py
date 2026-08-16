@@ -316,7 +316,6 @@ class ProteomicsSecurityAccessResult(FrozenModel):
         elif (
             self.access_decision is not None
             or self.audit_event is not None
-            or self.security_posture is not None
             or self.safe_failure_report is None
             or self.abstention_reason is None
             or self.support_decision.status
