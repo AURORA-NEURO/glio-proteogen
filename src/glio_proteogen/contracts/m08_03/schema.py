@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m08_03.v1 import (
     M0803_PARENT,
     M0803_SAFETY_CLASS,
     BaselineDiagnostic,
+    BaselineFeatureObservation,
     BaselineRunConfiguration,
     EstimateProteinSubtypeBaselineRequest,
     ProteinSubtypeBaselineEstimate,
@@ -30,6 +31,7 @@ ContractName = Literal[
     "configuration",
     "estimate",
     "diagnostic",
+    "feature",
 ]
 _CONTRACTS: Final = {
     "request": EstimateProteinSubtypeBaselineRequest,
@@ -37,6 +39,7 @@ _CONTRACTS: Final = {
     "configuration": BaselineRunConfiguration,
     "estimate": ProteinSubtypeBaselineEstimate,
     "diagnostic": BaselineDiagnostic,
+    "feature": BaselineFeatureObservation,
 }
 
 

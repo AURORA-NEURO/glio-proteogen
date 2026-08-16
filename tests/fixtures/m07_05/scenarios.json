@@ -1,0 +1,21 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-05",
+  "contractVersion": "0.1.0-provisional",
+  "scenarios": [
+    {
+      "id": "hard-soft-integrated",
+      "expectedStatus": "integrated",
+      "required": ["hard_constraint_evaluated", "soft_ablation", "estimates"]
+    },
+    {
+      "id": "hard-violation-abstention",
+      "expectedStatus": "abstained",
+      "required": ["no_estimates", "review_required"]
+    },
+    {
+      "id": "missing-feature-abstention",
+      "expectedStatus": "abstained",
+      "required": ["safe_failure", "auditable_reason"]
+    }
+  ]
+}
