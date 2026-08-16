@@ -1,5 +1,7 @@
 """M21-08 evidence-gate and release-adjudicator runtime exports."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2108AuthorizationError,
     M2108Engine,
@@ -20,5 +22,7 @@ __all__ = [
     "M2108Service",
     "ValidatedM2108Request",
     "adjudicate_complex_activity_evidence_gate",
+    "cli_app",
+    "create_app",
     "preflight_m2108_authorization",
 ]
