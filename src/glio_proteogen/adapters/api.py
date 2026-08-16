@@ -308,6 +308,17 @@ from glio_proteogen.contracts.m06_04.v1 import (
     EstimateProteinAbundanceProbabilisticRequest,
     EstimateProteinAbundanceProbabilisticResult,
 )
+from glio_proteogen.contracts.m06_06.schema import (
+    ContractName as M0606ContractName,
+)
+from glio_proteogen.contracts.m06_06.schema import (
+    contract_json_schema as m0606_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_06.v1 import (
+    M0606_MAX_CANONICAL_REQUEST_BYTES,
+    DecomposeProteinAbundanceUncertaintyRequest,
+    ProteinAbundanceUncertaintyDecompositionResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -476,6 +487,15 @@ from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_
     ProbabilisticEstimatorAuthorizationError,
     preflight_probabilistic_estimator_authorization,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    M0606UncertaintyDecompositionAuthorizationError,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    _validate_json_request as _validate_m0606_json_request,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
+    M0606Service,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -501,6 +521,7 @@ _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRe
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
 _M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
+_M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -669,6 +690,12 @@ def _probabilistic_estimator_contract_schema(
     name: M0604ContractName,
 ) -> dict[str, object]:
     return m0604_contract_json_schema(name)
+
+
+def _m0606_uncertainty_contract_schema(
+    name: M0606ContractName,
+) -> dict[str, object]:
+    return m0606_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -883,6 +910,15 @@ def _probabilistic_estimator_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0604_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0606_uncertainty_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0606_contract_json_schema("request")}},
         }
     }
 
@@ -1145,6 +1181,18 @@ async def _probabilistic_estimator_body(
     )
 
 
+async def _m0606_uncertainty_body(
+    request: Request,
+) -> DecomposeProteinAbundanceUncertaintyRequest:
+    return await _strict_json_body(
+        request,
+        _M0606_UNCERTAINTY_ADAPTER,
+        None,
+        M0606_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0606_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1174,6 +1222,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     formal_state_service = M0601Service()
     m0603_service = M0603Service()
     probabilistic_estimator_service = M0604Service()
+    m0606_service = M0606Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1223,6 +1272,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(FormalStateAuthorizationError)
     @app.exception_handler(PtmBaselineAuthorizationError)
     @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
+    @app.exception_handler(M0606UncertaintyDecompositionAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1563,6 +1613,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> EstimateProteinAbundanceProbabilisticResult:
         return probabilistic_estimator_service.estimate(request)
+
+    @app.get("/v1/contracts/M06-06/{name}/schema", tags=["contracts"])
+    def m0606_uncertainty_contract_schema(
+        name: M0606ContractName,
+    ) -> dict[str, object]:
+        return _m0606_uncertainty_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-06/decompose",
+        response_model=ProteinAbundanceUncertaintyDecompositionResult,
+        tags=["M06-06"],
+        openapi_extra=_m0606_uncertainty_request_body(),
+    )
+    def decompose_m0606_uncertainty(
+        request: Annotated[
+            DecomposeProteinAbundanceUncertaintyRequest,
+            Depends(_m0606_uncertainty_body),
+        ],
+    ) -> ProteinAbundanceUncertaintyDecompositionResult:
+        return m0606_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
