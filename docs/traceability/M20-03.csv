@@ -1,0 +1,10 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M20-03,caller-declared M20-02 alignment binding,contracts/m20_03/v1.py request_is_bound,contract tests,pass
+GLIO-PROTEOGEN-M20-03,source attribution and reliability,contracts/m20_03/v1.py SourceContribution,adversarial tests,pass
+GLIO-PROTEOGEN-M20-03,disagreement preservation,contracts/m20_03/v1.py DisagreementRecord and IntegratedEvidenceObject,runtime/evaluator,pass
+GLIO-PROTEOGEN-M20-03,seven-control preflight,modules/.../m20_03_fusion_aggregation/engine.py,control denial test,pass
+GLIO-PROTEOGEN-M20-03,safe abstention,engine findings and SupportDecision,22 focused tests,evaluator,pass
+GLIO-PROTEOGEN-M20-03,canonical replay and tamper rejection,contracts/m20_03/canonical.py and engine.py,replay tests,pass
+GLIO-PROTEOGEN-M20-03,strict FastAPI/Typer interfaces,adapters/m2003.py,interface tests,pass
+GLIO-PROTEOGEN-M20-03,evaluator and benchmark,evals/m20_03,8/8 scenarios and 25 iterations,pass
+GLIO-PROTEOGEN-M20-03,provisional authority boundary,docs/modules/M20-03-fusion-aggregation.md,review gate,provisional
