@@ -1,1 +1,1 @@
-"""Provisional M20-08 translation monitoring evaluation hooks."""
+"""M20-08 frozen evaluator and benchmark."""
