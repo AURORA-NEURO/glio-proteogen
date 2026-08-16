@@ -15,6 +15,10 @@ from tests.runtime.test_m18_08_monitoring import _request
 from glio_proteogen.contracts.m18_08 import (
     M1808_DOSSIER_SHA256,
     M1808_DOSSIER_SLICE,
+    M1808_GATE,
+    M1808_OWNER,
+    M1808_PARENT,
+    M1808_SAFETY_CLASS,
     MonitorBiomarkerPanelTranslationHealthRequest,
     ObservationStatus,
 )
@@ -100,6 +104,14 @@ def evaluate() -> EvaluationReport:
             metadata["dossier_sha256"].removeprefix("sha256:") == M1808_DOSSIER_SHA256
             and metadata["dossier_slice"] == M1808_DOSSIER_SLICE,
             "fixture authority matches the locked contract slice",
+        ),
+        EvalCheck(
+            "authority.owner_gate",
+            metadata["owner"] == M1808_OWNER
+            and metadata["safety_class"] == M1808_SAFETY_CLASS
+            and metadata["evidence_gate"] == M1808_GATE
+            and metadata["parent_target"] == M1808_PARENT,
+            "fixture owner, safety, gate and parent ceiling match the contract",
         ),
     ]
     engine = m1808.M1808TranslationMonitoringEngine()
