@@ -8,7 +8,7 @@ import os
 import stat
 from ctypes import wintypes
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Annotated, Literal, Never
+from typing import TYPE_CHECKING, Annotated, Literal, Never, cast
 
 import typer
 import uvicorn
@@ -43,6 +43,7 @@ from glio_proteogen.adapters.api import (
     _ptm_localization_artifact_contract_schema,
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
+    _ptm_localization_quality_contract_schema,
     _ptm_localization_raw_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
@@ -179,6 +180,10 @@ from glio_proteogen.contracts.m05_03 import (
     M0503_MAX_TOTAL_DOCUMENT_BYTES,
     IngestPtmLocalizationRawInputsRequest,
     PtmLocalizationRawInputRole,
+)
+from glio_proteogen.contracts.m05_04 import (
+    M0504_MAX_CANONICAL_REQUEST_BYTES,
+    ComputePtmLocalizationQualityMetricsRequest,
 )
 from glio_proteogen.contracts.m05_05 import (
     M0505_MAX_CANONICAL_REQUEST_BYTES,
@@ -351,6 +356,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
 from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
     _validate_json_request as _validate_m0503_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics import (
+    M0504Service,
+    PtmLocalizationQualityAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics.engine import (
+    _validate_json_request_capability as _validate_m0504_json_request_capability,
+)
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
     M0505Service,
     PtmLocalizationArtifactAuthorizationError,
@@ -361,6 +373,10 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engin
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from glio_proteogen.contracts.m05_04.v1 import (
+        _ValidatedRequestCapability as _ValidatedM0504RequestCapability,
+    )
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
@@ -506,6 +522,11 @@ ptm_localization_artifacts_app = typer.Typer(
     help="M05-05 deterministic aggregate PTM-localization artifact detection.",
 )
 app.add_typer(ptm_localization_artifacts_app, name="ptm-localization-artifacts")
+ptm_localization_quality_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-04 deterministic aggregate PTM-localization quality metrics.",
+)
+app.add_typer(ptm_localization_quality_app, name="ptm-localization-quality")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -622,6 +643,10 @@ PtmLocalizationRawOutputOption = Annotated[
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+PtmLocalizationQualityOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-04 canonical result JSON path."),
 ]
 ProteoformArtifactOutputOption = Annotated[
     str,
@@ -928,6 +953,7 @@ def _load_request[RequestT](
         ProteoformArtifactAuthorizationError,
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
+        PtmLocalizationQualityAuthorizationError,
         PtmLocalizationRawInputAuthorizationError,
         PtmLocalizationArtifactAuthorizationError,
     ):
@@ -3415,6 +3441,73 @@ def ingest_protein_inference_raw_inputs(
     _emit(result)
     if result.disposition.value != "validated":
         raise typer.Exit(code=1)
+
+
+@ptm_localization_quality_app.command("export-schema")
+def export_ptm_localization_quality_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "assay-profile",
+            "fact-counts",
+            "fact-states",
+            "role-facts",
+            "fact-ledger",
+            "metric",
+            "assay-quality",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization quality contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_quality_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_quality_app.command("compute")
+def compute_ptm_localization_quality_metrics_cli(
+    request: RequestArgument,
+    output: PtmLocalizationQualityOutputOption,
+) -> None:
+    """Compute reviewed fixed-point PTM-localization quality metrics."""
+
+    adapter = cast(
+        "TypeAdapter[_ValidatedM0504RequestCapability]",
+        TypeAdapter(ComputePtmLocalizationQualityMetricsRequest),
+    )
+    try:
+        capability = _load_request(
+            request,
+            adapter,
+            max_bytes=M0504_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0504_json_request_capability,
+        )
+    except PtmLocalizationQualityAuthorizationError as error:
+        typer.echo(f"PTM-localization quality computation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("invalid M05-04 request: strict request validation failed", err=True)
+        raise typer.Exit(code=2) from error
+    try:
+        result = M0504Service()._execute_validated(capability)
+        _write_ptm_localization_raw_result(
+            Path(output),
+            canonical_json_bytes(result.model_dump(mode="json")),
+        )
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"PTM-localization quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @protein_inference_quality_app.command("export-schema")
