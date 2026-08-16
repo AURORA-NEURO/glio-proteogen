@@ -1,0 +1,25 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-06",
+  "fixture_digest": "sha256:63b91844d2890d0aa9916b7f46a053f6bb7b3bf93887f81e117b3572d02eec30",
+  "declared": 9,
+  "executed": 9,
+  "coverage": {
+    "statements": 520,
+    "branch_arcs": 82,
+    "branch_coverage": 98.5,
+    "fail_under": 95.0
+  },
+  "passed": true,
+  "failed": [],
+  "outcomes": [
+    {"case_id": "supported_in_silico", "expected": "simulated", "actual": "simulated"},
+    {"case_id": "parameter_sweep", "expected": "simulated", "actual": "simulated"},
+    {"case_id": "alternative_prior", "expected": "simulated", "actual": "simulated"},
+    {"case_id": "assay_perturbation", "expected": "simulated", "actual": "simulated"},
+    {"case_id": "mechanism_stress", "expected": "simulated", "actual": "simulated"},
+    {"case_id": "unsupported_ood", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "prohibited_ownership", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "missing_negative_control", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "denied_control", "expected": "authorization_rejected", "actual": "authorization_rejected"}
+  ]
+}
