@@ -1,1 +1,1 @@
-"""C09 complex-stoichiometry runtime modules (provisional additions)."""
+"""Complex-stoichiometry module family (provisional additions)."""
