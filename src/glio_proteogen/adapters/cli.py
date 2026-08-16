@@ -36,6 +36,7 @@ from glio_proteogen.adapters.api import (
     _m1606_contract_schema,
     _m1701_contract_schema,
     _m1704_contract_schema,
+    _m1708_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -200,6 +201,10 @@ from glio_proteogen.contracts.m17_01 import (
 from glio_proteogen.contracts.m17_04 import (
     M1704_MAX_CANONICAL_REQUEST_BYTES,
     AdaptVariantPeptideIntendedUseRequest,
+)
+from glio_proteogen.contracts.m17_08 import (
+    M1708_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorVariantPeptideTranslationHealthRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -375,6 +380,9 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_04_intended_use_adapter as m1704_adapter,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_08_translation_monitoring as m1708_monitoring,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -518,6 +526,11 @@ m1704_app = typer.Typer(
     help="M17-04 bounded intended-use policy adaptation.",
 )
 app.add_typer(m1704_app, name="m1704-intended-use")
+m1708_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1708_app, name="m1708-translation-health")
 reviewer_discrepancy_app = typer.Typer(
     no_args_is_help=True,
     help="M16-06 reviewer discrepancy and immutable adjudication queue.",
@@ -3572,6 +3585,41 @@ def adapt_m1704_intended_use(request: RequestArgument) -> None:
         M1704_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(m1704_adapter.M1704Service().adapt(parsed))
+
+
+@m1708_app.command("export-schema")
+def export_m1708_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M17-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-08 contract schema."""
+
+    typer.echo(json.dumps(_m1708_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1708_app.command("monitor")
+def monitor_m1708_translation_health(request: RequestArgument) -> None:
+    """Monitor translation health and emit a bounded state or explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(MonitorVariantPeptideTranslationHealthRequest),
+        m1708_monitoring.preflight_m1708_authorization,
+        M1708_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1708_monitoring.M1708Service().monitor(parsed))
 
 
 @fusion_aggregation_app.command("export-schema")

@@ -1,1 +1,1 @@
-"""Metabolomic/lipidomic integration module implementations."""
+"""Runtime modules for metabolomic/lipidomic integration."""
