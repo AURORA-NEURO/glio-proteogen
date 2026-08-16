@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-01",
+  "contract_version": "0.1.0-provisional",
+  "builder": "hatchling 1.31.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sha256": "99ec6ca607b56ffcaeb3125650e4c008f3f100c2352c71bf1860efa8a8a3a00c"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "121b944f3527ea8fb676ddd5dce01330fac7da5a6a30305035d04960cff9191c"
+  },
+  "isolated_import": {
+    "passed": true,
+    "schema_count": 9,
+    "external_content_traversal": false
+  },
+  "note": "Package and ABI metadata remain provisional pending owner confirmation."
+}
