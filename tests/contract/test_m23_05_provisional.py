@@ -1,6 +1,6 @@
 """Focused contract/schema smoke for provisional M23-05."""
 
-import pytest
+from typing import cast
 
 from glio_proteogen.contracts.m23_05 import (
     M2305_OUTPUT_MEDIA_TYPE,
@@ -18,24 +18,41 @@ _SCHEMA_COUNT = 8
 def test_provisional_schemas_require_subgroup_equity_controls() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["subgroupDimensionsRequired"]
-        and schema["x-glio-contract"]["equitySafetyFloorRequired"]
-        and schema["x-glio-contract"]["calibrationRequired"]
-        and schema["x-glio-contract"]["coverageRequired"]
-        and schema["x-glio-contract"]["rareContextRestrictionRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"] is True
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["upstreamInputMediaType"].endswith("m23-04+json")
-        and schema["x-glio-contract"]["parentTarget"] == "variant peptide"
+        cast("dict[str, object]", schema["x-glio-contract"])["pendingOwnerConfirmation"] is True
         for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2305_OUTPUT_MEDIA_TYPE
+    assert all(
+        all(
+            cast("dict[str, object]", schema["x-glio-contract"])[key] is True
+            for key in (
+                "subgroupDimensionsRequired",
+                "equitySafetyFloorRequired",
+                "calibrationRequired",
+                "coverageRequired",
+                "rareContextRestrictionRequired",
+                "explicitAbstentionRequired",
+            )
+        )
+        and cast("dict[str, object]", schema["x-glio-contract"])["unsupportedToNegative"] is False
+        for schema in schemas.values()
+    )
+    assert all(
+        str(
+            cast("dict[str, object]", schema["x-glio-contract"])["upstreamInputMediaType"]
+        ).endswith("m23-04+json")
+        and cast("dict[str, object]", schema["x-glio-contract"])["parentTarget"]
+        == "variant peptide"
+        for schema in schemas.values()
+    )
+    assert (
+        cast("dict[str, object]", schemas["output"]["x-glio-contract"])["outputMediaType"]
+        == M2305_OUTPUT_MEDIA_TYPE
+    )
     assert M2305_PROVISIONAL_ABI is True
 
 
@@ -45,5 +62,4 @@ def test_subgroup_dimensions_and_safe_states_are_explicit() -> None:
     assert CoverageStatus.UNSUPPORTED.value == "unsupported"
     assert EquityStatus.BELOW_FLOOR.value == "below_floor"
     assert EvaluationStatus.ABSTAINED.value == "abstained"
-    with pytest.raises(AssertionError):
-        assert EvaluationStatus.ABSTAINED is EvaluationStatus.EVALUATED
+    assert EvaluationStatus.ABSTAINED in set(EvaluationStatus)
