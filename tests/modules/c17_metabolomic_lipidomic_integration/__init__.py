@@ -1,1 +1,1 @@
-"""M17-02 runtime tests."""
+"""Tests for C17 metabolomic/lipidomic integration modules."""
