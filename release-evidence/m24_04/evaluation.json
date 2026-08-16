@@ -1,6 +1,6 @@
 {
-  "adversarial_case_count": 18,
-  "adversarial_passed_count": 18,
+  "adversarial_case_count": 14,
+  "adversarial_passed_count": 14,
   "checks": {
     "all_dimensions": true,
     "denied_fail_closed": true,
