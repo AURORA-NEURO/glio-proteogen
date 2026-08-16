@@ -31,6 +31,7 @@ from glio_proteogen.adapters.api import (
     _m0603_baseline_contract_schema,
     _m0606_uncertainty_contract_schema,
     _m0801_contract_schema,
+    _m1306_contract_schema,
     _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
@@ -182,6 +183,10 @@ from glio_proteogen.contracts.m08_01 import (
     ValidateTranscriptProteinStateRequest,
 )
 from glio_proteogen.contracts.m08_01 import ContractName as M0801ContractName
+from glio_proteogen.contracts.m13_06 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    SimulateProteotypePerturbationRequest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -360,6 +365,11 @@ from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
 from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
     _validate_json_request as _validate_m0801_json_request,
 )
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -518,6 +528,11 @@ uncertainty_decomposition_app = typer.Typer(
     help="M06-06 provisional protein-abundance uncertainty decomposition.",
 )
 app.add_typer(uncertainty_decomposition_app, name="uncertainty-decomposition")
+m1306_app = typer.Typer(
+    no_args_is_help=True,
+    help="M13-06 bounded variant-peptide perturbation sensitivity.",
+)
+app.add_typer(m1306_app, name="proteotype-sensitivity")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3691,6 +3706,47 @@ def decompose_m0606_uncertainty(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"M06-06 uncertainty decomposition failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1306_app.command("export-schema")
+def export_m1306_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "scenario",
+            "response",
+            "sensitivity-surface",
+            "configuration",
+            "policy",
+            "finding",
+        ],
+        typer.Argument(help="M13-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M13-06 perturbation contract."""
+
+    typer.echo(json.dumps(_m1306_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1306_app.command("simulate")
+def simulate_m1306(request: RequestArgument) -> None:
+    """Replay bounded variant-peptide perturbations and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(SimulateProteotypePerturbationRequest),
+            preflight_m1306_authorization,
+            M1306_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1306Service().execute(parsed))
+    except M1306AuthorizationError as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
