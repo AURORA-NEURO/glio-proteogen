@@ -1,0 +1,6 @@
+[
+  {"id": "supported", "expression": "protein.ratio >= 0.5", "severity": "error", "state": "observed", "expected": "valid"},
+  {"id": "hard_violation", "expression": "protein.ratio >= 0.9", "severity": "error", "state": "observed", "expected": "invalid"},
+  {"id": "missing_abstention", "expression": "protein.ratio >= 0.5", "severity": "error", "state": "missing", "expected": "abstained"},
+  {"id": "soft_conflict", "expression": "protein.ratio >= 0.9", "severity": "warning", "state": "observed", "expected": "valid"}
+]
