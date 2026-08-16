@@ -1,0 +1,17 @@
+{
+  "module": "M21-01",
+  "abi": "0.1.0-provisional",
+  "wheel": {
+    "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 967950,
+    "sha256": "4635e040cd43a7467ab89177a2d4c53306eb26a4f0ec4e366a7d0e5c764f5d84"
+  },
+  "sdist": {
+    "file": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 1522134,
+    "sha256": "ca1e607d02596bd05f43875157790c345134168b68ee84aaf6b6719605e5c4cf"
+  },
+  "isolated_import": "passed",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "7185-7228"
+}
