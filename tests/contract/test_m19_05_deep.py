@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from typer.testing import CliRunner
 
+from glio_proteogen.adapters.m1905 import cli, create_app
 from glio_proteogen.contracts.m19_05 import (
     M1905_DOSSIER_SHA256,
     M1905_DOSSIER_SLICE,
@@ -47,9 +51,18 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_05_workflow_presen
     ValidatedM1905Request,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 _SCHEMA_COUNT = 8
 _CONTROL_COUNT = 7
 _ESTIMATED_PROBABILITY = 0.9
+_HTTP_OK = 200
+_HTTP_NOT_FOUND = 404
+_HTTP_FORBIDDEN = 403
+_HTTP_UNPROCESSABLE = 422
+_CLI_ERROR = 1
+_CLI_REFUSED = 2
 
 
 def _artifact(
@@ -313,3 +326,66 @@ def test_service_rejects_duplicate_json_keys_and_oversized_payload() -> None:
         service.validate_request('{"request_id":"one","request_id":"two"}')
     with pytest.raises(ValueError, match="JSON input exceeds the byte limit"):
         service.validate_request(b'{"request_id":"' + b"x" * 5_000_000 + b'"}')
+
+
+def test_fastapi_schema_present_verify_and_sanitized_failures() -> None:
+    request = build_request()
+    payload = request.model_dump(mode="json")
+    with TestClient(create_app()) as client:
+        schema = client.get("/v1/m19-05/schema/request")
+        assert schema.status_code == _HTTP_OK
+        assert schema.json()["x-glio-contract"]["parentTarget"] == "proteotype"
+        assert client.get("/v1/m19-05/schema/unknown").status_code == _HTTP_NOT_FOUND
+
+        presented = client.post("/v1/modules/M19-05/present", json=payload)
+        assert presented.status_code == _HTTP_OK
+        result = presented.json()
+        assert result["status"] == "presented"
+        verified = client.post("/v1/modules/M19-05/verify", json=result)
+        assert verified.status_code == _HTTP_OK
+        assert verified.json()["result_digest"] == result["result_digest"]
+
+        denied = client.post(
+            "/v1/modules/M19-05/present",
+            json=build_request(accepted=False).model_dump(mode="json"),
+        )
+        assert denied.status_code == _HTTP_FORBIDDEN
+        assert "requires accepted controls" not in denied.text
+
+        malformed = client.post("/v1/modules/M19-05/present", content=b"{not-json")
+        assert malformed.status_code == _HTTP_UNPROCESSABLE
+        assert "Traceback" not in malformed.text
+
+        result["result_digest"] = "sha256:" + "a" * 64
+        tampered = client.post("/v1/modules/M19-05/verify", json=result)
+        assert tampered.status_code == _HTTP_UNPROCESSABLE
+        assert tampered.json()["detail"] == "M19-05 replay verification failed"
+
+
+def test_typer_schema_present_verify_no_overwrite_and_safe_errors(tmp_path: Path) -> None:
+    runner = CliRunner()
+    schema = runner.invoke(cli, ["export-schema", "request"])
+    assert schema.exit_code == 0
+    assert json.loads(schema.stdout)["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M19-05"
+
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(build_request()))
+    presented = runner.invoke(cli, ["present", str(request_path), "--output", str(result_path)])
+    assert presented.exit_code == 0
+    verified = runner.invoke(cli, ["verify", str(result_path)])
+    assert verified.exit_code == 0
+    assert json.loads(verified.stdout)["status"] == "presented"
+    refused = runner.invoke(cli, ["present", str(request_path), "--output", str(result_path)])
+    assert refused.exit_code == _CLI_REFUSED
+    assert "refusing overwrite" in refused.output
+
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(build_request(accepted=False)))
+    denied = runner.invoke(cli, ["present", str(denied_path)])
+    assert denied.exit_code == _CLI_REFUSED
+    assert "authorization denied" in denied.output
+
+    missing = runner.invoke(cli, ["verify", str(tmp_path / "missing.json")])
+    assert missing.exit_code == _CLI_ERROR
+    assert "Traceback" not in missing.output
