@@ -233,6 +233,11 @@ def test_request_closure_rejects_identity_drift_duplicates_and_missing_views() -
             request.policy.model_dump(mode="python") | {"required_views": tuple(ViewKind)[:-1]},
             strict=True,
         )
+    without_upstream = request.model_copy(update={"source_artifacts": request.source_artifacts[1:]})
+    with pytest.raises(ValidationError, match="bound M19-04 result"):
+        PresentProteotypeHumanReviewWorkspaceRequest.model_validate(
+            without_upstream.model_dump(mode="python"), strict=True
+        )
 
 
 def test_contract_rejects_nested_duplicate_references_and_unbound_artifacts() -> None:
@@ -423,16 +428,11 @@ def test_replay_detects_digest_request_and_payload_tampering() -> None:
     with pytest.raises(M1905ReplayError):
         engine.verify({"not": "a result"})
 
-    wrong_request_digest = result.model_construct(
-        **result.model_dump(mode="python", warnings=False)
-        | {"request_digest": "sha256:" + "b" * 64}
-    )
+    wrong_request_digest = result.model_copy(update={"request_digest": "sha256:" + "b" * 64})
     with pytest.raises(M1905ReplayError):
         engine.verify(wrong_request_digest)
 
-    wrong_result_digest = result.model_construct(
-        **result.model_dump(mode="python", warnings=False) | {"result_digest": "sha256:" + "c" * 64}
-    )
+    wrong_result_digest = result.model_copy(update={"result_digest": "sha256:" + "c" * 64})
     with pytest.raises(M1905ReplayError):
         engine.verify(wrong_result_digest)
 
@@ -665,6 +665,13 @@ def test_typer_schema_present_verify_no_overwrite_and_safe_errors(tmp_path: Path
     request_path.write_bytes(canonical_json_bytes(build_request()))
     presented = runner.invoke(cli, ["present", str(request_path), "--output", str(result_path)])
     assert presented.exit_code == 0
+    streamed = runner.invoke(
+        cli,
+        ["present", "-"],
+        input=canonical_json_bytes(build_request()).decode("utf-8"),
+    )
+    assert streamed.exit_code == 0
+    assert json.loads(streamed.stdout)["status"] == "presented"
     verified = runner.invoke(cli, ["verify", str(result_path)])
     assert verified.exit_code == 0
     assert json.loads(verified.stdout)["status"] == "presented"
