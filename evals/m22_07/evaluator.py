@@ -55,6 +55,7 @@ def run_evaluator() -> dict[str, Any]:
     return {
         "module": "M22-07",
         "checks": checks,
+        "fixture_digest": sha256_digest(request),
         "fixture_request_digest": sha256_digest(request),
         "fixture_result_digest": result.result_digest,
         "passed": sum(checks.values()),

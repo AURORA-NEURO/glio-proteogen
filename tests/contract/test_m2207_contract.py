@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M22-07."""
 
+from typing import Any, cast
+
 import pytest
 
 from glio_proteogen.contracts.m22_07 import (
@@ -23,7 +25,7 @@ _SCHEMA_COUNT = 7
 
 
 def test_provisional_schemas_require_human_factors_safety_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast(dict[str, dict[str, Any]], contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
@@ -56,7 +58,7 @@ def test_operational_dimensions_and_safe_states_are_explicit() -> None:
     assert OperationalStatus.NOT_EVALUABLE.value == "not_evaluable"
     assert EvaluationStatus.ABSTAINED.value == "abstained"
     with pytest.raises(AssertionError):
-        assert EvaluationStatus.ABSTAINED is EvaluationStatus.EVALUATED
+        assert cast(object, EvaluationStatus.ABSTAINED) is cast(object, EvaluationStatus.EVALUATED)
 
 
 def _evidence() -> EvidenceReference:
@@ -73,7 +75,7 @@ def _evidence() -> EvidenceReference:
 
 
 def test_contract_metadata_records_authority_and_media_boundary() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast(dict[str, dict[str, Any]], contract_json_schemas())
     assert all(
         schema["x-glio-contract"]["dossierSha256"] == M2207_DOSSIER_SHA256
         for schema in schemas.values()
