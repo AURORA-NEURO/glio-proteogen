@@ -1,2 +1,1 @@
-"""Spatial proteomics projection modules."""
-
+"""Runtime modules for spatial proteomics projection."""
