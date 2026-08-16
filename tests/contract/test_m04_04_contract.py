@@ -1168,14 +1168,16 @@ def test_finding_and_assay_reference_uniqueness(result: ProteoformQualityResult)
     assay = result.assay_quality[0]
     with pytest.raises(ValidationError, match="all eight"):
         _validate(assay, {"metrics": (*assay.metrics[:-1], assay.metrics[0])})
+    wrong_role = (
+        ProteoformRawInputRole.GENOME
+        if assay.role is not ProteoformRawInputRole.GENOME
+        else ProteoformRawInputRole.TRANSCRIPTOME
+    )
     with pytest.raises(ValidationError, match="one exact role"):
         _validate(
             assay,
             {
-                "metrics": (
-                    assay.metrics[0].model_copy(update={"role": ProteoformRawInputRole.GENOME}),
-                    *assay.metrics[1:],
-                )
+                "metrics": (assay.metrics[0].model_copy(update={"role": wrong_role}), *assay.metrics[1:])
             },
         )
 
