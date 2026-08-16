@@ -227,10 +227,7 @@ def _findings(request: AdaptProteinSubtypeIntendedUseRequest) -> tuple[AdapterFi
     evidence = _evidence(request)
     findings: list[AdapterFinding] = []
     claim = registration.claim_ceiling.maximum_claim.casefold()
-    prohibited = " ".join(
-        item.casefold() for item in registration.claim_ceiling.prohibited_interpretations
-    )
-    if "treatment" in claim or "treatment" in prohibited:
+    if "treatment" in claim:
         findings.append(
             _finding(
                 request,
@@ -300,8 +297,7 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="provisional_abi",
             statement=(
-                "The ABI remains provisional pending owner confirmation and release "
-                "governance."
+                "The ABI remains provisional pending owner confirmation and release governance."
             ),
         ),
     )
@@ -319,6 +315,7 @@ class M2004Engine:
         request_digest = canonical_request_digest(request)
         evidence = _evidence(request)
         findings = _findings(request)
+        adapted_object = None
         if findings:
             status = AdapterStatus.ABSTAINED
             adapted_object = None
@@ -348,8 +345,7 @@ class M2004Engine:
                 status=SupportStatus.SUPPORTED,
                 reason_code="intended_use_policy_allowed",
                 rationale=(
-                    "The locked registration satisfies the bounded M20-04 display and "
-                    "claim policy."
+                    "The locked registration satisfies the bounded M20-04 display and claim policy."
                 ),
             )
             abstention_reason = None
