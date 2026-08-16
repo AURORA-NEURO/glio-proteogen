@@ -1,0 +1,13 @@
+requirement,implementation,evidence,status
+authority,dossier SHA and exact slice pinned in provisional contracts and docs,release-evidence/m25_04/evaluation.json,pass
+upstream-boundary,M25-02 and M25-03 caller-declared media only with no runtime imports,request media validator and dependency verifier,pass
+seven-dimension-transport,TransportDimension and typed validation/evaluation closure,contract/runtime/evaluator tests,pass
+calibration-floor,TransportEvaluation metric/floor status validator,contract and adversarial tests,pass
+support-domain-narrowing,SupportDomainUpdate retained/narrowed closure,runtime/evaluator/adversarial tests,pass
+safe-failure,not-evaluable and denied declarations abstain without report,engine findings and evaluator tests,pass
+replay,request/result IDs and digests are canonical and tamper checked,engine replay and API/CLI verify tests,pass
+controls,seven caller-declared controls preflight before execution,preflight runtime and denial tests,pass
+uncertainty,seven explicit uncertainty dimensions and limitations,typed result envelope and evidence audit,pass
+interfaces,FastAPI Typer and parse-once plugin parity,interface/adversarial tests and sanitized errors,pass
+release,coverage benchmark package hashes and independent verifier,release-evidence/m25_04 and verify_m2504_release.py,pass
+prohibited-output-ceiling,transport report only with no kinase/treatment/identity inference,schema metadata and adversarial boundary tests,pass
