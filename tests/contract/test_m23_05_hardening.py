@@ -374,6 +374,17 @@ def test_report_and_configuration_id_closures_reject_duplicates() -> None:
         )
 
 
+@pytest.mark.parametrize("section", ["performance", "calibration", "coverage"])
+def test_report_dimension_closures_reject_missing_dimension(section: str) -> None:
+    request = _request()
+    report = _report(request)
+    source = getattr(report, section)
+    changed = source[0].model_copy(update={"dimension": SubgroupDimension.SEX})
+    candidate = report.model_dump(mode="python") | {section: (changed, *source[1:])}
+    with pytest.raises(ValidationError, match="cover all configured subgroup dimensions"):
+        SubgroupEvaluationReport.model_validate(candidate, strict=True)
+
+
 def test_result_identity_provenance_and_status_closure() -> None:
     request = _request()
     result = _completed_result(request)
@@ -398,6 +409,8 @@ def test_result_identity_provenance_and_status_closure() -> None:
     )
     with pytest.raises(ValidationError, match="finding ids"):
         _result_update(result, findings=(finding, finding))
+    with pytest.raises(ValidationError, match="result digest"):
+        _result_update(result, result_digest=sha256_digest("tampered"))
 
 
 def test_result_canonical_identity_is_stable_and_payload_digest_binds_content() -> None:
