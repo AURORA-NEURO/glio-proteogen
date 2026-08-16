@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M21-08."""
 
+from typing import cast
+
 from glio_proteogen.contracts.m21_08 import (
     M2108_OUTPUT_MEDIA_TYPE,
     M2108_PROVISIONAL_ABI,
@@ -26,30 +28,36 @@ def _evidence() -> EvidenceReference:
     )
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def test_provisional_schemas_preserve_gate_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["traceabilityRequired"]
-        and schema["x-glio-contract"]["riskControlsRequired"]
-        and schema["x-glio-contract"]["benchmarkOutcomesRequired"]
-        and schema["x-glio-contract"]["claimCeilingRequired"]
-        and schema["x-glio-contract"]["residualRiskRequired"]
-        and schema["x-glio-contract"]["approvalRequired"]
-        and schema["x-glio-contract"]["postReleaseObligationsRequired"]
-        and schema["x-glio-contract"]["signedReleaseRecordRequired"]
-        and schema["x-glio-contract"]["noUnresolvedCriticalRequirements"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        isinstance(schema["$schema"], str) and schema["$schema"].endswith("2020-12/schema")
+        for schema in schemas.values()
+    )
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(
+        _metadata(schema)["traceabilityRequired"]
+        and _metadata(schema)["riskControlsRequired"]
+        and _metadata(schema)["benchmarkOutcomesRequired"]
+        and _metadata(schema)["claimCeilingRequired"]
+        and _metadata(schema)["residualRiskRequired"]
+        and _metadata(schema)["approvalRequired"]
+        and _metadata(schema)["postReleaseObligationsRequired"]
+        and _metadata(schema)["signedReleaseRecordRequired"]
+        and _metadata(schema)["noUnresolvedCriticalRequirements"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "complex activity"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "complex activity" for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2108_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2108_OUTPUT_MEDIA_TYPE
     assert M2108_PROVISIONAL_ABI is True
 
 
