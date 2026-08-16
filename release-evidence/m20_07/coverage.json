@@ -1,0 +1,13 @@
+{
+  "branch_enabled": true,
+  "branches": 46,
+  "coverage_percent": 95.0,
+  "fail_under_percent": 95,
+  "missed_statements": 11,
+  "module_id": "GLIO-PROTEOGEN-M20-07",
+  "partial_branches": 8,
+  "scope": "contracts/m20_07 + c20_biomarker_panel/m20_07_downstream_typed_export + evals/m20_07",
+  "statements": 314,
+  "covered_statements": 303,
+  "passed": true
+}
