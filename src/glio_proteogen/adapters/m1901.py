@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 - Typer resolves this runtime type.
 from typing import Annotated, Final, cast
 
 import typer
@@ -106,7 +106,7 @@ def _load_request(path: Path) -> ResolveProteotypeUpstreamContractsRequest:
         m1901.preflight_m1901_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     except (OSError, StrictJsonError, ValidationError, m1901.M1901AuthorizationError) as error:
-        raise typer.BadParameter("invalid M19-01 request") from error
+        raise typer.BadParameter("invalid M19-01 request") from error  # noqa: TRY003
 
 
 @m1901_app.command("export-schema")
@@ -141,7 +141,9 @@ def resolve_command(
 
 
 @m1901_app.command("verify")
-def verify_command(result_path: Annotated[Path, typer.Argument(exists=True, readable=True)]) -> None:
+def verify_command(
+    result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
+) -> None:
     try:
         raw = result_path.read_bytes()
         strict_json_loads(raw, max_bytes=M1901_MAX_CANONICAL_RESULT_BYTES)

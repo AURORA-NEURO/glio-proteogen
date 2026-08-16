@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import TYPE_CHECKING, Final
+
+from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 
 from .engine import M1901Engine
+
+if TYPE_CHECKING:
+    from glio_proteogen.contracts.m19_01 import (
+        ProteotypeUpstreamResolutionResult,
+        ResolveProteotypeUpstreamContractsRequest,
+    )
 
 _MAX_JSON_BYTES: Final = 4 * 1024 * 1024
 
@@ -44,20 +51,22 @@ class M1901Plugin:
     def descriptor(self) -> M1901PluginDescriptor:
         return M1901PluginDescriptor()
 
-    def validate_json(self, payload: str | bytes) -> Any:
+    def validate_json(self, payload: str | bytes) -> ResolveProteotypeUpstreamContractsRequest:
         raw = payload.encode() if isinstance(payload, str) else payload
         if len(raw) > _MAX_JSON_BYTES:
-            raise ValueError("M19-01 request exceeds canonical size limit")
+            raise ValueError("M19-01 request exceeds canonical size limit")  # noqa: TRY003
         try:
-            document = json.loads(raw)
-        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise ValueError("M19-01 request must be valid JSON") from exc
+            document = strict_json_loads(raw, max_bytes=_MAX_JSON_BYTES)
+        except StrictJsonError as exc:
+            raise ValueError("M19-01 request must be valid JSON") from exc  # noqa: TRY003
         return self._engine.validate_request(document)
 
-    def run(self, request: object) -> Any:
+    def run(self, request: object) -> ProteotypeUpstreamResolutionResult:
         return self._engine.resolve(request)
 
-    def replay(self, result: Any) -> Any:
+    def replay(
+        self, result: ProteotypeUpstreamResolutionResult
+    ) -> ProteotypeUpstreamResolutionResult:
         return self._engine.replay(result)
 
 

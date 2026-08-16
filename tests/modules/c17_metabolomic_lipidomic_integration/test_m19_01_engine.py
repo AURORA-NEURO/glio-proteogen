@@ -7,35 +7,32 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m19_01 import (
     CompatibilityStatus,
-    ResolverStatus,
     ResolverFindingCode,
+    ResolverStatus,
 )
 from glio_proteogen.contracts.m19_01.canonical import canonical_request_digest
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
-from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m19_01_upstream_contract_resolver import (
-    M1901AuthorizationError,
-    M1901Engine,
-    M1901ReplayError,
-    M1901Service,
-    preflight_m1901_authorization,
-    resolve_proteotype_upstream_contracts,
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_01_upstream_contract_resolver as m1901,
 )
 from tests.contract.test_m19_01_deep import _candidate, _request
 
+_CONTROL_COUNT = 7
+
 
 def test_supported_candidate_is_validated_and_bound_to_proteotype() -> None:
-    result = M1901Engine().resolve(_request())
+    result = m1901.M1901Engine().resolve(_request())
     assert result.status is ResolverStatus.VALIDATED
     assert result.bundle is not None
     assert result.compatibility_report.selected_candidate_ids == ("candidate.proteome",)
     assert result.parent_target == "proteotype"
     assert result.emits_parent is False
-    assert len(result.provenance.control_decisions) == 7
+    assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.request_digest == canonical_request_digest(result.request)
 
 
 def test_unknown_candidate_abstains_without_negative_inference() -> None:
-    result = M1901Engine().resolve(
+    result = m1901.M1901Engine().resolve(
         _request((_candidate("candidate.unknown", compatibility=CompatibilityStatus.UNKNOWN),))
     )
     assert result.status is ResolverStatus.ABSTAINED
@@ -46,7 +43,7 @@ def test_unknown_candidate_abstains_without_negative_inference() -> None:
 
 
 def test_mixed_selected_and_unresolved_inputs_fail_closed_to_review() -> None:
-    result = M1901Engine().resolve(
+    result = m1901.M1901Engine().resolve(
         _request(
             (
                 _candidate(),
@@ -63,7 +60,11 @@ def test_mixed_selected_and_unresolved_inputs_fail_closed_to_review() -> None:
     ("field", "value", "code"),
     [
         ("consent_state", ConsentState.UNKNOWN, ResolverFindingCode.CONSENT_NOT_GRANTED),
-        ("support_status", SupportStatus.REVIEW_REQUIRED, ResolverFindingCode.SUPPORT_NOT_AVAILABLE),
+        (
+            "support_status",
+            SupportStatus.REVIEW_REQUIRED,
+            ResolverFindingCode.SUPPORT_NOT_AVAILABLE,
+        ),
         ("intended_use", "restricted use", ResolverFindingCode.MEDIA_TYPE_MISMATCH),
     ],
 )
@@ -78,7 +79,7 @@ def test_control_and_rule_rejections_are_typed(
     # an explicitly incompatible caller declaration for runtime rejection.
     if field in {"consent_state", "support_status"}:
         candidate = candidate.model_copy(update={"compatibility": CompatibilityStatus.INCOMPATIBLE})
-    result = M1901Engine().resolve(_request((candidate,)))
+    result = m1901.M1901Engine().resolve(_request((candidate,)))
     assert result.status is ResolverStatus.ABSTAINED
     assert result.findings[0].code in {
         code,
@@ -104,25 +105,26 @@ def test_preflight_rejects_missing_or_denied_control_before_validation() -> None
             )
         }
     )
-    with pytest.raises(M1901AuthorizationError, match="consent"):
-        preflight_m1901_authorization(request)
-    with pytest.raises(M1901AuthorizationError, match="consent"):
-        M1901Engine().resolve(request)
+    with pytest.raises(m1901.M1901AuthorizationError, match="consent"):
+        m1901.preflight_m1901_authorization(request)
+    with pytest.raises(m1901.M1901AuthorizationError, match="consent"):
+        m1901.M1901Engine().resolve(request)
 
 
 def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
-    service = M1901Service()
+    service = m1901.M1901Service()
     result = service.resolve(_request())
     assert service.replay(result) == result
-    with pytest.raises(M1901ReplayError, match="identifier"):
+    with pytest.raises(m1901.M1901ReplayError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
-    with pytest.raises(M1901ReplayError, match="payload"):
+    with pytest.raises(m1901.M1901ReplayError, match="payload"):
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
 
 
 def test_strict_public_wrapper_matches_engine() -> None:
-    assert resolve_proteotype_upstream_contracts(_request()).result_digest == M1901Engine().resolve(
-        _request()
-    ).result_digest
-    with pytest.raises((ValidationError, M1901AuthorizationError)):
-        M1901Engine().validate_request({"request_id": "bad"})
+    assert (
+        m1901.resolve_proteotype_upstream_contracts(_request()).result_digest
+        == m1901.M1901Engine().resolve(_request()).result_digest
+    )
+    with pytest.raises((ValidationError, m1901.M1901AuthorizationError)):
+        m1901.M1901Engine().validate_request({"request_id": "bad"})
