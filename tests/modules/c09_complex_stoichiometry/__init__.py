@@ -1,1 +1,1 @@
-"""M09 complex stoichiometry test package."""
+"""M09 complex stoichiometry module tests."""

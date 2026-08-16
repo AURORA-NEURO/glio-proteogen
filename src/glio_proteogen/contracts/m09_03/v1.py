@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m09_03.canonical import (
     canonical_request_digest,
@@ -89,6 +89,13 @@ class BaselineDiagnostic(FrozenModel):
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
 
+    @field_validator("message")
+    @classmethod
+    def diagnostic_message_is_actionable(cls, value: NonEmptyStr) -> NonEmptyStr:
+        if value.casefold().startswith(("todo", "tbd", "placeholder")):
+            raise ValueError("diagnostic message must be an actionable declaration")
+        return value
+
 
 class BaselineRunConfiguration(FrozenModel):
     """Locked preprocessing, tuning, uncertainty and benchmark declarations."""
@@ -103,6 +110,21 @@ class BaselineRunConfiguration(FrozenModel):
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def configuration_is_complete(self) -> BaselineRunConfiguration:
+        artifacts = (
+            self.preprocessing_artifact,
+            self.tuning_artifact,
+            self.uncertainty_artifact,
+            self.benchmark_artifact,
+        )
+        artifact_ids = tuple(item.artifact_id for item in artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("baseline configuration artifacts must have distinct identities")
+        if not self.evidence:
+            raise ValueError("locked baseline configuration requires evidence references")
+        return self
+
 
 class ComplexActivityBaselineEstimate(FrozenModel):
     """Transparent categorical baseline estimate; no treatment recommendation."""
@@ -111,6 +133,14 @@ class ComplexActivityBaselineEstimate(FrozenModel):
     score: float = Field(ge=0.0, le=1.0)
     calibration_reference: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0903_MAX_EVIDENCE)
+
+    @field_validator("predicted_activity")
+    @classmethod
+    def estimate_is_not_a_prohibited_claim(cls, value: NonEmptyStr) -> NonEmptyStr:
+        prohibited = ("kinase", "treatment", "therapy", "all_omics", "subtype")
+        if any(marker in value.casefold() for marker in prohibited):
+            raise ValueError("baseline estimate cannot emit prohibited ownership claims")
+        return value
 
 
 class EstimateComplexActivityBaselineRequest(FrozenModel):
@@ -137,6 +167,11 @@ class EstimateComplexActivityBaselineRequest(FrozenModel):
         )
         if len(artifact_keys) != len(set(artifact_keys)):
             raise ValueError("source artifact references must be unique")
+        if any(
+            artifact.artifact_id == self.representation_result.artifact_id
+            for artifact in self.source_artifacts
+        ):
+            raise ValueError("representation handoff must not be duplicated as a source artifact")
         return self
 
 
@@ -175,12 +210,24 @@ class ComplexActivityBaselineResult(FrozenModel):
             BaselineDiagnosticStatus.FAIL,
             BaselineDiagnosticStatus.NOT_EVALUABLE,
         }
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("baseline diagnostic ids must be unique")
+        finding_set = set(self.findings)
         if self.status is BaselineEstimateStatus.ESTIMATED:
             if (
                 self.estimate is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
                 or any(item.status in failed_diagnostics for item in self.diagnostics)
+                or finding_set
+                & {
+                    BaselineFindingCode.INCOMPLETE_INPUTS,
+                    BaselineFindingCode.QUALITY_FAILED,
+                    BaselineFindingCode.UPSTREAM_UNSUPPORTED,
+                    BaselineFindingCode.CALIBRATION_NOT_LOCKED,
+                    BaselineFindingCode.OUT_OF_DOMAIN,
+                }
             ):
                 raise ValueError("estimated result requires supported, evaluable baseline output")
         elif (
@@ -188,8 +235,14 @@ class ComplexActivityBaselineResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not finding_set
         ):
             raise ValueError("abstained result requires no estimate and explicit safe status")
+        if (
+            self.support_decision.status is SupportStatus.REVIEW_REQUIRED
+            and not self.human_review_required
+        ):
+            raise ValueError("review-required baseline result must request human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

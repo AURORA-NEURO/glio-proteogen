@@ -1,0 +1,19 @@
+{
+  "check_count": 8,
+  "checks": [
+    "safe_abstention_has_explicit_uncertainty_and_evidence",
+    "transitive_replay_is_byte_stable",
+    "tampered_receipt_rejected",
+    "unresolved_controls_fail_closed",
+    "wrong_m0702_representation_rejected",
+    "duplicate_json_keys_rejected",
+    "typed_estimate_shape_rejected",
+    "plugin_service_parity"
+  ],
+  "contract_version": "0.1.0-provisional",
+  "module_id": "GLIO-PROTEOGEN-M07-03",
+  "passed": true,
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "2284-2327",
+  "result_digest": "sha256:373799f3afa08c0ae5ace03b64e6a751dd4489436ce63ff23572d21d56855dd3"
+}

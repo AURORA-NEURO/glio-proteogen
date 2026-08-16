@@ -51,6 +51,9 @@ M0906_MAX_EVIDENCE: Final = 64
 M0906_MAX_FINDINGS: Final = 64
 M0906_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M0906_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M0906_BENCHMARK_ITERATIONS: Final = 10
+M0906_MEAN_BUDGET_NS: Final = 2_000_000_000
+M0906_P95_BUDGET_NS: Final = 3_000_000_000
 M0906_NOMINAL_COVERAGE: Final = 0.9
 M0906_MIN_COVERAGE: Final = 0.85
 M0906_MAX_COVERAGE: Final = 0.95
@@ -79,6 +82,16 @@ class SensitivityEnvelopeStatus(StrEnum):
 class UncertaintyDecompositionStatus(StrEnum):
     DECOMPOSED = "decomposed"
     ABSTAINED = "abstained"
+
+
+class UncertaintyDecompositionReplayReason(StrEnum):
+    """Stable reason codes for canonical replay verification."""
+
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
 
 
 class UncertaintyFindingCode(StrEnum):
@@ -124,8 +137,8 @@ class SensitivityEnvelope(FrozenModel):
 
     status: SensitivityEnvelopeStatus
     nominal_coverage: float = Field(default=M0906_NOMINAL_COVERAGE, ge=0.0, le=1.0)
-    lower_bound: float | None = None
-    upper_bound: float | None = None
+    lower_bound: float | None = Field(default=None, ge=0.0, le=1.0)
+    upper_bound: float | None = Field(default=None, ge=0.0, le=1.0)
     observed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M0906_MAX_EVIDENCE)
@@ -152,6 +165,27 @@ class SensitivityEnvelope(FrozenModel):
             or self.observed_coverage is not None
         ):
             raise ValueError("non-evaluated sensitivity cannot carry coverage values")
+        return self
+
+
+class DecomposeComplexActivityUncertaintyVerification(FrozenModel):
+    """Content and deterministic replay status for one result envelope."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: UncertaintyDecompositionReplayReason
+
+    @model_validator(mode="after")
+    def verification_flags_are_closed(
+        self,
+    ) -> DecomposeComplexActivityUncertaintyVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
         return self
 
 
@@ -246,12 +280,16 @@ class ComplexActivityUncertaintyDecompositionResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no decomposition and explicit safe status")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
 
 
 __all__ = [
+    "M0906_BENCHMARK_ITERATIONS",
     "M0906_CONTRACT_VERSION",
     "M0906_EVIDENCE_CLAIM",
     "M0906_GATE",
@@ -262,22 +300,26 @@ __all__ = [
     "M0906_MAX_COVERAGE",
     "M0906_MAX_EVIDENCE",
     "M0906_MAX_FINDINGS",
+    "M0906_MEAN_BUDGET_NS",
     "M0906_MIN_COVERAGE",
     "M0906_MODULE_ID",
     "M0906_NOMINAL_COVERAGE",
     "M0906_OPERATION",
     "M0906_OUTPUT_MEDIA_TYPE",
     "M0906_OWNER",
+    "M0906_P95_BUDGET_NS",
     "M0906_PARENT",
     "M0906_PROVISIONAL_ABI",
     "M0906_SAFETY_CLASS",
     "ComplexActivityUncertaintyDecompositionResult",
     "DecomposeComplexActivityUncertaintyRequest",
+    "DecomposeComplexActivityUncertaintyVerification",
     "SensitivityEnvelope",
     "SensitivityEnvelopeStatus",
     "UncertaintyComponent",
     "UncertaintyDecomposition",
     "UncertaintyDecompositionPolicy",
+    "UncertaintyDecompositionReplayReason",
     "UncertaintyDecompositionStatus",
     "UncertaintyDimension",
     "UncertaintyFinding",
