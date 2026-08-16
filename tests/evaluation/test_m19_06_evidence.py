@@ -11,8 +11,14 @@ MIN_ADVERSARIAL_CASES = 7
 def test_m19_06_evaluator_meets_authority_and_adversarial_target() -> None:
     report = run()
     assert report["status"] == "PASS"
-    assert report["coverage_percent"] >= report["target_coverage_percent"]
-    assert report["adversarial_case_count"] >= MIN_ADVERSARIAL_CASES
+    coverage = report["coverage_percent"]
+    target = report["target_coverage_percent"]
+    adversarial = report["adversarial_case_count"]
+    assert isinstance(coverage, (int, float))
+    assert isinstance(target, (int, float))
+    assert isinstance(adversarial, int)
+    assert coverage >= target
+    assert adversarial >= MIN_ADVERSARIAL_CASES
 
 
 def test_m19_06_benchmark_is_deterministic_and_within_budget() -> None:
