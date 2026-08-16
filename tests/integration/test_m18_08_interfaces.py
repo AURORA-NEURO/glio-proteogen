@@ -53,6 +53,14 @@ def test_api_and_cli_export_identical_authority_bound_schemas(tmp_path: Path) ->
         assert response.json()["x-glio-contract"]["dossierSlice"].endswith(":6464-6504")
 
 
+def test_cli_registers_one_m1808_command_surface() -> None:
+    help_result = CliRunner().invoke(cli_app, ["m1808-translation-health", "--help"])
+    assert help_result.exit_code == 0, help_result.output
+    command_lines = help_result.stdout.splitlines()
+    assert sum("export-schema  Export one strict" in line for line in command_lines) == 1
+    assert sum("monitor        Monitor translation health" in line for line in command_lines) == 1
+
+
 def test_api_cli_service_plugin_emit_replay_safe_parity(tmp_path: Path) -> None:
     request: MonitorBiomarkerPanelTranslationHealthRequest = _request()
     serialized = canonical_json_bytes(request.model_dump(mode="json"))

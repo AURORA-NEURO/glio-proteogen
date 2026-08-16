@@ -6,11 +6,14 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m18_08 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
     MonitorStatus,
     ObservationStatus,
     TelemetryObservation,
     TranslationHealthReport,
+    TranslationHealthState,
 )
+from glio_proteogen.contracts.m18_08.canonical import normalized_request
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.modules.c18_spatial_proteomics import (
@@ -59,6 +62,14 @@ def test_engine_verify_rejects_malformed_result() -> None:
         m1808.M1808TranslationMonitoringEngine().verify({"result_digest": "bad"})
 
 
+def test_canonical_projection_accepts_mapping_and_digest_tampering_is_rejected() -> None:
+    assert normalized_request({"stable": True}) == {"stable": True}
+    result = m1808.M1808TranslationMonitoringEngine().infer(_request())
+    tampered = result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+    with pytest.raises(m1808.M1808ReplayVerificationError):
+        m1808.M1808TranslationMonitoringEngine().verify(tampered, replay=False)
+
+
 def test_public_operation_and_service_json_boundaries() -> None:
     request = _request()
     encoded = canonical_json_bytes(request.model_dump(mode="json"))
@@ -68,6 +79,8 @@ def test_public_operation_and_service_json_boundaries() -> None:
     encoded_result = canonical_json_bytes(result.model_dump(mode="json"))
     assert service.verify(encoded_result) == result
     assert service.verify(result.model_dump(mode="json")) == result
+    assert service.validate_request(request.model_dump(mode="json")) == request
+    assert service.replay(result) == result
     assert m1808.monitor_biomarker_panel_translation_health(request) == result
     assert service.descriptor["parent"] == "biomarker panel"
 
@@ -77,12 +90,35 @@ def test_service_rejects_invalid_json() -> None:
         m1808.M1808Service().execute(b"{not-json")
 
 
+def test_service_rejects_oversized_json_before_validation() -> None:
+    oversized = b'{"padding":"' + b"x" * M1808_MAX_CANONICAL_REQUEST_BYTES + b'"}'
+    with pytest.raises((TypeError, ValueError), match="byte limit"):
+        m1808.M1808Service().execute(oversized)
+
+
+def test_service_rejects_duplicate_json_keys() -> None:
+    encoded = canonical_json_bytes(_request().model_dump(mode="json"))
+    duplicate = encoded[:-1] + b',"request_id":"forged"}'
+    with pytest.raises((TypeError, ValueError), match="duplicate"):
+        m1808.M1808Service().execute(duplicate)
+
+
+def test_authorization_preflight_precedes_malformed_observations() -> None:
+    payload = _request().model_dump(mode="json")
+    payload["context"]["references"]["consent"]["state"] = "withheld"
+    payload["telemetry"] = "not-a-sequence"
+    with pytest.raises(m1808.M1808AuthorizationError):
+        m1808.M1808TranslationMonitoringEngine().infer(payload)
+
+
 def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
     request = _request()
     first = m1808.M1808Plugin()
     second = m1808.M1808Plugin()
     token = first.validate(request)
     assert first.validate_request(request) == request
+    with pytest.raises(AttributeError):
+        token.request = request  # type: ignore[misc]
     with pytest.raises(m1808.M1808TokenError):
         second.run(token)
     token._seal = object()
@@ -122,6 +158,10 @@ def test_contract_rejects_source_binding_closure_violations() -> None:
     payload["source_artifacts"] = payload["source_artifacts"] + [payload["source_artifacts"][0]]
     with pytest.raises(ValidationError, match="source artifacts"):
         type(request).model_validate_json(canonical_json_bytes(payload), strict=True)
+    payload = request.model_dump(mode="json")
+    payload["rollback_policy"]["rollback_artifact"]["digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValidationError, match="rollback artifact"):
+        type(request).model_validate_json(canonical_json_bytes(payload), strict=True)
 
 
 def test_contract_rejects_health_and_result_identity_collisions() -> None:
@@ -140,6 +180,34 @@ def test_contract_rejects_health_and_result_identity_collisions() -> None:
     result_payload["request_digest"] = "sha256:" + "0" * 64
     with pytest.raises(ValidationError, match="request digest"):
         type(result).model_validate_json(canonical_json_bytes(result_payload), strict=True)
+
+
+def test_contract_rejects_report_identity_and_duplicate_finding_closure() -> None:
+    result = m1808.M1808TranslationMonitoringEngine().infer(_request())
+    report = result.health_report
+    assert report is not None
+    payload = result.model_dump(mode="json")
+    payload["health_report"]["report_id"] = "report.forged"
+    with pytest.raises(ValidationError, match="health report id"):
+        type(result).model_validate_json(canonical_json_bytes(payload), strict=True)
+    payload = result.model_dump(mode="json")
+    payload["health_report"]["health_state"] = "not_evaluable"
+    payload["health_report"]["rollback_decision"] = "review_required"
+    payload["result_digest"] = "sha256:" + "0" * 64
+    payload["human_review_required"] = True
+    with pytest.raises(ValidationError, match="non-evaluable"):
+        type(result).model_validate_json(canonical_json_bytes(payload), strict=True)
+    finding = payload["findings"][0]
+    payload = result.model_dump(mode="json")
+    payload["findings"] = [finding, finding | {"finding_id": "finding.duplicate"}]
+    payload["result_digest"] = "sha256:" + "0" * 64
+    with pytest.raises(ValidationError, match="finding codes"):
+        type(result).model_validate_json(canonical_json_bytes(payload), strict=True)
+    payload = result.model_dump(mode="json")
+    payload["findings"] = [finding, finding | {"code": "critical_drift"}]
+    payload["result_digest"] = "sha256:" + "0" * 64
+    with pytest.raises(ValidationError, match="finding ids"):
+        type(result).model_validate_json(canonical_json_bytes(payload), strict=True)
 
 
 def test_result_closure_rejects_invalid_status_and_digest() -> None:
@@ -163,10 +231,32 @@ def test_result_closure_rejects_invalid_status_and_digest() -> None:
 
 def test_contract_rejects_nonfinite_telemetry() -> None:
     with pytest.raises(ValidationError):
-        TelemetryObservation.model_validate(
-            _request().telemetry[0].model_dump(mode="json") | {"observed_value": float("nan")},
+        TelemetryObservation.model_validate_json(
+            canonical_json_bytes(
+                _request().telemetry[0].model_dump(mode="json") | {"observed_value": "NaN"}
+            ),
             strict=True,
         )
+
+
+def test_contract_rejects_passing_telemetry_outside_declared_delta() -> None:
+    with pytest.raises(ValidationError, match="allowed delta"):
+        TelemetryObservation.model_validate_json(
+            canonical_json_bytes(
+                _request().telemetry[0].model_dump(mode="json")
+                | {"observed_value": 2.0, "baseline_value": 1.0, "allowed_delta": 0.2},
+            ),
+            strict=True,
+        )
+
+
+def test_discrepancy_failure_is_never_silently_healthy() -> None:
+    result = m1808.M1808TranslationMonitoringEngine().infer(
+        _request(discrepancy_status=ObservationStatus.FAIL)
+    )
+    assert result.health_report is not None
+    assert result.health_report.health_state is TranslationHealthState.DEGRADED
+    assert any(item.code.value == "policy_violation" for item in result.findings)
 
 
 def test_contract_rejects_decision_state_mismatch() -> None:
@@ -175,4 +265,4 @@ def test_contract_rejects_decision_state_mismatch() -> None:
     payload = result.health_report.model_dump(mode="json")
     payload.update({"health_state": "suspended", "rollback_decision": "none"})
     with pytest.raises(ValidationError):
-        TranslationHealthReport.model_validate(payload, strict=True)
+        TranslationHealthReport.model_validate_json(canonical_json_bytes(payload), strict=True)

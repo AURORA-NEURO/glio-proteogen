@@ -48,10 +48,11 @@ does not estimate biological uncertainty or convert missing evidence into a nega
 The standalone adapter exposes strict FastAPI schema/resolve/verify routes and Typer
 export-schema/resolve/verify commands. JSON is bounded, duplicate-key safe, parsed once
 before typed validation, errors are sanitized, and CLI outputs never overwrite existing
-files. The plugin descriptor records Bioinformatics, S2, G0 ownership and prohibited-scope
-boundaries.
+files. The service and plugin expose explicit execute/verify seams. The plugin descriptor
+records Bioinformatics, S2, G0 ownership and prohibited-scope boundaries.
 
 The frozen evaluator covers compatible validation, mixed review, unknown and incompatible
-abstention, media mismatch, identity gating, replay/tamper rejection, deterministic
-reconstruction, uncertainty completeness, and package/import evidence. All engineering
-evidence is provisional and requires human review before clinical use.
+abstention, media and version mismatch, identity gating, replay/tamper and recomputed-digest
+forgery rejection, deterministic reconstruction, uncertainty completeness, authority metadata,
+descriptor scope, and package/import evidence. All engineering evidence is provisional and
+requires human review before clinical use.

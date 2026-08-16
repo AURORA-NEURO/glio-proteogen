@@ -114,6 +114,11 @@ class TelemetryObservation(FrozenModel):
             for value in (self.observed_value, self.baseline_value, self.allowed_delta)
         ):
             raise ValueError("telemetry measurements must be finite")
+        if (
+            self.status is ObservationStatus.PASS
+            and abs(self.observed_value - self.baseline_value) > self.allowed_delta
+        ):
+            raise ValueError("passing telemetry must remain within its allowed delta")
         return self
 
 
@@ -242,34 +247,34 @@ class MonitorBiomarkerPanelTranslationHealthRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("request source artifacts must be unique")
+        artifact_digests = tuple(artifact.digest for artifact in self.source_artifacts)
+        if len(artifact_digests) != len(set(artifact_digests)):
+            raise ValueError("request source artifact digests must be unique")
         source_ids = set(artifact_ids)
-        if self.upstream_result.artifact_id not in source_ids:
+        source_by_id = {artifact.artifact_id: artifact for artifact in self.source_artifacts}
+        if self.upstream_result.artifact_id not in source_ids or (
+            source_by_id[self.upstream_result.artifact_id].model_dump(mode="json")
+            != self.upstream_result.model_dump(mode="json")
+        ):
             raise ValueError("upstream result must be listed in source artifacts")
-        if self.rollback_policy.rollback_artifact.artifact_id not in source_ids:
+        if self.rollback_policy.rollback_artifact.artifact_id not in source_ids or (
+            source_by_id[self.rollback_policy.rollback_artifact.artifact_id].model_dump(mode="json")
+            != self.rollback_policy.rollback_artifact.model_dump(mode="json")
+        ):
             raise ValueError("rollback artifact must be listed in source artifacts")
-        evidence_ids = {
-            evidence.reference.artifact_id for item in self.telemetry for evidence in item.evidence
-        }
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.support_drift
-            for evidence in item.evidence
+        evidence = (
+            *(evidence for item in self.telemetry for evidence in item.evidence),
+            *(evidence for item in self.support_drift for evidence in item.evidence),
+            *(evidence for item in self.workflow_effects for evidence in item.evidence),
+            *(evidence for item in self.discrepancies for evidence in item.evidence),
+            *self.rollback_policy.evidence,
         )
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.workflow_effects
-            for evidence in item.evidence
-        )
-        evidence_ids.update(
-            evidence.reference.artifact_id
-            for item in self.discrepancies
-            for evidence in item.evidence
-        )
-        evidence_ids.update(
-            evidence.reference.artifact_id for evidence in self.rollback_policy.evidence
-        )
-        if not evidence_ids <= source_ids:
-            raise ValueError("monitor evidence references an unknown source artifact")
+        for item in evidence:
+            source = source_by_id.get(item.reference.artifact_id)
+            if source is None or source.model_dump(mode="json") != item.reference.model_dump(
+                mode="json"
+            ):
+                raise ValueError("monitor evidence references an unknown source artifact")
         return self
 
 
@@ -301,20 +306,46 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelTranslationMonitoringResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        expected_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_id:
+            raise ValueError("result id does not bind the canonical request digest")
         if self.status is MonitorStatus.MONITORED:
             if (
                 self.health_report is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.model_dump(mode="json")
+                != self.request.support_decision.model_dump(mode="json")
             ):
                 raise ValueError("monitored result requires a supported health report")
+            expected_report_id = f"report.{self.request_digest.removeprefix('sha256:')}"
+            if self.health_report.report_id != expected_report_id:
+                raise ValueError("health report id does not bind the canonical request digest")
+            if (
+                self.health_report.telemetry != self.request.telemetry
+                or self.health_report.support_drift != self.request.support_drift
+                or self.health_report.workflow_effects != self.request.workflow_effects
+                or self.health_report.discrepancies != self.request.discrepancies
+                or self.health_report.rollback_policy != self.request.rollback_policy
+                or self.health_report.evidence != self.evidence
+            ):
+                raise ValueError("health report must bind the exact request observations")
+            if self.health_report.health_state is TranslationHealthState.NOT_EVALUABLE:
+                raise ValueError("monitored result cannot carry a non-evaluable health report")
         elif (
             self.health_report is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no report and safe status")
+        expected_review = self.status is MonitorStatus.ABSTAINED or (
+            self.health_report is not None
+            and self.health_report.health_state is not TranslationHealthState.HEALTHY
+        )
+        if self.human_review_required is not expected_review:
+            raise ValueError("human review flag must match the health decision")
         finding_ids = tuple(finding.finding_id for finding in self.findings)
         finding_codes = tuple(finding.code for finding in self.findings)
         if len(finding_ids) != len(set(finding_ids)):

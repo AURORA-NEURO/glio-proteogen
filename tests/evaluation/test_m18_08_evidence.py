@@ -26,6 +26,7 @@ def test_m1808_benchmark_is_deterministic_and_within_budget() -> None:
     assert report.p95_ns <= report.p95_budget_ns
     assert report.request_digest.startswith("sha256:")
     assert report.result_digest.startswith("sha256:")
+    assert report.replay_verified is True
 
 
 def test_m1808_cli_evidence_writers_emit_closed_json(tmp_path: Path) -> None:

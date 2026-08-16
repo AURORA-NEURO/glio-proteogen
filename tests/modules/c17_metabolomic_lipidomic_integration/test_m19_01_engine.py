@@ -10,7 +10,10 @@ from glio_proteogen.contracts.m19_01 import (
     ResolverFindingCode,
     ResolverStatus,
 )
-from glio_proteogen.contracts.m19_01.canonical import canonical_request_digest
+from glio_proteogen.contracts.m19_01.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
@@ -30,6 +33,29 @@ def test_supported_candidate_is_validated_and_bound_to_proteotype() -> None:
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.request_digest == canonical_request_digest(result.request)
+    assert result.compatibility_report.report_id == (
+        f"report.{result.request_digest.removeprefix('sha256:')}"
+    )
+    assert result.bundle is not None
+    assert result.bundle.bundle_id == f"bundle.{result.request_digest.removeprefix('sha256:')}"
+    assert result.provenance.activity_id == (
+        f"activity.{result.request_digest.removeprefix('sha256:')}"
+    )
+
+
+def test_declared_version_mismatch_is_typed_and_abstains() -> None:
+    request = _request()
+    configuration = request.configuration.model_copy(
+        update={
+            "rules": (
+                request.configuration.rules[0].model_copy(update={"required_version": "2.0.0"}),
+            )
+        }
+    )
+    request = request.model_copy(update={"configuration": configuration})
+    result = m1901.M1901Engine().resolve(request)
+    assert result.status is ResolverStatus.ABSTAINED
+    assert result.findings[0].code is ResolverFindingCode.INCOMPATIBLE_VERSION
 
 
 def test_unknown_candidate_abstains_without_negative_inference() -> None:
@@ -115,13 +141,19 @@ def test_preflight_rejects_missing_or_denied_control_before_validation() -> None
 def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
     service = m1901.M1901Service()
     result = service.resolve(_request())
+    assert service.execute(_request()) == result
     assert service.replay(result) == result
+    assert service.verify(result) == result
     with pytest.raises(m1901.M1901ReplayError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1901.M1901ReplayError, match="payload"):
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     with pytest.raises(m1901.M1901ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+    forged = result.model_copy(update={"human_review_required": True})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(m1901.M1901ReplayError, match="reconstruction"):
+        service.replay(forged)
 
 
 def test_strict_public_wrapper_matches_engine() -> None:
@@ -144,7 +176,9 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
     request = _request()
     parsed = plugin.validate_json(canonical_json_bytes(request))
     result = plugin.run(parsed)
+    assert plugin.execute(parsed) == result
     assert plugin.replay(result) == result
+    assert plugin.verify(result) == result
     with pytest.raises(ValueError, match="valid JSON"):
         plugin.validate_json(b"not-json")
     with pytest.raises(ValueError, match="valid JSON"):

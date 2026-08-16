@@ -11,7 +11,11 @@ from typing import TYPE_CHECKING, Final
 
 from tests.contract.test_m19_01_deep import _candidate, _request
 
-from glio_proteogen.contracts.m19_01 import CompatibilityStatus
+from glio_proteogen.contracts.m19_01 import (
+    CompatibilityStatus,
+    ResolverFindingCode,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import IdentityLineageState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_01_upstream_contract_resolver as m1901,
@@ -23,8 +27,8 @@ if TYPE_CHECKING:
 ROOT: Final = Path(__file__).resolve().parents[2]
 SCENARIO_PATH: Final = ROOT / "tests" / "fixtures" / "m19_01" / "scenarios.json"
 MODULE_ID: Final = "GLIO-PROTEOGEN-M19-01"
-EXPECTED_SCENARIOS: Final = 8
-EXPECTED_ADVERSARIAL_CASES: Final = 8
+EXPECTED_SCENARIOS: Final = 9
+EXPECTED_ADVERSARIAL_CASES: Final = 10
 DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 DOSSIER_SLICE: Final = "6516-6556"
 
@@ -50,7 +54,7 @@ class EvaluationReport:
     passed: bool
 
 
-def _scenario(name: str) -> ResolveProteotypeUpstreamContractsRequest:
+def _scenario(name: str) -> ResolveProteotypeUpstreamContractsRequest:  # noqa: PLR0911
     accepted = _candidate("candidate.accepted")
     if name in {"validated_compatible", "replay_tamper", "deterministic_reconstruction"}:
         return _request((accepted,))
@@ -80,6 +84,16 @@ def _scenario(name: str) -> ResolveProteotypeUpstreamContractsRequest:
             }
         )
         return _request((candidate,))
+    if name == "version_mismatch":
+        request = _request((accepted,))
+        configuration = request.configuration.model_copy(
+            update={
+                "rules": (
+                    request.configuration.rules[0].model_copy(update={"required_version": "2.0.0"}),
+                )
+            }
+        )
+        return request.model_copy(update={"configuration": configuration})
     if name == "identity_gate":
         request = _request((accepted,))
         references = request.context.references
@@ -137,6 +151,11 @@ def evaluate() -> EvaluationReport:
                 and result.bundle is None
                 and result.support_decision.status is SupportStatus.REVIEW_REQUIRED
             )
+        elif name == "version_mismatch":
+            scenario_passed &= (
+                result.status.value == "abstained"
+                and result.findings[0].code is ResolverFindingCode.INCOMPATIBLE_VERSION
+            )
     checks.append(
         EvalCheck(
             "corpus.executable_oracles",
@@ -145,6 +164,7 @@ def evaluate() -> EvaluationReport:
         )
     )
     mixed = results["mixed_review"]
+    descriptor = m1901.M1901Plugin().descriptor
     checks.extend(
         (
             EvalCheck(
@@ -168,6 +188,29 @@ def evaluate() -> EvaluationReport:
                 ),
                 "all seven uncertainty dimensions remain explicit",
             ),
+            EvalCheck(
+                "authority.module_identity",
+                descriptor.module_id == MODULE_ID
+                and metadata["dossier_sha256"] == DOSSIER_SHA256
+                and metadata["dossier_slice"] == DOSSIER_SLICE,
+                "evaluator is bound to the permitted dossier authority slice",
+            ),
+            EvalCheck(
+                "descriptor.boundaries",
+                (
+                    descriptor.parent_target == "proteotype"
+                    and descriptor.owner == "Bioinformatics"
+                    and descriptor.safety_class == "S2"
+                    and descriptor.gate == "G0"
+                    and descriptor.external_content_traversal is False
+                    and descriptor.identity_inference is False
+                    and descriptor.all_omics_fusion is False
+                    and descriptor.kinase_activity is False
+                    and descriptor.treatment_recommendation is False
+                    and descriptor.unsupported_to_negative is False
+                ),
+                "plugin descriptor preserves scope and safety boundaries",
+            ),
         )
     )
     tampered = results["replay_tamper"].model_copy(update={"human_review_required": True})
@@ -177,6 +220,22 @@ def evaluate() -> EvaluationReport:
     except m1901.M1901ReplayError:
         replay_denied = True
     checks.append(EvalCheck("replay.tamper_denied", replay_denied, "payload digest is bound"))
+    forged_payload = results["replay_tamper"].model_copy(update={"human_review_required": True})
+    forged = forged_payload.model_copy(
+        update={"result_digest": result_payload_digest(forged_payload)}
+    )
+    reconstruction_denied = False
+    try:
+        engine.replay(forged)
+    except m1901.M1901ReplayError:
+        reconstruction_denied = True
+    checks.append(
+        EvalCheck(
+            "replay.reconstruction_denied",
+            reconstruction_denied,
+            "a forged payload cannot pass by recomputing its digest",
+        )
+    )
     deterministic_a = engine.resolve(_scenario("deterministic_reconstruction"))
     deterministic_b = engine.resolve(_scenario("deterministic_reconstruction"))
     deterministic = deterministic_a.result_digest == deterministic_b.result_digest
@@ -192,7 +251,12 @@ def evaluate() -> EvaluationReport:
             int(results["unknown_abstention"].status.value == "abstained"),
             int(results["incompatible_abstention"].status.value == "abstained"),
             int(results["media_mismatch"].status.value == "abstained"),
+            int(
+                results["version_mismatch"].findings[0].code
+                is ResolverFindingCode.INCOMPATIBLE_VERSION
+            ),
             int(replay_denied),
+            int(reconstruction_denied),
             int(scenario_passed),
             int(mixed.human_review_required),
             int(results["validated_compatible"].bundle is not None),

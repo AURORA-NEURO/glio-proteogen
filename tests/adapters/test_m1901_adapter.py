@@ -120,6 +120,17 @@ def test_fastapi_sanitizes_validation_auth_and_replay_errors() -> None:
     )
 
 
+def test_fastapi_verify_rejects_duplicate_keys_at_strict_boundary() -> None:
+    client = TestClient(app)
+    response = client.post(
+        "/v1/modules/M19-01/verify",
+        content=b'{"result_id":"a","result_id":"b"}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == HTTP_UNPROCESSABLE_ENTITY
+    assert "M19-01 result verification failed" in response.text
+
+
 def test_fastapi_resolution_failure_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
     client = TestClient(app)
 

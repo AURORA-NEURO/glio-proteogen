@@ -75,6 +75,10 @@ def test_nested_evidence_and_artifact_digests_are_unique() -> None:
         type(candidate).model_validate(
             candidate.model_dump(mode="python") | {"evidence": (_evidence("same"),) * 2}
         )
+    with pytest.raises(ValidationError, match="bind the candidate artifact"):
+        type(candidate).model_validate(
+            candidate.model_dump(mode="python") | {"evidence": (_evidence("other"),)}
+        )
     with pytest.raises(ValidationError, match="decision evidence"):
         CompatibilityDecision.model_validate(
             _decision().model_dump(mode="python") | {"evidence": (_evidence("same"),) * 2}
@@ -168,6 +172,11 @@ def test_bundle_and_request_membership_closure_is_fail_closed() -> None:
         type(request).model_validate(
             request.model_dump(mode="python")
             | {"source_artifacts": (request.source_artifacts[0],) * 2}
+        )
+    with pytest.raises(ValidationError, match="bind all resolver evidence"):
+        type(request).model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (request.source_artifacts[0], request.source_artifacts[1])}
         )
 
 

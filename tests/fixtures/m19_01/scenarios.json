@@ -8,6 +8,7 @@
     "unknown_abstention",
     "incompatible_abstention",
     "media_mismatch",
+    "version_mismatch",
     "replay_tamper",
     "deterministic_reconstruction",
     "identity_gate"
