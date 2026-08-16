@@ -223,10 +223,20 @@ def test_plugin_requires_submission_and_validated_token() -> None:
     plugin = M2506Plugin(service)
     with pytest.raises(TypeError):
         plugin.validate(request())
+    with pytest.raises(TypeError):
+        plugin.run(object())  # type: ignore[arg-type]
     validated = plugin.validate(ChallengeSubmission(request=request().model_dump(mode="json")))
     result = plugin.run(validated)
     assert result.status is RobustnessStatus.EVALUATED
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M25-06"
+    json_token = plugin.validate(ChallengeSubmission(request=request().model_dump_json()))
+    assert plugin.run(json_token).result_digest == result.result_digest
+    assert plugin.replay(result).result_digest == result.result_digest
+
+
+def test_service_accepts_canonical_json_request() -> None:
+    service = M2506Service()
+    assert service.validate_request(request().model_dump_json()).request_id == "request.m2506"
 
 
 def test_schema_has_closed_provisional_boundary() -> None:
