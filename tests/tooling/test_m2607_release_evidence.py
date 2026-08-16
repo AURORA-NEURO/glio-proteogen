@@ -12,7 +12,11 @@ EVIDENCE = Path(__file__).parents[2] / "release-evidence" / "m26_07"
 
 
 def test_m2607_release_evidence_is_closed() -> None:
-    verify_m2607_evidence(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json")
+    verify_m2607_evidence(
+        EVIDENCE / "evaluation.json",
+        EVIDENCE / "benchmark.json",
+        EVIDENCE / "package.json",
+    )
 
 
 def test_m2607_release_evidence_rejects_tampered_authority(tmp_path: Path) -> None:
@@ -22,7 +26,7 @@ def test_m2607_release_evidence_rejects_tampered_authority(tmp_path: Path) -> No
     evaluation.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ReleaseArtifactError, match="authority"):
-        verify_m2607_evidence(evaluation, EVIDENCE / "benchmark.json")
+        verify_m2607_evidence(evaluation, EVIDENCE / "benchmark.json", EVIDENCE / "package.json")
 
 
 def test_m2607_release_evidence_rejects_budget_overrun(tmp_path: Path) -> None:
@@ -32,4 +36,14 @@ def test_m2607_release_evidence_rejects_budget_overrun(tmp_path: Path) -> None:
     benchmark.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ReleaseArtifactError, match="timing budgets"):
-        verify_m2607_evidence(EVIDENCE / "evaluation.json", benchmark)
+        verify_m2607_evidence(EVIDENCE / "evaluation.json", benchmark, EVIDENCE / "package.json")
+
+
+def test_m2607_release_evidence_rejects_incomplete_package(tmp_path: Path) -> None:
+    payload = json.loads((EVIDENCE / "package.json").read_text(encoding="utf-8"))
+    payload["isolatedImportPassed"] = False
+    package = tmp_path / "package.json"
+    package.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ReleaseArtifactError, match="isolated import"):
+        verify_m2607_evidence(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package)
