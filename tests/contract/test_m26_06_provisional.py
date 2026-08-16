@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_06 import (
@@ -61,7 +61,7 @@ def test_provisional_schemas_require_security_and_safe_failure_controls() -> Non
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["leastPrivilegeRequired"] is True
         assert metadata["consentEnforcementRequired"] is True
@@ -72,7 +72,8 @@ def test_provisional_schemas_require_security_and_safe_failure_controls() -> Non
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "protein subtype"
         assert metadata["upstreamInputMediaType"] == M2606_M2605_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2606_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2606_OUTPUT_MEDIA_TYPE
     assert M2606_PROVISIONAL_ABI is True
 
 
@@ -197,12 +198,13 @@ def test_posture_status_cannot_overstate_failed_or_unresolved_controls() -> None
 
 
 def test_severe_finding_requires_evidence_and_schema_metadata_is_explicit() -> None:
-    with pytest.raises(ValidationError, match="Field required"):
+    with pytest.raises(ValidationError, match="at least 1 item"):
         SecurityFinding(
             finding_id="finding.m2606.unreferenced",
             code=SecurityFindingCode.THREAT_DETECTED,
             severity=SecurityFindingSeverity.CRITICAL,
             message="Threat evidence is missing.",
+            evidence=(),
         )
     metadata = cast("dict[str, Any]", contract_json_schemas()["output"]["x-glio-contract"])
     assert metadata["rawPayload"] is False
