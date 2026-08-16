@@ -1,0 +1,72 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-04",
+  "authority": {
+    "file": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "2328-2368"
+  },
+  "responsibility": "probabilistic/mechanism-guided advanced estimator under copy-number dosage/attenuation",
+  "parent_target": "proteotype",
+  "safety_class": "S2",
+  "gate": "G2",
+  "abi_status": "provisional; no frozen endpoint, media type, or symbol catalogue",
+  "traceability": [
+    {
+      "requirement": "Bind MS proteome, genome/transcriptome, PTM, representation, and configuration references",
+      "implementation": ["src/glio_proteogen/contracts/m07_04/v1.py", "src/glio_proteogen/contracts/m07_04/schema.py"],
+      "verification": ["tests/contract/test_m07_04_contract.py", "tests/modules/c07_copy_number_dosage/test_m07_04_runtime.py"]
+    },
+    {
+      "requirement": "Enforce identity/lineage, provenance, consent, quality, support, and intended-use controls",
+      "implementation": ["src/glio_proteogen/modules/c07_copy_number_dosage/m07_04_probabilistic_advanced_estimator/engine.py"],
+      "verification": ["tests/modules/c07_copy_number_dosage/test_m07_04_adversarial.py", "evals/m07_04/run.py"]
+    },
+    {
+      "requirement": "Represent finite scalar, interval, and categorical observations with closed variants",
+      "implementation": ["src/glio_proteogen/contracts/m07_04/v1.py"],
+      "verification": ["tests/contract/test_m07_04_contract.py", "tests/modules/c07_copy_number_dosage/test_m07_04_adversarial.py"]
+    },
+    {
+      "requirement": "Emit typed posterior estimates, diagnostics, provenance, evidence, limitations, and seven uncertainty dimensions",
+      "implementation": ["src/glio_proteogen/contracts/m07_04/v1.py", "src/glio_proteogen/modules/c07_copy_number_dosage/m07_04_probabilistic_advanced_estimator/engine.py"],
+      "verification": ["tests/modules/c07_copy_number_dosage/test_m07_04_runtime.py", "evals/m07_04/run.py"]
+    },
+    {
+      "requirement": "Safe abstention for unsupported, unfrozen, non-finite, or ambiguous inputs",
+      "implementation": ["src/glio_proteogen/modules/c07_copy_number_dosage/m07_04_probabilistic_advanced_estimator/engine.py"],
+      "verification": ["tests/modules/c07_copy_number_dosage/test_m07_04_adversarial.py", "tests/evals/test_m07_04_eval.py", "tests/fixtures/m07_04/scenarios.json"]
+    },
+    {
+      "requirement": "Canonical replay and tamper-evident result closure",
+      "implementation": ["src/glio_proteogen/contracts/m07_04/canonical.py", "src/glio_proteogen/modules/c07_copy_number_dosage/m07_04_probabilistic_advanced_estimator/service.py"],
+      "verification": ["tests/modules/c07_copy_number_dosage/test_m07_04_runtime.py", "tests/modules/c07_copy_number_dosage/test_m07_04_adversarial.py", "evals/m07_04/run.py"]
+    },
+    {
+      "requirement": "Strict plugin, API, and CLI boundary with sanitized errors and parity",
+      "implementation": ["src/glio_proteogen/modules/c07_copy_number_dosage/m07_04_probabilistic_advanced_estimator/plugin.py", "src/glio_proteogen/adapters/m0704.py"],
+      "verification": ["tests/integration/test_m07_04_interfaces.py", "tests/modules/c07_copy_number_dosage/test_m07_04_adversarial.py"]
+    },
+    {
+      "requirement": "G2 release evidence, robustness checks, calibration limitation, and package recovery",
+      "implementation": ["evals/m07_04/run.py", "evals/m07_04/benchmark.py", "tools/verify_m0704_evidence.py", "docs/modules/M07-04-probabilistic-advanced-estimator.md"],
+      "verification": ["tests/evals/test_m07_04_eval.py", "tests/tooling/test_m07_04_evidence.py", "release-evidence/m07_04/evaluation.json", "release-evidence/m07_04/benchmark.json", "release-evidence/m07_04/coverage.json"]
+    }
+  ],
+  "prohibited": [
+    "KINOPHOS kinase activity",
+    "generic all-omics fusion",
+    "direct treatment recommendation",
+    "unsupported-to-negative conversion",
+    "identity or consent inference",
+    "parent proteotype emission"
+  ],
+  "promotion_gates": {
+    "safe_abstention": true,
+    "transitive_replay": true,
+    "tamper_rejection": true,
+    "human_review_on_abstention": true,
+    "uncertainty_calibration_owner_locked": false,
+    "frozen_abi": false,
+    "isolated_import": true
+  }
+}

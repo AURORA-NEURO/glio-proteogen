@@ -1,0 +1,2 @@
+module_id,behavior_anchor,implementation,evidence,owner_status
+GLIO-PROTEOGEN-M06-06,dossier:behavioral-brief,src/glio_proteogen/contracts/m06_06;src/glio_proteogen/modules/c06_protein_abundance/m06_06_uncertainty_decomposition,tests/integration/test_m06_06_interfaces.py;tests/integration/test_m06_06_benchmark.py,provisional-owner-confirmation-pending
