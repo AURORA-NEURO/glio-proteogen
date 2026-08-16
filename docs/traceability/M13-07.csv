@@ -1,0 +1,7 @@
+requirement_id,authority_lines,implementation,evidence,gate
+M13-07-R01,4620-4628,"contracts/m13_07/v1.py; runtime engine","evaluation.json",G0
+M13-07-R02,4630-4634,"deterministic control adjudicator and conflict preservation","evaluation.json",G1
+M13-07-R03,4636-4639,"six-control preflight; seven uncertainty dimensions","test_m13_07_adversarial.py; coverage-m13-07.json",G3
+M13-07-R04,4640-4642,"review-required conflict and safe abstention","evaluation.json; test_m13_07_engine.py",G3
+M13-07-R05,4644-4663,"provenance, replay, API/CLI, evaluator, package evidence","package.json; benchmark.json; test_m13_07_interfaces.py",G4
+
