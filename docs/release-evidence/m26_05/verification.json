@@ -10,8 +10,8 @@
   "evaluator": "7/7",
   "coverage": "100.0% branch-enabled scoped module coverage",
   "benchmark": {"iterations": 10, "meanNs": 2279420, "p95Ns": 2479000},
-  "wheelSha256": "cb4d34b88f820c91038f659e4672563dd51b8cd50f66110182c03d38a16687f7",
-  "sdistSha256": "b1dacb09760e957f9c5cc248a05897ae60fdbef0c3692349921fb6aec43d91d6",
+  "wheelSha256": "92c80b2477fc0b13b96f90400834666361137cec4647e90853fe24fc16fa32f5",
+  "sdistSha256": "d30f8bc1fdc42dfaab4fd6e24fa1691b195a97000b1b14fc20ab72d9b899a1fe",
   "isolatedImport": true,
   "releaseVerifier": true,
   "generatedDirectoriesRemoved": true
