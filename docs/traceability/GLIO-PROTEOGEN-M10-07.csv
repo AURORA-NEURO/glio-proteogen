@@ -1,0 +1,8 @@
+requirement_id,dossier_slice,requirement,evidence,verification,gate
+M10-07-R01,"3540-3583","Calibrate selective protein-RNA discordance by site platform disease class and subgroup","contracts/m10_07/v1.py; tests/modules/test_m10_07_runtime.py","strict contract and scoped runtime tests","G3"
+M10-07-R02,"3540-3583","Bind upstream uncertainty support provenance identity and consent controls","engine.py; tests/modules/test_m10_07_adversarial.py","authorization and provenance assertions","S2"
+M10-07-R03,"3540-3583","Require nominal 90 percent coverage with explicit review envelope","v1.py; evals/m10_07/run.py; tests/evals/test_m10_07_evaluation.py","coverage closure and evaluator matrix","G3"
+M10-07-R04,"3540-3583","Abstain safely on missing support and OOD states","engine.py; scenarios.json","support OOD and unsupported-media cases","S2"
+M10-07-R05,"3540-3583","Provide deterministic canonical replay and tamper verification","canonical.py; engine.py; test_m10_07_adversarial.py","digest, canonical-byte, and replay checks","G3"
+M10-07-R06,"3540-3583","Expose strict API CLI and parse-once plugin parity","api.py; cli.py; plugin.py; test_m10_07_interfaces.py","FastAPI/Typer/plugin parity and sanitized failures","G3"
+M10-07-R07,"3540-3583","Record limitations, ownership boundary, and provisional ABI","docs/modules/M10-07.md; release-evidence/m10_07","publication verifier and static review","S2"
