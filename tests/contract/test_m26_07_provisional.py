@@ -7,6 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_07 import (
+    M2607_DOSSIER_SHA256,
+    M2607_DOSSIER_SLICE,
     M2607_OUTPUT_MEDIA_TYPE,
     M2607_PROVISIONAL_ABI,
     ChangeClass,
@@ -46,11 +48,16 @@ def test_provisional_schemas_require_change_control_gates() -> None:
         for schema in schemas.values()
     )
     assert all(
-        _metadata(schema)["parentTarget"] == "protein subtype"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "protein subtype" for schema in schemas.values()
     )
     assert _metadata(schemas["output"])["outputMediaType"] == M2607_OUTPUT_MEDIA_TYPE
     assert M2607_PROVISIONAL_ABI is True
+    assert (
+        M2607_DOSSIER_SHA256
+        == "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da"
+        "181"
+    )
+    assert M2607_DOSSIER_SLICE.endswith(":9300-9340")
 
 
 def test_regression_and_revalidation_gates_are_explicit() -> None:

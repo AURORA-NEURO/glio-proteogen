@@ -34,6 +34,8 @@ from glio_proteogen.kernel.models import (
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 9300-9340.
+M2607_DOSSIER_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+M2607_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9300-9340"
 M2607_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-07"
 M2607_OPERATION: Final = "control_protein_subtype_change_and_rollback"
 M2607_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -282,6 +284,8 @@ class ProteinSubtypeChangeControlResult(FrozenModel):
 
 __all__ = [
     "M2607_CONTRACT_VERSION",
+    "M2607_DOSSIER_SHA256",
+    "M2607_DOSSIER_SLICE",
     "M2607_EVIDENCE_CLAIM",
     "M2607_GATE",
     "M2607_MAX_CANONICAL_REQUEST_BYTES",
