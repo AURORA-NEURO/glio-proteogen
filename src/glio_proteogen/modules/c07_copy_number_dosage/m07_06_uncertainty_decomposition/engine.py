@@ -1,11 +1,14 @@
 """Deterministic, safe-abstaining provisional M07-06 engine."""
 
+# Replay diagnostics intentionally preserve one stable public exception type.
+# ruff: noqa: TRY003
+
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Final
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m07_06 import (
     M0706_CONTRACT_VERSION,
@@ -22,6 +25,7 @@ from glio_proteogen.contracts.m07_06 import (
 from glio_proteogen.contracts.m07_06.canonical import (
     canonical_request_digest,
     result_payload_digest,
+    verify_result_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -46,6 +50,13 @@ class M0706AuthorizationError(PermissionError):
         super().__init__(
             "M07-06 requires accepted controls, resolved identity, and granted consent"
         )
+
+
+class M0706ReplayVerificationError(ValueError):
+    """A result cannot be reconstructed from its exact request envelope."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"M07-06 replay verification failed: {detail}")
 
 
 def _member(value: object, field: str) -> object:
@@ -126,6 +137,30 @@ class M0706UncertaintyDecompositionEngine:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         return self._result(validated)
 
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+    ) -> CopyNumberDosageUncertaintyDecompositionResult:
+        """Validate a result receipt and optionally replay its exact request."""
+
+        if isinstance(result, BaseModel) and not verify_result_digest(result):
+            raise M0706ReplayVerificationError("result digest does not match canonical payload")
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M0706ReplayVerificationError("result is not a strict result envelope") from error
+        if not verify_result_digest(validated):
+            raise M0706ReplayVerificationError("result digest does not match canonical payload")
+        if validated.request_digest != canonical_request_digest(validated.request):
+            raise M0706ReplayVerificationError("request digest does not match embedded request")
+        if replay:
+            expected = self.decompose(validated.request)
+            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+                raise M0706ReplayVerificationError("replayed request produced a different result")
+        return validated
+
     def _result(
         self,
         request: DecomposeCopyNumberDosageUncertaintyRequest,
@@ -179,6 +214,7 @@ def decompose_copy_number_dosage_uncertainty(
 
 __all__ = [
     "M0706AuthorizationError",
+    "M0706ReplayVerificationError",
     "M0706UncertaintyDecompositionEngine",
     "decompose_copy_number_dosage_uncertainty",
     "preflight_m0706_authorization",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel
 
@@ -36,9 +36,35 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def canonical_result_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Return the digest committed by a result envelope."""
+
+    return result_payload_digest(value)
+
+
+def verify_result_digest(value: object) -> bool:
+    """Check a result digest without coercing submitted data."""
+
+    if isinstance(value, BaseModel):
+        reported = getattr(value, "result_digest", None)
+    elif isinstance(value, dict):
+        reported = value.get("result_digest")
+    else:
+        return False
+    if not isinstance(reported, str):
+        return False
+    try:
+        expected = canonical_result_digest(cast("BaseModel | dict[str, Any]", value))
+    except (TypeError, ValueError):
+        return False
+    return reported == expected
+
+
 __all__ = [
     "canonical_request_digest",
+    "canonical_result_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_result_digest",
 ]
