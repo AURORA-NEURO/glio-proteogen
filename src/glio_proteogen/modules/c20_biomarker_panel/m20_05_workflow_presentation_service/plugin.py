@@ -1,69 +1,107 @@
-"""Sealed M20-05 plugin descriptor and validated request seam."""
+"""Strict parse-once M20-05 plugin boundary."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
 
-from .engine import M2005Engine
+from pydantic import TypeAdapter
+
+from glio_proteogen.contracts.m20_05 import (
+    M2005_MAX_CANONICAL_REQUEST_BYTES,
+    PresentProteinSubtypeHumanReviewWorkspaceRequest,
+    ProteinSubtypeHumanReviewWorkspaceResult,
+)
+from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
+from glio_proteogen.kernel.strict_json import strict_json_loads
+
+from .engine import preflight_m2005_authorization
 
 if TYPE_CHECKING:
-    from glio_proteogen.contracts.m20_05 import (
-        PresentProteinSubtypeHumanReviewWorkspaceRequest,
-        ProteinSubtypeHumanReviewWorkspaceResult,
-    )
+    from .service import M2005Service
+
+_REQUEST_ADAPTER: Final = TypeAdapter(PresentProteinSubtypeHumanReviewWorkspaceRequest)
+_DESCRIPTOR: Final = ModuleDescriptor(
+    module_id="GLIO-PROTEOGEN-M20-05",
+    title="Workflow presentation service (provisional)",
+    version="0.1.0-provisional",
+    owner="Platform engineering",
+    safety_class="S2",
+    gate="G4",
+    prohibited_outputs=(
+        "protein-subtype inference or identity inference",
+        "KINOPHOS kinase-state ownership",
+        "generic all-omics fusion or treatment recommendation",
+        "upstream evidence mutation or disagreement erasure",
+        "unsupported or missing evidence converted to a negative finding",
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
-class M2005PluginDescriptor:
-    module_id: str = "GLIO-PROTEOGEN-M20-05"
-    operation: str = "present_protein_subtype_human_review_workspace"
-    output_media_type: str = "application/vnd.glio-proteogen.m20-05+json"
-    upstream_media_type: str = "application/vnd.glio-proteogen.m20-04+json"
-    parent_target: str = "protein subtype"
-    owner: str = "Platform engineering"
-    safety_class: str = "S2"
-    gate: str = "G4"
-    provisional_abi: bool = True
-    external_content_traversal: bool = False
-    all_omics_fusion: bool = False
-    kinase_activity: bool = False
-    treatment_recommendation: bool = False
-    identity_inference: bool = False
-    consent_inference: bool = False
-    explicit_abstention: bool = True
-    task_specific_views_required: bool = True
-    evidence_summary_required: bool = True
-    uncertainty_required: bool = True
-    discrepancy_review_required: bool = True
-    provenance_required: bool = True
-    automation_bias_guard_required: bool = True
+class WorkflowPresentationSubmission:
+    """Opaque submission wrapper that delays parsing until validation."""
+
+    request: object
 
 
-class M2005Plugin:
-    """Expose only typed presentation and exact replay."""
+@dataclass(frozen=True, slots=True)
+class ValidatedM2005Request:
+    """Opaque capability proving strict M20-05 request validation."""
 
-    descriptor: Final = M2005PluginDescriptor()
+    request: PresentProteinSubtypeHumanReviewWorkspaceRequest
 
+
+class _InvalidExecutionTokenError(TypeError):
     def __init__(self) -> None:
-        self._engine = M2005Engine()
+        super().__init__("M20-05 execution requires a validated request token")
 
-    def validate_request(
-        self, candidate: object
-    ) -> PresentProteinSubtypeHumanReviewWorkspaceRequest:
-        return self._engine.validate_request(candidate)
 
-    def run(
-        self,
-        request: PresentProteinSubtypeHumanReviewWorkspaceRequest,
-    ) -> ProteinSubtypeHumanReviewWorkspaceResult:
-        return self._engine.present(request)
+class _InvalidSubmissionError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M20-05 validation requires a workflow presentation submission")
+
+
+class M2005Plugin(
+    ModulePlugin[object, ValidatedM2005Request, ProteinSubtypeHumanReviewWorkspaceResult]
+):
+    """Expose M20-05 through validate-then-run without an authority bypass."""
+
+    __slots__ = ("_service",)
+
+    def __init__(self, service: M2005Service) -> None:
+        self._service = service
+
+    def descriptor(self) -> ModuleDescriptor:
+        return _DESCRIPTOR
+
+    def validate(self, request: object) -> ValidatedM2005Request:
+        if not isinstance(request, WorkflowPresentationSubmission):
+            raise _InvalidSubmissionError
+        candidate = request.request
+        if isinstance(candidate, bytes | bytearray | str):
+            decoded = strict_json_loads(
+                candidate,
+                max_bytes=M2005_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            preflight_m2005_authorization(decoded)
+            candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
+        return ValidatedM2005Request(request=self._service.validate_request(candidate))
+
+    def run(self, request: ValidatedM2005Request) -> ProteinSubtypeHumanReviewWorkspaceResult:
+        if not isinstance(request, ValidatedM2005Request):
+            raise _InvalidExecutionTokenError
+        return self._service.present(request.request)
 
     def replay(
         self,
         result: ProteinSubtypeHumanReviewWorkspaceResult,
     ) -> ProteinSubtypeHumanReviewWorkspaceResult:
-        return self._engine.replay(result)
+        return self._service.replay(result)
 
 
-__all__ = ["M2005Plugin", "M2005PluginDescriptor"]
+__all__ = [
+    "M2005Plugin",
+    "ValidatedM2005Request",
+    "WorkflowPresentationSubmission",
+]
