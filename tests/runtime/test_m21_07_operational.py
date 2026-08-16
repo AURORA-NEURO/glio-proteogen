@@ -19,6 +19,7 @@ from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operatio
     M2107Service,
     ValidatedM2107Request,
     evaluate_complex_activity_human_factors,
+    preflight_m2107_authorization,
 )
 from tests.contract.test_m21_07_hardening import _metric, _request
 
@@ -74,6 +75,8 @@ def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     service = M2107Service()
     result = service.evaluate(request.model_dump_json())
     assert service.replay(result.model_dump_json()) == result
+    mapped = service.evaluate(request.model_dump(mode="json"))
+    assert service.replay(mapped.model_dump(mode="json")) == mapped
 
     plugin = M2107Plugin(service)
     token = plugin.validate(request)
@@ -96,4 +99,13 @@ def test_replay_rejects_tampering_and_public_entry_point_is_deterministic() -> N
 
     with pytest.raises(M2107ReplayError):
         M2107Engine().replay(tampered)
+    with pytest.raises(M2107ReplayError):
+        M2107Engine().replay(result.model_copy(update={"result_id": "result.forged"}))
+    with pytest.raises(M2107ReplayError):
+        M2107Engine().replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     assert evaluate_complex_activity_human_factors(request) == result
+
+
+def test_preflight_accepts_mapping_context_shape() -> None:
+    request = _request()
+    preflight_m2107_authorization({"context": request.context})

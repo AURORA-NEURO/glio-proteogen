@@ -8,6 +8,7 @@ from pathlib import Path  # noqa: TC003 - Typer resolves runtime path annotation
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m21_07 import OperationalDimension, OperationalStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operational_evaluator import (  # noqa: E501
     M2107Service,
@@ -79,6 +80,13 @@ def test_fastapi_service_errors_are_sanitized() -> None:
     )
 
 
+def test_fastapi_validate_route_accepts_strict_request() -> None:
+    client = TestClient(create_app())
+    response = client.post("/v1/modules/M21-07/validate", json=_request().model_dump(mode="json"))
+    assert response.status_code == _HTTP_OK
+    assert response.json()["operation"] == "evaluate_complex_activity_human_factors"
+
+
 def test_typer_evaluate_verify_and_no_overwrite(tmp_path: Path) -> None:
     runner = CliRunner()
     request = _request()
@@ -116,3 +124,19 @@ def test_typer_validate_schema_output_and_bad_result(tmp_path: Path) -> None:
     assert evaluated.exit_code == 0
     assert result_path.exists()
     assert invalid.exit_code != 0
+
+
+def test_typer_rejects_unknown_schema_malformed_input_and_abstains(tmp_path: Path) -> None:
+    runner = CliRunner()
+    unknown = runner.invoke(cli_app, ["export-schema", "unknown"])
+    assert unknown.exit_code != 0
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text("{", encoding="utf-8")
+    assert runner.invoke(cli_app, ["validate", str(malformed)]).exit_code != 0
+    statuses = [OperationalStatus.PASS] * len(tuple(OperationalDimension))
+    statuses[0] = OperationalStatus.NOT_EVALUABLE
+    request = _request(statuses=tuple(statuses))
+    path = tmp_path / "abstained.json"
+    path.write_bytes(canonical_json_bytes(request.model_dump(mode="json")))
+    abstained = runner.invoke(cli_app, ["evaluate", str(path)])
+    assert abstained.exit_code == 1
