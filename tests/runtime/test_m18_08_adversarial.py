@@ -84,6 +84,8 @@ def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
     second = m1808.M1808Plugin()
     token = first.validate(request)
     assert first.validate_request(request) == request
+    with pytest.raises(AttributeError):
+        token.request = request  # type: ignore[misc]
     with pytest.raises(m1808.M1808TokenError):
         second.run(token)
     token._seal = object()

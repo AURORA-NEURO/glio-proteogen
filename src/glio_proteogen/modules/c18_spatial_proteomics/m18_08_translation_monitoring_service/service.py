@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from glio_proteogen.contracts.m18_08 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    M1808_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelTranslationMonitoringResult,
     MonitorBiomarkerPanelTranslationHealthRequest,
 )
@@ -25,7 +27,7 @@ class M1808Service:
 
     def execute(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:
         if isinstance(request, (bytes, bytearray, str)):
-            parsed = strict_json_loads(request, max_bytes=4 * 1024 * 1024)
+            parsed = strict_json_loads(request, max_bytes=M1808_MAX_CANONICAL_REQUEST_BYTES)
             request = MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
                 canonical_json_bytes(parsed), strict=True
             )
@@ -35,9 +37,16 @@ class M1808Service:
             )
         return self._engine.infer(request)
 
+    def execute_validated(
+        self, request: MonitorBiomarkerPanelTranslationHealthRequest
+    ) -> BiomarkerPanelTranslationMonitoringResult:
+        """Execute one already-validated request through the public service seam."""
+
+        return self._engine.infer(request)
+
     def verify(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
         if isinstance(result, (bytes, bytearray, str)):
-            parsed = strict_json_loads(result, max_bytes=8 * 1024 * 1024)
+            parsed = strict_json_loads(result, max_bytes=M1808_MAX_CANONICAL_RESULT_BYTES)
             result = BiomarkerPanelTranslationMonitoringResult.model_validate_json(
                 canonical_json_bytes(parsed), strict=True
             )
@@ -66,7 +75,12 @@ class M1808Service:
             "safety_class": "S2",
             "gate": "G5",
             "parent": "biomarker panel",
+            "upstream_input_media_type": "application/vnd.glio-proteogen.m18-07+json",
+            "output_media_type": "application/vnd.glio-proteogen.m18-08+json",
             "provisional_abi": True,
+            "external_content_traversal": False,
+            "raw_payload": False,
+            "unsupported_to_negative": False,
             "prohibited_outputs": (
                 "kinase activity",
                 "generic all-omics fusion",

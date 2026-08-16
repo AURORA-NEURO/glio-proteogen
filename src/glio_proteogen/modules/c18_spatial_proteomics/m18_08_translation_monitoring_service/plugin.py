@@ -22,13 +22,19 @@ _TOKENS: WeakKeyDictionary[ValidatedM1808Request, object] = WeakKeyDictionary()
 class ValidatedM1808Request:
     """Opaque token coupling one validated request to this plugin instance."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request", "_seal")
 
     def __init__(
         self, request: MonitorBiomarkerPanelTranslationHealthRequest, seal: object
     ) -> None:
-        self.request = request
+        self._request = request
         self._seal = seal
+
+    @property
+    def request(self) -> MonitorBiomarkerPanelTranslationHealthRequest:
+        """Return the validated request without exposing a mutable slot."""
+
+        return self._request
 
 
 class M1808TokenError(TypeError):
@@ -84,7 +90,7 @@ class M1808Plugin:
             raise M1808TokenError
         if token._seal is not self._seal:
             raise M1808TokenError
-        return self._service._engine.infer(token.request)
+        return self._service.execute_validated(token.request)
 
     def verify(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
         return self._service.verify(result)
