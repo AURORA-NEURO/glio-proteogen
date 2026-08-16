@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-07",
+  "iterations": 10,
+  "mean_ns": 1553860,
+  "median_ns": 1461100,
+  "p95_ns": 1671400,
+  "max_ns": 2237200,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "within_budget": true,
+  "measurement_note": "Single 10-iteration run; samples are retained in evaluator command output and budgets are provisional."
+}

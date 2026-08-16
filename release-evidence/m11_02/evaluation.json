@@ -1,0 +1,24 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-02",
+  "contract_version": "0.1.0-provisional",
+  "passed": true,
+  "check_count": 8,
+  "checks": [
+    {"id": "supported_context_stratifies", "passed": true, "status": "stratified"},
+    {"id": "low_support_abstains", "passed": true, "status": "abstained"},
+    {"id": "missing_context_abstains", "passed": true, "status": "abstained"},
+    {"id": "prohibited_proxy_abstains", "passed": true, "status": "abstained"},
+    {"id": "replay_is_exact", "passed": true, "status": "verified"},
+    {"id": "tamper_is_rejected", "passed": true, "status": "rejected"},
+    {"id": "denied_consent_fails_closed", "passed": true, "status": "denied"},
+    {"id": "repeat_is_deterministic", "passed": true, "status": "stable"}
+  ],
+  "claims_ceiling": "synthetic deterministic context support and mechanism applicability only",
+  "prohibited_outputs": [
+    "kinase activity",
+    "generic all-omics fusion",
+    "treatment recommendation",
+    "identity or consent inference",
+    "unsupported-to-negative conversion"
+  ]
+}

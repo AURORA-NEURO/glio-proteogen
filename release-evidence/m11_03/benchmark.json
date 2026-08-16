@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-03",
+  "iterations": 10,
+  "mean_ns": 1129510,
+  "median_ns": 1118700,
+  "p95_ns": 1172600,
+  "max_ns": 1172600,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true
+}
