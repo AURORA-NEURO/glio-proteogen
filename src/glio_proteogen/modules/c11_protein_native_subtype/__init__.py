@@ -1,1 +1,1 @@
-"""C11 protein-native subtype modules."""
+"""Protein-native subtype module family (provisional)."""
