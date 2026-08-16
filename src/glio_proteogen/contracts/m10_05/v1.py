@@ -20,6 +20,9 @@ from glio_proteogen.contracts.m10_05.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -31,6 +34,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -219,9 +223,7 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
     evaluations: tuple[ConstraintEvaluation, ...] = Field(
         default=(), max_length=M1005_MAX_EVALUATIONS
     )
-    ablations: tuple[ConstraintAblation, ...] = Field(
-        default=(), max_length=M1005_MAX_ABLATIONS
-    )
+    ablations: tuple[ConstraintAblation, ...] = Field(default=(), max_length=M1005_MAX_ABLATIONS)
     abstention_reason: NonEmptyStr | None = None
     parent_target: Literal["protein_rna_discordance"] = M1005_PARENT
     emits_parent: Literal[False] = False
@@ -236,6 +238,11 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaConstraintIntegrationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        if not self.evidence or any(item.role != "evidence" for item in self.evidence):
+            raise ValueError("every result requires evidence references with the evidence role")
         expected_ids = {item.constraint_id for item in self.request.constraint_set.constraints}
         evaluation_ids = tuple(item.constraint_id for item in self.evaluations)
         if set(evaluation_ids) != expected_ids or len(evaluation_ids) != len(set(evaluation_ids)):
@@ -259,11 +266,21 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
             )
             is ConstraintHardness.HARD
         }
+        not_evaluable = {
+            item.constraint_id
+            for item in self.evaluations
+            if item.outcome
+            in {
+                ConstraintEvaluationOutcome.NOT_EVALUABLE,
+                ConstraintEvaluationOutcome.ABSTAINED,
+            }
+        }
         if self.status is ConstraintIntegrationStatus.INTEGRATED:
             if (
                 not self.estimates
                 or self.abstention_reason is not None
                 or hard_violations
+                or not_evaluable
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("integrated result requires estimates and no hard violation")
@@ -274,9 +291,123 @@ class ProteinRnaConstraintIntegrationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no estimates and safe status")
+        if self.status is ConstraintIntegrationStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstention requires human review acknowledgement")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_uncertainty(*, integrated: bool) -> UncertaintyProfile:
+    """Return seven explicit uncertainty dimensions for every outcome."""
+
+    state = EstimateState.ESTIMATED if integrated else EstimateState.NOT_ESTIMABLE
+    rationale = (
+        "Constraint residual and ablation uncertainty is reported from the locked input "
+        "envelope; transport and population calibration remain outside this module."
+        if integrated
+        else "The constraint set is not safely evaluable, so no uncertainty is estimated."
+    )
+    estimate = UncertaintyEstimate(
+        state=state,
+        probability=0.9 if integrated else None,
+        rationale=rationale,
+    )
+    return UncertaintyProfile(
+        measurement=estimate,
+        sampling=estimate,
+        parameter=estimate,
+        model_form=estimate,
+        identification=estimate,
+        support=estimate,
+        transport=estimate,
+        sensitivity_notes=(
+            "Soft-constraint ablations are explicit and cannot override hard constraints.",
+            "Unsupported or missing evidence is never converted into a negative finding.",
+        ),
+    )
+
+
+def expected_provenance(
+    request: IntegrateProteinRnaConstraintsRequest,
+    request_digest: Sha256Digest,
+) -> ProvenanceRecord:
+    """Project all seven controls and immutable constraint inputs in governed order."""
+
+    refs = request.context.references
+    decisions = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    inputs = (
+        request_digest,
+        request.representation_result.digest,
+        request.advanced_estimator_result.digest,
+        *(artifact.digest for artifact in request.feature_artifacts),
+        *(item.evidence_digest for item in decisions),
+    )
+    return ProvenanceRecord(
+        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
+        actor_id=request.context.actor_id,
+        module_id=M1005_MODULE_ID,
+        module_version=M1005_CONTRACT_VERSION,
+        generated_at=request.context.occurred_at,
+        input_digests=inputs,
+        configuration_digest=refs.approved_configuration.evidence.digest,
+        consent_decision_id=refs.consent.decision_id,
+        consent_state=refs.consent.state,
+        consent_policy_version=refs.consent.policy_version,
+        consent_evidence_digest=refs.consent.evidence.digest,
+        control_decisions=decisions,
+    )
 
 
 __all__ = [
@@ -310,4 +441,6 @@ __all__ = [
     "MechanismConstraint",
     "MechanismConstraintSet",
     "ProteinRnaConstraintIntegrationResult",
+    "expected_provenance",
+    "expected_uncertainty",
 ]

@@ -1,0 +1,32 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-01",
+  "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossierLines": [2916, 2959],
+  "contractFiles": [
+    "src/glio_proteogen/contracts/m09_01/v1.py",
+    "src/glio_proteogen/contracts/m09_01/schema.py",
+    "src/glio_proteogen/contracts/m09_01/canonical.py"
+  ],
+  "runtimeFiles": [
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/kernel.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/engine.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/service.py"
+  ],
+  "interfaceFiles": [
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/api.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/cli.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_01_formal_state_feature_schema/plugin.py"
+  ],
+  "evaluatorFiles": [
+    "evals/m09_01/run.py",
+    "evals/m09_01/benchmark.py",
+    "evals/m09_01/scenarios.json"
+  ],
+  "boundaryAssertions": [
+    "complex_activity is a parent target and is not emitted",
+    "kinase activity remains outside M09-01 ownership",
+    "generic all-omics fusion and direct treatment recommendation are prohibited",
+    "missing or unsupported evidence abstains and is never converted to negative",
+    "identity, consent, and upstream evidence are caller-declared and not inferred"
+  ]
+}

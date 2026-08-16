@@ -9,6 +9,7 @@ provisional scaffolding pending owner review.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -50,6 +51,9 @@ M1003_MAX_TARGETS: Final = 512
 M1003_MAX_EVIDENCE: Final = 32
 M1003_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M1003_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M1003_BENCHMARK_ITERATIONS: Final = 10
+M1003_MEAN_BUDGET_NS: Final = 2_000_000_000
+M1003_P95_BUDGET_NS: Final = 3_000_000_000
 M1003_EVIDENCE_CLAIM: Final = (
     "Caller-declared protein-RNA baseline and benchmark evidence; issuer authority "
     "is not authenticated."
@@ -81,6 +85,14 @@ class BaselineResultStatus(StrEnum):
     ABSTAINED = "abstained"
 
 
+class BaselineReplayReason(StrEnum):
+    VERIFIED = "verified"
+    INVALID_RESULT = "invalid_result"
+    DIGEST_MISMATCH = "digest_mismatch"
+    NON_CANONICAL = "non_canonical"
+    OVERSIZED = "oversized"
+
+
 class BaselinePreprocessingStep(FrozenModel):
     sequence: int = Field(ge=1, le=M1003_MAX_PREPROCESSING_STEPS)
     operation: NonEmptyStr
@@ -106,9 +118,7 @@ class BaselineConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
     estimator_family: BaselineEstimatorFamily
-    target_feature_ids: tuple[Identifier, ...] = Field(
-        min_length=1, max_length=M1003_MAX_TARGETS
-    )
+    target_feature_ids: tuple[Identifier, ...] = Field(min_length=1, max_length=M1003_MAX_TARGETS)
     preprocessing: tuple[BaselinePreprocessingStep, ...] = Field(
         min_length=1, max_length=M1003_MAX_PREPROCESSING_STEPS
     )
@@ -125,6 +135,12 @@ class BaselineConfiguration(FrozenModel):
             raise ValueError("baseline preprocessing steps must have unique ordered sequences")
         return self
 
+    @model_validator(mode="after")
+    def targets_are_unique(self) -> BaselineConfiguration:
+        if len(set(self.target_feature_ids)) != len(self.target_feature_ids):
+            raise ValueError("baseline target feature ids must be unique")
+        return self
+
 
 class BaselineEstimate(FrozenModel):
     feature_id: Identifier
@@ -139,6 +155,14 @@ class BaselineEstimate(FrozenModel):
 
     @model_validator(mode="after")
     def estimate_shape_is_closed(self) -> BaselineEstimate:
+        numeric_values = (
+            self.estimate_value,
+            self.lower_bound,
+            self.upper_bound,
+            self.support_score,
+        )
+        if any(value is not None and not isfinite(value) for value in numeric_values):
+            raise ValueError("baseline numeric fields must be finite")
         has_interval = self.lower_bound is not None or self.upper_bound is not None
         if self.kind is BaselineEstimateKind.SCALAR:
             if self.estimate_value is None or has_interval or self.category is not None:
@@ -166,6 +190,31 @@ class BaselineDiagnostic(FrozenModel):
     message: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M1003_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def metric_is_finite(self) -> BaselineDiagnostic:
+        if self.metric_value is not None and not isfinite(self.metric_value):
+            raise ValueError("diagnostic metric must be finite")
+        return self
+
+
+class EstimateProteinRnaDiscordanceBaselineVerification(FrozenModel):
+    """Content and deterministic replay status for one baseline result."""
+
+    content_verified: bool
+    deterministic_verified: bool
+    verified: bool
+    result_digest: Sha256Digest | None = None
+    reason: BaselineReplayReason
+
+    @model_validator(mode="after")
+    def flags_are_closed(self) -> EstimateProteinRnaDiscordanceBaselineVerification:
+        expected = self.content_verified and self.deterministic_verified
+        if self.verified != expected:
+            raise ValueError("verified must equal content and deterministic verification")
+        if self.verified != (self.result_digest is not None):
+            raise ValueError("verified results must carry a result digest only")
+        return self
+
 
 class EstimateProteinRnaDiscordanceBaselineRequest(FrozenModel):
     """Provisional request bound to the complete M10-01 formal-state result."""
@@ -191,9 +240,7 @@ class EstimateProteinRnaDiscordanceBaselineRequest(FrozenModel):
 class ProteinRnaDiscordanceBaselineResult(FrozenModel):
     """Baseline estimates, uncertainty, diagnostics, and explicit abstention."""
 
-    output_type: Literal["protein_rna_discordance_baseline"] = (
-        "protein_rna_discordance_baseline"
-    )
+    output_type: Literal["protein_rna_discordance_baseline"] = "protein_rna_discordance_baseline"
     result_id: Identifier
     result_version: Literal["0.1.0-provisional"] = M1003_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -233,6 +280,12 @@ class ProteinRnaDiscordanceBaselineResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no estimates and safe status")
+        estimate_ids = tuple(item.feature_id for item in self.estimates)
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(estimate_ids) != len(set(estimate_ids)):
+            raise ValueError("baseline estimate feature ids must be unique")
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("baseline diagnostic ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -240,6 +293,7 @@ class ProteinRnaDiscordanceBaselineResult(FrozenModel):
 
 __all__ = [
     "M1003_BASELINE_MEDIA_TYPE",
+    "M1003_BENCHMARK_ITERATIONS",
     "M1003_CONTRACT_VERSION",
     "M1003_EVIDENCE_CLAIM",
     "M1003_GATE",
@@ -250,10 +304,12 @@ __all__ = [
     "M1003_MAX_EVIDENCE",
     "M1003_MAX_PREPROCESSING_STEPS",
     "M1003_MAX_TARGETS",
+    "M1003_MEAN_BUDGET_NS",
     "M1003_MODULE_ID",
     "M1003_OPERATION",
     "M1003_OUTPUT_MEDIA_TYPE",
     "M1003_OWNER",
+    "M1003_P95_BUDGET_NS",
     "M1003_PARENT",
     "M1003_PROVISIONAL_ABI",
     "M1003_SAFETY_CLASS",
@@ -264,8 +320,10 @@ __all__ = [
     "BaselineEstimateKind",
     "BaselineEstimatorFamily",
     "BaselinePreprocessingStep",
+    "BaselineReplayReason",
     "BaselineResultStatus",
     "BaselineTuningSpec",
     "EstimateProteinRnaDiscordanceBaselineRequest",
+    "EstimateProteinRnaDiscordanceBaselineVerification",
     "ProteinRnaDiscordanceBaselineResult",
 ]

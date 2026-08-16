@@ -1,0 +1,14 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M08-08",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [2864, 2907]
+  },
+  "scenarios": [
+    {"id": "published", "sourceIds": ["source.1", "source.2"], "expected": "published"},
+    {"id": "unsupported", "sourceIds": ["source.unsupported"], "expected": "abstained"},
+    {"id": "tamper", "sourceIds": ["source.1"], "expected": "replay-rejected"},
+    {"id": "deterministic", "sourceIds": ["source.1", "source.2"], "expected": "same-bytes"}
+  ]
+}
