@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, FiniteFloat, model_validator
 
 from glio_proteogen.contracts.m21_05.canonical import (
     canonical_request_digest,
@@ -95,10 +95,10 @@ class SubgroupPerformance(FrozenModel):
     subgroup: NonEmptyStr
     sample_size: int = Field(ge=1)
     metric_name: NonEmptyStr
-    value: float
-    lower_bound: float
-    upper_bound: float
-    safety_floor: float
+    value: FiniteFloat
+    lower_bound: FiniteFloat
+    upper_bound: FiniteFloat
+    safety_floor: FiniteFloat
     coverage_status: CoverageStatus
     equity_status: EquityStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2105_MAX_EVIDENCE)
@@ -118,9 +118,9 @@ class CalibrationSummary(FrozenModel):
     calibration_id: Identifier
     dimension: SubgroupDimension
     subgroup: NonEmptyStr
-    expected_calibration_error: float = Field(ge=0.0)
-    nominal_coverage: float = Field(ge=0.0, le=1.0)
-    coverage_target: float = Field(ge=0.0, le=1.0)
+    expected_calibration_error: FiniteFloat = Field(ge=0.0)
+    nominal_coverage: FiniteFloat = Field(ge=0.0, le=1.0)
+    coverage_target: FiniteFloat = Field(ge=0.0, le=1.0)
     status: EvaluationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2105_MAX_EVIDENCE)
 
@@ -131,7 +131,7 @@ class CoverageSummary(FrozenModel):
     subgroup: NonEmptyStr
     supported_examples: int = Field(ge=0)
     total_examples: int = Field(ge=1)
-    coverage_fraction: float = Field(ge=0.0, le=1.0)
+    coverage_fraction: FiniteFloat = Field(ge=0.0, le=1.0)
     status: CoverageStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2105_MAX_EVIDENCE)
 
@@ -148,8 +148,8 @@ class CoverageSummary(FrozenModel):
 class EvaluationConfiguration(FrozenModel):
     configuration_id: Identifier
     version: SemanticVersion
-    nominal_coverage_target: float = Field(ge=0.0, le=1.0)
-    safety_floor: float
+    nominal_coverage_target: FiniteFloat = Field(ge=0.0, le=1.0)
+    safety_floor: FiniteFloat
     required_dimensions: tuple[SubgroupDimension, ...] = Field(min_length=8, max_length=8)
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2105_MAX_EVIDENCE)
@@ -180,6 +180,11 @@ class SubgroupEvaluationReport(FrozenModel):
         )
         if len(ids) != len(set(ids)):
             raise ValueError("subgroup report ids must be unique")
+        performance_keys = {(item.dimension, item.subgroup) for item in self.performance}
+        calibration_keys = {(item.dimension, item.subgroup) for item in self.calibration}
+        coverage_keys = {(item.dimension, item.subgroup) for item in self.coverage}
+        if performance_keys != calibration_keys or performance_keys != coverage_keys:
+            raise ValueError("subgroup report dimensions and strata must align")
         return self
 
 
@@ -211,6 +216,15 @@ class EvaluateComplexActivitySubgroupEquityRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateComplexActivitySubgroupEquityRequest:
         if self.upstream_result.media_type != M2105_M2104_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-04 evaluator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
+        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("request source artifacts must be unique")
+        if (self.upstream_result.artifact_id, self.upstream_result.digest) not in set(
+            artifact_keys
+        ):
+            raise ValueError("request source artifacts must include upstream result")
         return self
 
 
@@ -242,6 +256,15 @@ class ComplexActivitySubgroupEvaluationResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivitySubgroupEvaluationResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("subgroup finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("subgroup result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
