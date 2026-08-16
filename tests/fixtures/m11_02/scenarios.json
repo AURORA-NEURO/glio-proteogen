@@ -1,0 +1,56 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-02",
+  "contract_version": "0.1.0-provisional",
+  "parent_target": "variant_peptide",
+  "authority": "dossier behavioural brief only; ABI pending owner confirmation",
+  "claims_ceiling": "synthetic deterministic context support and mechanism applicability only",
+  "prohibited_outputs": [
+    "kinase activity",
+    "generic all-omics fusion",
+    "treatment recommendation",
+    "identity or consent inference",
+    "unsupported-to-negative conversion",
+    "upstream mutation or disagreement erasure"
+  ],
+  "dimensions": [
+    "disease_class",
+    "subtype",
+    "age",
+    "territory",
+    "treatment_era",
+    "specimen",
+    "platform",
+    "biological_context"
+  ],
+  "scenario_groups": [
+    {
+      "id": "supported_and_deterministic",
+      "case_ids": ["supported_context_stratifies", "replay_is_exact", "repeat_is_deterministic"]
+    },
+    {
+      "id": "safe_abstention",
+      "case_ids": ["low_support_abstains", "missing_context_abstains", "prohibited_proxy_abstains"]
+    },
+    {
+      "id": "safety_and_recovery",
+      "case_ids": ["denied_consent_fails_closed", "tamper_is_rejected"]
+    }
+  ],
+  "scenarios": [
+    {"id": "supported_context_stratifies", "expected": "stratified"},
+    {"id": "low_support_abstains", "expected": "abstained"},
+    {"id": "missing_context_abstains", "expected": "abstained"},
+    {"id": "prohibited_proxy_abstains", "expected": "abstained"},
+    {"id": "replay_is_exact", "expected": "verified"},
+    {"id": "tamper_is_rejected", "expected": "rejected"},
+    {"id": "denied_consent_fails_closed", "expected": "denied"},
+    {"id": "repeat_is_deterministic", "expected": "stable"}
+  ],
+  "acceptance": {
+    "supported_perturbations_stay_in_envelope": true,
+    "unsupported_cases_abstain": true,
+    "nominal_coverage": "not_claimed; support domain is explicit",
+    "zero_control_violations": true,
+    "replay_and_tamper_are_auditable": true
+  }
+}
