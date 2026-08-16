@@ -1,0 +1,82 @@
+"""Runtime, replay, and fail-closed preflight tests for provisional M22-01."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from glio_proteogen.contracts.m22_01 import (
+    AdjudicationStatus,
+    CurateProteinRnaDiscordanceReferenceTruthRequest,
+    CurationStatus,
+)
+from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchmark_curator import (
+    M2201AuthorizationError,
+    M2201ReplayError,
+    M2201Service,
+    preflight_m2201_authorization,
+)
+from tests.adversarial.test_m2201_adversarial import _request
+
+
+def test_curator_locks_complete_package_and_replays() -> None:
+    service = M2201Service()
+    result = service.curate(_request())
+    assert result.status is CurationStatus.CURATED
+    assert result.package is not None
+    assert result.result_digest == service.verify_replay(result).result_digest
+
+
+def test_curator_abstains_for_pending_adjudication_without_package() -> None:
+    request = _request()
+    pending = request.adjudications[0].model_copy(update={"status": AdjudicationStatus.REVIEWED})
+    payload = request.model_dump(mode="python")
+    payload["adjudications"] = (pending, *request.adjudications[1:])
+    result = M2201Service().curate(CurateProteinRnaDiscordanceReferenceTruthRequest(**payload))
+    assert result.status is CurationStatus.ABSTAINED
+    assert result.package is None
+    assert result.abstention_reason is not None
+    assert result.findings
+
+
+def test_authorization_fails_closed_before_material_traversal() -> None:
+    request = _request()
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    context = request.context.model_copy(
+        update={"references": request.context.references.model_copy(update={"support": support})}
+    )
+    denied = request.model_copy(update={"context": context})
+    with pytest.raises(M2201AuthorizationError):
+        M2201Service().curate(denied)
+
+
+def test_service_typed_and_json_inputs_share_canonical_path() -> None:
+    service = M2201Service()
+    request = _request()
+    encoded = json.dumps(request.model_dump(mode="json"), separators=(",", ":"))
+    typed = service.validate_request(request)
+    parsed = service.validate_request(encoded)
+    assert typed == parsed
+    assert service.curate(typed).result_digest == service.curate(parsed).result_digest
+
+
+def test_replay_rejects_request_identifier_and_digest_tampering() -> None:
+    service = M2201Service()
+    result = service.curate(_request())
+    with pytest.raises(M2201ReplayError, match="identifier"):
+        service.verify_replay(result.model_copy(update={"result_id": "m2201.result.tampered"}))
+    with pytest.raises(M2201ReplayError, match="payload digest"):
+        service.verify_replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
+
+
+def test_hostile_mapping_fails_closed() -> None:
+    class HostileMapping:
+        def get(self, _field: str) -> object:
+            raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+    with pytest.raises(M2201AuthorizationError):
+        preflight_m2201_authorization(HostileMapping())
