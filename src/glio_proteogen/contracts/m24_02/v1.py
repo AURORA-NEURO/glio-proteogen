@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_02.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -37,6 +38,10 @@ from glio_proteogen.kernel.models import (
 # lines 8360-8400. Owner confirmation and implementation details remain
 # pending.
 M2402_MODULE_ID: Final = "GLIO-PROTEOGEN-M24-02"
+M2402_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2402_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8360-8400"
 M2402_OPERATION: Final = "generate_biomarker_panel_synthetic_truth"
 M2402_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2402_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m24-02+json"
@@ -86,13 +91,17 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2402_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2402_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2402_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2402_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2402_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def truth_shape_is_closed(self) -> SyntheticTruthCase:
+        if len(self.expected_features) != len(self.truth_values):
+            raise ValueError("expected features and truth values must have equal length")
+        return self
 
 
 class GenerationConfiguration(FrozenModel):
@@ -147,6 +156,8 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("corpus case ids must be unique")
         if set(case_ids) != set(self.manifest.case_ids):
             raise ValueError("manifest must enumerate every corpus case")
+        if self.manifest.configuration.version != self.version:
+            raise ValueError("manifest configuration version must match corpus version")
         return self
 
 
@@ -176,6 +187,13 @@ class GenerateBiomarkerPanelSyntheticTruthRequest(FrozenModel):
     def request_is_bound(self) -> GenerateBiomarkerPanelSyntheticTruthRequest:
         if self.upstream_result.media_type != M2402_M2401_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-01 sensitivity result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if self.upstream_result.artifact_id not in set(artifact_ids):
+            raise ValueError("source artifacts must include the upstream result")
         return self
 
 
@@ -206,6 +224,15 @@ class BiomarkerPanelSyntheticTruthResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelSyntheticTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id does not match deterministic request identity")
+        if self.provenance.module_id != M2402_MODULE_ID:
+            raise ValueError("provenance module id must identify M24-02")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("generator finding ids must be unique")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None
@@ -229,6 +256,8 @@ class BiomarkerPanelSyntheticTruthResult(FrozenModel):
 
 __all__ = [
     "M2402_CONTRACT_VERSION",
+    "M2402_DOSSIER_SHA256",
+    "M2402_DOSSIER_SLICE",
     "M2402_GATE",
     "M2402_M2401_INPUT_MEDIA_TYPE",
     "M2402_MAX_CANONICAL_REQUEST_BYTES",
