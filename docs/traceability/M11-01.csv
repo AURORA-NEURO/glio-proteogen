@@ -1,0 +1,16 @@
+requirement_id,requirement,evidence,verification
+M1101-G0-01,Strict provisional request/result schemas,contracts/m11_01/{v1.py,schema.py},26 contract tests and schema serialization
+M1101-G0-02,No silent coercion or unknown fields,kernel FrozenModel plus adapters/m1101.py,test_request_unknown_fields_and_duplicate_hypotheses_are_rejected
+M1101-G1-01,Competing explanations required,contracts/m11_01/v1.py,test_supported_registry_is_replay_bound_and_preserves_competing_evidence
+M1101-G1-02,Falsification rules and one evaluation per rule,contracts/m11_01/v1.py,test_result_contract_rejects_each_replay_closure_break
+M1101-G3-01,Unknown/refuted conditions abstain,runtime engine and fixture scenarios.json,evaluator seven-case matrix
+M1101-G3-02,Uncertainty on seven axes,contracts/m11_01/v1.py,expected_uncertainty helper and supported/abstained assertions
+M1101-G4-01,Seven-control authorization before traversal,runtime engine and m1101 adapter,denied-control and hostile preflight tests
+M1101-G4-02,Replay/tamper rejection,engine verify and adapter verify route,result tamper matrix
+M1101-API-01,Schema GET route,adapters/m1101.py,test_http_schema_and_registration_match_library_result
+M1101-API-02,JSON POST parity,adapters/m1101.py,test_http_schema_and_registration_match_library_result
+M1101-CLI-01,Typer export/register/verify,adapters/m1101.py,test_cli_register_verify_and_failure_paths
+M1101-PERF-01,Deterministic benchmark,evals/m11_01/benchmark.py,release-evidence/m11_01/benchmark.json
+M1101-EVID-01,Fixture-bound evaluator,evals/m11_01/run.py,release-evidence/m11_01/evaluation.json
+M1101-SAFE-01,Prohibited output boundary,docs/modules/M11-01-biological-hypothesis-registry.md,descriptor metadata and limitations
+M1101-REC-01,Auditable rollback/docs,docs/evidence/M11-01.md,release evidence and branch-local commit chain

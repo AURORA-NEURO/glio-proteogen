@@ -1,1 +1,1 @@
-"""Adversarial tests for deep-built modules."""
+"""Adversarial M11-07 test package."""
