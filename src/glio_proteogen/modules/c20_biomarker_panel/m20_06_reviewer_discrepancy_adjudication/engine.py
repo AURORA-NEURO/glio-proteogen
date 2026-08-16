@@ -78,7 +78,10 @@ def _member(value: object, name: str) -> object:
 def preflight_m2006_authorization(candidate: object) -> None:
     """Require all seven caller-declared controls before queue traversal."""
 
-    references = _member(_member(candidate, "context"), "references")
+    try:
+        references = _member(_member(candidate, "context"), "references")
+    except Exception as error:
+        raise M2006AuthorizationError from error
     if references is None:
         raise M2006AuthorizationError("M20-06 requires all seven upstream controls")  # noqa: TRY003
     for name, expected in _CONTROL_STATES.items():
