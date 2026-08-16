@@ -10,7 +10,10 @@ from glio_proteogen.contracts.m19_01 import (
     ResolverFindingCode,
     ResolverStatus,
 )
-from glio_proteogen.contracts.m19_01.canonical import canonical_request_digest
+from glio_proteogen.contracts.m19_01.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
@@ -147,6 +150,10 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     with pytest.raises(m1901.M1901ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+    forged = result.model_copy(update={"human_review_required": True})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(m1901.M1901ReplayError, match="reconstruction"):
+        service.replay(forged)
 
 
 def test_strict_public_wrapper_matches_engine() -> None:
