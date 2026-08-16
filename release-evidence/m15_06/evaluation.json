@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-06",
+  "fixture_digest": "sha256:88f5a39404d259a99102057c512b1acdd76d17f9da8833a0cde528948da400f9",
+  "case_ids": ["simulated_bounded", "multi_scenario_surface", "input_incomplete_abstention", "negative_control_abstention", "out_of_envelope_abstention", "replay_and_tamper", "authorization_gate"],
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "total_cases": 7,
+  "passed": true,
+  "schema_count": 7
+}
