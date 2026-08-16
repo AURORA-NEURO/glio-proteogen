@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m20_07 import (
     M2007_CONTRACT_VERSION,
     M2007_EVIDENCE_CLAIM,
     M2007_MODULE_ID,
+    CompatibilityMode,
     DownstreamContractObject,
     ExportFinding,
     ExportFindingCode,
@@ -339,6 +340,7 @@ class M2007Engine:
             and request.configuration.documented_fields_only
             and request.configuration.immutable
             and request.configuration.locked
+            and request.configuration.compatibility is not CompatibilityMode.REVIEW_REQUIRED
         )
         findings: list[ExportFinding] = []
         if prohibited:
