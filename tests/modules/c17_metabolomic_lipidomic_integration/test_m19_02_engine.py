@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m19_02 import (
     AlignmentStatus,
     AlignProteotypeSourcesRequest,
 )
+from glio_proteogen.contracts.m19_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
@@ -96,6 +97,12 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     with pytest.raises((ValidationError, m1902.M1902ReplayError)):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+    assert service.validate_request(_request()) == _request()
+    invalid_provenance = result.provenance.model_copy(update={"module_id": "GLIO-PROTEOGEN-M19-01"})
+    tampered = result.model_copy(update={"provenance": invalid_provenance})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(m1902.M1902ReplayError, match="validation"):
+        service.replay(tampered)
 
 
 def test_plugin_descriptor_and_strict_json_boundary() -> None:
@@ -115,3 +122,4 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
         plugin.validate_json(b'{"a":1,"a":2}')
     with pytest.raises(ValueError, match="size limit"):
         plugin.validate_json(b"{" + b" " * (4 * 1024 * 1024) + b"}")
+    assert m1902.align_proteotype_sources(request) == result

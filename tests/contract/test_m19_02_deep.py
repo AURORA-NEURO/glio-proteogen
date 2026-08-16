@@ -373,6 +373,16 @@ def test_every_alignment_dimension_is_required_and_conflicts_are_closed() -> Non
     )
     assert request_with_conflict.discrepancies[0].dimension is AlignmentDimension.TIME
     assert _bundle(request_with_conflict).discrepancies
+    with pytest.raises(ValidationError, match="conflicting observed value"):
+        _observation(
+            AlignmentDimension.TIME,
+            observed_values=("value.time", "other.time"),
+        )
+    with pytest.raises(ValidationError, match="all seven dimensions"):
+        AlignmentConfiguration.model_validate(
+            _configuration().model_dump(mode="python")
+            | {"required_dimensions": (*_DIMENSIONS[:-1], AlignmentDimension.SAMPLE)}
+        )
 
 
 def test_sources_and_evidence_are_content_addressed_and_unique() -> None:
@@ -413,6 +423,39 @@ def test_configuration_and_discrepancy_require_explicit_review_closure() -> None
     )
     with pytest.raises(ValidationError, match="review-required discrepancy"):
         _result(request=request, bundle=_bundle(request))
+
+
+def test_request_and_bundle_preserve_source_reference_closure() -> None:
+    request = _request()
+    unknown_observation = request.observations[0].model_copy(
+        update={"source_ids": ("artifact.unknown", "artifact.proteome")}
+    )
+    with pytest.raises(ValidationError, match="observation references"):
+        AlignProteotypeSourcesRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "observations": (unknown_observation, *request.observations[1:]),
+            }
+        )
+    conflict = _observation(
+        AlignmentDimension.TIME,
+        status=AlignmentObservationStatus.CONFLICTED,
+        observed_values=("value.time", "other.time"),
+    )
+    unknown_discrepancy = _discrepancy(AlignmentDimension.TIME).model_copy(
+        update={"source_ids": ("artifact.upstream", "artifact.unknown")}
+    )
+    with pytest.raises(ValidationError, match="discrepancy references"):
+        AlignProteotypeSourcesRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "observations": tuple(
+                    conflict if item.dimension is AlignmentDimension.TIME else item
+                    for item in request.observations
+                ),
+                "discrepancies": (unknown_discrepancy,),
+            }
+        )
 
 
 def test_result_identity_replay_and_tamper_are_fail_closed() -> None:
@@ -489,6 +532,37 @@ def test_abstention_requires_typed_findings_and_review_for_biological_conflict()
             support_status=SupportStatus.REVIEW_REQUIRED,
             findings=(finding,),
             abstention_reason="Review is required.",
+        )
+
+
+def test_result_status_closure_rejects_unsafe_combinations() -> None:
+    result = _result()
+    with pytest.raises(ValidationError, match="supported evidence bundle"):
+        ProteotypeAlignmentResult.model_validate(result.model_copy(update={"aligned_bundle": None}))
+    abstained = _result(
+        status=AlignmentStatus.ABSTAINED,
+        support_status=SupportStatus.REVIEW_REQUIRED,
+        findings=(
+            AlignmentFinding(
+                finding_id="finding.review",
+                code=AlignmentFindingCode.INPUT_INCOMPLETE,
+                message="Input is incomplete and requires review.",
+            ),
+        ),
+        abstention_reason="Input is incomplete.",
+        human_review_required=True,
+    )
+    with pytest.raises(ValidationError, match="no bundle"):
+        ProteotypeAlignmentResult.model_validate(
+            abstained.model_copy(update={"aligned_bundle": _bundle(_request())})
+        )
+    with pytest.raises(ValidationError, match="safe non-supported"):
+        _result(
+            status=AlignmentStatus.ABSTAINED,
+            support_status=SupportStatus.SUPPORTED,
+            findings=abstained.findings,
+            abstention_reason="Input is incomplete.",
+            human_review_required=True,
         )
 
 
