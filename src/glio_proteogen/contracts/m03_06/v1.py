@@ -2343,6 +2343,8 @@ def derive_harmonization(
         "infers_identity": False,
         "infers_protein": False,
         "infers_proteoform": False,
+        "infers_isoform": False,
+        "infers_glioma_specific_biology": False,
         "infers_kinase_activity": False,
     }
     analysis_payload["analysis_digest"] = analysis_digest(analysis_payload)
