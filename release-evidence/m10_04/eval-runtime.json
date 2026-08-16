@@ -1,0 +1,44 @@
+{
+  "check_count": 7,
+  "checks": [
+    {
+      "detail": "abstention exposes not-evaluable optimization, evidence, and review",
+      "id": "safe_abstention_has_diagnostic_and_uncertainty",
+      "passed": true
+    },
+    {
+      "detail": "exact request replay reproduced the canonical result envelope",
+      "id": "transitive_replay_is_byte_stable",
+      "passed": true
+    },
+    {
+      "detail": "changed abstention text cannot pass replay",
+      "id": "tampered_receipt_rejected",
+      "passed": true
+    },
+    {
+      "detail": "identity, consent, and upstream controls are never inferred",
+      "id": "unresolved_controls_fail_closed",
+      "passed": true
+    },
+    {
+      "detail": "M10-03 baseline handoff is explicit",
+      "id": "wrong_baseline_media_rejected",
+      "passed": true
+    },
+    {
+      "detail": "parse-once strict JSON rejects duplicates",
+      "id": "duplicate_json_keys_rejected",
+      "passed": true
+    },
+    {
+      "detail": "estimator does not emit parent claims, kinase activity, or treatment advice",
+      "id": "prohibited_parent_emission_is_false",
+      "passed": true
+    }
+  ],
+  "evaluator_version": "0.1.0-provisional",
+  "generated_at": "2026-01-01T00:00:00Z",
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "passed": true
+}
