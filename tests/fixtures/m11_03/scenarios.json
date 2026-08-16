@@ -1,0 +1,14 @@
+{
+  "fixture_id": "m11-03-mechanistic-feature-constructor-v1",
+  "fixture_version": "0.1.0-provisional",
+  "module_id": "GLIO-PROTEOGEN-M11-03",
+  "cases": [
+    {"case_id": "supported", "expected_status": "constructed"},
+    {"case_id": "upstream_unsupported", "upstream_id": "result.m1102.unsupported", "expected_status": "abstained", "expected_findings": ["upstream_unsupported"]},
+    {"case_id": "incomplete", "no_features": true, "expected_status": "abstained", "expected_findings": ["input_incomplete"]},
+    {"case_id": "unit_failure", "unit": "unknown", "expected_status": "abstained", "expected_findings": ["unit_invariant_failed"]},
+    {"case_id": "negative_control_failure", "negative_id": "negative.fail", "expected_status": "abstained", "expected_findings": ["negative_control_failed"]},
+    {"case_id": "replay_tamper", "expected_status": "constructed"},
+    {"case_id": "denied_control", "controls": {"consent": "withheld"}, "expected_status": "authorization_rejected"}
+  ]
+}

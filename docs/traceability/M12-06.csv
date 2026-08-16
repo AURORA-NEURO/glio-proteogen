@@ -1,0 +1,6 @@
+module_id,dossier_lines,requirement,implementation,evidence,gate
+GLIO-PROTEOGEN-M12-06,4216-4259,sensitivity surface and bounded perturbation response,contracts/m12_06/v1.py;modules/.../engine.py,tests/contract/test_m12_06_runtime.py,G1
+GLIO-PROTEOGEN-M12-06,4220,prohibited ownership and safe boundary,modules/.../plugin.py;docs/modules/M12-06-perturbation-sensitivity-simulator.md,tests/contract/test_m12_06_adversarial.py,G4
+GLIO-PROTEOGEN-M12-06,4232,identity version units completeness assay support and parent quality controls,modules/.../engine.py,tests/contract/test_m12_06_runtime.py,G0/G4
+GLIO-PROTEOGEN-M12-06,4234,seven uncertainty dimensions and abstention,contracts/m12_06/v1.py;modules/.../engine.py,tests/contract/test_m12_06_runtime.py,G3
+GLIO-PROTEOGEN-M12-06,4238-4240,versioned implementation locked evidence and rollback-safe replay,evals/m12_06;release-evidence/m12_06;tools/verify_m1206_release.py,tests/evals/test_m12_06_evaluator.py,G4

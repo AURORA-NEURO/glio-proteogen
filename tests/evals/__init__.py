@@ -1,1 +1,1 @@
-"""Evaluator tests for the published module stages."""
+"""Evaluator tests for provisional modules."""
