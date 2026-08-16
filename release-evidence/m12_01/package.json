@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-01",
+  "build_backend": "hatchling",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sha256": "ac61c36e17700e3dabb59452140c2be82d934aadc11360d37418e3cbd54679a0",
+    "size_bytes": 801032,
+    "members": 316
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "7b785066c90d95349dd4cec702ece71fe4ced4cc6a4d2f5e8444853810580e82",
+    "size_bytes": 1450102,
+    "members": 775
+  },
+  "isolated_import": true
+}
