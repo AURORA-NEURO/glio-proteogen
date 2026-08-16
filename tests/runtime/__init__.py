@@ -1,1 +1,1 @@
-"""M19-08 runtime tests."""
+"""Runtime tests."""
