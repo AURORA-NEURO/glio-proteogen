@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M18-07."""
 
+from typing import cast
+
 from glio_proteogen.contracts.m18_07 import (
     M1807_OUTPUT_MEDIA_TYPE,
     M1807_PROVISIONAL_ABI,
@@ -13,29 +15,36 @@ from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 _SCHEMA_COUNT = 8
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    """Expose the contract metadata with a strict, test-local type."""
+
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def test_provisional_schemas_preserve_typed_export_boundaries() -> None:
     schemas = contract_json_schemas()
+    metadata = tuple(_metadata(schema) for schema in schemas.values())
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(str(schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values())
+    assert all(item["provisionalAbi"] for item in metadata)
+    assert all(item["pendingOwnerConfirmation"] for item in metadata)
     assert all(
-        schema["x-glio-contract"]["documentedFieldsOnly"]
-        and schema["x-glio-contract"]["versionedCompatibilityRequired"]
-        and schema["x-glio-contract"]["immutableExportRequired"]
-        and schema["x-glio-contract"]["ownershipSemanticsRequired"]
-        and schema["x-glio-contract"]["consentAware"]
-        and schema["x-glio-contract"]["supportAware"]
-        and schema["x-glio-contract"]["signatureRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
-        for schema in schemas.values()
+        item["documentedFieldsOnly"]
+        and item["versionedCompatibilityRequired"]
+        and item["immutableExportRequired"]
+        and item["ownershipSemanticsRequired"]
+        and item["consentAware"]
+        and item["supportAware"]
+        and item["signatureRequired"]
+        and item["unsupportedToNegative"] is False
+        for item in metadata
     )
     assert all(
-        schema["x-glio-contract"]["upstreamInputMediaType"].endswith("m18-06+json")
-        and schema["x-glio-contract"]["parentTarget"] == "biomarker panel"
-        for schema in schemas.values()
+        str(item["upstreamInputMediaType"]).endswith("m18-06+json")
+        and item["parentTarget"] == "biomarker panel"
+        for item in metadata
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1807_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M1807_OUTPUT_MEDIA_TYPE
     assert M1807_PROVISIONAL_ABI is True
 
 
