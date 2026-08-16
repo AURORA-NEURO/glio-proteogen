@@ -1,0 +1,12 @@
+requirement,authority,implementation,evidence,gate
+M26-08-R01,"dossier:9344-9384","caller-declared retirement criteria, dependency migration, evidence preservation, communication, archive","contracts/m26_08/v1.py; contract tests",G5
+M26-08-R02,"dossier:9344-9384","locked configuration with parent, required controls, active-dependency closure","RetirementConfiguration; active dependency evaluator",G5
+M26-08-R03,"dossier:9344-9384","completed migrations must change references and preserve evidence","RetirementPackage validators; adversarial tests",G5
+M26-08-R04,"dossier:9344-9384","verified retrievable immutable archive manifest bound to preserved evidence","LongTermArchive; archive evaluator",G5
+M26-08-R05,"dossier:9344-9384","seven-control fail-closed authorization and support preflight","engine.py; authorization_gate evaluator",G5
+M26-08-R06,"dossier:9344-9384","safe abstention on unsatisfied criteria, blocked migration, archive or communication failure","runtime findings; ten frozen scenarios",G5
+M26-08-R07,"dossier:9344-9384","canonical request/result IDs, digests, provenance and replay/tamper verification","canonical.py; runtime and adversarial tests",G5
+M26-08-R08,"dossier:9344-9384","strict API, SDK, CLI and parse-once plugin parity","api.py sdk.py cli.py plugin.py; interface tests",G5
+M26-08-R09,"dossier:9344-9384","seven uncertainty dimensions, evidence, limitations and human-review flag","result envelope; evaluator and schema evidence",G5
+M26-08-R10,"dossier:9344-9384","no identity, consent, treatment, kinase or generic all-omics inference","descriptor; boundary and hostile-input tests",G5
+M26-08-R11,"dossier:9344-9384","frozen evaluator, benchmark, branch coverage, release verifier and package evidence","release-evidence/m26_08; tooling tests",G5

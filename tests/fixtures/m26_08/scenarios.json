@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M26-08",
+  "contract_version": "0.1.0-provisional",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9344-9384",
+  "provisional_abi": true,
+  "parent_target": "protein subtype",
+  "cases": [
+    {"case_id": "executed_complete", "expected": "executed"},
+    {"case_id": "criterion_abstention", "expected": "abstained"},
+    {"case_id": "migration_abstention", "expected": "abstained"},
+    {"case_id": "archive_abstention", "expected": "abstained"},
+    {"case_id": "active_dependency_abstention", "expected": "abstained"},
+    {"case_id": "authorization_gate", "expected": "rejected"},
+    {"case_id": "plugin_parity", "expected": "equal"},
+    {"case_id": "replay_tamper", "expected": "rejected"},
+    {"case_id": "deterministic_repeat", "expected": "equal"},
+    {"case_id": "schema_authority", "expected": "locked"}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-08",
+  "measurement": "git diff --numstat 0c751ec2..HEAD -- '*.py'",
+  "python": {
+    "added": 2480,
+    "deleted": 21,
+    "net": 2459
+  },
+  "breakdown": {
+    "productionRuntime": 950,
+    "contractAuthority": 61,
+    "evaluatorBenchmark": 247,
+    "tests": 1042,
+    "releaseVerifier": 180
+  },
+  "scope": "M26-08 contribution only; inherited M26-01 through M26-07 Python is excluded",
+  "base": "0c751ec2",
+  "provisional": true
+}

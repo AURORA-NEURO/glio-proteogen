@@ -1,0 +1,31 @@
+"""Provisional M26-08 retirement, archival and knowledge-transfer exports."""
+
+from glio_proteogen.contracts.m26_08.canonical import (
+    canonical_request_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
+)
+from glio_proteogen.contracts.m26_08.schema import (
+    CONTRACT_VERSION,
+    SCHEMA_ID_PREFIX,
+    ContractName,
+    contract_json_schema,
+    contract_json_schemas,
+)
+from glio_proteogen.contracts.m26_08.v1 import *  # noqa: F403
+from glio_proteogen.contracts.m26_08.v1 import M2608_DOSSIER_SHA256, M2608_DOSSIER_SLICE
+
+__all__ = [
+    "CONTRACT_VERSION",
+    "M2608_DOSSIER_SHA256",
+    "M2608_DOSSIER_SLICE",
+    "SCHEMA_ID_PREFIX",
+    "ContractName",
+    "canonical_request_digest",
+    "contract_json_schema",
+    "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_payload_digest",
+]
