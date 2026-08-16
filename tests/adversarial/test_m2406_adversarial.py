@@ -263,6 +263,14 @@ def test_plugin_and_typer_reject_invalid_tokens_and_results(
         plugin.validate(object())
     with pytest.raises((ValidationError, M2406AuthorizationError)):
         plugin.validate(RobustnessChallengeSubmission(request=b"[]"))
+    assert (
+        plugin.run(
+            plugin.validate(
+                RobustnessChallengeSubmission(request=build_request().model_dump(mode="python"))
+            )
+        ).status.value
+        == "evaluated"
+    )
     runner = CliRunner()
     invalid = tmp_path / "invalid.json"
     invalid.write_text("[]", encoding="utf-8")
