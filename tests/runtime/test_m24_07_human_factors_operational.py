@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 
@@ -16,6 +17,8 @@ from glio_proteogen.modules.c21_reference_material import (
     m24_07_human_factors_operational_evaluator as m2407,
 )
 from tests.contract.test_m24_07_hardening import request as request_payload
+
+_CONTROL_COUNT = 7
 
 
 def request() -> EvaluateBiomarkerPanelHumanFactorsRequest:
@@ -31,7 +34,7 @@ def test_supported_result_closes_report_provenance_and_uncertainty() -> None:
     assert result.findings == ()
     assert result.parent_target == "biomarker panel"
     assert result.emits_parent is False
-    assert len(result.provenance.control_decisions) == 7
+    assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.request.upstream_result.digest in result.provenance.input_digests
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M24-07"
     assert all(
@@ -120,7 +123,8 @@ def test_denied_control_and_hostile_mapping_fail_closed_before_content_walk() ->
 
 def test_missing_upstream_media_is_rejected_by_contract() -> None:
     payload = request_payload()
-    payload["upstream_result"] = dict(payload["upstream_result"]) | {
+    upstream = cast("dict[str, object]", payload["upstream_result"])
+    payload["upstream_result"] = upstream | {
         "media_type": "application/vnd.glio-proteogen.unknown+json"
     }
     with pytest.raises(ValueError, match="M24-06"):
