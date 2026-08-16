@@ -1,0 +1,7 @@
+module_id,dossier_sha256,dossier_lines,requirement,implementation,evidence,owner,status
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3812-3855,ordered time-indexed trajectory and change points,contracts/m11_05/v1.py + m11_05_longitudinal_evolution/engine.py,release-evidence/m11_05/evaluation.json,Data engineering,verified
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3816-3820,opaque inputs and variant_peptide parent boundary,engine.py + contract result envelope,tests/contract/test_m11_05_runtime.py,Data engineering,verified
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3828-3834,quality controls temporal ordering and safe failure,contract validators + authorization preflight,tests/contract/test_m11_05_runtime.py,Data engineering,verified
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3830,seven uncertainty dimensions,expected_uncertainty + result envelope,release-evidence/m11_05/coverage.json,Data engineering,verified
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3834-3836,reproducibility evidence and replay,canonical.py + engine.verify,release-evidence/m11_05/evaluation.json,Data engineering,verified
+GLIO-PROTEOGEN-M11-05,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,3846-3852,G0/G1/G3/G4 testing,contract runtime adversarial evaluator tests,release-evidence/m11_05/evaluation.json,Data engineering,verified
