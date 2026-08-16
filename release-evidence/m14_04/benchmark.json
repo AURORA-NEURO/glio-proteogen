@@ -1,0 +1,12 @@
+{
+    "module_id": "GLIO-PROTEOGEN-M14-04",
+    "iterations": 10,
+    "mean_ns": 1447930,
+    "median_ns": 1299250,
+    "p95_ns": 2885400,
+    "max_ns": 2885400,
+    "mean_budget_ns": 2000000000,
+    "p95_budget_ns": 3000000000,
+    "passed": true,
+    "measurement_note": "Single 10-iteration run; budgets are provisional."
+}

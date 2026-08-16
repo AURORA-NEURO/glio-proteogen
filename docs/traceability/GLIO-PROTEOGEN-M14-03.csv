@@ -1,0 +1,17 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M14-03-R01,dossier:4804-4847,Own the mechanistic feature constructor beneath the protein subtype parent,literal module identity operation owner and parent target,authority and module identity assertions,G1
+M14-03-R02,dossier:4804-4847,Represent interpretable pathway topology state lineage kinetics spatial and regulatory features,seven closed feature kinds with categorical caller-declared representation,constructed_supported evaluator case,G1
+M14-03-R03,dossier:4804-4847,Preserve source lineage and evidence,feature lineage source artifact closure and evidence references,source_closure diagnostic and replay tests,G1
+M14-03-R04,dossier:4804-4847,Enforce unit topology and stoichiometric invariants,explicit unit diagnostic relation closure and locked stoichiometry reference,contract validators and invariant diagnostics,G1
+M14-03-R05,dossier:4804-4847,Require negative controls before construction,unique locked negative-control references and seven-control preflight,duplicate_negative_control and denied_control cases,G1
+M14-03-R06,dossier:4804-4847,Preserve explicit uncertainty and abstention,seven not-estimable uncertainty dimensions plus abstained result,unsupported_model_family and duplicate_negative_control cases,G1
+M14-03-R07,dossier:4804-4847,Keep ABI provisional where model family and handoff details remain open,provisional version authority metadata and pending-owner schema flags,contract schema and manifest,G1
+M14-03-R08,locked-scope:parent,Bind the provisional M14-02 input without emitting the parent,strict upstream media type parent_target protein_subtype and emits_parent false,wrong_upstream and result envelope tests,G1
+M14-03-R09,locked-scope:claims,Do not infer mechanism kinase activity all-omics treatment identity consent or clinical claims,caller-declared limitation and descriptor ceiling,recursive result claims test and plugin descriptor,G1
+M14-03-R10,locked-risk:authorization,Fail closed on any denied upstream control,preflight checks all seven control states before configuration traversal,denied_control runtime and HTTP cases,G1
+M14-03-R11,locked-risk:replay,Recompute request provenance and result digest from immutable typed payloads,canonical request/result digest and replay verifier,result_tampering and replay test,G1
+M14-03-R12,locked-risk:interfaces,Expose strict API CLI and capability plugin boundaries,shared service schema registry JSON parser and tokenized run,interface parity tests,G1
+M14-03-R13,locked-risk:negative,Reject malformed value shape self-loop relation unknown relation target and empty source,strict Pydantic validators and boundary cases,self_loop empty_source and contract tests,G1
+M14-03-R14,locked-risk:corpus,Lock a synthetic adversarial evaluator with at least 95 percent executable coverage,eight preregistered cases exact declared/executed closure,evals/m14_03/run.py,G1
+M14-03-R15,locked-risk:benchmark,Record representative public replay timing after warm-up,100-call benchmark with construction outside timing,evals/m14_03/benchmark.py,G1
+M14-03-R16,locked-risk:release,Bind release evidence to authority source fixture schema evaluator benchmark and package digests,manifest evidence traceability and install report,release record and clean worktree,G1

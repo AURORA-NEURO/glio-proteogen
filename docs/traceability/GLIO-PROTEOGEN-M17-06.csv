@@ -1,0 +1,10 @@
+module_id,authority_sha256,authority_lines,requirement,implementation,evidence,verification
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,structured disagreement and reason codes,DiscrepancyQueueEntry.reason_code and findings,contract/runtime tests,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,blinded human review,ReviewerAssignment blinded literal and opaque token,contract/interface/evaluator tests,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,escalation and safe abstention,QueueEntryState escalation and QueueResultStatus abstained,runtime/evaluator matrix,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,immutable audit history,contiguous ImmutableAuditEvent sequence and locked record,adversarial contract coverage,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,typed uncertainty,seven-dimension UncertaintyProfile, evaluator uncertainty case,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,provenance and controls,seven ControlDecisionRecord entries, runtime/evaluator tests,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,unsupported boundary safety,explicit unsupported status and no record,negative evaluator cases,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,replay and tamper closure,canonical request/result digests and replay verification,service/plugin/API tests,pass
+GLIO-PROTEOGEN-M17-06,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6016-6056,performance and release,locked benchmark and package verifier,release evidence,pass

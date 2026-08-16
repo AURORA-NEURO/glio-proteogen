@@ -1,0 +1,12 @@
+requirement_id,authority_lines,implementation,tests_or_evidence,gate,status
+M1705-R01,5972-5974,contracts/m17_05/v1.py,contract schema smoke,G0,implemented
+M1705-R02,5976,contracts/m17_05/v1.py,deep closure adversaries,G0/G4,implemented
+M1705-R03,5978,contracts/m17_05/v1.py;engine.py,source and provenance binding tests,G1,implemented
+M1705-R04,5980,contracts/m17_05/v1.py;engine.py,workspace output assertions,G1,implemented
+M1705-R05,5988,engine.py,authorization and quarantine scenarios,G1/G4,implemented
+M1705-R06,5990,engine.py,uncertainty and abstention scenarios,G3,implemented
+M1705-R07,5992,engine.py;adapters/m1705.py,conflict review and automation-bias tests,G4,implemented
+M1705-R08,5994,engine.py;evals/m17_05,deterministic evaluator and benchmark,G1/G3,implemented
+M1705-R09,5996,docs;release-evidence;tools/verify_m1705_release.py,release verifier,G4,implemented
+M1705-R10,6008-6012,tests/contract/test_m17_05_deep.py,12 focused tests;98 percent scoped branch coverage,G0/G1/G3/G4,implemented
+

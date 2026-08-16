@@ -1,0 +1,2 @@
+module_id,dossier_sha256,authority_lines,responsibility,parent_target,owner,safety_class,gate,abi_status
+GLIO-PROTEOGEN-M13-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,4356-4399,"Versioned proteotype hypothesis and falsification registry",proteotype,Quality engineering,S2,G0,provisional-pending-owner-confirmation

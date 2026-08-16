@@ -1,0 +1,30 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-04",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {
+      "case_id": "adapted_validated_policy",
+      "purpose": "A registered validated policy allows a bounded descriptive object."
+    },
+    {
+      "case_id": "qualified_exploratory_policy",
+      "purpose": "Exploratory evidence remains visible only as a qualified object."
+    },
+    {
+      "case_id": "prohibited_claim_abstention",
+      "purpose": "A treatment claim is blocked and never emitted as a valid object."
+    },
+    {
+      "case_id": "hidden_display_abstention",
+      "purpose": "A hidden or abstaining display policy requires human review."
+    },
+    {
+      "case_id": "replay_and_tamper",
+      "purpose": "Canonical output replay succeeds and digest tampering fails."
+    },
+    {
+      "case_id": "authorization_gate",
+      "purpose": "Rejected consent or identity controls fail before policy traversal."
+    }
+  ]
+}
