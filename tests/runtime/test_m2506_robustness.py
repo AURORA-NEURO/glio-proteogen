@@ -225,6 +225,8 @@ def test_plugin_requires_submission_and_validated_token() -> None:
         plugin.validate(request())
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
+    typed_submission = plugin.validate(ChallengeSubmission(request=request()))
+    assert typed_submission.request.request_id == "request.m2506"
     validated = plugin.validate(ChallengeSubmission(request=request().model_dump(mode="json")))
     result = plugin.run(validated)
     assert result.status is RobustnessStatus.EVALUATED

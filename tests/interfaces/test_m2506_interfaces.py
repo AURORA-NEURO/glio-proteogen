@@ -157,6 +157,12 @@ def test_cli_error_edges_and_stdout_paths(tmp_path: Path, monkeypatch: object) -
     request_path = tmp_path / "request.json"
     request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
     assert runner.invoke(m2506_cli.app, ["challenge", str(request_path)]).exit_code == 0
+    denied_path = tmp_path / "denied.json"
+    denied_payload = build_request().model_dump(mode="json")
+    denied_payload["context"]["references"]["consent"]["state"] = "revoked"
+    denied_path.write_text(json.dumps(denied_payload), encoding="utf-8")
+    assert runner.invoke(m2506_cli.app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(m2506_cli.app, ["challenge", str(denied_path)]).exit_code != 0
 
     def fail_replay(self: M2506Service, result: object) -> object:
         del self, result
@@ -172,3 +178,10 @@ def test_cli_error_edges_and_stdout_paths(tmp_path: Path, monkeypatch: object) -
         )
     )
     assert runner.invoke(m2506_cli.app, ["verify", str(output)]).exit_code != 0
+
+    def mismatch_replay(self: M2506Service, result: object) -> object:
+        del self
+        return result.model_copy(update={"result_digest": "sha256:" + "f" * 64})  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(M2506Service, "verify_replay", mismatch_replay)
+    assert runner.invoke(m2506_cli.app, ["verify", str(output)]).exit_code == 1

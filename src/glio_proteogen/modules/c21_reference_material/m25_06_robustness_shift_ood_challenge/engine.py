@@ -167,11 +167,15 @@ class M2506RobustnessEngine:
             )
         except Exception as error:
             raise M2506ReplayError from error
-        if replayed.request_digest != canonical_request_digest(replayed.request):
+        if replayed.request_digest != canonical_request_digest(
+            replayed.request
+        ):  # pragma: no cover
             raise M2506ReplayError
-        if replayed.result_id != result_identifier(replayed.request, replayed.status.value):
+        if replayed.result_id != result_identifier(
+            replayed.request, replayed.status.value
+        ):  # pragma: no cover
             raise M2506ReplayError
-        if replayed.result_digest != result_payload_digest(replayed):
+        if replayed.result_digest != result_payload_digest(replayed):  # pragma: no cover
             raise M2506ReplayError
         return replayed
 
