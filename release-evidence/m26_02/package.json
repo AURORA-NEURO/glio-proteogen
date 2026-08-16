@@ -1,0 +1,28 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-02",
+  "contractVersion": "0.1.0-provisional",
+  "buildTool": "hatchling 1.31.0 via uv build",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sizeBytes": 996279,
+    "sha256": "d6141f51079c6267114a3e9e6ca482ae1746ac16a027ee6ec43a575624ec9627",
+    "memberCount": 453,
+    "requiredRuntimeMember": "glio_proteogen/modules/c26_proteomics/m26_02_data_model_lineage_service/engine.py"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sizeBytes": 1523295,
+    "sha256": "5ce0f7eb15ccff9b2c3a65f036fec4ce8e55aa1a56f3f17ed0fa31a9f287cb32",
+    "memberCount": 953
+  },
+  "isolatedImportPassed": true,
+  "isolatedImport": [
+    "glio_proteogen",
+    "glio_proteogen.contracts.m26_02",
+    "glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service"
+  ],
+  "generatedDirectories": [
+    ".m2602-build-final",
+    ".m2602-install-final"
+  ]
+}

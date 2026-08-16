@@ -275,83 +275,6 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
-from glio_proteogen.contracts.m19_08.schema import (
-    ContractName as M1908ContractName,
-)
-from glio_proteogen.contracts.m19_08.schema import (
-    contract_json_schema as m1908_contract_json_schema,
-)
-from glio_proteogen.contracts.m19_08.v1 import (
-    M1908_MAX_CANONICAL_REQUEST_BYTES,
-    MonitorProteotypeTranslationHealthRequest,
-    ProteotypeTranslationMonitoringResult,
-)
-from glio_proteogen.contracts.m19_06.schema import (
-    ContractName as M1906ContractName,
-)
-from glio_proteogen.contracts.m19_06.schema import (
-    contract_json_schema as m1906_contract_json_schema,
-)
-from glio_proteogen.contracts.m19_06.v1 import (
-    M1906_MAX_CANONICAL_REQUEST_BYTES,
-    AdjudicateProteotypeQueueRequest,
-    ProteotypeAdjudicationResult,
-)
-from glio_proteogen.contracts.m19_04.schema import (
-    ContractName as M1904ContractName,
-)
-from glio_proteogen.contracts.m19_04.schema import (
-    contract_json_schema as m1904_contract_json_schema,
-)
-from glio_proteogen.contracts.m19_04.v1 import (
-    M1904_MAX_CANONICAL_REQUEST_BYTES,
-    AdaptProteotypeIntendedUseRequest,
-    ProteotypeIntendedUseAdapterResult,
-)
-from glio_proteogen.contracts.m19_03.schema import (
-    ContractName as M1903ContractName,
-)
-from glio_proteogen.contracts.m19_03.schema import (
-    contract_json_schema as m1903_contract_json_schema,
-)
-from glio_proteogen.contracts.m19_03.v1 import (
-    M1903_MAX_CANONICAL_REQUEST_BYTES,
-    FuseProteotypeEvidenceRequest,
-    ProteotypeIntegratedEvidenceResult,
-)
-from glio_proteogen.contracts.m18_08.schema import (
-    ContractName as M1808ContractName,
-)
-from glio_proteogen.contracts.m18_08.schema import (
-    contract_json_schema as m1808_contract_json_schema,
-)
-from glio_proteogen.contracts.m18_08.v1 import (
-    M1808_MAX_CANONICAL_REQUEST_BYTES,
-    BiomarkerPanelTranslationMonitoringResult,
-    MonitorBiomarkerPanelTranslationHealthRequest,
-)
-from glio_proteogen.contracts.m18_06.schema import (
-    ContractName as M1806ContractName,
-)
-from glio_proteogen.contracts.m18_06.schema import (
-    contract_json_schema as m1806_contract_json_schema,
-)
-from glio_proteogen.contracts.m18_06.v1 import (
-    M1806_MAX_CANONICAL_REQUEST_BYTES,
-    AdjudicateBiomarkerPanelQueueRequest,
-    BiomarkerPanelAdjudicationResult,
-)
-from glio_proteogen.contracts.m18_03.schema import (
-    ContractName as M1803ContractName,
-)
-from glio_proteogen.contracts.m18_03.schema import (
-    contract_json_schema as m1803_contract_json_schema,
-)
-from glio_proteogen.contracts.m18_03.v1 import (
-    M1803_MAX_CANONICAL_REQUEST_BYTES,
-    BiomarkerPanelIntegratedEvidenceResult,
-    FuseBiomarkerPanelEvidenceRequest,
-)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -455,6 +378,83 @@ from glio_proteogen.contracts.m17_08.v1 import (
     M1708_MAX_CANONICAL_REQUEST_BYTES,
     MonitorVariantPeptideTranslationHealthRequest,
     VariantPeptideTranslationMonitoringResult,
+)
+from glio_proteogen.contracts.m18_03.schema import (
+    ContractName as M1803ContractName,
+)
+from glio_proteogen.contracts.m18_03.schema import (
+    contract_json_schema as m1803_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_03.v1 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelIntegratedEvidenceResult,
+    FuseBiomarkerPanelEvidenceRequest,
+)
+from glio_proteogen.contracts.m18_06.schema import (
+    ContractName as M1806ContractName,
+)
+from glio_proteogen.contracts.m18_06.schema import (
+    contract_json_schema as m1806_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_06.v1 import (
+    M1806_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateBiomarkerPanelQueueRequest,
+    BiomarkerPanelAdjudicationResult,
+)
+from glio_proteogen.contracts.m18_08.schema import (
+    ContractName as M1808ContractName,
+)
+from glio_proteogen.contracts.m18_08.schema import (
+    contract_json_schema as m1808_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelTranslationMonitoringResult,
+    MonitorBiomarkerPanelTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_03.v1 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m19_04.schema import (
+    ContractName as M1904ContractName,
+)
+from glio_proteogen.contracts.m19_04.schema import (
+    contract_json_schema as m1904_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_04.v1 import (
+    M1904_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptProteotypeIntendedUseRequest,
+    ProteotypeIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m19_06.schema import (
+    ContractName as M1906ContractName,
+)
+from glio_proteogen.contracts.m19_06.schema import (
+    contract_json_schema as m1906_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_06.v1 import (
+    M1906_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteotypeQueueRequest,
+    ProteotypeAdjudicationResult,
+)
+from glio_proteogen.contracts.m19_08.schema import (
+    ContractName as M1908ContractName,
+)
+from glio_proteogen.contracts.m19_08.schema import (
+    contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_08.v1 import (
+    M1908_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteotypeTranslationHealthRequest,
+    ProteotypeTranslationMonitoringResult,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -605,32 +605,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
-    m19_08_translation_monitoring_service as m1908_monitoring,
-)
-from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
-    m19_06_reviewer_adjudication as m1906_adjudication,
-)
-from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
-    M1904AuthorizationError,
-    M1904ReplayError,
-    M1904Service,
-    preflight_m1904_authorization,
-)
-from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
-    M1903AuthorizationError,
-    M1903Service,
-    preflight_m1903_authorization,
-)
-from glio_proteogen.modules.c18_spatial_proteomics import (
-    m18_08_translation_monitoring_service as m1808_monitoring,
-)
-from glio_proteogen.modules.c18_spatial_proteomics_projection import (
-    m18_06_reviewer_adjudication as m1806_adjudication,
-)
-from glio_proteogen.modules.c18_spatial_proteomics_projection import (
-    m18_03_fusion_aggregation as m1803_fusion,
-)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -664,6 +638,32 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
 )
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m17_08_translation_monitoring as m1708_monitoring,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_08_translation_monitoring_service as m1908_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_06_reviewer_adjudication as m1806_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
+    m19_06_reviewer_adjudication as m1906_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904AuthorizationError,
+    M1904ReplayError,
+    M1904Service,
+    preflight_m1904_authorization,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
