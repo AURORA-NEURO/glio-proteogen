@@ -72,10 +72,7 @@ def export_schema(
     name: Annotated[
         str,
         typer.Argument(
-            help=(
-                "request, output, attempt, execution, package, workflow, environment, "
-                "or finding"
-            )
+            help=("request, output, attempt, execution, package, workflow, environment, or finding")
         ),
     ],
     output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
@@ -129,9 +126,7 @@ def verify(path: Annotated[Path, typer.Argument(exists=True, readable=True)]) ->
         raise M2603CliError("result replay is invalid") from error
     verified = replay.result_digest == result.result_digest
     typer.echo(
-        json.dumps(
-            {"verified": verified, "result_digest": replay.result_digest}, sort_keys=True
-        )
+        json.dumps({"verified": verified, "result_digest": replay.result_digest}, sort_keys=True)
     )
     if not verified:
         raise typer.Exit(code=1)

@@ -59,9 +59,7 @@ def test_fastapi_rejects_denied_and_sanitizes_contract_details() -> None:
     denied = client.post(
         "/v1/modules/M26-03/execute", json=denied_request().model_dump(mode="json")
     )
-    malformed = client.post(
-        "/v1/modules/M26-03/execute", json={"secret_submission": "do-not-echo"}
-    )
+    malformed = client.post("/v1/modules/M26-03/execute", json={"secret_submission": "do-not-echo"})
     assert denied.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "secret_submission" not in malformed.text

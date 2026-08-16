@@ -106,8 +106,10 @@ def create_app(service: M2603Service | None = None) -> FastAPI:
             replay = boundary.verify(result)
         except (ValidationError, ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="replay envelope is invalid") from error
-        return {"verified": replay.result_digest == result.result_digest,
-                "result_digest": replay.result_digest}
+        return {
+            "verified": replay.result_digest == result.result_digest,
+            "result_digest": replay.result_digest,
+        }
 
     return app
 

@@ -60,7 +60,9 @@ def _tamper() -> None:
     engine = M2603Engine()
     result = engine.execute(build_request())
     try:
-        engine.verify(result.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False)
+        engine.verify(
+            result.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False
+        )
     except M2603ReplayError:
         return
     raise AssertionError("tampered digest must fail replay")
@@ -68,7 +70,9 @@ def _tamper() -> None:
 
 def _missing_upstream_media() -> None:
     request = build_request()
-    source_artifacts = tuple(item for item in request.source_artifacts if "m26-02" not in item.media_type)
+    source_artifacts = tuple(
+        item for item in request.source_artifacts if "m26-02" not in item.media_type
+    )
     candidate = request.model_dump(mode="json")
     candidate["source_artifacts"] = list(source_artifacts)
     try:
