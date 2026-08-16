@@ -23,6 +23,15 @@ class M1808Service:
         self._engine = engine or M1808TranslationMonitoringEngine()
 
     def validate_request(self, request: object) -> MonitorBiomarkerPanelTranslationHealthRequest:
+        if isinstance(request, (bytes, bytearray, str)):
+            parsed = strict_json_loads(request, max_bytes=M1808_MAX_CANONICAL_REQUEST_BYTES)
+            return MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
+                canonical_json_bytes(parsed), strict=True
+            )
+        if isinstance(request, Mapping):
+            return MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
+                canonical_json_bytes(dict(request)), strict=True
+            )
         return MonitorBiomarkerPanelTranslationHealthRequest.model_validate(request, strict=True)
 
     def execute(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:
