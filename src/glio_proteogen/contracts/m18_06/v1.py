@@ -44,6 +44,10 @@ M1806_OWNER: Final = "Data engineering"
 M1806_SAFETY_CLASS: Final = "S2"
 M1806_GATE: Final = "G4"
 M1806_PROVISIONAL_ABI: Final = True
+M1806_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1806_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6376-6416"
 M1806_MAX_QUEUE_ENTRIES: Final = 256
 M1806_MAX_ASSIGNMENTS: Final = 256
 M1806_MAX_HISTORY: Final = 1_024
@@ -290,6 +294,8 @@ class BiomarkerPanelAdjudicationResult(FrozenModel):
 
 __all__ = [
     "M1806_CONTRACT_VERSION",
+    "M1806_DOSSIER_SHA256",
+    "M1806_DOSSIER_SLICE",
     "M1806_EVIDENCE_CLAIM",
     "M1806_GATE",
     "M1806_M1805_INPUT_MEDIA_TYPE",

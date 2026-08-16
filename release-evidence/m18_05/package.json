@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M18-05",
+  "contract_version": "0.1.0-provisional",
+  "build_backend": "hatchling 1.31.0",
+  "artifacts": [
+    {
+      "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
+      "size_bytes": 919301,
+      "sha256": "a2f6bcbca49808cf359480410b7f8bf6bd4079df96503098762d79765dacf957"
+    },
+    {
+      "path": "dist/glio_proteogen-0.1.0.tar.gz",
+      "size_bytes": 1498777,
+      "sha256": "10718ddc265a63b89f49a93c2b1127e3a05d9160b9422d5640f53044f8b031fb"
+    }
+  ],
+  "isolated_import": true,
+  "isolated_import_target": "isolated-m1805-import",
+  "isolated_import_check": "import glio_proteogen; create_app().title == 'GLIO-PROTEOGEN M18-05'"
+}
