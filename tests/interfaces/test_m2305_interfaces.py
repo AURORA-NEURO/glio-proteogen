@@ -36,6 +36,7 @@ def test_fastapi_validate_evaluate_verify_and_sanitized_errors() -> None:
     client = TestClient(create_app(M2305Service()))
     schemas = client.get("/v1/modules/M23-05/schemas")
     assert schemas.status_code == _HTTP_OK
+    assert client.get("/v1/modules/M23-05/schemas/request").status_code == _HTTP_OK
     assert set(schemas.json()) == {
         "request",
         "output",
