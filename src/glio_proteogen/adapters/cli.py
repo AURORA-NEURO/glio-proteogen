@@ -35,6 +35,7 @@ from glio_proteogen.adapters.api import (
     _m1403_contract_schema,
     _m1405_contract_schema,
     _m1502_contract_schema,
+    _m1508_contract_schema,
     _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
@@ -164,6 +165,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m15_08 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
 )
 from glio_proteogen.contracts.m06_01 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
@@ -392,6 +397,9 @@ from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_05_protein_subtype_evolution as m1405_module,
 )
 from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
     m15_02_context_subtype_stratifier as m1502_module,
 )
 
@@ -527,6 +535,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+mechanism_dossier_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-08 bounded mechanism evidence dossier assembly.",
+)
+app.add_typer(mechanism_dossier_app, name="mechanism-dossier")
 m0801_app = typer.Typer(
     no_args_is_help=True,
     help="M08-01 provisional formal transcript-protein state validation.",
@@ -3826,6 +3839,48 @@ def infer_m1405(request: RequestArgument) -> None:
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"M14-05 longitudinal evolution failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@mechanism_dossier_app.command("export-schema")
+def export_m1508_dossier_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "dossier",
+            "link",
+            "counter-evidence",
+            "validation-route",
+            "claim-ceiling",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M15-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable mechanism dossier contract."""
+
+    typer.echo(json.dumps(_m1508_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@mechanism_dossier_app.command("assemble")
+def assemble_m1508_dossier(request: RequestArgument) -> None:
+    """Assemble one bounded caller-declared mechanism evidence dossier."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AssembleComplexActivityMechanismDossierRequest),
+            m1508.preflight_m1508_authorization,
+            M1508_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1508.M1508Service().execute(parsed))
+    except m1508.M1508AuthorizationError as error:
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
