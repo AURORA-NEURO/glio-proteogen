@@ -1,5 +1,7 @@
 """M25-01 reference truth and benchmark curator runtime."""
 
+from .api import create_app
+from .cli import app
 from .engine import (
     M2501AuthorizationError,
     M2501ReferenceTruthBenchmarkCurator,
@@ -18,6 +20,8 @@ __all__ = [
     "M2501Service",
     "ReferenceTruthSubmission",
     "ValidatedM2501Request",
+    "app",
+    "create_app",
     "curate_proteotype_reference_truth",
     "preflight_m2501_authorization",
 ]
