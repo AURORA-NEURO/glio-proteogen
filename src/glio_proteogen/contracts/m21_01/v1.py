@@ -271,6 +271,8 @@ class CurateComplexActivityReferenceTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> CurateComplexActivityReferenceTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
         ids = tuple(item.reference_id for item in (*self.references, *self.controls))
         if len(ids) != len(set(ids)):
             raise ValueError("request reference and control ids must be unique")

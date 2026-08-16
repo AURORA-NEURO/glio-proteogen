@@ -14,7 +14,11 @@ if TYPE_CHECKING:
 
 def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
-        return value.model_dump(mode="json")
+        # Preserve datetime/enum objects until the kernel canonicalizer applies
+        # one deterministic representation.  JSON-mode dumping would omit
+        # zero microseconds and make replay hashes depend on the construction
+        # path rather than the immutable model value.
+        return value.model_dump(mode="python")
     return dict(value)
 
 
