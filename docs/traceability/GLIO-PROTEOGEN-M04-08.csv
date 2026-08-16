@@ -1,0 +1,16 @@
+requirement_id,dossier_line,requirement,implementation,evidence,status
+M0408-R01,1426,"Own immutable provenance and release packaging","contracts/m04_08 and m04_08_release_packaging spine","contract schema generation",executable_locked
+M0408-R02,1426,"Emit only signed release package and reproducibility manifest","ProteoformReleaseResult authority ceilings","owned result schema",executable_locked
+M0408-R03,1428,"No KINOPHOS ownership fusion treatment recommendation or missing-to-negative inference","literal false authority fields and module boundary documentation","contract/docs audit",executable_locked
+M0408-R04,1430,"Bind approved configuration identity provenance consent quality support and intended use","BuildProteoformReleaseRequest authorization closure","genuine chain tests",executable_locked
+M0408-R05,1432,"Typed uncertainty support provenance evidence and limitations","ProteoformReleaseResult envelope","result replay tests",executable_locked
+M0408-R06,1440,"Validate identity version units completeness assay support and parent quality","stage provenance and private M04-07 adapter","genuine chain tests",executable_locked
+M0408-R07,1444,"Human review for discrepancy OOD override promotion exception or conflict","quarantine and human_review_required fields","safe-failure corpus",executable_locked
+M0408-R08,1446,"Clean environment reproduces bit-for-bit or declared tolerance","exact_bytes policy and canonical USTAR framing","clean-wheel package replay",executable_locked
+M0408-R09,1448,"Locked tests benchmark traceability risk controls manifest sign-off rollback","ProteoformReproductionEvidence","release evidence verifier",executable_locked
+M0408-R10,1450,"Owner Bioinformatics S2 G1","module manifest","dossier hash/line audit",executable_locked
+M0408-R11,1460,"Zero silent coercions","strict frozen models and JSON schemas","contract tests",executable_locked
+M0408-R12,1461,"Functional invariants and preregistered tolerance","canonical digest and archive invariants","executable evaluator",executable_locked
+M0408-R13,1462,"Supported perturbations remain in envelope and unsupported cases abstain","typed quarantine routing","robustness corpus",executable_locked
+M0408-R14,1463,"Uncertainty coverage or narrowed support","typed uncertainty with explicit claims ceiling","uncertainty tests",executable_locked
+M0408-R15,1464,"Zero ownership or consent violations and auditable recovery","authorization gate review and rollback receipts","security/recovery tests",executable_locked

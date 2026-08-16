@@ -308,6 +308,10 @@ from glio_proteogen.contracts.m04_07.v1 import (
     ProteoformSupportRouteResult,
     RouteProteoformSupportRequest,
 )
+from glio_proteogen.contracts.m04_08.schema import (
+    ContractName as M0408ContractName,
+    contract_json_schema as m0408_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -676,6 +680,12 @@ def _proteoform_support_contract_schema(
     name: M0407ContractName,
 ) -> dict[str, object]:
     return m0407_contract_json_schema(name)
+
+
+def _proteoform_release_contract_schema(
+    name: M0408ContractName,
+) -> dict[str, object]:
+    return m0408_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1567,6 +1577,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformSupportRouteResult:
         return proteoform_support_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M04-08/{name}/schema", tags=["contracts"])
+    def proteoform_release_contract_schema(
+        name: M0408ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_release_contract_schema(name)
 
     @app.post(
         "/v1/modules/M04-05/artifact-detection",
