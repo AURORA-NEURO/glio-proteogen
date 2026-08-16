@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +14,9 @@ from glio_proteogen.modules.c21_reference_material import (
     m24_07_human_factors_operational_evaluator as m2407,
 )
 from tests.contract.test_m24_07_hardening import request as request_payload
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _SCHEMA_COUNT = 7
 
