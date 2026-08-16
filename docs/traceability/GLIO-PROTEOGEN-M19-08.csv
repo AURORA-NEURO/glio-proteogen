@@ -1,0 +1,16 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M19-08-R01,dossier:6824-6827,"Own translation monitoring and rollback beneath Immunopeptidomic evidence",literal module identity and bounded translation-health operation,healthy bounded-state evaluator oracle,G5
+M19-08-R02,dossier:6828-6832,"Preserve usage telemetry support drift workflow effects and discrepancies",four typed observation categories with status and evidence,scenario and canonical contract tests,G5
+M19-08-R03,dossier:6832-6835,"Bind the M19-07 downstream typed export without inventing upstream authority",strict M19-07 media-type artifact boundary,upstream media rejection scenario and request binding tests,G5
+M19-08-R04,dossier:6835-6838,"Classify health and rollback state deterministically",closed health-state to rollback-decision map,healthy degraded suspended rollback evaluator cases,G5
+M19-08-R05,dossier:6838-6841,"Suspend or rollback on critical failures under locked policy",critical threshold and unresolved-discrepancy precedence,critical telemetry support workflow and discrepancy adversarial cases,G5
+M19-08-R06,dossier:6841-6844,"Abstain safely when support or observations are not evaluable",typed supported/unsupported/review-required closure and abstention reason,not-evaluable and unsupported runtime cases,G5
+M19-08-R07,dossier:6844-6847,"Run consent identity control and authorization checks before traversal",seven-control fail-closed preflight,denied-control and hostile-context tests,G5
+M19-08-R08,dossier:6847-6850,"Retain seven uncertainty dimensions support provenance evidence and limitations",closed result envelope with explicit not-estimable dimensions,uncertainty evaluator oracle and result contract tests,G5
+M19-08-R09,dossier:6850-6853,"Preserve disagreement and prevent duplicate observations or findings",cross-category observation identity and unique finding ID/code validators,duplicate observation/finding adversarial tests,G5
+M19-08-R10,dossier:6853-6856,"Provide canonical replay and tamper verification",request/result digests plus deterministic replay,identifier forgery digest forgery and replay mismatch tests,G5
+M19-08-R11,dossier:6856-6859,"Expose strict library service plugin API and CLI parity",parse-once adapters and shared operation boundary,interface parity suite and strict JSON edge tests,G5
+M19-08-R12,dossier:6859-6861,"Keep raw files and external traversal outside the monitoring boundary",metadata-only artifact references and no file/registry traversal,manifest claims ceiling and interface tests,G5
+M19-08-R13,dossier:6861-6864,"Provide locked evaluation benchmark and adversarial evidence",fixture-bound evaluator and timed public engine benchmark,38 focused tests 8/8 evaluator 25-iteration benchmark,G5
+M19-08-R14,locked-risk:release,"Keep rollback append-only and externally reviewed",superseding request guidance and no mutation semantics,evidence inventory review/recovery plan,G4
+M19-08-R15,locked-risk:authority,"Exclude kinase all-omics treatment identity consent inference and clinical claims",fixed authority ceiling and explicit limitations,manifest and recursive result-boundary tests,G4
