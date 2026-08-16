@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from evals.m20_02.benchmark import run_benchmark
 from evals.m20_02.run import run_evaluation
 
@@ -20,5 +22,5 @@ def test_m20_02_evaluator_matrix_and_replay() -> None:
 def test_m20_02_locked_benchmark_is_within_budget() -> None:
     report = run_benchmark(_request, iterations=3)
     assert report["iterations"] == SCENARIO_COUNT
-    assert report["mean_ns"] < report["budget_mean_ns"]
-    assert report["p95_ns"] < report["budget_p95_ns"]
+    assert cast("float", report["mean_ns"]) < cast("int", report["budget_mean_ns"])
+    assert cast("int", report["p95_ns"]) < cast("int", report["budget_p95_ns"])
