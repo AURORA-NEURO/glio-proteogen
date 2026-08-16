@@ -9,6 +9,9 @@ from glio_proteogen.contracts.m19_05.schema import (
 )
 from glio_proteogen.contracts.m19_05.v1 import (
     M1905_CONTRACT_VERSION,
+    M1905_DOSSIER_SHA256,
+    M1905_DOSSIER_SLICE,
+    M1905_EVIDENCE_CLAIM,
     M1905_GATE,
     M1905_M1904_RESULT_MEDIA_TYPE,
     M1905_MAX_ACTIONS,
@@ -43,6 +46,9 @@ from glio_proteogen.contracts.m19_05.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M1905_CONTRACT_VERSION",
+    "M1905_DOSSIER_SHA256",
+    "M1905_DOSSIER_SLICE",
+    "M1905_EVIDENCE_CLAIM",
     "M1905_GATE",
     "M1905_M1904_RESULT_MEDIA_TYPE",
     "M1905_MAX_ACTIONS",

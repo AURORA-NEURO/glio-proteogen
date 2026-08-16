@@ -3,6 +3,8 @@
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m19_05 import (
+    M1905_DOSSIER_SHA256,
+    M1905_DOSSIER_SLICE,
     M1905_M1904_RESULT_MEDIA_TYPE,
     M1905_OUTPUT_MEDIA_TYPE,
     M1905_PROVISIONAL_ABI,
@@ -44,6 +46,8 @@ def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
         Draft202012Validator.check_schema(schema)
         metadata = schema["x-glio-contract"]
         assert metadata["provisionalAbi"] is True
+        assert metadata["dossierSha256"] == M1905_DOSSIER_SHA256
+        assert metadata["dossierSlice"] == M1905_DOSSIER_SLICE
         assert metadata["safeDefaultOrderingRequired"] is True
         assert metadata["automationBiasGuardRequired"] is True
         assert metadata["unsupportedToNegative"] is False
