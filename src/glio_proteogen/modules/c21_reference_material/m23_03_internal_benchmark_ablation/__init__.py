@@ -1,5 +1,7 @@
 """Provisional M23-03 internal benchmark and ablation runtime exports."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2303AuthorizationError,
     M2303BenchmarkEngine,
@@ -24,6 +26,8 @@ __all__ = [
     "M2303ReplayError",
     "M2303Service",
     "ValidatedM2303Request",
+    "cli_app",
+    "create_app",
     "preflight_m2303_authorization",
     "run_variant_peptide_internal_benchmark",
 ]
