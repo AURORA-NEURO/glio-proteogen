@@ -8,13 +8,14 @@ from pathlib import Path  # noqa: TC003 - Typer resolves runtime path annotation
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m21_04 import TransportDimension, TransportStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_04_external_transport_evaluator import (
     M2104Service,
     cli_app,
     create_app,
 )
-from tests.contract.test_m21_04_hardening import _request
+from tests.contract.test_m21_04_hardening import _evaluation, _request
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
@@ -133,3 +134,34 @@ def test_typer_rejects_malformed_request_and_bad_result(tmp_path: Path) -> None:
     bad.write_text("{}", encoding="utf-8")
     result = runner.invoke(cli_app, ["verify", str(bad)])
     assert result.exit_code != 0
+
+
+def test_typer_sanitizes_unknown_schema_and_abstention(tmp_path: Path) -> None:
+    runner = CliRunner()
+    unknown = runner.invoke(cli_app, ["export-schema", "unknown"])
+    assert unknown.exit_code != 0
+    statuses = [TransportStatus.SUPPORTED] * len(tuple(TransportDimension))
+    statuses[0] = TransportStatus.NOT_EVALUABLE
+    request = _request(
+        evaluations=tuple(
+            _evaluation(dimension, status)
+            for dimension, status in zip(TransportDimension, statuses, strict=True)
+        )
+    )
+    path = tmp_path / "abstained.json"
+    path.write_bytes(canonical_json_bytes(request.model_dump(mode="json")))
+    abstained = runner.invoke(cli_app, ["evaluate", str(path)])
+    assert abstained.exit_code == 1
+
+
+def test_typer_verify_rejects_tampered_result(tmp_path: Path) -> None:
+    runner = CliRunner()
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(_request().model_dump(mode="json")))
+    evaluated = runner.invoke(cli_app, ["evaluate", str(request_path)])
+    document = json.loads(evaluated.stdout)
+    document["result_digest"] = "sha256:" + "f" * 64
+    result_path = tmp_path / "tampered.json"
+    result_path.write_bytes(canonical_json_bytes(document))
+    verified = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert verified.exit_code != 0

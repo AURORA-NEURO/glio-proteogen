@@ -97,6 +97,16 @@ def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(ValidatedM2104Request(request, object()))
 
+    mapped = service.evaluate(request.model_dump(mode="json"))
+    assert service.replay(mapped.model_dump(mode="json")) == mapped
+    assert service.descriptor["module_id"] == "GLIO-PROTEOGEN-M21-04"
+    plugin.validate_request(request)
+    assert plugin.replay(mapped) == mapped
+    sealed = plugin.validate(request)
+    sealed._seal = object()
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(sealed)
+
 
 def test_replay_rejects_tampered_digest_and_public_entry_point_is_deterministic() -> None:
     request = _request()
