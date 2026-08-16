@@ -1,0 +1,13 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M08-04-R01,dossier:2688-2690,Own probabilistic or advanced estimation beneath transcript-protein discordance,provisional module contract and operation,observed architecture evaluator,G2
+M08-04-R02,dossier:2690-2693,Preserve protein-subtype parent target without emitting parent or prohibited outputs,explicit parent_target/emits_parent and limitations,contract and authority assertions,G2
+M08-04-R03,dossier:2692-2696,Bind proteome genome/transcriptome PTM baseline configuration lineage provenance consent quality support intended use,strict request and seven-control preflight,lifecycle and API tests,G2
+M08-04-R04,dossier:2696-2702,Emit typed posterior diagnostics support uncertainty provenance evidence limitations,closed result envelope and seven uncertainty dimensions,estimated and abstained evaluator scenarios,G2
+M08-04-R05,dossier:2698-2703,Represent primary alternate and fallback architecture options,closed family enum and deterministic family branches,three-family architecture matrix,G2
+M08-04-R06,dossier:2704-2706,Validate identity version units completeness assay support and parent-specific quality,strict feature states media types and source domain gate,missing/OOD/duplicate adversarial tests,G2
+M08-04-R07,dossier:2706-2708,Quantify seven uncertainty dimensions sensitivity and explicit abstention,typed estimated/not-estimable uncertainty and review flag,uncertainty lifecycle tests,G2
+M08-04-R08,dossier:2708-2710,Require human review for critical discrepancy OOD override promotion exception conflict,authorization and abstention review closure,consent/OOD evaluator and adapter tests,G2
+M08-04-R09,dossier:2710-2712,Meet optimization criteria and locked metric/evidence gates,seed/objective/iteration configuration and optimization diagnostic,contract and benchmark evidence,G2
+M08-04-R10,dossier:2712,Provide locked tests benchmark traceability risk data/model/reference manifest reviewer and rollback evidence,evidence JSONs docs manifest and traceability,release package audit,G2
+M08-04-R11,dossier:2714,Bind Bioinformatics S2 G2 ownership,descriptor and schema metadata,contract metadata assertions,G2
+M08-04-R12,dossier:2722-2728,Require contract functional robustness uncertainty safety and recovery tests,strict validators adversarial tests replay/tamper evaluator,focused release gates,G2
