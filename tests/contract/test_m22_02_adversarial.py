@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m22_02 import (
     M2202_MODULE_ID,
+    GenerationStatus,
     ProteinRnaDiscordanceSyntheticTruthResult,
     SyntheticTruthCorpus,
     contract_json_schemas,
@@ -103,4 +104,13 @@ def test_result_support_manifest_configuration_and_provenance_closures() -> None
     payload["manifest"]["configuration"]["seed"] = 99
     payload["corpus"]["manifest"]["configuration"]["seed"] = 99
     with pytest.raises(ValidationError, match="result configuration"):
+        ProteinRnaDiscordanceSyntheticTruthResult(**payload)
+
+
+def test_abstained_result_cannot_retain_generated_material() -> None:
+    result = M2202Service().generate(_request())
+    payload = result.model_dump(mode="python")
+    payload["status"] = GenerationStatus.ABSTAINED
+    payload["abstention_reason"] = "caller support is insufficient"
+    with pytest.raises(ValidationError, match="abstained result requires"):
         ProteinRnaDiscordanceSyntheticTruthResult(**payload)

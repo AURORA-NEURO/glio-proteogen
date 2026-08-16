@@ -1,7 +1,9 @@
 """Evaluator and benchmark evidence tests for provisional M22-02."""
 
+import runpy
 from typing import cast
 
+import pytest
 from evals.m22_02.benchmark import run_benchmark
 from evals.m22_02.run import evaluate
 
@@ -26,3 +28,10 @@ def test_locked_benchmark_stays_within_budget() -> None:
     p95_ns = cast("int", report["p95_ns"])
     assert mean_ns <= cast("int", report["mean_budget_ns"])
     assert p95_ns <= cast("int", report["p95_budget_ns"])
+
+
+def test_evaluator_and_benchmark_entrypoints_execute() -> None:
+    for module in ("evals.m22_02.run", "evals.m22_02.benchmark"):
+        with pytest.raises(SystemExit) as error:
+            runpy.run_module(module, run_name="__main__")
+        assert error.value.code == 0

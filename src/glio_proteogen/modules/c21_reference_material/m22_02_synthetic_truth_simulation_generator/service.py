@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m22_02.v1 import (
 )
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator.engine import (  # noqa: E501
     M2202SyntheticTruthGenerator,
+    preflight_m2202_authorization,
 )
 
 
@@ -24,12 +25,15 @@ class M2202Service:
         request: object,
     ) -> GenerateProteinRnaDiscordanceSyntheticTruthRequest:
         if isinstance(request, str):
-            return GenerateProteinRnaDiscordanceSyntheticTruthRequest.model_validate_json(
+            typed = GenerateProteinRnaDiscordanceSyntheticTruthRequest.model_validate_json(
                 request, strict=True
             )
-        return GenerateProteinRnaDiscordanceSyntheticTruthRequest.model_validate(
-            request, strict=True
-        )
+        else:
+            typed = GenerateProteinRnaDiscordanceSyntheticTruthRequest.model_validate(
+                request, strict=True
+            )
+        preflight_m2202_authorization(typed)
+        return typed
 
     def generate(self, request: object) -> ProteinRnaDiscordanceSyntheticTruthResult:
         return self._engine.generate(self.validate_request(request))

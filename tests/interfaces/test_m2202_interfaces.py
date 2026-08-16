@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m22_02 import GenerationStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
@@ -43,6 +44,9 @@ def test_fastapi_validate_generate_verify_and_sanitized_errors() -> None:
     assert client.get("/v1/modules/M22-02/schemas/unknown").status_code == _HTTP_NOT_FOUND
     malformed = client.post("/v1/modules/M22-02/verify", content=b"[")
     assert malformed.status_code == _HTTP_UNPROCESSABLE
+    assert client.post("/v1/modules/M22-02/validate", json=[]).status_code == _HTTP_UNPROCESSABLE
+    assert client.post("/v1/modules/M22-02/verify", json=[]).status_code == _HTTP_UNPROCESSABLE
+    assert client.post("/v1/modules/M22-02/verify", json={}).status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in malformed.text
 
 
@@ -59,6 +63,10 @@ def test_fastapi_denied_controls_are_sanitized() -> None:
         "/v1/modules/M22-02/generate", json=denied
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
+    validate = TestClient(create_app(M2202Service())).post(
+        "/v1/modules/M22-02/validate", json=denied
+    )
+    assert validate.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in response.text
 
 
@@ -96,6 +104,7 @@ def test_typer_export_generate_verify_and_no_overwrite(tmp_path: Any) -> None:
         != 0
     )
     assert runner.invoke(cli_module.app, ["validate", str(request_path)]).exit_code == 0
+    assert runner.invoke(cli_module.app, ["generate", str(request_path)]).exit_code == 0
     assert (
         runner.invoke(
             cli_module.app, ["generate", str(request_path), "--output", str(result_path)]
@@ -109,6 +118,7 @@ def test_typer_export_generate_verify_and_no_overwrite(tmp_path: Any) -> None:
         ).exit_code
         != 0
     )
+    assert M2202Service.export_json(M2202Service().generate(_request()))
 
 
 def test_typer_sanitizes_bad_inputs_and_replay_failures(
@@ -130,4 +140,42 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
             raise ValueError("replay failure")  # noqa: TRY003
 
     monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
+    assert runner.invoke(cli_module.app, ["verify", str(result_path)]).exit_code != 0
+
+    denied = _request().model_copy(
+        update={
+            "context": _request().context.model_copy(
+                update={
+                    "references": _request().context.references.model_copy(
+                        update={
+                            "support": _request().context.references.support.model_copy(
+                                update={"state": UpstreamDecisionState.REJECTED}
+                            )
+                        }
+                    )
+                }
+            )
+        }
+    )
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(denied))
+    assert runner.invoke(cli_module.app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(cli_module.app, ["generate", str(denied_path)]).exit_code != 0
+
+    generated = M2202Service().generate(_request())
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(_request()))
+
+    class AbstainingService:
+        def generate(self, _request: object) -> object:
+            return generated.model_copy(update={"status": GenerationStatus.ABSTAINED})
+
+    monkeypatch.setattr(cli_module, "_SERVICE", AbstainingService())
+    assert runner.invoke(cli_module.app, ["generate", str(request_path)]).exit_code != 0
+
+    class ReplayMismatch:
+        def verify_replay(self, _result: object) -> object:
+            return generated.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+
+    monkeypatch.setattr(cli_module, "_SERVICE", ReplayMismatch())
     assert runner.invoke(cli_module.app, ["verify", str(result_path)]).exit_code != 0
