@@ -27,9 +27,10 @@ class M2503Service:
     def validate_request(self, request: object) -> RunProteotypeInternalBenchmarkRequest:
         if isinstance(request, bytes | bytearray | str):
             typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
+            preflight_m2503_authorization(typed)
         else:
+            preflight_m2503_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        preflight_m2503_authorization(typed)
         return typed
 
     def execute(self, request: object) -> ProteotypeInternalBenchmarkResult:

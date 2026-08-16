@@ -79,3 +79,9 @@ def test_plugin_strict_json_submission_is_parse_once() -> None:
 
     validated = plugin.validate(BenchmarkSubmission(payload))
     assert plugin.run(validated).request.request_id == request.request_id
+
+
+def test_service_accepts_strict_json_request_bytes() -> None:
+    result = M2503Service().execute(build_request().model_dump_json())
+
+    assert result.status is BenchmarkStatus.COMPLETED

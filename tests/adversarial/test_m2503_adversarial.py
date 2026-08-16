@@ -11,7 +11,10 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m25_03 import (
+    BenchmarkDossier,
     BenchmarkStatus,
+    ComputeMatchedComparison,
+    ProteotypeInternalBenchmarkResult,
     RunProteotypeInternalBenchmarkRequest,
     ValidationStatus,
     result_payload_digest,
@@ -88,6 +91,41 @@ def test_non_finite_numeric_input_is_rejected() -> None:
         RunProteotypeInternalBenchmarkRequest.model_validate(data, strict=True)
 
 
+def test_compute_match_tolerance_is_enforced() -> None:
+    request = build_request()
+    comparison = request.comparisons[0].model_copy(
+        update={"candidate_compute_units": 9.0, "compute_tolerance": 0.0}
+    )
+
+    with pytest.raises(ValidationError, match="compute-matched"):
+        ComputeMatchedComparison.model_validate(comparison.model_dump(mode="python"))
+
+
+def test_request_duplicate_ablation_ids_are_rejected() -> None:
+    request = build_request()
+    data = request.model_dump(mode="python")
+    data["ablations"] = (request.ablations[0], request.ablations[0])
+
+    with pytest.raises(ValidationError, match="ablation identifiers"):
+        RunProteotypeInternalBenchmarkRequest.model_validate(data, strict=True)
+
+
+def test_dossier_duplicate_ids_and_unknown_candidate_are_rejected() -> None:
+    result = M2503Service().execute(build_request())
+    assert result.dossier is not None
+    dossier = result.dossier
+    duplicate = dossier.model_copy(update={"metrics": (dossier.metrics[0], dossier.metrics[0])})
+    unknown_comparison = dossier.comparisons[0].model_copy(
+        update={"candidate_run_id": "unknown-baseline"}
+    )
+    unknown = dossier.model_copy(update={"comparisons": (unknown_comparison,)})
+
+    with pytest.raises(ValidationError, match="dossier ids"):
+        BenchmarkDossier.model_validate(duplicate.model_dump(mode="python"))
+    with pytest.raises(ValidationError, match="candidate run"):
+        BenchmarkDossier.model_validate(unknown.model_dump(mode="python"))
+
+
 def test_result_digest_tampering_is_rejected() -> None:
     service = M2503Service()
     result = service.execute(build_request())
@@ -95,6 +133,22 @@ def test_result_digest_tampering_is_rejected() -> None:
 
     with pytest.raises((M2503ReplayError, ValidationError)):
         service.verify_replay(tampered)
+
+
+def test_result_request_digest_tampering_is_rejected() -> None:
+    result = M2503Service().execute(build_request())
+    tampered = result.model_copy(update={"request_digest": "sha256:" + ("f" * 64)})
+
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteotypeInternalBenchmarkResult.model_validate(tampered.model_dump(mode="python"))
+
+
+def test_completed_result_requires_dossier() -> None:
+    result = M2503Service().execute(build_request())
+    tampered = result.model_copy(update={"dossier": None})
+
+    with pytest.raises(ValidationError, match="completed result"):
+        ProteotypeInternalBenchmarkResult.model_validate(tampered.model_dump(mode="python"))
 
 
 def test_result_identifier_tampering_is_rejected() -> None:
@@ -105,6 +159,16 @@ def test_result_identifier_tampering_is_rejected() -> None:
 
     with pytest.raises((M2503ReplayError, ValidationError)):
         service.verify_replay(tampered)
+
+
+def test_result_finding_ids_are_unique() -> None:
+    result = M2503Service().execute(build_request(metric_status=ValidationStatus.FAIL))
+    assert result.findings
+    tampered = result.model_copy(update={"findings": (result.findings[0], result.findings[0])})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(ValidationError, match="finding identifiers"):
+        ProteotypeInternalBenchmarkResult.model_validate(tampered.model_dump(mode="python"))
 
 
 def test_plugin_rejects_unvalidated_execution_token() -> None:
