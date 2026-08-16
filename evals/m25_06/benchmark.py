@@ -32,6 +32,7 @@ def run_benchmark(iterations: int = 10) -> dict[str, Any]:
     p95 = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
     return {
         "module": "M25-06",
+        "module_id": "GLIO-PROTEOGEN-M25-06",
         "iterations": iterations,
         "samples_ns": samples,
         "mean_ns": round(statistics.mean(samples), 2),
