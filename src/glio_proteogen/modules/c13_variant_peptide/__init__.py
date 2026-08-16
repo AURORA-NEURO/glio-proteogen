@@ -1,1 +1,1 @@
-"""Variant-peptide module namespace."""
+"""Variant-peptide channel module namespace."""

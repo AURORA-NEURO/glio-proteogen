@@ -1,0 +1,31 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-05",
+  "contract_version": "0.1.0-provisional",
+  "operation": "infer_variant_peptide_longitudinal_evolution",
+  "parent_target": "variant_peptide",
+  "owner": "Data engineering",
+  "safety_class": "S2",
+  "evidence_gate": "G2",
+  "provisional_abi": true,
+  "scenario_ids": [
+    "modeled_transition",
+    "modeled_no_transition",
+    "control_denied_before_traversal",
+    "temporal_order_rejected",
+    "exact_replay_verified",
+    "tampered_result_rejected",
+    "upstream_media_type_rejected",
+    "strict_schema_metadata"
+  ],
+  "scenario_expectations": {
+    "modeled_transition": "modeled:two_states_one_change_point",
+    "modeled_no_transition": "modeled:one_state_zero_change_points",
+    "control_denied_before_traversal": "authorization_rejected:zero_payload_traversal",
+    "temporal_order_rejected": "validation_rejected:future_leakage_gate",
+    "exact_replay_verified": "verified:canonical_result_equality",
+    "tampered_result_rejected": "verification_rejected:digest_mismatch",
+    "upstream_media_type_rejected": "validation_rejected:parent_binding",
+    "strict_schema_metadata": "schema:provisional_and_strict"
+  },
+  "expected_case_count": 8
+}
