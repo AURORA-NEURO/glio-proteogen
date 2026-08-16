@@ -17,7 +17,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M1905Engine
+from .engine import M1905Engine, M1905ReplayError
 
 _REQUEST_ADAPTER: Final = TypeAdapter(PresentProteotypeHumanReviewWorkspaceRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteotypeHumanReviewWorkspaceResult)
@@ -51,16 +51,21 @@ class M1905Service:
         *,
         replay: bool = True,
     ) -> ProteotypeHumanReviewWorkspaceResult:
-        if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(
-                result,
-                max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES,
-            )
-            validated = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-        elif isinstance(result, Mapping):
-            validated = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
-        else:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        try:
+            if isinstance(result, (bytes, bytearray, str)):
+                decoded = strict_json_loads(
+                    result,
+                    max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES,
+                )
+                validated = _RESULT_ADAPTER.validate_json(
+                    canonical_json_bytes(decoded), strict=True
+                )
+            elif isinstance(result, Mapping):
+                validated = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
+            else:
+                validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1905ReplayError from error
         return self._engine.verify(validated, replay=replay)
 
     def descriptor(self) -> ModuleDescriptor:
