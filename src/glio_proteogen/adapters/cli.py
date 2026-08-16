@@ -29,6 +29,7 @@ from glio_proteogen.adapters.api import (
     _identity_binding_contract_schema,
     _identity_contract_schema,
     _m0603_baseline_contract_schema,
+    _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -165,6 +166,10 @@ from glio_proteogen.contracts.m06_01 import (
 from glio_proteogen.contracts.m06_03 import (
     M0603_MAX_CANONICAL_REQUEST_BYTES,
     EstimateProteinAbundanceBaselineRequest,
+)
+from glio_proteogen.contracts.m06_04 import (
+    M0604_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceProbabilisticRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -323,6 +328,11 @@ from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema imp
     M0601Service,
     preflight_formal_state_authorization,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604Service,
+    ProbabilisticEstimatorAuthorizationError,
+    preflight_probabilistic_estimator_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -466,6 +476,11 @@ m0603_baseline_app = typer.Typer(
     help="M06-03 provisional deterministic mature baseline estimation.",
 )
 app.add_typer(m0603_baseline_app, name="mature-baseline")
+probabilistic_estimator_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-04 provisional probabilistic and advanced estimation.",
+)
+app.add_typer(probabilistic_estimator_app, name="probabilistic-estimator")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -849,6 +864,8 @@ def _load_request[RequestT](  # noqa: C901 - strict ingress maps typed failures 
     except ProteoformQualityAuthorizationError:
         raise
     except PtmBaselineAuthorizationError:
+        raise
+    except ProbabilisticEstimatorAuthorizationError:
         raise
     except (TypeError, ValueError):
         if json_validator is not None:
@@ -3504,6 +3521,46 @@ def estimate_m0603_baseline(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"m06-03 baseline estimation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@probabilistic_estimator_app.command("export-schema")
+def export_probabilistic_estimator_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "configuration",
+            "prior",
+            "constraint",
+            "posterior",
+            "diagnostic",
+        ],
+        typer.Argument(help="M06-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M06-04 contract."""
+
+    _emit(_probabilistic_estimator_contract_schema(contract))
+
+
+@probabilistic_estimator_app.command("estimate")
+def estimate_probabilistic_abundance(request: RequestArgument) -> None:
+    """Run the strict M06-04 proxy and print a typed estimate or abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinAbundanceProbabilisticRequest),
+            preflight_probabilistic_estimator_authorization,
+            M0604_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M0604Service().estimate(parsed))
+    except ProbabilisticEstimatorAuthorizationError as error:
+        typer.echo(f"probabilistic estimation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"probabilistic estimation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 

@@ -297,6 +297,17 @@ from glio_proteogen.contracts.m06_03.v1 import (
     EstimateProteinAbundanceBaselineRequest,
     EstimateProteinAbundanceBaselineResult,
 )
+from glio_proteogen.contracts.m06_04.schema import (
+    ContractName as M0604ContractName,
+)
+from glio_proteogen.contracts.m06_04.schema import (
+    contract_json_schema as m0604_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_04.v1 import (
+    M0604_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceProbabilisticRequest,
+    EstimateProteinAbundanceProbabilisticResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -460,6 +471,11 @@ from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema imp
     M0601Service,
     preflight_formal_state_authorization,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604Service,
+    ProbabilisticEstimatorAuthorizationError,
+    preflight_probabilistic_estimator_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -484,6 +500,7 @@ _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
+_M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -646,6 +663,12 @@ def _m0603_baseline_contract_schema(
     name: M0603ContractName,
 ) -> dict[str, object]:
     return m0603_contract_json_schema(name)
+
+
+def _probabilistic_estimator_contract_schema(
+    name: M0604ContractName,
+) -> dict[str, object]:
+    return m0604_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -851,6 +874,15 @@ def _m0603_baseline_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0603_contract_json_schema("request")}},
+        }
+    }
+
+
+def _probabilistic_estimator_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0604_contract_json_schema("request")}},
         }
     }
 
@@ -1102,6 +1134,17 @@ async def _m0603_baseline_body(
     )
 
 
+async def _probabilistic_estimator_body(
+    request: Request,
+) -> EstimateProteinAbundanceProbabilisticRequest:
+    return await _strict_json_body(
+        request,
+        _M0604_PROBABILISTIC_ADAPTER,
+        preflight_probabilistic_estimator_authorization,
+        M0604_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1130,6 +1173,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_quality_service = M0404Service()
     formal_state_service = M0601Service()
     m0603_service = M0603Service()
+    probabilistic_estimator_service = M0604Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1178,6 +1222,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformQualityAuthorizationError)
     @app.exception_handler(FormalStateAuthorizationError)
     @app.exception_handler(PtmBaselineAuthorizationError)
+    @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1498,6 +1543,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> EstimateProteinAbundanceBaselineResult:
         return m0603_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M06-04/{name}/schema", tags=["contracts"])
+    def probabilistic_estimator_contract_schema(
+        name: M0604ContractName,
+    ) -> dict[str, object]:
+        return _probabilistic_estimator_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-04/probabilistic-estimation",
+        response_model=EstimateProteinAbundanceProbabilisticResult,
+        tags=["M06-04"],
+        openapi_extra=_probabilistic_estimator_request_body(),
+    )
+    def estimate_protein_abundance_probabilistic(
+        request: Annotated[
+            EstimateProteinAbundanceProbabilisticRequest,
+            Depends(_probabilistic_estimator_body),
+        ],
+    ) -> EstimateProteinAbundanceProbabilisticResult:
+        return probabilistic_estimator_service.estimate(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
