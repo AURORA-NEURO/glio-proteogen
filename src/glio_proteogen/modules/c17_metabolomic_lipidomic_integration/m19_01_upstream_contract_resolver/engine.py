@@ -80,13 +80,15 @@ def preflight_m1901_authorization(candidate: object) -> None:
 
     references = _member(_member(candidate, "context"), "references")
     if references is None:
-        raise M1901AuthorizationError("M19-01 requires all seven upstream controls")
+        raise M1901AuthorizationError(  # noqa: TRY003
+            "M19-01 requires all seven upstream controls"
+        )
     for name, expected in _CONTROL_STATES.items():
         decision = _member(references, name)
         actual = _member(decision, "state")
         actual_value = getattr(actual, "value", actual)
         if actual_value != expected:
-            raise M1901AuthorizationError(
+            raise M1901AuthorizationError(  # noqa: TRY003
                 f"M19-01 control {name} must be {expected}; received {actual_value}"
             )
 
@@ -132,9 +134,7 @@ def _control_decisions(
             policy_version=decision.policy_version,
             evidence_digest=decision.evidence.digest,
             subject_digest=(
-                decision.binding_digest
-                if role is ControlRole.IDENTITY_LINEAGE
-                else None
+                decision.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
             ),
         )
         for role, decision in ordered
@@ -346,7 +346,10 @@ class M1901Engine:
             rationale=(
                 "All promoted upstream candidates satisfy compatibility and safety controls."
                 if can_validate
-                else "Unresolved or unsupported upstream inputs require safe review before promotion."
+                else (
+                    "Unresolved or unsupported upstream inputs require safe review "
+                    "before promotion."
+                )
             ),
         )
         abstention_reason = (
@@ -385,11 +388,11 @@ class M1901Engine:
         result: ProteotypeUpstreamResolutionResult,
     ) -> ProteotypeUpstreamResolutionResult:
         if result.request_digest != canonical_request_digest(result.request):
-            raise M1901ReplayError("M19-01 result request digest mismatch")
+            raise M1901ReplayError("M19-01 result request digest mismatch")  # noqa: TRY003
         if result.result_id != f"result.{result.request_digest.removeprefix('sha256:')}":
-            raise M1901ReplayError("M19-01 result identifier mismatch")
+            raise M1901ReplayError("M19-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
-            raise M1901ReplayError("M19-01 result payload digest mismatch")
+            raise M1901ReplayError("M19-01 result payload digest mismatch")  # noqa: TRY003
         return result
 
 
