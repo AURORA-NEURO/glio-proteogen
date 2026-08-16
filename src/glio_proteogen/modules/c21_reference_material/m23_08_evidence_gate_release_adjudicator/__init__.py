@@ -1,5 +1,7 @@
 """M23-08 evidence gate runtime and strict boundaries."""
 
+from .api import create_app
+from .cli import app as cli_app
 from .engine import (
     M2308AuthorizationError,
     M2308EvidenceGateEngine,
@@ -27,5 +29,7 @@ __all__ = [
     "M2308TokenError",
     "ValidatedM2308Request",
     "adjudicate_variant_peptide_evidence_gate",
+    "cli_app",
+    "create_app",
     "preflight_m2308_authorization",
 ]
