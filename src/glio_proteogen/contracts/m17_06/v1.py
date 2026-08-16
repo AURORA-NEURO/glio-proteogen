@@ -172,9 +172,35 @@ class AdjudicationRecord(FrozenModel):
             raise ValueError("assignment ids must be unique")
         if len(event_ids) != len(set(event_ids)) or len(sequences) != len(set(sequences)):
             raise ValueError("audit event ids and sequence numbers must be unique")
+        if sequences != tuple(range(1, len(sequences) + 1)):
+            raise ValueError("audit history must be contiguous and ordered")
         known_entries = set(entry_ids)
         if any(item.discrepancy_id not in known_entries for item in self.assignments):
             raise ValueError("assignment references an unknown discrepancy")
+        assigned_entries = {item.discrepancy_id for item in self.assignments}
+        if assigned_entries != known_entries:
+            raise ValueError("every discrepancy requires an assignment")
+        if any(item.blinded is not True for item in self.assignments):
+            raise ValueError("all reviewer assignments must remain blinded")
+        if self.status is AdjudicationRecordStatus.RESOLVED and any(
+            item.state is not QueueEntryState.RESOLVED for item in self.entries
+        ):
+            raise ValueError("resolved record requires every entry to be resolved")
+        if self.status is AdjudicationRecordStatus.ESCALATED and all(
+            item.state is QueueEntryState.RESOLVED for item in self.entries
+        ):
+            raise ValueError("escalated record requires an unresolved entry")
+        critical_ids = {
+            item.discrepancy_id
+            for item in self.entries
+            if item.severity is DiscrepancySeverity.CRITICAL
+        }
+        if self.status is AdjudicationRecordStatus.RESOLVED and any(
+            item.decision not in {ReviewDecision.ACCEPT, ReviewDecision.REJECT}
+            for item in self.assignments
+            if item.discrepancy_id in critical_ids
+        ):
+            raise ValueError("critical resolved entries require a final review decision")
         if self.status is AdjudicationRecordStatus.RESOLVED and self.resolution_summary is None:
             raise ValueError("resolved record requires a resolution summary")
         if (
@@ -235,6 +261,10 @@ class AdjudicateVariantPeptideDiscrepancyQueueRequest(FrozenModel):
         allowed = set(entry_ids)
         if any(item.discrepancy_id not in allowed for item in self.assignments):
             raise ValueError("request assignment references an unknown discrepancy")
+        if {item.discrepancy_id for item in self.assignments} != allowed:
+            raise ValueError("request requires one assignment for every discrepancy")
+        if any(item.blinded is not True for item in self.assignments):
+            raise ValueError("request reviewer assignments must remain blinded")
         return self
 
 
@@ -271,6 +301,8 @@ class VariantPeptideAdjudicationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("recorded result requires a supported immutable record")
+            if self.record.status is not AdjudicationRecordStatus.RESOLVED:
+                raise ValueError("recorded result requires a resolved record")
             request_ids = {item.discrepancy_id for item in self.request.entries}
             record_ids = {item.discrepancy_id for item in self.record.entries}
             if request_ids != record_ids:
@@ -282,6 +314,8 @@ class VariantPeptideAdjudicationResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no record and safe status")
+        if not self.human_review_required:
+            raise ValueError("M17-06 always requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

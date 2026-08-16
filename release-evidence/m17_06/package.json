@@ -1,0 +1,17 @@
+{
+  "authority_lines": "6016-6056",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "isolated_import": true,
+  "module_id": "GLIO-PROTEOGEN-M17-06",
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "0dfc904ebf6e64e1789dcbc8d9d005c3ad6d54c6c4135625287c2df1eba1f7c4",
+    "size_bytes": 1490994
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "member_count": 388,
+    "sha256": "d5447ebbac589ad3318180765c479ae2f43eac4e15af42c978c5acb91539a256",
+    "size_bytes": 903548
+  }
+}

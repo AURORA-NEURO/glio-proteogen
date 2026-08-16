@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-08",
+  "fixture_version": "1.0.0",
+  "cases": [
+    {"case_id": "review_ready", "kind": "complete_chain"},
+    {"case_id": "counter_evidence_chain", "kind": "limited_evidence"},
+    {"case_id": "validation_required_abstention", "kind": "required_route"},
+    {"case_id": "unresolved_link_abstention", "kind": "unresolved_link"},
+    {"case_id": "unsupported_method_abstention", "kind": "unknown_method"},
+    {"case_id": "replay_and_tamper", "kind": "replay"},
+    {"case_id": "authorization_gate", "kind": "authorization"}
+  ]
+}

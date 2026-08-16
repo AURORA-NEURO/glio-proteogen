@@ -1,0 +1,6 @@
+requirement_id,source_lines,implementation,evidence
+M1202-R01,"4040-4048","typed context profile and applicable mechanism set beneath biomarker_panel","contracts/m12_02/v1.py; runtime engine; contract tests"
+M1202-R02,"4046-4052","eight context dimensions, opaque references, and prohibited-output boundaries","engine limitations; adapter descriptor; adversarial tests"
+M1202-R03,"4052-4057","quality controls, seven-axis uncertainty, and explicit abstention","expected_provenance; expected_uncertainty; evaluator matrix"
+M1202-R04,"4060-4068","supported profile only under locked all-dimension policy; conflicts preserved","result validator; conflict and missing-dimension tests"
+M1202-R05,"4075-4083","G0/G1/G3/G4 contract, robustness, uncertainty, safety, and release evidence","fixture evaluator; branch coverage; release verifier"
