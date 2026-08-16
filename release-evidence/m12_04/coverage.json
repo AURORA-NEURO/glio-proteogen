@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-04",
+  "scope": [
+    "glio_proteogen.contracts.m12_04",
+    "glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference",
+    "glio_proteogen.adapters.m1204"
+  ],
+  "branch_enabled": true,
+  "statements": 477,
+  "covered_statements": 477,
+  "branches": 76,
+  "covered_branches": 76,
+  "coverage_percent": 100.0,
+  "fail_under_percent": 95.0,
+  "focused_tests": 30,
+  "passed": true
+}
