@@ -229,9 +229,14 @@ def test_authorization_service_plugin_and_public_entry_point() -> None:
     service = M2204Service()
     result = service.evaluate(request.model_dump_json())
     assert service.replay(result.model_dump_json()) == result
+    assert service.evaluate(request.model_dump(mode="json")) == result
+    assert service.replay(result.model_dump(mode="json")) == result
     plugin = M2204Plugin(service)
     token = plugin.validate(request)
     assert plugin.run(token) == result
+    assert plugin.validate_request(request) == request
+    assert plugin.replay(result) == result
+    assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M22-04"
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(ValidatedM2204Request(request, object()))
     assert evaluate_protein_rna_discordance_external_transport(request) == result
