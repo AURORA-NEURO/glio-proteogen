@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M23-04",
+  "branch_enabled": true,
+  "coverage_percent": 95.78313253012048,
+  "statements": 720,
+  "covered_statements": 698,
+  "branches": 110,
+  "covered_branches": 97,
+  "partial_branches": 13,
+  "fail_under_percent": 95.0,
+  "focused_tests": 48,
+  "passed": true,
+  "command": "python -m pytest --override-ini addopts= --cov=src/glio_proteogen/contracts/m23_04 --cov=src/glio_proteogen/modules/c21_reference_material/m23_04_external_transport_evaluator --cov=evals/m23_04 --cov-branch --cov-fail-under=95 focused-suite"
+}

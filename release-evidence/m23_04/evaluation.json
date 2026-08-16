@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M23-04",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8088-8128",
+  "fixture_digest": "sha256:20fc06037e09fefae7d48a237b0f8b0784a9e821e6b13bdbace140dfb816927b",
+  "case_ids": ["supported_all_dimensions", "domain_narrowed", "not_evaluable_abstention", "no_retained_domain_abstention", "specimen_boundary", "authorization_gate", "source_binding_closure", "replay_tamper_determinism"],
+  "declared_cases": 8,
+  "executed_cases": 8,
+  "passed_cases": 8,
+  "total_cases": 8,
+  "schema_count": 8,
+  "uncertainty_dimensions": 7,
+  "request_digest": "sha256:548ca1393b0ea580486fe3bb424ae13eca4103338d65c134c74f9bbbf039d77d",
+  "replay_result_digest": "sha256:97e4ada1cbff18bc6f195416da50de942d913e97f160d0224be5d56ea244ad76",
+  "focused_tests": 48,
+  "passed": true
+}
