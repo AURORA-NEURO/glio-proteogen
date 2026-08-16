@@ -1,1 +1,1 @@
-"""KINOPHOS object consumer module family."""
+"""KINOPHOS object-consumer module family, slices, and implementations."""

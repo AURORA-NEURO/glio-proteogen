@@ -1,1 +1,1 @@
-"""KINOPHOS object consumer tests."""
+"""KINOPHOS object-consumer runtime tests."""
