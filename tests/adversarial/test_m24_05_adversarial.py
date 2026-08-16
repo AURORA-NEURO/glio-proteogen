@@ -6,7 +6,7 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
-from evals.m24_05.fixture import build_request
+from evals.m24_05.fixture import build_request, floor_request
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
@@ -15,7 +15,9 @@ from glio_proteogen.contracts.m24_05 import (
     BiomarkerPanelSubgroupEvaluationResult,
     CoverageSummary,
     EquityStatus,
+    EvaluationConfiguration,
     EvaluationStatus,
+    SubgroupDimension,
     SubgroupFinding,
     SubgroupFindingCode,
     SubgroupPerformance,
@@ -23,7 +25,7 @@ from glio_proteogen.contracts.m24_05 import (
     result_identifier,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c21_reference_material import (
     m24_05_subgroup_equity_evaluator as m2405,
@@ -52,6 +54,8 @@ def test_plugin_rejects_unwrapped_and_unvalidated_execution() -> None:
         plugin.validate(request)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(cast("Any", request))
+    typed = plugin.validate(m2405.SubgroupEvaluationSubmission(request))
+    assert plugin.run(typed).status is EvaluationStatus.EVALUATED
 
 
 def test_hostile_mapping_fails_closed_before_material_traversal() -> None:
@@ -86,6 +90,10 @@ def test_service_rejects_unknown_fields_wrong_media_and_missing_dimension() -> N
         m2405.M2405Service().validate_request(
             request.model_copy(update={"coverage": request.coverage[:-1]})
         )
+    with pytest.raises(ValidationError, match="calibration must cover"):
+        m2405.M2405Service().validate_request(
+            request.model_copy(update={"calibration": request.calibration[:-1]})
+        )
 
 
 def test_contract_rejects_invalid_performance_and_coverage_math() -> None:
@@ -117,6 +125,12 @@ def test_contract_rejects_invalid_performance_and_coverage_math() -> None:
             coverage.model_dump(mode="python") | {"coverage_fraction": 0.1},
             strict=True,
         )
+    dimensions = (*request.configuration.required_dimensions[:-1], SubgroupDimension.AGE)
+    with pytest.raises(ValidationError, match="all subgroup dimensions"):
+        EvaluationConfiguration.model_validate(
+            request.configuration.model_dump(mode="python") | {"required_dimensions": dimensions},
+            strict=True,
+        )
 
 
 def test_contract_rejects_duplicate_result_findings_and_identity_forgery() -> None:
@@ -139,6 +153,7 @@ def test_contract_rejects_duplicate_result_findings_and_identity_forgery() -> No
             )
         },
         {"findings": (finding, finding)},
+        {"report": None},
     )
     for update in updates:
         with pytest.raises(ValidationError):
@@ -146,6 +161,19 @@ def test_contract_rejects_duplicate_result_findings_and_identity_forgery() -> No
                 result.model_dump(mode="python") | update,
                 strict=True,
             )
+
+    with pytest.raises(ValidationError, match="abstained result"):
+        BiomarkerPanelSubgroupEvaluationResult.model_validate(
+            result.model_dump(mode="python")
+            | {
+                "status": EvaluationStatus.ABSTAINED,
+                "abstention_reason": "review required",
+                "support_decision": result.support_decision.model_copy(
+                    update={"status": SupportStatus.REVIEW_REQUIRED}
+                ),
+            },
+            strict=True,
+        )
 
 
 def test_api_rejects_nonobject_duplicate_and_tampered_verify_payloads() -> None:
@@ -186,6 +214,11 @@ def test_api_denial_is_sanitized() -> None:
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in response.text
 
+    validate_response = TestClient(m2405.create_app(m2405.M2405Service())).post(
+        "/v1/modules/M24-05/validate", json=denied.model_dump(mode="json")
+    )
+    assert validate_response.status_code == _HTTP_UNPROCESSABLE
+
 
 def test_cli_bad_input_and_no_overwrite_are_sanitized(tmp_path: Path) -> None:
     runner = CliRunner()
@@ -202,6 +235,7 @@ def test_cli_bad_input_and_no_overwrite_are_sanitized(tmp_path: Path) -> None:
         ).exit_code
         == 0
     )
+    assert runner.invoke(m2405.cli.app, ["evaluate", str(request_path)]).exit_code == 0
     original = result_path.read_bytes()
     assert (
         runner.invoke(
@@ -210,6 +244,42 @@ def test_cli_bad_input_and_no_overwrite_are_sanitized(tmp_path: Path) -> None:
         != 0
     )
     assert result_path.read_bytes() == original
+
+
+def test_cli_denial_and_replay_failure_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    request = _request()
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    references = request.context.references.model_copy(update={"support": support})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
+    denied_path = tmp_path / "denied.json"
+    denied_path.write_bytes(canonical_json_bytes(denied))
+    assert runner.invoke(m2405.cli.app, ["validate", str(denied_path)]).exit_code != 0
+    assert runner.invoke(m2405.cli.app, ["evaluate", str(denied_path)]).exit_code != 0
+
+    result = m2405.M2405Service().evaluate(request)
+    result_path = tmp_path / "result.json"
+    result_path.write_bytes(canonical_json_bytes(result))
+
+    class ReplayFailure:
+        def verify_replay(self, _result: object) -> object:
+            raise ValueError("replay failure")  # noqa: TRY003
+
+    monkeypatch.setattr(m2405.cli, "_SERVICE", ReplayFailure())
+    assert runner.invoke(m2405.cli.app, ["verify", str(result_path)]).exit_code != 0
+
+    class ReplayMismatch:
+        def verify_replay(self, _result: object) -> object:
+            return result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+
+    monkeypatch.setattr(m2405.cli, "_SERVICE", ReplayMismatch())
+    assert runner.invoke(m2405.cli.app, ["verify", str(result_path)]).exit_code != 0
 
 
 def test_abstained_result_is_explicit_and_safe() -> None:
@@ -229,3 +299,14 @@ def test_abstained_result_is_explicit_and_safe() -> None:
     assert result.report is None
     assert result.abstention_reason is not None
     assert result.emits_parent is False
+
+
+def test_public_entrypoint_and_cli_abstention_exit(tmp_path: Path) -> None:
+    request = floor_request()
+    direct = m2405.evaluate_biomarker_panel_subgroup_equity(request)
+    service_result = m2405.M2405Service().evaluate(request)
+    assert direct.result_digest == service_result.result_digest
+    request_path = tmp_path / "floor-request.json"
+    request_path.write_bytes(canonical_json_bytes(request))
+    outcome = CliRunner().invoke(m2405.cli.app, ["evaluate", str(request_path)])
+    assert outcome.exit_code == 1
