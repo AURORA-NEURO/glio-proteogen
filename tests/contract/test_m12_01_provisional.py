@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M12-01."""
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m12_01 import (
@@ -17,18 +19,15 @@ _SCHEMA_COUNT = 10
 def test_provisional_schemas_require_hypothesis_controls() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    metadata = [cast("dict[str, object]", schema["x-glio-contract"]) for schema in schemas.values()]
+    assert all(item["provisionalAbi"] for item in metadata)
+    assert all(item["pendingOwnerConfirmation"] for item in metadata)
     assert all(
-        schema["x-glio-contract"]["competingExplanationsRequired"]
-        and schema["x-glio-contract"]["falsificationRulesRequired"]
-        for schema in schemas.values()
+        item["competingExplanationsRequired"] and item["falsificationRulesRequired"]
+        for item in metadata
     )
-    assert all(
-        schema["x-glio-contract"]["primaryArchitecture"] == "bayesian_factor_analysis"
-        for schema in schemas.values()
-    )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1201_OUTPUT_MEDIA_TYPE
+    assert all(item["primaryArchitecture"] == "bayesian_factor_analysis" for item in metadata)
+    assert metadata[list(schemas).index("output")]["outputMediaType"] == M1201_OUTPUT_MEDIA_TYPE
     assert M1201_PROVISIONAL_ABI is True
 
 
