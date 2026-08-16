@@ -45,7 +45,7 @@ def test_api_sanitizes_invalid_json() -> None:
     with TestClient(m1907_api.create_m1907_app()) as client:
         response = client.post(
             "/v1/modules/M19-07/export",
-            content=b"{\"not_closed\": true}",
+            content=b'{"not_closed": true}',
             headers={"content-type": "application/json"},
         )
         assert response.status_code == _UNPROCESSABLE
@@ -88,9 +88,7 @@ def test_api_handlers_cover_authentication_and_safe_operation_failure() -> None:
             raise M1907ExportError
 
     with TestClient(m1907_api.create_m1907_app(FailingService())) as client:
-        failed = client.post(
-            "/v1/modules/M19-07/export", json=request.model_dump(mode="json")
-        )
+        failed = client.post("/v1/modules/M19-07/export", json=request.model_dump(mode="json"))
         assert failed.status_code == _UNPROCESSABLE
         assert failed.json()["detail"] == "M19-07 operation failed safely"
 

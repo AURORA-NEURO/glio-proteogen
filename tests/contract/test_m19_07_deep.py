@@ -190,14 +190,11 @@ def test_request_rejects_wrong_upstream_and_context_consent() -> None:
 def test_field_identity_and_evidence_are_closed() -> None:
     with pytest.raises(ValidationError, match="distinct"):
         _field("same").model_validate(
-            _field("same").model_dump(mode="python")
-            | {"field_name": "field.same"}
+            _field("same").model_dump(mode="python") | {"field_name": "field.same"}
         )
     evidence = _evidence("same-evidence")
     with pytest.raises(ValidationError, match="evidence digests"):
-        ExportField(
-            **(_field().model_dump(mode="python") | {"evidence": (evidence, evidence)})
-        )
+        ExportField(**(_field().model_dump(mode="python") | {"evidence": (evidence, evidence)}))
 
 
 def test_ownership_and_signature_closures_are_explicit() -> None:
@@ -320,18 +317,12 @@ def test_nested_signature_ownership_and_contract_closures_reject_reuse() -> None
     with pytest.raises(ValidationError, match="versions"):
         DownstreamContractObject.model_validate(
             contract.model_dump(mode="python")
-            | {
-                "configuration": contract.configuration.model_copy(update={"version": "2.0.0"})
-            }
+            | {"configuration": contract.configuration.model_copy(update={"version": "2.0.0"})}
         )
     with pytest.raises(ValidationError, match="ownership binding"):
         DownstreamContractObject.model_validate(
             contract.model_dump(mode="python")
-            | {
-                "fields": (
-                    contract.fields[0].model_copy(update={"owner": "Other owner"}),
-                )
-            }
+            | {"fields": (contract.fields[0].model_copy(update={"owner": "Other owner"}),)}
         )
     with pytest.raises(ValidationError, match="contract evidence"):
         DownstreamContractObject.model_validate(

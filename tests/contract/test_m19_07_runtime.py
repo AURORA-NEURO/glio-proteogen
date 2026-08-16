@@ -21,9 +21,7 @@ def test_engine_exports_and_replays_canonical_result() -> None:
     assert result.status is ExportStatus.EXPORTED
     assert result.contract is not None
     assert result.contract.parent_target == "proteotype"
-    assert result.result_id.removeprefix("result.") == result.request_digest.removeprefix(
-        "sha256:"
-    )
+    assert result.result_id.removeprefix("result.") == result.request_digest.removeprefix("sha256:")
     assert engine.verify(result) == result
 
 
