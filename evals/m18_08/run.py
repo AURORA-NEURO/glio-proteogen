@@ -13,6 +13,8 @@ from pydantic import ValidationError
 from tests.runtime.test_m18_08_monitoring import _request
 
 from glio_proteogen.contracts.m18_08 import (
+    M1808_DOSSIER_SHA256,
+    M1808_DOSSIER_SLICE,
     MonitorBiomarkerPanelTranslationHealthRequest,
     ObservationStatus,
 )
@@ -92,7 +94,13 @@ def evaluate() -> EvaluationReport:
             "corpus.scenario_count",
             len(names) == EXPECTED_SCENARIOS,
             f"observed={len(names)} expected={EXPECTED_SCENARIOS}",
-        )
+        ),
+        EvalCheck(
+            "authority.exact_binding",
+            metadata["dossier_sha256"].removeprefix("sha256:") == M1808_DOSSIER_SHA256
+            and metadata["dossier_slice"] == M1808_DOSSIER_SLICE,
+            "fixture authority matches the locked contract slice",
+        ),
     ]
     engine = m1808.M1808TranslationMonitoringEngine()
     scenario_oracles_passed = True
@@ -115,6 +123,8 @@ def evaluate() -> EvaluationReport:
     )
 
     healthy = engine.adapt(_scenario("healthy"))
+    healthy_replay = engine.verify(healthy)
+    descriptor = m1808.M1808Service().descriptor
     checks.extend(
         (
             EvalCheck(
@@ -139,6 +149,19 @@ def evaluate() -> EvaluationReport:
                     )
                 ),
                 "all seven uncertainty dimensions remain explicit",
+            ),
+            EvalCheck(
+                "healthy.replay_verified",
+                healthy_replay == healthy,
+                "healthy result round-trips through canonical replay verification",
+            ),
+            EvalCheck(
+                "descriptor.boundary_closed",
+                descriptor["upstream_input_media_type"]
+                == "application/vnd.glio-proteogen.m18-07+json"
+                and descriptor["external_content_traversal"] is False
+                and descriptor["unsupported_to_negative"] is False,
+                "service descriptor preserves the typed upstream and safe-failure boundary",
             ),
         )
     )
