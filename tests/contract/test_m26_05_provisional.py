@@ -218,6 +218,7 @@ def test_request_binds_upstream_and_dashboard_metric_scope() -> None:
         context=_context(),
         upstream_result=upstream,
         requested_metrics=(TelemetryMetricKind.INPUT_QUALITY,),
+        samples=(_sample(),),
         dashboard_definitions=(dashboard,),
         source_artifacts=(upstream,),
     )
@@ -228,6 +229,7 @@ def test_request_binds_upstream_and_dashboard_metric_scope() -> None:
             context=request.context,
             upstream_result=upstream,
             requested_metrics=(TelemetryMetricKind.INPUT_QUALITY,),
+            samples=(_sample(),),
             dashboard_definitions=(
                 dashboard.model_copy(update={"metrics": (TelemetryMetricKind.DRIFT,)}),
             ),

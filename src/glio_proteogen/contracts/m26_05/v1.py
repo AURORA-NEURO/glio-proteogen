@@ -245,6 +245,10 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
     context: ExecutionContext
     upstream_result: ArtifactReference
     requested_metrics: tuple[TelemetryMetricKind, ...] = Field(min_length=1, max_length=9)
+    samples: tuple[TelemetrySample, ...] = Field(min_length=1, max_length=M2605_MAX_SAMPLES)
+    reviewer_actions: tuple[ReviewerActionRecord, ...] = Field(
+        default=(), max_length=M2605_MAX_REVIEWER_ACTIONS
+    )
     dashboard_definitions: tuple[DashboardDefinition, ...] = Field(
         min_length=1, max_length=M2605_MAX_DASHBOARDS
     )
@@ -267,6 +271,15 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
         requested = set(self.requested_metrics)
         if any(not set(item.metrics).issubset(requested) for item in self.dashboard_definitions):
             raise ValueError("dashboard metrics must be requested telemetry metrics")
+        sample_ids = tuple(item.sample_id for item in self.samples)
+        if len(sample_ids) != len(set(sample_ids)):
+            raise ValueError("request telemetry sample ids must be unique")
+        sample_times = tuple(item.observed_at for item in self.samples)
+        if sample_times != tuple(sorted(sample_times)):
+            raise ValueError("request telemetry samples must be ordered by observed_at")
+        action_ids = tuple(item.action_id for item in self.reviewer_actions)
+        if len(action_ids) != len(set(action_ids)):
+            raise ValueError("request reviewer action ids must be unique")
         return self
 
 
