@@ -43,10 +43,12 @@ def test_provisional_schemas_preserve_typed_resolution_boundaries() -> None:
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "proteotype"
-        for schema in schemas.values()
+        schema["x-glio-contract"]["parentTarget"] == "proteotype" for schema in schemas.values()
     )
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M1901_OUTPUT_MEDIA_TYPE
+    assert schemas["output"]["x-glio-contract"]["canonicalReplayRequired"] is True
+    assert schemas["output"]["x-glio-contract"]["emptySelectionAllowed"] is True
+    assert schemas["output"]["x-glio-contract"]["allSevenUncertaintyDimensions"] is True
     assert M1901_PROVISIONAL_ABI is True
 
 
