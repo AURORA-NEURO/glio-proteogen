@@ -166,6 +166,7 @@ class RetirementConfiguration(FrozenModel):
     require_no_active_dependencies: Literal[True] = True
     signed_release_bundle_fallback: Literal[True] = True
     locked: Literal[True] = True
+    active_dependencies: tuple[Identifier, ...] = Field(default=(), max_length=M2608_MAX_MIGRATIONS)
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2608_MAX_EVIDENCE)
 
 
@@ -201,6 +202,8 @@ class RetirementPackage(FrozenModel):
             raise ValueError("retirement package identifiers must be unique")
         if self.configuration.parent_target != M2608_PARENT:
             raise ValueError("retirement package configuration targets a different parent")
+        if self.status is RetirementStatus.EXECUTED and self.configuration.active_dependencies:
+            raise ValueError("executed retirement package cannot retain active dependencies")
         if self.archive.manifest.artifact_id not in {
             item.artifact.artifact_id for item in self.preserved_evidence
         }:
