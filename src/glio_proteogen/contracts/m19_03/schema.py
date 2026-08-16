@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m19_03.v1 import (
     M1903_CONTRACT_VERSION,
+    M1903_DOSSIER_SHA256,
+    M1903_DOSSIER_SLICE,
     M1903_GATE,
     M1903_M1902_INPUT_MEDIA_TYPE,
     M1903_MAX_CANONICAL_REQUEST_BYTES,
@@ -32,8 +34,9 @@ ContractName = Literal[
     "request",
     "output",
     "integrated-evidence",
-    "contribution",
+    "source-contribution",
     "disagreement",
+    "aggregation",
     "configuration",
     "finding",
 ]
@@ -41,8 +44,9 @@ _CONTRACTS: Final = {
     "request": FuseProteotypeEvidenceRequest,
     "output": ProteotypeIntegratedEvidenceResult,
     "integrated-evidence": IntegratedEvidenceObject,
-    "contribution": SourceContribution,
+    "source-contribution": SourceContribution,
     "disagreement": DisagreementRecord,
+    "aggregation": AggregationConfiguration,
     "configuration": AggregationConfiguration,
     "finding": FusionFinding,
 }
@@ -56,6 +60,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M1903_MODULE_ID,
+        "dossierSha256": M1903_DOSSIER_SHA256,
+        "dossierSlice": M1903_DOSSIER_SLICE,
         "contractVersion": CONTRACT_VERSION,
         "owner": M1903_OWNER,
         "safetyClass": M1903_SAFETY_CLASS,
@@ -66,20 +72,28 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "pendingOwnerConfirmation": True,
         "externalContentTraversal": False,
         "rawPayload": False,
-        "genericAllOmicsFusion": False,
+        "allOmicsFusion": False,
+        "identityInference": False,
+        "consentInference": False,
+        "disagreementErasure": False,
+        "ownershipPreserved": True,
         "kinaseActivity": False,
         "treatmentRecommendation": False,
         "parentTarget": M1903_PARENT,
         "unsupportedToNegative": False,
         "outputMediaType": M1903_OUTPUT_MEDIA_TYPE,
         "upstreamInputMediaType": M1903_M1902_INPUT_MEDIA_TYPE,
-        "primaryArchitecture": "stoichiometric_factorization",
-        "alternateArchitecture": "pathway_activity_network",
-        "fallbackArchitecture": "protein_complex_graph",
+        "primaryArchitecture": (
+            "event_driven_reliability_aware_orchestration_stoichiometric_factorization"
+        ),
+        "alternateArchitecture": "typed_service_oriented_integration_pathway_activity_network",
+        "fallbackArchitecture": "signed_human_review_package_protein_complex_graph",
+        "componentSpecificIntegration": True,
         "sourceAttributionRequired": True,
         "reliabilityRequired": True,
         "uncertaintyRequired": True,
         "disagreementPreservationRequired": True,
+        "humanReviewRequiredForConflict": True,
         "explicitAbstentionRequired": True,
         "humanReviewRequired": True,
     }
