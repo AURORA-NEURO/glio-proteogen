@@ -1,0 +1,28 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-04",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9168-9208"
+  },
+  "fixtureDigest": "sha256:7bb1af86193bf5e6a64282d2aa4cc033d49e39e48dad7ecb4605fb6a58450faf",
+  "requestDigest": "sha256:818442a05824f051bccc32b9c6a4f5aaea4bd0e0128ee0bcfab4e70bbfed1d8a",
+  "publishedResultDigest": "sha256:905857443df93941476f8b9ef3601b9ae69ee4e169f95cfad280b5de6bc444c9",
+  "scenarioCount": 8,
+  "passed": 8,
+  "schemaCount": 12,
+  "uncertaintyDimensions": 7,
+  "cases": [
+    "published_complete",
+    "denied_authorization_abstention",
+    "queued_job_abstention",
+    "migration_required_abstention",
+    "authorization_gate",
+    "source_closure_boundary",
+    "replay_tamper_determinism",
+    "schema_authority"
+  ],
+  "replayTamperRejected": true,
+  "deterministicRepeat": true,
+  "command": "python -m evals.m26_04.run"
+}

@@ -1,0 +1,12 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-04",
+  "benchmark": "evals.m26_04.benchmark:run_benchmark",
+  "iterations": 10,
+  "samplesNs": [4094000, 2811300, 3203900, 2998500, 2470300, 2496900, 2463400, 2463300, 2464900, 2366200],
+  "meanNs": 2783270,
+  "medianNs": 2483600,
+  "p95Ns": 4094000,
+  "budgetsNs": {"mean": 500000000, "p95": 750000000},
+  "passed": true,
+  "command": "python -m evals.m26_04.benchmark"
+}
