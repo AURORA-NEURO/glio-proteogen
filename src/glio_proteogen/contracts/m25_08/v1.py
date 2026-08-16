@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_08.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -43,6 +44,13 @@ M2508_OWNER: Final = "Platform engineering"
 M2508_SAFETY_CLASS: Final = "S3"
 M2508_GATE: Final = "G5"
 M2508_PROVISIONAL_ABI: Final = True
+M2508_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2508_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8984-9024"
+# M25-06 remains a declared media boundary; it is not imported as a runtime ABI.
+M2508_M2506_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-06+json"
+M2508_M2507_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-07+json"
 M2508_MAX_REQUIREMENTS: Final = 128
 M2508_MAX_BENCHMARKS: Final = 128
 M2508_MAX_RISKS: Final = 128
@@ -113,8 +121,8 @@ class BenchmarkOutcome(FrozenModel):
     benchmark_id: Identifier
     name: NonEmptyStr
     metric_name: NonEmptyStr
-    observed_value: float
-    required_floor: float
+    observed_value: float = Field(allow_inf_nan=False)
+    required_floor: float = Field(allow_inf_nan=False)
     passed: bool
     report_artifact: ArtifactReference
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2508_MAX_EVIDENCE)
@@ -176,9 +184,7 @@ class SignedReleaseRecord(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2508_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2508_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2508_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2508_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2508_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -235,9 +241,7 @@ class AdjudicateProteotypeEvidenceGateRequest(FrozenModel):
     requirements: tuple[GateRequirement, ...] = Field(
         min_length=1, max_length=M2508_MAX_REQUIREMENTS
     )
-    benchmarks: tuple[BenchmarkOutcome, ...] = Field(
-        min_length=1, max_length=M2508_MAX_BENCHMARKS
-    )
+    benchmarks: tuple[BenchmarkOutcome, ...] = Field(min_length=1, max_length=M2508_MAX_BENCHMARKS)
     residual_risks: tuple[ResidualRisk, ...] = Field(min_length=1, max_length=M2508_MAX_RISKS)
     approvals: tuple[ApprovalRecord, ...] = Field(min_length=1, max_length=M2508_MAX_APPROVALS)
     post_release_obligations: tuple[PostReleaseObligation, ...] = Field(
@@ -248,6 +252,36 @@ class AdjudicateProteotypeEvidenceGateRequest(FrozenModel):
         min_length=1, max_length=M2508_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_bound(self) -> AdjudicateProteotypeEvidenceGateRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
+        if self.upstream_evidence.media_type != M2508_M2507_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M25-07 evidence result")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        source_set = set(source_keys)
+        required = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.upstream_evidence,
+        )
+        if any(
+            (item.artifact_id, item.version, item.digest, item.media_type) not in source_set
+            for item in required
+        ):
+            raise ValueError("source artifacts must include every declared evidence artifact")
+        if not any(
+            item.media_type == M2508_M2506_INPUT_MEDIA_TYPE for item in self.source_artifacts
+        ):
+            raise ValueError("source artifacts must retain the M25-06 media-only evidence boundary")
+        return self
 
 
 class ProteotypeEvidenceGateResult(FrozenModel):
@@ -276,6 +310,14 @@ class ProteotypeEvidenceGateResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeEvidenceGateResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("gate finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("gate result evidence must be unique")
         if self.status is GateRunStatus.ADJUDICATED:
             if (
                 self.release_record is None
@@ -297,8 +339,12 @@ class ProteotypeEvidenceGateResult(FrozenModel):
 
 __all__ = [
     "M2508_CONTRACT_VERSION",
+    "M2508_DOSSIER_SHA256",
+    "M2508_DOSSIER_SLICE",
     "M2508_EVIDENCE_CLAIM",
     "M2508_GATE",
+    "M2508_M2506_INPUT_MEDIA_TYPE",
+    "M2508_M2507_INPUT_MEDIA_TYPE",
     "M2508_MAX_APPROVALS",
     "M2508_MAX_BENCHMARKS",
     "M2508_MAX_CANONICAL_REQUEST_BYTES",

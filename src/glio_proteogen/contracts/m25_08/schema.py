@@ -8,7 +8,11 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m25_08.v1 import (
     M2508_CONTRACT_VERSION,
+    M2508_DOSSIER_SHA256,
+    M2508_DOSSIER_SLICE,
     M2508_GATE,
+    M2508_M2506_INPUT_MEDIA_TYPE,
+    M2508_M2507_INPUT_MEDIA_TYPE,
     M2508_MAX_CANONICAL_REQUEST_BYTES,
     M2508_MODULE_ID,
     M2508_OUTPUT_MEDIA_TYPE,
@@ -28,9 +32,7 @@ from glio_proteogen.contracts.m25_08.v1 import (
     SignedReleaseRecord,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M25-08:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M25-08:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2508_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -74,6 +76,10 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "provisionalAbi": M2508_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
         "pendingOwnerConfirmation": True,
+        "dossierSha256": M2508_DOSSIER_SHA256,
+        "dossierSlice": M2508_DOSSIER_SLICE,
+        "declaredUpstreamMediaType": M2508_M2507_INPUT_MEDIA_TYPE,
+        "mediaOnlyBoundary": M2508_M2506_INPUT_MEDIA_TYPE,
         "externalContentTraversal": False,
         "rawPayload": False,
         "genericAllOmicsFusion": False,
