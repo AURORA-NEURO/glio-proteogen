@@ -112,7 +112,10 @@ def _member(value: object, name: str) -> object:
 
 def _state(value: object) -> str | None:
     candidate = _member(value, "state")
-    return getattr(candidate, "value", candidate) if isinstance(candidate, (str, object)) else None
+    if isinstance(candidate, str):
+        return candidate
+    state_value = getattr(candidate, "value", None)
+    return state_value if isinstance(state_value, str) else None
 
 
 def preflight_m1807_authorization(candidate: object) -> None:
@@ -138,9 +141,7 @@ def _evidence(
     artifacts: list[ArtifactReference] = [request.upstream_result, *request.source_artifacts]
     artifacts.extend(item.reference for item in request.configuration.evidence)
     artifacts.append(request.consent.evidence)
-    artifacts.extend(
-        item.reference for field in request.fields for item in field.evidence
-    )
+    artifacts.extend(item.reference for field in request.fields for item in field.evidence)
     refs = request.context.references
     artifacts.extend(
         (
@@ -261,9 +262,11 @@ def _provenance(
         module_id=M1807_MODULE_ID,
         module_version=M1807_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request_digest, request.upstream_result.digest, *(
-            artifact.digest for artifact in request.source_artifacts
-        )),
+        input_digests=(
+            request_digest,
+            request.upstream_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+        ),
         configuration_digest=request.configuration.evidence[0].reference.digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -333,10 +336,14 @@ class M1807Engine:
         )
         findings: list[ExportFinding] = []
         if prohibited:
-            findings.append(_finding(
-                "finding.prohibited-boundary", ExportFindingCode.COMPATIBILITY_MISMATCH,
-                "A prohibited responsibility is outside the M18-07 export boundary.", evidence,
-            ))
+            findings.append(
+                _finding(
+                    "finding.prohibited-boundary",
+                    ExportFindingCode.COMPATIBILITY_MISMATCH,
+                    "A prohibited responsibility is outside the M18-07 export boundary.",
+                    evidence,
+                )
+            )
         if unsupported:
             findings.append(
                 _finding(
@@ -347,15 +354,23 @@ class M1807Engine:
                 )
             )
         if request.support_decision.status is not SupportStatus.SUPPORTED:
-            findings.append(_finding(
-                "finding.support", ExportFindingCode.SUPPORT_BOUNDARY,
-                "The caller-declared upstream support status is not supported.", evidence,
-            ))
+            findings.append(
+                _finding(
+                    "finding.support",
+                    ExportFindingCode.SUPPORT_BOUNDARY,
+                    "The caller-declared upstream support status is not supported.",
+                    evidence,
+                )
+            )
         if not findings:
-            findings.append(_finding(
-                "finding.provisional-abi", ExportFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
-                "The M18-07 ABI remains provisional pending owner confirmation.", evidence,
-            ))
+            findings.append(
+                _finding(
+                    "finding.provisional-abi",
+                    ExportFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+                    "The M18-07 ABI remains provisional pending owner confirmation.",
+                    evidence,
+                )
+            )
         ownership = ExportOwnershipBinding(
             owning_module=M1807_MODULE_ID,
             owner="Platform engineering",
@@ -365,11 +380,13 @@ class M1807Engine:
         signature = SignedContractEnvelope(
             signer_id=request.context.actor_id,
             algorithm="caller-declared-sha256",
-            signed_payload_digest=sha256_digest({
-                "request_digest": request_digest,
-                "fields": request.fields,
-                "configuration": request.configuration,
-            }),
+            signed_payload_digest=sha256_digest(
+                {
+                    "request_digest": request_digest,
+                    "fields": request.fields,
+                    "configuration": request.configuration,
+                }
+            ),
             signature_digest=sha256_digest(
                 {"request_digest": request_digest, "owner": M1807_MODULE_ID}
             ),
@@ -477,4 +494,5 @@ __all__ = [
     "M1807ReplayError",
     "export_biomarker_panel_downstream_contract",
     "preflight_m1807_authorization",
+    "result_payload_digest",
 ]

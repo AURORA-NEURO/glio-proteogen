@@ -94,13 +94,12 @@ def test_replay_and_tamper_detection() -> None:
 def test_replay_rejects_a_valid_but_different_request() -> None:
     engine = M1807Engine()
     original = engine.export(_request())
+    assert original.contract is not None
     alternate_request = _request()
     alternate_field = alternate_request.fields[0].model_copy(
         update={"documentation": "Prohibited kinase boundary field."}
     )
-    alternate_request = alternate_request.model_copy(
-        update={"fields": (alternate_field,)}
-    )
+    alternate_request = alternate_request.model_copy(update={"fields": (alternate_field,)})
     request_digest = canonical_request_digest(alternate_request)
     candidate = original.model_copy(
         update={
@@ -110,9 +109,7 @@ def test_replay_rejects_a_valid_but_different_request() -> None:
             "contract": original.contract.model_copy(update={"fields": (alternate_field,)}),
         }
     )
-    candidate = candidate.model_copy(
-        update={"result_digest": result_payload_digest(candidate)}
-    )
+    candidate = candidate.model_copy(update={"result_digest": result_payload_digest(candidate)})
     with pytest.raises(M1807ReplayError, match="replay"):
         engine.verify(candidate)
 
@@ -222,12 +219,8 @@ def test_result_contract_rejects_digest_identity_and_state_tampering() -> None:
         type(request).model_validate(
             request.model_copy(update={"fields": (request.fields[0], field)})
         )
-    limited_support = request.support_decision.model_copy(
-        update={"status": SupportStatus.LIMITED}
-    )
-    abstained = engine.export(
-        request.model_copy(update={"support_decision": limited_support})
-    )
+    limited_support = request.support_decision.model_copy(update={"status": SupportStatus.LIMITED})
+    abstained = engine.export(request.model_copy(update={"support_decision": limited_support}))
     raw = abstained.model_dump(mode="python")
     raw["contract"] = result.contract
     with pytest.raises(ValidationError, match="no contract"):

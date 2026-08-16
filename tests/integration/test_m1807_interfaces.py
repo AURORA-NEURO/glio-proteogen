@@ -36,9 +36,7 @@ def test_fastapi_export_verify_schema_and_sanitized_errors() -> None:
         ).status_code
         == 422
     )
-    assembled = client.post(
-        "/v1/modules/M18-07/export", json=_request().model_dump(mode="json")
-    )
+    assembled = client.post("/v1/modules/M18-07/export", json=_request().model_dump(mode="json"))
     assert assembled.status_code == 200
     result = assembled.json()
     verified = client.post("/v1/modules/M18-07/verify", json=result)

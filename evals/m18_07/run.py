@@ -60,9 +60,7 @@ def _documented_request(text: str) -> ExportBiomarkerPanelDownstreamContractRequ
 def _support_request(status: SupportStatus) -> ExportBiomarkerPanelDownstreamContractRequest:
     request = _request()
     return request.model_copy(
-        update={
-            "support_decision": request.support_decision.model_copy(update={"status": status})
-        }
+        update={"support_decision": request.support_decision.model_copy(update={"status": status})}
     )
 
 
