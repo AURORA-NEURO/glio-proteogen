@@ -16,6 +16,7 @@ from tools.verify_release_artifacts import (
     verify_m0404_evidence,
     verify_m0405_evidence,
     verify_m0501_evidence,
+    verify_m0502_evidence,
     verify_runtime_sbom,
     wheel_identity,
 )
@@ -28,7 +29,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 30
+EXPECTED_MODULE_COUNT = 31
 
 
 def test_sdist_excludes_generated_release_and_coverage_outputs() -> None:
@@ -335,6 +336,81 @@ def test_m0501_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         verify_m0501_evidence(evaluation, benchmark)
 
 
+def test_m0502_evidence_verifier_requires_exact_corpus_shape_and_budgets(
+    tmp_path: Path,
+) -> None:
+    evaluation = tmp_path / "m05-02-eval.json"
+    benchmark = tmp_path / "m05-02-benchmark.json"
+    group_counts = {
+        "identity_and_lineage": 9,
+        "artifact_anomaly_detection": 9,
+        "safe_failure_and_support": 9,
+        "authorization_firewall": 9,
+        "strict_contract": 9,
+        "dag_invariants": 9,
+        "replay_and_privacy": 8,
+        "uncertainty_recovery_interfaces": 8,
+    }
+    evaluation_report = {
+        "module_id": "GLIO-PROTEOGEN-M05-02",
+        "contract_version": "1.0.0",
+        "declared_groups": 8,
+        "group_case_counts": group_counts,
+        "declared_cases": 70,
+        "executed_cases": 70,
+        "passed_cases": 70,
+        "failed_cases": [],
+        "passed": True,
+    }
+    benchmark_report = {
+        "module_id": "GLIO-PROTEOGEN-M05-02",
+        "contract_version": "1.0.0",
+        "workload": "maximum_reconciled_five_role_identity_lineage_graph",
+        "timed_boundary": "reconcile_ptm_localization_identity_lineage_only",
+        "passed": True,
+        "iterations": 25,
+        "warmup_count": 1,
+        "physical_entity_kind_count": 7,
+        "artifact_role_count": 5,
+        "artifact_claim_count": 5,
+        "derivation_count": 1,
+        "derivation_source_count": 4,
+        "finding_count": 0,
+        "request_bytes": 53_976,
+        "result_bytes": 73_657,
+        "request_digest": "sha256:" + ("a" * 64),
+        "result_digest": "sha256:" + ("b" * 64),
+        "mean_ns": 200_000_000.0,
+        "p50_ns": 190_000_000.0,
+        "p95_ns": 300_000_000,
+        "maximum_ns": 350_000_000,
+        "mean_budget_ns": 400_000_000,
+        "p95_budget_ns": 750_000_000,
+    }
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+
+    verify_m0502_evidence(evaluation, benchmark)
+
+    evaluation_report["group_case_counts"] = {**group_counts, "strict_contract": 8}
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="group closure"):
+        verify_m0502_evidence(evaluation, benchmark)
+
+    evaluation_report["group_case_counts"] = group_counts
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
+    benchmark_report["artifact_claim_count"] = 4
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="artifact_claim_count"):
+        verify_m0502_evidence(evaluation, benchmark)
+
+    benchmark_report["artifact_claim_count"] = 5
+    benchmark_report["mean_ns"] = 400_000_001
+    benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
+    with pytest.raises(ReleaseArtifactError, match="timing budgets"):
+        verify_m0502_evidence(evaluation, benchmark)
+
+
 def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None:  # noqa: PLR0915
     workflow = RELEASE_WORKFLOW.read_text(encoding="utf-8")
 
@@ -388,6 +464,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "evals.m04_04.run --output evidence/m04-04-eval.json" in workflow
     assert "evals.m04_05.run --output evidence/m04-05-eval.json" in workflow
     assert "evals.m05_01.run --output evidence/m05-01-eval.json" in workflow
+    assert "evals.m05_02.run --output evidence/m05-02-eval.json" in workflow
     assert "benchmark-json=evidence/m01-01-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-02-benchmark.json" in workflow
     assert "benchmark-json=evidence/m01-03-benchmark.json" in workflow
@@ -422,6 +499,8 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "verify_release_artifacts.py m04-05-evidence" in workflow
     assert "evals.m05_01.benchmark --output evidence/m05-01-benchmark.json" in workflow
     assert "verify_release_artifacts.py m05-01-evidence" in workflow
+    assert "evals.m05_02.benchmark --output evidence/m05-02-benchmark.json" in workflow
+    assert "verify_release_artifacts.py m05-02-evidence" in workflow
     assert "qualified" not in workflow.casefold()
     assert "reviewer approval" not in workflow.casefold()
 
@@ -460,6 +539,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m04_04",
         "m04_05",
         "m05_01",
+        "m05_02",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -508,7 +588,15 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
     assert "evals.m03_06.benchmark --output m03_06-benchmark.json" in workflow
     assert "evals.m03_07.benchmark --output m03_07-benchmark.json" in workflow
     assert "evals.m03_08.benchmark --output m03_08-benchmark.json" in workflow
-    for module in ("m04_01", "m04_02", "m04_03", "m04_04", "m04_05", "m05_01"):
+    for module in (
+        "m04_01",
+        "m04_02",
+        "m04_03",
+        "m04_04",
+        "m04_05",
+        "m05_01",
+        "m05_02",
+    ):
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
 
@@ -541,6 +629,14 @@ def test_ci_exercises_the_native_m05_01_windows_interface() -> None:
 
     assert "windows-m05-01-interface" in workflow
     assert "tests/integration/test_m05_01_interfaces.py" in workflow
+    assert "--no-cov" in workflow
+
+
+def test_ci_exercises_the_native_m05_02_windows_interface() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "windows-m05-02-interface" in workflow
+    assert "tests/integration/test_m05_02_interfaces.py" in workflow
     assert "--no-cov" in workflow
 
 
@@ -638,6 +734,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("m05-01-export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-01:1.0.0:request"
+        ),
+        ("m05-02-export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-02:1.0.0:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT

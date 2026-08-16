@@ -1,0 +1,51 @@
+requirement_id,source,requirement,implementation,evidence,gate
+M05-02-R01,"dossier:1520-1522","Own identity and lineage reconciliation beneath PTM localization","literal module operation plus exact M01-02 and M05-01 envelopes","public operation and schema identity tests",G0
+M05-02-R02,"dossier:1522","Represent patient specimen aliquot section analyte run and derived object","embedded full M01-02 graph and seven-kind anchor-path validator","all-seven-kinds corpus case",G0
+M05-02-R03,"dossier:1522","Detect swaps","declared-versus-resolved subject comparison and identity_swap quarantine","identity swap locked case",G0
+M05-02-R04,"dossier:1522","Detect collisions","artifact-lineage artifact-identity and binding-scope collision findings","three collision cases plus genuine two-patient case",G0
+M05-02-R05,"dossier:1522","Detect duplication without silent merge","duplicate content is retained and recorded","duplicate-content locked case",G0
+M05-02-R06,"dossier:1522","Detect cross-patient links","multi-subject propagation and lineage-context quarantine","genuine two-patient M01-02 fixture",G0
+M05-02-R07,"dossier:1522,1528","Emit only immutable identity resolution and lineage graph","frozen result embeds exact request and privacy-minimized graph","strict result replay and roundtrip",G0
+M05-02-R08,"dossier:1522,1528","Preserve variant peptide as parent target","literal parent_target and emits_variant_peptide false","parent-context case",G0
+M05-02-R09,"dossier:1522","Do not claim exclusive proteogenomic state proteotype or protein-level subtype","literal false output flags","authority flags case",G0
+M05-02-R10,"dossier:1522,1524","Keep kinase activity KINOPHOS-owned and prohibit all-omics fusion and treatment advice","literal false flags schema metadata and plugin descriptor","authority and schema tests",G0
+M05-02-R11,"dossier:1524","Do not mutate upstream evidence relabel outputs or erase disagreement","embedded exact upstream envelopes and false mutation flag","full replay and producer-drift cases",G0
+M05-02-R12,"dossier:1524","Do not infer missing identity or consent","seven-control preflight plus literal false inference flags","each-control denial and authority tests",G0
+M05-02-R13,"dossier:1524,1558","Do not convert unsupported or missing evidence to negative","typed abstention and artifact_evidence_not_evaluable finding","four evidence-state cases",G0
+M05-02-R14,"dossier:1526","Consume mass-spectrometry proteome genome transcriptome and PTM annotations","five exact role-scoped opaque references including parent bundle","role and DAG validators",G0
+M05-02-R15,"dossier:1526","Require approved configuration identity lineage provenance consent quality support and intended use","exact seven context controls and reviewed tuple","authorization firewall cases",G0
+M05-02-R16,"dossier:1528","Expose typed uncertainty support provenance evidence and limitations","closed result envelope and exact derivation helpers","result replay cases",G0
+M05-02-R17,"dossier:1530-1534,1548-1552","Record architecture options without inventing model inputs","manifest selects schema-first deterministic G0 and records other choices unexecuted","model manifest inspection",G0
+M05-02-R18,"dossier:1530-1534,1550-1552","Do not execute ungoverned elastic-net or CN-to-protein models","zero model artifacts and false regression flag","dependency and claims-ceiling audit",G0
+M05-02-R19,"dossier:1536","Validate identity","exact upstream replay anchor paths and subject propagation","identity and lineage group",G0
+M05-02-R20,"dossier:1536","Validate version","literal v1 contract plus reviewed M05-01 result version","schema and unsupported-configuration cases",G0
+M05-02-R21,"dossier:1536","Validate units","exact M05-01 configuration and assay/specimen policy receipt binding","upstream replay and configuration tuple",G0
+M05-02-R22,"dossier:1536","Validate completeness","five roles one bundle one all-source derivation and seven physical kinds","DAG invariant group",G0
+M05-02-R23,"dossier:1536","Validate assay support","reviewed M05-01 configuration/reference/assay tuple","unsupported configuration abstention",G0
+M05-02-R24,"dossier:1536","Validate parent-specific quality","exact M05-01 result and accepted quality digest","quality binding and control denial",G0
+M05-02-R25,"dossier:1536","Quarantine unresolved supported inputs","quarantine action dominates abstention for swap/collision/drift","quarantine-precedence case",G0
+M05-02-R26,"dossier:1538","Expose seven uncertainty dimensions","seven exact NOT_ESTIMABLE estimates","uncertainty oracle",G0
+M05-02-R27,"dossier:1538","Expose sensitivity","three fixed notes including narrowed support and disagreement retention","uncertainty replay",G0
+M05-02-R28,"dossier:1538","Expose explicit abstention","abstained disposition unsupported support and typed findings","safe-failure group",G0
+M05-02-R29,"dossier:1540","Require human review for critical discrepancy novel OOD override promotion exception or conflict","human_review_required for quarantine/abstention plus external sign-off plan","result replay and manifest",G0
+M05-02-R30,"dossier:1542","Resolve all locked identity fixtures correctly","70-case evaluator with genuine upstream execution","70/70 report",G0
+M05-02-R31,"dossier:1542","Allow zero silent merges inferred identities or cross-patient links","duplicate retention false inference flags cross-patient quarantine","anomaly and authority groups",G0
+M05-02-R32,"dossier:1542","Provide versioned implementation declared uncertainty benchmark and safe failure","v1 contracts nine schemas exact evaluator and benchmark","interfaces evaluator verifier",G0
+M05-02-R33,"dossier:1544","Provide locked tests benchmark traceability risk controls manifests sign-off and rollback","installed tests reports docs verifier and workflows","release evidence inventory",G0
+M05-02-R34,"dossier:1546","Bind owner safety and gate to Clinical science S2 G0","schema metadata descriptor and manifest constants","module identity assertions",G0
+M05-02-R35,"dossier:1556","Critical G0 cases behave 100 percent as specified","70 unique declared executed and passed cases","exact evaluator closure",G0
+M05-02-R36,"dossier:1556","Allow zero silent coercions","strict Pydantic duplicate-free JSON and exact built-ins","strict contract and interface cases",G0
+M05-02-R37,"dossier:1557","Keep future G1 primary error outside G0","no measurement target fitted model or error claim","claims ceiling audit",G0
+M05-02-R38,"dossier:1558","Keep supported perturbations within envelope","semantic collection reorder equality","canonical reorder case",G0
+M05-02-R39,"dossier:1558","Make unsupported cases abstain","reviewed configuration and evidence-state decisions before negative claims","unsupported and evidence cases",G0
+M05-02-R40,"dossier:1559","Keep nominal coverage 85 to 95 or narrow support","no probability and explicit exact-binding support narrowing","non-calibrated uncertainty oracle",G0
+M05-02-R41,"dossier:1560","Prevent ownership and consent violations","all authority flags false and seven controls exact","authorization and authority tests",G0
+M05-02-R42,"dossier:1560","Make critical failures auditable and recoverable","finding/receipt/provenance evidence plus supersedes digest","forgery and recovery cases",G0
+M05-02-R43,"locked-risk:forgery","Reject re-signed identifier graph finding receipt support uncertainty provenance evidence limitation and time substitution","full result after-validator deterministic rederivation","replay-forgery group",G0
+M05-02-R44,"locked-risk:firewall","Authorize before upstream or artifact traversal and bound exact built-ins","content-free preflight materialization caps and sanitized exceptions","hostile lifecycle and interface tests",G0
+M05-02-R45,"locked-risk:plugin","Execute only issued original immutable request capabilities","weak token registry identity and canonical-byte snapshot","copied-token and mutation tests",G0
+M05-02-R46,"locked-interface","Export nine schemas one Python operation HTTP routes and two CLI commands","closed schema registry and shared sealed validator","library plugin API CLI parity",G0
+M05-02-R47,"locked-benchmark","Warm once then time exactly 25 maximum reconciled five-role public calls at 400ms mean and 750ms p95","perf_counter_ns deterministic equality nearest-rank p95","benchmark and release verifier",G0
+M05-02-R48,"locked-privacy","Accept only opaque metadata and never reflect biological payload canaries","namespace validators and metadata-only builder","privacy corpus and interface negatives",G0
+M05-02-R49,"locked-capacity","Admit at most 256 claims and 255 derivation sources within 4MiB and emit a valid bounded result","field caps plus maximum admitted builder","maximum totality evaluator case",G0
+M05-02-R50,"locked-package","Ship contracts runtime adapters fixture docs eval workflow and verifier reproducibly","package manifests and clean-install audit","release packaging gates",G0
