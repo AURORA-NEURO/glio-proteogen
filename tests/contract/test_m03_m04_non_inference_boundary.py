@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from evals.m03_01.run import build_scenario_request as build_m0301_request
+from evals.m04_01.run import build_scenario_request as build_m0401_request
 from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts.m03_01.schema import contract_json_schema as m0301_schema
@@ -40,7 +42,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_01_protocol_metadata impo
     M0401Plugin,
     M0401Service,
 )
-
 
 _BOUNDARY_FIELDS = (
     "infers_protein",
@@ -127,9 +128,6 @@ def test_exported_output_schemas_publish_false_authority_and_const_properties() 
 
 @pytest.mark.contract
 def test_plugin_request_boundaries_reject_inference_claims_before_execution() -> None:
-    from evals.m03_01.run import build_scenario_request as build_m0301_request
-    from evals.m04_01.run import build_scenario_request as build_m0401_request
-
     for request, plugin in (
         (build_m0301_request(), M0301Plugin(M0301Service())),
         (build_m0401_request(), M0401Plugin(M0401Service())),

@@ -1177,7 +1177,10 @@ def test_finding_and_assay_reference_uniqueness(result: ProteoformQualityResult)
         _validate(
             assay,
             {
-                "metrics": (assay.metrics[0].model_copy(update={"role": wrong_role}), *assay.metrics[1:])
+                "metrics": (
+                    assay.metrics[0].model_copy(update={"role": wrong_role}),
+                    *assay.metrics[1:],
+                )
             },
         )
 
