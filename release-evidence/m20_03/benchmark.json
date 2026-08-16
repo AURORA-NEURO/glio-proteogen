@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-03",
+  "contract_version": "0.1.0-provisional",
+  "iterations": 25,
+  "warmup_count": 1,
+  "workload": "component_specific_reliability_weighted_fusion",
+  "timed_boundary": "M2003Engine.fuse_only",
+  "mean_ns": 1314136.0,
+  "p50_ns": 1283900,
+  "p95_ns": 1555000,
+  "maximum_ns": 1645900,
+  "mean_budget_ns": 500000000,
+  "p95_budget_ns": 750000000,
+  "passed": true,
+  "request_digest": "sha256:a53e6ff4fbdad05209569e74c32dc660951e3409cd4a9444914abf0dbac202c9",
+  "result_digest": "sha256:e751a8faffc463329c7cd30d7789f191339b3b8e9f45dd5ba1ae8a5ee44fcf6e"
+}
