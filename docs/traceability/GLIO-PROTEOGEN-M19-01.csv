@@ -1,0 +1,9 @@
+module_id,authority_sha256,authority_lines,requirement,implementation,evidence,verification
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,typed upstream discovery and compatibility,CompatibilityRule and deterministic M1901Engine rule matching,contract/runtime tests,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,version media intended-use and typed rejection,CompatibilityDecision reason codes and closed outcome buckets,evaluator matrix/adversarial tests,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,consent identity provenance support and quality gates,seven-control preflight and ControlDecisionRecord provenance,runtime/evaluator tests,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,safe abstention and unknown preservation,empty selection review-required result with no bundle,negative evaluator cases,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,seven uncertainty dimensions,explicit not-estimable UncertaintyProfile,evaluator uncertainty check,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,replay and tamper closure,canonical request/result digest and derived result identity,service/plugin/API replay tests,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,strict interfaces,FastAPI/Typer adapters with sanitized errors and no-overwrite,interface parity tests,pass
+GLIO-PROTEOGEN-M19-01,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,6516-6556,performance and reproducible release,locked evaluator benchmark coverage wheel sdist import,release evidence verifier,pass
