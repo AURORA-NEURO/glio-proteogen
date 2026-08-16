@@ -13,6 +13,8 @@ from glio_proteogen.contracts.m21_06 import (
     M2106_MODULE_ID,
     ChallengeComplexActivityRobustnessRequest,
     ChallengeDisposition,
+    ChallengeFinding,
+    ChallengeFindingCode,
     ChallengeKind,
     ChallengeScenario,
     ChallengeSeverity,
@@ -47,6 +49,9 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_challenge import (
+    run_complex_activity_robustness_challenge,
 )
 
 
@@ -385,3 +390,106 @@ def test_abstention_requires_safe_failure_and_safe_support_status() -> None:
     abstained = ComplexActivityRobustnessChallengeResult(**base)
     assert abstained.status is RobustnessStatus.ABSTAINED
     assert abstained.safe_failure_report is not None
+
+
+def test_observation_and_configuration_bounds_are_fail_closed() -> None:
+    request = _request()
+    observation = _surface(request).observations[0].model_dump(mode="python")
+    observation["envelope_lower"] = 1.0
+    observation["envelope_upper"] = 0.0
+    with pytest.raises(ValidationError, match="bounds must be ordered"):
+        RobustnessObservation(**observation)
+
+    observation = _surface(request).observations[1].model_dump(mode="python")
+    observation["disposition"] = ChallengeDisposition.WITHIN_ENVELOPE
+    observation["within_envelope"] = False
+    with pytest.raises(ValidationError, match="requires an in-envelope"):
+        RobustnessObservation(**observation)
+
+    configuration = _configuration().model_dump(mode="python")
+    configuration["required_challenge_kinds"] = (
+        ChallengeKind.MISSING_DATA,
+        ChallengeKind.MISSING_DATA,
+        *tuple(ChallengeKind)[2:],
+    )
+    with pytest.raises(ValidationError, match="must be unique"):
+        RobustnessConfiguration(**configuration)
+
+
+def test_surface_and_request_identity_sets_cannot_be_repeated_or_dropped() -> None:
+    request = _request()
+    surface = _surface(request).model_dump(mode="python")
+    surface["scenarios"][1]["scenario_id"] = surface["scenarios"][0]["scenario_id"]
+    with pytest.raises(ValidationError, match="scenario ids must be unique"):
+        RobustnessSurface(**surface)
+
+    surface = _surface(request).model_dump(mode="python")
+    surface["observations"][1]["observation_id"] = surface["observations"][0]["observation_id"]
+    with pytest.raises(ValidationError, match="observation ids must be unique"):
+        RobustnessSurface(**surface)
+
+    surface = _surface(request).model_dump(mode="python")
+    surface["scenarios"][0]["expected_disposition"] = ChallengeDisposition.REVIEW_REQUIRED
+    with pytest.raises(ValidationError, match="must match scenario expectation"):
+        RobustnessSurface(**surface)
+
+    supported_surface = _surface(request).model_dump(mode="python")
+    supported_surface["scenarios"][0]["expected_disposition"] = ChallengeDisposition.WITHIN_ENVELOPE
+    supported_surface["observations"][0]["disposition"] = ChallengeDisposition.WITHIN_ENVELOPE
+    supported_surface["observations"][0]["within_envelope"] = True
+    supported_surface["observations"][0]["ood_band"] = OODBand.OUT_OF_DOMAIN
+    with pytest.raises(ValidationError, match="supported OOD bands"):
+        RobustnessSurface(**supported_surface)
+
+    payload = request.model_dump(mode="python")
+    payload["context"]["request_id"] = "wrong-request-id"
+    with pytest.raises(ValidationError, match="context request id"):
+        ChallengeComplexActivityRobustnessRequest(**payload)
+
+    payload = request.model_dump(mode="python")
+    payload["scenarios"][1]["scenario_id"] = payload["scenarios"][0]["scenario_id"]
+    with pytest.raises(ValidationError, match="scenario ids must be unique"):
+        ChallengeComplexActivityRobustnessRequest(**payload)
+
+    payload = request.model_dump(mode="python")
+    payload["scenarios"] = payload["scenarios"][:-1]
+    with pytest.raises(ValidationError, match="cover the locked"):
+        ChallengeComplexActivityRobustnessRequest(**payload)
+
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = payload["source_artifacts"] + (payload["source_artifacts"][0],)
+    with pytest.raises(ValidationError, match="source artifacts must be unique"):
+        ChallengeComplexActivityRobustnessRequest(**payload)
+
+
+def test_result_digest_and_provenance_identity_are_closed() -> None:
+    request = _request()
+    result = _result(request)
+    payload = result.model_dump(mode="python")
+    payload["request_digest"] = "sha256:" + "a" * 64
+    with pytest.raises(ValidationError, match="request digest"):
+        ComplexActivityRobustnessChallengeResult(**payload)
+
+    payload = result.model_dump(mode="python")
+    payload["provenance"]["module_id"] = "GLIO-PROTEOGEN-M21-05"
+    with pytest.raises(ValidationError, match="provenance module id"):
+        ComplexActivityRobustnessChallengeResult(**payload)
+
+    finding = ChallengeFinding(
+        finding_id="duplicate-finding",
+        code=ChallengeFindingCode.OOD_STATE,
+        message="Duplicate finding for adversarial closure.",
+    ).model_dump(mode="python")
+    payload = result.model_dump(mode="python")
+    payload["findings"] = (finding, finding)
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        ComplexActivityRobustnessChallengeResult(**payload)
+
+
+def test_canonical_dict_projection_and_entrypoint_are_deterministic() -> None:
+    request = _request()
+    assert canonical_request_digest(request.model_dump(mode="json")) == canonical_request_digest(
+        request
+    )
+    result = run_complex_activity_robustness_challenge(request)
+    assert result.result_id == result_identifier(request)
