@@ -37,6 +37,7 @@ def test_fastapi_validate_evaluate_verify_and_sanitized_errors() -> None:
         "configuration",
         "finding",
     }
+    assert client.get("/v1/modules/M23-07/schemas/request").status_code == _HTTP_OK
     body = request.model_dump(mode="json")
     assert client.post("/v1/modules/M23-07/validate", json=body).status_code == _HTTP_OK
     generated = client.post("/v1/modules/M23-07/evaluate", json=body)
