@@ -73,6 +73,8 @@ def test_typer_rejects_unknown_malformed_abstained_and_tampered(tmp_path: Path) 
         cli_app, ["adjudicate", str(request_path), "--output", str(result_path)]
     )
     assert abstained.exit_code == 1
+    emitted = runner.invoke(cli_app, ["adjudicate", str(request_path)])
+    assert emitted.exit_code == 1
 
     tampered = json.loads(result_path.read_text(encoding="utf-8"))
     tampered["result_digest"] = "sha256:" + "f" * 64
