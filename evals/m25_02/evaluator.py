@@ -58,7 +58,13 @@ def run_evaluator() -> dict[str, Any]:
     return {
         "adversarial_case_count": len(checks),
         "adversarial_passed_count": sum(checks.values()),
+        "dossier_sha256": (
+            "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+        ),
+        "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8720-8760",
         "module_id": "GLIO-PROTEOGEN-M25-02",
+        "parent_target": "proteotype",
+        "upstream_dependency": "M25-01 caller-declared media only",
         "checks": checks,
         "fixture_digest": sha256_digest(request),
         "fixture_result_digest": result.result_digest,
