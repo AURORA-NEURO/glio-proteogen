@@ -172,6 +172,8 @@ class AlignedEvidenceBundle(FrozenModel):
         observed_dimensions = {item.dimension for item in self.observations}
         if observed_dimensions != set(AlignmentDimension):
             raise ValueError("alignment bundle must cover all seven dimensions")
+        if len(observed_dimensions) != len(self.observations):
+            raise ValueError("alignment bundle must contain one observation per dimension")
         if any(
             discrepancy.resolution is None
             for discrepancy in self.discrepancies
