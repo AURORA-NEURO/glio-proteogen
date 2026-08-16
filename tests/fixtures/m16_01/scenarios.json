@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M16-01",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "resolved_supported", "expected": "resolved"},
+    {"case_id": "version_mismatch_abstention", "expected": "abstained"},
+    {"case_id": "media_mismatch_abstention", "expected": "abstained"},
+    {"case_id": "missing_required_kind_abstention", "expected": "abstained"},
+    {"case_id": "replay_and_tamper", "expected": "verified"},
+    {"case_id": "authorization_gate", "expected": "rejected"}
+  ]
+}
