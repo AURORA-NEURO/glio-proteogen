@@ -1,7 +1,5 @@
 """Adversarial contract and replay-identity closure for M22-06."""
 
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 from datetime import UTC, datetime

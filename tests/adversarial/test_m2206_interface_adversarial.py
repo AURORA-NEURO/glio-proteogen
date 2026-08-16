@@ -1,6 +1,6 @@
 """Negative transport, CLI, plugin and replay coverage for M22-06."""
 
-# ruff: noqa: INP001, PLR2004, TRY003
+# ruff: noqa: PLR2004, TRY003
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from typing import Any, NoReturn, cast
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.adversarial.test_m2206_contract_adversarial import _request
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m22_06 import (
@@ -37,6 +36,7 @@ from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_c
 from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_challenge import (
     engine as m2206_engine,
 )
+from tests.adversarial.test_m2206_contract_adversarial import _request
 
 
 def test_fastapi_rejects_malformed_non_object_and_tampered_result() -> None:
