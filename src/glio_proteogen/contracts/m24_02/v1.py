@@ -58,6 +58,10 @@ M2402_MAX_EVIDENCE: Final = 64
 M2402_MAX_FINDINGS: Final = 64
 M2402_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2402_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
+M2402_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M24-02 synthetic truth, perturbation and reproducibility evidence; "
+    "issuer authority is not authenticated."
+)
 
 
 class FixtureKind(StrEnum):
@@ -258,6 +262,7 @@ __all__ = [
     "M2402_CONTRACT_VERSION",
     "M2402_DOSSIER_SHA256",
     "M2402_DOSSIER_SLICE",
+    "M2402_EVIDENCE_CLAIM",
     "M2402_GATE",
     "M2402_M2401_INPUT_MEDIA_TYPE",
     "M2402_MAX_CANONICAL_REQUEST_BYTES",
