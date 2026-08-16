@@ -1,5 +1,9 @@
 """Provisional M20-08 translation monitoring and rollback exports."""
 
+from glio_proteogen.contracts.m20_08.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m20_08.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -84,6 +88,8 @@ __all__ = [
     "TranslationHealthReport",
     "TranslationHealthStatus",
     "TranslationMonitoringConfiguration",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_payload_digest",
 ]
