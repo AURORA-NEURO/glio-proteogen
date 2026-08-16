@@ -1,6 +1,6 @@
 """Focused contract/schema smoke for provisional M25-05."""
 
-import pytest
+from typing import Any, cast
 
 from glio_proteogen.contracts.m25_05 import (
     M2505_OUTPUT_MEDIA_TYPE,
@@ -17,29 +17,29 @@ _SCHEMA_COUNT = 8
 
 def test_provisional_schemas_require_subgroup_equity_controls() -> None:
     schemas = contract_json_schemas()
+    metadata = [cast("dict[str, Any]", schema["x-glio-contract"]) for schema in schemas.values()]
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(item["provisionalAbi"] for item in metadata)
+    assert all(item["pendingOwnerConfirmation"] for item in metadata)
     assert all(
-        schema["x-glio-contract"]["subgroupDimensionsRequired"]
-        and schema["x-glio-contract"]["equitySafetyFloorRequired"]
-        and schema["x-glio-contract"]["calibrationRequired"]
-        and schema["x-glio-contract"]["coverageRequired"]
-        and schema["x-glio-contract"]["rareContextRestrictionRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
-        for schema in schemas.values()
+        item["subgroupDimensionsRequired"]
+        and item["equitySafetyFloorRequired"]
+        and item["calibrationRequired"]
+        and item["coverageRequired"]
+        and item["rareContextRestrictionRequired"]
+        and item["explicitAbstentionRequired"]
+        and item["unsupportedToNegative"] is False
+        for item in metadata
     )
     assert all(
-        schema["x-glio-contract"]["upstreamInputMediaType"].endswith("m25-04+json")
-        and schema["x-glio-contract"]["parentTarget"] == "proteotype"
-        for schema in schemas.values()
+        item["upstreamInputMediaType"].endswith("m25-04+json")
+        and item["parentTarget"] == "proteotype"
+        for item in metadata
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2505_OUTPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["primaryArchitecture"] == "latent_class_proteotype"
-    assert (
-        schemas["output"]["x-glio-contract"]["alternateArchitecture"] == "latent_class_proteotype"
-    )
+    output = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output["outputMediaType"] == M2505_OUTPUT_MEDIA_TYPE
+    assert output["primaryArchitecture"] == "latent_class_proteotype"
+    assert output["alternateArchitecture"] == "latent_class_proteotype"
     assert M2505_PROVISIONAL_ABI is True
 
 
@@ -49,5 +49,5 @@ def test_subgroup_dimensions_and_safe_states_are_explicit() -> None:
     assert CoverageStatus.UNSUPPORTED.value == "unsupported"
     assert EquityStatus.BELOW_FLOOR.value == "below_floor"
     assert EvaluationStatus.ABSTAINED.value == "abstained"
-    with pytest.raises(AssertionError):
-        assert EvaluationStatus.ABSTAINED is EvaluationStatus.EVALUATED
+    assert EvaluationStatus.ABSTAINED.value == "abstained"
+    assert EvaluationStatus.EVALUATED.value == "evaluated"

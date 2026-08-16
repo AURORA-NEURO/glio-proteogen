@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from evals.m25_05.fixture import build_request, denied_request
 
@@ -51,7 +53,7 @@ def test_supported_evaluation_is_deterministic_and_replayable() -> None:
     ],
 )
 def test_non_passing_subgroup_controls_abstain(
-    kwargs: dict[str, object],
+    kwargs: dict[str, Any],
     code: str,
 ) -> None:
     result = M2505SubgroupEquityEngine().generate(build_request(**kwargs))
@@ -70,6 +72,7 @@ def test_calibration_failure_abstains_without_negative_inference() -> None:
 
     assert result.status is EvaluationStatus.ABSTAINED
     assert all(finding.code.value == "calibration_failure" for finding in result.findings)
+    assert result.abstention_reason is not None
     assert "negative" not in result.abstention_reason.lower()
 
 
