@@ -108,6 +108,8 @@ def verify(path: Path) -> None:
         replay = _SERVICE.replay(result)
     except (ValidationError, ValueError) as error:
         raise M2404CliError("result replay is invalid") from error  # noqa: TRY003
+    if replay.result_digest != result.result_digest:
+        raise M2404CliError("result replay is invalid")  # noqa: TRY003
     typer.echo(
         json.dumps({"verified": replay.result_digest == result.result_digest}, sort_keys=True)
     )

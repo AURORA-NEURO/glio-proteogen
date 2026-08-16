@@ -26,8 +26,11 @@ class M2404Service:
 
     def validate_request(self, request: object) -> EvaluateBiomarkerPanelExternalTransportRequest:
         if isinstance(request, bytes | bytearray | str):
-            return _REQUEST_ADAPTER.validate_json(request, strict=True)
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+            typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
+        else:
+            typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        preflight_m2404_authorization(typed)
+        return typed
 
     def generate(self, request: object) -> BiomarkerPanelExternalTransportResult:
         preflight_m2404_authorization(request)
