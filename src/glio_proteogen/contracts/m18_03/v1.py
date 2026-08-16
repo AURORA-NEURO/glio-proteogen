@@ -160,9 +160,7 @@ class IntegratedEvidenceObject(FrozenModel):
     disagreements: tuple[DisagreementRecord, ...] = Field(
         default=(), max_length=M1803_MAX_DISAGREEMENTS
     )
-    aggregate_values: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1803_MAX_AGGREGATES
-    )
+    aggregate_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1803_MAX_AGGREGATES)
     configuration: AggregationConfiguration
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1803_MAX_EVIDENCE)
 
@@ -199,9 +197,7 @@ class FuseBiomarkerPanelEvidenceRequest(FrozenModel):
     disagreements: tuple[DisagreementRecord, ...] = Field(
         default=(), max_length=M1803_MAX_DISAGREEMENTS
     )
-    aggregate_values: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M1803_MAX_AGGREGATES
-    )
+    aggregate_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M1803_MAX_AGGREGATES)
     configuration: AggregationConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M1803_MAX_EVIDENCE
