@@ -1,0 +1,15 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "estimate_count": 1,
+  "iterations": 10,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 7681300.0,
+  "median_ns": 7484650.0,
+  "module_id": "GLIO-PROTEOGEN-M06-07",
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 8593700,
+  "passed": true,
+  "stratum_count": 1,
+  "timed_boundary": "M0607CalibrationEngine.calibrate",
+  "workload": "single locked calibration and selective-prediction request"
+}
