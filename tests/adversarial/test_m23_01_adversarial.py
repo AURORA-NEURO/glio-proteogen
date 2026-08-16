@@ -222,16 +222,14 @@ def test_contract_closure_rejects_all_partition_and_lock_substitutions() -> None
     configuration_data["parent_target"] = "wrong parent"
     invalid_configuration = BenchmarkConfiguration.model_construct(**configuration_data)
     invalid_package = package.model_copy(update={"configuration": invalid_configuration})
-    with pytest.raises(ValueError, match="locked to the parent target"):
-        invalid_package.package_is_closed()
+    with pytest.raises(ValueError, match="parent_target"):
+        ReferenceTruthPackage.model_validate(invalid_package.model_dump(mode="python"))
     invalid_inclusions = package.model_copy(update={"inclusions": package.inclusions[:-1]})
     with pytest.raises(ValueError, match="inclusion decisions"):
-        invalid_inclusions.package_is_closed()
-    invalid_adjudications = package.model_copy(
-        update={"adjudications": package.adjudications[:-1]}
-    )
+        ReferenceTruthPackage.model_validate(invalid_inclusions.model_dump(mode="python"))
+    invalid_adjudications = package.model_copy(update={"adjudications": package.adjudications[:-1]})
     with pytest.raises(ValueError, match="adjudications must cover"):
-        invalid_adjudications.package_is_closed()
+        ReferenceTruthPackage.model_validate(invalid_adjudications.model_dump(mode="python"))
 
 
 def test_request_closure_rejects_duplicate_ids_and_partition_substitutions() -> None:
@@ -344,15 +342,16 @@ def test_cli_invalid_result_denied_request_abstention_and_replay_error(
     pending = request.adjudications[0].model_copy(update={"status": AdjudicationStatus.PENDING})
     pending_path = tmp_path / "pending.json"
     pending_path.write_bytes(
-        request.model_copy(
-            update={"adjudications": (pending, *request.adjudications[1:])}
-        ).model_dump_json().encode()
+        request.model_copy(update={"adjudications": (pending, *request.adjudications[1:])})
+        .model_dump_json()
+        .encode()
     )
     abstained = runner.invoke(cli.app, ["curate", str(pending_path)])
     assert abstained.exit_code == 1
 
     result_path = tmp_path / "result.json"
     runner.invoke(cli.app, ["curate", str(request_path), "--output", str(result_path)])
+
     class ReplayMismatch:
         def verify_replay(self, value: VariantPeptideReferenceTruthResult) -> Any:
             return value.model_copy(update={"result_digest": "sha256:" + "f" * 64})
