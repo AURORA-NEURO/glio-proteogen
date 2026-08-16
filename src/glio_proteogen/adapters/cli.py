@@ -173,13 +173,13 @@ from glio_proteogen.contracts.m14_05 import (
     M1405_MAX_CANONICAL_REQUEST_BYTES,
     ModelProteinSubtypeLongitudinalEvolutionRequest,
 )
-from glio_proteogen.contracts.m14_03 import (
-    M1403_MAX_CANONICAL_REQUEST_BYTES,
-    ConstructProteinSubtypeMechanisticFeaturesRequest,
-)
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
     SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
