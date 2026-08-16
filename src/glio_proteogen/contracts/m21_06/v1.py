@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m21_06.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -43,6 +44,14 @@ M2106_OWNER: Final = "Computational biology"
 M2106_SAFETY_CLASS: Final = "S3"
 M2106_GATE: Final = "G3"
 M2106_PROVISIONAL_ABI: Final = True
+M2106_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2106_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7456-7496"
+M2106_EVIDENCE_CLAIM: Final = (
+    "Caller-declared robustness, shift, perturbation and OOD challenge material; "
+    "issuer authority is not authenticated."
+)
 M2106_MAX_SCENARIOS: Final = 256
 M2106_MAX_OBSERVATIONS: Final = 512
 M2106_MAX_EVIDENCE: Final = 64
@@ -150,15 +159,15 @@ class RobustnessConfiguration(FrozenModel):
     def challenge_kinds_are_unique(self) -> RobustnessConfiguration:
         if len(set(self.required_challenge_kinds)) != len(self.required_challenge_kinds):
             raise ValueError("required challenge kinds must be unique")
+        if set(self.required_challenge_kinds) != set(ChallengeKind):
+            raise ValueError("configuration must require every locked challenge kind")
         return self
 
 
 class RobustnessSurface(FrozenModel):
     surface_id: Identifier
     version: SemanticVersion
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2106_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2106_MAX_SCENARIOS)
     observations: tuple[RobustnessObservation, ...] = Field(
         min_length=1, max_length=M2106_MAX_OBSERVATIONS
     )
@@ -176,6 +185,23 @@ class RobustnessSurface(FrozenModel):
         allowed = set(scenario_ids)
         if any(item.scenario_id not in allowed for item in self.observations):
             raise ValueError("observation references an unknown scenario")
+        if {item.scenario_id for item in self.observations} != allowed:
+            raise ValueError("robustness surface requires one observation for every scenario")
+        scenario_by_id = {scenario.scenario_id: scenario for scenario in self.scenarios}
+        for observation in self.observations:
+            scenario = scenario_by_id[observation.scenario_id]
+            if observation.disposition is not scenario.expected_disposition:
+                raise ValueError("observation disposition must match scenario expectation")
+            if observation.disposition is ChallengeDisposition.WITHIN_ENVELOPE and (
+                observation.ood_band not in {OODBand.IN_DOMAIN, OODBand.BORDERLINE}
+                or not observation.within_envelope
+            ):
+                raise ValueError("within-envelope observations must remain in supported OOD bands")
+            if observation.disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED and (
+                observation.ood_band not in {OODBand.OUT_OF_DOMAIN, OODBand.NOT_EVALUABLE}
+                or observation.within_envelope
+            ):
+                raise ValueError("unsupported observations must be OOD or not evaluable")
         return self
 
 
@@ -204,9 +230,7 @@ class ChallengeComplexActivityRobustnessRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     upstream_result: ArtifactReference
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2106_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2106_MAX_SCENARIOS)
     configuration: RobustnessConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2106_MAX_EVIDENCE
@@ -217,9 +241,29 @@ class ChallengeComplexActivityRobustnessRequest(FrozenModel):
     def request_is_bound(self) -> ChallengeComplexActivityRobustnessRequest:
         if self.upstream_result.media_type != M2106_M2105_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-05 estimator result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
+        if {item.kind for item in self.scenarios} != set(
+            self.configuration.required_challenge_kinds
+        ):
+            raise ValueError("request scenarios must cover the locked challenge configuration")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-05 result")
         return self
 
 
@@ -252,13 +296,26 @@ class ComplexActivityRobustnessChallengeResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityRobustnessChallengeResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        if self.provenance.module_id != M2106_MODULE_ID:
+            raise ValueError("provenance module id must match M21-06")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         if self.status is RobustnessStatus.EVALUATED:
             if (
                 self.robustness_surface is None
                 or self.abstention_reason is not None
+                or self.safe_failure_report is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported robustness surface")
+            if self.robustness_surface.scenarios != self.request.scenarios:
+                raise ValueError("evaluated surface scenarios must equal the request scenarios")
+            if self.robustness_surface.configuration != self.request.configuration:
+                raise ValueError(
+                    "evaluated surface configuration must equal the request configuration"
+                )
         elif (
             self.robustness_surface is not None
             or self.abstention_reason is None
@@ -267,6 +324,8 @@ class ComplexActivityRobustnessChallengeResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires safe failure and safe status")
+        if len(self.findings) != len({finding.finding_id for finding in self.findings}):
+            raise ValueError("result finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -274,6 +333,9 @@ class ComplexActivityRobustnessChallengeResult(FrozenModel):
 
 __all__ = [
     "M2106_CONTRACT_VERSION",
+    "M2106_DOSSIER_SHA256",
+    "M2106_DOSSIER_SLICE",
+    "M2106_EVIDENCE_CLAIM",
     "M2106_GATE",
     "M2106_M2105_INPUT_MEDIA_TYPE",
     "M2106_MAX_CANONICAL_REQUEST_BYTES",
