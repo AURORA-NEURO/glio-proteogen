@@ -247,10 +247,24 @@ def test_report_requires_unique_complete_dimensions() -> None:
             | {"validations": (duplicate, *report.validations[1:])},
             strict=True,
         )
+    missing_validations = report.validations[:-1]
+    with pytest.raises(ValidationError, match="every configured"):
+        report.__class__.model_validate(
+            report.model_dump(mode="python") | {"validations": missing_validations}, strict=True
+        )
     missing = report.evaluations[:-1]
     with pytest.raises(ValidationError, match="every configured"):
         report.__class__.model_validate(
             report.model_dump(mode="python") | {"evaluations": missing}, strict=True
+        )
+    duplicate_evaluation = report.evaluations[0].model_copy(
+        update={"dimension": report.evaluations[1].dimension}
+    )
+    with pytest.raises(ValidationError, match="evaluation dimensions must be unique"):
+        report.__class__.model_validate(
+            report.model_dump(mode="python")
+            | {"evaluations": (*report.evaluations, duplicate_evaluation)},
+            strict=True,
         )
 
 
@@ -286,3 +300,68 @@ def test_result_identity_changes_when_transport_evidence_changes() -> None:
         }
     )
     assert result_identifier(changed) != result_identifier(request)
+
+
+def test_configuration_support_and_status_closures_reject_conflicts() -> None:
+    configuration = _configuration()
+    with pytest.raises(ValidationError, match="required transport dimensions"):
+        configuration.__class__.model_validate(
+            configuration.model_dump(mode="python")
+            | {"required_dimensions": (TransportDimension.SITE, TransportDimension.SITE)},
+            strict=True,
+        )
+    evaluation = _evaluation(TransportDimension.SITE)
+    with pytest.raises(ValidationError, match="narrowed evaluation"):
+        evaluation.__class__.model_validate(
+            evaluation.model_dump(mode="python")
+            | {"status": TransportStatus.DOMAIN_NARROWED, "metric_value": 0.9},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="disjoint"):
+        SupportDomainUpdate(
+            update_id="support-domain-overlap",
+            version="0.1.0",
+            status=TransportStatus.DOMAIN_NARROWED,
+            retained_dimensions=(TransportDimension.SITE,),
+            narrowed_dimensions=(TransportDimension.SITE,),
+            rationale="overlap is unsafe",
+            evidence=(_evidence("overlap"),),
+        )
+    with pytest.raises(ValidationError, match="supported domain"):
+        SupportDomainUpdate(
+            update_id="support-domain-supported-narrowed",
+            version="0.1.0",
+            status=TransportStatus.SUPPORTED,
+            retained_dimensions=(TransportDimension.SITE,),
+            narrowed_dimensions=(TransportDimension.LAB,),
+            rationale="status conflict",
+            evidence=(_evidence("status-conflict"),),
+        )
+
+
+def test_request_and_result_validation_closures_cover_replay_identity() -> None:
+    request = _request()
+    duplicate_validation = request.validations[0].model_copy(
+        update={"dimension": request.validations[1].dimension}
+    )
+    with pytest.raises(ValidationError, match="request validation dimensions"):
+        request.__class__.model_validate(
+            request.model_dump(mode="python")
+            | {"validations": (duplicate_validation, *request.validations[1:])},
+            strict=True,
+        )
+    duplicate_evaluation = request.evaluations[0].model_copy(
+        update={"dimension": request.evaluations[1].dimension}
+    )
+    with pytest.raises(ValidationError, match="cover every configured"):
+        request.__class__.model_validate(
+            request.model_dump(mode="python")
+            | {"evaluations": (duplicate_evaluation, *request.evaluations[1:])},
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="request evaluation dimensions"):
+        request.__class__.model_validate(
+            request.model_dump(mode="python")
+            | {"evaluations": (*request.evaluations, duplicate_evaluation)},
+            strict=True,
+        )
