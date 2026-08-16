@@ -9,11 +9,16 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m20_04 import (
     M2004_M2003_INPUT_MEDIA_TYPE,
+    AdapterFindingCode,
     AdaptProteinSubtypeIntendedUseRequest,
     ClaimCeiling,
     DisplaySemantics,
     IntendedUseKind,
     IntendedUseRegistration,
+    PolicyDecision,
+    PolicyDecisionStatus,
+    ProteinSubtypeIntendedUseAdapterResult,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -27,6 +32,9 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m20_04_intended_use_adapter as m2004,
 )
 
 
@@ -57,9 +65,18 @@ def _decision(role: str, artifact: ArtifactReference) -> UpstreamDecisionReferen
 
 
 def _context() -> ExecutionContext:
-    artifacts = {role: _artifact(role) for role in (
-        "configuration", "identity", "provenance", "quality", "support", "intended_use", "consent"
-    )}
+    artifacts = {
+        role: _artifact(role)
+        for role in (
+            "configuration",
+            "identity",
+            "provenance",
+            "quality",
+            "support",
+            "intended_use",
+            "consent",
+        )
+    }
     return ExecutionContext(
         request_id="request.m2004.synthetic",
         actor_id="actor.m2004.synthetic",
@@ -141,10 +158,78 @@ def test_registration_and_policy_collections_are_closed() -> None:
         )
     with pytest.raises(ValidationError, match="registration evidence"):
         IntendedUseRegistration.model_validate(
-            registration.model_dump()
-            | {"evidence": registration.evidence + registration.evidence}
+            registration.model_dump() | {"evidence": registration.evidence + registration.evidence}
         )
 
 
 def test_contract_constants_make_authority_and_upstream_binding_explicit() -> None:
     assert _request().upstream_result.media_type == M2004_M2003_INPUT_MEDIA_TYPE
+
+
+def test_display_and_policy_collections_reject_duplicate_members() -> None:
+    registration = _registration()
+    with pytest.raises(ValidationError, match="display section order"):
+        DisplaySemantics.model_validate(
+            registration.display_semantics.model_dump() | {"section_order": ("support", "support")}
+        )
+    with pytest.raises(ValidationError, match="blocked claims"):
+        PolicyDecision(
+            status=PolicyDecisionStatus.BLOCKED,
+            reason_code=AdapterFindingCode.CLAIM_EXCEEDS_CEILING,
+            rationale="Review required.",
+            blocked_claims=("claim", "claim"),
+            evidence=registration.evidence,
+        )
+
+
+def test_result_identity_and_digest_closures_reject_tampering() -> None:
+    request = _request()
+    assert canonical_request_digest(request.model_dump()).startswith("sha256:")
+    result = m2004.M2004Engine().adapt(request)
+    payload = result.model_dump()
+    for field, message in (
+        ("request_digest", "request digest"),
+        ("result_id", "result identifier"),
+        ("result_digest", "result digest"),
+    ):
+        tampered = dict(payload)
+        tampered[field] = "sha256:" + "1" * 64 if field != "result_id" else "result.tampered"
+        with pytest.raises(ValidationError, match=message):
+            TypeAdapter(ProteinSubtypeIntendedUseAdapterResult).validate_python(
+                tampered, strict=True
+            )
+
+
+def test_result_status_closures_reject_missing_object_or_review() -> None:
+    request = _request()
+    engine = m2004.M2004Engine()
+    adapted = engine.adapt(request)
+    payload = adapted.model_dump()
+    payload["adapted_object"] = None
+    with pytest.raises(ValidationError, match="adapted result"):
+        TypeAdapter(ProteinSubtypeIntendedUseAdapterResult).validate_python(payload, strict=True)
+    blocked = engine.adapt(
+        request.model_copy(
+            update={
+                "registration": request.registration.model_copy(
+                    update={
+                        "claim_ceiling": request.registration.claim_ceiling.model_copy(
+                            update={"maximum_claim": "Treatment recommendation."}
+                        )
+                    }
+                )
+            }
+        )
+    )
+    blocked_payload = blocked.model_dump()
+    blocked_payload["findings"] = (*blocked_payload["findings"], blocked_payload["findings"][0])
+    with pytest.raises(ValidationError, match="finding ids"):
+        TypeAdapter(ProteinSubtypeIntendedUseAdapterResult).validate_python(
+            blocked_payload, strict=True
+        )
+    blocked_payload["findings"] = blocked.model_dump()["findings"]
+    blocked_payload["human_review_required"] = False
+    with pytest.raises(ValidationError, match="abstained result"):
+        TypeAdapter(ProteinSubtypeIntendedUseAdapterResult).validate_python(
+            blocked_payload, strict=True
+        )

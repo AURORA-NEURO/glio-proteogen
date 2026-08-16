@@ -102,6 +102,40 @@ def test_fastapi_strict_media_schema_and_invalid_body_errors() -> None:
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "invalid JSON request"
+    invalid_model = client.post(
+        "/v1/modules/M20-04/adapt",
+        json=_request().model_dump(mode="json") | {"upstream_result": {"media_type": "bad"}},
+    )
+    assert invalid_model.status_code == 422
+
+
+def test_fastapi_adapt_and_verify_round_trip() -> None:
+    client = TestClient(app)
+    request = _request()
+    response = client.post("/v1/modules/M20-04/adapt", json=request.model_dump(mode="json"))
+    assert response.status_code == 200
+    verified = client.post(
+        "/v1/modules/M20-04/verify",
+        json=response.json(),
+    )
+    assert verified.status_code == 200
+    assert verified.json()["result_digest"] == response.json()["result_digest"]
+    assert (
+        client.post(
+            "/v1/modules/M20-04/verify",
+            content=b"{}",
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+    assert (
+        client.post(
+            "/v1/modules/M20-04/verify",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
 
 
 def test_typer_no_overwrite_and_unknown_schema_are_safe(tmp_path) -> None:
@@ -114,3 +148,26 @@ def test_typer_no_overwrite_and_unknown_schema_are_safe(tmp_path) -> None:
     result = runner.invoke(m2004_app, ["adapt", str(request_path), "--output", str(output)])
     assert result.exit_code != 0
     assert output.read_text(encoding="utf-8") == "existing"
+
+
+def test_typer_adapt_and_verify_round_trip(tmp_path) -> None:
+    runner = CliRunner()
+    request_path = tmp_path / "request.json"
+    request_path.write_text(json.dumps(_request().model_dump(mode="json")), encoding="utf-8")
+    result_path = tmp_path / "result.json"
+    adapted = runner.invoke(m2004_app, ["adapt", str(request_path), "--output", str(result_path)])
+    assert adapted.exit_code == 0
+    verified = runner.invoke(m2004_app, ["verify", str(result_path)])
+    assert verified.exit_code == 0
+    assert (
+        json.loads(verified.stdout)["result_digest"]
+        == json.loads(result_path.read_text(encoding="utf-8"))["result_digest"]
+    )
+    printed = runner.invoke(m2004_app, ["adapt", str(request_path)])
+    assert printed.exit_code == 0
+    bad_request = tmp_path / "bad.json"
+    bad_request.write_text("{}", encoding="utf-8")
+    assert runner.invoke(m2004_app, ["adapt", str(bad_request)]).exit_code != 0
+    bad_result = tmp_path / "bad-result.json"
+    bad_result.write_text("{}", encoding="utf-8")
+    assert runner.invoke(m2004_app, ["verify", str(bad_result)]).exit_code != 0
