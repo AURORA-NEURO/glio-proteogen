@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import math
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from glio_proteogen.contracts.m22_03.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -29,6 +31,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from dossier lines 7684-7724.
 M2203_MODULE_ID: Final = "GLIO-PROTEOGEN-M22-03"
+M2203_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2203_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7684-7724"
 M2203_OPERATION: Final = "run_protein_rna_discordance_internal_benchmark"
 M2203_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2203_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m22-03+json"
@@ -47,6 +53,12 @@ M2203_MAX_FINDINGS: Final = 64
 M2203_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2203_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 _M2203_SCORE_TOLERANCE: Final = 1e-12
+
+
+def _finite(value: float) -> float:
+    if not math.isfinite(value):
+        raise ValueError("numeric benchmark fields must be finite")
+    return value
 
 
 class ValidationStatus(StrEnum):
@@ -96,6 +108,10 @@ class BenchmarkMetric(FrozenModel):
     status: ValidationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2203_MAX_EVIDENCE)
 
+    _finite_values = field_validator(
+        "baseline_value", "candidate_value", "tolerance", mode="before"
+    )(_finite)
+
 
 class BaselineRun(FrozenModel):
     run_id: Identifier
@@ -104,6 +120,15 @@ class BaselineRun(FrozenModel):
     compute_units: float = Field(ge=0.0)
     metrics: tuple[BenchmarkMetric, ...] = Field(min_length=1, max_length=M2203_MAX_METRICS)
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2203_MAX_EVIDENCE)
+
+    _finite_compute = field_validator("compute_units", mode="before")(_finite)
+
+    @model_validator(mode="after")
+    def metrics_are_closed(self) -> BaselineRun:
+        ids = tuple(metric.metric_id for metric in self.metrics)
+        if len(ids) != len(set(ids)):
+            raise ValueError("baseline metric ids must be unique")
+        return self
 
 
 class ComponentAblation(FrozenModel):
@@ -115,6 +140,14 @@ class ComponentAblation(FrozenModel):
     compute_units: float = Field(ge=0.0)
     status: ValidationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2203_MAX_EVIDENCE)
+
+    _finite_scores = field_validator(
+        "with_component_score",
+        "without_component_score",
+        "score_delta",
+        "compute_units",
+        mode="before",
+    )(_finite)
 
     @model_validator(mode="after")
     def score_delta_is_canonical(self) -> ComponentAblation:
@@ -135,6 +168,15 @@ class ComputeMatchedComparison(FrozenModel):
     candidate_score: float
     status: ValidationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2203_MAX_EVIDENCE)
+
+    _finite_values = field_validator(
+        "reference_compute_units",
+        "candidate_compute_units",
+        "compute_tolerance",
+        "reference_score",
+        "candidate_score",
+        mode="before",
+    )(_finite)
 
     @model_validator(mode="after")
     def compute_is_matched(self) -> ComputeMatchedComparison:
@@ -169,6 +211,20 @@ class BenchmarkDossier(FrozenModel):
         )
         if len(ids) != len(set(ids)):
             raise ValueError("benchmark dossier ids must be unique")
+        run_ids = {item.run_id for item in self.baselines}
+        baseline_kinds = {item.kind for item in self.baselines}
+        if baseline_kinds != {BaselineKind.SIMPLE, BaselineKind.MATURE}:
+            raise ValueError("benchmark dossier requires exactly simple and mature baselines")
+        if any(
+            comparison.reference_run_id not in run_ids or comparison.candidate_run_id not in run_ids
+            for comparison in self.comparisons
+        ):
+            raise ValueError("compute comparisons must reference known baselines")
+        nested_metric_ids = tuple(
+            metric.metric_id for baseline in self.baselines for metric in baseline.metrics
+        )
+        if len(nested_metric_ids) != len(set(nested_metric_ids)):
+            raise ValueError("nested baseline metric ids must be unique")
         return self
 
 
@@ -200,6 +256,22 @@ class RunProteinRnaDiscordanceInternalBenchmarkRequest(FrozenModel):
     def request_is_bound(self) -> RunProteinRnaDiscordanceInternalBenchmarkRequest:
         if self.upstream_result.media_type != M2203_M2202_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M22-02 synthetic truth result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must match request id")
+        artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
+        if self.upstream_result.artifact_id not in set(artifact_ids):
+            raise ValueError("source artifacts must include the upstream result")
+        baseline_kinds = {baseline.kind for baseline in self.baseline_runs}
+        if baseline_kinds != {BaselineKind.SIMPLE, BaselineKind.MATURE}:
+            raise ValueError("request requires exactly simple and mature baselines")
+        run_ids = {baseline.run_id for baseline in self.baseline_runs}
+        if any(
+            comparison.reference_run_id not in run_ids or comparison.candidate_run_id not in run_ids
+            for comparison in self.comparisons
+        ):
+            raise ValueError("request comparisons must reference known baselines")
         return self
 
 
@@ -229,6 +301,15 @@ class ProteinRnaDiscordanceInternalBenchmarkResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceInternalBenchmarkResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id does not match deterministic request identity")
+        if self.provenance.module_id != M2203_MODULE_ID:
+            raise ValueError("provenance module id must identify M22-03")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("benchmark finding ids must be unique")
         if self.status is BenchmarkStatus.COMPLETED:
             if (
                 self.dossier is None
@@ -250,6 +331,8 @@ class ProteinRnaDiscordanceInternalBenchmarkResult(FrozenModel):
 
 __all__ = [
     "M2203_CONTRACT_VERSION",
+    "M2203_DOSSIER_SHA256",
+    "M2203_DOSSIER_SLICE",
     "M2203_GATE",
     "M2203_M2202_INPUT_MEDIA_TYPE",
     "M2203_MAX_ABLATIONS",
