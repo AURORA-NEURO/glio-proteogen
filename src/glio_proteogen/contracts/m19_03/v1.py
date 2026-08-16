@@ -282,8 +282,6 @@ class ProteotypeIntegratedEvidenceResult(FrozenModel):
             ):
                 raise ValueError("integrated result requires supported attributable sources")
             integrated_evidence = self.integrated_evidence
-            if integrated_evidence is None:
-                raise ValueError("integrated result requires an integrated object")
             if integrated_evidence.contributions != self.request.contributions:
                 raise ValueError("integrated result must preserve exact source contributions")
             if integrated_evidence.disagreements != self.request.disagreements:

@@ -119,6 +119,25 @@ def test_tampered_result_digest_is_rejected() -> None:
         M1903Engine().replay(tampered)
 
 
+def test_duplicate_source_artifact_is_deduplicated_by_runtime() -> None:
+    request = _request()
+    duplicated = request.model_copy(
+        update={"source_artifacts": (*request.source_artifacts, request.source_artifacts[0])}
+    )
+    result = M1903Engine().adapt(duplicated)
+
+    assert result.status is FusionStatus.INTEGRATED
+    assert result.integrated_evidence is not None
+
+
+def test_service_and_plugin_validation_entrypoints_are_strict() -> None:
+    request = _request()
+    plugin = M1903Plugin()
+
+    assert M1903Service().validate_request(request) == request
+    assert plugin.validate_request(request) == request
+
+
 def test_service_and_plugin_use_same_canonical_runtime() -> None:
     request = _request()
     service_result = M1903Service().fuse(request)
