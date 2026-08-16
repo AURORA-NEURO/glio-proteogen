@@ -121,6 +121,7 @@ def _package(**changes: object) -> RetirementPackage:
         "communications": (_communication(),),
         "archive": _archive(),
         "configuration": _configuration(),
+        "package_digest": "sha256:" + "e" * 64,
         "evidence": (_evidence(),),
     }
     values.update(changes)

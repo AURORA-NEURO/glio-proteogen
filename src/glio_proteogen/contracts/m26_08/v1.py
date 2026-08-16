@@ -115,7 +115,7 @@ class EvidencePreservation(FrozenModel):
     preservation_id: Identifier
     artifact: ArtifactReference
     retention_class: NonEmptyStr
-    checksum_verified: Literal[True] = True
+    checksum_verified: bool = True
     retrievable: bool
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2608_MAX_EVIDENCE)
 
@@ -188,6 +188,7 @@ class RetirementPackage(FrozenModel):
     )
     archive: LongTermArchive
     configuration: RetirementConfiguration
+    package_digest: Sha256Digest
     locked: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2608_MAX_EVIDENCE)
 
