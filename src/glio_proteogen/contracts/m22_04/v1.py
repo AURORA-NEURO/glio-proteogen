@@ -208,6 +208,11 @@ class TransportabilityReport(FrozenModel):
             raise ValueError("transport evaluation dimensions must be unique")
         if len(validation_dims) != len(self.validations):
             raise ValueError("transport validation dimensions must be unique")
+        support_dims = set(self.support_domain.retained_dimensions) | set(
+            self.support_domain.narrowed_dimensions
+        )
+        if support_dims != required_dimensions:
+            raise ValueError("support-domain update must close every configured dimension")
         return self
 
 
