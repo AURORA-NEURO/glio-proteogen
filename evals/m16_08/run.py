@@ -1,6 +1,6 @@
 """Deterministic M16-08 evaluator over frozen monitoring scenarios."""
 
-# ruff: noqa: E501, PLR0913, PLR0917, TRY003, T201
+# ruff: noqa: E501, PLR0913, TRY003, T201
 
 from __future__ import annotations
 
@@ -173,8 +173,13 @@ def _signal(
 
 def healthy_signal() -> HealthSignal:
     return _signal(
-        "signal.support", HealthSignalKind.SUPPORT_DRIFT, "support proportion", 0.95,
-        HealthSignalStatus.WITHIN_ENVELOPE, 0.80, 1.0
+        "signal.support",
+        HealthSignalKind.SUPPORT_DRIFT,
+        "support proportion",
+        0.95,
+        HealthSignalStatus.WITHIN_ENVELOPE,
+        0.80,
+        1.0,
     )
 
 
@@ -320,8 +325,7 @@ def run_evaluator() -> dict[str, object]:
         "passed_cases": sum(item.passed for item in checks),
         "total_cases": len(checks),
         "checks": [
-            {"name": item.name, "passed": item.passed, "detail": item.detail}
-            for item in checks
+            {"name": item.name, "passed": item.passed, "detail": item.detail} for item in checks
         ],
         "passed": len(checks) == len(case_ids) and all(item.passed for item in checks),
         "schema_count": len(contract_json_schemas()),
