@@ -1,0 +1,11 @@
+{
+  "module": "GLIO-PROTEOGEN-M08-01",
+  "contract_version": "0.1.0-provisional",
+  "scenarios": [
+    {"name": "observed-satisfied", "expected": "valid"},
+    {"name": "observed-violated", "expected": "invalid"},
+    {"name": "missing-abstain", "expected": "abstained"},
+    {"name": "unknown-expression-abstain", "expected": "abstained"},
+    {"name": "withheld-consent", "expected": "authorization_error"}
+  ]
+}
