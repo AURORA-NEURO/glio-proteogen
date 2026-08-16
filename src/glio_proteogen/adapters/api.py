@@ -337,6 +337,15 @@ from glio_proteogen.contracts.m13_06.v1 import (
     ProteotypePerturbationSensitivityResult,
     SimulateProteotypePerturbationRequest,
 )
+from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
+from glio_proteogen.contracts.m14_03.schema import (
+    contract_json_schema as m1403_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_03.v1 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+    ProteinSubtypeMechanisticFeatureResult,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -529,6 +538,9 @@ from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity impor
     M1306Service,
     preflight_m1306_authorization,
 )
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -557,6 +569,7 @@ _M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineReq
 _M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
 _M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
 _M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
+_M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -739,6 +752,10 @@ def _m0606_uncertainty_contract_schema(
 
 def _m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
     return m1306_contract_json_schema(name)
+
+
+def _m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+    return m1403_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -980,6 +997,15 @@ def _m1306_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m1306_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1403_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1403_contract_json_schema("request")}},
         }
     }
 
@@ -1273,6 +1299,17 @@ async def _m1306_body(request: Request) -> SimulateProteotypePerturbationRequest
     )
 
 
+async def _m1403_body(
+    request: Request,
+) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
+    return await _strict_json_body(
+        request,
+        _M1403_ADAPTER,
+        m1403_module.preflight_m1403_authorization,
+        M1403_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1305,6 +1342,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     probabilistic_estimator_service = M0604Service()
     m0606_service = M0606Service()
     m1306_service = M1306Service()
+    m1403_service = m1403_module.M1403Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1357,6 +1395,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
     @app.exception_handler(M0606UncertaintyDecompositionAuthorizationError)
     @app.exception_handler(M1306AuthorizationError)
+    @app.exception_handler(m1403_module.M1403AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -1750,6 +1789,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteotypePerturbationSensitivityResult:
         return m1306_service.execute(request)
+
+    @app.get("/v1/contracts/M14-03/{name}/schema", tags=["contracts"])
+    def m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+        return _m1403_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M14-03/mechanistic-feature-construction",
+        response_model=ProteinSubtypeMechanisticFeatureResult,
+        tags=["M14-03"],
+        openapi_extra=_m1403_request_body(),
+    )
+    def construct_m1403_features(
+        request: Annotated[
+            ConstructProteinSubtypeMechanisticFeaturesRequest,
+            Depends(_m1403_body),
+        ],
+    ) -> ProteinSubtypeMechanisticFeatureResult:
+        return m1403_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
