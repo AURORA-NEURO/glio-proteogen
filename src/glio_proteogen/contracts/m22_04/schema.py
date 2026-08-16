@@ -8,7 +8,10 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m22_04.v1 import (
     M2204_CONTRACT_VERSION,
+    M2204_DOSSIER_SHA256,
     M2204_GATE,
+    M2204_M2202_INPUT_MEDIA_TYPE,
+    M2204_M2203_INPUT_MEDIA_TYPE,
     M2204_MAX_CANONICAL_REQUEST_BYTES,
     M2204_MODULE_ID,
     M2204_OUTPUT_MEDIA_TYPE,
@@ -72,6 +75,12 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "kinaseActivity": False,
         "treatmentRecommendation": False,
         "parentTarget": M2204_PARENT,
+        "dossierSha256": M2204_DOSSIER_SHA256,
+        "dossierSlice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7728-7768",
+        "upstreamInputMediaTypes": (
+            M2204_M2202_INPUT_MEDIA_TYPE,
+            M2204_M2203_INPUT_MEDIA_TYPE,
+        ),
         "unsupportedToNegative": False,
         "outputMediaType": M2204_OUTPUT_MEDIA_TYPE,
         "primaryArchitecture": "distributed_simulation_continuous_challenge",
