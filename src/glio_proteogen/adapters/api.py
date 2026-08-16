@@ -308,6 +308,12 @@ from glio_proteogen.contracts.m05_02.v1 import (
     PtmLocalizationIdentityLineageResolution,
     ReconcilePtmLocalizationIdentityLineageRequest,
 )
+from glio_proteogen.contracts.m05_03.schema import (
+    ContractName as M0503ContractName,
+)
+from glio_proteogen.contracts.m05_03.schema import (
+    contract_json_schema as m0503_contract_json_schema,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -674,6 +680,12 @@ def _ptm_localization_lineage_contract_schema(
     name: M0502ContractName,
 ) -> dict[str, object]:
     return m0502_contract_json_schema(name)
+
+
+def _ptm_localization_raw_contract_schema(
+    name: M0503ContractName,
+) -> dict[str, object]:
+    return m0503_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1552,6 +1564,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0502ContractName,
     ) -> dict[str, object]:
         return _ptm_localization_lineage_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-03/{name}/schema", tags=["contracts"])
+    def ptm_localization_raw_contract_schema(
+        name: M0503ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_raw_contract_schema(name)
 
     @app.post(
         "/v1/modules/M05-02/identity-lineage-reconciliation",
