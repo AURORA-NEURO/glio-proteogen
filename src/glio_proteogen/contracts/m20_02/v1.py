@@ -134,6 +134,8 @@ class AlignmentConfiguration(FrozenModel):
 
     @model_validator(mode="after")
     def all_dimensions_are_required(self) -> AlignmentConfiguration:
+        if len(set(self.required_dimensions)) != M2002_MAX_DIMENSIONS:
+            raise ValueError("alignment configuration dimensions must be unique")
         if set(self.required_dimensions) != set(AlignmentDimension):
             raise ValueError("alignment configuration must require all seven dimensions")
         return self
@@ -167,6 +169,15 @@ class AlignedEvidenceBundle(FrozenModel):
         for discrepancy in self.discrepancies:
             if not set(discrepancy.source_ids) <= allowed:
                 raise ValueError("alignment entry references an unknown source artifact")
+        observed_dimensions = {item.dimension for item in self.observations}
+        if observed_dimensions != set(AlignmentDimension):
+            raise ValueError("alignment bundle must cover all seven dimensions")
+        if any(
+            discrepancy.resolution is None
+            for discrepancy in self.discrepancies
+            if discrepancy.severity is DiscrepancySeverity.CRITICAL
+        ):
+            raise ValueError("critical discrepancies require an explicit resolution")
         return self
 
 
@@ -235,20 +246,38 @@ class ProteinSubtypeAlignmentResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeAlignmentResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier must be derived from request digest")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("alignment finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("alignment result evidence digests must be unique")
         if self.status is AlignmentStatus.ALIGNED:
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("aligned result requires a supported evidence bundle")
+            if any(
+                item.status is not AlignmentObservationStatus.ALIGNED
+                for item in self.aligned_bundle.observations
+            ):
+                raise ValueError("aligned result cannot contain conflicted observations")
+            if any(item.resolution is None for item in self.aligned_bundle.discrepancies):
+                raise ValueError("aligned result requires every discrepancy to be resolved")
         elif (
             self.aligned_bundle is not None
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
-            raise ValueError("abstained result requires no bundle and safe status")
+            raise ValueError("abstained result requires no bundle, safe status, and review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
