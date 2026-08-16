@@ -1,0 +1,14 @@
+requirement_id,dossier_source,requirement,implementation,evidence,evidence_gate
+M17-01-R01,"dossier:5796-5798","Own typed upstream contract resolution beneath variant peptide","M1701 contract identity, operation, parent ceiling, and provisional ABI metadata","contract authority assertions; schema metadata",G0
+M17-01-R02,"dossier:5798-5802","Resolve MS proteome, genome/transcriptome, PTM, configuration, and control declarations","strict UpstreamCandidate, ResolverConfiguration, and ExecutionContext models","contract tests; runtime fixtures",G0
+M17-01-R03,"dossier:5802","Preserve version/media/intended-use compatibility and typed rejection","CompatibilityRule, CompatibilityDecision, and closed CompatibilityReport","mixed scenario; media mismatch oracle",G0
+M17-01-R04,"dossier:5802-5804","Require consent, support, provenance, and identity controls","seven-control preflight before typed traversal and candidate selection","control denial matrix; API 403",G0
+M17-01-R05,"dossier:5804","Preserve uncertainty, support, provenance, evidence, limitations, and abstention","closed result envelope with seven not-estimable dimensions and review-required abstention","uncertainty and abstention tests",G0
+M17-01-R06,"dossier:5804-5806","Do not infer identity/consent, mutate upstream, erase disagreement, or convert unknown to negative","typed findings, no parent emission, explicit unknown/review state, no content traversal","authority plugin test; evaluator privacy oracle",G0
+M17-01-R07,"dossier:5806-5808","Record primary/alternate/fallback architectures without claiming execution","manifest marks Bayesian/PCA/ICA architectures declared_not_executed","manifest and dependency audit",G0
+M17-01-R08,"dossier:5808-5814","Require explicit human review for discrepancy, OOD, override, promotion, exception, conflict","human_review_required on unknown/abstained paths and external reviewer plan","evaluator adversarial coverage; manifest review plan",G0
+M17-01-R09,"dossier:5814-5818","Provide versioned implementation, interfaces, fixtures, and benchmark","engine/service/plugin, FastAPI, Typer, scenario corpus, benchmark","runtime/interface/evaluator suites",G0
+M17-01-R10,"dossier:5818-5822","Make outputs replay-safe and tamper-evident","canonical request/result digests and replay verifier","tamper replay test; benchmark digests",G0
+M17-01-R11,"dossier:5822-5826","Exercise adversarial boundary cases with at least 95% coverage","eight locked cases covering unknown, rejection, media, and each control denial","eval report 8/8 = 100%",G0
+M17-01-R12,"dossier:5826-5830","Expose strict schema, API, CLI, and plugin surfaces","nine schema names, API GET/POST, CLI commands, descriptor","interface parity tests",G0
+M17-01-R13,"dossier:5830-5836","Publish traceability, release evidence, reviewer sign-off, and rollback plan","module/evidence docs, CSV matrix, external-review and append-only recovery plan","docs inventory and release workflow",G0

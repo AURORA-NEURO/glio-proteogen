@@ -1,0 +1,14 @@
+requirement_id,requirement,contract_or_algorithm,executable_evidence,gate
+M17-03-R01,"Bind fusion to the exact provisional M17-02 alignment result","media/version/artifact binding","request contract and alignment mismatch tests",G0
+M17-03-R02,"Preserve component-specific source identity and attribution","SourceContribution and IntegratedEvidenceObject closure","healthy integration and attribution assertions",G1
+M17-03-R03,"Require reliability score and matching reliability band","band-specific score thresholds","reliability adversarial tests",G0
+M17-03-R04,"Keep source disagreement visible and reviewable","DisagreementRecord plus open-disagreement review closure","disagreement evaluator and state tests",G3
+M17-03-R05,"Retain signed propagation without unknown-source references","SignedPropagationRecord and reference closure","propagation adversarial tests",G1
+M17-03-R06,"Abstain when a contribution is not evaluable","no-integrated-object safe-abstention semantics","unsupported evaluator and result closure tests",G3
+M17-03-R07,"Reject denied identity, consent, quality, support, and intended-use controls","authorization-first seven-control preflight","authorization evaluator and hostile-object test",G0
+M17-03-R08,"Expose measurement, sampling, parameter, model-form, identification, support, and transport uncertainty","UncertaintyProfile construction","runtime result and schema evidence",G3
+M17-03-R09,"Bind result to exact request and replay","canonical request/result SHA-256 digests","replay/tamper service and plugin tests",G3
+M17-03-R10,"Keep API, CLI, service, plugin, and library semantics aligned","strict parse-once adapters and tokenized plugin","FastAPI/Typer/service parity tests",G1
+M17-03-R11,"Reject generic all-omics, kinase, treatment, identity, and unsupported-negative outputs","descriptor, metadata, parent ceiling, and limitations","schema/descriptor assertions and manifest",G4
+M17-03-R12,"Provide reproducible evaluation and latency evidence","frozen fixture and benchmark wrapper","6/6 evaluator and 10-call benchmark",G1
+M17-03-R13,"Provide a reviewable provisional package","coverage, wheel/sdist, isolated import, verifier","release evidence and package verifier",G4
