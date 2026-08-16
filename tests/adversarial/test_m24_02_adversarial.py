@@ -12,13 +12,18 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m24_02 import (
+    BiomarkerPanelSyntheticTruthResult,
     GenerateBiomarkerPanelSyntheticTruthRequest,
+    GenerationStatus,
+    GeneratorFinding,
+    GeneratorFindingCode,
     SyntheticTruthCorpus,
     canonical_request_digest,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c21_reference_material import (
     m24_02_synthetic_truth_simulation_generator as m2402,
@@ -145,6 +150,76 @@ def test_contract_rejects_corpus_and_manifest_case_drift() -> None:
         )
 
 
+def test_contract_rejects_duplicate_corpus_cases_and_forged_result_closure() -> None:
+    service = m2402.M2402Service()
+    result = service.generate(_request())
+    assert result.corpus is not None
+    duplicate_cases = (result.corpus.cases[0], result.corpus.cases[0])
+    with pytest.raises(ValidationError, match="case ids must be unique"):
+        SyntheticTruthCorpus.model_validate(
+            result.corpus.model_dump(mode="python") | {"cases": duplicate_cases},
+            strict=True,
+        )
+
+    invalid_results: tuple[dict[str, object], ...] = (
+        {"request_digest": "sha256:" + "0" * 64},
+        {"result_id": "result.forged"},
+        {
+            "provenance": result.provenance.model_copy(
+                update={"module_id": "GLIO-PROTEOGEN-M24-03"}
+            ),
+        },
+        {
+            "provenance": result.provenance.model_copy(
+                update={"input_digests": ("sha256:" + "0" * 64,)}
+            )
+        },
+        {
+            "findings": (
+                GeneratorFinding(
+                    finding_id="m2402.finding",
+                    code=GeneratorFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+                    message="review",
+                ),
+            )
+            * 2
+        },
+        {"corpus": None, "manifest": None},
+    )
+    for update in invalid_results:
+        with pytest.raises(ValidationError):
+            BiomarkerPanelSyntheticTruthResult.model_validate(
+                result.model_dump(mode="python") | update,
+                strict=True,
+            )
+
+    with pytest.raises(ValidationError, match="abstained result"):
+        BiomarkerPanelSyntheticTruthResult.model_validate(
+            result.model_dump(mode="python")
+            | {
+                "status": GenerationStatus.ABSTAINED,
+                "abstention_reason": "review required",
+            },
+            strict=True,
+        )
+    abstained_payload = result.model_dump(mode="python")
+    abstained_payload.update(
+        {
+            "status": GenerationStatus.ABSTAINED,
+            "corpus": None,
+            "manifest": None,
+            "abstention_reason": "upstream unsupported",
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.UNSUPPORTED}
+            ),
+        }
+    )
+    provisional = BiomarkerPanelSyntheticTruthResult.model_construct(**abstained_payload)
+    abstained_payload["result_digest"] = result_payload_digest(provisional)
+    abstained = BiomarkerPanelSyntheticTruthResult.model_validate(abstained_payload, strict=True)
+    assert abstained.status is GenerationStatus.ABSTAINED
+
+
 def test_api_rejects_nonobject_duplicate_and_tampered_verify_payloads() -> None:
     request = _request()
     client = TestClient(m2402.create_app(m2402.M2402Service()))
@@ -206,6 +281,25 @@ def test_cli_rejects_bad_input_and_preserves_existing_output(tmp_path: Path) -> 
     )
     assert duplicate.exit_code != 0
     assert output_path.read_bytes() == original
+
+
+def test_cli_sanitizes_denied_validation_and_generation(tmp_path: Path) -> None:
+    request = _request()
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    references = request.context.references.model_copy(update={"support": support})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
+    request_path = tmp_path / "denied.json"
+    request_path.write_bytes(canonical_json_bytes(denied))
+    runner = CliRunner()
+    validated = runner.invoke(m2402.cli.app, ["validate", str(request_path)])
+    generated = runner.invoke(m2402.cli.app, ["generate", str(request_path)])
+    assert validated.exit_code != 0
+    assert generated.exit_code != 0
+    assert "Traceback" not in generated.output
 
 
 def test_public_entrypoint_matches_engine_and_json_boundary() -> None:
