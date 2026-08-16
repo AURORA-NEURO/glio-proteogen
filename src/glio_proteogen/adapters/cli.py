@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1803_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
@@ -165,6 +166,10 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m18_03 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    FuseBiomarkerPanelEvidenceRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -350,6 +355,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -516,6 +524,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1803_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-03 component-specific fusion and aggregation.",
+)
+app.add_typer(m1803_app, name="m1803-fusion")
 m1701_app = typer.Typer(
     no_args_is_help=True,
     help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
@@ -3516,6 +3529,40 @@ def compute_proteoform_quality_metrics(
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"proteoform quality computation failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@m1803_app.command("export-schema")
+def export_m1803_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "integrated-evidence",
+            "source-contribution",
+            "disagreement",
+            "aggregation",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M18-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M18-03 contract schema."""
+
+    typer.echo(json.dumps(_m1803_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1803_app.command("fuse")
+def fuse_m1803_evidence(request: RequestArgument) -> None:
+    """Fuse attributable component evidence or emit explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(FuseBiomarkerPanelEvidenceRequest),
+        m1803_fusion.preflight_m1803_authorization,
+        M1803_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1803_fusion.M1803Service().fuse(parsed))
 
 
 @m1701_app.command("export-schema")

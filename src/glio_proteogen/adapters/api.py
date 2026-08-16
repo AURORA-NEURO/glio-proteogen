@@ -275,6 +275,17 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
+from glio_proteogen.contracts.m18_03.schema import (
+    ContractName as M1803ContractName,
+)
+from glio_proteogen.contracts.m18_03.schema import (
+    contract_json_schema as m1803_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_03.v1 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelIntegratedEvidenceResult,
+    FuseBiomarkerPanelEvidenceRequest,
+)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -528,6 +539,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -585,6 +599,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M1803_REQUEST_ADAPTER: Final = TypeAdapter(FuseBiomarkerPanelEvidenceRequest)
 _M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
 _M1704_REQUEST_ADAPTER: Final = TypeAdapter(AdaptVariantPeptideIntendedUseRequest)
 _M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
@@ -747,6 +762,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m1803_contract_schema(name: M1803ContractName) -> dict[str, object]:
+    return m1803_contract_json_schema(name)
 
 
 def _m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
@@ -974,6 +993,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1803_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1803_contract_json_schema("request")}},
         }
     }
 
@@ -1287,6 +1315,17 @@ async def _proteoform_quality_body(
     )
 
 
+async def _m1803_body(
+    request: Request,
+) -> FuseBiomarkerPanelEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1803_REQUEST_ADAPTER,
+        m1803_fusion.preflight_m1803_authorization,
+        M1803_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
 def _m1603_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -1424,6 +1463,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_protocol_service = M0401Service()
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
+    m1803_service = m1803_fusion.M1803Service()
     m1606_queue_service = M1606Service()
     m1603_service = m1603.M1603Service()
     m1508_service = m1508.M1508Service()
@@ -1480,6 +1520,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformProtocolAuthorizationError)
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
+    @app.exception_handler(m1803_fusion.M1803AuthorizationError)
     @app.exception_handler(m1603.M1603AuthorizationError)
     @app.exception_handler(m1508.M1508AuthorizationError)
     @app.exception_handler(m1502_module.M1502AuthorizationError)
@@ -1764,6 +1805,24 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         name: M0404ContractName,
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
+
+    @app.get("/v1/contracts/M18-03/{name}/schema", tags=["contracts"])
+    def m1803_contract_schema(name: M1803ContractName) -> dict[str, object]:
+        return _m1803_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M18-03/fusion",
+        response_model=BiomarkerPanelIntegratedEvidenceResult,
+        tags=["M18-03"],
+        openapi_extra=_m1803_request_body(),
+    )
+    def fuse_m1803_evidence(
+        request: Annotated[
+            FuseBiomarkerPanelEvidenceRequest,
+            Depends(_m1803_body),
+        ],
+    ) -> BiomarkerPanelIntegratedEvidenceResult:
+        return m1803_service.fuse(request)
 
     @app.get("/v1/contracts/M17-01/{name}/schema", tags=["contracts"])
     def m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
