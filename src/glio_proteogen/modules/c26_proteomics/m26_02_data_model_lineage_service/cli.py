@@ -107,12 +107,14 @@ def construct(
         typer.echo(json.dumps({"valid": False, "errors": [{"msg": str(error)}]}), err=True)
         raise typer.Exit(code=2) from error
     encoded = json.dumps(result.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+    if result.status.value != "built":
+        if output is None:
+            typer.echo(encoded, nl=False)
+        raise typer.Exit(code=3)
     if output is None:
         typer.echo(encoded, nl=False)
     else:
         output.write_text(encoded, encoding="utf-8", newline="\n")
-    if result.status.value != "built":
-        raise typer.Exit(code=3)
 
 
 @app.command("verify")
