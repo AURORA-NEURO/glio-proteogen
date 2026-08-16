@@ -1,0 +1,15 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M18-06-R01,dossier:6376-6379,Own reviewer discrepancy and adjudication queue beneath spatial proteomics projection,module identity and operation constants,authority and contract tests,G4
+M18-06-R02,dossier:6380-6384,Preserve structured disagreement and reason codes,typed queue entries and finding codes,runtime nominal and duplicate-ID cases,G4
+M18-06-R03,dossier:6385-6388,Support blinded review and explicit reviewer assignments,opaque reviewer tokens and blinded=true assignments,runtime and interface parity tests,G4
+M18-06-R04,dossier:6389-6392,Escalate critical unresolved or deferred review,critical finding precedence and escalated record,runtime deferred-critical evaluator case,G4
+M18-06-R05,dossier:6393-6396,Resolve only closed evaluable assignments,closed record validator and resolution summary,runtime resolved record case,G4
+M18-06-R06,dossier:6397-6400,Retain immutable versioned adjudication history,sequential evidence-bound locked audit events,replay and history assertions,G4
+M18-06-R07,dossier:6401-6404,Return support uncertainty provenance evidence and limitations,result envelope with seven not-estimable dimensions,contract and evaluator evidence,G4
+M18-06-R08,dossier:6405-6407,Abstain explicitly on unsupported or non-evaluable input,abstained result without record and review-required support,missing-assignment and non-evaluable cases,G4
+M18-06-R09,dossier:6408-6410,Require human review for critical/OOD/override/release exceptions,human_review_required and escalation semantics,adversarial evaluator corpus,G4
+M18-06-R10,dossier:6411-6416,Provide versioned implementation tests benchmark traceability and release evidence,provisional schemas API CLI plugin eval benchmark docs,focused gates and workflow evidence,G4
+M18-06-R11,locked-boundary,no kinase all-omics treatment mutation identity consent inference or disagreement erasure,literal false authority flags and bounded plugin descriptor,plugin and recursive result assertions,G4
+M18-06-R12,locked-boundary,Reject wrong upstream media and preserve no-negative semantics,strict M18-05 media validator and typed findings,contract/runtime/interface rejection tests,G4
+M18-06-R13,locked-risk,replay must detect request or result tampering,canonical request/result digest recomputation,replay tamper evaluator and plugin replay,G4
+M18-06-R14,locked-risk,Adversarial coverage must meet 95 percent,6/6 adversarial checks pass and 100% reported coverage,evals.m18_06.run and evidence test,G4
