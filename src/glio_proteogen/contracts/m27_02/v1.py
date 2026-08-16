@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_02.canonical import (
     canonical_request_digest,
+    graph_payload_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -135,6 +136,10 @@ class ReproducibilityBundle(FrozenModel):
             raise ValueError("bundle node ids must be unique")
         if len(self.edge_ids) != len(set(self.edge_ids)):
             raise ValueError("bundle edge ids must be unique")
+        if self.root_node_id not in self.node_ids:
+            raise ValueError("bundle root must be included in bundle node ids")
+        if len(self.producing_versions) != len(set(self.producing_versions)):
+            raise ValueError("bundle producing versions must be unique")
         return self
 
 
@@ -168,6 +173,19 @@ class LineageGraph(FrozenModel):
             raise ValueError("bundle references an unknown lineage node")
         if not set(self.reproducibility_bundle.edge_ids).issubset(set(edge_ids)):
             raise ValueError("bundle references an unknown lineage edge")
+        parents: dict[str, str] = {}
+        for edge in self.edges:
+            if edge.target_node_id in parents:
+                raise ValueError("lineage graph cannot have multiple incoming links")
+            parents[edge.target_node_id] = edge.source_node_id
+        for node_id in node_set:
+            seen: set[str] = set()
+            current = node_id
+            while current in parents:
+                if current in seen:
+                    raise ValueError("lineage graph cannot contain a directed cycle")
+                seen.add(current)
+                current = parents[current]
         return self
 
 
@@ -210,6 +228,8 @@ class ResolveComplexActivityLineageRequest(FrozenModel):
     def request_is_bound(self) -> ResolveComplexActivityLineageRequest:
         if self.upstream_result.media_type != M2702_M2701_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M27-01 search result")
+        if self.upstream_result not in self.source_artifacts:
+            raise ValueError("upstream result must be included in source artifacts")
         return self
 
 
@@ -248,6 +268,11 @@ class ComplexActivityLineageResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("resolved result requires a supported lineage graph")
+            if (
+                self.lineage_graph.reproducibility_bundle.manifest_digest
+                != graph_payload_digest(self.lineage_graph)
+            ):
+                raise ValueError("resolved result bundle does not bind graph content")
         elif (
             self.lineage_graph is not None
             or self.safe_failure_report is None

@@ -36,8 +36,15 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def graph_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
+    """Digest the exact graph bytes used by its reproducibility manifest."""
+
+    return sha256_digest(_dump(value))
+
+
 __all__ = [
     "canonical_request_digest",
+    "graph_payload_digest",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",

@@ -1,5 +1,12 @@
 """Provisional M27-02 lineage-service contract exports."""
 
+from glio_proteogen.contracts.m27_02.canonical import (
+    canonical_request_digest,
+    graph_payload_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m27_02.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -72,6 +79,11 @@ __all__ = [
     "ReproducibilityBundle",
     "ResolveComplexActivityLineageRequest",
     "SafeFailureReport",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "graph_payload_digest",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_payload_digest",
 ]
