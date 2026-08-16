@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M13-02",
+  "iterations": 10,
+  "mean_ns": 1277980,
+  "median_ns": 1186950,
+  "p95_ns": 1996500,
+  "max_ns": 1996500,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true,
+  "measurement_note": "Representative local benchmark; fixture construction excluded; ABI and scientific validity remain provisional."
+}

@@ -1,0 +1,15 @@
+requirement,implementation,evidence,gate,status
+authority handoff,provisional constants and docs,docs/evidence/M11-08.md,G0,pass
+strict schema and no coercion,contracts/m11_08/v1.py;schema.py,tests/contract/test_m11_08_contract.py,G0,pass
+reconstructable mechanism chain,MechanismEvidenceDossier and runtime closure,tests/contract/test_m11_08_runtime.py,G1,pass
+counter-evidence remains visible,CounterEvidenceRecord and claim ceiling,tests/contract/test_m11_08_runtime.py,G1,pass
+validation route and safe failure,ValidationRouteStatus and abstention,tests/contract/test_m11_08_evaluator.py,G3,pass
+seven uncertainty dimensions,expected_uncertainty and result contract,tests/contract/test_m11_08_contract.py,G3,pass
+identity consent and control safety,preflight_m1108_authorization,tests/contract/test_m11_08_runtime.py,G4,pass
+canonical replay closure,canonical.py and verify_mechanism_dossier_result,tests/contract/test_m11_08_adversarial.py,G4,pass
+strict API CLI parity,adapters/m1108.py,tests/contract/test_m11_08_interface.py,G1,pass
+adversarial robustness,duplicate hostile tamper matrix,tests/contract/test_m11_08_adversarial.py,G3,pass
+evaluator fixture closure,evals/m11_08/run.py and scenarios.json,release-evidence/m11_08/evaluation.json,G3,pass
+benchmark evidence,evals/m11_08/benchmark.py,release-evidence/m11_08/benchmark.json,G3,pass
+package reproducibility,tools/verify_m1108_release.py,release-evidence/m11_08/package.json,G4,pass
+owner approval and scientific truth,external governed review,not asserted by implementation,G4,provisional
