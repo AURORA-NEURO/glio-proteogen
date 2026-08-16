@@ -1,0 +1,39 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-07",
+  "fixture_path": "tests/fixtures/m12_07/scenarios.json",
+  "fixture_digest": "sha256:2b429822195cdfcd881ea1900d6acdb880bf57679e9c6f62079cbd65cea91e1b",
+  "declared_case_ids": [
+    "supported_high",
+    "failed_control",
+    "missing_observation",
+    "direction_mismatch",
+    "unresolved_conflict",
+    "denied_quality_gate",
+    "abstained_control",
+    "replay_tamper"
+  ],
+  "executed_case_ids": [
+    "supported_high",
+    "failed_control",
+    "missing_observation",
+    "direction_mismatch",
+    "unresolved_conflict",
+    "denied_quality_gate",
+    "abstained_control",
+    "replay_tamper"
+  ],
+  "declared_count": 8,
+  "executed_count": 8,
+  "passed_count": 8,
+  "passed": true,
+  "checks": [
+    {"case_id": "supported_high", "passed": true, "detail": "status=adjudicated, grade=high"},
+    {"case_id": "failed_control", "passed": true, "detail": "status=abstained, grade=None"},
+    {"case_id": "missing_observation", "passed": true, "detail": "status=abstained, grade=None"},
+    {"case_id": "direction_mismatch", "passed": true, "detail": "status=abstained, grade=None"},
+    {"case_id": "unresolved_conflict", "passed": true, "detail": "status=abstained, grade=None"},
+    {"case_id": "denied_quality_gate", "passed": true, "detail": "authorization denied"},
+    {"case_id": "abstained_control", "passed": true, "detail": "status=abstained, grade=None"},
+    {"case_id": "replay_tamper", "passed": true, "detail": "replay and tamper checks"}
+  ]
+}

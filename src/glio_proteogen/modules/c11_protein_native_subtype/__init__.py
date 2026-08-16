@@ -1,1 +1,1 @@
-"""Variant-peptide channel modules that emit typed proteotype context only."""
+"""Protein-native subtype module group."""
