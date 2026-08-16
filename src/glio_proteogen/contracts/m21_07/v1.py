@@ -5,10 +5,11 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Final, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, FiniteFloat, model_validator
 
 from glio_proteogen.contracts.m21_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -38,6 +39,10 @@ M2107_OWNER: Final = "Bioinformatics"
 M2107_SAFETY_CLASS: Final = "S3"
 M2107_GATE: Final = "G4"
 M2107_PROVISIONAL_ABI: Final = True
+M2107_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2107_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7500-7540"
 M2107_MAX_METRICS: Final = 256
 M2107_MAX_FALLBACKS: Final = 64
 M2107_MAX_EVIDENCE: Final = 64
@@ -87,9 +92,9 @@ class OperationalMetric(FrozenModel):
     metric_id: Identifier
     dimension: OperationalDimension
     metric_name: NonEmptyStr
-    observed_value: float
-    target_value: float
-    tolerance: float = Field(ge=0.0)
+    observed_value: FiniteFloat
+    target_value: FiniteFloat
+    tolerance: FiniteFloat = Field(ge=0.0)
     sample_size: int = Field(ge=1)
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2107_MAX_EVIDENCE)
@@ -99,7 +104,7 @@ class FallbackScenario(FrozenModel):
     scenario_id: Identifier
     trigger: NonEmptyStr
     fallback_path: NonEmptyStr
-    recovery_seconds: float = Field(ge=0.0)
+    recovery_seconds: FiniteFloat = Field(ge=0.0)
     fallback_available: bool
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2107_MAX_EVIDENCE)
@@ -122,6 +127,8 @@ class OperationalConfiguration(FrozenModel):
 
     @model_validator(mode="after")
     def all_dimensions_are_required(self) -> OperationalConfiguration:
+        if len(set(self.required_dimensions)) != len(self.required_dimensions):
+            raise ValueError("required operational dimensions must be unique")
         if set(self.required_dimensions) != set(OperationalDimension):
             raise ValueError("configuration must require all operational dimensions")
         return self
@@ -144,6 +151,9 @@ class HumanFactorsOperationalReport(FrozenModel):
             raise ValueError("operational metric ids must be unique")
         if len(fallback_ids) != len(set(fallback_ids)):
             raise ValueError("fallback scenario ids must be unique")
+        dimensions = {item.dimension for item in self.metrics}
+        if dimensions != set(self.configuration.required_dimensions):
+            raise ValueError("operational report must cover every configured dimension")
         return self
 
 
@@ -174,6 +184,30 @@ class EvaluateComplexActivityHumanFactorsRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateComplexActivityHumanFactorsRequest:
         if self.upstream_result.media_type != M2107_M2106_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M21-06 challenge result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        metric_ids = tuple(item.metric_id for item in self.metrics)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError("request operational metric ids must be unique")
+        if {item.dimension for item in self.metrics} != set(self.configuration.required_dimensions):
+            raise ValueError("request metrics must cover every configured dimension")
+        fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
+        if len(fallback_ids) != len(set(fallback_ids)):
+            raise ValueError("request fallback scenario ids must be unique")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-06 result")
         return self
 
 
@@ -203,6 +237,14 @@ class ComplexActivityHumanFactorsResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityHumanFactorsResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        evidence_digests = tuple(item.reference.digest for item in self.evidence)
+        if len(evidence_digests) != len(set(evidence_digests)):
+            raise ValueError("result evidence must be unique")
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
@@ -210,6 +252,12 @@ class ComplexActivityHumanFactorsResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported operational report")
+            if self.report.configuration != self.request.configuration:
+                raise ValueError("evaluated report configuration must equal the request")
+            if self.report.metrics != self.request.metrics:
+                raise ValueError("evaluated report metrics must equal the request")
+            if self.report.fallbacks != self.request.fallbacks:
+                raise ValueError("evaluated report fallbacks must equal the request")
         elif (
             self.report is not None
             or self.abstention_reason is None
@@ -224,6 +272,8 @@ class ComplexActivityHumanFactorsResult(FrozenModel):
 
 __all__ = [
     "M2107_CONTRACT_VERSION",
+    "M2107_DOSSIER_SHA256",
+    "M2107_DOSSIER_SLICE",
     "M2107_EVIDENCE_CLAIM",
     "M2107_GATE",
     "M2107_M2106_INPUT_MEDIA_TYPE",
