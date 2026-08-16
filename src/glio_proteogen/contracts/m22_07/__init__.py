@@ -1,20 +1,20 @@
-"""Provisional M09-03 mature baseline estimator contract exports."""
+"""Provisional M22-07 human-factors and operational evaluator exports."""
 
-from glio_proteogen.contracts.m09_03.canonical import (
+from glio_proteogen.contracts.m22_07.canonical import (
     canonical_request_digest,
     normalized_request,
     normalized_result_payload,
     result_identifier,
     result_payload_digest,
 )
-from glio_proteogen.contracts.m09_03.schema import (
+from glio_proteogen.contracts.m22_07.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
     ContractName,
     contract_json_schema,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m09_03.v1 import *  # noqa: F403
+from glio_proteogen.contracts.m22_07.v1 import *  # noqa: F403
 
 __all__ = [
     "CONTRACT_VERSION",
