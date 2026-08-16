@@ -223,6 +223,16 @@ class EvaluateProteotypeSubgroupEquityRequest(FrozenModel):
             raise ValueError("request must bind the provisional M25-04 evaluator result")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context request_id must match request_id")
+        ids = (
+            tuple(item.metric_id for item in self.performance)
+            + tuple(item.calibration_id for item in self.calibration)
+            + tuple(item.coverage_id for item in self.coverage)
+        )
+        if len(ids) != len(set(ids)):
+            raise ValueError("subgroup request ids must be unique")
+        artifacts = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifacts) != len(set(artifacts)):
+            raise ValueError("source artifact identifiers must be unique")
         if len({item.dimension for item in self.performance}) != len(
             {item.dimension for item in self.calibration}
         ):
@@ -231,6 +241,9 @@ class EvaluateProteotypeSubgroupEquityRequest(FrozenModel):
             {item.dimension for item in self.coverage}
         ):
             raise ValueError("performance and coverage dimensions must be aligned")
+        dimensions = {item.dimension for item in self.performance}
+        if dimensions != set(SubgroupDimension):
+            raise ValueError("request must cover every required subgroup dimension")
         return self
 
 
@@ -276,6 +289,9 @@ class ProteotypeSubgroupEvaluationResult(FrozenModel):
             raise ValueError("abstained result requires no report and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding identifiers must be unique")
         return self
 
 
