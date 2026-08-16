@@ -113,6 +113,8 @@ def test_service_accepts_canonical_json_and_replays() -> None:
     request = _request()
     result = service.evaluate(request.model_dump_json())
     assert service.verify_replay(result.model_dump_json()) == result
+    mapped = service.evaluate(request.model_dump(mode="json"))
+    assert service.verify_replay(mapped.model_dump(mode="json")) == mapped
     assert service.descriptor["module_id"] == "GLIO-PROTEOGEN-M23-04"
 
 
@@ -127,9 +129,13 @@ def test_plugin_token_is_parse_once_and_instance_bound() -> None:
 
 
 def test_plugin_rejects_forged_token() -> None:
-    plugin = M2304Plugin()
+    service = M2304Service()
+    plugin = M2304Plugin(service)
     with pytest.raises(M2304TokenError):
         plugin.run(object())  # type: ignore[arg-type]
+    plugin.validate_request(_request())
+    result = service.evaluate(_request())
+    assert plugin.replay(result) == result
 
 
 def test_provenance_records_all_seven_controls() -> None:
