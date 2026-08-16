@@ -1,1 +1,1 @@
-"""Release verifier tests for module evidence."""
+"""Tooling tests."""
