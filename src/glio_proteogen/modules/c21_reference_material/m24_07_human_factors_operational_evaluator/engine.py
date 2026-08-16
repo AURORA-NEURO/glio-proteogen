@@ -89,8 +89,12 @@ class M2407HumanFactorsOperationalEvaluator:
     __slots__ = ()
 
     def evaluate(self, request: object) -> BiomarkerPanelHumanFactorsResult:
-        preflight_m2407_authorization(request)
-        validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        if isinstance(request, bytes | bytearray | str):
+            validated = _REQUEST_ADAPTER.validate_json(request, strict=True)
+            preflight_m2407_authorization(validated)
+        else:
+            preflight_m2407_authorization(request)
+            validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         canonical = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(validated), strict=True)
         request_digest = canonical_request_digest(canonical)
         findings = _findings(canonical)
