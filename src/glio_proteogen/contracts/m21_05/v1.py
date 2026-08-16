@@ -137,11 +137,11 @@ class CoverageSummary(FrozenModel):
 
     @model_validator(mode="after")
     def fraction_is_canonical(self) -> CoverageSummary:
+        if self.supported_examples > self.total_examples:
+            raise ValueError("supported examples cannot exceed total examples")
         expected = self.supported_examples / self.total_examples
         if abs(self.coverage_fraction - expected) > _M2105_FRACTION_TOLERANCE:
             raise ValueError("coverage fraction must equal supported divided by total examples")
-        if self.supported_examples > self.total_examples:
-            raise ValueError("supported examples cannot exceed total examples")
         return self
 
 

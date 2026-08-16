@@ -25,6 +25,7 @@ from glio_proteogen.contracts.m21_05 import (
     SubgroupFindingCode,
     SubgroupPerformance,
     canonical_request_digest,
+    normalized_request,
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -333,9 +334,29 @@ def test_numeric_fields_are_finite_and_bounds_are_closed() -> None:
         SubgroupPerformance.model_validate(
             performance.model_dump() | {"lower_bound": 0.95, "upper_bound": 0.9}
         )
+    with pytest.raises(ValidationError, match="within bounds"):
+        SubgroupPerformance.model_validate(performance.model_dump() | {"value": 0.95})
+    with pytest.raises(ValidationError, match="below-floor"):
+        SubgroupPerformance.model_validate(
+            performance.model_dump()
+            | {
+                "value": 0.6,
+                "lower_bound": 0.5,
+                "upper_bound": 0.7,
+                "equity_status": EquityStatus.BELOW_FLOOR,
+            }
+        )
     coverage = _coverage(SubgroupDimension.AGE)
     with pytest.raises(ValidationError, match="fraction"):
         CoverageSummary.model_validate(coverage.model_dump() | {"coverage_fraction": 0.7})
+    with pytest.raises(ValidationError, match="exceed"):
+        CoverageSummary.model_validate(
+            coverage.model_dump() | {"supported_examples": 11, "coverage_fraction": 1.0}
+        )
+
+
+def test_canonical_projection_accepts_mapping_inputs() -> None:
+    assert normalized_request({"module": "M21-05"}) == {"module": "M21-05"}
 
 
 def test_configuration_requires_all_eight_dimensions_exactly() -> None:
@@ -358,6 +379,12 @@ def test_report_requires_performance_calibration_coverage_alignment() -> None:
         SubgroupEvaluationReport.model_validate(
             report.model_dump() | {"coverage": report.coverage[:-1]}
         )
+    duplicate = report.model_dump()
+    duplicate["performance"] = (duplicate["performance"][0],) * 2
+    duplicate["calibration"] = (duplicate["calibration"][0],) * 2
+    duplicate["coverage"] = (duplicate["coverage"][0],) * 2
+    with pytest.raises(ValidationError, match="report ids"):
+        SubgroupEvaluationReport.model_validate(duplicate)
 
 
 def test_request_requires_exact_upstream_media_context_and_source_closure() -> None:
@@ -380,6 +407,10 @@ def test_request_requires_exact_upstream_media_context_and_source_closure() -> N
         EvaluateComplexActivitySubgroupEquityRequest.model_validate(
             request.model_dump() | {"source_artifacts": (_artifact("other"),)}
         )
+    with pytest.raises(ValidationError, match="source artifacts"):
+        EvaluateComplexActivitySubgroupEquityRequest.model_validate(
+            request.model_dump() | {"source_artifacts": (request.upstream_result,) * 2}
+        )
 
 
 def test_result_identity_evidence_finding_and_status_closures() -> None:
@@ -397,6 +428,22 @@ def test_result_identity_evidence_finding_and_status_closures() -> None:
     with pytest.raises(ValidationError, match="finding ids"):
         TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
             payload | {"findings": (finding, finding)}, strict=True
+        )
+    with pytest.raises(ValidationError, match="request digest"):
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
+            result.model_copy(update={"request_digest": "sha256:" + "f" * 64}), strict=True
+        )
+    with pytest.raises(ValidationError, match="evidence"):
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
+            result.model_copy(update={"evidence": result.evidence * 2}), strict=True
+        )
+    with pytest.raises(ValidationError, match="evaluated result"):
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
+            result.model_copy(update={"report": None}), strict=True
+        )
+    with pytest.raises(ValidationError, match="abstained result"):
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
+            result.model_copy(update={"status": EvaluationStatus.ABSTAINED}), strict=True
         )
     abstained = result.model_copy(
         update={
