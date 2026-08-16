@@ -1,6 +1,8 @@
 """Focused schema and unsupported-abstention smoke for provisional M24-06."""
 
-from jsonschema import Draft202012Validator
+from typing import Any, cast
+
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m24_06 import (
     M2406_M2405_INPUT_MEDIA_TYPE,
@@ -32,7 +34,7 @@ def test_provisional_schemas_require_robustness_and_safe_failure_controls() -> N
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["robustnessSurfaceRequired"] is True
         assert metadata["oodScoreRequired"] is True
@@ -41,7 +43,8 @@ def test_provisional_schemas_require_robustness_and_safe_failure_controls() -> N
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "biomarker panel"
         assert metadata["upstreamInputMediaType"] == M2406_M2405_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2406_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2406_OUTPUT_MEDIA_TYPE
     assert M2406_PROVISIONAL_ABI is True
 
 
