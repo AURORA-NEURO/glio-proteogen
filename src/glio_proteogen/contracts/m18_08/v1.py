@@ -114,6 +114,11 @@ class TelemetryObservation(FrozenModel):
             for value in (self.observed_value, self.baseline_value, self.allowed_delta)
         ):
             raise ValueError("telemetry measurements must be finite")
+        if (
+            self.status is ObservationStatus.PASS
+            and abs(self.observed_value - self.baseline_value) > self.allowed_delta
+        ):
+            raise ValueError("passing telemetry must remain within its allowed delta")
         return self
 
 
@@ -325,6 +330,8 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
                 or self.health_report.evidence != self.evidence
             ):
                 raise ValueError("health report must bind the exact request observations")
+            if self.health_report.health_state is TranslationHealthState.NOT_EVALUABLE:
+                raise ValueError("monitored result cannot carry a non-evaluable health report")
         elif (
             self.health_report is not None
             or self.abstention_reason is None
@@ -333,6 +340,12 @@ class BiomarkerPanelTranslationMonitoringResult(FrozenModel):
             or not self.human_review_required
         ):
             raise ValueError("abstained result requires no report and safe status")
+        expected_review = self.status is MonitorStatus.ABSTAINED or (
+            self.health_report is not None
+            and self.health_report.health_state is not TranslationHealthState.HEALTHY
+        )
+        if self.human_review_required is not expected_review:
+            raise ValueError("human review flag must match the health decision")
         finding_ids = tuple(finding.finding_id for finding in self.findings)
         finding_codes = tuple(finding.code for finding in self.findings)
         if len(finding_ids) != len(set(finding_ids)):

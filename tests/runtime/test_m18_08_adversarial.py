@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m18_08 import (
     ObservationStatus,
     TelemetryObservation,
     TranslationHealthReport,
+    TranslationHealthState,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
@@ -167,6 +168,26 @@ def test_contract_rejects_nonfinite_telemetry() -> None:
             _request().telemetry[0].model_dump(mode="json") | {"observed_value": float("nan")},
             strict=True,
         )
+
+
+def test_contract_rejects_passing_telemetry_outside_declared_delta() -> None:
+    with pytest.raises(ValidationError, match="allowed delta"):
+        TelemetryObservation.model_validate_json(
+            canonical_json_bytes(
+                _request().telemetry[0].model_dump(mode="json")
+                | {"observed_value": 2.0, "baseline_value": 1.0, "allowed_delta": 0.2},
+            ),
+            strict=True,
+        )
+
+
+def test_discrepancy_failure_is_never_silently_healthy() -> None:
+    result = m1808.M1808TranslationMonitoringEngine().infer(
+        _request(discrepancy_status=ObservationStatus.FAIL)
+    )
+    assert result.health_report is not None
+    assert result.health_report.health_state is TranslationHealthState.DEGRADED
+    assert any(item.code.value == "policy_violation" for item in result.findings)
 
 
 def test_contract_rejects_decision_state_mismatch() -> None:
