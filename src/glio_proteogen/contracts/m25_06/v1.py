@@ -72,6 +72,9 @@ class ChallengeKind(StrEnum):
     NOVEL_STATE = "novel_state"
 
 
+M2506_REQUIRED_CHALLENGE_KINDS: Final = frozenset(ChallengeKind)
+
+
 class ChallengeSeverity(StrEnum):
     ROUTINE = "routine"
     MATERIAL = "material"
@@ -159,6 +162,8 @@ class RobustnessConfiguration(FrozenModel):
     def challenge_kinds_are_unique(self) -> RobustnessConfiguration:
         if len(set(self.required_challenge_kinds)) != len(self.required_challenge_kinds):
             raise ValueError("required challenge kinds must be unique")
+        if set(self.required_challenge_kinds) != M2506_REQUIRED_CHALLENGE_KINDS:
+            raise ValueError("configuration must require all eight challenge kinds")
         return self
 
 
@@ -183,6 +188,11 @@ class RobustnessSurface(FrozenModel):
         allowed = set(scenario_ids)
         if any(item.scenario_id not in allowed for item in self.observations):
             raise ValueError("observation references an unknown scenario")
+        scenario_kinds = {item.kind for item in self.scenarios}
+        if scenario_kinds != M2506_REQUIRED_CHALLENGE_KINDS:
+            raise ValueError("surface must contain all eight challenge kinds")
+        if {item.scenario_id for item in self.observations} != allowed:
+            raise ValueError("surface must contain exactly one observation per scenario")
         return self
 
 
@@ -305,6 +315,7 @@ __all__ = [
     "M2506_OWNER",
     "M2506_PARENT",
     "M2506_PROVISIONAL_ABI",
+    "M2506_REQUIRED_CHALLENGE_KINDS",
     "M2506_SAFETY_CLASS",
     "ChallengeDisposition",
     "ChallengeFinding",
