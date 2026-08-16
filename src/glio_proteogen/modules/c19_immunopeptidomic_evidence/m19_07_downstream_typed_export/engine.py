@@ -327,9 +327,13 @@ class M1907Engine:
         declared = _declared_text(request)
         prohibited = sorted(term for term in _PROHIBITED_TERMS if term in declared)
         unsupported = sorted(term for term in _ABSTENTION_TERMS if term in declared)
+        ownership_mismatch = any(
+            field.owner != "Scientific engineering" for field in request.fields
+        )
         supported = (
             not prohibited
             and not unsupported
+            and not ownership_mismatch
             and request.consent.state is ConsentState.GRANTED
             and request.support_decision.status is SupportStatus.SUPPORTED
             and request.configuration.documented_fields_only
@@ -359,6 +363,15 @@ class M1907Engine:
                     "finding.support",
                     ExportFindingCode.SUPPORT_BOUNDARY,
                     "The caller-declared upstream support status is not supported.",
+                    evidence,
+                )
+            )
+        if ownership_mismatch:
+            findings.append(
+                _finding(
+                    "finding.ownership",
+                    ExportFindingCode.COMPATIBILITY_MISMATCH,
+                    "Every exported field must preserve the M19-07 ownership binding.",
                     evidence,
                 )
             )
