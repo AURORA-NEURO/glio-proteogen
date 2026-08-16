@@ -9,7 +9,8 @@
   "requestDigest": "sha256:818442a05824f051bccc32b9c6a4f5aaea4bd0e0128ee0bcfab4e70bbfed1d8a",
   "publishedResultDigest": "sha256:905857443df93941476f8b9ef3601b9ae69ee4e169f95cfad280b5de6bc444c9",
   "scenarioCount": 8,
-  "passed": 8,
+  "passedCases": 8,
+  "passed": true,
   "schemaCount": 12,
   "uncertaintyDimensions": 7,
   "cases": [
