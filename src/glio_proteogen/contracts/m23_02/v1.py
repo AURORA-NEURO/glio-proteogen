@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m23_02.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -46,6 +47,14 @@ M2302_OWNER: Final = "Platform engineering"
 M2302_SAFETY_CLASS: Final = "S3"
 M2302_GATE: Final = "G1"
 M2302_PROVISIONAL_ABI: Final = True
+M2302_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2302_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8000-8040"
+M2302_EVIDENCE_CLAIM: Final = (
+    "Caller-declared M23-02 synthetic truth, simulation, fixture, and reproducibility evidence; "
+    "issuer authority is not authenticated."
+)
 M2302_MAX_CASES: Final = 512
 M2302_MAX_FEATURES: Final = 256
 M2302_MAX_FIXTURE_LABELS: Final = 16
@@ -86,13 +95,17 @@ class SyntheticTruthCase(FrozenModel):
     fixture_kind: FixtureKind
     representation: TruthRepresentation
     seed: int = Field(ge=0)
-    expected_features: tuple[NonEmptyStr, ...] = Field(
-        min_length=1, max_length=M2302_MAX_FEATURES
-    )
+    expected_features: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2302_MAX_FEATURES)
     truth_values: tuple[NonEmptyStr, ...] = Field(min_length=1, max_length=M2302_MAX_FEATURES)
     perturbations: tuple[NonEmptyStr, ...] = Field(default=(), max_length=M2302_MAX_FIXTURE_LABELS)
     analytically_recoverable: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2302_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def feature_truth_dimensions_match(self) -> SyntheticTruthCase:
+        if len(self.expected_features) != len(self.truth_values):
+            raise ValueError("synthetic truth features and values must have equal dimensions")
+        return self
 
 
 class GenerationConfiguration(FrozenModel):
@@ -109,6 +122,10 @@ class GenerationConfiguration(FrozenModel):
     def fixture_kinds_are_unique(self) -> GenerationConfiguration:
         if len(set(self.requested_fixture_kinds)) != len(self.requested_fixture_kinds):
             raise ValueError("requested fixture kinds must be unique")
+        if set(self.requested_fixture_kinds) != set(FixtureKind):
+            raise ValueError(
+                "configuration must request normal edge missing shifted and adversarial fixtures"
+            )
         return self
 
 
@@ -127,6 +144,8 @@ class GenerationManifest(FrozenModel):
     def case_ids_are_unique(self) -> GenerationManifest:
         if len(self.case_ids) != len(set(self.case_ids)):
             raise ValueError("manifest case ids must be unique")
+        if self.reproducibility_digest == "sha256:" + ("0" * 64):
+            raise ValueError("manifest reproducibility digest cannot be zero")
         return self
 
 
@@ -147,6 +166,14 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("corpus case ids must be unique")
         if set(case_ids) != set(self.manifest.case_ids):
             raise ValueError("manifest must enumerate every corpus case")
+        if self.manifest.version != self.version:
+            raise ValueError("manifest and corpus versions must match")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("corpus source artifacts must be unique")
         return self
 
 
@@ -174,8 +201,24 @@ class GenerateVariantPeptideSyntheticTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> GenerateVariantPeptideSyntheticTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         if self.upstream_result.media_type != M2302_M2301_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M23-01 transport result")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must retain M23-01 evidence")
         return self
 
 
@@ -206,12 +249,15 @@ class VariantPeptideSyntheticTruthResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideSyntheticTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None
                 or self.manifest is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
         elif (
@@ -220,6 +266,7 @@ class VariantPeptideSyntheticTruthResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or not self.human_review_required
         ):
             raise ValueError("abstained result requires no corpus and safe status")
         if self.result_digest != result_payload_digest(self):
@@ -229,6 +276,9 @@ class VariantPeptideSyntheticTruthResult(FrozenModel):
 
 __all__ = [
     "M2302_CONTRACT_VERSION",
+    "M2302_DOSSIER_SHA256",
+    "M2302_DOSSIER_SLICE",
+    "M2302_EVIDENCE_CLAIM",
     "M2302_GATE",
     "M2302_M2301_INPUT_MEDIA_TYPE",
     "M2302_MAX_CANONICAL_REQUEST_BYTES",
