@@ -1,0 +1,26 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M26-03",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9124-9164",
+  "parent_target": "protein subtype",
+  "owner": "ML engineering",
+  "safety_class": "S3",
+  "gate": "G1",
+  "upstream_dependency": "M26-01 and M26-02 media-only boundaries",
+  "media_only_boundary": "M26-02 runtime ABI unpublished; no upstream imports",
+  "fixture_digest": "sha256:1fb46711bebddedb57439c23fe6379544e0d3d3e421b635eb5f57159957cdcc1",
+  "scenario_count": 7,
+  "passed": 7,
+  "adversarial_case_count": 13,
+  "adversarial_passed_count": 13,
+  "focused_test_count": 40,
+  "scenarios": [
+    "nominal_completed_package",
+    "denied_control_abstention",
+    "deterministic_repeated_execution",
+    "canonical_replay",
+    "tamper_rejection",
+    "missing_m26_02_media_boundary",
+    "strict_unknown_key_rejection"
+  ]
+}
