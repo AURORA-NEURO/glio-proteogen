@@ -33,5 +33,3 @@ __all__ = [
     "create_app",
     "preflight_m2408_authorization",
 ]
-
-

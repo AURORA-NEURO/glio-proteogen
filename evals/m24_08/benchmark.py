@@ -48,5 +48,3 @@ def run_benchmark(iterations: int = ITERATIONS) -> dict[str, object]:
 
 if __name__ == "__main__":
     print(json.dumps(run_benchmark(), sort_keys=True))
-
-

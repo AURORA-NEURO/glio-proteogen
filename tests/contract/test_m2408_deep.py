@@ -286,5 +286,3 @@ def test_duplicate_ids_and_missing_categories_are_rejected() -> None:
             canonical_json_bytes(data),
             strict=True,
         )
-
-

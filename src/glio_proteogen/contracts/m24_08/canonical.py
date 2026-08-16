@@ -49,5 +49,3 @@ __all__ = [
     "result_identifier",
     "result_payload_digest",
 ]
-
-

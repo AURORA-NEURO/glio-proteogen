@@ -112,4 +112,3 @@ __all__ = [
     "M2408TokenError",
     "ValidatedM2408Request",
 ]
-

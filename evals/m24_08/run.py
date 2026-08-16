@@ -347,5 +347,3 @@ def run_evaluator() -> dict[str, object]:
 
 if __name__ == "__main__":
     print(json.dumps(run_evaluator(), sort_keys=True))
-
-

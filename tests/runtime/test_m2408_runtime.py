@@ -143,5 +143,3 @@ def test_descriptor_declares_boundaries_without_claim_inflation() -> None:
     assert descriptor.treatment_recommendation is False
     assert descriptor.identity_inference is False
     assert descriptor.consent_inference is False
-
-

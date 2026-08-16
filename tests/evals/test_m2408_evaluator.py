@@ -21,5 +21,3 @@ def test_m24_08_benchmark_is_within_locked_budgets() -> None:
     result = run_benchmark()
     assert result["iterations"] == _EXPECTED_ITERATIONS
     assert result["passed"] is True
-
-

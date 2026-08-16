@@ -110,5 +110,3 @@ def test_typer_sanitizes_unknown_schema_and_invalid_request(tmp_path: Path) -> N
     assert response.exit_code != 0
     assert "secret_submission" not in response.output
     assert "strict M24-08 request contract" in response.output
-
-

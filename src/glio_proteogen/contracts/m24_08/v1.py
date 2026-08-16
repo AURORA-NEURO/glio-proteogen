@@ -385,4 +385,3 @@ __all__ = [
     "RiskSeverity",
     "SignedReleaseRecord",
 ]
-

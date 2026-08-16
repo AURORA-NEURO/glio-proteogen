@@ -414,5 +414,3 @@ def test_individual_schema_route_and_cli_stdout_adjudication(tmp_path: Path) -> 
     response = CliRunner().invoke(m2408_cli.app, ["adjudicate", str(path)])
     assert response.exit_code == 0
     assert json.loads(response.stdout)["parent_target"] == "biomarker panel"
-
-
