@@ -1,1 +1,1 @@
-"""KINOPHOS object-consumer module implementations."""
+"""KINOPHOS object-consumer module slices and implementations."""
