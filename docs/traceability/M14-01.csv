@@ -1,0 +1,6 @@
+requirement_id,authority_lines,implementation,evidence,gate
+M14-01-R01,4716-4724,"contracts/m14_01/v1.py; hypothesis registry result",evaluation.json,G0
+M14-01-R02,4726-4730,"PCA/ICA baseline, multi-block PLS alternate, consensus fallback",docs/modules/M14-01-biological-hypothesis-registry.md,G1
+M14-01-R03,4732-4736,"quality controls, seven uncertainty axes, explicit abstention",test_m14_01_adversarial.py; coverage.json,G3
+M14-01-R04,4738-4739,"competing explanations, falsification, evidence tiers, prohibited interpretation",evaluation.json; test_m14_01_contract.py,G3
+M14-01-R05,4740-4756,"provenance, replay, API/CLI, evaluator, package evidence",package.json; benchmark.json; test_m14_01_contract.py,G4
