@@ -1,1 +1,1 @@
-"""M10-04 evaluator tests."""
+"""Executable evaluator and module evidence gates."""
