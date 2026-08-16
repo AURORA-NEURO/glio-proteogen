@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-05",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_slice": "GLIO-PROTEOGEN-M19-05:6692-6732"
+  },
+  "scenarios": [
+    {"name": "supported_workspace", "expected_status": "presented"},
+    {"name": "limited_review_visible", "expected_status": "presented"},
+    {"name": "conflicted_review_visible", "expected_status": "presented"},
+    {"name": "abstained_item", "expected_status": "abstained"},
+    {"name": "canonical_replay", "expected_status": "verified"},
+    {"name": "tamper_rejection", "expected_status": "rejected"},
+    {"name": "authorization_failure", "expected_status": "rejected"}
+  ]
+}
