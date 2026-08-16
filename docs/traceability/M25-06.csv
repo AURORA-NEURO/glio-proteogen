@@ -1,0 +1,13 @@
+requirement,implementation,evidence,status
+authority,dossier SHA and exact slice pinned in contract docs and evaluator,release-evidence/m25_06/evaluation.json,pass
+upstream-boundary,M25-04 caller-declared media only with no runtime import,request validator and dependency verifier,pass
+challenge-coverage,eight required robustness shift and OOD challenge kinds,contract/runtime/evaluator tests,pass
+ood-surface,typed robustness surface with OOD band and support envelope,contract and runtime tests,pass
+safe-failure,unsupported and reviewer-required cases abstain without parent output,engine evaluator adversarial tests,pass
+controls,seven caller-declared controls preflight before execution,preflight runtime and denial tests,pass
+uncertainty,seven explicit uncertainty dimensions and limitations,typed result envelope,pass
+provenance,source/configuration/control/evidence provenance is immutable,engine and contract tests,pass
+replay,request/result IDs and digests are canonical and tamper checked,engine API CLI and adversarial tests,pass
+interfaces,FastAPI Typer and strict parse-once plugin parity,interface tests and sanitized errors,pass
+release,coverage benchmark package hashes and independent verifier,release-evidence/m25_06 and verifier,pass
+prohibited-output-ceiling,robustness report only with no kinase treatment identity or all-omics output,schema metadata and adversarial tests,pass

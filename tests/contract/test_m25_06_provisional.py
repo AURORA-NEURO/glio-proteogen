@@ -1,0 +1,53 @@
+"""Focused schema and unsupported-abstention smoke for provisional M25-06."""
+
+from jsonschema import Draft202012Validator
+
+from glio_proteogen.contracts.m25_06 import (
+    M2506_M2504_INPUT_MEDIA_TYPE,
+    M2506_OUTPUT_MEDIA_TYPE,
+    M2506_PROVISIONAL_ABI,
+    ChallengeDisposition,
+    ChallengeKind,
+    OODBand,
+    RobustnessStatus,
+    contract_json_schemas,
+)
+
+_SCHEMA_COUNT = 8
+_CHALLENGE_KIND_COUNT = 8
+
+
+def test_provisional_schemas_require_robustness_and_safe_failure_controls() -> None:
+    schemas = contract_json_schemas()
+    assert len(schemas) == _SCHEMA_COUNT
+    assert tuple(schemas) == (
+        "request",
+        "output",
+        "surface",
+        "scenario",
+        "observation",
+        "safe-failure",
+        "configuration",
+        "finding",
+    )
+    for schema in schemas.values():
+        Draft202012Validator.check_schema(schema)
+        metadata = schema["x-glio-contract"]
+        assert metadata["provisionalAbi"] is True
+        assert metadata["robustnessSurfaceRequired"] is True
+        assert metadata["oodScoreRequired"] is True
+        assert metadata["safeFailureReportRequired"] is True
+        assert metadata["unsupportedAbstentionRequired"] is True
+        assert metadata["unsupportedToNegative"] is False
+        assert metadata["parentTarget"] == "proteotype"
+        assert metadata["upstreamInputMediaType"] == M2506_M2504_INPUT_MEDIA_TYPE
+    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2506_OUTPUT_MEDIA_TYPE
+    assert M2506_PROVISIONAL_ABI is True
+
+
+def test_challenge_kinds_and_safe_dispositions_are_explicit() -> None:
+    assert len(tuple(ChallengeKind)) == _CHALLENGE_KIND_COUNT
+    assert ChallengeKind.NOVEL_STATE.value == "novel_state"
+    assert ChallengeDisposition.ABSTAIN_UNSUPPORTED.value == "abstain_unsupported"
+    assert OODBand.OUT_OF_DOMAIN.value == "out_of_domain"
+    assert RobustnessStatus.ABSTAINED.value == "abstained"
