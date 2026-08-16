@@ -1,0 +1,28 @@
+{
+  "adversarial_case_count": 10,
+  "adversarial_passed_count": 10,
+  "base_commit": "48efc9cc",
+  "checks": {
+    "all_eight_challenge_kinds": true,
+    "denied_fail_closed": true,
+    "deterministic_result": true,
+    "evaluated": true,
+    "parent_boundary": true,
+    "replay_verified": true,
+    "review_abstention": true,
+    "safe_failure_report": true,
+    "support_domain": true,
+    "tamper_rejected": true,
+    "unsupported_abstention": true,
+    "upstream_media_boundary": true,
+    "within_envelope": true
+  },
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8536-8576",
+  "fixture_request_digest": "sha256:8f0cd846f4c05334bed76ea06fc1db92e5048e13caf6b883263cebf95d31726c",
+  "fixture_result_digest": "sha256:b2f0c98ee0c0b4e7623ddf35ae40d74e6379358f27d18214cc5842630c3bd36f",
+  "module_id": "GLIO-PROTEOGEN-M24-06",
+  "passed": true,
+  "scenario_count": 13,
+  "upstream_media_type": "application/vnd.glio-proteogen.m24-05+json"
+}
