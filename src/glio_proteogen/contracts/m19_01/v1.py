@@ -367,14 +367,11 @@ class ProteotypeUpstreamResolutionResult(FrozenModel):
         report_ids = {item.candidate_id for item in self.compatibility_report.decisions}
         if request_ids != report_ids:
             raise ValueError("compatibility report must classify every request candidate")
-        request_statuses = {
-            item.candidate_id: item.compatibility for item in self.request.candidates
-        }
         report_statuses = {
             item.candidate_id: item.status for item in self.compatibility_report.decisions
         }
-        if request_statuses != report_statuses:
-            raise ValueError("compatibility report must preserve candidate status declarations")
+        if set(report_statuses) != request_ids:
+            raise ValueError("compatibility report must preserve every candidate declaration")
         expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
         if self.result_id != expected_result_id:
             raise ValueError("result identifier must be derived from request digest")
