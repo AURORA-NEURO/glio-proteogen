@@ -3,6 +3,8 @@
 import pytest
 
 from glio_proteogen.contracts.m20_06 import (
+    M2006_DOSSIER_SHA256,
+    M2006_DOSSIER_SLICE,
     M2006_OUTPUT_MEDIA_TYPE,
     M2006_PROVISIONAL_ABI,
     AdjudicationRecordStatus,
@@ -29,6 +31,11 @@ def test_provisional_schemas_require_immutable_review_history() -> None:
         and schema["x-glio-contract"]["immutableHistoryRequired"]
         and schema["x-glio-contract"]["explicitAbstentionRequired"]
         and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        for schema in schemas.values()
+    )
+    assert all(
+        schema["x-glio-contract"]["dossierSha256"] == M2006_DOSSIER_SHA256
+        and schema["x-glio-contract"]["dossierSlice"] == M2006_DOSSIER_SLICE
         for schema in schemas.values()
     )
     assert all(
