@@ -1,0 +1,14 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-04",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": [3048, 3091]
+  },
+  "scenarios": [
+    {"id": "supported", "expression": "stable_support", "expected": "estimated"},
+    {"id": "unsupported", "expression": "unsupported PTM", "expected": "abstained"},
+    {"id": "ood", "expression": "OOD transport", "expected": "abstained"},
+    {"id": "non-converged", "expression": "non_converged objective", "expected": "abstained"}
+  ]
+}

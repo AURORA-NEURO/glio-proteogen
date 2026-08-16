@@ -1,1 +1,1 @@
-"""Evaluation fixtures for the provisional M10-03 scaffold."""
+"""M10-03 evaluator package."""

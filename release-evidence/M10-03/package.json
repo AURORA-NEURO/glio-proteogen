@@ -1,0 +1,21 @@
+{
+  "project": "glio-proteogen",
+  "version": "0.1.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sha256": "49d563e3f8dbc926141cd8995dd31c180143a216c55e6ed4de22b1627633e32e",
+    "size_bytes": 767531,
+    "members": 293
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "b8d8304ac67d9243e1acf347a7ec9fb84c5fad5499b457669d6aabf05bcb5351",
+    "size_bytes": 1436678,
+    "members": 747
+  },
+  "isolated_import": true,
+  "isolated_import_scope": [
+    "glio_proteogen.contracts.m10_03",
+    "glio_proteogen.modules.c10_pathway_proteotype.m10_03_mature_baseline_estimator"
+  ]
+}
