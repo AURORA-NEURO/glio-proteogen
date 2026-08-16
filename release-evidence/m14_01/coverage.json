@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-01",
+  "scope": [
+    "glio_proteogen.contracts.m14_01",
+    "glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry",
+    "glio_proteogen.adapters.m1401"
+  ],
+  "focused_tests": 27,
+  "display_coverage_percent": 98,
+  "line_coverage_percent": 98.03921568627452,
+  "branch_coverage_percent": 94.5945945945946,
+  "branch_coverage_display_percent": 95,
+  "statements": 510,
+  "covered_lines": 500,
+  "branches": 74,
+  "covered_branches": 70,
+  "missing_lines": 10,
+  "fail_under": 95,
+  "passed": true
+}

@@ -77,6 +77,7 @@ class AdapterStatus(StrEnum):
 
 
 class AdapterFindingCode(StrEnum):
+    ALLOWED = "allowed"
     CLAIM_EXCEEDS_CEILING = "claim_exceeds_ceiling"
     EVIDENCE_TIER_MISSING = "evidence_tier_missing"
     INTENDED_USE_UNREGISTERED = "intended_use_unregistered"
@@ -94,6 +95,12 @@ class ClaimCeiling(FrozenModel):
     )
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1804_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def prohibited_interpretations_are_unique(self) -> ClaimCeiling:
+        if len(self.prohibited_interpretations) != len(set(self.prohibited_interpretations)):
+            raise ValueError("prohibited interpretations must be unique")
+        return self
 
 
 class DisplaySemantics(FrozenModel):
@@ -132,6 +139,14 @@ class PolicyDecision(FrozenModel):
         default=(), max_length=M1804_MAX_PROHIBITED_INTERPRETATIONS
     )
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1804_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def blocked_claims_match_status(self) -> PolicyDecision:
+        if self.status is PolicyDecisionStatus.BLOCKED and not self.blocked_claims:
+            raise ValueError("blocked policy decision requires blocked claims")
+        if self.status is PolicyDecisionStatus.ALLOWED and self.blocked_claims:
+            raise ValueError("allowed policy decision cannot carry blocked claims")
+        return self
 
 
 class IntendedUseSpecificObject(FrozenModel):
@@ -172,6 +187,9 @@ class AdaptBiomarkerPanelIntendedUseRequest(FrozenModel):
     def request_is_bound(self) -> AdaptBiomarkerPanelIntendedUseRequest:
         if self.upstream_result.media_type != M1804_M1803_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M18-03 integrated evidence")
+        digests = tuple(item.digest for item in self.source_artifacts)
+        if len(digests) != len(set(digests)):
+            raise ValueError("request source artifact digests must be unique")
         return self
 
 
@@ -204,6 +222,8 @@ class BiomarkerPanelIntendedUseAdapterResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelIntendedUseAdapterResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is AdapterStatus.ADAPTED:
             if (
                 self.adapted_object is None
@@ -220,6 +240,13 @@ class BiomarkerPanelIntendedUseAdapterResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no adapted object and safe status")
+        if self.status is AdapterStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
+        if self.adapted_object is not None and (
+            self.adapted_object.upstream_result != self.request.upstream_result
+            or self.adapted_object.registration != self.request.registration
+        ):
+            raise ValueError("adapted object must bind request registration and upstream")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

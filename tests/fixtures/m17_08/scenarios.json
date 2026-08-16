@@ -1,0 +1,42 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M17-08",
+  "schema_version": "0.1.0-provisional",
+  "operation": "monitor_variant_peptide_translation_health",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6104-6144",
+  "owner": "Platform engineering",
+  "safety_class": "S2",
+  "evidence_gate": "G5",
+  "parent_target": "variant peptide",
+  "claims_ceiling": "translation_health_state_and_rollback_decision_only",
+  "forbidden_capabilities": [
+    "kinase_activity",
+    "all_omics_fusion",
+    "treatment_recommendation",
+    "identity_inference",
+    "upstream_mutation",
+    "disagreement_erasure",
+    "unsupported_to_negative"
+  ],
+  "scenario_names": [
+    "healthy",
+    "degraded",
+    "rollback_required",
+    "suspended_discrepancy",
+    "not_evaluable_abstention",
+    "control_denied",
+    "upstream_media_rejected",
+    "replay_tamper"
+  ],
+  "adversarial_cases": [
+    "critical_telemetry_drift_rolls_back",
+    "support_drift_rolls_back",
+    "workflow_effect_rolls_back",
+    "unresolved_discrepancy_suspends",
+    "not_evaluable_abstains",
+    "consent_control_denied",
+    "upstream_media_rejected",
+    "tampered_replay_rejected"
+  ],
+  "coverage_target_percent": 95
+}

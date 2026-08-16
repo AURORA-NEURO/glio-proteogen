@@ -163,6 +163,15 @@ class DownstreamContractObject(FrozenModel):
             raise ValueError("downstream contract requires supported status")
         if self.ownership.owning_module != M1707_MODULE_ID:
             raise ValueError("ownership binding must name M17-07")
+        if self.configuration.parent_target != M1707_PARENT:
+            raise ValueError("export configuration parent target is invalid")
+        if self.signature.signed_payload_digest == "sha256:" + ("0" * 64):
+            raise ValueError("signed contract payload digest cannot be empty")
+        field_evidence = {
+            evidence.reference.digest for field in self.fields for evidence in field.evidence
+        }
+        if not field_evidence.issubset({evidence.reference.digest for evidence in self.evidence}):
+            raise ValueError("contract evidence must include every field evidence reference")
         return self
 
 
@@ -200,6 +209,25 @@ class ExportVariantPeptideDownstreamContractRequest(FrozenModel):
             raise ValueError("request export field ids must be unique")
         if len(field_names) != len(set(field_names)):
             raise ValueError("request export field names must be unique")
+        context_consent = self.context.references.consent
+        if (
+            self.consent.decision_id != context_consent.decision_id
+            or self.consent.state is not context_consent.state
+            or self.consent.evidence.digest != context_consent.evidence.digest
+        ):
+            raise ValueError("request consent must bind the caller-declared consent control")
+        if self.configuration.parent_target != M1707_PARENT:
+            raise ValueError("request configuration parent target is invalid")
+        source_digests = tuple(artifact.digest for artifact in self.source_artifacts)
+        if len(source_digests) != len(set(source_digests)):
+            raise ValueError("request source artifacts must be unique")
+        if self.adjudication_result.digest not in source_digests:
+            raise ValueError("adjudication result must be listed in source artifacts")
+        for field in self.fields:
+            if field.value_digest not in source_digests:
+                raise ValueError("export field value must bind a request source artifact")
+            if any(evidence.reference.digest not in source_digests for evidence in field.evidence):
+                raise ValueError("export field evidence must bind request source artifacts")
         return self
 
 
@@ -246,6 +274,12 @@ class VariantPeptideDownstreamExportResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no contract and safe status")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        finding_codes = tuple(finding.code for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("export finding ids must be unique")
+        if len(finding_codes) != len(set(finding_codes)):
+            raise ValueError("export finding codes must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

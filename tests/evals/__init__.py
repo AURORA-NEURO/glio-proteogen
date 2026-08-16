@@ -1,1 +1,1 @@
-"""M19-01 evaluator test package."""
+"""Evaluator tests for provisional modules."""
