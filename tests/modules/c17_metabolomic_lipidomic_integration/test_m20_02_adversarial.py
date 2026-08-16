@@ -7,13 +7,18 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m20_02 import (
     AlignmentDimension,
+    AlignmentFinding,
+    AlignmentFindingCode,
     AlignmentObservation,
     AlignmentObservationStatus,
+    AlignmentStatus,
     AlignProteinSubtypeSourcesRequest,
     DiscrepancyMapEntry,
     DiscrepancySeverity,
+    ProteinSubtypeAlignmentResult,
 )
 from glio_proteogen.contracts.m20_02.canonical import canonical_request_digest
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_02_cross_source_alignment_reconciliation import (  # noqa: E501
     M2002Engine,
 )
@@ -88,3 +93,96 @@ def test_conflict_and_not_evaluable_states_never_emit_supported_status() -> None
         result = M2002Engine().resolve(_request(status=state))
         assert result.support_decision.status.value == "review_required"
         assert result.status.value == "abstained"
+
+
+def test_result_contract_rejects_identity_and_request_tampering() -> None:
+    result = M2002Engine().resolve(_request())
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            result.model_copy(update={"request_digest": "sha256:" + "0" * 64}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="result identifier"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            result.model_copy(update={"result_id": "result.tampered"}).model_dump(mode="python"),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="result digest"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            result.model_copy(update={"result_digest": "sha256:" + "0" * 64}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+
+
+def test_result_contract_rejects_duplicate_findings_and_evidence() -> None:
+    abstained = M2002Engine().resolve(_request(status=AlignmentObservationStatus.CONFLICTED))
+    finding = AlignmentFinding(
+        finding_id="finding.duplicate",
+        code=AlignmentFindingCode.DIMENSION_CONFLICT,
+        message="duplicate finding",
+    )
+    with pytest.raises(ValidationError, match="finding ids must be unique"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            abstained.model_copy(update={"findings": (finding, finding)}).model_dump(mode="python"),
+            strict=True,
+        )
+    aligned = M2002Engine().resolve(_request())
+    duplicate_evidence = (aligned.evidence[0], aligned.evidence[0])
+    with pytest.raises(ValidationError, match="evidence digests must be unique"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            aligned.model_copy(update={"evidence": duplicate_evidence}).model_dump(mode="python"),
+            strict=True,
+        )
+
+
+def test_result_contract_rejects_unsafe_aligned_and_abstained_closures() -> None:
+    aligned = M2002Engine().resolve(_request())
+    assert aligned.aligned_bundle is not None
+    unsupported = aligned.support_decision.model_copy(
+        update={"status": SupportStatus.REVIEW_REQUIRED}
+    )
+    with pytest.raises(ValidationError, match="supported evidence bundle"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            aligned.model_copy(update={"support_decision": unsupported}).model_dump(mode="python"),
+            strict=True,
+        )
+    conflicted_observation = aligned.aligned_bundle.observations[0].model_copy(
+        update={"status": AlignmentObservationStatus.CONFLICTED}
+    )
+    conflicted_bundle = aligned.aligned_bundle.model_copy(
+        update={"observations": (conflicted_observation, *aligned.aligned_bundle.observations[1:])}
+    )
+    with pytest.raises(ValidationError, match="conflicted observations"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            aligned.model_copy(update={"aligned_bundle": conflicted_bundle}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+    unresolved = DiscrepancyMapEntry(
+        discrepancy_id="discrepancy.material",
+        dimension=AlignmentDimension.REFERENCE,
+        source_ids=("artifact.source-a", "artifact.source-b"),
+        severity=DiscrepancySeverity.MATERIAL,
+        description="material discrepancy",
+        evidence=(_evidence("material-discrepancy"),),
+    )
+    unresolved_bundle = aligned.aligned_bundle.model_copy(update={"discrepancies": (unresolved,)})
+    with pytest.raises(ValidationError, match="every discrepancy"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            aligned.model_copy(update={"aligned_bundle": unresolved_bundle}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="abstained result"):
+        ProteinSubtypeAlignmentResult.model_validate(
+            aligned.model_copy(update={"status": AlignmentStatus.ABSTAINED}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )

@@ -63,6 +63,24 @@ def test_configuration_rejects_duplicate_dimensions() -> None:
         _configuration(dimensions)
 
 
+def test_configuration_rejects_missing_dimension() -> None:
+    dimensions = (*tuple(AlignmentDimension)[:-1], AlignmentDimension.SAMPLE)
+    with pytest.raises(ValidationError, match="dimensions must be unique"):
+        _configuration(dimensions)
+
+
+def test_discrepancy_rejects_duplicate_sources() -> None:
+    with pytest.raises(ValidationError, match="source ids must be unique"):
+        DiscrepancyMapEntry(
+            discrepancy_id="discrepancy.duplicate",
+            dimension=AlignmentDimension.REFERENCE,
+            source_ids=("artifact.source-a", "artifact.source-a"),
+            severity=DiscrepancySeverity.ROUTINE,
+            description="duplicate source declaration",
+            evidence=(_evidence("duplicate-source"),),
+        )
+
+
 def test_bundle_requires_all_seven_alignment_dimensions() -> None:
     source_artifacts = (_artifact("source-a"), _artifact("source-b"))
     observations = tuple(_observation(dimension) for dimension in tuple(AlignmentDimension)[:-1])
@@ -97,4 +115,33 @@ def test_critical_discrepancy_requires_resolution() -> None:
             discrepancies=(discrepancy,),
             configuration=_configuration(tuple(AlignmentDimension)),
             evidence=(_evidence("bundle"),),
+        )
+
+
+def test_bundle_rejects_duplicate_ids_and_unknown_references() -> None:
+    source_artifacts = (_artifact("source-a"), _artifact("source-b"))
+    observations = tuple(_observation(dimension) for dimension in AlignmentDimension)
+    duplicate_observation = observations[0].model_copy(
+        update={"observation_id": observations[1].observation_id}
+    )
+    with pytest.raises(ValidationError, match="observation ids must be unique"):
+        AlignedEvidenceBundle(
+            bundle_id="bundle.m2002.duplicate-observation",
+            version="1.0.0",
+            source_artifacts=source_artifacts,
+            observations=(duplicate_observation, *observations[1:]),
+            configuration=_configuration(tuple(AlignmentDimension)),
+            evidence=(_evidence("bundle-duplicate-observation"),),
+        )
+    unknown = observations[0].model_copy(
+        update={"source_ids": ("artifact.unknown", "artifact.source-b")}
+    )
+    with pytest.raises(ValidationError, match="unknown source artifact"):
+        AlignedEvidenceBundle(
+            bundle_id="bundle.m2002.unknown-observation",
+            version="1.0.0",
+            source_artifacts=source_artifacts,
+            observations=(unknown, *observations[1:]),
+            configuration=_configuration(tuple(AlignmentDimension)),
+            evidence=(_evidence("bundle-unknown-observation"),),
         )

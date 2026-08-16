@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-02",
+  "contract_version": "0.1.0-provisional",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "6920-6960",
+  "passed": true,
+  "scenario_count": 3,
+  "passed_count": 3,
+  "replay_count": 3,
+  "adversarial_case_count": 6,
+  "adversarial_passed_count": 6,
+  "adversarial_coverage_percent": 100.0,
+  "checks": [
+    {"name": "aligned.complete_seven_dimensions", "passed": true},
+    {"name": "conflicted.safe_abstention", "passed": true},
+    {"name": "not_evaluable.safe_abstention", "passed": true},
+    {"name": "replay.deterministic_and_tamper_bound", "passed": true},
+    {"name": "adversarial.contract_and_boundary_matrix", "passed": true}
+  ]
+}
