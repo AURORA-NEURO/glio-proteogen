@@ -282,7 +282,9 @@ def _report(
 
 
 def _diagnostics(
-    signals: tuple[HealthSignal, ...], status: TranslationHealthStatus, evidence: tuple[EvidenceReference, ...]
+    signals: tuple[HealthSignal, ...],
+    status: TranslationHealthStatus,
+    evidence: tuple[EvidenceReference, ...],
 ) -> tuple[MonitorDiagnostic, ...]:
     diagnostic_status = {
         TranslationHealthStatus.HEALTHY: MonitorDiagnosticStatus.PASS,

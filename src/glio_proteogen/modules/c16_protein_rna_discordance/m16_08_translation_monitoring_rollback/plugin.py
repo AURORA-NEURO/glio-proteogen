@@ -102,4 +102,3 @@ class M1608Plugin(
 
 
 __all__ = ["M1608Plugin", "ValidatedM1608Request"]
-

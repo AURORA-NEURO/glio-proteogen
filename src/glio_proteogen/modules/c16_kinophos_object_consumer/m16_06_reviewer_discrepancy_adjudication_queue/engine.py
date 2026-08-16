@@ -195,8 +195,7 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="no_identity_inference",
             statement=(
-                "Identity, consent, treatment, and upstream evidence are not inferred "
-                "or mutated."
+                "Identity, consent, treatment, and upstream evidence are not inferred or mutated."
             ),
         ),
     )
