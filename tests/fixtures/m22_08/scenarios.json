@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M22-08",
+  "contract_version": "0.1.0-provisional",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7904-7944",
+  "cases": [
+    {"case_id": "pass_complete", "expected": "adjudicated/pass"},
+    {"case_id": "block_failed_requirement", "expected": "adjudicated/block"},
+    {"case_id": "block_failed_benchmark", "expected": "adjudicated/block"},
+    {"case_id": "block_open_critical_risk", "expected": "adjudicated/block"},
+    {"case_id": "review_deferred_approval", "expected": "adjudicated/review_required"},
+    {"case_id": "authorization_gate", "expected": "denied"},
+    {"case_id": "source_binding_boundary", "expected": "rejected"},
+    {"case_id": "replay_tamper_determinism", "expected": "replay/tamper/same_digest"}
+  ]
+}

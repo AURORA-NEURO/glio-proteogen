@@ -36,6 +36,10 @@ from glio_proteogen.kernel.models import (
 
 # PROVISIONAL ABI: inferred solely from dossier lines 7904-7944.
 M2208_MODULE_ID: Final = "GLIO-PROTEOGEN-M22-08"
+M2208_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2208_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7904-7944"
 M2208_OPERATION: Final = "adjudicate_protein_rna_discordance_evidence_gate"
 M2208_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2208_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m22-08+json"
@@ -358,6 +362,8 @@ def _validate_abstained_result(result: ProteinRnaDiscordanceEvidenceGateResult) 
 
 __all__ = [
     "M2208_CONTRACT_VERSION",
+    "M2208_DOSSIER_SHA256",
+    "M2208_DOSSIER_SLICE",
     "M2208_EVIDENCE_CLAIM",
     "M2208_GATE",
     "M2208_MAX_APPROVALS",
