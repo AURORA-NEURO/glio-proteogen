@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Final
 from weakref import WeakKeyDictionary
 
@@ -36,10 +37,31 @@ class M1808TokenError(TypeError):
     def __init__(self) -> None:
         super().__init__("M18-08 requires a validated request token")
 
+
+@dataclass(frozen=True, slots=True)
+class M1808PluginDescriptor:
+    module_id: str = "GLIO-PROTEOGEN-M18-08"
+    operation: str = "monitor_biomarker_panel_translation_health"
+    output_media_type: str = "application/vnd.glio-proteogen.m18-08+json"
+    parent_target: str = "biomarker panel"
+    owner: str = "Scientific engineering"
+    safety_class: str = "S2"
+    evidence_gate: str = "G5"
+    provisional_abi: bool = True
+    external_content_traversal: bool = False
+    all_omics_fusion: bool = False
+    kinase_activity: bool = False
+    treatment_recommendation: bool = False
+    identity_inference: bool = False
+    consent_inference: bool = False
+    unsupported_to_negative: bool = False
+    explicit_abstention: bool = True
+
 class M1808Plugin:
     """Strict plugin with non-forgeable validation token."""
 
     __slots__ = ("_seal", "_service")
+    descriptor: Final = M1808PluginDescriptor()
 
     def __init__(self, service: M1808Service | None = None) -> None:
         self._service = service or M1808Service()
@@ -51,6 +73,11 @@ class M1808Plugin:
         _TOKENS[token] = self._seal
         return token
 
+    def validate_request(self, request: object) -> MonitorBiomarkerPanelTranslationHealthRequest:
+        """Validate a request without exposing the opaque execution token."""
+
+        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+
     def run(self, token: ValidatedM1808Request) -> BiomarkerPanelTranslationMonitoringResult:
         if not isinstance(token, ValidatedM1808Request) or _TOKENS.get(token) is not self._seal:
             raise M1808TokenError
@@ -61,5 +88,8 @@ class M1808Plugin:
     def verify(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
         return self._service.verify(result)
 
+    def replay(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
+        return self.verify(result)
 
-__all__ = ["M1808Plugin", "ValidatedM1808Request"]
+
+__all__ = ["M1808Plugin", "M1808PluginDescriptor", "ValidatedM1808Request"]

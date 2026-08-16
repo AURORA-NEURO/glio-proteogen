@@ -39,6 +39,16 @@ class M1808Service:
             result = dict(result)
         return self._engine.verify(result)
 
+    def monitor(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:
+        """Named service operation for translation-health monitoring."""
+
+        return self.execute(request)
+
+    def replay(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
+        """Named service operation for exact replay verification."""
+
+        return self.verify(result)
+
     @property
     def descriptor(self) -> dict[str, object]:
         return {

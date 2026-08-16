@@ -9,6 +9,7 @@ from .engine import (
 )
 from .plugin import (
     M1808Plugin,
+    M1808PluginDescriptor,
     ValidatedM1808Request,
 )
 from .service import (
@@ -18,6 +19,7 @@ from .service import (
 __all__ = [
     "M1808AuthorizationError",
     "M1808Plugin",
+    "M1808PluginDescriptor",
     "M1808ReplayVerificationError",
     "M1808Service",
     "M1808TranslationMonitoringEngine",

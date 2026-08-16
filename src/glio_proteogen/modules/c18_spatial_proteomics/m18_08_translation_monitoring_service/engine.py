@@ -413,6 +413,22 @@ class M1808TranslationMonitoringEngine:
                 raise M1808ReplayVerificationError
         return validated
 
+    def adapt(
+        self,
+        request: object,
+    ) -> BiomarkerPanelTranslationMonitoringResult:
+        """Compatibility-named execution seam used by evaluator harnesses."""
+
+        return self.infer(request)
+
+    def replay(
+        self,
+        result: object,
+    ) -> BiomarkerPanelTranslationMonitoringResult:
+        """Compatibility-named exact replay verifier."""
+
+        return self.verify(result)
+
 
 def monitor_biomarker_panel_translation_health(
     request: object,
