@@ -1,0 +1,11 @@
+{
+  "branch_coverage_percent": 97.27564102564102,
+  "covered_branches": 76,
+  "covered_statements": 531,
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7860-7900",
+  "module_id": "GLIO-PROTEOGEN-M22-07",
+  "partial_branches": 8,
+  "statement_count": 540,
+  "threshold_percent": 95.0
+}

@@ -1,4 +1,4 @@
-"""Canonical projections for the provisional M09-01 contract spine."""
+"""Canonical projections for the provisional M22-07 contract spine."""
 
 from __future__ import annotations
 
