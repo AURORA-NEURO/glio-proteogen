@@ -115,11 +115,13 @@ class WorkflowDefinition(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2603_MAX_EVIDENCE)
 
     @model_validator(mode="after")
-    def workflow_is_closed(self) -> WorkflowDefinition:
+    def workflow_is_closed(self) -> WorkflowDefinition:  # noqa: PLR0912, PLR0915
         step_ids = tuple(item.step_id for item in self.steps)
         known = set(step_ids)
         if len(step_ids) != len(set(step_ids)):
             raise ValueError("workflow step ids must be unique")
+        if any(len(step.dependencies) != len(set(step.dependencies)) for step in self.steps):
+            raise ValueError("workflow step dependencies must be unique")
         if any(step_id not in known for step_id in (*self.entry_step_ids, *self.output_step_ids)):
             raise ValueError("workflow entry/output references an unknown step")
         if any(
@@ -136,6 +138,56 @@ class WorkflowDefinition(FrozenModel):
             raise ValueError("workflow entry and output steps must be distinct for multi-step DAGs")
         if not any(step.deterministic and step.checkpoint_required for step in self.steps):
             raise ValueError("workflow must declare deterministic checkpointed steps")
+
+        dependencies = {step.step_id: set(step.dependencies) for step in self.steps}
+        dependents: dict[str, set[str]] = {step_id: set() for step_id in known}
+        for step_id, parents in dependencies.items():
+            for parent in parents:
+                dependents[parent].add(step_id)
+
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(step_id: str) -> None:
+            if step_id in visiting:
+                raise ValueError("workflow dependencies must be acyclic")
+            if step_id in visited:
+                return
+            visiting.add(step_id)
+            for parent in dependencies[step_id]:
+                visit(parent)
+            visiting.remove(step_id)
+            visited.add(step_id)
+
+        for step_id in step_ids:
+            visit(step_id)
+        if any(dependencies[step_id] for step_id in self.entry_step_ids):
+            raise ValueError("workflow entry steps cannot depend on upstream steps")
+        if any(dependents[step_id] for step_id in self.output_step_ids):
+            raise ValueError("workflow output steps must be terminal")
+
+        reachable = set(self.entry_step_ids)
+        while True:
+            expanded = reachable | {
+                step_id for step_id, parents in dependencies.items() if parents <= reachable
+            }
+            if expanded == reachable:
+                break
+            reachable = expanded
+        if reachable != known:
+            raise ValueError("workflow contains a step unreachable from its entries")
+
+        can_reach_output = set(self.output_step_ids)
+        while True:
+            expanded = can_reach_output | {
+                parent for parent, children in dependents.items() if children & can_reach_output
+            }
+            if expanded == can_reach_output:
+                break
+            can_reach_output = expanded
+        if can_reach_output != known:
+            raise ValueError("workflow contains a dead-end step outside its outputs")
+
         return self
 
 
@@ -173,8 +225,21 @@ class ExecutionAttempt(FrozenModel):
             self.finished_at is None or self.output_digest is None or self.checkpoint_digest is None
         ):
             raise ValueError("completed attempts require finish, output, and checkpoint digests")
-        if self.status is StepStatus.FAILED and self.failure_reason is None:
-            raise ValueError("failed attempts require a failure reason")
+        if self.status is StepStatus.COMPLETED and self.failure_reason is not None:
+            raise ValueError("completed attempts cannot carry a failure reason")
+        if self.status is StepStatus.FAILED and (
+            self.failure_reason is None or self.finished_at is None
+        ):
+            raise ValueError("failed attempts require a failure reason and finish time")
+        if self.status in {StepStatus.PENDING, StepStatus.RUNNING} and (
+            self.finished_at is not None
+            or self.output_digest is not None
+            or self.checkpoint_digest is not None
+            or self.failure_reason is not None
+        ):
+            raise ValueError("unfinished attempts cannot carry terminal fields")
+        if self.finished_at is not None and self.finished_at < self.started_at:
+            raise ValueError("attempt finish time cannot precede start time")
         return self
 
 

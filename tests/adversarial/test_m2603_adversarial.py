@@ -149,7 +149,7 @@ def test_contract_closure_rejects_duplicate_steps_and_outputs() -> None:
             version="0.1.0",
             steps=(first, first),
             entry_step_ids=(first.step_id,),
-            output_step_ids=(second.step_id,),
+            output_step_ids=(first.step_id,),
             workflow_digest=first.container_digest,
         )
     with pytest.raises(ValidationError, match="output step ids must be unique"):
@@ -168,6 +168,60 @@ def test_contract_closure_rejects_duplicate_steps_and_outputs() -> None:
             steps=(first, second),
             entry_step_ids=(first.step_id,),
             output_step_ids=(first.step_id,),
+            workflow_digest=first.container_digest,
+        )
+
+
+def test_workflow_closure_rejects_cycles_unreachable_and_nonterminal_outputs() -> None:
+    request = build_request()
+    first, second = request.workflow.steps
+    with pytest.raises(ValidationError, match="acyclic"):
+        WorkflowDefinition(
+            workflow_id="m2603.cycle",
+            version="0.1.0",
+            steps=(
+                first.model_copy(update={"dependencies": (second.step_id,)}),
+                second.model_copy(update={"dependencies": (first.step_id,)}),
+            ),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(second.step_id,),
+            workflow_digest=first.container_digest,
+        )
+    with pytest.raises(ValidationError, match="entry steps cannot depend"):
+        WorkflowDefinition(
+            workflow_id="m2603.entry-parent",
+            version="0.1.0",
+            steps=(first, second),
+            entry_step_ids=(second.step_id,),
+            output_step_ids=(first.step_id,),
+            workflow_digest=first.container_digest,
+        )
+    third = first.model_copy(update={"step_id": "m2603.dead-end"})
+    with pytest.raises(ValidationError, match=r"unreachable|dead-end"):
+        WorkflowDefinition(
+            workflow_id="m2603.unreachable",
+            version="0.1.0",
+            steps=(first, second, third),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(second.step_id,),
+            workflow_digest=first.container_digest,
+        )
+    with pytest.raises(ValidationError, match="output steps must be terminal"):
+        WorkflowDefinition(
+            workflow_id="m2603.nonterminal-output",
+            version="0.1.0",
+            steps=(
+                first,
+                second,
+                first.model_copy(
+                    update={
+                        "step_id": "m2603.trailing-step",
+                        "dependencies": (second.step_id,),
+                    }
+                ),
+            ),
+            entry_step_ids=(first.step_id,),
+            output_step_ids=(second.step_id,),
             workflow_digest=first.container_digest,
         )
 
@@ -216,6 +270,40 @@ def test_attempt_and_record_closure_rejects_missing_or_unknown_attempts() -> Non
             attempts=(attempt,),
             execution_status=ExecutionStatus.FAILED,
             execution_digest=step.container_digest,
+        )
+
+
+def test_attempt_closure_rejects_temporal_and_terminal_field_tampering() -> None:
+    request = build_request()
+    started = request.context.occurred_at
+    with pytest.raises(ValidationError, match="finish time"):
+        ExecutionAttempt(
+            attempt_id="m2603.failed-without-finish",
+            step_id=request.workflow.steps[0].step_id,
+            retry_index=0,
+            status=StepStatus.FAILED,
+            started_at=started,
+            failure_reason="container exited",
+        )
+    with pytest.raises(ValidationError, match="cannot precede"):
+        ExecutionAttempt(
+            attempt_id="m2603.backwards-time",
+            step_id=request.workflow.steps[0].step_id,
+            retry_index=0,
+            status=StepStatus.COMPLETED,
+            started_at=started,
+            finished_at=started.replace(year=2025),
+            output_digest=request.workflow.workflow_digest,
+            checkpoint_digest=request.environment.environment_digest,
+        )
+    with pytest.raises(ValidationError, match="terminal fields"):
+        ExecutionAttempt(
+            attempt_id="m2603.running-with-output",
+            step_id=request.workflow.steps[0].step_id,
+            retry_index=0,
+            status=StepStatus.RUNNING,
+            started_at=started,
+            output_digest=request.workflow.workflow_digest,
         )
 
 
