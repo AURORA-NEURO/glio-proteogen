@@ -1,0 +1,14 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-02",
+  "contract_version": "0.1.0-provisional",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_lines": "3320-3363",
+  "cases": [
+    "supported_constructed",
+    "unsupported_abstained",
+    "unsupported_operation_abstained",
+    "lineage_complete",
+    "replay_verified",
+    "parent_not_emitted"
+  ]
+}
