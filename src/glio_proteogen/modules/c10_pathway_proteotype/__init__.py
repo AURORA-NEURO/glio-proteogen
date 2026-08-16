@@ -1,1 +1,1 @@
-"""C10 pathway/proteotype factor implementations."""
+"""C10 pathway/proteotype factor module implementations."""

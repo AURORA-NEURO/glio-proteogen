@@ -1,0 +1,16 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M06-03-R01,dossier:behavioral-brief,Own mature baseline estimation beneath C06 estimation,provisional module identity and operation,contract identity and evaluator,G1
+M06-03-R02,dossier:behavioral-brief,Consume the complete M06-01 formal-state result,full nested result with digest/schema/value replay,evals.m06_03.run and stale-replay tests,G1
+M06-03-R03,dossier:behavioral-brief,Preserve scalar interval and categorical state semantics,transparent typed kernel and closed estimate shape,clear evaluator plus runtime test,G1
+M06-03-R04,dossier:behavioral-brief,Abstain on missing unsupported or upstream non-valid state,typed abstention with no partial estimates,missing and upstream-abstained scenarios,G1
+M06-03-R05,dossier:behavioral-brief,Honor locked preprocessing and tuning declarations,configuration binds schema and records locked true,contract tests and manifest,G1
+M06-03-R06,dossier:behavioral-brief,Fail closed on seven execution controls,authorization preflight before upstream traversal,seven parameterized control tests and API denial,G1
+M06-03-R07,dossier:behavioral-brief,Do not emit parent or clinical conclusions,parent target with emits_parent false and limitations,result closure and evidence docs,G1
+M06-03-R08,dossier:behavioral-brief,Expose strict bounded contracts,seven schema names and 4 MiB request cap,contract schema parity and strict ingress tests,G1
+M06-03-R09,dossier:behavioral-brief,Provide deterministic service and plugin boundaries,parse-once service and digest-bound token registry,plugin parity and forgery tests,G1
+M06-03-R10,dossier:behavioral-brief,Provide HTTP and CLI interfaces,GET/POST API and mature-baseline Typer commands,API/CLI parity tests,G1
+M06-03-R11,dossier:behavioral-brief,Reject duplicate keys wrong media and malformed input,strict JSON loader and sanitized adapter errors,interface negative tests,G1
+M06-03-R12,dossier:behavioral-brief,Retain provenance evidence uncertainty and limitations,closed output envelope and seven not-estimable dimensions,result model and parity tests,G1
+M06-03-R13,dossier:behavioral-brief,Measure only the public estimator,one warm-up and exact 25 timed calls,evals.m06_03.benchmark,G1
+M06-03-R14,dossier:behavioral-brief,Keep ABI provisional until governed review,explicit provisional metadata and docs,manifest/evidence/traceability audit,G1
+M06-03-R15,locked-risk:supersession,Correct results append-only,non-overwriting output contract and supersession field,manifest rollback plan,G1
