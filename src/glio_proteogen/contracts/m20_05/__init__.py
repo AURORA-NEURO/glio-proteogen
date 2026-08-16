@@ -1,5 +1,15 @@
 """Provisional M20-05 workflow presentation contract exports."""
 
+from glio_proteogen.contracts.m20_05.canonical import (
+    canonical_request_bytes,
+    canonical_request_digest,
+    canonical_result_payload_bytes,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
+    verify_request_digest,
+    verify_result_digest,
+)
 from glio_proteogen.contracts.m20_05.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -9,6 +19,8 @@ from glio_proteogen.contracts.m20_05.schema import (
 )
 from glio_proteogen.contracts.m20_05.v1 import (
     M2005_CONTRACT_VERSION,
+    M2005_DOSSIER_SHA256,
+    M2005_DOSSIER_SLICE,
     M2005_GATE,
     M2005_M2004_RESULT_MEDIA_TYPE,
     M2005_MAX_ACTIONS,
@@ -43,6 +55,8 @@ from glio_proteogen.contracts.m20_05.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2005_CONTRACT_VERSION",
+    "M2005_DOSSIER_SHA256",
+    "M2005_DOSSIER_SLICE",
     "M2005_GATE",
     "M2005_M2004_RESULT_MEDIA_TYPE",
     "M2005_MAX_ACTIONS",
@@ -74,6 +88,14 @@ __all__ = [
     "WorkflowFinding",
     "WorkflowFindingCode",
     "WorkspaceStatus",
+    "canonical_request_bytes",
+    "canonical_request_digest",
+    "canonical_result_payload_bytes",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_payload_digest",
+    "verify_request_digest",
+    "verify_result_digest",
 ]

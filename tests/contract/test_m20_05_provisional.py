@@ -3,6 +3,8 @@
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m20_05 import (
+    M2005_DOSSIER_SHA256,
+    M2005_DOSSIER_SLICE,
     M2005_M2004_RESULT_MEDIA_TYPE,
     M2005_OUTPUT_MEDIA_TYPE,
     M2005_PROVISIONAL_ABI,
@@ -49,6 +51,8 @@ def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "protein subtype"
         assert metadata["upstreamInputMediaType"] == M2005_M2004_RESULT_MEDIA_TYPE
+        assert metadata["dossierSha256"] == M2005_DOSSIER_SHA256
+        assert metadata["dossierSlice"] == M2005_DOSSIER_SLICE
     assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2005_OUTPUT_MEDIA_TYPE
     assert M2005_PROVISIONAL_ABI is True
 
