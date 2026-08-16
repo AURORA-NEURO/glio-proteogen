@@ -1,0 +1,21 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M07-07-R01,dossier:2460-2462,Own calibration and selective prediction beneath copy-number dosage,provisional module identity and operation,contract identity and evaluator,G3
+M07-07-R02,dossier:2462-2464,Emit estimate prediction set support decision and preserve parent target,typed result envelope with emits_parent false,calibrated selection and authority assertions,G3
+M07-07-R03,dossier:2464,Do not mutate upstream relabel disagreement or missing evidence,full embedded M07-06 result and strict replay,request/result binding and tamper tests,G3
+M07-07-R04,dossier:2466-2468,Bind seven execution controls,seven-control preflight and provenance,consent denial and hostile-object tests,G3
+M07-07-R05,dossier:2470-2474,Record architecture options without claiming installed model execution,caller-declared candidate boundary and model-free runtime,manifest and authority review,G3
+M07-07-R06,dossier:2476,Validate identity completeness assay support and parent quality,strict upstream M07-06 status/support closure,upstream safe-failure evaluator case,G3
+M07-07-R07,dossier:2478,Quantify uncertainty and expose sensitivity and abstention,typed upstream sensitivity gate and explicit abstention,upstream/calibration/no-candidate cases,G3
+M07-07-R08,dossier:2480,Require review for critical discrepancy OOD override promotion exception or conflict,safe support statuses and review flag,review evidence and abstention cases,G3
+M07-07-R09,dossier:2482,Meet nominal 90 percent coverage within 85-95 or narrow domain,policy and upstream coverage gates,policy edge tests and evaluator matrix,G3
+M07-07-R10,dossier:2484,Provide tests benchmark traceability risk data model review and rollback evidence,fixture/evaluator/benchmark/docs/release package,release evidence and manifest,G3
+M07-07-R11,dossier:2486,Bind Quality engineering S2 G3,contract constants and manifest,identity assertions and package evidence,G3
+M07-07-R12,dossier:2488-2492,Keep reference advanced and fallback architectures explicitly bounded,manifest records no model execution,model/authority boundary review,G3
+M07-07-R13,dossier:2494-2497,Close contract and functional correctness with zero silent coercions,strict frozen models and parse-once interfaces,25 focused tests and Ruff/MyPy gates,G0/G1
+M07-07-R14,dossier:2498,Abstain on unsupported perturbations,unknown strata and failed support/OOD/calibration gates,deterministic diagnostics and safe abstention,adversarial depth tests and evaluator,G3
+M07-07-R15,dossier:2499,Keep 90 percent nominal coverage within 85-95 or narrow support domain,upstream and four-stratum coverage validation,policy and upstream coverage cases,G3
+M07-07-R16,dossier:2500,Guarantee safety provenance recovery and auditable critical failures,canonical digests provenance and append-only supersession,round-trip/tamper tests and rollback manifest,G4
+M07-07-R17,locked-contract,Reject nonfinite duplicate and ambiguous candidate shapes,bounded Pydantic candidate/stratum/prediction models,contract adversarial suite,G0
+M07-07-R18,locked-runtime,Select only caller-declared candidates after all gates,deterministic sort and threshold selection,calibrated and no-candidate cases,G1/G3
+M07-07-R19,locked-replay,Recompute canonical request/result digests,canonical payload helpers and validators,replay and tamper cases,G3
+M07-07-R20,locked-interface,Keep Python plugin API CLI strict and parity-preserving,shared TypeAdapter JSON path and sanitized errors,interface suite and isolated import,G3
