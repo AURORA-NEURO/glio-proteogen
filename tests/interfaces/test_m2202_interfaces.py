@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202Plugin,
     M2202Service,
@@ -47,7 +48,9 @@ def test_fastapi_validate_generate_verify_and_sanitized_errors() -> None:
 
 def test_fastapi_denied_controls_are_sanitized() -> None:
     request = _request()
-    support = request.context.references.support.model_copy(update={"state": "rejected"})
+    support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
     context = request.context.model_copy(
         update={"references": request.context.references.model_copy(update={"support": support})}
     )
