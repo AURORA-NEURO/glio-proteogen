@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m24_07.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -98,9 +99,20 @@ class OperationalMetric(FrozenModel):
     observed_value: float
     target_value: float
     tolerance: float = Field(ge=0.0)
-    sample_size: int = Field(ge=1)
+    sample_size: int = Field(ge=0)
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2407_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def metric_is_closed(self) -> OperationalMetric:
+        if (
+            self.status is OperationalStatus.PASS
+            and abs(self.observed_value - self.target_value) > self.tolerance
+        ):
+            raise ValueError("passing metric must be within its declared tolerance")
+        if self.status is OperationalStatus.NOT_EVALUABLE and self.sample_size > 0:
+            raise ValueError("not-evaluable metric must declare a zero sample size")
+        return self
 
 
 class FallbackScenario(FrozenModel):
@@ -110,7 +122,7 @@ class FallbackScenario(FrozenModel):
     dimension: OperationalDimension
     trigger: NonEmptyStr
     fallback_path: NonEmptyStr
-    recovery_seconds: float = Field(ge=0.0)
+    recovery_seconds: float = Field(ge=0.0, le=86_400.0)
     fallback_available: bool
     status: OperationalStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2407_MAX_EVIDENCE)
@@ -171,6 +183,8 @@ class HumanFactorsOperationalReport(FrozenModel):
             <= fallback_dimensions
         ):
             raise ValueError("report must cover downtime, recovery and fallback scenarios")
+        if not required <= metric_dimensions:
+            raise ValueError("report metric dimensions are not closed")
         return self
 
 
@@ -178,7 +192,7 @@ class OperationalFinding(FrozenModel):
     finding_id: Identifier
     code: OperationalFindingCode
     message: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2407_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2407_MAX_EVIDENCE)
 
 
 class EvaluateBiomarkerPanelHumanFactorsRequest(FrozenModel):
@@ -201,6 +215,12 @@ class EvaluateBiomarkerPanelHumanFactorsRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateBiomarkerPanelHumanFactorsRequest:
         if self.upstream_result.media_type != M2407_M2406_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-06 challenge result")
+        metric_ids = tuple(item.metric_id for item in self.metrics)
+        fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
+        if len(metric_ids) != len(set(metric_ids)):
+            raise ValueError("request metric ids must be unique")
+        if len(fallback_ids) != len(set(fallback_ids)):
+            raise ValueError("request fallback ids must be unique")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}
@@ -244,6 +264,11 @@ class BiomarkerPanelHumanFactorsResult(FrozenModel):
 
     @model_validator(mode="after")
     def result_is_closed(self) -> BiomarkerPanelHumanFactorsResult:
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result identifier does not bind exact request")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("finding ids must be unique")
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
         if self.status is EvaluationStatus.EVALUATED:
