@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-06",
+  "authority": {
+    "dossier": "GLIO-PROTEOGEN_240_Module_Dossier.md",
+    "sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3496-3539"
+  },
+  "abi_status": "dossier-behavioral-brief-only",
+  "scenario_file": "scenarios.json",
+  "scenario_count": 8,
+  "external_content_policy": "opaque-artifact-references-only"
+}
