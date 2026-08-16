@@ -156,6 +156,13 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
+from glio_proteogen.contracts.m19_08 import (
+    M1908_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteotypeTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m19_08 import (
+    contract_json_schema as m1908_contract_json_schema,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -300,6 +307,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_08_translation_monitoring_service as m1908_monitoring,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -433,6 +443,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1908_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-08 translation-health monitoring and rollback.",
+)
+app.add_typer(m1908_app, name="m1908-translation-health")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -3436,6 +3451,48 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@m1908_app.command("export-schema")
+def export_m1908_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M19-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one authority-bound M19-08 contract schema."""
+
+    typer.echo(json.dumps(m1908_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1908_app.command("monitor")
+def monitor_m1908_translation_health(request: RequestArgument) -> None:
+    """Monitor declared translation health and emit a replay-safe result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(MonitorProteotypeTranslationHealthRequest),
+            m1908_monitoring.preflight_m1908_authorization,
+            M1908_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1908_monitoring.M1908Service().monitor(parsed))
+    except m1908_monitoring.M1908AuthorizationError as error:
+        typer.echo(f"M19-08 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-08 translation monitoring failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @app.command("export-schema")

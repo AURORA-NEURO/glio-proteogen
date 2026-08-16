@@ -77,6 +77,11 @@ class M1908Plugin:
     def validate_request(self, request: object) -> MonitorProteotypeTranslationHealthRequest:
         return self._engine.validate_request(request)
 
+    def validate(self, request: object) -> ValidatedM1908Request:
+        """Validate a typed request and return an instance-bound execution token."""
+
+        return ValidatedM1908Request(self._engine.validate_request(request), self._seal)
+
     def validate_json(self, payload: str | bytes) -> ValidatedM1908Request:
         raw = payload.encode() if isinstance(payload, str) else payload
         if len(raw) > _MAX_JSON_BYTES:
