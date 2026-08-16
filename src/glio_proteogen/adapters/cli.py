@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m1906_contract_schema,
     _m1808_contract_schema,
     _m1808_contract_schema,
     _m1806_contract_schema,
@@ -169,6 +170,11 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m19_06 import (
+    M1906_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteotypeQueueRequest,
+    ProteotypeAdjudicationResult,
 )
 from glio_proteogen.contracts.m19_04 import (
     M1904_MAX_CANONICAL_REQUEST_BYTES,
@@ -390,6 +396,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
+    m19_06_reviewer_adjudication as m1906_adjudication,
+)
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
     M1904AuthorizationError,
     M1904ReplayError,
@@ -579,6 +588,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m1906_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-06 reviewer discrepancy and adjudication queue.",
+)
+app.add_typer(m1906_app, name="m19-06-adjudication")
 m1904_app = typer.Typer(
     no_args_is_help=True,
     help="M19-04 bounded intended-use policy adaptation.",
@@ -3997,6 +4011,63 @@ def verify_protein_inference_release_archive(
     _emit(verification)
     if not verification.verified:
         raise typer.Exit(code=1)
+
+
+@m1906_app.command("export-schema")
+def export_m1906_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M19-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M19-06 contract."""
+
+    typer.echo(json.dumps(_m1906_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1906_app.command("adjudicate")
+def adjudicate_m1906(request: RequestArgument) -> None:
+    """Validate and adjudicate one strict M19-06 request document."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdjudicateProteotypeQueueRequest),
+            m1906_adjudication.preflight_m1906_authorization,
+            M1906_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1906_adjudication.M1906Service().adjudicate(parsed))
+    except m1906_adjudication.M1906AuthorizationError as error:
+        typer.echo(f"M19-06 adjudication authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-06 adjudication failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1906_app.command("verify")
+def verify_m1906(result: RequestArgument) -> None:
+    """Replay-verify a canonical M19-06 result document."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeAdjudicationResult),
+            max_bytes=M1906_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(m1906_adjudication.M1906Service().replay(parsed))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-06 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @m1904_app.command("export-schema")

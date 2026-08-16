@@ -1,1 +1,1 @@
-"""Runtime module tests."""
+"""Runtime tests."""
