@@ -1,0 +1,12 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M21-06,caller-declared M21-05 media binding,contracts/m21_06/v1.py request_is_bound,media/source closure tests,pass
+GLIO-PROTEOGEN-M21-06,eight locked challenge kinds,contracts/m21_06/v1.py RobustnessConfiguration,fixture/evaluator/contract tests,pass
+GLIO-PROTEOGEN-M21-06,observation and OOD closure,contracts/m21_06/v1.py RobustnessSurface/RobustnessObservation,adversarial disposition and OOD tests,pass
+GLIO-PROTEOGEN-M21-06,deterministic replay and result identity,contracts/m21_06/canonical.py and engine.py,replay/tamper tests,pass
+GLIO-PROTEOGEN-M21-06,seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+GLIO-PROTEOGEN-M21-06,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M21-06,safe abstention for unsupported challenges,modules/.../engine.py,safe-failure/evaluator/interface tests,pass
+GLIO-PROTEOGEN-M21-06,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M21-06,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M21-06,evaluator and locked benchmark,evals/m21_06,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M21-06,provisional authority and prohibited boundaries,docs/modules/M21-06-robustness-shift-ood-challenge.md,owner review and evidence,provisional
