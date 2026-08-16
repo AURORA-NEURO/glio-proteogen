@@ -47,6 +47,19 @@ def test_nominal_workflow_is_complete_and_replayable() -> None:
     assert M2603Engine().verify(result).result_digest == result.result_digest
 
 
+def test_runtime_schedules_reversed_declaration_in_dependency_order() -> None:
+    request = build_request()
+    reversed_workflow = request.workflow.model_copy(
+        update={"steps": tuple(reversed(request.workflow.steps))}
+    )
+    result = M2603Engine().execute(request.model_copy(update={"workflow": reversed_workflow}))
+    assert result.execution_record is not None
+    assert tuple(item.step_id for item in result.execution_record.attempts) == (
+        request.workflow.steps[0].step_id,
+        request.workflow.steps[1].step_id,
+    )
+
+
 @pytest.mark.parametrize(
     "field",
     [

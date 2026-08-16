@@ -23,6 +23,8 @@ from glio_proteogen.contracts.m26_03 import (
     ProteinSubtypeExecutionResult,
     ReproducibleResultPackage,
     StepStatus,
+    WorkflowDefinition,
+    WorkflowStep,
     canonical_request_digest,
     result_identifier,
     result_payload_digest,
@@ -114,8 +116,7 @@ def _uncertainty() -> UncertaintyProfile:
         return UncertaintyEstimate(
             state=EstimateState.NOT_ESTIMABLE,
             rationale=(
-                f"M26-03 does not estimate {dimension} uncertainty from orchestration "
-                "metadata."
+                f"M26-03 does not estimate {dimension} uncertainty from orchestration metadata."
             ),
         )
 
@@ -178,6 +179,28 @@ def _provenance(
     )
 
 
+def _topological_steps(workflow: WorkflowDefinition) -> tuple[WorkflowStep, ...]:
+    """Return a stable dependency-respecting order for caller-declared steps."""
+
+    pending = {step.step_id: step for step in workflow.steps}
+    completed: set[str] = set()
+    ordered: list[WorkflowStep] = []
+    while pending:
+        ready = tuple(
+            sorted(
+                (step for step in pending.values() if set(step.dependencies) <= completed),
+                key=lambda step: step.step_id,
+            )
+        )
+        if not ready:
+            raise M2603EvaluationError("M26-03 workflow graph cannot be scheduled")
+        ordered.extend(ready)
+        for step in ready:
+            completed.add(step.step_id)
+            del pending[step.step_id]
+    return tuple(ordered)
+
+
 def _attempts(request: ExecuteProteinSubtypeWorkflowRequest) -> tuple[ExecutionAttempt, ...]:
     return tuple(
         ExecutionAttempt(
@@ -195,7 +218,7 @@ def _attempts(request: ExecuteProteinSubtypeWorkflowRequest) -> tuple[ExecutionA
             ),
             evidence=step.evidence,
         )
-        for step in request.workflow.steps
+        for step in _topological_steps(request.workflow)
     )
 
 
@@ -257,15 +280,13 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="research_only_orchestration",
             statement=(
-                "The orchestrator makes no biological, treatment, identity, or consent "
-                "claim."
+                "The orchestrator makes no biological, treatment, identity, or consent claim."
             ),
         ),
         Limitation(
             code="human_review_required",
             statement=(
-                "Human review remains required for provisional ABI confirmation and "
-                "exceptions."
+                "Human review remains required for provisional ABI confirmation and exceptions."
             ),
         ),
     )
@@ -303,8 +324,7 @@ class M2603Engine:
                     finding_id="finding.m2603.provisional-review",
                     code=PipelineFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
                     message=(
-                        "The provisional workflow ABI and caller authority require "
-                        "governed review."
+                        "The provisional workflow ABI and caller authority require governed review."
                     ),
                     evidence=evidence[:1],
                 ),
