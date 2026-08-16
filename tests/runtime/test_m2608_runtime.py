@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m26_08 import (
     RetirementStatus,
     RetireProteinSubtypeServiceRequest,
 )
+from glio_proteogen.contracts.m26_08.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -36,10 +37,12 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_08_retirement_archival_knowl
     M2608AuthorizationError,
     M2608Plugin,
     M2608ReplayError,
+    M2608RetirementEngine,
     M2608RetirementService,
     M2608TokenError,
     RetirementSubmission,
     preflight_m2608_authorization,
+    retire_protein_subtype_service,
 )
 
 
@@ -192,6 +195,8 @@ def test_service_executes_closed_package_and_replays_deterministically() -> None
     assert first.package.archive.status is ArchiveStatus.VERIFIED
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert service.verify(first).model_dump(mode="json") == first.model_dump(mode="json")
+    assert M2608RetirementEngine().verify(first).result_digest == first.result_digest
+    assert retire_protein_subtype_service(request).result_digest == first.result_digest
 
 
 @pytest.mark.parametrize(
@@ -242,6 +247,16 @@ def test_replay_rejects_tampered_result_digest() -> None:
         M2608RetirementService.verify(tampered)
 
 
+def test_replay_rejects_validly_rehashed_tampered_result_id() -> None:
+    service = M2608RetirementService()
+    result = service.retire(_request())
+    changed = result.model_copy(update={"result_id": "result.m2608.tampered"})
+    changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
+
+    with pytest.raises(M2608ReplayError):
+        service.verify(changed)
+
+
 def test_replay_rejects_tampered_request_digest() -> None:
     result = M2608RetirementService().retire(_request())
     tampered = result.model_copy(update={"request_digest": _digest("tampered")})
@@ -267,6 +282,29 @@ def test_plugin_requires_token_and_preserves_json_parity() -> None:
 def test_hostile_preflight_mapping_fails_closed() -> None:
     with pytest.raises(M2608AuthorizationError):
         preflight_m2608_authorization({"context": {"references": object()}})
+
+
+def test_hostile_preflight_property_fails_closed() -> None:
+    class Hostile:
+        @property
+        def context(self) -> object:
+            raise RuntimeError
+
+    with pytest.raises(M2608AuthorizationError):
+        preflight_m2608_authorization(Hostile())
+
+
+def test_service_rejects_invalid_replay_object() -> None:
+    with pytest.raises(M2608ReplayError):
+        M2608RetirementService.verify(object())
+    assert M2608RetirementService().descriptor["module_id"] == "GLIO-PROTEOGEN-M26-08"
+
+
+def test_plugin_token_cannot_cross_plugin_instances() -> None:
+    request = _request()
+    token = M2608Plugin().validate(RetirementSubmission(request.model_dump_json()))
+    with pytest.raises(M2608TokenError):
+        M2608Plugin().run(token)
 
 
 def test_request_rejects_duplicate_source_artifact_ids() -> None:

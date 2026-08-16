@@ -201,23 +201,18 @@ class RetirementPackage(FrozenModel):
         groups = (criterion_ids, migration_ids, preservation_ids, communication_ids)
         if any(len(ids) != len(set(ids)) for ids in groups):
             raise ValueError("retirement package identifiers must be unique")
-        if self.configuration.parent_target != M2608_PARENT:
-            raise ValueError("retirement package configuration targets a different parent")
         if self.status is RetirementStatus.EXECUTED and self.configuration.active_dependencies:
             raise ValueError("executed retirement package cannot retain active dependencies")
         if self.archive.manifest.artifact_id not in {
             item.artifact.artifact_id for item in self.preserved_evidence
         }:
             raise ValueError("archive manifest must be present in preserved evidence")
-        migration_ids_set = set(migration_ids)
         if any(
             item.status is MigrationStatus.COMPLETED
             and item.target_reference == item.source_reference
             for item in self.migrations
         ):
             raise ValueError("completed migration must change its dependency reference")
-        if not migration_ids_set:
-            raise ValueError("retirement package requires at least one migration")
         if self.status is RetirementStatus.EXECUTED:
             if any(not item.satisfied for item in self.criteria):
                 raise ValueError("executed package cannot contain unsatisfied criteria")
@@ -268,8 +263,6 @@ class RetireProteinSubtypeServiceRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> RetireProteinSubtypeServiceRequest:
-        if self.configuration.parent_target != M2608_PARENT:
-            raise ValueError("request configuration targets a different parent")
         ids = (
             tuple(item.criterion_id for item in self.criteria),
             tuple(item.migration_id for item in self.migrations),

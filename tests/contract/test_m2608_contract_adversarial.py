@@ -14,16 +14,24 @@ from glio_proteogen.contracts.m26_08 import (
     EvidencePreservation,
     LongTermArchive,
     MigrationStatus,
+    ProteinSubtypeRetirementResult,
     RetirementConfiguration,
     RetirementCriterion,
     RetirementPackage,
+    RetirementRunStatus,
     RetirementStatus,
+    RetireProteinSubtypeServiceRequest,
 )
 from glio_proteogen.contracts.m26_08.canonical import canonical_request_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
+    SupportStatus,
 )
+from glio_proteogen.modules.c20_biomarker_panel.m26_08_retirement_archival_knowledge_transfer import (  # noqa: E501
+    M2608RetirementService,
+)
+from tests.runtime.test_m2608_runtime import _request
 
 _SHA256_HEX_LENGTH = 64
 
@@ -199,3 +207,113 @@ def test_canonical_digest_is_deterministic_for_equivalent_models() -> None:
     first = {"request_id": "request-1", "occurred_at": datetime(2026, 1, 1, tzinfo=UTC)}
     second = {"occurred_at": datetime(2026, 1, 1, tzinfo=UTC), "request_id": "request-1"}
     assert canonical_request_digest(first) == canonical_request_digest(second)
+
+
+def test_checksum_verified_evidence_cannot_be_unretrievable() -> None:
+    with pytest.raises(ValidationError, match="checksum-verified preservation"):
+        EvidencePreservation(
+            preservation_id="preservation-bad",
+            artifact=_artifact("archive-bad", "c"),
+            retention_class="long-term",
+            checksum_verified=True,
+            retrievable=False,
+            evidence=(_evidence(),),
+        )
+
+
+def test_package_allows_nonexecuted_review_state() -> None:
+    package = _package(status=RetirementStatus.PROPOSED)
+    assert package.status is RetirementStatus.PROPOSED
+
+
+def test_executed_package_rejects_active_dependency() -> None:
+    configuration = _configuration().model_copy(
+        update={"active_dependencies": ("dependency.active",)}
+    )
+    with pytest.raises(ValidationError, match="active dependencies"):
+        _package(configuration=configuration)
+
+
+def test_executed_package_rejects_unsatisfied_criterion() -> None:
+    with pytest.raises(ValidationError, match="unsatisfied criteria"):
+        _package(criteria=(_criterion().model_copy(update={"satisfied": False}),))
+
+
+def test_executed_package_rejects_incomplete_migration() -> None:
+    with pytest.raises(ValidationError, match="completed dependency migrations"):
+        _package(migrations=(_migration().model_copy(update={"status": MigrationStatus.BLOCKED}),))
+
+
+def test_executed_package_rejects_unretrievable_evidence() -> None:
+    preservation = _preservation().model_copy(
+        update={"checksum_verified": False, "retrievable": False}
+    )
+    with pytest.raises(ValidationError, match="retrievable preserved evidence"):
+        _package(preserved_evidence=(preservation,))
+
+
+def test_executed_package_rejects_unacknowledged_communication() -> None:
+    communication = _communication().model_copy(update={"acknowledged": False})
+    with pytest.raises(ValidationError, match="acknowledged communications"):
+        _package(communications=(communication,))
+
+
+def test_executed_package_rejects_unverified_archive() -> None:
+    archive = _archive().model_copy(update={"status": ArchiveStatus.PRESERVED})
+    with pytest.raises(ValidationError, match="verified archive"):
+        _package(archive=archive)
+
+
+def test_request_rejects_duplicate_groups() -> None:
+    request = _request()
+    duplicate = request.model_dump(mode="python") | {
+        "criteria": (request.criteria[0], request.criteria[0])
+    }
+    with pytest.raises(ValidationError, match="unique within"):
+        RetireProteinSubtypeServiceRequest.model_validate(duplicate)
+
+
+def test_request_rejects_missing_archive_manifest() -> None:
+    request = _request()
+    preservation = request.preserved_evidence[0].model_copy(
+        update={"artifact": _artifact("different-preservation")}
+    )
+    with pytest.raises(ValidationError, match="archive manifest"):
+        RetireProteinSubtypeServiceRequest.model_validate(
+            request.model_dump(mode="python") | {"preserved_evidence": (preservation,)}
+        )
+
+
+def test_request_rejects_duplicate_source_modalities() -> None:
+    request = _request()
+    duplicate = request.mass_spectrometry_proteome
+    with pytest.raises(ValidationError, match="source modality"):
+        RetireProteinSubtypeServiceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "genome_transcriptome": duplicate,
+                "source_artifacts": (duplicate, request.ptm_annotations),
+            }
+        )
+
+
+def test_result_status_closure_is_enforced() -> None:
+    service = M2608RetirementService()
+    executed = service.retire(_request())
+    with pytest.raises(ValidationError, match="supported retirement package"):
+        ProteinSubtypeRetirementResult.model_validate(
+            executed.model_dump(mode="python") | {"package": None}
+        )
+    abstained = service.retire(_request(criterion_satisfied=False))
+    assert executed.package is not None
+    with pytest.raises(ValidationError, match="safe status"):
+        ProteinSubtypeRetirementResult.model_validate(
+            abstained.model_dump(mode="python")
+            | {
+                "status": RetirementRunStatus.ABSTAINED,
+                "package": executed.package,
+                "support_decision": abstained.support_decision.model_copy(
+                    update={"status": SupportStatus.SUPPORTED}
+                ),
+            }
+        )
