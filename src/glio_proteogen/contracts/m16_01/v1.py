@@ -208,15 +208,12 @@ class ResolveProteinRnaDiscordanceUpstreamRequest(FrozenModel):
     supersedes_result_digest: Sha256Digest | None = None
 
     @model_validator(mode="after")
-    def request_candidates_are_unique_and_complete(
+    def request_candidates_are_unique(
         self,
     ) -> ResolveProteinRnaDiscordanceUpstreamRequest:
         ids = tuple(item.candidate_id for item in self.candidates)
         if len(ids) != len(set(ids)):
             raise ValueError("request candidate ids must be unique")
-        kinds = {item.kind for item in self.candidates}
-        if not set(self.policy.required_kinds).issubset(kinds):
-            raise ValueError("request is missing a required upstream kind")
         return self
 
 
