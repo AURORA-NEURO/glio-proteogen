@@ -1,0 +1,62 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-01",
+  "contract_version": "1.0.0",
+  "groups": {
+    "contract_schema": [
+      "canonical_conformant",
+      "unknown_field_rejected",
+      "scalar_coercion_rejected",
+      "duplicate_json_rejected",
+      "thirteen_schemas_closed"
+    ],
+    "identity_authorization": [
+      "configuration_denial_zero_traversal",
+      "identity_denial_zero_traversal",
+      "consent_denial_zero_traversal",
+      "quality_denial_zero_traversal",
+      "remaining_controls_denied"
+    ],
+    "version_compatibility": [
+      "unsupported_version_abstains",
+      "unsupported_ood_abstains",
+      "compatibility_failure_quarantined",
+      "profile_pin_forgery_rejected",
+      "configuration_forgery_rejected"
+    ],
+    "units_metadata": [
+      "unit_incompatibility_quarantined",
+      "metadata_incomplete_quarantined",
+      "identity_incomplete_quarantined",
+      "maximum_profile_shape_conforms",
+      "vocabulary_cap_excess_rejected"
+    ],
+    "unresolved_parent": [
+      "unresolved_semantics_quarantined",
+      "missing_not_detected_below_lod_distinct",
+      "variant_peptide_parent_context_only",
+      "authority_flags_all_false",
+      "uncertainty_support_domain_narrowed"
+    ],
+    "replay_canonical": [
+      "deterministic_result_equality",
+      "semantic_reorder_equality",
+      "result_digest_forgery_rejected",
+      "finding_forgery_rejected",
+      "receipt_forgery_rejected"
+    ],
+    "privacy_evidence": [
+      "evidence_alias_mismatch_rejected",
+      "evidence_media_type_rejected",
+      "biological_canary_not_reflected",
+      "unknown_schema_name_rejected",
+      "raw_payload_fields_absent"
+    ],
+    "recovery_interfaces": [
+      "superseding_recovery_conforms",
+      "plugin_public_parity",
+      "copied_token_forgery_rejected",
+      "strict_json_roundtrip",
+      "maximum_request_within_byte_cap"
+    ]
+  }
+}
