@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m25_07 import (
     EvaluateProteotypeHumanFactorsRequest,
     FallbackScenario,
+    HumanFactorsOperationalReport,
     OperationalConfiguration,
     OperationalDimension,
     OperationalMetric,
@@ -193,3 +194,64 @@ def test_cli_abstention_is_nonzero_and_result_has_no_report(tmp_path: Path) -> N
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["status"] == "abstained"
     assert payload["report"] is None
+
+
+def test_report_closure_rejects_duplicate_or_missing_paths() -> None:
+    service = m2507.M2507Service()
+    report = service.execute(build_request()).report
+    assert report is not None
+
+    duplicate_fallback = report.model_copy(
+        update={"fallbacks": (report.fallbacks[0], report.fallbacks[0], *report.fallbacks[2:])}
+    )
+    with pytest.raises(ValidationError, match="fallback scenario ids"):
+        HumanFactorsOperationalReport.model_validate(
+            duplicate_fallback.model_dump(mode="python"), strict=True
+        )
+
+    missing_metric = report.model_copy(update={"metrics": tuple(report.metrics[:-1])})
+    with pytest.raises(ValidationError, match="every configured"):
+        HumanFactorsOperationalReport.model_validate(
+            missing_metric.model_dump(mode="python"), strict=True
+        )
+
+    missing_fallback = report.model_copy(update={"fallbacks": tuple(report.fallbacks[:1])})
+    with pytest.raises(ValidationError, match="downtime, recovery"):
+        HumanFactorsOperationalReport.model_validate(
+            missing_fallback.model_dump(mode="python"), strict=True
+        )
+
+
+def test_request_required_dimensions_and_result_digest_closures() -> None:
+    request = build_request()
+    missing_metric = request.model_copy(update={"metrics": tuple(request.metrics[:-1])})
+    with pytest.raises(ValidationError, match="every configured"):
+        EvaluateProteotypeHumanFactorsRequest.model_validate(
+            missing_metric.model_dump(mode="python"), strict=True
+        )
+    missing_fallback = request.model_copy(update={"fallbacks": tuple(request.fallbacks[:1])})
+    with pytest.raises(ValidationError, match="downtime, recovery"):
+        EvaluateProteotypeHumanFactorsRequest.model_validate(
+            missing_fallback.model_dump(mode="python"), strict=True
+        )
+
+    result = m2507.M2507Service().execute(request)
+    bad_digest = result.model_copy(update={"request_digest": "sha256:" + ("f" * 64)})
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteotypeHumanFactorsResult.model_validate(
+            bad_digest.model_dump(mode="python"), strict=True
+        )
+    bad_id = result.model_copy(update={"result_id": "forged"})
+    with pytest.raises(ValidationError, match="result id"):
+        ProteotypeHumanFactorsResult.model_validate(
+            bad_id.model_dump(mode="python"), strict=True
+        )
+
+
+def test_service_json_validation_and_cli_replay_errors(tmp_path: Path) -> None:
+    service = m2507.M2507Service()
+    assert service.validate_request(build_request().model_dump_json()).request_id
+    bad_path = tmp_path / "bad-result.json"
+    bad_path.write_text("{}", encoding="utf-8")
+    result = CliRunner().invoke(m2507.cli.app, ["verify", str(bad_path)])
+    assert result.exit_code != 0

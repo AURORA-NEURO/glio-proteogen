@@ -64,9 +64,13 @@ def test_api_rejects_denied_and_malformed_requests() -> None:
     denied = client.post(
         "/v1/modules/M25-07/validate", json=denied_request().model_dump(mode="json")
     )
+    denied_evaluate = client.post(
+        "/v1/modules/M25-07/evaluate", json=denied_request().model_dump(mode="json")
+    )
     malformed = client.post("/v1/modules/M25-07/evaluate", json={"request_id": "malformed"})
 
     assert denied.status_code == _HTTP_UNPROCESSABLE
+    assert denied_evaluate.status_code == _HTTP_UNPROCESSABLE
     assert malformed.status_code == _HTTP_UNPROCESSABLE
     assert malformed.json()["detail"] == "request does not satisfy the M25-07 contract"
 
