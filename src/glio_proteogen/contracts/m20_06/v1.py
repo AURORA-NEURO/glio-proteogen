@@ -43,6 +43,10 @@ M2006_OWNER: Final = "Scientific engineering"
 M2006_SAFETY_CLASS: Final = "S2"
 M2006_GATE: Final = "G4"
 M2006_PROVISIONAL_ABI: Final = True
+M2006_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2006_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7096-7136"
 M2006_MAX_QUEUE_ENTRIES: Final = 256
 M2006_MAX_ASSIGNMENTS: Final = 256
 M2006_MAX_HISTORY: Final = 1_024
@@ -112,7 +116,7 @@ class DiscrepancyQueueEntry(FrozenModel):
     severity: DiscrepancySeverity
     description: NonEmptyStr
     state: QueueEntryState
-    blinded_review_required: bool = True
+    blinded_review_required: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2006_MAX_EVIDENCE)
 
 
@@ -166,16 +170,36 @@ class AdjudicationRecord(FrozenModel):
             raise ValueError("assignment ids must be unique")
         if len(event_ids) != len(set(event_ids)) or len(sequences) != len(set(sequences)):
             raise ValueError("audit event ids and sequence numbers must be unique")
+        if sequences != tuple(range(1, len(sequences) + 1)):
+            raise ValueError("audit history sequences must be contiguous from one")
         known_entries = set(entry_ids)
         if any(item.discrepancy_id not in known_entries for item in self.assignments):
             raise ValueError("assignment references an unknown discrepancy")
+        assignment_keys = tuple(
+            (item.discrepancy_id, item.reviewer_token) for item in self.assignments
+        )
+        if len(assignment_keys) != len(set(assignment_keys)):
+            raise ValueError("duplicate blinded reviewer assignment")
         if self.status is AdjudicationRecordStatus.RESOLVED and self.resolution_summary is None:
             raise ValueError("resolved record requires a resolution summary")
+        if self.status is AdjudicationRecordStatus.RESOLVED:
+            if any(item.state is not QueueEntryState.RESOLVED for item in self.entries):
+                raise ValueError("resolved record requires every entry to be resolved")
+            if any(
+                item.decision not in {ReviewDecision.ACCEPT, ReviewDecision.REJECT}
+                for item in self.assignments
+            ):
+                raise ValueError("resolved record cannot contain deferred or abstained decisions")
         if (
             self.status is AdjudicationRecordStatus.ESCALATED
             and self.resolution_summary is not None
         ):
             raise ValueError("escalated record cannot claim final resolution")
+        if self.status is AdjudicationRecordStatus.ESCALATED and not any(
+            item.state in {QueueEntryState.ESCALATED, QueueEntryState.NOT_EVALUABLE}
+            for item in self.entries
+        ):
+            raise ValueError("escalated record requires an escalated or non-evaluable entry")
         return self
 
 
@@ -186,7 +210,7 @@ class ReviewWorkspaceConfiguration(FrozenModel):
     escalation_required_for_critical: Literal[True] = True
     immutable_history_required: Literal[True] = True
     locked: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2006_MAX_EVIDENCE)
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2006_MAX_EVIDENCE)
 
 
 class QueueFinding(FrozenModel):
@@ -220,6 +244,8 @@ class AdjudicateProteinSubtypeQueueRequest(FrozenModel):
     def request_is_bound(self) -> AdjudicateProteinSubtypeQueueRequest:
         if self.upstream_result.media_type != M2006_M2005_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M20-05 workflow result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         entry_ids = tuple(item.discrepancy_id for item in self.entries)
         assignment_ids = tuple(item.assignment_id for item in self.assignments)
         if len(entry_ids) != len(set(entry_ids)):
@@ -229,6 +255,19 @@ class AdjudicateProteinSubtypeQueueRequest(FrozenModel):
         allowed = set(entry_ids)
         if any(item.discrepancy_id not in allowed for item in self.assignments):
             raise ValueError("request assignment references an unknown discrepancy")
+        assignment_keys = tuple(
+            (item.discrepancy_id, item.reviewer_token) for item in self.assignments
+        )
+        if len(assignment_keys) != len(set(assignment_keys)):
+            raise ValueError("request contains duplicate blinded reviewer assignments")
+        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        if len(artifact_keys) != len(set(artifact_keys)):
+            raise ValueError("request source artifacts must be unique by id and digest")
+        if (
+            self.upstream_result.artifact_id,
+            self.upstream_result.digest,
+        ) not in set(artifact_keys):
+            raise ValueError("request source artifacts must include the upstream workflow result")
         return self
 
 
@@ -252,7 +291,7 @@ class ProteinSubtypeAdjudicationResult(FrozenModel):
     provenance: ProvenanceRecord
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2006_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
-    human_review_required: bool = True
+    human_review_required: Literal[True] = True
 
     @model_validator(mode="after")
     def result_is_closed(self) -> ProteinSubtypeAdjudicationResult:
@@ -269,6 +308,10 @@ class ProteinSubtypeAdjudicationResult(FrozenModel):
             record_ids = {item.discrepancy_id for item in self.record.entries}
             if request_ids != record_ids:
                 raise ValueError("record must include every requested discrepancy")
+            request_assignment_ids = {item.assignment_id for item in self.request.assignments}
+            record_assignment_ids = {item.assignment_id for item in self.record.assignments}
+            if request_assignment_ids != record_assignment_ids:
+                raise ValueError("record must preserve every reviewer assignment")
         elif (
             self.record is not None
             or self.abstention_reason is None
@@ -278,11 +321,16 @@ class ProteinSubtypeAdjudicationResult(FrozenModel):
             raise ValueError("abstained result requires no record and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("queue finding ids must be unique")
         return self
 
 
 __all__ = [
     "M2006_CONTRACT_VERSION",
+    "M2006_DOSSIER_SHA256",
+    "M2006_DOSSIER_SLICE",
     "M2006_EVIDENCE_CLAIM",
     "M2006_GATE",
     "M2006_M2005_INPUT_MEDIA_TYPE",
