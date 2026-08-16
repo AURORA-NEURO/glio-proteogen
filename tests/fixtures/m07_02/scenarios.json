@@ -1,0 +1,21 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M07-02",
+  "contractVersion": "0.1.0-provisional",
+  "scenarios": [
+    {
+      "id": "constructed-lineage-safe",
+      "expectedStatus": "constructed",
+      "required": ["feature_lineage", "leakage_safe", "deterministic_replay"]
+    },
+    {
+      "id": "outcome-field-leakage",
+      "expectedStatus": "abstained",
+      "required": ["no_features", "human_review"]
+    },
+    {
+      "id": "duplicate-source-artifacts",
+      "expectedStatus": "abstained",
+      "required": ["no_features", "safe_support_status"]
+    }
+  ]
+}
