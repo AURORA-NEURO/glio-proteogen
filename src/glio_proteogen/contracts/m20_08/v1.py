@@ -207,9 +207,13 @@ class TranslationHealthReport(FrozenModel):
         if len(assessment_ids) != len(set(assessment_ids)):
             raise ValueError("drift assessment ids must be unique")
         known = set(signal_ids)
+        referenced: list[Identifier] = []
         for assessment in self.assessments:
             if not set(assessment.signal_ids) <= known:
                 raise ValueError("drift assessment references an unknown signal")
+            referenced.extend(assessment.signal_ids)
+        if set(referenced) != known or len(referenced) != len(set(referenced)):
+            raise ValueError("each report signal must have one drift assessment")
         evidence_digests = tuple(item.reference.digest for item in self.evidence)
         if len(evidence_digests) != len(set(evidence_digests)):
             raise ValueError("translation report evidence must be unique")
@@ -286,7 +290,7 @@ class ProteinSubtypeTranslationHealthResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteinSubtypeTranslationHealthResult:
+    def result_is_closed(self) -> ProteinSubtypeTranslationHealthResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
@@ -295,6 +299,11 @@ class ProteinSubtypeTranslationHealthResult(FrozenModel):
         evidence_digests = tuple(item.reference.digest for item in self.evidence)
         if len(evidence_digests) != len(set(evidence_digests)):
             raise ValueError("translation result evidence must be unique")
+        diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
+        if len(diagnostic_ids) != len(set(diagnostic_ids)):
+            raise ValueError("monitor diagnostic ids must be unique")
+        if len(self.findings) != len(set(self.findings)):
+            raise ValueError("monitor findings must be unique")
         if self.health_status is TranslationHealthStatus.HEALTHY:
             if (
                 self.report is None
