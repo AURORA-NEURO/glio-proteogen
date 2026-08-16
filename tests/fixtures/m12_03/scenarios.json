@@ -1,0 +1,12 @@
+{
+  "fixture_version": "0.1.0-provisional",
+  "module_id": "GLIO-PROTEOGEN-M12-03",
+  "cases": [
+    {"case_id": "supported", "expected_status": "constructed"},
+    {"case_id": "negative-failed", "expected_status": "abstained"},
+    {"case_id": "negative-not-evaluable", "expected_status": "abstained"},
+    {"case_id": "quality-rejected", "expected_status": "abstained"},
+    {"case_id": "denied-control", "expected_status": "authorization_error"},
+    {"case_id": "deterministic-replay", "expected_status": "constructed"}
+  ]
+}

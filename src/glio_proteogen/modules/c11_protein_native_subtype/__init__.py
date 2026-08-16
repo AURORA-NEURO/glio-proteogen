@@ -1,1 +1,1 @@
-"""Provisional C11 protein-native subtype module namespace."""
+"""Protein-native subtype module group."""
