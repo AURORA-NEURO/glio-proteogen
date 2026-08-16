@@ -1,1 +1,1 @@
-"""M08-01 lifecycle tests."""
+"""Transcript-protein module lifecycle and feature tests."""
