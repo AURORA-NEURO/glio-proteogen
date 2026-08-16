@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-04",
+  "scenarios": [
+    {"id": "safe-abstention", "expected": "abstained", "controls": "accepted"},
+    {"id": "diagnostic-and-uncertainty", "expected": "not_evaluable", "controls": "accepted"},
+    {"id": "replay", "expected": "verified", "controls": "accepted"},
+    {"id": "tamper", "expected": "rejected", "controls": "accepted"},
+    {"id": "unresolved-controls", "expected": "authorization_error", "controls": "unknown"},
+    {"id": "wrong-baseline-media", "expected": "validation_error", "controls": "accepted"},
+    {"id": "duplicate-json", "expected": "strict_json_error", "controls": "accepted"},
+    {"id": "prohibited-parent-output", "expected": false, "controls": "accepted"}
+  ]
+}

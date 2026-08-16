@@ -1,0 +1,11 @@
+requirement,authoritative_slice,implementation,evidence,status
+responsibility:mechanism_constraint_integrator,2372-2415,src/glio_proteogen/modules/c07_copy_number_dosage/m07_05_mechanism_constraint_integrator/engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+boundary:no_kinase_or_treatment,2372-2415,src/glio_proteogen/contracts/m07_05/v1.py,docs/modules/M07-05.manifest.md,implemented-provisional
+boundary:no_identity_or_unsupported_negative,2372-2415,engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+inputs:proteome_genome_transcriptome_ptm_context,2372-2415,src/glio_proteogen/contracts/m07_05/v1.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+outputs:estimate_and_satisfaction_report,2372-2415,src/glio_proteogen/contracts/m07_05/v1.py,evals/m07_05/run.py,implemented-provisional
+acceptance:hard_constraints_hold,2372-2415,engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+acceptance:soft_conflicts_quantified,2372-2415,engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+acceptance:ablation_detects_prior_dominance,2372-2415,engine.py,tests/modules/c07_copy_number_dosage/test_m07_05_constraint.py,implemented-provisional
+acceptance:versioned_uncertainty_safe_failure,2372-2415,contracts/m07_05 and engine.py,tests/evals/test_m07_05_evaluation.py,implemented-provisional
+gates:G0_G1_G3_G4,2372-2415,tests/contract tests/integration evals/m07_05,docs/evidence/M07-05-package.json,static-ruff-only-runtime-pending
