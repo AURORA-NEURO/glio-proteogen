@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m17_01.v1 import (
     M1701_CONTRACT_VERSION,
+    M1701_DOSSIER_SHA256,
+    M1701_DOSSIER_SLICE,
     M1701_GATE,
     M1701_MAX_CANONICAL_REQUEST_BYTES,
     M1701_MODULE_ID,
@@ -61,6 +63,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M1701_MODULE_ID,
+        "dossierSha256": M1701_DOSSIER_SHA256,
+        "dossierSlice": M1701_DOSSIER_SLICE,
         "contractVersion": CONTRACT_VERSION,
         "owner": M1701_OWNER,
         "safetyClass": M1701_SAFETY_CLASS,
