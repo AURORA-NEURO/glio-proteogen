@@ -1,0 +1,2 @@
+module_id,dossier_sha256,dossier_slice,responsibility,acceptance,abi_status,contract_version,evidence
+GLIO-PROTEOGEN-M07-02,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,2240-2283,"Deterministic representation and feature construction; scaling/masks/covariates; complete leakage-safe lineage; parent proteotype",deterministic locked-input representation; complete lineage; leakage tests; safe failure,provisional-no-frozen-abi,0.1.0-provisional,"M07-02.md; M07-02-evaluation.json; M07-02-benchmark.json; M07-02-package.json"

@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M08-06",
+  "iterations": 10,
+  "mean_ns": 979780,
+  "median_ns": 906550,
+  "p95_ns": 1721700,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true,
+  "fixture": "tests/fixtures/m08_06/scenarios.json",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+}

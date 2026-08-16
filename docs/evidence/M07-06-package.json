@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-06",
+  "distribution_version": "0.1.0",
+  "build_tool": "hatchling 1.31.0 via uv build --offline",
+  "artifacts": [
+    {
+      "name": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 756234,
+      "sha256": "f4254d0533e5bbd9561081a69f4139c12261954451964057b54656d0b512594b"
+    },
+    {
+      "name": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1433155,
+      "sha256": "3d6fbe115a647eaf242cec0df4e10420bae817857af97550beaef4e0b7245ccc"
+    }
+  ],
+  "isolated_import": true,
+  "release_verifier": "installed-wheel passed",
+  "runtime_abi": "0.1.0-provisional",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+}
