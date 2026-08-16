@@ -1,0 +1,47 @@
+"""Runtime and replay tests for provisional M21-03."""
+
+from __future__ import annotations
+
+import pytest
+
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_ablation import (
+    M2103AuthorizationError,
+    M2103ReplayError,
+    M2103Service,
+)
+from tests.contract.test_m21_03_provisional import _request
+
+
+def test_runtime_is_deterministic_and_replay_verifiable() -> None:
+    request = _request()
+    service = M2103Service()
+    first = service.generate(request)
+    second = service.generate(request)
+    assert first.result_digest == second.result_digest
+    assert canonical_json_bytes(first) == canonical_json_bytes(second)
+    assert service.replay(first).result_digest == first.result_digest
+    assert first.dossier is not None
+    assert first.dossier.split == request.split
+    assert first.dossier.baselines == request.baseline_runs
+
+
+def test_runtime_rejects_denied_controls_before_benchmarking() -> None:
+    request = _request()
+    rejected_support = request.context.references.support.model_copy(update={"state": "rejected"})
+    denied_context = request.context.model_copy(
+        update={
+            "references": request.context.references.model_copy(
+                update={"support": rejected_support}
+            )
+        }
+    )
+    with pytest.raises(M2103AuthorizationError, match="requires accepted"):
+        M2103Service().generate(request.model_copy(update={"context": denied_context}))
+
+
+def test_runtime_rejects_tampered_replay_digest() -> None:
+    service = M2103Service()
+    result = service.generate(_request())
+    with pytest.raises(M2103ReplayError, match="payload digest"):
+        service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
