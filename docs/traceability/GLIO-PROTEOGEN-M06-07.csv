@@ -1,0 +1,2 @@
+module_id,dossier_sha256,dossier_slice,responsibility,acceptance,abi_status,contract_version,evidence
+GLIO-PROTEOGEN-M06-07,0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181,2100-2143,"Calibration by site/platform/disease class/subgroup; support thresholds; OOD; abstention","Nominal 90% coverage; provisional 85-95% gate",provisional-no-frozen-abi,0.1.0-provisional,"M06-07.md; M06-07-evaluation.json; M06-07-benchmark.json; M06-07-package.json"

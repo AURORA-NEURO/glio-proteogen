@@ -1,0 +1,10 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M07-04",
+  "contract_version": "0.1.0-provisional",
+  "authority_dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_slice": "lines 2328-2368",
+  "abi_status": "provisional",
+  "fixtures": ["scenarios.json"],
+  "external_content_traversal": false,
+  "expected_safe_failure": true
+}
