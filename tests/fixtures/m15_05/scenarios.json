@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M15-05",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:5252-5295",
+  "cases": [
+    {"id": "supported-ordered-trajectory", "kind": "supported", "expected": "modeled"},
+    {"id": "withheld-consent", "kind": "denied_control", "expected": "authorization_error"},
+    {"id": "out-of-order-observations", "kind": "out_of_order", "expected": "validation_error"},
+    {"id": "insufficient-history", "kind": "insufficient_history", "expected": "validation_error"},
+    {"id": "wrong-upstream-media", "kind": "wrong_upstream_media", "expected": "validation_error"},
+    {"id": "unknown-field", "kind": "unknown_field", "expected": "validation_error"},
+    {"id": "duplicate-observation", "kind": "duplicate_observation", "expected": "validation_error"},
+    {"id": "tampered-result", "kind": "tampered_result", "expected": "replay_error"}
+  ]
+}
