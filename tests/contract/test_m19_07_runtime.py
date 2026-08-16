@@ -50,9 +50,13 @@ def test_preflight_fails_closed_for_missing_or_wrong_control() -> None:
 def test_plugin_issues_opaque_token_and_rejects_raw_run() -> None:
     plugin = M1907Plugin()
     request = _request()
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M19-07"
     token = plugin.validate(canonical_json_bytes(request.model_dump(mode="json")))
     result = plugin.run(token)
     assert result.status is ExportStatus.EXPORTED
+    model_token = plugin.validate(request)
+    assert plugin.run(model_token) == result
+    assert plugin.verify(canonical_json_bytes(result.model_dump(mode="json"))) == result
     with pytest.raises(TypeError):
         plugin.run(request)  # type: ignore[arg-type]
 

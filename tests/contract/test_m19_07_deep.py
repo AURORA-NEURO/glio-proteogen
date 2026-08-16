@@ -9,11 +9,14 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m19_07 import (
     CompatibilityMode,
+    DownstreamContractObject,
     DownstreamExportConfiguration,
     ExportField,
     ExportFieldType,
     ExportOwnershipBinding,
     ExportProteotypeDownstreamContractRequest,
+    ExportStatus,
+    ProteotypeDownstreamExportResult,
     SignedContractEnvelope,
     canonical_request_digest,
     result_payload_digest,
@@ -33,6 +36,9 @@ from glio_proteogen.kernel.models import (
     SupportStatus,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_07_downstream_typed_export import (
+    M1907Engine,
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
@@ -239,3 +245,138 @@ def test_canonical_request_and_result_mapping_are_stable() -> None:
     )
     assert result_payload_digest({"result_digest": "sha256:" + "a" * 64}).startswith("sha256:")
     assert M1907_MODULE_ID == "GLIO-PROTEOGEN-M19-07"
+
+
+def test_request_closure_rejects_duplicate_names_context_and_cross_field_evidence() -> None:
+    first = _field("first")
+    duplicate_name = _field("second").model_copy(update={"field_name": first.field_name})
+    with pytest.raises(ValidationError, match="field names"):
+        ExportProteotypeDownstreamContractRequest.model_validate(
+            _request(fields=(first, duplicate_name)).model_dump(mode="python")
+        )
+    mismatched_context = _context().model_copy(update={"request_id": "request.other"})
+    with pytest.raises(ValidationError, match="context request id"):
+        ExportProteotypeDownstreamContractRequest.model_validate(
+            _request().model_dump(mode="python") | {"context": mismatched_context}
+        )
+    shared_evidence = _evidence("shared-field-evidence")
+    first_shared = first.model_copy(update={"evidence": (shared_evidence,)})
+    second_shared = _field("second").model_copy(update={"evidence": (shared_evidence,)})
+    with pytest.raises(ValidationError, match="field evidence"):
+        ExportProteotypeDownstreamContractRequest(
+            **(_request().model_dump(mode="python") | {"fields": (first_shared, second_shared)})
+        )
+
+
+def test_nested_signature_ownership_and_contract_closures_reject_reuse() -> None:
+    evidence = _evidence("repeated-nested-evidence")
+    with pytest.raises(ValidationError, match="ownership evidence"):
+        ExportOwnershipBinding(
+            owning_module=M1907_MODULE_ID,
+            owner="Scientific engineering",
+            ownership_statement="M19-07 owns the typed export.",
+            evidence=(evidence, evidence),
+        )
+    digest = sha256_digest("nested-payload")
+    with pytest.raises(ValidationError, match="signature evidence"):
+        SignedContractEnvelope(
+            signer_id="actor.test",
+            algorithm="caller-declared-sha256",
+            signed_payload_digest=digest,
+            signature_digest=sha256_digest("nested-signature"),
+            evidence=(evidence, evidence),
+        )
+    result = M1907Engine().export(_request())
+    assert result.contract is not None
+    contract = result.contract
+    duplicate_id = _field("duplicate-id").model_copy(
+        update={"field_id": contract.fields[0].field_id}
+    )
+    with pytest.raises(ValidationError, match="field ids"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python") | {"fields": (contract.fields[0], duplicate_id)}
+        )
+    duplicate_name = _field("duplicate-name").model_copy(
+        update={"field_name": contract.fields[0].field_name}
+    )
+    with pytest.raises(ValidationError, match="field names"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python") | {"fields": (contract.fields[0], duplicate_name)}
+        )
+    with pytest.raises(ValidationError, match="granted consent"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python")
+            | {"consent": contract.consent.model_copy(update={"state": ConsentState.WITHHELD})}
+        )
+    with pytest.raises(ValidationError, match="supported status"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python")
+            | {
+                "support_decision": contract.support_decision.model_copy(
+                    update={"status": SupportStatus.LIMITED}
+                )
+            }
+        )
+    with pytest.raises(ValidationError, match="versions"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python")
+            | {
+                "configuration": contract.configuration.model_copy(update={"version": "2.0.0"})
+            }
+        )
+    with pytest.raises(ValidationError, match="ownership binding"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python")
+            | {
+                "fields": (
+                    contract.fields[0].model_copy(update={"owner": "Other owner"}),
+                )
+            }
+        )
+    with pytest.raises(ValidationError, match="contract evidence"):
+        DownstreamContractObject.model_validate(
+            contract.model_dump(mode="python")
+            | {"evidence": (contract.evidence[0], contract.evidence[0])}
+        )
+
+
+def test_result_closure_rejects_digest_identity_provenance_findings_and_status_drift() -> None:
+    engine = M1907Engine()
+    result = engine.export(_request())
+    result_data = result.model_dump(mode="python")
+    with pytest.raises(ValidationError, match="request digest"):
+        ProteotypeDownstreamExportResult.model_validate(
+            result_data | {"request_digest": sha256_digest("wrong-request")}
+        )
+    with pytest.raises(ValidationError, match="identifier"):
+        ProteotypeDownstreamExportResult.model_validate(result_data | {"result_id": "result.other"})
+    with pytest.raises(ValidationError, match="provenance"):
+        ProteotypeDownstreamExportResult.model_validate(
+            result_data
+            | {
+                "provenance": result.provenance.model_copy(
+                    update={"module_id": "GLIO-PROTEOGEN-M00-00"}
+                )
+            }
+        )
+    finding = result.findings[0]
+    with pytest.raises(ValidationError, match="finding ids"):
+        ProteotypeDownstreamExportResult.model_validate(
+            result_data | {"findings": (finding, finding)}
+        )
+    with pytest.raises(ValidationError, match="result evidence"):
+        ProteotypeDownstreamExportResult.model_validate(
+            result_data | {"evidence": (result.evidence[0], result.evidence[0])}
+        )
+    with pytest.raises(ValidationError, match="exported result"):
+        ProteotypeDownstreamExportResult.model_validate(result_data | {"contract": None})
+    abstained = engine.export(_request(fields=(_field("unsupported"),)))
+    with pytest.raises(ValidationError, match="abstained result"):
+        ProteotypeDownstreamExportResult.model_validate(
+            abstained.model_dump(mode="python") | {"contract": result.contract}
+        )
+    with pytest.raises(ValidationError, match="human review"):
+        ProteotypeDownstreamExportResult.model_validate(
+            abstained.model_dump(mode="python") | {"human_review_required": False}
+        )
+    assert result.status is ExportStatus.EXPORTED
