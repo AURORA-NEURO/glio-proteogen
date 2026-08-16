@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M23-01",
+  "branch_enabled": true,
+  "coverage_percent": 98.34605597964376,
+  "statements": 668,
+  "covered_statements": 659,
+  "branches": 118,
+  "covered_branches": 114,
+  "partial_branches": 4,
+  "fail_under_percent": 95.0,
+  "focused_tests": 33,
+  "passed": true,
+  "command": "python -m pytest --override-ini addopts= --cov=src/glio_proteogen/contracts/m23_01 --cov=src/glio_proteogen/modules/c21_reference_material/m23_01_reference_truth_benchmark_curator --cov=evals/m23_01 --cov-branch --cov-fail-under=95 focused-suite"
+}
