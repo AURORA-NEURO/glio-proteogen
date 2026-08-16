@@ -1,0 +1,13 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M21-02,caller-declared M21-01 result binding,contracts/m21_02/v1.py request_is_bound,contract and media-boundary tests,pass
+GLIO-PROTEOGEN-M21-02,normal edge missing shifted adversarial fixtures,contracts/m21_02/v1.py FixtureKind and SyntheticTruthCase,evaluator fixture-kind oracle,pass
+GLIO-PROTEOGEN-M21-02,analytic and semi-synthetic representations,contracts/m21_02/v1.py TruthRepresentation and engine.py,deterministic generation tests,pass
+GLIO-PROTEOGEN-M21-02,locked deterministic seed and reproducibility manifest,contracts/m21_02/v1.py GenerationConfiguration/GenerationManifest,manifest digest and repeatability tests,pass
+GLIO-PROTEOGEN-M21-02,seven-control fail-closed preflight,modules/.../m21_02_synthetic_truth_simulation_generator/engine.py,denial and malformed-boundary tests,pass
+GLIO-PROTEOGEN-M21-02,safe unsupported/missing semantics,engine.py typed fixture states and parent boundary,adversarial/evaluator tests,pass
+GLIO-PROTEOGEN-M21-02,seven uncertainty dimensions and provenance,engine.py _uncertainty/_provenance,runtime and evaluator checks,pass
+GLIO-PROTEOGEN-M21-02,canonical replay and tamper rejection,contracts/m21_02/canonical.py and engine.py,replay/adversarial tests,pass
+GLIO-PROTEOGEN-M21-02,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M21-02,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface and sanitized-error tests,pass
+GLIO-PROTEOGEN-M21-02,evaluator fixture and locked benchmark,evals/m21_02,eight scenarios and ten iterations,pass
+GLIO-PROTEOGEN-M21-02,provisional authority and prohibited boundaries,docs/modules/M21-02-synthetic-truth-simulation-generator.md,owner review and release evidence,provisional

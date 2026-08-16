@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-01",
+  "iterations": 10,
+  "mean_ns": 6081260,
+  "median_ns": 6061450,
+  "p95_ns": 6562000,
+  "max_ns": 6562000,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "within_budget": true,
+  "deterministic": true,
+  "command": "uv run python -c from evals.m12_01.benchmark import run_benchmark; print(run_benchmark(10))"
+}

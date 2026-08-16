@@ -4,6 +4,8 @@ from glio_proteogen.contracts.m25_01.canonical import (
     canonical_request_digest,
     normalized_request,
     normalized_result_payload,
+    package_lock_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.contracts.m25_01.schema import (
@@ -25,6 +27,8 @@ __all__: list[str] = [  # noqa: PLE0604 - composed from typed module exports.
     "contract_json_schemas",
     "normalized_request",
     "normalized_result_payload",
+    "package_lock_digest",
+    "result_identifier",
     "result_payload_digest",
     *_v1_exports,
 ]

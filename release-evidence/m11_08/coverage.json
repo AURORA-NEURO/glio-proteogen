@@ -1,0 +1,16 @@
+{
+  "module": "GLIO-PROTEOGEN-M11-08",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": "3944-3987",
+  "command": "uv run coverage run --branch --source=glio_proteogen.contracts.m11_08,glio_proteogen.modules.c11_protein_native_subtype.m11_08_mechanism_evidence_dossier,glio_proteogen.adapters.m1108,evals.m11_08 -m pytest -o addopts='' focused M11-08 tests",
+  "tests_passed": 43,
+  "statements": 723,
+  "covered_statements": 716,
+  "statement_percent": 98.83585564610011,
+  "branches": 136,
+  "covered_branches": 133,
+  "branch_percent": 97.79411764705883,
+  "combined_percent": 98.83585564610011,
+  "fail_under_percent": 95.0,
+  "passed": true
+}

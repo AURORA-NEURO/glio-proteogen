@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m20_07.v1 import (
     M2007_CONTRACT_VERSION,
+    M2007_DOSSIER_SHA256,
+    M2007_DOSSIER_SLICE,
     M2007_GATE,
     M2007_M2006_INPUT_MEDIA_TYPE,
     M2007_MAX_CANONICAL_REQUEST_BYTES,
@@ -27,9 +29,7 @@ from glio_proteogen.contracts.m20_07.v1 import (
     SignedContractEnvelope,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-07:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M20-07:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2007_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -69,6 +69,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "provisionalAbi": M2007_PROVISIONAL_ABI,
         "abiStatus": "dossier-behavioral-brief-only",
         "pendingOwnerConfirmation": True,
+        "dossierSha256": M2007_DOSSIER_SHA256,
+        "dossierSlice": M2007_DOSSIER_SLICE,
         "externalContentTraversal": False,
         "rawPayload": False,
         "allOmicsFusion": False,

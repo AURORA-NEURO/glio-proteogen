@@ -1,0 +1,15 @@
+{
+  "branch_enabled": true,
+  "branch_coverage_percent": 94.11764705882354,
+  "branches": 102,
+  "covered_branches": 96,
+  "coverage_percent": 97.94238683127573,
+  "fail_under_percent": 95,
+  "missed_statements": 9,
+  "module_id": "GLIO-PROTEOGEN-M21-03",
+  "partial_branches": 6,
+  "scope": "contracts/m21_03 + c21_reference_material/m21_03_internal_benchmark_ablation + evals/m21_03",
+  "statements": 627,
+  "covered_statements": 618,
+  "passed": true
+}

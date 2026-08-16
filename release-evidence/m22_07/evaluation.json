@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "all_required_dimensions": true,
+    "denied_fail_closed": true,
+    "deterministic_result": true,
+    "evaluated": true,
+    "explicit_abstention": true,
+    "failed_metric_visible": true,
+    "parent_boundary": true,
+    "replay_verified": true,
+    "report_present": true,
+    "tamper_rejected": true
+  },
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7860-7900",
+  "fixture_digest": "sha256:35f88c92deead2257c028d320fe5288d498855bd4c15cee4a9cf59241ca7061b",
+  "fixture_request_digest": "sha256:35f88c92deead2257c028d320fe5288d498855bd4c15cee4a9cf59241ca7061b",
+  "fixture_result_digest": "sha256:c730c3019551edb171722f18690b369dc5240cf5e62992d717436f5f8dde31b6",
+  "module_id": "GLIO-PROTEOGEN-M22-07",
+  "passed": 10,
+  "scenario_count": 10,
+  "uncertainty_dimensions": 7
+}

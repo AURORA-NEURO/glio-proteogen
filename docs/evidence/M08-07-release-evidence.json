@@ -1,0 +1,54 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M08-07",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "dossier_lines": "2820-2863",
+    "abi_status": "dossier-behavioral-brief-only"
+  },
+  "commits": [
+    "2e729e9",
+    "cda9a5e",
+    "fa9fa7e",
+    "563a58a",
+    "cbfd8a2"
+  ],
+  "checks": {
+    "focused_tests": {"count": 21, "passed": true},
+    "ruff": {"check": true, "format_check": true},
+    "mypy_strict": {"files": 13, "passed": true},
+    "compileall": true,
+    "branch_coverage": {"statements": 541, "branches": 86, "percent": 96, "fail_under": 95},
+    "evaluator": {
+      "passed": true,
+      "scenarios": [
+        "supported_candidate",
+        "missing_candidate_abstention",
+        "support_threshold_abstention",
+        "ood_abstention",
+        "coverage_review",
+        "replay",
+        "tamper_rejected",
+        "plugin_parity"
+      ]
+    },
+    "benchmark": {
+      "iterations": 10,
+      "mean_ns": 1195100,
+      "p50_ns": 1155750,
+      "p95_ns": 1638600,
+      "maximum_ns": 1638600,
+      "mean_budget_ns": 2000000000,
+      "p95_budget_ns": 3000000000,
+      "passed": true,
+      "result_digest": "sha256:75096079c38baf0e384d9b1323970a649bc05d281bb34e79e4598aba2d30a915"
+    },
+    "package": {
+      "build_backend": "hatchling 1.31.0",
+      "wheel_built": true,
+      "sdist_built": true,
+      "isolated_import": true
+    }
+  },
+  "claims_ceiling": "Synthetic deterministic contract and gate behavior only; no authenticated model calibration, biological validity, transportability, or clinical utility."
+}

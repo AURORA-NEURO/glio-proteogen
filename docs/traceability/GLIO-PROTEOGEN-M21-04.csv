@@ -1,0 +1,7 @@
+requirement_id,requirement,implementation,evidence,gate
+M21-04-R01,"Bind external transport evaluation to M21-03 benchmark output","EvaluateComplexActivityExternalTransportRequest exact upstream media validator and retained benchmark artifact","tests/contract/test_m21_04_hardening.py; evals/m21_04/run.py",G1
+M21-04-R02,"Cover site lab platform treatment-era population disease-class and specimen","TransportDimension TransportValidation TransportEvaluation and TransportabilityReport","src/glio_proteogen/contracts/m21_04/v1.py; tests/contract/test_m21_04_adversarial.py",G1
+M21-04-R03,"Require locked independent validation and calibration floors","TransportConfiguration and metric/status closure with support-domain update","src/glio_proteogen/contracts/m21_04/v1.py; src/glio_proteogen/modules/c21_reference_material/m21_04_external_transport_evaluator/engine.py",G3
+M21-04-R04,"Abstain safely on non-evaluable or fully narrowed transport","ABSTAINED result with no transport report and review-required support decision","tests/runtime/test_m21_04_transport.py; evals/m21_04/run.py",G3
+M21-04-R05,"Expose uncertainty provenance evidence limitations and human review","UncertaintyProfile ProvenanceRecord EvidenceReference Limitation and review flag","engine.py; docs/evidence/M21-04.md",G4
+M21-04-R06,"Provide strict replay-verifiable interfaces","FastAPI Typer service and opaque plugin with canonical digest replay","tests/interface/test_m21_04_interface.py; tests/contract/test_m21_04_adversarial.py",G5

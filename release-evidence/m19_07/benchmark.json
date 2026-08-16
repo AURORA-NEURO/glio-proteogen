@@ -1,0 +1,17 @@
+{
+  "contract_version": "0.1.0-provisional",
+  "iterations": 25,
+  "maximum_ns": 13526200,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 2681628.0,
+  "module_id": "GLIO-PROTEOGEN-M19-07",
+  "p50_ns": 2129200,
+  "p95_budget_ns": 750000000,
+  "p95_ns": 3709100,
+  "passed": true,
+  "request_digest": "sha256:28ee8f1dc3fa20da22c0a0f86f9fd435ac1594ca19e16e237c6be6801e7ad11c",
+  "result_digest": "sha256:2bfd2dee8f549c84202ab6e0a03bc6cc19fb5853a0b377225bc571ebf6924312",
+  "timed_boundary": "M1907Engine.export_only",
+  "warmup_count": 1,
+  "workload": "bounded_proteotype_downstream_typed_export"
+}

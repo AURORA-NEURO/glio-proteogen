@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M14-02",
+  "cases": [
+    {"case_id": "curated_context_stratified", "expectation": "stratified"},
+    {"case_id": "bayesian_context_stratified", "expectation": "stratified"},
+    {"case_id": "state_space_context_stratified", "expectation": "stratified"},
+    {"case_id": "foundation_context_stratified", "expectation": "stratified"},
+    {"case_id": "unsupported_method_abstention", "expectation": "abstained"},
+    {"case_id": "conflict_abstention", "expectation": "abstained"},
+    {"case_id": "proxy_blocked", "expectation": "abstained"},
+    {"case_id": "replay_and_tamper", "expectation": "verified"},
+    {"case_id": "authorization_gate", "expectation": "denied"}
+  ]
+}

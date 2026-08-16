@@ -1,0 +1,9 @@
+module_id,dossier_lines,requirement,implementation,evidence,status
+GLIO-PROTEOGEN-M13-03,4444-4487,interpretable pathway/topology/state features,contracts/m13_03/v1.py;modules/.../engine.py,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,complete lineage and source evidence,MechanisticFeatureLineage;feature_evidence_index,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,unit/topology invariants,MechanisticFeatureObject validators;runtime diagnostics,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,seven uncertainty dimensions,expected_uncertainty,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,safe abstention and negative-control gating,_safe_failure;abstained result,evals/m13_03;tests/eval/test_m13_03_evaluator.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,consent/identity/quality/support controls,preflight_mechanistic_feature_authorization,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,replay and tamper verification,canonical digests;verify_mechanistic_feature_replay,tests/contract/test_m13_03_runtime.py,verified
+GLIO-PROTEOGEN-M13-03,4444-4487,API/CLI and package evidence,adapters/m1303.py;release-evidence/m13_03,tests/integration/test_m13_03_interfaces.py;tools/verify_m1303_release.py,verified

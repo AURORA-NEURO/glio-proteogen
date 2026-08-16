@@ -1,6 +1,7 @@
 """Focused contract/schema smoke for provisional M26-01."""
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -19,7 +20,7 @@ _SCHEMA_COUNT = 8
 
 
 def test_provisional_schemas_require_registry_controls() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
     assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())

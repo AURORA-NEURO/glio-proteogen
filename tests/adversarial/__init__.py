@@ -1,1 +1,1 @@
-"""M26-02 hostile-input and replay tests."""
+"""Adversarial safety and replay tests for M22-05, M22-08, and M26-01."""

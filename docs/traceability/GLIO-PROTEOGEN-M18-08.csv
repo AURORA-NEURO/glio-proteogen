@@ -1,0 +1,13 @@
+requirement_id,dossier_source,requirement,implementation,evidence,evidence_gate
+M18-08-R01,"dossier:6464-6468","Own translation monitoring and rollback beneath spatial proteomics","M1808 contract identity, operation, parent ceiling and provisional ABI metadata","contract authority assertions; schema metadata",G0
+M18-08-R02,"dossier:6468-6474","Emit translation-health state and rollback decision for biomarker panel","TranslationHealthReport, RollbackDecision and result envelope","contract tests; healthy runtime",G1
+M18-08-R03,"dossier:6470","Preserve prohibited boundary and never infer identity/consent or treatment","blocked plugin descriptor, no content traversal and parent ceiling","plugin boundary test; manifest",G5
+M18-08-R04,"dossier:6482-6486","Validate controls and preserve support, provenance, uncertainty and evidence","control preflight, provenance records, seven explicit dimensions and evidence references","control denial; uncertainty oracle",G5
+M18-08-R05,"dossier:6484-6486","Expose explicit abstention and human review for non-evaluable or critical state","not-evaluable/unsupported abstention, discrepancy suspension and rollback review","runtime and evaluator adversarial cases",G5
+M18-08-R06,"dossier:6486","Require review for critical discrepancy, OOD, support override, promotion and exception","suspension/rollback states carry human_review_required","runtime; manifest review plan",G5
+M18-08-R07,"dossier:6478-6480","Record primary/alternate/fallback architectures without claiming execution","manifest marks architectures declared_not_executed","manifest and dependency audit",G5
+M18-08-R08,"dossier:6488-6490","Provide versioned implementation, locked tests, benchmark and safe failure","engine/service/plugin, API, CLI, evaluator, benchmark and docs","focused suites and evidence inventory",G5
+M18-08-R09,"dossier:6490","Bind owner, safety class and gate","literal Scientific engineering/S2/G5 metadata across contract, schema, plugin and fixture","identity assertions",G5
+M18-08-R10,"dossier:6488-6490","Make result replay-safe and auditable","canonical request/result digests and replay verifier","tampered replay test and benchmark digests",G5
+M18-08-R11,"dossier:6496-6504","Exercise critical cases with zero silent coercions and safe failure","strict Pydantic models and eight-case adversarial matrix","evaluator 8/8 = 100%",G5
+M18-08-R12,"dossier:6496-6504","Expose strict schema, API, CLI, plugin, package and release surfaces","nine schemas, GET/POST, Typer commands, descriptor and workflow hooks","interface, package and workflow evidence",G5

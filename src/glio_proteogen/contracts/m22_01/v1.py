@@ -15,6 +15,8 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m22_01.canonical import (
     canonical_request_digest,
+    reference_truth_package_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -43,6 +45,11 @@ M2201_OWNER: Final = "Clinical science"
 M2201_SAFETY_CLASS: Final = "S3"
 M2201_GATE: Final = "G0"
 M2201_PROVISIONAL_ABI: Final = True
+M2201_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2201_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7596-7636"
+M2201_M2108_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m21-08+json"
 M2201_MAX_REFERENCES: Final = 256
 M2201_MAX_CONTROLS: Final = 128
 M2201_MAX_ADJUDICATIONS: Final = 256
@@ -111,6 +118,12 @@ class ReferenceEntry(FrozenModel):
     uncertainty: UncertaintyProfile
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2201_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def challenge_kind_matches_flag(self) -> ReferenceEntry:
+        if (self.kind is ReferenceKind.CHALLENGE_SET) != self.challenge_set:
+            raise ValueError("challenge-set kind and flag must agree")
+        return self
+
 
 class InclusionDecision(FrozenModel):
     reference_id: Identifier
@@ -176,6 +189,16 @@ class ReferenceTruthPackage(FrozenModel):
         if len(references) != len(set(references)) or len(controls) != len(set(controls)):
             raise ValueError("reference and control ids must be unique")
         all_ids = set(references) | set(controls)
+        if any(
+            item.kind in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            for item in self.references
+        ):
+            raise ValueError("references may only contain reference material kinds")
+        if any(
+            item.kind not in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            for item in self.controls
+        ):
+            raise ValueError("controls must contain positive or negative controls")
         inclusion_ids = tuple(item.reference_id for item in self.inclusions)
         adjudication_ids = tuple(item.reference_id for item in self.adjudications)
         if set(inclusion_ids) != all_ids:
@@ -184,6 +207,10 @@ class ReferenceTruthPackage(FrozenModel):
             raise ValueError("adjudications must cover every reference and control")
         if not set(self.challenge_set_ids) <= set(references):
             raise ValueError("challenge set must reference known entries")
+        if len(self.challenge_set_ids) != len(set(self.challenge_set_ids)):
+            raise ValueError("challenge set ids must be unique")
+        if self.lock_digest != reference_truth_package_digest(self):
+            raise ValueError("lock digest must match the canonical truth package")
         return self
 
 
@@ -201,6 +228,7 @@ class CurateProteinRnaDiscordanceReferenceTruthRequest(FrozenModel):
     contract_version: Literal["0.1.0-provisional"] = M2201_CONTRACT_VERSION
     request_id: Identifier
     context: ExecutionContext
+    upstream_result: ArtifactReference
     endpoint: EndpointDefinition
     references: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2201_MAX_REFERENCES)
     controls: tuple[ReferenceEntry, ...] = Field(min_length=1, max_length=M2201_MAX_CONTROLS)
@@ -209,6 +237,9 @@ class CurateProteinRnaDiscordanceReferenceTruthRequest(FrozenModel):
         min_length=1, max_length=M2201_MAX_ADJUDICATIONS
     )
     configuration: BenchmarkConfiguration
+    challenge_set_ids: tuple[Identifier, ...] = Field(
+        min_length=1, max_length=M2201_MAX_CHALLENGE_SET
+    )
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2201_MAX_EVIDENCE
     )
@@ -216,6 +247,10 @@ class CurateProteinRnaDiscordanceReferenceTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> CurateProteinRnaDiscordanceReferenceTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request id must equal request id")
+        if self.upstream_result.media_type != M2201_M2108_INPUT_MEDIA_TYPE:
+            raise ValueError("request must bind the provisional M21-08 result media type")
         ids = tuple(item.reference_id for item in (*self.references, *self.controls))
         if len(ids) != len(set(ids)):
             raise ValueError("request reference and control ids must be unique")
@@ -224,6 +259,22 @@ class CurateProteinRnaDiscordanceReferenceTruthRequest(FrozenModel):
             raise ValueError("request inclusions must classify every item")
         if {item.reference_id for item in self.adjudications} != known:
             raise ValueError("request adjudications must cover every item")
+        if not set(self.challenge_set_ids) <= {item.reference_id for item in self.references}:
+            raise ValueError("request challenge set must reference known reference entries")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
+            raise ValueError("request source artifacts must include the M21-08 result")
         return self
 
 
@@ -255,6 +306,12 @@ class ProteinRnaDiscordanceReferenceTruthResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceReferenceTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request):
+            raise ValueError("result id must be deterministically bound to the request")
+        if self.provenance.module_id != M2201_MODULE_ID:
+            raise ValueError("provenance module id must match M22-01")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None
@@ -269,6 +326,8 @@ class ProteinRnaDiscordanceReferenceTruthResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no package and safe status")
+        if len(self.findings) != len({finding.finding_id for finding in self.findings}):
+            raise ValueError("result finding ids must be unique")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -276,8 +335,11 @@ class ProteinRnaDiscordanceReferenceTruthResult(FrozenModel):
 
 __all__ = [
     "M2201_CONTRACT_VERSION",
+    "M2201_DOSSIER_SHA256",
+    "M2201_DOSSIER_SLICE",
     "M2201_EVIDENCE_CLAIM",
     "M2201_GATE",
+    "M2201_M2108_INPUT_MEDIA_TYPE",
     "M2201_MAX_ADJUDICATIONS",
     "M2201_MAX_CANONICAL_REQUEST_BYTES",
     "M2201_MAX_CANONICAL_RESULT_BYTES",

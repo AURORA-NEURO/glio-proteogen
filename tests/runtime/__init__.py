@@ -1,1 +1,1 @@
-"""M26-02 runtime tests."""
+"""Runtime test package, including M26-01 coverage."""

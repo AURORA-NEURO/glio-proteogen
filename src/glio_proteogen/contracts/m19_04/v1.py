@@ -1,10 +1,12 @@
-"""Provisional M19-04 intended-use adapter contracts.
+"""Strict M19-04 intended-use adapter contracts.
 
-M19-04 converts research output into a bounded intended-use object and policy
-decision beneath Immunopeptidomic evidence. Evidence tier, claim ceiling,
-audience, display semantics, uncertainty and unsupported claims are explicit;
-this adapter never emits treatment recommendations. The public ABI is
-provisional pending Clinical science owner confirmation.
+M19-04 converts an immutable M19-03 proteotype evidence result into a bounded
+intended-use object and policy decision beneath Immunopeptidomic evidence.
+The ABI remains provisional because the dossier provides a behavioural brief,
+not a frozen endpoint catalogue. Claim ceilings, display rules, support,
+uncertainty and abstention are consequently typed and replay-bound. This
+module never infers identity or consent, erases disagreement, emits treatment
+recommendations, or claims KINOPHOS ownership.
 """
 
 from __future__ import annotations
@@ -45,6 +47,10 @@ M1904_OWNER: Final = "Clinical science"
 M1904_SAFETY_CLASS: Final = "S2"
 M1904_GATE: Final = "G3"
 M1904_PROVISIONAL_ABI: Final = True
+M1904_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M1904_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:6648-6688"
 M1904_MAX_PROHIBITED_INTERPRETATIONS: Final = 64
 M1904_MAX_DISPLAY_SECTIONS: Final = 32
 M1904_MAX_EVIDENCE: Final = 64
@@ -77,6 +83,7 @@ class AdapterStatus(StrEnum):
 
 
 class AdapterFindingCode(StrEnum):
+    ALLOWED = "allowed"
     CLAIM_EXCEEDS_CEILING = "claim_exceeds_ceiling"
     EVIDENCE_TIER_MISSING = "evidence_tier_missing"
     INTENDED_USE_UNREGISTERED = "intended_use_unregistered"
@@ -84,6 +91,9 @@ class AdapterFindingCode(StrEnum):
     DISPLAY_SEMANTICS_INCOMPLETE = "display_semantics_incomplete"
     TREATMENT_RECOMMENDATION_BLOCKED = "treatment_recommendation_blocked"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
+    UPSTREAM_ABSTAINED = "upstream_abstained"
+    CONSENT_REQUIRED = "consent_required"
+    IDENTITY_UNRESOLVED = "identity_unresolved"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
@@ -94,6 +104,12 @@ class ClaimCeiling(FrozenModel):
     )
     rationale: NonEmptyStr
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1904_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def prohibited_interpretations_are_unique(self) -> ClaimCeiling:
+        if len(self.prohibited_interpretations) != len(set(self.prohibited_interpretations)):
+            raise ValueError("prohibited interpretations must be unique")
+        return self
 
 
 class DisplaySemantics(FrozenModel):
@@ -132,6 +148,15 @@ class PolicyDecision(FrozenModel):
         default=(), max_length=M1904_MAX_PROHIBITED_INTERPRETATIONS
     )
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M1904_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def blocked_claims_match_status(self) -> PolicyDecision:
+        if self.status in {PolicyDecisionStatus.BLOCKED, PolicyDecisionStatus.ABSTAINED}:
+            if not self.blocked_claims:
+                raise ValueError("blocked or abstained policy decision requires blocked claims")
+        elif self.status is PolicyDecisionStatus.ALLOWED and self.blocked_claims:
+            raise ValueError("allowed policy decision cannot carry blocked claims")
+        return self
 
 
 class IntendedUseSpecificObject(FrozenModel):
@@ -172,6 +197,19 @@ class AdaptProteotypeIntendedUseRequest(FrozenModel):
     def request_is_bound(self) -> AdaptProteotypeIntendedUseRequest:
         if self.upstream_result.media_type != M1904_M1903_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M19-03 integrated evidence")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        digests = tuple(item.digest for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("request source artifact ids must be unique")
+        if len(digests) != len(set(digests)):
+            raise ValueError("request source artifact digests must be unique")
+        if not any(
+            item.artifact_id == self.upstream_result.artifact_id
+            and item.digest == self.upstream_result.digest
+            and item.media_type == self.upstream_result.media_type
+            for item in self.source_artifacts
+        ):
+            raise ValueError("source artifacts must declare the upstream result exactly")
         return self
 
 
@@ -204,6 +242,8 @@ class ProteotypeIntendedUseAdapterResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeIntendedUseAdapterResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != f"result.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result identifier must be derived from request digest")
         if self.status is AdapterStatus.ADAPTED:
             if (
                 self.adapted_object is None
@@ -220,6 +260,23 @@ class ProteotypeIntendedUseAdapterResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no adapted object and safe status")
+        if self.status is AdapterStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
+        if self.adapted_object is not None and (
+            self.adapted_object.upstream_result != self.request.upstream_result
+            or self.adapted_object.registration != self.request.registration
+            or self.adapted_object.uncertainty != self.uncertainty
+            or self.adapted_object.parent_target != self.parent_target
+        ):
+            raise ValueError("adapted object must bind request, parent and uncertainty")
+        if (
+            self.policy_decision.status is PolicyDecisionStatus.REVIEW_REQUIRED
+            and not self.human_review_required
+        ):
+            raise ValueError("review-required policy decision requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
@@ -227,6 +284,8 @@ class ProteotypeIntendedUseAdapterResult(FrozenModel):
 
 __all__ = [
     "M1904_CONTRACT_VERSION",
+    "M1904_DOSSIER_SHA256",
+    "M1904_DOSSIER_SLICE",
     "M1904_EVIDENCE_CLAIM",
     "M1904_GATE",
     "M1904_M1903_INPUT_MEDIA_TYPE",

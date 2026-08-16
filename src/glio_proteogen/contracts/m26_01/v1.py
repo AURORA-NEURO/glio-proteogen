@@ -33,6 +33,10 @@ from glio_proteogen.kernel.models import (
 )
 
 # PROVISIONAL ABI: inferred solely from dossier lines 9036-9076.
+M2601_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2601_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:9036-9076"
 M2601_MODULE_ID: Final = "GLIO-PROTEOGEN-M26-01"
 M2601_OPERATION: Final = "register_protein_subtype_registry"
 M2601_CONTRACT_VERSION: Final = "0.1.0-provisional"
@@ -189,6 +193,8 @@ class RegistryRecord(FrozenModel):
             raise ValueError("registry history references an unknown entry")
         if not any(item.event_type is RegistryEventType.REGISTER for item in self.history):
             raise ValueError("registry history must contain a registration event")
+        if {item.entry_id for item in self.history} != known:
+            raise ValueError("registry history must cover every registered entry")
         return self
 
 
@@ -218,6 +224,8 @@ class RegisterProteinSubtypeRegistryRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> RegisterProteinSubtypeRegistryRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
         entry_ids = tuple(item.entry_id for item in self.entries)
         if len(entry_ids) != len(set(entry_ids)):
             raise ValueError("request registry entry ids must be unique")
@@ -238,6 +246,9 @@ class RegisterProteinSubtypeRegistryRequest(FrozenModel):
             if item.entry_id in {binding.entry_id for binding in self.active_configuration.bindings}
         } != set(RegistryEntryKind):
             raise ValueError("active configuration must bind registered entries of every kind")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifacts must have unique artifact IDs")
         return self
 
 
@@ -291,6 +302,8 @@ class ProteinSubtypeRegistryResult(FrozenModel):
 
 __all__ = [
     "M2601_CONTRACT_VERSION",
+    "M2601_DOSSIER_SHA256",
+    "M2601_DOSSIER_SLICE",
     "M2601_EVIDENCE_CLAIM",
     "M2601_GATE",
     "M2601_MAX_BINDINGS",

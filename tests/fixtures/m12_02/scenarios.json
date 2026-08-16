@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-02",
+  "scenarios": [
+    {"case_id": "supported_full", "expected": "stratified"},
+    {"case_id": "missing_platform", "expected": "abstained"},
+    {"case_id": "conflicted_subtype", "expected": "abstained"},
+    {"case_id": "limited_territory", "expected": "abstained"},
+    {"case_id": "incomplete_policy", "expected": "abstained"},
+    {"case_id": "denied_control", "expected": "authorization_rejected"}
+  ]
+}

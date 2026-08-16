@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M22-06",
+  "contract_version": "0.1.0-provisional",
+  "cases": [
+    {"case_id": "supported_in_domain"},
+    {"case_id": "review_required_abstention"},
+    {"case_id": "unsupported_abstention"},
+    {"case_id": "authorization_gate"},
+    {"case_id": "upstream_media_boundary"},
+    {"case_id": "source_upstream_retention"},
+    {"case_id": "duplicate_scenario_rejection"},
+    {"case_id": "replay_tamper"},
+    {"case_id": "deterministic_repeat"}
+  ]
+}

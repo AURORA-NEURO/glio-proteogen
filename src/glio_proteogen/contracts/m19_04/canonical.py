@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 
 if TYPE_CHECKING:
     from glio_proteogen.kernel.models import Sha256Digest
@@ -26,6 +26,12 @@ def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_request(value))
 
 
+def canonical_request_bytes(value: BaseModel | dict[str, Any]) -> bytes:
+    """Return deterministic request bytes used for replay and audit binding."""
+
+    return canonical_json_bytes(normalized_request(value))
+
+
 def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document = _dump(value)
     document.pop("result_digest", None)
@@ -36,9 +42,31 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_result_payload(value))
 
 
+def canonical_result_payload_bytes(value: BaseModel | dict[str, Any]) -> bytes:
+    """Return deterministic result bytes after removing only its self-digest."""
+
+    return canonical_json_bytes(normalized_result_payload(value))
+
+
+def verify_request_digest(value: BaseModel | dict[str, Any], expected: Sha256Digest | str) -> bool:
+    """Verify a caller-supplied request digest against the canonical request."""
+
+    return canonical_request_digest(value) == expected
+
+
+def verify_result_digest(value: BaseModel | dict[str, Any], expected: Sha256Digest | str) -> bool:
+    """Verify a caller-supplied result digest against the canonical payload."""
+
+    return result_payload_digest(value) == expected
+
+
 __all__ = [
+    "canonical_request_bytes",
     "canonical_request_digest",
+    "canonical_result_payload_bytes",
     "normalized_request",
     "normalized_result_payload",
     "result_payload_digest",
+    "verify_request_digest",
+    "verify_result_digest",
 ]

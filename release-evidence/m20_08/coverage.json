@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-08",
+  "scope": "contracts/m20_08 + c20_biomarker_panel/m20_08_translation_monitoring_rollback",
+  "branch_enabled": true,
+  "statements": 617,
+  "covered_statements": 601,
+  "missed_statements": 16,
+  "branches": 116,
+  "covered_branches": 106,
+  "partial_branches": 10,
+  "coverage_percent": 96.0,
+  "fail_under_percent": 95,
+  "passed": true
+}
