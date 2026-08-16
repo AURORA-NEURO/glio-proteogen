@@ -1,0 +1,32 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M09-06",
+  "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossierLines": [3136, 3179],
+  "contractFiles": [
+    "src/glio_proteogen/contracts/m09_06/v1.py",
+    "src/glio_proteogen/contracts/m09_06/schema.py",
+    "src/glio_proteogen/contracts/m09_06/canonical.py"
+  ],
+  "runtimeFiles": [
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine/engine.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine/service.py"
+  ],
+  "interfaceFiles": [
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine/api.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine/cli.py",
+    "src/glio_proteogen/modules/c09_complex_stoichiometry/m09_06_uncertainty_decomposition_engine/plugin.py"
+  ],
+  "evaluatorFiles": [
+    "evals/m09_06/run.py",
+    "evals/m09_06/benchmark.py",
+    "tests/fixtures/m09_06/scenarios.json"
+  ],
+  "boundaryAssertions": [
+    "complex_activity is a parent target and is not emitted",
+    "all seven uncertainty dimensions are explicit and unique",
+    "nominal 90% sensitivity coverage is gated to 85-95%",
+    "unsupported, missing, non-evaluable, and uncalibrated inputs abstain",
+    "kinase activity, generic all-omics fusion, and treatment recommendation are prohibited",
+    "identity, consent, and upstream evidence are caller-declared and not inferred"
+  ]
+}
