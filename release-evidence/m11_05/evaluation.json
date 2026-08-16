@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M11-05",
+  "fixture_path": "tests/fixtures/m11_05/scenarios.json",
+  "fixture_sha256": "9600c4d00eed6920ab43dd99ec9e9fc52ed2058fc88f2b6dc1b5a171e815634f",
+  "declared_case_count": 8,
+  "executed_case_count": 8,
+  "passed_case_count": 8,
+  "passed": true,
+  "case_ids": [
+    "modeled_transition",
+    "modeled_no_transition",
+    "control_denied_before_traversal",
+    "temporal_order_rejected",
+    "exact_replay_verified",
+    "tampered_result_rejected",
+    "upstream_media_type_rejected",
+    "strict_schema_metadata"
+  ]
+}
