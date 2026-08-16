@@ -47,6 +47,12 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c21_reference_material.m21_01_reference_truth_benchmark_curator import (
+    M2101AuthorizationError,
+    M2101Plugin,
+    M2101Service,
+    ReferenceTruthSubmission,
+)
 
 _SCHEMA_COUNT = 9
 
@@ -109,7 +115,7 @@ def _evidence(name: str = "artifact-1") -> EvidenceReference:
     )
 
 
-def _context() -> ExecutionContext:
+def _context(request_id: str = "request-1") -> ExecutionContext:
     artifact = _artifact("context-artifact")
     upstream = UpstreamDecisionReference(
         decision_id="decision-accepted",
@@ -131,7 +137,7 @@ def _context() -> ExecutionContext:
         evidence=artifact,
     )
     return ExecutionContext(
-        request_id="context-request",
+        request_id=request_id,
         actor_id="test-actor",
         occurred_at=datetime(2026, 8, 16, tzinfo=UTC),
         references=ContextReferences(
@@ -402,7 +408,10 @@ def test_locked_package_rejects_pending_adjudication_and_bad_lock() -> None:
 def test_result_id_and_package_equality_bind_replay() -> None:
     request = _request()
     result = _result(request)
-    changed = request.model_copy(update={"request_id": "request-changed"})
+    changed_context = request.context.model_copy(update={"request_id": "request-changed"})
+    changed = request.model_copy(
+        update={"request_id": "request-changed", "context": changed_context}
+    )
     with pytest.raises(ValueError, match="result id"):
         ComplexActivityReferenceTruthResult(
             **cast(
@@ -430,3 +439,48 @@ def test_result_id_and_package_equality_bind_replay() -> None:
             request=changed,
             result_id=result_identifier(changed),
         )
+
+
+def test_engine_curates_locked_package_and_replays_exactly() -> None:
+    request = _request()
+    service = M2101Service()
+    result = service.execute(request)
+    assert result.status is CurationStatus.CURATED
+    assert result.package is not None
+    assert result.package.lock_digest == package_lock_digest(result.package)
+    assert service.verify_replay(result) == result
+
+
+def test_pending_adjudication_abstains_without_package() -> None:
+    request = _request()
+    pending = request.adjudications[0].model_copy(update={"status": AdjudicationStatus.PENDING})
+    pending_request = request.model_copy(
+        update={"adjudications": (pending, *request.adjudications[1:])}
+    )
+    result = M2101Service().execute(pending_request)
+    assert result.status is CurationStatus.ABSTAINED
+    assert result.package is None
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert any(finding.code.value == "adjudication_pending" for finding in result.findings)
+
+
+def test_denied_upstream_support_fails_closed_before_curation() -> None:
+    request = _request()
+    denied_support = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    denied_references = request.context.references.model_copy(update={"support": denied_support})
+    denied_context = request.context.model_copy(update={"references": denied_references})
+    denied_request = request.model_copy(update={"context": denied_context})
+    with pytest.raises(M2101AuthorizationError):
+        M2101Service().execute(denied_request)
+
+
+def test_plugin_parses_json_once_and_requires_validation_capability() -> None:
+    request = _request()
+    plugin = M2101Plugin(M2101Service())
+    validated = plugin.validate(ReferenceTruthSubmission(request=request.model_dump_json()))
+    result = plugin.run(validated)
+    assert result.status is CurationStatus.CURATED
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(cast("Any", request))
