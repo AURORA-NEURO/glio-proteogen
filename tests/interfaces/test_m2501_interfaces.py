@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m25_01_reference_truth_benchmark_curator import (
     M2501Plugin,
     M2501Service,
@@ -61,7 +62,9 @@ def test_api_schema_validate_curate_and_verify_parity() -> None:
 def test_api_sanitizes_invalid_and_unauthorized_requests() -> None:
     client = TestClient(create_app(M2501Service()))
     denied = build_request()
-    support = denied.context.references.support.model_copy(update={"state": "rejected"})
+    support = denied.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
     context = denied.context.model_copy(
         update={"references": denied.context.references.model_copy(update={"support": support})}
     )
