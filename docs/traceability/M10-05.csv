@@ -1,0 +1,10 @@
+requirement,evidence,verification
+authority,dossier SHA 0a6b200c...a181 lines 3452-3495,hash and line audit
+contract,strict frozen models and seven schemas,19 focused tests
+hard_constraints,hard violations abstain,scenario matrix and runtime tests
+soft_ablation,one ablation per soft constraint,contract validator plus integration test
+uncertainty,seven explicit dimensions,expected_uncertainty and result replay
+safe_failure,unknown expression and control denial,negative evaluator cases
+replay,request/result digest and full rederivation,verify tests
+api_cli,FastAPI and Typer canonical parity,interface tests
+package,isolated wheel import and schema serialization,release audit

@@ -1,0 +1,12 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M06-08",
+  "scenarios": [
+    {"id": "safe_abstention", "expected": "abstained"},
+    {"id": "transitive_replay", "expected": "verified"},
+    {"id": "tampered_receipt", "expected": "rejected"},
+    {"id": "unresolved_controls", "expected": "rejected"},
+    {"id": "wrong_upstream", "expected": "rejected"},
+    {"id": "duplicate_json", "expected": "rejected"},
+    {"id": "prohibited_parent_emission", "expected": "false"}
+  ]
+}

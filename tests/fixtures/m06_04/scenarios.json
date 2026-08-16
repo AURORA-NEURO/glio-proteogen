@@ -1,0 +1,50 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M06-04",
+  "schema_version": "0.1.0-provisional",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "declaration-only-proxy-not-calibrated-posterior",
+  "scenarios": [
+    {
+      "case_id": "mechanism_guided_proxy_estimates",
+      "request_case": "valid",
+      "outcome": "result",
+      "expected_status": "estimated",
+      "expected_support": "supported"
+    },
+    {
+      "case_id": "missing_value_abstains",
+      "request_case": "missing",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "categorical_representation_abstains",
+      "request_case": "categorical",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "learned_model_not_executed",
+      "request_case": "learned",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "unknown_optimizer_abstains",
+      "request_case": "unknown_optimizer",
+      "outcome": "result",
+      "expected_status": "abstained",
+      "expected_support": "review_required"
+    },
+    {
+      "case_id": "denied_control_rejected",
+      "request_case": "denied",
+      "outcome": "validation_rejected",
+      "expected_status": null,
+      "expected_support": null
+    }
+  ]
+}
