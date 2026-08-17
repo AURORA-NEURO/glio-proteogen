@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference as m1204_package
 import glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference.engine as engine_module
 from glio_proteogen.contracts.m12_04 import (
     M1204_M1201_RESULT_MEDIA_TYPE,
@@ -43,6 +44,7 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_state_mechanism_inference import (
     M1204MechanismAuthorizationError,
     M1204MechanismEngine,
+    M1204MechanismInferenceError,
     M1204Plugin,
     M1204ReplayVerificationError,
     M1204Service,
@@ -50,6 +52,12 @@ from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_04_network_sta
 )
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+def test_public_package_exports_are_defined_and_preserve_engine_identity() -> None:
+    assert all(hasattr(m1204_package, name) for name in m1204_package.__all__)
+    assert m1204_package.M1204MechanismInferenceError is engine_module.M1204MechanismInferenceError
+    assert M1204MechanismInferenceError is engine_module.M1204MechanismInferenceError
 
 
 def _artifact(label: str, media_type: str = "application/json") -> ArtifactReference:
