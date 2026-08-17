@@ -200,7 +200,9 @@ from glio_proteogen.contracts.m04_07 import (
     M0407_MAX_CANONICAL_REQUEST_BYTES,
     RouteProteoformSupportRequest,
 )
-from glio_proteogen.contracts.m04_08.schema import contract_json_schema as m0408_contract_json_schema
+from glio_proteogen.contracts.m04_08.schema import (
+    contract_json_schema as m0408_contract_json_schema,
+)
 from glio_proteogen.contracts.m05_01 import (
     M0501_MAX_CANONICAL_REQUEST_BYTES,
     EvaluatePtmLocalizationProtocolRequest,

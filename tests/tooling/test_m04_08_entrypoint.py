@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+EXPECTED_CASE_COUNT = 12
+
 
 def test_m04_08_evaluator_runs_by_repository_relative_path() -> None:
     root = Path(__file__).parents[2]
@@ -22,5 +24,5 @@ def test_m04_08_evaluator_runs_by_repository_relative_path() -> None:
     assert completed.returncode == 0, completed.stderr
     report = json.loads(completed.stdout)
     assert report["module_id"] == "GLIO-PROTEOGEN-M04-08"
-    assert report["declared_case_count"] == report["executed_check_count"] == 12
+    assert report["declared_case_count"] == report["executed_check_count"] == EXPECTED_CASE_COUNT
     assert report["passed"] is True

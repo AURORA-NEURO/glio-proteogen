@@ -384,9 +384,7 @@ def _validate_caller_bytes(
             ProteoformReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH
         ) from error
     if actual_paths != expected_paths:
-        raise ProteoformReleaseInputError(
-            ProteoformReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH
-        )
+        raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH)
     result: dict[str, bytes] = {}
     for artifact in sorted(request.artifacts, key=lambda item: item.path):
         try:
@@ -396,9 +394,7 @@ def _validate_caller_bytes(
                 ProteoformReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH
             ) from error
         if type(content) is not bytes:
-            raise ProteoformReleaseInputError(
-                ProteoformReleaseInputErrorCode.ARTIFACT_TYPE_INVALID
-            )
+            raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.ARTIFACT_TYPE_INVALID)
         if len(content) != artifact.declared_size:
             raise ProteoformReleaseInputError(
                 ProteoformReleaseInputErrorCode.ARTIFACT_SIZE_MISMATCH
@@ -437,9 +433,7 @@ def _validate_parent_receipt(
         != request.context.references.intended_use.evidence.digest
         or receipt.terminal_routing_result_digest != stages["GLIO-PROTEOGEN-M04-07"].result_digest
     ):
-        raise ProteoformReleaseInputError(
-            ProteoformReleaseInputErrorCode.CHAIN_MISMATCH
-        )
+        raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.CHAIN_MISMATCH)
 
 
 def _validate_stage_results(
@@ -454,9 +448,7 @@ def _validate_stage_results(
             ProteoformReleaseInputErrorCode.STAGE_MAPPING_MISMATCH
         ) from error
     if modules != set(_STAGE_MODULES):
-        raise ProteoformReleaseInputError(
-            ProteoformReleaseInputErrorCode.STAGE_MAPPING_MISMATCH
-        )
+        raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.STAGE_MAPPING_MISMATCH)
     artifact_by_role = {item.role: item for item in request.artifacts}
     results: dict[str, StageResult] = {}
     for module in _STAGE_MODULES:
@@ -480,13 +472,9 @@ def _validate_stage_results(
                 ProteoformReleaseInputErrorCode.STAGE_JSON_INVALID
             ) from error
         if type(supplied_result) is not _STAGE_TYPE_BY_MODULE[module]:
-            raise ProteoformReleaseInputError(
-                ProteoformReleaseInputErrorCode.STAGE_RESULT_MISMATCH
-            )
+            raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.STAGE_RESULT_MISMATCH)
         if parsed != supplied_result:
-            raise ProteoformReleaseInputError(
-                ProteoformReleaseInputErrorCode.STAGE_RESULT_MISMATCH
-            )
+            raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.STAGE_RESULT_MISMATCH)
         results[module] = parsed
     return results
 
@@ -564,9 +552,7 @@ def _identity_subject(result: StageResult) -> str:
         None,
     )
     if record is None or record.subject_digest is None:
-        raise ProteoformReleaseInputError(
-            ProteoformReleaseInputErrorCode.CHAIN_MISMATCH
-        )
+        raise ProteoformReleaseInputError(ProteoformReleaseInputErrorCode.CHAIN_MISMATCH)
     return record.subject_digest
 
 
@@ -643,17 +629,25 @@ def _stage_record(
     if isinstance(result, ProteoformIdentityLineageResolution):
         upstream = (result.protocol_result_digest,)
     elif isinstance(result, ProteoformRawInputValidationResult):
-        upstream = tuple(sorted((
-            result.request.lineage_result.result_digest,
-            result.request.lineage_result.request.protocol_result.result_digest,
-        )))
+        upstream = tuple(
+            sorted(
+                (
+                    result.request.lineage_result.result_digest,
+                    result.request.lineage_result.request.protocol_result.result_digest,
+                )
+            )
+        )
     elif isinstance(result, ProteoformQualityResult):
         raw = result.request.raw_input_result
-        upstream = tuple(sorted((
-            raw.request.lineage_result.request.protocol_result.result_digest,
-            raw.request.lineage_result.result_digest,
-            raw.result_digest,
-        )))
+        upstream = tuple(
+            sorted(
+                (
+                    raw.request.lineage_result.request.protocol_result.result_digest,
+                    raw.request.lineage_result.result_digest,
+                    raw.result_digest,
+                )
+            )
+        )
     elif isinstance(result, ProteoformArtifactDetectionResult):
         upstream = (result.request.quality_result.result_digest,)
     elif isinstance(result, ProteoformHarmonizationResult):
@@ -1001,7 +995,7 @@ def _control_records(context: ExecutionContext) -> tuple[ControlDecisionRecord, 
     )
 
 
-def _provenance(  # noqa: PLR0913 - exact release receipt inputs.
+def _provenance(  # noqa: PLR0913,PLR0917 - exact release receipt inputs.
     request: BuildProteoformReleaseRequest,
     manifest: ProteoformReproducibilityManifest,
     request_hash: str,

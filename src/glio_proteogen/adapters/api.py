@@ -310,6 +310,8 @@ from glio_proteogen.contracts.m04_07.v1 import (
 )
 from glio_proteogen.contracts.m04_08.schema import (
     ContractName as M0408ContractName,
+)
+from glio_proteogen.contracts.m04_08.schema import (
     contract_json_schema as m0408_contract_json_schema,
 )
 from glio_proteogen.contracts.m05_01.schema import (

@@ -33,7 +33,7 @@ def _percentile(values: list[int], percentile: float) -> int:
 
 def benchmark(iterations: int = DEFAULT_ITERATIONS) -> dict[str, object]:
     if iterations < 1:
-        raise ValueError("iterations must be positive")
+        raise ValueError("iterations must be positive")  # noqa: TRY003
     fixture = _fixture()
 
     # Warm the import/cache path outside the timed region.
@@ -44,7 +44,7 @@ def benchmark(iterations: int = DEFAULT_ITERATIONS) -> dict[str, object]:
         DeterministicVerifier(),
     )
     if warmup.result.disposition is not ProteoformReleaseDisposition.RELEASED:
-        raise AssertionError("warmup did not produce a released package")
+        raise AssertionError("warmup did not produce a released package")  # noqa: TRY003
 
     samples: list[int] = []
     for _ in range(iterations):
@@ -57,7 +57,7 @@ def benchmark(iterations: int = DEFAULT_ITERATIONS) -> dict[str, object]:
         )
         elapsed = time.perf_counter_ns() - started
         if built.result.disposition is not ProteoformReleaseDisposition.RELEASED:
-            raise AssertionError("benchmark call did not produce a released package")
+            raise AssertionError("benchmark call did not produce a released package")  # noqa: TRY003
         samples.append(elapsed)
 
     mean_ns = round(statistics.fmean(samples))

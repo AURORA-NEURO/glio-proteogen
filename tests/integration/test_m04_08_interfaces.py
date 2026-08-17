@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.integration
 
+HTTP_OK: Final = 200
+HTTP_UNPROCESSABLE_ENTITY: Final = 422
+
 SCHEMA_NAMES: Final = (
     "request",
     "output",
@@ -37,7 +40,7 @@ def test_api_and_cli_export_identical_m04_08_schemas(tmp_path: Path, name: str) 
 
     cli = CliRunner().invoke(cli_app, ["proteoform-release", "export-schema", name])
 
-    assert response.status_code == 200
+    assert response.status_code == HTTP_OK
     assert cli.exit_code == 0, cli.output
     assert response.json() == json.loads(cli.stdout)
     assert response.json()["$id"] == (
@@ -52,6 +55,6 @@ def test_m04_08_schema_boundaries_reject_unknown_contracts(tmp_path: Path) -> No
 
     cli = CliRunner().invoke(cli_app, ["proteoform-release", "export-schema", "not-a-contract"])
 
-    assert response.status_code == 422
+    assert response.status_code == HTTP_UNPROCESSABLE_ENTITY
     assert cli.exit_code != 0
     assert "Traceback" not in cli.output
