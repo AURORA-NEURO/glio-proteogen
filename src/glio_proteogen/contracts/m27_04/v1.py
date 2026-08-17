@@ -7,6 +7,7 @@ The ABI is provisional pending Clinical science owner confirmation.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum
 from typing import Final, Literal
 
@@ -42,6 +43,8 @@ M2704_OWNER: Final = "Clinical science"
 M2704_SAFETY_CLASS: Final = "S3"
 M2704_GATE: Final = "G2"
 M2704_PROVISIONAL_ABI: Final = True
+M2704_AUTHORITY_SHA256: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+M2704_AUTHORITY_SLICE: Final = "9528-9568"
 M2704_MAX_OPERATIONS: Final = 128
 M2704_MAX_COMPATIBILITY_RULES: Final = 256
 M2704_MAX_AUTHORIZATIONS: Final = 256
@@ -239,22 +242,16 @@ class AccessSurface(FrozenModel):
 
     @model_validator(mode="after")
     def surface_is_closed(self) -> AccessSurface:
-        operation_ids = {operation.operation_id for operation in self.operations}
-        if len(operation_ids) != len(self.operations):
-            raise ValueError("gateway operation ids must be unique")
-        if any(auth.operation_id not in operation_ids for auth in self.authorizations):
-            raise ValueError("authorization references unknown operation")
-        if any(job.operation_id not in operation_ids for job in self.jobs):
-            raise ValueError("async job references unknown operation")
-        if any(rule.operation_id not in operation_ids for rule in self.compatibility_rules):
-            raise ValueError("compatibility rule references unknown operation")
-        if any(event.operation_id not in operation_ids for event in self.audit_events):
-            raise ValueError("audit event references unknown operation")
-        if any(
-            operation.protocol not in self.configuration.supported_protocols
-            for operation in self.operations
-        ):
-            raise ValueError("operation protocol is not enabled by gateway configuration")
+        _validate_gateway_components(
+            operations=self.operations,
+            authorizations=self.authorizations,
+            idempotency_records=self.idempotency_records,
+            jobs=self.jobs,
+            compatibility_rules=self.compatibility_rules,
+            errors=self.errors,
+            audit_events=self.audit_events,
+            configuration=self.configuration,
+        )
         return self
 
 
@@ -293,6 +290,26 @@ class PublishComplexActivityAccessSurfaceRequest(FrozenModel):
         min_length=1, max_length=M2704_MAX_EVIDENCE
     )
     supersedes_result_digest: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def request_is_closed(self) -> PublishComplexActivityAccessSurfaceRequest:
+        _validate_gateway_components(
+            operations=self.operations,
+            authorizations=self.authorizations,
+            idempotency_records=self.idempotency_records,
+            jobs=self.jobs,
+            compatibility_rules=self.compatibility_rules,
+            errors=self.errors,
+            audit_events=self.audit_events,
+            configuration=self.configuration,
+        )
+        artifact_ids = [artifact.artifact_id for artifact in self.source_artifacts]
+        artifact_digests = [artifact.digest for artifact in self.source_artifacts]
+        if len(set(artifact_ids)) != len(artifact_ids):
+            raise ValueError("source artifact ids must be unique")
+        if len(set(artifact_digests)) != len(artifact_digests):
+            raise ValueError("source artifact digests must be unique")
+        return self
 
 
 class ComplexActivityAccessSurfaceResult(FrozenModel):
@@ -340,7 +357,77 @@ class ComplexActivityAccessSurfaceResult(FrozenModel):
         return self
 
 
+def _require_unique(values: Sequence[str], label: str) -> set[str]:
+    unique = set(values)
+    if len(unique) != len(values):
+        raise ValueError(f"{label} ids must be unique")
+    return unique
+
+
+def _validate_gateway_components(  # noqa: PLR0912, PLR0913 - explicit graph closure.
+    *,
+    operations: tuple[GatewayOperation, ...],
+    authorizations: tuple[AuthorizationRecord, ...],
+    idempotency_records: tuple[IdempotencyRecord, ...],
+    jobs: tuple[AsyncJobRecord, ...],
+    compatibility_rules: tuple[CompatibilityRule, ...],
+    errors: tuple[GatewayError, ...],
+    audit_events: tuple[AuditEvent, ...],
+    configuration: GatewayConfiguration,
+) -> None:
+    """Close the cross-record gateway graph before runtime traversal."""
+
+    operation_ids = _require_unique(
+        tuple(operation.operation_id for operation in operations), "gateway operation"
+    )
+    authorization_ids = _require_unique(
+        tuple(authorization.authorization_id for authorization in authorizations),
+        "authorization",
+    )
+    idempotency_ids = _require_unique(
+        tuple(record.idempotency_id for record in idempotency_records), "idempotency"
+    )
+    _require_unique(tuple(job.job_id for job in jobs), "async job")
+    _require_unique(tuple(rule.rule_id for rule in compatibility_rules), "compatibility rule")
+    _require_unique(tuple(error.error_id for error in errors), "gateway error")
+    _require_unique(tuple(event.event_id for event in audit_events), "audit event")
+    if not authorization_ids:
+        raise ValueError("gateway requires authorization records")
+    for authorization in authorizations:
+        if authorization.operation_id not in operation_ids:
+            raise ValueError("authorization references unknown operation")
+    for record in idempotency_records:
+        if record.operation_id not in operation_ids:
+            raise ValueError("idempotency references unknown operation")
+    for job in jobs:
+        if job.operation_id not in operation_ids:
+            raise ValueError("async job references unknown operation")
+        if job.idempotency.idempotency_id not in idempotency_ids:
+            raise ValueError("async job references unknown idempotency record")
+        if job.idempotency.operation_id != job.operation_id:
+            raise ValueError("async job idempotency operation mismatch")
+    for rule in compatibility_rules:
+        if rule.operation_id not in operation_ids:
+            raise ValueError("compatibility rule references unknown operation")
+    for event in audit_events:
+        if event.operation_id not in operation_ids:
+            raise ValueError("audit event references unknown operation")
+    operation_by_id = {operation.operation_id: operation for operation in operations}
+    for job in jobs:
+        if not operation_by_id[job.operation_id].asynchronous_supported:
+            raise ValueError("async job references operation without async support")
+    if any(operation.protocol not in configuration.supported_protocols for operation in operations):
+        raise ValueError("operation protocol is not enabled by gateway configuration")
+    if any(
+        authorization.operation_id not in {operation.operation_id for operation in operations}
+        for authorization in authorizations
+    ):
+        raise ValueError("authorization operation closure failed")
+
+
 __all__ = [
+    "M2704_AUTHORITY_SHA256",
+    "M2704_AUTHORITY_SLICE",
     "M2704_CONTRACT_VERSION",
     "M2704_EVIDENCE_CLAIM",
     "M2704_GATE",
