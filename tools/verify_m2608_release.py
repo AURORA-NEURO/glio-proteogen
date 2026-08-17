@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+from argparse import ArgumentParser
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, cast
@@ -96,8 +97,49 @@ def verify_benchmark(benchmark: Path) -> dict[str, object]:
     return report
 
 
-def verify_package(package: Path) -> dict[str, object]:
-    """Verify package identities, hashes, isolated import and release closure."""
+def _verify_artifact(
+    artifact: Mapping[str, object],
+    path: Path | None,
+    *,
+    artifact_name: str,
+) -> None:
+    """Verify a package receipt and, when supplied, the built artifact bytes."""
+
+    filename = artifact.get("filename")
+    if not isinstance(filename, str) or not filename:
+        raise M2608ReleaseVerificationError(f"package {artifact_name} filename is missing")
+    digest = artifact.get("sha256")
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or digest != digest.lower()
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        raise M2608ReleaseVerificationError(f"package {artifact_name} hash is invalid")
+    size = artifact.get("size_bytes")
+    if not isinstance(size, int) or size <= 0:
+        raise M2608ReleaseVerificationError(f"package {artifact_name} size is invalid")
+    if path is None:
+        return
+    if not path.is_file():
+        raise M2608ReleaseVerificationError(f"package {artifact_name} artifact is missing")
+    if path.name != filename:
+        raise M2608ReleaseVerificationError(f"package {artifact_name} filename does not match")
+    actual_size = path.stat().st_size
+    actual_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual_size != size or actual_digest != digest:
+        raise M2608ReleaseVerificationError(
+            f"package {artifact_name} receipt does not match actual artifact"
+        )
+
+
+def verify_package(
+    package: Path,
+    *,
+    wheel: Path | None = None,
+    sdist: Path | None = None,
+) -> dict[str, object]:
+    """Verify package receipt and optionally bind it to built artifact bytes."""
 
     report = _load(package)
     _require(report, "module_id", MODULE_ID)
@@ -107,28 +149,44 @@ def verify_package(package: Path) -> dict[str, object]:
         value = report.get(artifact)
         if not isinstance(value, dict):
             raise M2608ReleaseVerificationError(f"package {artifact} identity is missing")
-        if not isinstance(value.get("filename"), str) or not value["filename"]:
-            raise M2608ReleaseVerificationError(f"package {artifact} filename is missing")
-        digest = value.get("sha256")
-        if not isinstance(digest, str) or len(digest) != 64:
-            raise M2608ReleaseVerificationError(f"package {artifact} hash is invalid")
-        size = value.get("size_bytes")
-        if not isinstance(size, int) or size <= 0:
-            raise M2608ReleaseVerificationError(f"package {artifact} size is invalid")
+        _verify_artifact(
+            value,
+            wheel if artifact == "wheel" else sdist,
+            artifact_name=artifact,
+        )
+    reproducibility = report.get("reproducibility")
+    if not isinstance(reproducibility, dict):
+        raise M2608ReleaseVerificationError("package reproducibility evidence is missing")
+    if (
+        reproducibility.get("build_count") != 2
+        or reproducibility.get("byte_identical") is not True
+        or reproducibility.get("source_date_epoch") != 315532800
+    ):
+        raise M2608ReleaseVerificationError("package reproducibility gate did not pass")
+    wheel_report = cast("Mapping[str, object]", report["wheel"])
+    sdist_report = cast("Mapping[str, object]", report["sdist"])
+    if (
+        reproducibility.get("wheel_sha256") != wheel_report["sha256"]
+        or reproducibility.get("sdist_sha256") != sdist_report["sha256"]
+    ):
+        raise M2608ReleaseVerificationError("package reproducibility hashes do not match")
     return report
 
 
-def verify_release(
+def verify_release(  # noqa: PLR0913
     evaluation: Path,
     benchmark: Path,
     package: Path,
     fixture: Path,
+    *,
+    wheel: Path | None = None,
+    sdist: Path | None = None,
 ) -> dict[str, object]:
     """Verify all M26-08 release evidence and return a compact report."""
 
     verify_evaluation(evaluation, fixture)
     verify_benchmark(benchmark)
-    verify_package(package)
+    verify_package(package, wheel=wheel, sdist=sdist)
     return {
         "module_id": MODULE_ID,
         "authority": {"dossier_sha256": DOSSIER_SHA256, "slice": DOSSIER_SLICE},
@@ -143,14 +201,26 @@ def verify_release(
 def main(arguments: Sequence[str] | None = None) -> int:
     """Run the verifier without printing artifact contents on failure."""
 
-    values = list(arguments if arguments is not None else sys.argv[1:])
-    if len(values) != 4:
-        print(
-            "usage: verify_m2608_release.py EVALUATION BENCHMARK PACKAGE FIXTURE", file=sys.stderr
-        )
-        return 2
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("evaluation", type=Path)
+    parser.add_argument("benchmark", type=Path)
+    parser.add_argument("package", type=Path)
+    parser.add_argument("fixture", type=Path)
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--sdist", type=Path)
     try:
-        verify_release(*(Path(value) for value in values))
+        parsed = parser.parse_args(arguments)
+    except SystemExit as error:
+        return error.code if isinstance(error.code, int) else 2
+    try:
+        verify_release(
+            parsed.evaluation,
+            parsed.benchmark,
+            parsed.package,
+            parsed.fixture,
+            wheel=parsed.wheel,
+            sdist=parsed.sdist,
+        )
     except M2608ReleaseVerificationError as error:
         print(f"M26-08 release verification failed: {error}", file=sys.stderr)
         return 1
