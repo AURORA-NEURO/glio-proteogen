@@ -82,6 +82,7 @@ jobs:
           uv run python -m evals.m05_06.run --output evidence/m05-06-eval.json
           uv run python -m evals.m05_04.run --output evidence/m05-04-eval.json
           uv run python -m evals.m05_08.run --output evidence/m05-08-eval.json
+          uv run python -m evals.m26_08.run > evidence/m26-08-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
           uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
           uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=evidence/m01-03-benchmark.json --no-cov
@@ -122,6 +123,7 @@ jobs:
           uv run python -m evals.m05_06.benchmark --output evidence/m05-06-benchmark.json
           uv run python -m evals.m05_04.benchmark --output evidence/m05-04-benchmark.json
           uv run python -m evals.m05_08.benchmark --iterations 10 --output evidence/m05-08-benchmark.json
+          uv run python -m evals.m26_08.benchmark > evidence/m26-08-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-03-evidence \
             evidence/m04-03-eval.json evidence/m04-03-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-04-evidence \
@@ -142,6 +144,11 @@ jobs:
           uv run python tools/verify_release_artifacts.py m05-04-evidence \
             evidence/m05-04-eval.json evidence/m05-04-benchmark.json \
             tests/fixtures/m05_04/scenarios.json
+          uv run python tools/verify_m2608_release.py \
+            evidence/m26-08-eval.json evidence/m26-08-benchmark.json \
+            release-evidence/m26_08/package.json tests/fixtures/m26_08/scenarios.json \
+            --wheel "$(find release-build-one -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --sdist "$(find release-build-one -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json
