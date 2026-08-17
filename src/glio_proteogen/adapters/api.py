@@ -787,7 +787,7 @@ from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_r
     M0507Service,
     PtmLocalizationSupportAuthorizationError,
 )
-from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (  # noqa: E501
     _validate_json_request as _validate_m0507_json_request,
 )
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (

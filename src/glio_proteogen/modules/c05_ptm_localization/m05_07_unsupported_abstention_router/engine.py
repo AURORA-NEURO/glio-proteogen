@@ -210,11 +210,11 @@ class M0507PtmLocalizationSupportEngine:
         remediation = _remediation(request.declared_facts) if unsupported else ()
         receipt = _build_receipt(
             request_hash,
-            disposition,
-            code,
-            remediation,
-            unsupported,
-            _evidence(request),
+            disposition=disposition,
+            code=code,
+            remediation=remediation,
+            unsupported=unsupported,
+            evidence=_evidence(request),
         )
         result_values: dict[str, object] = {
             "output_type": "ptm_localization_support_route",
@@ -271,6 +271,7 @@ def _remediation(
 
 def _build_receipt(
     request_hash: str,
+    *,
     disposition: PtmLocalizationSupportDisposition,
     code: PtmLocalizationAbstentionCode | None,
     remediation: tuple[PtmLocalizationRemediationPath, ...],
