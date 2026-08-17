@@ -14,7 +14,9 @@ if TYPE_CHECKING:
 
 def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
-        return value.model_dump(mode="json")
+        # Keep datetimes/enums in their typed form; kernel canonicalization then
+        # applies one UTC/enum representation for both dict and model inputs.
+        return value.model_dump(mode="python")
     return dict(value)
 
 
