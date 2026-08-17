@@ -3,6 +3,7 @@
 from .engine import (
     M1204MechanismAuthorizationError,
     M1204MechanismEngine,
+    M1204MechanismInferenceError,
     M1204ReplayVerificationError,
     infer_biomarker_panel_mechanism,
     preflight_mechanism_authorization,
