@@ -1,0 +1,21 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M27-02-R01,"dossier:9440-9480","Own deterministic data/model/version lineage beneath complex activity","M27-02 provisional identity and parent ceiling","module identity and descriptor tests",G0
+M27-02-R02,"dossier:9440-9480","Bind the exact provisional M27-01 input media type","strict upstream ArtifactReference request validator","request media-type adversarial test",G0
+M27-02-R03,"dossier:9440-9480","Retain immutable source references without content traversal","reference-only graph construction","source node and evidence replay tests",G0
+M27-02-R04,"dossier:9440-9480","Expose a queryable lineage graph","closed LineageGraph with typed nodes and edges","resolved two-source evaluator scenario",G0
+M27-02-R05,"dossier:9440-9480","Allow multi-parent lineage without silently selecting one parent","acyclic multi-parent graph validator","multi-parent contract test",G0
+M27-02-R06,"dossier:9440-9480","Reject duplicate or colliding identifiers","closed duplicate and root-collision findings","adversarial duplicate-source tests",G0
+M27-02-R07,"dossier:9440-9480","Trace producing versions exactly","node, edge, and bundle producing-version fields","graph replay and schema tests",G0
+M27-02-R08,"dossier:9440-9480","Bind graph content to a reproducibility manifest","derived manifest digest excluding only its own field","manifest tamper test",G0
+M27-02-R09,"dossier:9440-9480","Reject broken graph endpoints, bundles, cycles, and duplicates","graph closure validators","contract adversarial matrix",G0
+M27-02-R10,"dossier:9440-9480","Record evidence and provenance for every result","seven-control provenance and evidence index","runtime provenance assertions",G0
+M27-02-R11,"dossier:9440-9480","Require explicit seven-axis uncertainty","not-estimable uncertainty profile","runtime result assertions",G0
+M27-02-R12,"dossier:9440-9480","Abstain safely on unresolved lineage","typed safe-failure report and unsupported status","duplicate-source abstention evaluator",G0
+M27-02-R13,"dossier:9440-9480","Do not convert unsupported evidence to a negative biological claim","emits_parent false and parent limitation","evaluator output-boundary matrix",G0
+M27-02-R14,"dossier:9440-9480","Do not infer protein, proteoform, isoform, kinase, treatment, identity, consent, or glioma biology","descriptor prohibition and closed result fields","plugin/API/evaluator boundary tests",G0
+M27-02-R15,"dossier:9440-9480","Provide canonical request/result replay and tamper rejection","canonical digests and strict model replay","runtime and adversarial replay tests",G0
+M27-02-R16,"dossier:9440-9480","Fail closed on caller controls before lineage traversal","seven-control authorization preflight","authorization denial test",G0
+M27-02-R17,"dossier:9440-9480","Provide strict parse-once plugin behavior","validated request capability token","duplicate-key and plugin parity tests",G0
+M27-02-R18,"dossier:9440-9480","Provide API schema, compute, verify, and CLI parity","FastAPI/Typer adapters over one service","interface integration tests",G0
+M27-02-R19,"dossier:9440-9480","Provide locked evaluator and representative benchmark","frozen scenarios and bounded benchmark","evaluation.json and benchmark.json",G0
+M27-02-R20,"dossier:9440-9480","Provide reproducible release evidence","coverage, verifier, package hashes, isolated import","release verifier and package evidence",G0

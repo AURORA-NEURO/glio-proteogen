@@ -51,9 +51,10 @@ exclude = [
   "/.tmp-*",
   "/dist-*",
   "/evidence",
-  "/release-evidence",
+  "/docs/evidence",
   "/glio-proteogen-evidence.tar.gz",
   "/release-build-*",
+  "/release-evidence",
 ]
 
 [tool.pytest.ini_options]

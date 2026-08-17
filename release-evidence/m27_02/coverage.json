@@ -1,0 +1,11 @@
+{
+  "branch": true,
+  "branches": 90,
+  "covered_branches": 85,
+  "covered_statements": 415,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M27-02",
+  "percent": 98.0,
+  "scope": "contracts/m27_02 and modules/c27_complex_activity/m27_02_lineage_service",
+  "statements": 421
+}
