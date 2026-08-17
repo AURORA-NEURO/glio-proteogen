@@ -1,0 +1,23 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-08",
+  "phase": "locked_executable_release_evidence",
+  "dependency": {
+    "module_id": "GLIO-PROTEOGEN-M04-07",
+    "state": "frozen_public_abi",
+    "genuine_e2e_allowed": true
+  },
+  "cases": [
+    {"case_id": "corpus_inventory", "kind": "owned_contract"},
+    {"case_id": "genuine_m0401_m0407_chain", "kind": "genuine_e2e"},
+    {"case_id": "canonical_release", "kind": "genuine_e2e"},
+    {"case_id": "semantic_reorder_replay", "kind": "replay"},
+    {"case_id": "archive_inventory", "kind": "archive"},
+    {"case_id": "archive_tamper_detection", "kind": "archive"},
+    {"case_id": "signature_replay", "kind": "signature"},
+    {"case_id": "signature_quarantine", "kind": "quarantine"},
+    {"case_id": "stage_identity_binding", "kind": "traceability"},
+    {"case_id": "parent_receipt_ceiling", "kind": "authority_ceiling"},
+    {"case_id": "schema_inventory", "kind": "owned_contract"},
+    {"case_id": "maximum_shape_limits", "kind": "bounded_ingress"}
+  ]
+}

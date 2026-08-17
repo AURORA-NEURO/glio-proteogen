@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "tool": "coverage.py branch-enabled",
+  "scope": "M05-08 contract/runtime/evaluator/interfaces",
+  "tests": 57,
+  "statements": 716,
+  "covered_statements": 693,
+  "missed_statements": 23,
+  "branches": 150,
+  "covered_branches": 130,
+  "partial_branches": 20,
+  "branch_coverage_percent": 95.0346,
+  "fail_under_percent": 95.0,
+  "passed": true
+}
