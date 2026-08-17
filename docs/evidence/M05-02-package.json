@@ -1,7 +1,7 @@
 {
   "moduleId": "GLIO-PROTEOGEN-M05-02",
-  "baseCommit": "e783beb8b8c27258d2371029eeaf123d3233b580",
-  "sourceHeadCommit": "79a34f12",
+  "baseCommit": "8e899e5230a7b0b659261c9d35932c6fa658531d",
+  "sourceHeadCommit": "218b0143",
   "pythonLocDelta": {
     "files": 19,
     "added": 6095,
