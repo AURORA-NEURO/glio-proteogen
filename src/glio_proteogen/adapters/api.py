@@ -2362,7 +2362,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
             Depends(_proteoform_artifact_body),
         ],
     ) -> ProteoformArtifactDetectionResult:
-        return proteoform_artifact_service.execute(request)
+        return proteoform_artifact_service._execute_validated(request)
 
     @app.get("/v1/contracts/M19-08/{name}/schema", tags=["contracts"])
     def m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
