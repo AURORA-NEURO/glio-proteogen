@@ -1,0 +1,14 @@
+[
+  {
+    "scenario_id": "supported_two_source_lineage",
+    "duplicate_source": false,
+    "expected_status": "resolved",
+    "expected_finding_count": 0
+  },
+  {
+    "scenario_id": "duplicate_source_abstention",
+    "duplicate_source": true,
+    "expected_status": "abstained",
+    "expected_finding_count": 1
+  }
+]
