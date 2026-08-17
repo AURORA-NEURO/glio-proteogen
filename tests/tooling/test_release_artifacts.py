@@ -31,7 +31,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 31
+EXPECTED_MODULE_COUNT = 32
 M0407_LOCKED_CHECK_NAMES = (
     "scenario.joint_supported",
     "scenario.outside_assay",
@@ -607,7 +607,6 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m04_06",
         "m05_01",
         "m04_07",
-        "m04_07",
     )
     assert len(modules) == EXPECTED_MODULE_COUNT
     for module in modules:
@@ -664,6 +663,7 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         "m04_05",
         "m04_06",
         "m05_01",
+        "m04_07",
     ):
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
@@ -805,6 +805,9 @@ def test_clean_wheel_smoke_checks_all_module_cli_schema_routes(
         ),
         ("m05-01-export-schema", "request"): (
             "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-01:1.0.0:request"
+        ),
+        ("proteoform-support", "export-schema", "request"): (
+            "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-07:1.0.0:request"
         ),
     }
     assert len(schema_ids) == EXPECTED_MODULE_COUNT
