@@ -67,6 +67,20 @@ def test_api_rejects_duplicate_json_keys_unknown_claim_and_tampered_result() -> 
     assert invalid.status_code == HTTP_UNPROCESSABLE_CONTENT
 
 
+def test_api_verify_requires_object_and_valid_result() -> None:
+    request = _request()
+    with TestClient(create_app()) as client:
+        non_object = client.post("/v1/modules/M28-04/verify", content=b"[]")
+        malformed = client.post("/v1/modules/M28-04/verify", json={"result": {}})
+        published = client.post(
+            "/v1/modules/M28-04/publish", json=request.model_dump(mode="json")
+        ).json()
+        wrapped = client.post("/v1/modules/M28-04/verify", json={"result": published})
+    assert non_object.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert wrapped.status_code == HTTP_OK
+
+
 def test_api_validation_sanitizes_authorization_failure() -> None:
     request = _request()
     rejected = request.context.references.support.model_copy(
@@ -135,6 +149,18 @@ def test_cli_rejects_bad_input_and_abstained_publish(tmp_path: Path) -> None:
     assert bad_validate.exit_code != 0
     assert abstained.exit_code == 1
     assert "Traceback" not in unknown.output + bad_validate.output
+
+
+def test_cli_rejects_invalid_result_and_supports_stdout_schema(tmp_path: Path) -> None:
+    bad_result = tmp_path / "bad-result.json"
+    bad_result.write_text("not-json", encoding="utf-8")
+    runner = CliRunner()
+    schema = runner.invoke(app, ["export-schema", "output"])
+    invalid = runner.invoke(app, ["verify", str(bad_result)])
+    assert schema.exit_code == 0
+    assert '"x-glio-contract"' in schema.output
+    assert invalid.exit_code != 0
+    assert "Traceback" not in invalid.output
 
 
 def test_sdk_uses_the_same_canonical_service_boundary() -> None:

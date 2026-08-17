@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m28_04 import (
     JobStatus,
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from tests.runtime.test_m2804_runtime import _evidence, _request
 
 
@@ -35,7 +36,9 @@ def test_request_rejects_unknown_job_idempotency_reference() -> None:
     payload = request.model_dump(mode="json")
     payload["idempotency_records"] = []
     with pytest.raises(ValidationError):
-        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate(payload)
+        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate_json(
+            canonical_json_bytes(payload)
+        )
 
 
 def test_request_rejects_duplicate_operation_and_protocol_mismatch() -> None:
@@ -44,7 +47,9 @@ def test_request_rejects_duplicate_operation_and_protocol_mismatch() -> None:
     payload = request.model_dump(mode="json")
     payload["operations"] = [operation.model_dump(mode="json"), operation.model_dump(mode="json")]
     with pytest.raises(ValidationError):
-        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate(payload)
+        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate_json(
+            canonical_json_bytes(payload)
+        )
     disabled_config = GatewayConfiguration(
         configuration_id="m2804.configuration.cli-only",
         version="1.0.0",
