@@ -25,6 +25,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging.plug
 def test_m0308_release_token_is_issued_and_non_forgeable() -> None:
     scenario = build_m0308_scenario()
     plugin = M0308Plugin(M0308Service())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M03-08"
+    with pytest.raises(TypeError, match="protein-inference release submission"):
+        plugin.validate(object())
     token = plugin.validate(
         ProteinInferenceReleaseSubmission(
             request=scenario.request,
@@ -48,10 +51,22 @@ def test_m0308_release_token_is_issued_and_non_forgeable() -> None:
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(token)
 
+    json_token = plugin.validate(
+        ProteinInferenceReleaseSubmission(
+            request=scenario.request.model_dump_json(),
+            artifacts_by_path=scenario.artifacts,
+            stage_results_by_module=scenario.stages,
+        )
+    )
+    assert json_token.request == scenario.request
+
 
 def test_m0408_release_token_is_issued_and_non_forgeable() -> None:
     fixture = build_m0408_fixture()
     plugin = M0408Plugin(M0408Service())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M04-08"
+    with pytest.raises(TypeError, match="proteoform release submission"):
+        plugin.validate(object())
     token = plugin.validate(
         ProteoformReleaseSubmission(
             request=fixture.request,
@@ -74,3 +89,12 @@ def test_m0408_release_token_is_issued_and_non_forgeable() -> None:
     object.__setattr__(token, "request", token.request.model_copy())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(token)
+
+    json_token = plugin.validate(
+        ProteoformReleaseSubmission(
+            request=fixture.request.model_dump_json(),
+            artifacts_by_path=fixture.artifacts,
+            stage_results_by_module=fixture.stages,
+        )
+    )
+    assert json_token.request == fixture.request
