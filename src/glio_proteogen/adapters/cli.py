@@ -221,6 +221,17 @@ from glio_proteogen.contracts.m18_08.v1 import (
     M1808_MAX_CANONICAL_REQUEST_BYTES,
     MonitorBiomarkerPanelTranslationHealthRequest,
 )
+from glio_proteogen.contracts.m19_03 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -407,6 +418,12 @@ from glio_proteogen.modules.c18_spatial_proteomics_projection import (
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
     m18_06_reviewer_adjudication as m1806_adjudication,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903ReplayError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -555,6 +572,11 @@ m1803_app = typer.Typer(
     help="M18-03 component-specific fusion and aggregation.",
 )
 app.add_typer(m1803_app, name="m1803-fusion")
+m1903_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-03 component-specific fusion and aggregation.",
+)
+app.add_typer(m1903_app, name="m1903-fusion")
 m1701_app = typer.Typer(
     no_args_is_help=True,
     help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
@@ -3663,6 +3685,54 @@ def fuse_m1803_evidence(request: RequestArgument) -> None:
         M1803_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(m1803_fusion.M1803Service().fuse(parsed))
+
+
+@m1903_app.command("export-schema")
+def export_m1903_schema(
+    contract: Annotated[
+        M1903ContractName,
+        typer.Argument(help="M19-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-03 contract schema."""
+
+    typer.echo(json.dumps(m1903_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1903_app.command("fuse")
+def fuse_m1903_evidence(request: RequestArgument) -> None:
+    """Fuse one strict M19-03 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(FuseProteotypeEvidenceRequest),
+            preflight_m1903_authorization,
+            M1903_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1903Service().fuse(parsed))
+    except M1903AuthorizationError as error:
+        typer.echo(f"M19-03 fusion authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-03 fusion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1903_app.command("verify")
+def verify_m1903_evidence(result: RequestArgument) -> None:
+    """Verify an M19-03 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntegratedEvidenceResult),
+            max_bytes=M1903_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1903Service().replay(parsed))
+    except M1903ReplayError as error:
+        typer.echo(f"M19-03 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 @m1701_app.command("export-schema")
