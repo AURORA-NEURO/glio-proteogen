@@ -174,3 +174,24 @@ def test_non_inference_firewall_rejects_positive_schema_aliases_in_nested_storag
     nested_storage["proteinInference"] = True
     with pytest.raises(ValidationError):
         _BoundaryProbe.model_validate(probe, strict=True)
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "legacy_field",
+    [
+        "infers_proteoform_or_isoform",
+        "mutates_upstream_evidence",
+        "infers_identity_or_consent",
+        "emit_activity_inference",
+        "emit_protein_rna_discordance",
+    ],
+)
+def test_legacy_result_authority_names_cannot_bypass_nested_firewall(
+    legacy_field: str,
+) -> None:
+    probe = _BoundaryProbe(nested=_NestedBoundaryProbe())
+    nested_storage = object.__getattribute__(probe.nested, "__dict__")
+    nested_storage[legacy_field] = True
+    with pytest.raises(ValidationError):
+        _BoundaryProbe.model_validate(probe, strict=True)
