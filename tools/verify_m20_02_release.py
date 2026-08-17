@@ -1,4 +1,4 @@
-# ruff: noqa: C901, FBT003, PLR0912, PLR2004, T201, TRY003
+# ruff: noqa: C901, FBT003, PLR0912, PLR0915, PLR2004, T201, TRY003
 """Verify M20-02 evaluator, benchmark, coverage, and package evidence."""
 
 from __future__ import annotations
@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import tarfile
 import sys
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -48,6 +49,62 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def verify_reproducibility(path: Path, package: dict[str, object]) -> None:
+    """Verify byte-identical wheel and sdist rebuild evidence."""
+
+    report = _load(path, "reproducibility evidence")
+    _require(report, "module_id", MODULE_ID, "reproducibility evidence")
+    _require(report, "contract_version", "0.1.0-provisional", "reproducibility evidence")
+    _require(
+        report,
+        "source_commit",
+        "b5f1d213a3d67c923087becf6623ab526197ebc3",
+        "reproducibility evidence",
+    )
+    _require(report, "build_backend", "hatchling 1.31.0", "reproducibility evidence")
+    _require(report, "build_root_policy", "outside-source-tree", "reproducibility evidence")
+    for artifact_name in ("wheel", "sdist"):
+        record = report.get(artifact_name)
+        expected = package.get(artifact_name)
+        if not isinstance(record, dict) or not isinstance(expected, dict):
+            raise ReleaseEvidenceError(f"{artifact_name} reproducibility record is incomplete")
+        if record.get("rebuild_count") != 2 or record.get("byte_identical") is not True:
+            raise ReleaseEvidenceError(f"{artifact_name} rebuilds are not byte-identical")
+        sizes = record.get("size_bytes")
+        hashes = record.get("sha256")
+        if (
+            not isinstance(sizes, list)
+            or len(sizes) != 2
+            or any(type(value) is not int for value in sizes)
+        ):
+            raise ReleaseEvidenceError(f"{artifact_name} rebuild sizes are invalid")
+        if (
+            not isinstance(hashes, list)
+            or len(hashes) != 2
+            or any(not isinstance(value, str) for value in hashes)
+        ):
+            raise ReleaseEvidenceError(f"{artifact_name} rebuild hashes are invalid")
+        if any(value != sizes[0] for value in sizes) or sizes[0] != expected.get("size_bytes"):
+            raise ReleaseEvidenceError(f"{artifact_name} rebuild sizes disagree")
+        if any(value != hashes[0] for value in hashes) or hashes[0] != expected.get("sha256"):
+            raise ReleaseEvidenceError(f"{artifact_name} rebuild hashes disagree")
+
+
+def verify_sdist_evidence_boundary(sdist: Path) -> None:
+    """Ensure mutable release records cannot become self-referential sdist inputs."""
+
+    if not sdist.is_file():
+        raise ReleaseEvidenceError("sdist artifact is missing")
+    with tarfile.open(sdist, mode="r:gz") as archive:
+        names = tuple(archive.getnames())
+    forbidden = (
+        "/docs/evidence/M20-02.md",
+        "/docs/evidence/m20_02/",
+    )
+    if any(any(name.endswith(path) or path in name for path in forbidden) for name in names):
+        raise ReleaseEvidenceError("sdist includes mutable M20-02 release evidence")
+
+
 def verify_release(evidence_dir: Path, wheel: Path, sdist: Path) -> None:
     evaluation = _load(evidence_dir / "evaluation.json", "evaluation evidence")
     benchmark = _load(evidence_dir / "benchmark.json", "benchmark evidence")
@@ -59,6 +116,7 @@ def verify_release(evidence_dir: Path, wheel: Path, sdist: Path) -> None:
         ("package evidence", package),
     ):
         _require(document, "module_id", MODULE_ID, label)
+    verify_reproducibility(evidence_dir / "reproducibility.json", package)
     _require(evaluation, "dossier_sha256", AUTHORITY_SHA256, "evaluation evidence")
     _require(evaluation, "dossier_slice", AUTHORITY_SLICE, "evaluation evidence")
     _require(evaluation, "passed", True, "evaluation evidence")
@@ -99,6 +157,7 @@ def verify_release(evidence_dir: Path, wheel: Path, sdist: Path) -> None:
         "sha256"
     ):
         raise ReleaseEvidenceError("sdist hash or size does not match package evidence")
+    verify_sdist_evidence_boundary(sdist)
     try:
         with ZipFile(wheel) as archive:
             member_count = len(archive.namelist())
