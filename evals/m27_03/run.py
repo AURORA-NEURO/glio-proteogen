@@ -1,9 +1,13 @@
 """Executable M27-03 evaluator matrix."""
 
+# Support both `python -m evals.m27_03.run` and direct file execution.
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
 from glio_proteogen.contracts.m27_03 import PipelineStatus
@@ -13,7 +17,11 @@ from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_or
     M2703Plugin,
 )
 
-from .fixtures import request
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from evals.m27_03.fixtures import request
+else:
+    from .fixtures import request
 
 
 def run_evaluation() -> dict[str, Any]:
