@@ -54,7 +54,22 @@ _CONTROL_STATES: Final = {
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
 _FORBIDDEN_CLAIM_TERMS: Final = frozenset(
-    {"all-omics", "kinase", "treatment", "identity inference", "diagnosis", "subtype"}
+    {
+        "all-omics",
+        "kinase",
+        "treatment",
+        "identity",
+        "consent",
+        "protein inference",
+        "proteoform",
+        "isoform",
+        "identity inference",
+        "consent inference",
+        "diagnosis",
+        "subtype",
+        "glioma-specific",
+        "glioma specific biology",
+    }
 )
 
 
@@ -244,14 +259,40 @@ def _finding(
     )
 
 
+def _forbidden_texts(request: FuseProteotypeEvidenceRequest) -> tuple[str, ...]:
+    """Collect caller-controlled claim text before any integrated object is emitted."""
+
+    texts = [
+        request.configuration.method,
+        *request.aggregate_values,
+        *(item.description for item in request.disagreements),
+        *(item.resolution or "" for item in request.disagreements),
+    ]
+    return tuple(text.casefold() for text in texts)
+
+
 def _findings(
     request: FuseProteotypeEvidenceRequest,
 ) -> tuple[FusionFinding, ...]:
     findings: list[FusionFinding] = []
     threshold = request.configuration.reliability_threshold
+    if any(term in text for text in _forbidden_texts(request) for term in _FORBIDDEN_CLAIM_TERMS):
+        findings.append(
+            _finding(
+                request.request_id,
+                FusionFindingCode.OWNERSHIP_UNCLEAR,
+                "Caller-declared text exceeds the component-specific M19-03 authority boundary.",
+                _evidence(request),
+            )
+        )
     for contribution in request.contributions:
         claim = contribution.claim.casefold()
-        if any(term in claim for term in _FORBIDDEN_CLAIM_TERMS):
+        contribution_texts = (
+            claim,
+            contribution.owner.casefold(),
+            contribution.uncertainty_note.casefold(),
+        )
+        if any(term in text for text in contribution_texts for term in _FORBIDDEN_CLAIM_TERMS):
             findings.append(
                 _finding(
                     request.request_id,
