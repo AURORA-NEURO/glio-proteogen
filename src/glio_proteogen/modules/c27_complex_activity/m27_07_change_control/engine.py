@@ -97,9 +97,10 @@ def preflight_change_control_authorization(request: ControlComplexActivityChange
         reference = getattr(request.context.references, role.value)
         if role is ControlRole.CONSENT:
             continue
-        if role is ControlRole.IDENTITY_LINEAGE and reference.state.value == "resolved":
+        state = getattr(reference.state, "value", reference.state)
+        if role is ControlRole.IDENTITY_LINEAGE and state == "resolved":
             continue
-        if reference.state.value != "accepted":
+        if state != "accepted":
             raise ChangeControlAuthorizationError("required control is not accepted")
     ids = tuple(item.artifact_id for item in request.source_artifacts)
     if len(ids) != len(set(ids)):

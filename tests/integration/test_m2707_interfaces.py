@@ -28,3 +28,12 @@ def test_api_verify_rejects_forged_result() -> None:
     result["result_digest"] = "sha256:" + "f" * 64
     response = client.post("/v1/modules/M27-07/verify", content=json.dumps(result))
     assert response.status_code == _HTTP_UNPROCESSABLE
+
+
+def test_api_verify_accepts_replayed_result() -> None:
+    client = TestClient(create_app())
+    payload = build_request().model_dump(mode="json")
+    result = client.post("/v1/modules/M27-07/control", json=payload).json()
+    response = client.post("/v1/modules/M27-07/verify", content=json.dumps(result))
+    assert response.status_code == _HTTP_OK
+    assert response.json()["verified"] is True

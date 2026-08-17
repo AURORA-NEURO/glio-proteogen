@@ -81,9 +81,7 @@ def verify(result: Annotated[Path, typer.Argument()]) -> None:
     """Verify a result digest and report JSON."""
 
     try:
-        parsed = ComplexActivityChangeControlResult.model_validate(
-            json.loads(_read(result)), strict=True
-        )
+        parsed = ComplexActivityChangeControlResult.model_validate_json(_read(result), strict=True)
     except (ValueError, TypeError, json.JSONDecodeError) as error:
         raise typer.BadParameter("result verification failed") from error
     typer.echo(json.dumps({"verified": _service.verify(parsed)}, sort_keys=True))
