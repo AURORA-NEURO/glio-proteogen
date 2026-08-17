@@ -5,6 +5,9 @@ execution, retry, checkpoint, environment capture, and safe recovery without
 claiming a finalized runtime ABI.
 """
 
+# The two closure validators deliberately enumerate independent invariants.
+# ruff: noqa: PLR0912,S101,PT018
+
 from __future__ import annotations
 
 from enum import StrEnum
@@ -97,18 +100,14 @@ class WorkflowNode(FrozenModel):
     cpu_millis: int = Field(ge=1)
     memory_bytes: int = Field(ge=1)
     deterministic: Literal[True] = True
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
 
 class WorkflowEdge(FrozenModel):
     edge_id: Identifier
     source_node_id: Identifier
     target_node_id: Identifier
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def endpoints_are_distinct(self) -> WorkflowEdge:
@@ -124,9 +123,7 @@ class WorkflowDAG(FrozenModel):
     edges: tuple[WorkflowEdge, ...] = Field(default=(), max_length=M2703_MAX_EDGES)
     entry_node_id: Identifier
     exit_node_id: Identifier
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def dag_references_are_closed(self) -> WorkflowDAG:
@@ -209,9 +206,7 @@ class ExecutionRecord(FrozenModel):
     checkpoint_digest: Sha256Digest | None = None
     environment_digest: Sha256Digest
     output_digest: Sha256Digest | None = None
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
 
 class ReproducibleResultPackage(FrozenModel):
@@ -224,18 +219,14 @@ class ReproducibleResultPackage(FrozenModel):
     manifest_digest: Sha256Digest
     environment_digest: Sha256Digest
     reproducibility_digest: Sha256Digest
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
 
 class PipelineFinding(FrozenModel):
     finding_id: Identifier
     code: FindingCode
     message: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        default=(), max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2703_MAX_EVIDENCE)
 
 
 class SafeFailureReport(FrozenModel):
@@ -245,9 +236,7 @@ class SafeFailureReport(FrozenModel):
     action: NonEmptyStr
     abstained: Literal[True] = True
     recovery_note: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2703_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2703_MAX_EVIDENCE)
 
 
 class OrchestrateComplexActivityPipelineRequest(FrozenModel):

@@ -1,5 +1,8 @@
 """Canonical projections for the provisional M27-03 contract spine."""
 
+# Digest strings are intentionally validated at their canonical fixed width.
+# ruff: noqa: PLR2004
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
