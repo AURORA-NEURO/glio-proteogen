@@ -56,6 +56,28 @@ _M0404_BENCHMARK_SHAPE = {
     "evidence_count": 45,
     "limitation_count": 3,
 }
+_M0405_MODULE_ID = "GLIO-PROTEOGEN-M04-05"
+_M0405_OPERATION = "detect_proteoform_artifacts"
+_M0405_CASE_COUNT = 15
+_M0405_BENCHMARK_ITERATIONS = 25
+_M0405_BENCHMARK_WARMUPS = 1
+_M0405_MEAN_BUDGET_NS = 2_000_000_000
+_M0405_P95_BUDGET_NS = 3_000_000_000
+_M0405_BENCHMARK_SHAPE = {
+    "target_count": 64,
+    "event_count": 448,
+    "posterior_count": 448,
+}
+_M0405_SEEDED_SENSITIVITY_FLOOR_PPM = 900_000
+_M0405_FALSE_EXCLUSION_CEILING_PPM = 50_000
+_PPM_SCALE = 1_000_000
+_M0405_COVERAGE_DISPOSITION = "non_calibrated_scores_with_typed_narrowing_or_abstention"
+_M0405_CONTRACT_VERSION = "1.0.0"
+_M0405_BENCHMARK_WORKLOAD = (
+    "genuine M04-04 result plus the exact installed maximum aggregate ledger"
+)
+_M0405_TIMED_BOUNDARY = "detect_proteoform_artifacts only"
+_CANONICAL_SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
 _M1904_MODULE_ID = "GLIO-PROTEOGEN-M19-04"
 _M1904_SCENARIO_COUNT = 9
 _M1904_ADVERSARIAL_CASE_COUNT = 8
@@ -191,6 +213,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("proteoform-quality", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-04:1.0.0:request",
+    ),
+    (
+        ("proteoform-artifacts", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-05:1.0.0:request",
     ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
@@ -454,6 +480,142 @@ def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
     _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
 
 
+def _verify_m0405_checks(checked: Sequence[Mapping[str, object]]) -> None:
+    if any(check.get("passed") is not True for check in checked):
+        raise ReleaseArtifactError("M04-05 evaluation report contains a failed check")
+    scenario_names = tuple(
+        name
+        for check in checked
+        if isinstance((name := check.get("name")), str) and name.startswith("scenario.")
+    )
+    replay_names = tuple(
+        name
+        for check in checked
+        if isinstance((name := check.get("name")), str) and name.startswith("replay.")
+    )
+    for kind, names in (("scenario", scenario_names), ("replay", replay_names)):
+        if len(names) != _M0405_CASE_COUNT or len(set(names)) != len(names):
+            raise ReleaseArtifactError(f"M04-05 evaluation report lacks exact {kind} closure")
+    if {name.removeprefix("scenario.") for name in scenario_names} != {
+        name.removeprefix("replay.") for name in replay_names
+    }:
+        raise ReleaseArtifactError("M04-05 evaluation report replays a different corpus")
+    required_oracle = tuple(
+        check
+        for check in checked
+        if check.get("name") == "acceptance.non_calibrated_narrow_or_abstain"
+    )
+    if len(required_oracle) != 1 or required_oracle[0].get("passed") is not True:
+        raise ReleaseArtifactError("M04-05 evaluation report lacks its narrowed-support oracle")
+
+
+def _verify_m0405_acceptance_metrics(evaluation_report: Mapping[str, object]) -> None:
+    sensitivity = evaluation_report.get("seeded_sensitivity_ppm")
+    if (
+        type(sensitivity) is not int
+        or sensitivity < _M0405_SEEDED_SENSITIVITY_FLOOR_PPM
+        or sensitivity > _PPM_SCALE
+    ):
+        raise ReleaseArtifactError("M04-05 evaluation report misses its sensitivity floor")
+    false_exclusion = evaluation_report.get("false_exclusion_ppm")
+    if (
+        type(false_exclusion) is not int
+        or false_exclusion < 0
+        or false_exclusion > _M0405_FALSE_EXCLUSION_CEILING_PPM
+    ):
+        raise ReleaseArtifactError("M04-05 evaluation report exceeds its false-exclusion ceiling")
+    if evaluation_report.get("nominal_coverage_ppm", object()) is not None:
+        raise ReleaseArtifactError("M04-05 evaluation report claims unsupported nominal coverage")
+    if evaluation_report.get("coverage_disposition") != _M0405_COVERAGE_DISPOSITION:
+        raise ReleaseArtifactError("M04-05 evaluation report has the wrong coverage disposition")
+
+
+def _verify_m0405_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    label = "M04-05 evaluation report"
+    if evaluation_report.get("module_id") != _M0405_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if evaluation_report.get("operation") != _M0405_OPERATION:
+        raise ReleaseArtifactError(f"{label} has the wrong operation")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(evaluation_report, field, _M0405_CASE_COUNT, label)
+    for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
+        _require_empty_array(evaluation_report, field, label)
+    checks = _sequence(evaluation_report.get("checks"), "M04-05 evaluation checks")
+    checked = tuple(_mapping(check, "M04-05 evaluation check") for check in checks)
+    _verify_m0405_checks(checked)
+    _verify_m0405_acceptance_metrics(evaluation_report)
+
+
+def _verify_m0405_benchmark_identity(benchmark_report: Mapping[str, object]) -> None:
+    label = "M04-05 benchmark report"
+    if benchmark_report.get("module_id") != _M0405_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field, expected_text in (
+        ("contract_version", _M0405_CONTRACT_VERSION),
+        ("workload", _M0405_BENCHMARK_WORKLOAD),
+        ("timed_boundary", _M0405_TIMED_BOUNDARY),
+    ):
+        if benchmark_report.get(field) != expected_text:
+            raise ReleaseArtifactError(f"{label} has an unexpected {field}")
+    for field in ("request_digest", "result_digest"):
+        value = benchmark_report.get(field)
+        if not isinstance(value, str) or _CANONICAL_SHA256.fullmatch(value) is None:
+            raise ReleaseArtifactError(f"{label} has an invalid {field}")
+    exact_fields = {
+        "iterations": _M0405_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0405_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0405_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0405_P95_BUDGET_NS,
+        **_M0405_BENCHMARK_SHAPE,
+    }
+    for field, expected_integer in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected_integer, label)
+
+
+def _verify_m0405_benchmark_timing(benchmark_report: Mapping[str, object]) -> None:
+    mean = benchmark_report.get("mean_ns")
+    p50 = benchmark_report.get("p50_ns")
+    p95 = benchmark_report.get("p95_ns")
+    maximum = benchmark_report.get("maximum_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M04-05 benchmark report has an invalid mean")
+    if isinstance(p50, bool) or not isinstance(p50, (int, float)):
+        raise ReleaseArtifactError("M04-05 benchmark report has an invalid p50")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M04-05 benchmark report has an invalid p95")
+    if isinstance(maximum, bool) or not isinstance(maximum, int):
+        raise ReleaseArtifactError("M04-05 benchmark report has an invalid maximum")
+    if (
+        not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean < 0
+        or mean > _M0405_MEAN_BUDGET_NS
+        or p50 < 0
+        or p95 < 0
+        or p95 > _M0405_P95_BUDGET_NS
+        or maximum < p95
+        or maximum < p50
+        or maximum < mean
+    ):
+        raise ReleaseArtifactError("M04-05 benchmark report exceeds its timing budgets")
+
+
+def _verify_m0405_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    _verify_m0405_benchmark_identity(benchmark_report)
+    _verify_m0405_benchmark_timing(benchmark_report)
+
+
+def verify_m0405_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M04-05 corpus closure, narrowed uncertainty, and maximum-shape timing."""
+
+    _verify_m0405_evaluation(_load_json_evidence(evaluation, "M04-05 evaluation report"))
+    _verify_m0405_benchmark(_load_json_evidence(benchmark, "M04-05 benchmark report"))
+
+
 def _verify_m1904_evaluation(evaluation_report: Mapping[str, object]) -> None:
     if evaluation_report.get("module_id") != _M1904_MODULE_ID:
         raise ReleaseArtifactError("M19-04 evaluation report has the wrong module identity")
@@ -653,9 +815,7 @@ def _verify_m2607_package(package_report: Mapping[str, object]) -> None:
         ):
             raise ReleaseArtifactError(f"M26-07 {label} package evidence is incomplete")
     required_members = _sequence(
-        _mapping(package_report.get("wheel"), "M26-07 wheel package").get(
-            "requiredRuntimeMembers"
-        ),
+        _mapping(package_report.get("wheel"), "M26-07 wheel package").get("requiredRuntimeMembers"),
         "M26-07 required runtime members",
     )
     if not required_members or any(
@@ -936,6 +1096,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0404_evidence.add_argument("evaluation", type=Path)
     m0404_evidence.add_argument("benchmark", type=Path)
+    m0405_evidence = commands.add_parser(
+        "m04-05-evidence", help="verify M04-05 evaluation and benchmark evidence"
+    )
+    m0405_evidence.add_argument("evaluation", type=Path)
+    m0405_evidence.add_argument("benchmark", type=Path)
     m1904_evidence = commands.add_parser(
         "m19-04-evidence", help="verify M19-04 evaluation and benchmark evidence"
     )
@@ -955,7 +1120,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     """Run release-artifact verification without exposing artifact contents on failure."""
 
     arguments = _parser().parse_args()
@@ -969,14 +1134,16 @@ def main() -> int:
             verify_runtime_sbom(arguments.sbom, arguments.wheel)
         elif arguments.command == "m04-03-evidence":
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m04-04-evidence":
+            verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m04-05-evidence":
+            verify_m0405_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m19-04-evidence":
             verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m26-04-evidence":
             verify_m2604_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m26-07-evidence":
             verify_m2607_evidence(arguments.evaluation, arguments.benchmark, arguments.package)
-        else:
-            verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
     except ReleaseArtifactError as error:
         sys.stderr.write(f"release artifact verification failed: {error}\n")
         return 1
