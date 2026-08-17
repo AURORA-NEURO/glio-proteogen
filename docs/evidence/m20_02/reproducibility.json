@@ -1,0 +1,26 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-02",
+  "contract_version": "0.1.0-provisional",
+  "source_commit": "6f52f26e",
+  "build_backend": "hatchling 1.31.0",
+  "build_command": "python -m build --wheel --sdist --outdir <external-output-dir>",
+  "build_root_policy": "outside-source-tree",
+  "sdist": {
+    "rebuild_count": 2,
+    "byte_identical": true,
+    "size_bytes": [3228352, 3228352],
+    "sha256": [
+      "6d422b8b0cde29eade904cc73455487036ee55adee20b6edb25ef16c88601384",
+      "6d422b8b0cde29eade904cc73455487036ee55adee20b6edb25ef16c88601384"
+    ]
+  },
+  "wheel": {
+    "rebuild_count": 2,
+    "byte_identical": true,
+    "size_bytes": [2717786, 2717786],
+    "sha256": [
+      "9731470171a18fa05621e3c4946262b8a7302bfc7ec7d48491b5f2f2ca948232",
+      "9731470171a18fa05621e3c4946262b8a7302bfc7ec7d48491b5f2f2ca948232"
+    ]
+  }
+}
