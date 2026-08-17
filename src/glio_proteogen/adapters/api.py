@@ -275,17 +275,6 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
-from glio_proteogen.contracts.m05_01.schema import (
-    ContractName as M0501ContractName,
-)
-from glio_proteogen.contracts.m05_01.schema import (
-    contract_json_schema as m0501_contract_json_schema,
-)
-from glio_proteogen.contracts.m05_01.v1 import (
-    M0501_MAX_CANONICAL_REQUEST_BYTES,
-    EvaluatePtmLocalizationProtocolRequest,
-    PtmLocalizationProtocolConformanceResult,
-)
 from glio_proteogen.contracts.m04_05.schema import (
     ContractName as M0405ContractName,
 )
@@ -307,6 +296,17 @@ from glio_proteogen.contracts.m04_06.v1 import (
     M0406_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizeProteoformAnalysisRequest,
     ProteoformHarmonizationResult,
+)
+from glio_proteogen.contracts.m05_01.schema import (
+    ContractName as M0501ContractName,
+)
+from glio_proteogen.contracts.m05_01.schema import (
+    contract_json_schema as m0501_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_01.v1 import (
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluatePtmLocalizationProtocolRequest,
+    PtmLocalizationProtocolConformanceResult,
 )
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
@@ -650,13 +650,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
-    M0501Service,
-    PtmLocalizationProtocolAuthorizationError,
-)
-from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
-    _validate_json_request as _validate_m0501_json_request,
-)
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection import (
     M0405Service,
     ProteoformArtifactAuthorizationError,
@@ -671,6 +664,13 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
     _validate_json_request as _validate_m0406_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
+    M0501Service,
+    PtmLocalizationProtocolAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
+    _validate_json_request as _validate_m0501_json_request,
 )
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,

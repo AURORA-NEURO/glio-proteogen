@@ -180,10 +180,6 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
-from glio_proteogen.contracts.m05_01 import (
-    M0501_MAX_CANONICAL_REQUEST_BYTES,
-    EvaluatePtmLocalizationProtocolRequest,
-)
 from glio_proteogen.contracts.m04_05 import (
     M0405_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteoformArtifactsRequest,
@@ -191,6 +187,10 @@ from glio_proteogen.contracts.m04_05 import (
 from glio_proteogen.contracts.m04_06 import (
     M0406_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizeProteoformAnalysisRequest,
+)
+from glio_proteogen.contracts.m05_01 import (
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluatePtmLocalizationProtocolRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -426,10 +426,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import M0501Service
-from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
-    _validate_json_request as _validate_m0501_json_request,
-)
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection import (
     M0405Service,
     ProteoformArtifactAuthorizationError,
@@ -444,6 +440,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
 )
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
     _validate_json_request as _validate_m0406_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import M0501Service
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
+    _validate_json_request as _validate_m0501_json_request,
 )
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,

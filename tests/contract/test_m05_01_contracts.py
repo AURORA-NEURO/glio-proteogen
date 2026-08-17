@@ -6,7 +6,7 @@ import json
 
 import pytest
 from evals.m05_01.run import build_scenario_request
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts.m05_01 import (
     M0501_MAX_APPROVED_REFERENCE_BUNDLES,
@@ -53,11 +53,15 @@ def test_exact_thirteen_json_schema_2020_12_exports() -> None:
     schemas = contract_json_schemas()
     assert tuple(schemas) == SCHEMA_NAMES
     for name, schema in schemas.items():
+        typed_schema = schema if isinstance(schema, dict) else {}
         assert schema == contract_json_schema(name)
-        assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-        assert schema["$id"].endswith(f":{name}")
-        assert schema["x-glio-contract"]["parentTarget"] == "variant_peptide"
-        assert not schema["x-glio-contract"]["scientificInference"]
+        assert typed_schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+        assert isinstance(typed_schema["$id"], str)
+        assert typed_schema["$id"].endswith(f":{name}")
+        metadata = typed_schema["x-glio-contract"]
+        assert isinstance(metadata, dict)
+        assert metadata["parentTarget"] == "variant_peptide"
+        assert not metadata["scientificInference"]
         json.dumps(schema, sort_keys=True)
 
 
@@ -103,6 +107,7 @@ def test_component_relational_invariants_reject_invalid_shapes(  # noqa: C901, P
     request = build_scenario_request()
     protocol = request.protocol_schema
     profile = request.conformance_profile
+    model: type[BaseModel]
     if component == "reference_bundle":
         payload = protocol.reference_bundle.model_dump(mode="python")
         if mutation == "duplicate_reference":
