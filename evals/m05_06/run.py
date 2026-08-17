@@ -6,6 +6,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from functools import cache
+from pathlib import Path
 from typing import Final
 
 from evals.m05_05.run import canonical_smoke as m0505_canonical_smoke
@@ -223,9 +224,16 @@ def run_evaluation() -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     report = run_evaluation()
-    print(json.dumps(report, sort_keys=True) if args.json else report)  # noqa: T201
+    rendered = json.dumps(report, sort_keys=True) + "\n"
+    if args.output is not None:
+        args.output.write_text(rendered, encoding="utf-8")
+    elif args.json:
+        print(rendered, end="")  # noqa: T201
+    else:
+        print(report)  # noqa: T201
     return 0 if report["passed"] else 1
 
 
