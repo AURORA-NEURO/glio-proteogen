@@ -1,0 +1,139 @@
+"""Benchmark only public M04-06 harmonization on one fully prepared genuine chain."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from statistics import fmean, median
+from time import perf_counter_ns
+
+from evals.m04_06.run import build_maximum_scenario_request
+from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_OBSERVATIONS,
+    M0406_MAX_TARGETS,
+    ProteoformHarmonizationDisposition,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    harmonize_proteoform_analysis,
+)
+
+DEFAULT_ITERATIONS = 25
+MEAN_BUDGET_NS = 2_000_000_000
+P95_BUDGET_NS = 3_000_000_000
+EXPECTED_STAGE_COUNT = 8
+EXPECTED_INVARIANT_COUNT = 3
+
+
+@dataclass(frozen=True, slots=True)
+class BenchmarkReport:
+    module_id: str
+    contract_version: str
+    workload: str
+    timed_boundary: str
+    iterations: int
+    target_count: int
+    observation_count: int
+    stage_count: int
+    invariant_count: int
+    request_digest: str
+    result_digest: str
+    warmup_count: int
+    mean_ns: float
+    p50_ns: float
+    p95_ns: int
+    maximum_ns: int
+    mean_budget_ns: int
+    p95_budget_ns: int
+    passed: bool
+
+
+class InvalidIterationCountError(ValueError):
+    pass
+
+
+class InvalidCanonicalWorkloadError(RuntimeError):
+    pass
+
+
+class NonDeterministicBenchmarkError(RuntimeError):
+    pass
+
+
+def run_benchmark(iterations: int = DEFAULT_ITERATIONS) -> BenchmarkReport:
+    """Prepare M04-01 through M04-05 and the support ledger before timing M04-06."""
+
+    if iterations < 1:
+        raise InvalidIterationCountError
+    request = build_maximum_scenario_request()
+    ledger = request.support_ledger
+    warmup = harmonize_proteoform_analysis(request)
+    manifest = warmup.transformation_manifest
+    if (
+        ledger is None
+        or manifest is None
+        or warmup.analysis is None
+        or warmup.disposition is not ProteoformHarmonizationDisposition.ACCEPTED
+        or request.artifact_receipt.target_count != M0406_MAX_TARGETS
+        or len(ledger.observations) != M0406_MAX_OBSERVATIONS
+        or warmup.analysis.target_count != M0406_MAX_TARGETS
+        or len(manifest.stages) != EXPECTED_STAGE_COUNT
+        or len(warmup.invariant_diagnostics) != EXPECTED_INVARIANT_COUNT
+    ):
+        raise InvalidCanonicalWorkloadError
+    samples: list[int] = []
+    for _ in range(iterations):
+        started = perf_counter_ns()
+        result = harmonize_proteoform_analysis(request)
+        elapsed = perf_counter_ns() - started
+        if result != warmup:
+            raise NonDeterministicBenchmarkError
+        samples.append(elapsed)
+    ordered = sorted(samples)
+    p95 = ordered[min(len(ordered) - 1, (95 * len(ordered) - 1) // 100)]
+    mean = fmean(samples)
+    return BenchmarkReport(
+        module_id="GLIO-PROTEOGEN-M04-06",
+        contract_version="1.0.0",
+        workload="genuine_m0401_through_m0405_installed_max32_fixed_point_support_ledger",
+        timed_boundary="harmonize_proteoform_analysis_only",
+        iterations=iterations,
+        target_count=request.artifact_receipt.target_count,
+        observation_count=len(ledger.observations),
+        stage_count=len(manifest.stages),
+        invariant_count=len(warmup.invariant_diagnostics),
+        request_digest=warmup.request_digest,
+        result_digest=warmup.result_digest,
+        warmup_count=1,
+        mean_ns=mean,
+        p50_ns=median(samples),
+        p95_ns=p95,
+        maximum_ns=max(samples),
+        mean_budget_ns=MEAN_BUDGET_NS,
+        p95_budget_ns=P95_BUDGET_NS,
+        passed=mean <= MEAN_BUDGET_NS and p95 <= P95_BUDGET_NS,
+    )
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--iterations", type=int, default=DEFAULT_ITERATIONS)
+    parser.add_argument("--output", type=Path)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    report = run_benchmark(args.iterations)
+    rendered = json.dumps(asdict(report), indent=2, sort_keys=True) + "\n"
+    if args.output is None:
+        sys.stdout.write(rendered)
+    else:
+        args.output.write_text(rendered, encoding="utf-8")
+    return 0 if report.passed else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
