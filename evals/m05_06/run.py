@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 from typing import Final
+
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from evals.m05_05.run import canonical_smoke as m0505_canonical_smoke
 from glio_proteogen.contracts.m05_05 import (

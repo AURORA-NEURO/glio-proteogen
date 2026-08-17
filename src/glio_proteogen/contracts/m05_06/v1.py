@@ -805,8 +805,10 @@ class PtmLocalizationHarmonizationResult(FrozenModel):
     @model_validator(mode="after")
     def result_is_closed(self) -> PtmLocalizationHarmonizationResult:
         from glio_proteogen.contracts.m05_06.canonical import (
+            analysis_digest,
             canonical_request_digest,
             configuration_digest,
+            manifest_digest,
             policy_digest,
             result_payload_digest,
         )
@@ -819,15 +821,53 @@ class PtmLocalizationHarmonizationResult(FrozenModel):
             raise ValueError("result policy/configuration digest is stale")
         if self.receipt.artifact_result_digest != self.request.artifact_result.result_digest:
             raise ValueError("result receipt does not bind the complete M05-05 result")
+        matching_profiles = tuple(
+            profile
+            for profile in self.request.policy.profiles
+            if M0505_CONTRACT_VERSION in profile.approved_artifact_contract_versions
+        )
+        expected_profile_digest = sha256_digest(matching_profiles[0]) if matching_profiles else None
+        expected_receipt_bindings = (
+            (self.receipt.artifact_receipt_digest, self.request.artifact_receipt.receipt_digest),
+            (self.receipt.policy_digest, self.policy_digest),
+            (self.receipt.configuration_digest, self.configuration_digest),
+            (self.receipt.disposition, self.disposition),
+            (self.receipt.finding_codes, tuple(item.code for item in self.findings)),
+            (
+                self.receipt.analysis_digest,
+                self.analysis.analysis_digest if self.analysis is not None else None,
+            ),
+            (
+                self.receipt.transformation_manifest_digest,
+                self.transformation_manifest.manifest_digest
+                if self.transformation_manifest is not None
+                else None,
+            ),
+            (
+                self.receipt.profile_digest,
+                expected_profile_digest,
+            ),
+        )
+        if any(actual != expected for actual, expected in expected_receipt_bindings):
+            raise ValueError("result receipt does not bind the complete harmonization output")
+        if self.analysis is not None and self.analysis.analysis_digest != analysis_digest(
+            self.analysis
+        ):
+            raise ValueError("harmonized analysis digest is stale")
+        if (
+            self.transformation_manifest is not None
+            and self.transformation_manifest.manifest_digest
+            != manifest_digest(self.transformation_manifest)
+        ):
+            raise ValueError("transformation manifest digest is stale")
         if self.disposition is PtmLocalizationHarmonizationDisposition.ACCEPTED and (
             self.analysis is None or self.transformation_manifest is None
         ):
             raise ValueError("accepted result requires analysis and transformation manifest")
-        if (
-            self.disposition is not PtmLocalizationHarmonizationDisposition.ACCEPTED
-            and self.analysis is not None
+        if self.disposition is not PtmLocalizationHarmonizationDisposition.ACCEPTED and (
+            self.analysis is not None or self.transformation_manifest is not None
         ):
-            raise ValueError("quarantined or abstained result cannot emit harmonized analysis")
+            raise ValueError("quarantined or abstained result cannot emit harmonized output")
         if self.human_review_required != (
             self.disposition is not PtmLocalizationHarmonizationDisposition.ACCEPTED
         ):

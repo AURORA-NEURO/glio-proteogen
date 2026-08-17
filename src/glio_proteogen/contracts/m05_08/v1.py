@@ -12,7 +12,7 @@ from typing import Final, Literal
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
-from glio_proteogen.contracts.m05_08.canonical import manifest_digest
+from glio_proteogen.contracts.m05_08.canonical import manifest_digest, result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -299,6 +299,8 @@ class PtmLocalizationReleaseResult(FrozenModel):
             raise ValueError("quarantined package cannot expose release bytes")
         if self.package_member_count == 0 and released:
             raise ValueError("released package must contain members")
+        if self.result_digest != result_payload_digest(self):
+            raise ValueError("result digest does not bind canonical release content")
         return self
 
 

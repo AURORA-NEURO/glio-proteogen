@@ -10,6 +10,9 @@ from pathlib import Path
 from statistics import fmean, median
 from time import perf_counter_ns
 
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from evals.m05_06.run import build_scenario
 from glio_proteogen.contracts.m05_06 import (
     M0506_BENCHMARK_ITERATIONS,

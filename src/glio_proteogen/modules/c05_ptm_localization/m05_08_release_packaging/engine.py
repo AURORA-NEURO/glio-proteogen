@@ -162,9 +162,7 @@ def _control_decisions(
     records: list[ControlDecisionRecord] = []
     for role, decision in decisions:
         subject = (
-            refs.identity_lineage.binding_digest
-            if role is ControlRole.IDENTITY_LINEAGE
-            else None
+            refs.identity_lineage.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
         )
         records.append(
             ControlDecisionRecord(
@@ -267,33 +265,35 @@ def _result(  # noqa: PLR0913 - each closure field is independently auditable.
 ) -> PtmLocalizationReleaseResult:
     released = not quarantine_reasons
     req_digest = canonical_request_digest(request)
-    result = PtmLocalizationReleaseResult(
-        release_result_id=f"result.{request.manifest.release_id}",
-        request_digest=req_digest,
-        manifest_digest=manifest_digest(request.manifest),
-        disposition=(
+    payload: dict[str, object] = {
+        "release_result_id": f"result.{request.manifest.release_id}",
+        "request_digest": req_digest,
+        "manifest_digest": manifest_digest(request.manifest),
+        "disposition": (
             PtmLocalizationReleaseDisposition.RELEASED
             if released
             else PtmLocalizationReleaseDisposition.QUARANTINED
         ),
-        signature_verified=signature_verified,
-        signature_reason=signature_reason,
-        package_digest=package_digest,
-        package_member_count=package_member_count,
-        support=SupportDecision(
+        "signature_verified": signature_verified,
+        "signature_reason": signature_reason,
+        "package_digest": package_digest,
+        "package_member_count": package_member_count,
+        "support": SupportDecision(
             status=request.manifest.support_status,
             reason_code="manifest_support_status",
             rationale="support status is caller-owned and was not inferred by M05-08",
         ),
-        provenance=_provenance(request, req_digest, request.manifest),
-        evidence=_evidence(request),
-        limitations=_limitations(),
-        quarantine_reasons=quarantine_reasons,
-        human_review_required=not released,
-        completed_at=datetime.now(UTC),
-        result_digest="sha256:" + "0" * 64,
-    )
-    return result.model_copy(update={"result_digest": result_payload_digest(result)})
+        "provenance": _provenance(request, req_digest, request.manifest),
+        "evidence": _evidence(request),
+        "limitations": _limitations(),
+        "quarantine_reasons": quarantine_reasons,
+        "human_review_required": not released,
+        "completed_at": datetime.now(UTC),
+        "result_digest": "sha256:" + "0" * 64,
+    }
+    constructed = PtmLocalizationReleaseResult.model_construct(**payload)  # type: ignore[arg-type]
+    payload["result_digest"] = result_payload_digest(constructed)
+    return PtmLocalizationReleaseResult.model_validate(payload, strict=True)
 
 
 def _artifact_members(
@@ -388,10 +388,13 @@ class M0508PtmLocalizationReleaseEngine:
                 reason = PtmLocalizationSignatureVerificationReason.VERIFIER_REJECTED
             else:
                 try:
-                    verified = self._verifier.verify(
-                        statement_digest=statement,
-                        signature=typed.signature,
-                    ) is True
+                    verified = (
+                        self._verifier.verify(
+                            statement_digest=statement,
+                            signature=typed.signature,
+                        )
+                        is True
+                    )
                 except Exception:  # noqa: BLE001 - verifier failure is a quarantine path.
                     verified = False
                     reason = PtmLocalizationSignatureVerificationReason.VERIFIER_REJECTED
@@ -415,7 +418,7 @@ class M0508PtmLocalizationReleaseEngine:
             try:
                 package_bytes = build_canonical_ustar(members)
             except PackageAssemblyError as error:
-                    raise PtmLocalizationReleaseInputError("package_assembly") from error
+                raise PtmLocalizationReleaseInputError("package_assembly") from error
             if len(package_bytes) > M0508_MAX_PACKAGE_BYTES:
                 raise PtmLocalizationReleaseInputError("package_limit")
             package_digest = sha256_bytes(package_bytes)
@@ -476,8 +479,7 @@ class M0508PtmLocalizationReleaseEngine:
             strict_json_loads(signature_member.content)
             signature = _SIGNATURE_ADAPTER.validate_json(signature_member.content, strict=True)
             content_verified = (
-                content_verified
-                and signature.claimed_manifest_digest == typed.manifest_digest
+                content_verified and signature.claimed_manifest_digest == typed.manifest_digest
             )
             policy_member = next(item for item in members if item.path == _POLICY_PATH)
             strict_json_loads(policy_member.content)
