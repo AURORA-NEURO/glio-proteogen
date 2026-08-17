@@ -220,7 +220,7 @@ class GatewayConfiguration(FrozenModel):
         return self
 
 
-def _validate_gateway_collections(
+def _validate_gateway_collections(  # noqa: PLR0912, PLR0913
     operations: tuple[GatewayOperation, ...],
     authorizations: tuple[AuthorizationRecord, ...],
     idempotency_records: tuple[IdempotencyRecord, ...],

@@ -30,9 +30,7 @@ from glio_proteogen.contracts.m28_04.v1 import (
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M28-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M28-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2804_CONTRACT_VERSION
 ContractName = Literal[
     "request",
