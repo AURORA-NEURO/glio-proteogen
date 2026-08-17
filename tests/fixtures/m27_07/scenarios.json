@@ -1,0 +1,11 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-07",
+  "scenarios": [
+    "approved-change",
+    "challenger-regression-abstention",
+    "rollback-bound",
+    "strict-json-roundtrip",
+    "plugin-replay",
+    "tamper-rejection"
+  ]
+}
