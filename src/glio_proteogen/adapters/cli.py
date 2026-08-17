@@ -6,6 +6,7 @@ import ctypes
 import json
 import os
 import stat
+import sys
 from ctypes import wintypes
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal, Never
@@ -13,6 +14,11 @@ from typing import TYPE_CHECKING, Annotated, Literal, Never
 import typer
 import uvicorn
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[2]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.adapters.api import (
     _artifact_contract_schema,

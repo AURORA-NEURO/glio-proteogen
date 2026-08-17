@@ -1,16 +1,22 @@
 """Typer CLI for strict M08-06 validation, decomposition, schemas, and replay."""
 
 # CLI diagnostics collapse implementation details into stable user messages.
-# ruff: noqa: TRY003, TRY300, TC003
+# ruff: noqa: TRY003, TRY300
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m08_06 import (
     M0806_MAX_CANONICAL_REQUEST_BYTES,
@@ -20,8 +26,9 @@ from glio_proteogen.contracts.m08_06 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
-
-from .service import M0806Service
+from glio_proteogen.modules.c08_transcript_protein_discordance.m08_06_uncertainty_decomposition.service import (  # noqa: E501
+    M0806Service,
+)
 
 _REQUEST_ADAPTER: Final = TypeAdapter(DecomposeTranscriptProteinUncertaintyRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(TranscriptProteinUncertaintyDecompositionResult)

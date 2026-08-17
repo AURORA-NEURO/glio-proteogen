@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path  # noqa: TC003 - Typer resolves the runtime annotation.
+from pathlib import Path
 from typing import Annotated
 
 import typer
 from pydantic import ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m07_07 import (
     M0707_MAX_CANONICAL_REQUEST_BYTES,
@@ -16,9 +21,13 @@ from glio_proteogen.contracts.m07_07 import (
     contract_json_schemas,
 )
 from glio_proteogen.kernel.strict_json import strict_json_loads
-
-from .engine import CalibrationAuthorizationError, CalibrationInputError
-from .service import M0707Service
+from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction.engine import (  # noqa: E501
+    CalibrationAuthorizationError,
+    CalibrationInputError,
+)
+from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction.service import (  # noqa: E501
+    M0707Service,
+)
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
