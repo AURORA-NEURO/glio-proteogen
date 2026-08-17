@@ -265,7 +265,7 @@ def test_replay_cache_is_byte_keyed_after_full_canonical_admission() -> None:
 
     assert first is second
     assert first == fixture.stages[module]
-    with pytest.raises(ValueError, match=".*"):
+    with pytest.raises(ValueError, match=r".*"):
         _parse_stage_artifact(module, content + b" ")
 
 
