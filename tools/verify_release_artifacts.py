@@ -56,6 +56,24 @@ _M0404_BENCHMARK_SHAPE = {
     "evidence_count": 45,
     "limitation_count": 3,
 }
+_M0501_MODULE_ID = "GLIO-PROTEOGEN-M05-01"
+_M0501_CASE_COUNT = 40
+_M0501_GROUP_COUNT = 8
+_M0501_CASES_PER_GROUP = 5
+_M0501_BENCHMARK_ITERATIONS = 25
+_M0501_BENCHMARK_WARMUPS = 1
+_M0501_MEAN_BUDGET_NS = 2_000_000_000
+_M0501_P95_BUDGET_NS = 3_000_000_000
+_M0501_MAX_REQUEST_BYTES = 4 * 1024 * 1024
+_M0501_BENCHMARK_SHAPE = {
+    "reference_bundle_count": 32,
+    "approved_version_count": 16,
+    "vocabulary_count": 16,
+    "vocabulary_term_count": 12,
+    "unit_policy_count": 6,
+    "metadata_field_count": 8,
+    "compatibility_rule_count": 32,
+}
 _M0405_MODULE_ID = "GLIO-PROTEOGEN-M04-05"
 _M0405_OPERATION = "detect_proteoform_artifacts"
 _M0405_CASE_COUNT = 15
@@ -359,6 +377,13 @@ def _require_exact_integer(
         raise ReleaseArtifactError(f"{label} has an unexpected {field}")
 
 
+def _require_positive_integer(document: Mapping[str, object], field: str, label: str) -> int:
+    value = document.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ReleaseArtifactError(f"{label} has an invalid {field}")
+    return value
+
+
 def _require_empty_array(document: Mapping[str, object], field: str, label: str) -> None:
     if _sequence(document.get(field), f"{label} {field}"):
         raise ReleaseArtifactError(f"{label} has nonempty {field}")
@@ -497,6 +522,76 @@ def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
 
     _verify_m0404_evaluation(_load_json_evidence(evaluation, "M04-04 evaluation report"))
     _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
+
+
+def _verify_m0501_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M0501_MODULE_ID:
+        raise ReleaseArtifactError("M05-01 evaluation report has the wrong module identity")
+    if evaluation_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-01 evaluation report has the wrong contract version")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-01 evaluation report did not pass")
+    for field, expected in (
+        ("declared_groups", _M0501_GROUP_COUNT),
+        ("declared_cases", _M0501_CASE_COUNT),
+        ("executed_cases", _M0501_CASE_COUNT),
+        ("passed_cases", _M0501_CASE_COUNT),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M05-01 evaluation report")
+    _require_empty_array(evaluation_report, "failed_cases", "M05-01 evaluation report")
+    counts = _mapping(
+        evaluation_report.get("group_case_counts"),
+        "M05-01 evaluation group counts",
+    )
+    if len(counts) != _M0501_GROUP_COUNT or any(
+        type(value) is not int or value != _M0501_CASES_PER_GROUP for value in counts.values()
+    ):
+        raise ReleaseArtifactError("M05-01 evaluation report lacks exact group closure")
+
+
+def _verify_m0501_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M0501_MODULE_ID:
+        raise ReleaseArtifactError("M05-01 benchmark report has the wrong module identity")
+    if benchmark_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-01 benchmark report has the wrong contract version")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-01 benchmark report did not pass")
+    exact_fields = {
+        "iterations": _M0501_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0501_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0501_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0501_P95_BUDGET_NS,
+        **_M0501_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M05-01 benchmark report")
+    request_bytes = _require_positive_integer(
+        benchmark_report, "request_bytes", "M05-01 benchmark report"
+    )
+    _require_positive_integer(benchmark_report, "result_bytes", "M05-01 benchmark report")
+    if request_bytes > _M0501_MAX_REQUEST_BYTES:
+        raise ReleaseArtifactError("M05-01 maximum request exceeds its installed byte cap")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M05-01 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M05-01 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M0501_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M0501_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M05-01 benchmark report exceeds its timing budgets")
+
+
+def verify_m0501_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify exact M05-01 corpus closure, maximum shape, and timing budgets."""
+
+    _verify_m0501_evaluation(_load_json_evidence(evaluation, "M05-01 evaluation report"))
+    _verify_m0501_benchmark(_load_json_evidence(benchmark, "M05-01 benchmark report"))
 
 
 def _verify_m0405_checks(checked: Sequence[Mapping[str, object]]) -> None:
@@ -1214,6 +1309,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0405_evidence.add_argument("evaluation", type=Path)
     m0405_evidence.add_argument("benchmark", type=Path)
+    m0501_evidence = commands.add_parser(
+        "m05-01-evidence", help="verify M05-01 evaluation and benchmark evidence"
+    )
+    m0501_evidence.add_argument("evaluation", type=Path)
+    m0501_evidence.add_argument("benchmark", type=Path)
     m1904_evidence = commands.add_parser(
         "m19-04-evidence", help="verify M19-04 evaluation and benchmark evidence"
     )
@@ -1256,6 +1356,8 @@ def main() -> int:  # noqa: C901
             verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m04-05-evidence":
             verify_m0405_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m05-01-evidence":
+            verify_m0501_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m19-04-evidence":
             verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m26-04-evidence":
