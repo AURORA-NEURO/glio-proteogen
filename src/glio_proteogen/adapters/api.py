@@ -319,6 +319,17 @@ from glio_proteogen.contracts.m05_01.v1 import (
     EvaluatePtmLocalizationProtocolRequest,
     PtmLocalizationProtocolConformanceResult,
 )
+from glio_proteogen.contracts.m05_02.schema import (
+    ContractName as M0502ContractName,
+)
+from glio_proteogen.contracts.m05_02.schema import (
+    contract_json_schema as m0502_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_02.v1 import (
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    PtmLocalizationIdentityLineageResolution,
+    ReconcilePtmLocalizationIdentityLineageRequest,
+)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -691,6 +702,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
     _validate_json_request as _validate_m0501_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
+    M0502Service,
+    PtmLocalizationIdentityLineageAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
+    _validate_json_request as _validate_m0502_json_request,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -804,6 +822,7 @@ _M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRe
 _M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
 _M0406_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteoformAnalysisRequest)
 _M0407_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteoformSupportRequest)
+_M0502_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -1057,6 +1076,12 @@ def _proteoform_support_contract_schema(
     name: M0407ContractName,
 ) -> dict[str, object]:
     return m0407_contract_json_schema(name)
+
+
+def _ptm_localization_lineage_contract_schema(
+    name: M0502ContractName,
+) -> dict[str, object]:
+    return m0502_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1412,6 +1437,15 @@ def _proteoform_support_request_body() -> dict[str, object]:
     }
 
 
+def _ptm_localization_lineage_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0502_contract_json_schema("request")}},
+        }
+    }
+
+
 async def _strict_json_body[ModelT](
     request: Request,
     adapter: TypeAdapter[ModelT],
@@ -1681,6 +1715,18 @@ async def _m1906_body(request: Request) -> AdjudicateProteotypeQueueRequest:
     )
 
 
+async def _ptm_localization_lineage_body(
+    request: Request,
+) -> ReconcilePtmLocalizationIdentityLineageRequest:
+    return await _strict_json_body(
+        request,
+        _M0502_LINEAGE_ADAPTER,
+        None,
+        M0502_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0502_json_request,
+    )
+
+
 async def _m1904_body(request: Request) -> AdaptProteotypeIntendedUseRequest:
     return await _strict_json_body(
         request,
@@ -1944,6 +1990,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     m2702_service = M2702Service()
     proteoform_harmonization_service = M0406Service()
     proteoform_support_service = M0407Service()
+    ptm_localization_lineage_service = M0502Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -2010,6 +2057,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(M2702AuthorizationError)
     @app.exception_handler(ProteoformHarmonizationAuthorizationError)
     @app.exception_handler(ProteoformSupportAuthorizationError)
+    @app.exception_handler(PtmLocalizationIdentityLineageAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -2550,6 +2598,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformSupportRouteResult:
         return proteoform_support_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M05-02/{name}/schema", tags=["contracts"])
+    def ptm_localization_lineage_contract_schema(
+        name: M0502ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_lineage_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-02/identity-lineage-reconciliation",
+        response_model=PtmLocalizationIdentityLineageResolution,
+        tags=["M05-02"],
+        openapi_extra=_ptm_localization_lineage_request_body(),
+    )
+    def reconcile_ptm_localization_identity_lineage(
+        request: Annotated[
+            ReconcilePtmLocalizationIdentityLineageRequest,
+            Depends(_ptm_localization_lineage_body),
+        ],
+    ) -> PtmLocalizationIdentityLineageResolution:
+        return ptm_localization_lineage_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-05/artifact-detection",
