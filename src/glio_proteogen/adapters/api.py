@@ -275,18 +275,6 @@ from glio_proteogen.contracts.m04_04.v1 import (
     ComputeProteoformQualityMetricsRequest,
     ProteoformQualityResult,
 )
-from glio_proteogen.contracts.m27_02.schema import (
-    ContractName as M2702ContractName,
-)
-from glio_proteogen.contracts.m27_02.schema import (
-    contract_json_schema as m2702_contract_json_schema,
-)
-from glio_proteogen.contracts.m27_02.v1 import (
-    M2702_MAX_CANONICAL_REQUEST_BYTES,
-    M2702_MAX_CANONICAL_RESULT_BYTES,
-    ComplexActivityLineageResult,
-    ResolveComplexActivityLineageRequest,
-)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -468,6 +456,18 @@ from glio_proteogen.contracts.m19_08.v1 import (
     MonitorProteotypeTranslationHealthRequest,
     ProteotypeTranslationMonitoringResult,
 )
+from glio_proteogen.contracts.m27_02.schema import (
+    ContractName as M2702ContractName,
+)
+from glio_proteogen.contracts.m27_02.schema import (
+    contract_json_schema as m2702_contract_json_schema,
+)
+from glio_proteogen.contracts.m27_02.v1 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -617,11 +617,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
-    M2702AuthorizationError,
-    M2702Service,
-    preflight_m2702_authorization,
-)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -681,6 +676,11 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904ReplayError,
     M1904Service,
     preflight_m1904_authorization,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702AuthorizationError,
+    M2702Service,
+    preflight_m2702_authorization,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)

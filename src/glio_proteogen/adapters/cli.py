@@ -27,7 +27,6 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
-    _m2702_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
@@ -42,6 +41,7 @@ from glio_proteogen.adapters.api import (
     _m1806_contract_schema,
     _m1808_contract_schema,
     _m1906_contract_schema,
+    _m2702_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -171,12 +171,6 @@ from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
 )
-from glio_proteogen.contracts.m27_02 import (
-    M2702_MAX_CANONICAL_REQUEST_BYTES,
-    M2702_MAX_CANONICAL_RESULT_BYTES,
-    ComplexActivityLineageResult,
-    ResolveComplexActivityLineageRequest,
-)
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
     SimulateProteotypePerturbationRequest,
@@ -260,6 +254,12 @@ from glio_proteogen.contracts.m19_08 import (
 )
 from glio_proteogen.contracts.m19_08 import (
     contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m27_02 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -405,10 +405,6 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
-from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
-    M2702Service,
-    preflight_m2702_authorization,
-)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -467,6 +463,10 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904AuthorizationError,
     M1904ReplayError,
     M1904Service,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702Service,
+    preflight_m2702_authorization,
 )
 
 if TYPE_CHECKING:
