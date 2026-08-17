@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from evals.m05_06.run import build_scenario
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from glio_proteogen.contracts.m05_05 import (
     PtmLocalizationArtifactPosteriorState,
