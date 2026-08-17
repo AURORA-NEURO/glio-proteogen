@@ -42,7 +42,7 @@ result identities, and unsupported states are covered by adversarial tests.
 - Branch-enabled scoped coverage: **95.25222551928783%** (`830/861` statements and `133/150` branches; `963/1011` weighted), fail-under `95`.
 - Evaluator: **10/10** checks passed; fixture digest `sha256:f3a681830908eaf1ab86163b4c002d5a287dd9363ff3cd8710503c9af8fd9c22`.
 - Ten-iteration benchmark: mean `2,113,360 ns`, p95 `2,663,800 ns`; budgets `500,000,000/750,000,000 ns`.
-- Package: wheel `3,336,614` bytes, SHA-256 `fea1768458350019f36d6b4ea697a657d9f6f5f5403c22880a83a125cc9e3ab8`, 1,810 members; clean sdist `3,652,530` bytes, SHA-256 `60ec1e40fa5f475e9c46d8f634a7ae4515e22b2eb38effffb862d218f301ad51`, 4,142 members; generated temporary artifacts absent; isolated import passed.
+- Package: reproducible wheel/sdist sizes, hashes, member counts, and isolated-import results are recorded in the excluded machine-readable record `docs/evidence/m28_04/package.json`; generated temporary artifacts audit to zero.
 - Release evidence verifier: passed.
 
 Repository Actions billing/spending-limit failures, when present before any job steps, are
