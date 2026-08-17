@@ -1,0 +1,75 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M05-02",
+  "baseCommit": "e783beb8b8c27258d2371029eeaf123d3233b580",
+  "headCommit": "79a34f12",
+  "pythonLocDelta": {
+    "files": 19,
+    "added": 6095,
+    "deleted": 2,
+    "net": 6093
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "sizeBytes": 3458317,
+    "sha256": "1b5f64c7e3418df44816bc1f0470f489b6b3341a8503b6d8b7f72183003723d8",
+    "memberCount": 1845
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sizeBytes": 3861883,
+    "sha256": "c8324097a4a07282bccac5f2725d9f11c0945a431a548e9652b6921ae6c655d2",
+    "memberCount": 4224
+  },
+  "generatedMemberAudit": {
+    "wheel": 0,
+    "sdist": 0,
+    "patterns": [
+      "coverage_m0502.json",
+      ".m0502-*",
+      ".coverage*",
+      "build/",
+      "dist/",
+      "__pycache__/",
+      "*.pyc",
+      "*.pyo"
+    ]
+  },
+  "isolatedImportPassed": true,
+  "isolatedImport": "9 M05-02 schemas plus M04-06 schema",
+  "releaseVerifierPassed": true,
+  "static": {
+    "ruff": true,
+    "mypyStrictFiles": 19,
+    "compileall": true
+  },
+  "tests": {
+    "focused": 66,
+    "coverageStatements": 1176,
+    "coveredStatements": 1161,
+    "coverageBranches": 340,
+    "coveredBranches": 325,
+    "partialBranches": 15,
+    "branchEnabledPercent": 98.02110817941953,
+    "failUnder": 95
+  },
+  "evaluator": {
+    "passed": true,
+    "cases": 70,
+    "groups": 8,
+    "reportSha256": "1e69eaae4342b27bb0cb017679951d1c5df105c76015d62ed56f6d93dd86d42d",
+    "artifactSha256": "56c16ecb714df9d28d226d0a5a988342799c2cec463739ad0321b06e1c8957c4"
+  },
+  "benchmark": {
+    "passed": true,
+    "iterations": 25,
+    "warmupCount": 1,
+    "meanNs": 346204124,
+    "p50Ns": 339184900,
+    "p95Ns": 407364100,
+    "maximumNs": 412884900,
+    "meanBudgetNs": 400000000,
+    "p95BudgetNs": 750000000,
+    "reportSha256": "f4908fcb0b24700c3d741c4492f0ebe2d40dd60cbe10c412ba97771f1a7b8341",
+    "artifactSha256": "d14474b252e6a9c7b911b87c2571e1b568876fc04ca1552f0f30386fc7c32907"
+  }
+}
