@@ -250,7 +250,7 @@ def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() 
     _reject_model(
         request,
         context=request.context.model_copy(
-            update={"occurred_at": request.context.occurred_at.replace(year=2099)}
+            update={"request_id": "request." + ("0" * 64)}
         ),
     )
 
