@@ -1,1 +1,1 @@
-"""Biomarker-panel translation modules."""
+"""Biomarker-panel gateway modules."""

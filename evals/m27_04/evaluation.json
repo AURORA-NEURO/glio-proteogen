@@ -1,0 +1,58 @@
+{
+  "checks": [
+    {
+      "detail": "status=published",
+      "name": "supported_publication",
+      "passed": true
+    },
+    {
+      "detail": "repeated publication is byte-equivalent",
+      "name": "deterministic_digest",
+      "passed": true
+    },
+    {
+      "detail": "canonical result replay verified",
+      "name": "supported_replay",
+      "passed": true
+    },
+    {
+      "detail": "denied operation has no access surface",
+      "name": "authorization_abstention",
+      "passed": true
+    },
+    {
+      "detail": "queued asynchronous job abstains safely",
+      "name": "unresolved_job_abstention",
+      "passed": true
+    },
+    {
+      "detail": "rejected support control cannot publish",
+      "name": "control_preflight_fail_closed",
+      "passed": true
+    },
+    {
+      "detail": "plugin accepts only validated token and preserves service result",
+      "name": "sealed_plugin_parity",
+      "passed": true
+    },
+    {
+      "detail": "forged result identity cannot pass canonical replay",
+      "name": "tamper_replay_rejected",
+      "passed": true
+    },
+    {
+      "detail": "all contract schemas carry explicit abstention metadata",
+      "name": "strict_schema_metadata",
+      "passed": true
+    },
+    {
+      "detail": "API publication succeeds and malformed JSON is rejected without details",
+      "name": "api_publish_and_invalid_json",
+      "passed": true
+    }
+  ],
+  "fixture_digest": "sha256:edc9ac00f76806a52ed4bd4678736abcbb858bbc2db86bdfc7ef15ec7b37f576",
+  "module_id": "GLIO-PROTEOGEN-M27-04",
+  "passed": true,
+  "scenario_id": "m2704.gateway.safety.v1"
+}

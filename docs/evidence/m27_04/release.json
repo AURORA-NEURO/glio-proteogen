@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-04",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_slice": "9528-9568",
+  "abi": "0.1.0-provisional",
+  "head": "d46c5b09",
+  "focused_tests": 34,
+  "ruff": "passed",
+  "mypy_strict_files": 19,
+  "mypy": "passed",
+  "coverage": 95.0,
+  "coverage_exact": 94.64720194647202,
+  "evaluator": "10/10",
+  "benchmark_mean_ns": 2524880.0,
+  "benchmark_p95_ns": 3421700,
+  "package": "passed",
+  "worktree_clean": true,
+  "ci_note": "Repository Actions billing/spending-limit failures are external pre-step blockers when present."
+}

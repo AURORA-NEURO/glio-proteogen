@@ -1,0 +1,9 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M27-04-R01,dossier:9528-9532,Expose a typed API SDK CLI gateway beneath complex activity,GatewayOperation and AccessSurface with explicit protocols,tests/runtime/test_m2704_runtime.py,G2
+M27-04-R02,dossier:9532-9538,Require authorization idempotency asynchronous jobs and audit,Closed graph validator and seven-control preflight,tests/contract/test_m2704_contract.py;tests/runtime/test_m2704_adversarial.py,G2
+M27-04-R03,dossier:9538-9544,Preserve compatibility errors provenance and explicit abstention,GatewayFinding taxonomy support decision and immutable provenance,evals/m27_04/evaluation.json,G2
+M27-04-R04,dossier:9544-9550,Provide deterministic replay and tamper closure,Canonical request/result digests result identifier and replay service,tests/runtime/test_m2704_runtime.py;tests/runtime/test_m2704_adversarial.py,G2
+M27-04-R05,dossier:9550-9556,Keep uncertainty and review state explicit,Seven not-estimable uncertainty dimensions and human-review flag,evals/m27_04/evaluation.json,G2
+M27-04-R06,dossier:9556-9560,Provide strict API and CLI boundaries,FastAPI/Typer parse-once sanitization and no-overwrite output,tests/integration/test_m2704_interfaces.py,G2
+M27-04-R07,dossier:9560-9564,Retain provisional ABI and architecture fallback metadata,Schema x-glio-contract metadata and signed-release fallback declaration,docs/modules/GLIO-PROTEOGEN-M27-04.md,G2
+M27-04-R08,dossier:9564-9568,Verify safety limits and release evidence,Adversarial suite evaluator benchmark package hashes and scoped coverage,docs/evidence/M27-04.md,G2
