@@ -162,9 +162,7 @@ def _control_decisions(
     records: list[ControlDecisionRecord] = []
     for role, decision in decisions:
         subject = (
-            refs.identity_lineage.binding_digest
-            if role is ControlRole.IDENTITY_LINEAGE
-            else None
+            refs.identity_lineage.binding_digest if role is ControlRole.IDENTITY_LINEAGE else None
         )
         records.append(
             ControlDecisionRecord(
@@ -390,10 +388,13 @@ class M0508PtmLocalizationReleaseEngine:
                 reason = PtmLocalizationSignatureVerificationReason.VERIFIER_REJECTED
             else:
                 try:
-                    verified = self._verifier.verify(
-                        statement_digest=statement,
-                        signature=typed.signature,
-                    ) is True
+                    verified = (
+                        self._verifier.verify(
+                            statement_digest=statement,
+                            signature=typed.signature,
+                        )
+                        is True
+                    )
                 except Exception:  # noqa: BLE001 - verifier failure is a quarantine path.
                     verified = False
                     reason = PtmLocalizationSignatureVerificationReason.VERIFIER_REJECTED
@@ -417,7 +418,7 @@ class M0508PtmLocalizationReleaseEngine:
             try:
                 package_bytes = build_canonical_ustar(members)
             except PackageAssemblyError as error:
-                    raise PtmLocalizationReleaseInputError("package_assembly") from error
+                raise PtmLocalizationReleaseInputError("package_assembly") from error
             if len(package_bytes) > M0508_MAX_PACKAGE_BYTES:
                 raise PtmLocalizationReleaseInputError("package_limit")
             package_digest = sha256_bytes(package_bytes)
@@ -478,8 +479,7 @@ class M0508PtmLocalizationReleaseEngine:
             strict_json_loads(signature_member.content)
             signature = _SIGNATURE_ADAPTER.validate_json(signature_member.content, strict=True)
             content_verified = (
-                content_verified
-                and signature.claimed_manifest_digest == typed.manifest_digest
+                content_verified and signature.claimed_manifest_digest == typed.manifest_digest
             )
             policy_member = next(item for item in members if item.path == _POLICY_PATH)
             strict_json_loads(policy_member.content)
