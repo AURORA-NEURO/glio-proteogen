@@ -1,0 +1,8 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-08",
+  "package": "pending",
+  "evaluator": "passed",
+  "benchmark": "passed",
+  "coverage": "passed",
+  "static": "passed"
+}
