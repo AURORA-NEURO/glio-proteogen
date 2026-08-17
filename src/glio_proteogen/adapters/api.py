@@ -336,17 +336,6 @@ from glio_proteogen.contracts.m05_03.schema import (
 from glio_proteogen.contracts.m05_03.schema import (
     contract_json_schema as m0503_contract_json_schema,
 )
-from glio_proteogen.contracts.m05_05.schema import (
-    ContractName as M0505ContractName,
-)
-from glio_proteogen.contracts.m05_05.schema import (
-    contract_json_schema as m0505_contract_json_schema,
-)
-from glio_proteogen.contracts.m05_05.v1 import (
-    M0505_MAX_CANONICAL_REQUEST_BYTES,
-    DetectPtmLocalizationArtifactsRequest,
-    PtmLocalizationArtifactDetectionResult,
-)
 from glio_proteogen.contracts.m05_04.schema import (
     ContractName as M0504ContractName,
 )
@@ -360,6 +349,17 @@ from glio_proteogen.contracts.m05_04.v1 import (
 )
 from glio_proteogen.contracts.m05_04.v1 import (
     _ValidatedRequestCapability as _ValidatedM0504RequestCapability,
+)
+from glio_proteogen.contracts.m05_05.schema import (
+    ContractName as M0505ContractName,
+)
+from glio_proteogen.contracts.m05_05.schema import (
+    contract_json_schema as m0505_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_05.v1 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
+    PtmLocalizationArtifactDetectionResult,
 )
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (

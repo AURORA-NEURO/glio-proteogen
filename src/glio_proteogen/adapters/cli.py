@@ -63,11 +63,11 @@ from glio_proteogen.adapters.api import (
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
     _proteoform_support_contract_schema,
+    _ptm_localization_artifact_contract_schema,
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
     _ptm_localization_quality_contract_schema,
     _ptm_localization_raw_contract_schema,
-    _ptm_localization_artifact_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -205,10 +205,6 @@ from glio_proteogen.contracts.m05_02 import (
     M0502_MAX_CANONICAL_REQUEST_BYTES,
     ReconcilePtmLocalizationIdentityLineageRequest,
 )
-from glio_proteogen.contracts.m05_05 import (
-    M0505_MAX_CANONICAL_REQUEST_BYTES,
-    DetectPtmLocalizationArtifactsRequest,
-)
 from glio_proteogen.contracts.m05_03 import (
     M0503_MAX_CANONICAL_REQUEST_BYTES,
     M0503_MAX_DOCUMENT_BYTES,
@@ -219,6 +215,10 @@ from glio_proteogen.contracts.m05_03 import (
 from glio_proteogen.contracts.m05_04 import (
     M0504_MAX_CANONICAL_REQUEST_BYTES,
     ComputePtmLocalizationQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m05_05 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
