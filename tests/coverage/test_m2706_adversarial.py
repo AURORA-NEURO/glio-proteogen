@@ -61,8 +61,7 @@ def test_schema_routes_and_api_replay() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert (
-        client.post("/v1/modules/M27-06/verify", content=b"[]").status_code
-        == _HTTP_UNPROCESSABLE
+        client.post("/v1/modules/M27-06/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
 
 
@@ -261,8 +260,7 @@ def test_posture_and_result_projection_closures() -> None:
 def test_api_parse_and_validate_error_paths() -> None:
     client = TestClient(create_app())
     assert (
-        client.post("/v1/modules/M27-06/validate", content=b"[]").status_code
-        == _HTTP_UNPROCESSABLE
+        client.post("/v1/modules/M27-06/validate", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
     request = build_request()
     denied_context = request.context.model_copy(

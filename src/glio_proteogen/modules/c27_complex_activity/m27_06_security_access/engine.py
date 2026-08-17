@@ -230,9 +230,7 @@ class M2706SecurityEngine:
                     else SecurityFindingCode.ACCESS_REJECTED
                 ),
                 severity=(
-                    SecurityFindingSeverity.CRITICAL
-                    if denied
-                    else SecurityFindingSeverity.INFO
+                    SecurityFindingSeverity.CRITICAL if denied else SecurityFindingSeverity.INFO
                 ),
                 message=(
                     "Caller-declared policy denied the access action."

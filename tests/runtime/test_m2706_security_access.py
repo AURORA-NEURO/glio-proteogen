@@ -48,9 +48,7 @@ def test_denied_and_missing_consent_are_explicit() -> None:
 
 
 def test_unsupported_upstream_abstains_without_security_records() -> None:
-    result = M2706SecurityEngine().emit(
-        build_request(upstream_media_type="application/json")
-    )
+    result = M2706SecurityEngine().emit(build_request(upstream_media_type="application/json"))
     assert result.status is SecurityAssessmentStatus.ABSTAINED
     assert result.access_decision is None
     assert result.security_posture is None
