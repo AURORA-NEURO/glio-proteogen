@@ -1,0 +1,27 @@
+{
+  "budget_mean_ns": 250000000,
+  "budget_p95_ns": 250000000,
+  "fixture": "synthetic_nonclinical",
+  "module_id": "GLIO-PROTEOGEN-M05-07",
+  "requested_min_rounds": 10,
+  "results": [
+    {
+      "case": "supported",
+      "mean_ns": 2307736,
+      "median_ns": 2282200,
+      "p95_ns": 2726655,
+      "rounds": 214,
+      "iterations": 1
+    },
+    {
+      "case": "multiple_unsupported",
+      "mean_ns": 2363225,
+      "median_ns": 2383900,
+      "p95_ns": 2802450,
+      "rounds": 351,
+      "iterations": 1
+    }
+  ],
+  "tool": "pytest-benchmark",
+  "unit": "nanoseconds"
+}
