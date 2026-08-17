@@ -8,6 +8,7 @@ from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m28_04 import (
     M2804_CONTRACT_VERSION,
+    M2804_MAX_CANONICAL_REQUEST_BYTES,
     M2804_MODULE_ID,
     AccessSurface,
     AuthorizationDecision,
@@ -101,7 +102,7 @@ def preflight_m2804_authorization(candidate: object) -> None:
 
 def _validate_request(candidate: object) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
     if isinstance(candidate, (bytes, bytearray, str)):
-        decoded = strict_json_loads(candidate)
+        decoded = strict_json_loads(candidate, max_bytes=M2804_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if type(candidate) is dict:
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(candidate)), strict=True)
