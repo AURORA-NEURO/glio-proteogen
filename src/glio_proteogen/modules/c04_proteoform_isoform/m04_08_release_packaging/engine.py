@@ -500,7 +500,7 @@ def _parse_stage_bytes(
 
 
 @lru_cache(maxsize=32)
-def _parse_stage_artifact(module: StageModule, content: bytes) -> StageResult:
+def _parse_stage_artifact_cached(module: StageModule, content: bytes) -> StageResult:
     """Validate immutable stage bytes once, then reuse the closed typed result.
 
     The cache key includes the complete bytes and module ABI.  The first call
@@ -513,6 +513,12 @@ def _parse_stage_artifact(module: StageModule, content: bytes) -> StageResult:
     parsed = _parse_stage_bytes(module, content)
     _require_canonical_artifact_bytes(parsed, content)
     return parsed
+
+
+def _parse_stage_artifact(module: StageModule, content: bytes) -> StageResult:
+    """Return an isolated copy of a cached, fully admitted stage result."""
+
+    return _parse_stage_artifact_cached(module, content).model_copy(deep=True)
 
 
 def _validate_stage_chain(

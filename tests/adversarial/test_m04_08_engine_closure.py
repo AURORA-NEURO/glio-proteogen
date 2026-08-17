@@ -36,12 +36,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_08_release_packaging.engi
     ProteoformReleaseAuthorizationError,
     ProteoformReleaseInputError,
     ProteoformReleaseInputErrorCode,
+    StageModule,
     StageResult,
     _identity_subject,
     _member,
     _NonCanonicalArtifactError,
     _PackageBytesTypeError,
     _parse_stage_artifact,
+    _parse_stage_artifact_cached,
     _require_canonical_artifact_bytes,
     _stage_context,
     _validate_caller_bytes,
@@ -255,16 +257,19 @@ def test_engine_signature_and_mapping_exception_edges() -> None:
 
 def test_replay_cache_is_byte_keyed_after_full_canonical_admission() -> None:
     fixture = _fixture()
-    module = "GLIO-PROTEOGEN-M04-01"
+    module: StageModule = "GLIO-PROTEOGEN-M04-01"
     path = next(path for path in fixture.artifacts if "m04-01" in path)
     content = fixture.artifacts[path]
-    _parse_stage_artifact.cache_clear()
+    _parse_stage_artifact_cached.cache_clear()
 
     first = _parse_stage_artifact(module, content)
     second = _parse_stage_artifact(module, bytes(content))
 
-    assert first is second
-    assert first == fixture.stages[module]
+    assert first is not second
+    expected = cast("StageResult", fixture.stages[module])
+    assert first == expected
+    object.__setattr__(first, "result_digest", "sha256:" + "0" * 64)
+    assert second.result_digest == expected.result_digest
     with pytest.raises(ValueError, match=r".*"):
         _parse_stage_artifact(module, content + b" ")
 
