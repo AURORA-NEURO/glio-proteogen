@@ -8,7 +8,12 @@ import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final
+from typing import Final, cast
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m27_02 import (
     M2702_M2701_INPUT_MEDIA_TYPE,
@@ -124,7 +129,8 @@ def run_evaluation(output: Path | None = None) -> dict[str, object]:
         expected_status = LineageStatus(str(scenario["expected_status"]))
         if result.status is not expected_status:
             raise EvaluationFixtureError
-        if len(result.findings) != int(scenario["expected_finding_count"]):
+        expected_finding_count = cast("int", scenario["expected_finding_count"])
+        if len(result.findings) != expected_finding_count:
             raise EvaluationFixtureError
         if result.status is LineageStatus.RESOLVED:
             token = plugin.validate(canonical_json_bytes(request.model_dump(mode="json")))

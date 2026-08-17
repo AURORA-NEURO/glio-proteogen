@@ -1,5 +1,7 @@
 """Executable evaluator and benchmark checks for M27-02."""
 
+from typing import cast
+
 from evals.m27_02.benchmark import run_benchmark
 from evals.m27_02.run import run_evaluation
 
@@ -14,7 +16,8 @@ def test_m2702_evaluator_matrix_passes() -> None:
     assert report["passed"] is True
     assert report["scenario_count"] == _SCENARIO_COUNT
     assert report["adversarial_count"] == _ADVERSARIAL_COUNT
-    assert all(report["adversarial"].values())
+    adversarial = cast("dict[str, object]", report["adversarial"])
+    assert all(bool(value) for value in adversarial.values())
 
 
 def test_m2702_locked_benchmark_is_within_budgets() -> None:

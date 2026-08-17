@@ -1,5 +1,7 @@
 """Focused schema and immutable-link tests for provisional M27-02."""
 
+from typing import cast
+
 import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
@@ -70,7 +72,7 @@ def test_provisional_schemas_require_immutable_lineage_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["immutableLineageRequired"] is True
         assert metadata["queryableGraphRequired"] is True
@@ -80,7 +82,8 @@ def test_provisional_schemas_require_immutable_lineage_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "complex activity"
         assert metadata["upstreamInputMediaType"] == M2702_M2701_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2702_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2702_OUTPUT_MEDIA_TYPE
     assert M2702_PROVISIONAL_ABI is True
 
 
