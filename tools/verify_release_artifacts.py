@@ -815,9 +815,7 @@ def _verify_m2607_package(package_report: Mapping[str, object]) -> None:
         ):
             raise ReleaseArtifactError(f"M26-07 {label} package evidence is incomplete")
     required_members = _sequence(
-        _mapping(package_report.get("wheel"), "M26-07 wheel package").get(
-            "requiredRuntimeMembers"
-        ),
+        _mapping(package_report.get("wheel"), "M26-07 wheel package").get("requiredRuntimeMembers"),
         "M26-07 required runtime members",
     )
     if not required_members or any(
