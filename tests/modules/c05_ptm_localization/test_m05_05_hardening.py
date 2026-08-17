@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import UserDict
 from typing import Any, cast
 
 import pytest
@@ -10,17 +11,21 @@ from evals.m05_05.run import build_scenario
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m05_05 import (
+    PtmLocalizationArtifactDetectorClass,
     PtmLocalizationArtifactDisposition,
     PtmLocalizationArtifactEvidenceLedger,
+    PtmLocalizationArtifactObservationState,
     PtmLocalizationArtifactPosteriorState,
 )
 from glio_proteogen.contracts.m05_05.canonical import (
     canonical_request_digest,
+    configuration_digest,
     contamination_flag_digest,
     event_digest,
     evidence_ledger_digest,
     normalized_contamination_flag,
     normalized_event,
+    normalized_evidence_ledger,
     normalized_exclusion_mask_entry,
     normalized_finding,
     normalized_policy,
@@ -38,7 +43,9 @@ from glio_proteogen.contracts.m05_05.canonical import (
     result_payload_digest,
     threshold_digest,
 )
+from glio_proteogen.contracts.m05_05.v1 import opaque_ptm_localization_artifact_identifier
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
     M0505Plugin,
     M0505Service,
@@ -48,13 +55,21 @@ from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection impor
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
     _built_in_sequence_length,
+    _expected_disposition,
+    _expected_findings,
+    _expected_posteriors,
+    _expected_provenance,
+    _ForbiddenEvidenceLedgerError,
     _matching_profile,
     _member,
     _plain_value,
+    _prepare_artifact_request_candidate,
     _state_text,
     _validate_json_request,
     _validate_ledger_shape_before_copy,
+    _validate_outer_request_shape,
     _validate_policy_shape_before_copy,
+    preflight_ptm_localization_artifact_authorization,
 )
 
 _TWO = 2
@@ -169,6 +184,26 @@ def test_plain_value_firewall_handles_builtin_and_hostile_containers() -> None:
         _plain_value([1], _budget=[0])
 
 
+def test_helper_firewalls_cover_model_and_sequence_branches() -> None:
+    request = build_scenario("clear").request
+    payload = request.model_dump(mode="python", exclude_none=False)
+    _validate_outer_request_shape(request)
+    _validate_outer_request_shape(payload)
+    assert _member(request, "request_id") == request.request_id
+    assert _state_text(PtmLocalizationArtifactDisposition.CLEARED.value) == "cleared"
+    plain_request = _plain_value(request)
+    assert isinstance(plain_request, dict)
+    assert plain_request["request_id"] == request.request_id
+    with pytest.raises(TypeError):
+        _validate_policy_shape_before_copy({"profiles": [{"thresholds": [None] * 6}]})
+    with pytest.raises(TypeError):
+        _validate_ledger_shape_before_copy({"events": [{"evidence": [None] * 9}]})
+    denied = request.model_dump(mode="python", exclude_none=False)
+    denied["context"]["references"]["quality"]["state"] = "denied"
+    with pytest.raises(PtmLocalizationArtifactAuthorizationError):
+        preflight_ptm_localization_artifact_authorization(denied)
+
+
 def test_shape_firewalls_cover_policy_ledger_and_profile_mismatch() -> None:
     scenario = build_scenario("clear")
     policy = scenario.request.policy
@@ -196,6 +231,9 @@ def test_canonical_dict_projections_cover_digest_helpers() -> None:
     if result.contamination_flags:
         assert contamination_flag_digest(result.contamination_flags[0].model_dump(mode="json"))
     assert receipt_digest(result.receipt.model_dump(mode="json"))
+    assert normalized_evidence_ledger(request.evidence_ledger) == normalized_evidence_ledger(  # type: ignore[arg-type]
+        request.evidence_ledger.model_dump(mode="json")  # type: ignore[union-attr]
+    )
 
 
 def test_canonical_projections_cover_owned_dict_and_model_paths() -> None:
@@ -284,6 +322,173 @@ def _reject_model(model: Any, **updates: object) -> None:
     candidate = model.model_copy(update=updates).model_dump(mode="python", exclude_none=False)
     with pytest.raises(ValidationError):
         type(model).model_validate(candidate, strict=True)
+
+
+def _reject_validator(model: Any, validator: str, **updates: object) -> None:
+    candidate = model.model_copy(update=updates)
+    with pytest.raises((TypeError, ValueError)):
+        getattr(candidate, validator)()
+
+
+def test_direct_validator_and_engine_edges_remain_fail_closed() -> None:  # noqa: PLR0915
+    zero = "sha256:" + ("0" * 64)
+    request = build_scenario("clear").request.model_copy(deep=True)
+    profile = request.policy.profiles[0]
+    threshold = profile.thresholds[0]
+    event = request.evidence_ledger.events[0]  # type: ignore[union-attr]
+    ledger = cast("PtmLocalizationArtifactEvidenceLedger", request.evidence_ledger)
+
+    # Exercise valid opaque namespace return and validator-only branches that
+    # strict reconstruction rejects before the after-validator can run.
+    assert opaque_ptm_localization_artifact_identifier(request.request_id, "request")
+    _reject_validator(profile, "profile_is_closed", thresholds=(threshold,) * 7)
+    profile2 = profile.model_copy(update={"profile_id": "profile." + ("1" * 64)})
+    _reject_validator(request.policy, "policy_is_closed", profiles=(profile, profile2))
+    _reject_validator(
+        event,
+        "event_is_closed",
+        observation_state=PtmLocalizationArtifactObservationState.MISSING,
+        evaluated_count=10,
+    )
+    _reject_validator(
+        event,
+        "event_is_closed",
+        observation_state=PtmLocalizationArtifactObservationState.MISSING,
+        seeded_critical=True,
+    )
+    _reject_validator(ledger, "ledger_is_closed", events=ledger.events[:-1])
+    duplicate_class = (
+        ledger.events[0],
+        ledger.events[1].model_copy(update={"detector_class": ledger.events[0].detector_class}),
+        *ledger.events[2:],
+    )
+    _reject_validator(ledger, "ledger_is_closed", events=duplicate_class)
+    missing_class = (
+        *ledger.events[:-1],
+        ledger.events[-1].model_copy(update={"detector_class": ledger.events[0].detector_class}),
+    )
+    _reject_validator(ledger, "ledger_is_closed", events=missing_class)
+
+    refs = request.context.references
+    denied = refs.consent.model_copy(update={"state": ConsentState.WITHHELD})
+    _reject_validator(
+        request,
+        "request_is_closed",
+        context=request.context.model_copy(
+            update={"references": refs.model_copy(update={"consent": denied})}
+        ),
+    )
+    _reject_validator(request, "request_is_closed", raw_input_receipt_digest=zero)
+    forged_provenance = refs.provenance.model_copy(
+        update={"evidence": refs.provenance.evidence.model_copy(update={"digest": zero})}
+    )
+    _reject_validator(
+        request,
+        "request_is_closed",
+        context=request.context.model_copy(
+            update={"references": refs.model_copy(update={"provenance": forged_provenance})}
+        ),
+    )
+    forged_configuration = refs.approved_configuration.model_copy(
+        update={
+            "evidence": refs.approved_configuration.evidence.model_copy(update={"digest": zero})
+        }
+    )
+    _reject_validator(
+        request,
+        "request_is_closed",
+        context=request.context.model_copy(
+            update={
+                "references": refs.model_copy(
+                    update={"approved_configuration": forged_configuration}
+                )
+            }
+        ),
+    )
+    forged_raw = request.raw_input_result.model_copy(update={"disposition": "quarantined"})
+    _reject_validator(request, "request_is_closed", raw_input_result=forged_raw)
+    unsupported_profile = profile.model_copy(
+        update={"approved_quality_contract_versions": ("9.9.9",)}
+    )
+    unsupported_policy = request.policy.model_copy(update={"profiles": (unsupported_profile,)})
+    supported_configuration = refs.approved_configuration.model_copy(
+        update={
+            "evidence": refs.approved_configuration.evidence.model_copy(
+                update={"digest": configuration_digest(unsupported_policy)}
+            )
+        }
+    )
+    _reject_validator(
+        request,
+        "request_is_closed",
+        policy=unsupported_policy,
+        context=request.context.model_copy(
+            update={
+                "references": refs.model_copy(
+                    update={"approved_configuration": supported_configuration}
+                )
+            }
+        ),
+    )
+    _reject_validator(
+        request,
+        "request_is_closed",
+        evidence_ledger=ledger.model_copy(update={"quality_result_digest": zero}),
+    )
+
+    missing = detect_ptm_localization_artifacts(build_scenario("missing_required").request)
+    _reject_validator(missing.artifact_posteriors[0], "posterior_is_closed", posterior_ppm=1)
+    contaminated = detect_ptm_localization_artifacts(
+        build_scenario("contamination_detected").request
+    )
+    flag = contaminated.contamination_flags[0]
+    _reject_validator(
+        flag,
+        "flag_is_closed",
+        detector_class=PtmLocalizationArtifactDetectorClass.TECHNICAL_ARTIFACT,
+    )
+    _reject_validator(
+        contaminated,
+        "result_is_closed",
+        artifact_posteriors=(contaminated.artifact_posteriors[0],) * 2,
+    )
+
+    unsupported_request = request.model_copy(update={"policy": unsupported_policy})
+    assert _expected_posteriors(unsupported_request) == ()
+    assert _expected_findings(unsupported_request, (), ())
+    assert _expected_disposition(unsupported_request, ())
+    superseding = request.model_copy(update={"supersedes_result_digest": zero})
+    assert zero in _expected_provenance(superseding).input_digests
+
+    with pytest.raises(_ForbiddenEvidenceLedgerError):
+        _prepare_artifact_request_candidate(
+            request.model_dump(mode="python", exclude_none=False)
+            | {"quality_disposition": "abstained"}
+        )
+    with pytest.raises(TypeError):
+        _prepare_artifact_request_candidate(
+            request.model_dump(mode="python", exclude_none=False)
+            | {"policy": {"profiles": list(range(17))}}
+        )
+    with pytest.raises(TypeError):
+        _member({1: "invalid"}, "invalid")
+    context = request.context.model_copy(deep=True)
+    object.__setattr__(context, "__dict__", {1: "invalid"})
+    with pytest.raises(TypeError):
+        _member(context, "references")
+    assert _state_text(object()) is None
+    _validate_policy_shape_before_copy({"profiles": object()})
+    with pytest.raises(TypeError):
+        _validate_policy_shape_before_copy({"profiles": [{"thresholds": [object()] * 6}]})
+    _validate_ledger_shape_before_copy({"events": object()})
+    with pytest.raises(TypeError):
+        _validate_ledger_shape_before_copy({"events": [{"evidence": [object()] * 9}]})
+    with pytest.raises(TypeError):
+        _plain_value([object()] * 513)
+    with pytest.raises(TypeError):
+        _plain_value((object(),) * 513)
+    with pytest.raises(TypeError):
+        _plain_value(UserDict({"value": 1}))
 
 
 def test_contract_closure_rejects_threshold_profile_policy_and_event_tampering() -> None:
