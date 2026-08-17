@@ -16,6 +16,7 @@
     "fcc5deb feat(m09-03): add evaluator fixtures and benchmark gate",
     "ad62df4 test(m09-03): close adversarial coverage and fixture matrix",
     "c4ba8b0 test(m09-03): enforce warning-free interface gates",
+    "8d26e589 docs(m09-03): record traceability evidence and package gates",
     "0e15e61d fix(m09-03): remove stale result identifier export",
     "b3d24ecb test(m09-03): guard public export closure"
   ],
@@ -68,8 +69,8 @@
     },
     "sdist": {
       "file": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 1431852,
-      "sha256": "886ffa404486ee87518a6631d8a87530ac5c6243545d7b103a17e473ea590054"
+      "bytes": 1437455,
+      "sha256": "4a45f7af39d166ba3db1be4199f4be2e24ecad59a325b0113392e1dd021f8c22"
     },
     "isolatedImport": "passed; installed wheel exposes M09-03 contracts and M0903BaselineEstimator"
   },
