@@ -1,0 +1,17 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-06",
+  "checks": {
+    "denied_critical": true,
+    "missing_consent_abstained": true,
+    "plugin_parity": true,
+    "replay": true,
+    "supported_allow": true,
+    "supported_evaluated": true,
+    "tamper_rejected": true,
+    "unsupported_abstained": true
+  },
+  "checks_declared": 8,
+  "checks_passed": 8,
+  "fixture_digest": "sha256:d2c363d30f8ea21b745f5e2f7e1597c1ae3489156eeb00469840538d3c0f3585",
+  "passed": true
+}

@@ -1,0 +1,7 @@
+requirement,implementation,evidence,status
+seven-control preflight,engine.py::preflight_security_access_authorization,tests/coverage/test_m2706_adversarial.py,passed
+least-privilege and consent,engine.py::M2706SecurityEngine.evaluate,tests/runtime/test_m2706_security_access.py,passed
+unsupported upstream safe abstention,engine.py::M2706SecurityEngine.evaluate,evals/m27_06/run.py,passed
+deterministic replay,service.py::replay,tests/coverage/test_m2706_adversarial.py,passed
+strict parse-once boundary,plugin.py plus api.py and cli.py,tests/integration/test_m2706_interfaces.py,passed
+security posture closure,contracts/m27_06/v1.py,tests/contract/test_m27_06_provisional.py,passed
