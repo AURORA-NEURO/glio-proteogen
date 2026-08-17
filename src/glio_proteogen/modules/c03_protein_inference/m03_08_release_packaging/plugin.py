@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m03_08 import (
     M0308_MAX_CANONICAL_REQUEST_BYTES,
     BuildProteinInferenceReleaseRequest,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
@@ -50,11 +52,33 @@ class ProteinInferenceReleaseSubmission:
     stage_results_by_module: Mapping[str, object]
 
 
-@dataclass(frozen=True, slots=True)
+_TOKEN_SEAL: Final = object()
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM0308Request:
     request: BuildProteinInferenceReleaseRequest
     artifacts_by_path: Mapping[str, object]
     stage_results_by_module: Mapping[str, object]
+    _seal: object
+
+
+_ISSUED_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM0308Request,
+        tuple[BuildProteinInferenceReleaseRequest, str],
+    ]
+] = WeakKeyDictionary()
+
+
+def _token_is_issued(token: ValidatedM0308Request) -> bool:
+    snapshot = _ISSUED_TOKENS.get(token)
+    return (
+        snapshot is not None
+        and token._seal is _TOKEN_SEAL
+        and snapshot[0] is token.request
+        and snapshot[1] == canonical_request_digest(token.request)
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -89,14 +113,17 @@ class M0308Plugin(ModulePlugin[object, ValidatedM0308Request, BuiltProteinInfere
             )
             preflight_protein_inference_release_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM0308Request(
+        token = ValidatedM0308Request(
             request=self._service.validate_request(candidate),
             artifacts_by_path=request.artifacts_by_path,
             stage_results_by_module=request.stage_results_by_module,
+            _seal=_TOKEN_SEAL,
         )
+        _ISSUED_TOKENS[token] = (token.request, canonical_request_digest(token.request))
+        return token
 
     def run(self, request: ValidatedM0308Request) -> BuiltProteinInferenceRelease:
-        if not isinstance(request, ValidatedM0308Request):
+        if type(request) is not ValidatedM0308Request or not _token_is_issued(request):
             raise _InvalidExecutionTokenError
         return self._service.build(
             request.request,
