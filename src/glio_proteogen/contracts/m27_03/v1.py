@@ -144,8 +144,8 @@ class WorkflowDAG(FrozenModel):
         pairs = {(edge.source_node_id, edge.target_node_id) for edge in self.edges}
         if len(pairs) != len(self.edges):
             raise ValueError("workflow edges must not duplicate source and target")
-        outgoing = {node_id: [] for node_id in node_ids}
-        incoming = {node_id: [] for node_id in node_ids}
+        outgoing: dict[Identifier, list[Identifier]] = {node_id: [] for node_id in node_ids}
+        incoming: dict[Identifier, list[Identifier]] = {node_id: [] for node_id in node_ids}
         for edge in self.edges:
             outgoing[edge.source_node_id].append(edge.target_node_id)
             incoming[edge.target_node_id].append(edge.source_node_id)

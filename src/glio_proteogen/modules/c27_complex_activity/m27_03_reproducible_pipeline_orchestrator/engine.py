@@ -90,7 +90,7 @@ def preflight_m2703_authorization(candidate: object) -> None:
     """Require all seven caller-declared controls before orchestration."""
 
     references = _member(_member(candidate, "context"), "references")
-    if not isinstance(references, object):
+    if references is None:
         raise M2703AuthorizationError("M27-03 controls are malformed")
     try:
         authorized = all(
@@ -188,7 +188,7 @@ def _provenance(
 
 def _topological_nodes(request: OrchestrateComplexActivityPipelineRequest) -> tuple[str, ...]:
     nodes = {node.node_id: node for node in request.workflow.nodes}
-    outgoing = {node_id: [] for node_id in nodes}
+    outgoing: dict[str, list[str]] = {node_id: [] for node_id in nodes}
     indegree = {node_id: 0 for node_id in nodes}
     for edge in request.workflow.edges:
         outgoing[edge.source_node_id].append(edge.target_node_id)
