@@ -7,7 +7,7 @@ within eight closed dimensions and abstains on missing, unknown, or
 outside-domain declarations. It does not infer a protein, proteoform,
 isoform, glioma-specific biological finding, or negative scientific result.
 
-The current-base Python-only delta is 2,795 added lines and 0 deleted lines
+The current-base Python-only delta is 2,791 added lines and 0 deleted lines
 across 22 files (`git diff --numstat 6a0f45f7..HEAD -- '*.py'`). This includes
 the contract spine, deterministic engine/service/plugin, shared API and CLI
 routes, evaluator/benchmark, adversarial tests, and release verifier.
