@@ -36,12 +36,9 @@ _EXPECTED_SCHEMA_COUNT = 14
 def test_schema_abi_is_explicit_and_provisional() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _EXPECTED_SCHEMA_COUNT
+    assert all(schema["x-glio-contract"]["provisionalAbi"] is True for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["provisionalAbi"] is True for schema in schemas.values()
-    )
-    assert all(
-        schema["x-glio-contract"]["pendingOwnerConfirmation"] is True
-        for schema in schemas.values()
+        schema["x-glio-contract"]["pendingOwnerConfirmation"] is True for schema in schemas.values()
     )
     assert M0506_PROVISIONAL_ABI is True
 

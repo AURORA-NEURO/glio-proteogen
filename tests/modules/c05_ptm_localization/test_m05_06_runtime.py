@@ -80,9 +80,10 @@ def test_plugin_json_bytes_use_the_same_canonical_result() -> None:
     plugin = M0506Plugin(M0506Service())
     serialized = json.dumps(scenario.request.model_dump(mode="json"), sort_keys=True)
     token = plugin.validate(serialized)
-    assert plugin.run(token).result_digest == harmonize_ptm_localization_analysis(
-        scenario.request
-    ).result_digest
+    assert (
+        plugin.run(token).result_digest
+        == harmonize_ptm_localization_analysis(scenario.request).result_digest
+    )
 
 
 def test_engine_rejects_unvalidated_execution_type() -> None:

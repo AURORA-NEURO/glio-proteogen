@@ -128,9 +128,7 @@ def _projection_case(
         )
         for index in range(7)
     )
-    flags = (
-        SimpleNamespace(target_id=target_id, flag_id="flag." + ("1" * 64)),
-    ) if flagged else ()
+    flags = (SimpleNamespace(target_id=target_id, flag_id="flag." + ("1" * 64)),) if flagged else ()
     exclusions = (SimpleNamespace(target_id=target_id),) if excluded else ()
     return SimpleNamespace(
         artifact_posteriors=posteriors,
@@ -226,9 +224,7 @@ def test_engine_rejects_stale_receipt_and_abstains_for_missing_profile_or_ledger
             )
         }
     )
-    references = request.context.references.model_copy(
-        update={"approved_configuration": approved}
-    )
+    references = request.context.references.model_copy(update={"approved_configuration": approved})
     context = request.context.model_copy(update={"references": references})
     profile_result = M0506PtmLocalizationHarmonizationEngine().harmonize_validated(
         request.model_copy(update={"policy": no_profile, "context": context})
