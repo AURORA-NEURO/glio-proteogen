@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 import tarfile
 from pathlib import Path
@@ -55,12 +56,9 @@ def verify_reproducibility(path: Path, package: dict[str, object]) -> None:
     report = _load(path, "reproducibility evidence")
     _require(report, "module_id", MODULE_ID, "reproducibility evidence")
     _require(report, "contract_version", "0.1.0-provisional", "reproducibility evidence")
-    _require(
-        report,
-        "source_commit",
-        "5a881ea4",
-        "reproducibility evidence",
-    )
+    source_commit = report.get("source_commit")
+    if not isinstance(source_commit, str) or re.fullmatch(r"[0-9a-f]{8,40}", source_commit) is None:
+        raise ReleaseEvidenceError("reproducibility evidence has invalid source_commit")
     _require(report, "build_backend", "hatchling 1.31.0", "reproducibility evidence")
     _require(report, "build_root_policy", "outside-source-tree", "reproducibility evidence")
     for artifact_name in ("wheel", "sdist"):

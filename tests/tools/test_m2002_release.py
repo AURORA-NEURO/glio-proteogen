@@ -57,6 +57,11 @@ def test_m20_02_reproducibility_evidence_requires_byte_identical_rebuilds(
     with pytest.raises(ReleaseEvidenceError, match="sdist rebuild hashes disagree"):
         verify_reproducibility(forged, package)
 
+    report["source_commit"] = "not-a-commit"
+    forged.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ReleaseEvidenceError, match="invalid source_commit"):
+        verify_reproducibility(forged, package)
+
 
 def test_m20_02_sdist_excludes_mutable_release_records() -> None:
     root = Path(__file__).parents[2]
