@@ -63,6 +63,7 @@ from glio_proteogen.adapters.api import (
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
     _proteoform_support_contract_schema,
+    _ptm_localization_artifact_contract_schema,
     _ptm_localization_lineage_contract_schema,
     _ptm_localization_protocol_contract_schema,
     _ptm_localization_quality_contract_schema,
@@ -214,6 +215,10 @@ from glio_proteogen.contracts.m05_03 import (
 from glio_proteogen.contracts.m05_04 import (
     M0504_MAX_CANONICAL_REQUEST_BYTES,
     ComputePtmLocalizationQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m05_05 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -494,6 +499,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics import (
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics.engine import (
     _validate_json_request_capability as _validate_m0504_json_request_capability,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
+    M0505Service,
+    PtmLocalizationArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0505_json_request,
 )
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
@@ -815,6 +827,11 @@ ptm_localization_quality_app = typer.Typer(
     help="M05-04 deterministic aggregate PTM-localization quality metrics.",
 )
 app.add_typer(ptm_localization_quality_app, name="ptm-localization-quality")
+ptm_localization_artifacts_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-05 deterministic aggregate PTM-localization artifact detection.",
+)
+app.add_typer(ptm_localization_artifacts_app, name="ptm-localization-artifacts")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -1245,6 +1262,7 @@ def _load_request[RequestT](
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
         PtmLocalizationQualityAuthorizationError,
+        PtmLocalizationArtifactAuthorizationError,
         ProteoformSupportAuthorizationError,
         PtmLocalizationRawInputAuthorizationError,
     ):
@@ -4263,6 +4281,58 @@ def compute_ptm_localization_quality_metrics_cli(
         )
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"PTM-localization quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_artifacts_app.command("export-schema")
+def export_ptm_localization_artifact_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "profile",
+            "evidence-event",
+            "evidence-ledger",
+            "evidence-ledger-binding",
+            "artifact-posterior",
+            "contamination-flag",
+            "exclusion-mask-entry",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization artifact contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_artifact_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_artifacts_app.command("detect")
+def detect_ptm_localization_artifacts_cli(request: RequestArgument) -> None:
+    """Detect aggregate PTM-localization artifacts and emit canonical JSON."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(DetectPtmLocalizationArtifactsRequest),
+            max_bytes=M0505_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0505_json_request,
+        )
+        _emit(M0505Service()._execute_validated(parsed))
+    except PtmLocalizationArtifactAuthorizationError as error:
+        typer.echo(f"PTM-localization artifact detection failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization artifact detection failed: invalid request", err=True)
         raise typer.Exit(code=1) from error
 
 
