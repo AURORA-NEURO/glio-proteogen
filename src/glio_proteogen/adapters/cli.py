@@ -27,6 +27,7 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m2702_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
@@ -169,6 +170,12 @@ from glio_proteogen.contracts.m04_03 import (
 from glio_proteogen.contracts.m04_04 import (
     M0404_MAX_CANONICAL_REQUEST_BYTES,
     ComputeProteoformQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m27_02 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -398,6 +405,10 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics import
 from glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine import (
     _validate_json_request as _validate_m0404_json_request,
 )
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702Service,
+    preflight_m2702_authorization,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -590,6 +601,11 @@ proteoform_quality_app = typer.Typer(
     help="M04-04 deterministic aggregate proteoform quality metrics.",
 )
 app.add_typer(proteoform_quality_app, name="proteoform-quality")
+m2702_app = typer.Typer(
+    no_args_is_help=True,
+    help="M27-02 caller-declared complex-activity lineage resolution.",
+)
+app.add_typer(m2702_app, name="m2702")
 m1908_app = typer.Typer(
     no_args_is_help=True,
     help="M19-08 translation-health monitoring and rollback.",
@@ -1076,6 +1092,52 @@ def _service(database: Path) -> M0101Service:
 
 def _identity_service(database: Path) -> M0102Service:
     return M0102Service(M0102EventStore(database))
+
+
+@m2702_app.command("export-schema")
+def export_m2702_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "graph",
+            "node",
+            "edge",
+            "bundle",
+            "finding",
+            "safe-failure",
+        ],
+        typer.Argument(help="M27-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M27-02 contract."""
+
+    typer.echo(json.dumps(_m2702_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m2702_app.command("resolve")
+def resolve_m2702_lineage(request: RequestArgument) -> None:
+    """Resolve caller-declared lineage without inferring complex activity."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ResolveComplexActivityLineageRequest),
+        preflight_m2702_authorization,
+        M2702_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M2702Service().execute(parsed))
+
+
+@m2702_app.command("verify")
+def verify_m2702_lineage(result: RequestArgument) -> None:
+    """Replay and validate one sealed M27-02 result envelope."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ComplexActivityLineageResult),
+        max_bytes=M2702_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(parsed)
 
 
 def _load_release_files(
