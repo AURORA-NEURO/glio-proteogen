@@ -10,6 +10,10 @@ from typing import Annotated, Final, Literal
 
 from pydantic import AwareDatetime, Field, StringConstraints, field_validator, model_validator
 
+from glio_proteogen.contracts.m04_07.v1 import (
+    M0407_OUTPUT_MEDIA_TYPE,
+    ProteoformSupportDisposition,
+)
 from glio_proteogen.contracts.m04_08.canonical import (
     canonical_request_digest,
     context_digest,
@@ -24,6 +28,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
+    ControlDecisionRecord,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -63,6 +68,39 @@ M0408_SIGNATURE_RECEIPT_PATH: Final = "META-INF/glio-proteogen-m04-08/signature-
 M0408_PACKAGE_LIMITATION_CODE: Final = "deterministic_proteoform_packaging_only"
 M0408_AUTHORITY_LIMITATION_CODE: Final = "external_signature_authority_unverified"
 M0408_REPRODUCIBILITY_LIMITATION_CODE: Final = "scientific_reproducibility_not_validated"
+M0408_PACKAGE_LIMITATION_STATEMENT: Final = (
+    "M04-08 packages one closed proteoform/isoform chain without changing or interpreting "
+    "its scientific content."
+)
+M0408_AUTHORITY_LIMITATION_STATEMENT: Final = (
+    "Signature verification records one injected verifier outcome and does not establish "
+    "signer identity, key custody, certificate validity, or release authority."
+)
+M0408_REPRODUCIBILITY_LIMITATION_STATEMENT: Final = (
+    "The package records exact-byte reproduction inputs but does not validate scientific "
+    "reproducibility or the external evidence issuers."
+)
+M0408_RELEASED_SUPPORT_RATIONALE: Final = (
+    "The authorized proteoform/isoform chain and injected signature verification satisfied "
+    "the pinned deterministic release profile."
+)
+M0408_QUARANTINED_SUPPORT_RATIONALE: Final = (
+    "The proteoform/isoform release was withheld because an upstream stage or signature "
+    "verification did not satisfy the pinned release profile."
+)
+M0408_SENSITIVITY_NOTES: Final = (
+    "No calibrated probability is produced by deterministic release packaging.",
+    "Scientific, cryptographic, and release-authority validity remain external.",
+)
+M0408_UNCERTAINTY_RATIONALES: Final[dict[str, str]] = {
+    "measurement": "Measurement uncertainty is preserved in packaged upstream results.",
+    "sampling": "Sampling uncertainty is preserved in packaged upstream results.",
+    "parameter": "Packaging has no estimated scientific parameter uncertainty.",
+    "model_form": "M04-08 performs no scientific model inference.",
+    "identification": "Identification uncertainty is preserved in packaged upstream results.",
+    "support": "Support uncertainty is preserved in the packaged M04-07 result.",
+    "transport": "External verifier, evidence, and authority issuers are not authenticated.",
+}
 
 _USTAR_NAME_BYTES: Final = 100
 _USTAR_PREFIX_BYTES: Final = 155
@@ -251,6 +289,22 @@ def _m0407_binding() -> _M0407ContractBinding:
             "M04-08 executable validation awaits the frozen M04-07 public ABI"
         )
     return _M0407_BINDING
+
+
+# The public M04-07 handoff is the sole dependency freeze point.  M04-08 never
+# guesses this ABI: its identifier, media type, disposition vocabulary, and
+# direct prerequisite set are copied from the published M04-07 contract.
+_bind_m0407_contract(
+    artifact_id_pattern=r"^route\.[0-9a-f]{64}$",
+    artifact_id_prefix="route.",
+    media_type=M0407_OUTPUT_MEDIA_TYPE,
+    dispositions=frozenset(item.value for item in ProteoformSupportDisposition),
+    releasable_dispositions=frozenset({ProteoformSupportDisposition.SUPPORTED.value}),
+    direct_upstream_modules=(
+        ProteoformStageModuleId.M04_04,
+        ProteoformStageModuleId.M04_06,
+    ),
+)
 
 
 def opaque_release_identifier(namespace: str, value: object) -> Identifier:
@@ -1027,8 +1081,158 @@ def _validate_context_opacity(context: ExecutionContext) -> None:
         _owned_evidence(control.evidence)
 
 
+def _named_reproduction_references(
+    evidence: ProteoformReproductionEvidence,
+) -> tuple[tuple[str, ArtifactReference], ...]:
+    return tuple(
+        (name, getattr(evidence, name))
+        for name in (
+            "environment_lock",
+            "build_recipe",
+            "locked_tests",
+            "benchmark",
+            "traceability",
+            "risk_control_verification",
+            "data_model_reference_manifest",
+            "reviewer_signoff",
+            "rollback",
+        )
+    )
+
+
+def release_evidence_index(
+    request: BuildProteoformReleaseRequest,
+) -> tuple[tuple[ArtifactReference, str], ...]:
+    """Return the exact authority-safe evidence index for a release request."""
+
+    refs = request.context.references
+    items: list[tuple[ArtifactReference, str]] = [
+        (refs.approved_configuration.evidence, "Caller-approved release configuration."),
+        (refs.identity_lineage.evidence, "Caller-resolved identity lineage."),
+        (refs.provenance.evidence, "Caller-accepted provenance control."),
+        (refs.consent.evidence, "Caller-granted consent control."),
+        (refs.quality.evidence, "Caller-accepted quality control."),
+        (refs.support.evidence, "Caller-accepted support control."),
+        (refs.intended_use.evidence, "Caller-accepted intended-use control."),
+        (request.policy.evidence, "Pinned M04-08 release policy."),
+    ]
+    items.extend(
+        (item.reference, f"Declared {item.role.value} archive member.")
+        for item in request.artifacts
+    )
+    items.extend(
+        (item.evidence, f"Declared software build {item.software_id}.")
+        for item in request.software_versions
+    )
+    items.extend(
+        (item.evidence, f"Declared reference build {item.reference_id}.")
+        for item in request.reference_versions
+    )
+    items.extend(
+        (reference, f"Pinned reproduction evidence: {name}.")
+        for name, reference in _named_reproduction_references(request.reproduction_evidence)
+    )
+    items.append((request.signature.evidence, "Caller-supplied external signature evidence."))
+    by_identity: dict[tuple[str, str], ArtifactReference] = {}
+    for reference, _claim in items:
+        identity = (reference.artifact_id, reference.version)
+        existing = by_identity.get(identity)
+        if existing is not None and existing != reference:
+            raise ValueError("one evidence identity cannot carry conflicting metadata")
+        by_identity[identity] = reference
+    unique: dict[tuple[str, str, str, str], tuple[ArtifactReference, str]] = {}
+    for reference, claim in items:
+        key = (reference.artifact_id, reference.version, reference.digest, reference.media_type)
+        existing_item = unique.get(key)
+        if existing_item is None or claim < existing_item[1]:
+            unique[key] = (reference, claim)
+    return tuple(unique[key] for key in sorted(unique, key=canonical_json_bytes))
+
+
+def expected_release_quarantine_reasons(
+    manifest: ProteoformReproducibilityManifest,
+    verification: ProteoformSignatureVerification,
+) -> tuple[ProteoformReleaseQuarantine, ...]:
+    """Derive the only typed reasons that can prevent release bytes."""
+
+    accepted = {
+        ProteoformStageModuleId.M04_01: "conformant",
+        ProteoformStageModuleId.M04_02: "reconciled",
+        ProteoformStageModuleId.M04_03: "validated",
+        ProteoformStageModuleId.M04_04: "qualified",
+        ProteoformStageModuleId.M04_05: "cleared",
+        ProteoformStageModuleId.M04_06: "accepted",
+        ProteoformStageModuleId.M04_07: "supported",
+    }
+    reasons = [
+        ProteoformReleaseQuarantine(
+            code=ProteoformReleaseQuarantineCode.UPSTREAM_NOT_RELEASABLE,
+            stage_module_id=stage.module_id,
+            reason_code=(
+                "human_review_required"
+                if stage.human_review_required
+                else f"stage_disposition_{stage.disposition}"
+            ),
+            remediation_code="review_upstream_stage",
+        )
+        for stage in manifest.stages
+        if stage.disposition != accepted[stage.module_id] or stage.human_review_required
+    ]
+    if not reasons and not verification.verified:
+        reasons.append(
+            ProteoformReleaseQuarantine(
+                code=ProteoformReleaseQuarantineCode.SIGNATURE_UNVERIFIED,
+                reason_code=verification.reason_code.value,
+                remediation_code="provide_verified_signature",
+            )
+        )
+    return tuple(sorted(reasons, key=canonical_json_bytes))
+
+
+def release_provenance_input_digests(  # noqa: PLR0913 - exact provenance closure inputs.
+    request: BuildProteoformReleaseRequest,
+    manifest: ProteoformReproducibilityManifest,
+    *,
+    request_digest: Sha256Digest,
+    context_digest: Sha256Digest,
+    policy_digest: Sha256Digest,
+    manifest_digest: Sha256Digest,
+    controls: tuple[ControlDecisionRecord, ...],
+) -> set[Sha256Digest]:
+    digests: set[Sha256Digest] = {
+        request_digest,
+        context_digest,
+        policy_digest,
+        manifest_digest,
+        request.signature.claimed_statement_digest,
+        manifest.reproduction_evidence_digest,
+        manifest.identity_resolution_digest,
+        manifest.intended_use_evidence_digest,
+        manifest.terminal_routing_result_digest,
+        *(stage.result_digest for stage in manifest.stages),
+        *(stage.request_digest for stage in manifest.stages),
+        *(stage.configuration_digest for stage in manifest.stages),
+        *(stage.byte_digest for stage in manifest.stages),
+        *(item.reference.digest for item in request.artifacts),
+        *(item.build_digest for item in request.software_versions),
+        *(item.digest for item in request.reference_versions),
+        *(reference.digest for reference, _ in release_evidence_index(request)),
+        *(item.evidence_digest for item in controls),
+    }
+    for optional_digest in (
+        manifest.m0406_transformation_manifest_digest,
+        manifest.m0406_analysis_digest,
+        request.supersedes_result_digest,
+    ):
+        if optional_digest is not None:
+            digests.add(optional_digest)
+    return digests
+
+
 __all__ = [
     "M0408_ARCHIVE_MEMBER_COUNT",
+    "M0408_AUTHORITY_LIMITATION_CODE",
+    "M0408_AUTHORITY_LIMITATION_STATEMENT",
     "M0408_CALLER_ARTIFACT_COUNT",
     "M0408_CONTRACT_VERSION",
     "M0408_MANIFEST_PATH",
@@ -1046,9 +1250,17 @@ __all__ = [
     "M0408_MAX_VERIFIER_IDS",
     "M0408_MODULE_ID",
     "M0408_OPERATION",
+    "M0408_PACKAGE_LIMITATION_CODE",
+    "M0408_PACKAGE_LIMITATION_STATEMENT",
     "M0408_PARENT",
+    "M0408_QUARANTINED_SUPPORT_RATIONALE",
+    "M0408_RELEASED_SUPPORT_RATIONALE",
+    "M0408_REPRODUCIBILITY_LIMITATION_CODE",
+    "M0408_REPRODUCIBILITY_LIMITATION_STATEMENT",
+    "M0408_SENSITIVITY_NOTES",
     "M0408_SIGNATURE_RECEIPT_PATH",
     "M0408_STAGE_COUNT",
+    "M0408_UNCERTAINTY_RATIONALES",
     "BuildProteoformReleaseRequest",
     "ExternalProteoformSignature",
     "M0408DependencyUnavailableError",
@@ -1074,5 +1286,8 @@ __all__ = [
     "ProteoformStageModuleId",
     "ProteoformStageProvenance",
     "canonical_request_digest",
+    "expected_release_quarantine_reasons",
     "opaque_release_identifier",
+    "release_evidence_index",
+    "release_provenance_input_digests",
 ]
