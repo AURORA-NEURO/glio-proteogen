@@ -19,23 +19,23 @@
   },
   "benchmark": {
     "iterations": 10,
-    "mean_ns": 2091910.0,
-    "median_ns": 1897500.0,
-    "p95_ns": 3773500.0,
+    "mean_ns": 2192970.0,
+    "median_ns": 2099100.0,
+    "p95_ns": 3329100.0,
     "mean_budget_ns": 500000000,
     "p95_budget_ns": 750000000
   },
   "packages": {
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 1033595,
-      "sha256": "df0dfef62b47e62092f354605feef9edd3e3c528697d659d3d3e5ee311eba673",
+      "bytes": 3220892,
+      "sha256": "9a3f3a625091a59b8dedd93fb54962483ca345b81fa94c350532b3641cf2c5b2",
       "builds_identical": true
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 1535058,
-      "sha256": "1f95a05255f48b1f7273103dc2ff3cf1ed378c56398da4d6c63277cd9bbcb96e",
+      "bytes": 3682684,
+      "sha256": "891d57788bfe75574cc880f3d7758566c922f3ad4e77f88cf17c1260839e0c97",
       "builds_identical": true
     },
     "isolated_import": true,
