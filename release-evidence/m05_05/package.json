@@ -1,0 +1,27 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-05",
+  "build_command": "uv build --wheel --sdist --out-dir <external-output>",
+  "wheel": {
+    "bytes": 3574446,
+    "sha256": "84a0661044bbcd168650314bc05fe66a126898e818d83c682fb4957b12e13c46",
+    "members": 1877,
+    "generated_member_audit": 0
+  },
+  "sdist": {
+    "bytes": 4083722,
+    "sha256": "f9f3fb82e5d9ff3a86febd840d773cd382519c6215b3591da9d833bf95a7dd0c",
+    "members": 4297,
+    "generated_member_audit": 0
+  },
+  "generated_member_policy": [
+    "coverage_m*.json",
+    ".coverage",
+    "__pycache__",
+    "*.pyc",
+    ".m0505-*",
+    "build/",
+    "dist/"
+  ],
+  "isolated_import": "passed",
+  "status": "passed"
+}

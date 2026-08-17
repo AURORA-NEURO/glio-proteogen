@@ -5,11 +5,11 @@
     "src/glio_proteogen/modules/c05_ptm_localization/m05_05_artifact_detection"
   ],
   "command": "coverage run --branch --source=<scope> -m pytest --no-cov -o addopts='' <M05-05 focused files>",
-  "tests": 54,
-  "statements": {"covered": 962, "total": 1027},
-  "branches": {"covered": 223, "total": 280, "partial": 55},
-  "combined_percent": 90.66564651874522,
+  "tests": 59,
+  "statements": {"covered": 1006, "total": 1027},
+  "branches": {"covered": 257, "total": 280, "partial": 23},
+  "combined_percent": 96.63351185921958,
   "fail_under": 95,
-  "passed": false,
-  "status": "coverage_gap_requires_additional_closure_tests"
+  "passed": true,
+  "status": "passed"
 }
