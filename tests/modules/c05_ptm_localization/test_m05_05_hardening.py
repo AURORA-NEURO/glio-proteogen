@@ -120,6 +120,29 @@ def test_result_replay_rejects_self_digested_receipt_disposition_tamper() -> Non
         PtmLocalizationArtifactDetectionResult.model_validate(forged, strict=True)
 
 
+def test_result_replay_rejects_self_digested_event_binding_tamper() -> None:
+    result = detect_ptm_localization_artifacts(build_scenario("seeded_critical").request)
+    assert result.receipt.event_digests
+    forged_receipt = result.receipt.model_copy(
+        update={
+            "event_digests": tuple(
+                "sha256:" + ("0" * 64) for _ in result.receipt.event_digests
+            )
+        }
+    )
+    object.__setattr__(forged_receipt, "receipt_digest", receipt_digest(forged_receipt))
+    forged = result.model_copy(
+        update={
+            "receipt": forged_receipt,
+            "receipt_digest": forged_receipt.receipt_digest,
+        }
+    )
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+
+    with pytest.raises(ValidationError, match="complete detector output"):
+        PtmLocalizationArtifactDetectionResult.model_validate(forged, strict=True)
+
+
 def test_unknown_outer_member_is_rejected_before_execution() -> None:
     request = build_scenario("clear").request
     payload = request.model_dump(mode="python", exclude_none=False)

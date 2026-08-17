@@ -254,6 +254,23 @@ def test_result_replay_rejects_self_digested_receipt_output_tamper(
         PtmLocalizationHarmonizationResult.model_validate(forged, strict=True)
 
 
+def test_result_replay_rejects_forged_analysis_digest(
+    clear_scenario: Any,
+) -> None:
+    result = M0506Service().execute(clear_scenario.request)
+    assert result.analysis is not None
+    forged_analysis = result.analysis.model_copy(update={"analysis_digest": "sha256:" + ("0" * 64)})
+    forged_receipt = result.receipt.model_copy(
+        update={"analysis_digest": forged_analysis.analysis_digest}
+    )
+    object.__setattr__(forged_receipt, "receipt_digest", computation_receipt_digest(forged_receipt))
+    forged = result.model_copy(update={"analysis": forged_analysis, "receipt": forged_receipt})
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+
+    with pytest.raises(ValueError, match="analysis digest is stale"):
+        PtmLocalizationHarmonizationResult.model_validate(forged, strict=True)
+
+
 def test_plugin_rejects_invalid_typed_token_and_post_validation_mutation(
     clear_scenario: Any,
 ) -> None:
