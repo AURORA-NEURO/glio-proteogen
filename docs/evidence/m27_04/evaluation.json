@@ -1,0 +1,9 @@
+{
+  "checks_passed": 10,
+  "checks_declared": 10,
+  "fixture_digest": "sha256:edc9ac00f76806a52ed4bd4678736abcbb858bbc2db86bdfc7ef15ec7b37f576",
+  "module_id": "GLIO-PROTEOGEN-M27-04",
+  "passed": true,
+  "scenario_id": "m2704.gateway.safety.v1",
+  "source": "evals/m27_04/evaluation.json"
+}
