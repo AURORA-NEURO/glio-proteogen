@@ -1,7 +1,6 @@
 """Executable M27-03 evaluator matrix."""
 
 # Support both `python -m evals.m27_03.run` and direct file execution.
-# ruff: noqa: E402
 
 from __future__ import annotations
 
