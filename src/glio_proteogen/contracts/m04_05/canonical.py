@@ -52,6 +52,9 @@ def normalized_profile(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data["approved_quality_contract_versions"] = tuple(
         sorted(data["approved_quality_contract_versions"])
     )
+    data["approved_quality_configuration_digests"] = tuple(
+        sorted(data["approved_quality_configuration_digests"])
+    )
     data["thresholds"] = _sorted(data["thresholds"])
     return data
 
@@ -86,12 +89,15 @@ def event_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 def normalized_evidence_ledger(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data = _dump(value)
-    data["events"] = tuple(sorted(data["events"], key=lambda item: item["sequence"]))
+    if "events" in data:
+        data["events"] = tuple(sorted(data["events"], key=lambda item: item["sequence"]))
     return data
 
 
 def normalized_evidence_ledger_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     data = normalized_evidence_ledger(value)
+    if "events" not in data:
+        raise ValueError("only a complete M04-05 ledger has a self-digest payload")
     data["ledger_digest"] = _ZERO_DIGEST
     return data
 
