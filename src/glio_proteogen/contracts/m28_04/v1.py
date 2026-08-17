@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m28_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -155,12 +156,16 @@ class AsyncJobRecord(FrozenModel):
     @model_validator(mode="after")
     def terminal_job_has_outcome(self) -> AsyncJobRecord:
         terminal = {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.ABSTAINED, JobStatus.CANCELLED}
+        if self.idempotency.operation_id != self.operation_id:
+            raise ValueError("async job idempotency must bind the same operation")
         if self.status is JobStatus.SUCCEEDED and self.result_artifact is None:
             raise ValueError("succeeded async job requires a result artifact")
         if self.status in terminal - {JobStatus.SUCCEEDED} and self.result_artifact is not None:
             raise ValueError("non-success async job cannot carry a result artifact")
         if self.status is JobStatus.FAILED and self.error_code is None:
             raise ValueError("failed async job requires a typed error code")
+        if self.status is not JobStatus.FAILED and self.error_code is not None:
+            raise ValueError("only failed async jobs may carry an error code")
         return self
 
 
@@ -215,6 +220,47 @@ class GatewayConfiguration(FrozenModel):
         return self
 
 
+def _validate_gateway_collections(
+    operations: tuple[GatewayOperation, ...],
+    authorizations: tuple[AuthorizationRecord, ...],
+    idempotency_records: tuple[IdempotencyRecord, ...],
+    jobs: tuple[AsyncJobRecord, ...],
+    compatibility_rules: tuple[CompatibilityRule, ...],
+    audit_events: tuple[AuditEvent, ...],
+    configuration: GatewayConfiguration,
+) -> None:
+    """Close every cross-reference before a surface can be published."""
+
+    operation_ids = {operation.operation_id for operation in operations}
+    if len(operation_ids) != len(operations):
+        raise ValueError("gateway operation ids must be unique")
+    if len({auth.authorization_id for auth in authorizations}) != len(authorizations):
+        raise ValueError("authorization ids must be unique")
+    if len({record.idempotency_id for record in idempotency_records}) != len(idempotency_records):
+        raise ValueError("idempotency ids must be unique")
+    if len({job.job_id for job in jobs}) != len(jobs):
+        raise ValueError("async job ids must be unique")
+    if len({rule.rule_id for rule in compatibility_rules}) != len(compatibility_rules):
+        raise ValueError("compatibility rule ids must be unique")
+    if len({event.event_id for event in audit_events}) != len(audit_events):
+        raise ValueError("audit event ids must be unique")
+    idempotency_ids = {record.idempotency_id for record in idempotency_records}
+    if any(auth.operation_id not in operation_ids for auth in authorizations):
+        raise ValueError("authorization references unknown operation")
+    if any(record.operation_id not in operation_ids for record in idempotency_records):
+        raise ValueError("idempotency record references unknown operation")
+    if any(job.operation_id not in operation_ids for job in jobs):
+        raise ValueError("async job references unknown operation")
+    if any(job.idempotency.idempotency_id not in idempotency_ids for job in jobs):
+        raise ValueError("async job references unknown idempotency record")
+    if any(rule.operation_id not in operation_ids for rule in compatibility_rules):
+        raise ValueError("compatibility rule references unknown operation")
+    if any(event.operation_id not in operation_ids for event in audit_events):
+        raise ValueError("audit event references unknown operation")
+    if any(operation.protocol not in configuration.supported_protocols for operation in operations):
+        raise ValueError("operation protocol is not enabled by gateway configuration")
+
+
 class AccessSurface(FrozenModel):
     """Documented, versioned and auditable gateway surface."""
 
@@ -239,22 +285,15 @@ class AccessSurface(FrozenModel):
 
     @model_validator(mode="after")
     def surface_is_closed(self) -> AccessSurface:
-        operation_ids = {operation.operation_id for operation in self.operations}
-        if len(operation_ids) != len(self.operations):
-            raise ValueError("gateway operation ids must be unique")
-        if any(auth.operation_id not in operation_ids for auth in self.authorizations):
-            raise ValueError("authorization references unknown operation")
-        if any(job.operation_id not in operation_ids for job in self.jobs):
-            raise ValueError("async job references unknown operation")
-        if any(rule.operation_id not in operation_ids for rule in self.compatibility_rules):
-            raise ValueError("compatibility rule references unknown operation")
-        if any(event.operation_id not in operation_ids for event in self.audit_events):
-            raise ValueError("audit event references unknown operation")
-        if any(
-            operation.protocol not in self.configuration.supported_protocols
-            for operation in self.operations
-        ):
-            raise ValueError("operation protocol is not enabled by gateway configuration")
+        _validate_gateway_collections(
+            self.operations,
+            self.authorizations,
+            self.idempotency_records,
+            self.jobs,
+            self.compatibility_rules,
+            self.audit_events,
+            self.configuration,
+        )
         return self
 
 
@@ -294,6 +333,19 @@ class PublishProteinRnaDiscordanceAccessSurfaceRequest(FrozenModel):
     )
     supersedes_result_digest: Sha256Digest | None = None
 
+    @model_validator(mode="after")
+    def request_is_closed(self) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
+        _validate_gateway_collections(
+            self.operations,
+            self.authorizations,
+            self.idempotency_records,
+            self.jobs,
+            self.compatibility_rules,
+            self.audit_events,
+            self.configuration,
+        )
+        return self
+
 
 class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
     """Published access surface with typed errors and safe abstention."""
@@ -323,6 +375,8 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceAccessSurfaceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result id does not bind the exact request digest")
         if self.status is GatewayStatus.PUBLISHED:
             if (
                 self.access_surface is None
@@ -330,6 +384,16 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires a supported access surface")
+            if any(
+                finding.code
+                in {
+                    GatewayFindingCode.OPERATION_UNAUTHORIZED,
+                    GatewayFindingCode.ASYNC_JOB_UNBOUND,
+                    GatewayFindingCode.COMPATIBILITY_UNRESOLVED,
+                }
+                for finding in self.findings
+            ):
+                raise ValueError("published result cannot retain blocking gateway findings")
         elif (
             self.access_surface is not None
             or self.abstention_reason is None
