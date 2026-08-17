@@ -1,0 +1,13 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-06",
+  "contract_version": "0.1.0-provisional",
+  "scenarios": [
+    {"id": "supported_allow", "status": "evaluated", "decision": "allow"},
+    {"id": "supported_deny", "status": "evaluated", "decision": "deny"},
+    {"id": "missing_consent", "status": "abstained", "decision": null},
+    {"id": "unsupported_upstream", "status": "abstained", "decision": null},
+    {"id": "plugin_parity", "status": "verified", "decision": "allow"},
+    {"id": "replay_roundtrip", "status": "verified", "decision": "allow"},
+    {"id": "tampered_result", "status": "rejected", "decision": null}
+  ]
+}
