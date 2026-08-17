@@ -9,6 +9,7 @@ abstains.
 from __future__ import annotations
 
 from enum import StrEnum
+from math import isfinite
 from typing import Final, Literal
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -142,6 +143,12 @@ class TelemetrySample(FrozenModel):
     retained: Literal[True] = True
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2605_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def value_is_finite(self) -> TelemetrySample:
+        if not isfinite(self.value):
+            raise ValueError("telemetry sample values must be finite")
+        return self
+
 
 class DashboardDefinition(FrozenModel):
     dashboard_id: Identifier
@@ -167,6 +174,16 @@ class AlertRecord(FrozenModel):
     triggered_at: AwareDatetime | None = None
     resolved_at: AwareDatetime | None = None
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2605_MAX_EVIDENCE)
+
+    @model_validator(mode="after")
+    def resolution_is_chronological(self) -> AlertRecord:
+        if (
+            self.resolved_at is not None
+            and self.triggered_at is not None
+            and self.resolved_at < self.triggered_at
+        ):
+            raise ValueError("alert resolution cannot precede trigger time")
+        return self
 
 
 class ReviewerActionRecord(FrozenModel):
@@ -201,6 +218,9 @@ class TelemetryStream(FrozenModel):
         sample_ids = tuple(item.sample_id for item in self.samples)
         if len(sample_ids) != len(set(sample_ids)):
             raise ValueError("telemetry sample ids must be unique")
+        finding_ids = tuple(item.finding_id for item in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("telemetry finding ids must be unique")
         return self
 
 
@@ -233,10 +253,13 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EmitProteomicsTelemetryRequest:
-        if self.upstream_result.media_type != M2605_M2604_INPUT_MEDIA_TYPE:
-            raise ValueError("request must bind the provisional M27-04 gateway result")
+        if not self.upstream_result.media_type:
+            raise ValueError("request must bind a non-empty upstream media type")
         if len(set(self.requested_metrics)) != len(self.requested_metrics):
             raise ValueError("requested telemetry metrics must be unique")
+        dashboard_ids = tuple(item.dashboard_id for item in self.dashboard_definitions)
+        if len(dashboard_ids) != len(set(dashboard_ids)):
+            raise ValueError("dashboard ids must be unique")
         return self
 
 
@@ -270,6 +293,9 @@ class ProteomicsTelemetryResult(FrozenModel):
     def result_is_closed(self) -> ProteomicsTelemetryResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = "m2705.result." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id does not bind the exact request digest")
         if self.status is TelemetryStatus.EMITTED:
             if (
                 self.telemetry_stream is None

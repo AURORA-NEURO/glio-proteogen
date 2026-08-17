@@ -1,5 +1,7 @@
 """Focused schema and critical-signal smoke for provisional M27-05."""
 
+from typing import cast
+
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m27_05 import (
@@ -30,8 +32,9 @@ def test_provisional_schemas_require_critical_telemetry_controls() -> None:
         "safe-failure",
     )
     for schema in schemas.values():
-        Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        typed_schema = schema
+        Draft202012Validator.check_schema(typed_schema)
+        metadata = cast("dict[str, object]", typed_schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["inputQualityRequired"] is True
         assert metadata["identityValidationRequired"] is True
@@ -67,7 +70,8 @@ def test_provisional_schemas_require_critical_telemetry_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "complex activity"
         assert metadata["upstreamInputMediaType"] == M2705_M2704_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2705_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2705_OUTPUT_MEDIA_TYPE
     assert M2705_PROVISIONAL_ABI is True
 
 
