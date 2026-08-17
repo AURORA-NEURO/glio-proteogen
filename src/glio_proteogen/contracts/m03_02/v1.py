@@ -35,6 +35,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -172,8 +173,7 @@ class ProteinInferenceLineagePolicy(FrozenModel):
     @classmethod
     def methods_are_unique(
         cls,
-        values: tuple[ApprovedDerivationMethod, ...]
-        | tuple[ApprovedCopyNumberMethod, ...],
+        values: tuple[ApprovedDerivationMethod, ...] | tuple[ApprovedCopyNumberMethod, ...],
     ) -> tuple[ApprovedDerivationMethod, ...] | tuple[ApprovedCopyNumberMethod, ...]:
         identities = [(item.method_id, item.version) for item in values]
         if len(identities) != len(set(identities)):
@@ -263,22 +263,20 @@ class CopyNumberConcordanceReceipt(FrozenModel):
             != self.informative_feature_count
         ):
             raise ValueError("copy-number concordance counts do not close")
-        if self.state in {
-            CopyNumberConcordanceState.INDETERMINATE,
-            CopyNumberConcordanceState.MISSING,
-            CopyNumberConcordanceState.UNSUPPORTED,
-        } and self.informative_feature_count != 0:
-            raise ValueError("non-evaluable copy-number receipt cannot carry feature counts")
         if (
-            self.state is CopyNumberConcordanceState.CONCORDANT
-            and (
-                self.concordant_feature_count == 0
-                or self.discordant_feature_count != 0
-            )
+            self.state
+            in {
+                CopyNumberConcordanceState.INDETERMINATE,
+                CopyNumberConcordanceState.MISSING,
+                CopyNumberConcordanceState.UNSUPPORTED,
+            }
+            and self.informative_feature_count != 0
         ):
-            raise ValueError(
-                "concordant copy-number receipt requires only concordant features"
-            )
+            raise ValueError("non-evaluable copy-number receipt cannot carry feature counts")
+        if self.state is CopyNumberConcordanceState.CONCORDANT and (
+            self.concordant_feature_count == 0 or self.discordant_feature_count != 0
+        ):
+            raise ValueError("concordant copy-number receipt requires only concordant features")
         if (
             self.state is CopyNumberConcordanceState.DISCORDANT
             and self.discordant_feature_count == 0
@@ -338,9 +336,7 @@ class ReconcileProteinInferenceIdentityLineageRequest(FrozenModel):
         _validate_unique_ids(self.cn_receipts, "receipt_id", "copy-number receipt")
         _validate_evidence_identity_consistency(self)
         claims = {claim.claim_id: claim for claim in self.artifact_claims}
-        upstream_nodes = {
-            node.entity_id: node for node in self.identity_resolution.graph.nodes
-        }
+        upstream_nodes = {node.entity_id: node for node in self.identity_resolution.graph.nodes}
         for claim in self.artifact_claims:
             node = upstream_nodes.get(claim.identity_entity_id)
             if node is None:
@@ -383,24 +379,18 @@ def _validate_evidence_identity_consistency(
         *(derivation.evidence for derivation in request.derivations),
         *(receipt.evidence for receipt in request.cn_receipts),
     )
-    evidence_by_identity: dict[
-        tuple[Identifier, SemanticVersion], tuple[Sha256Digest, str]
-    ] = {}
+    evidence_by_identity: dict[tuple[Identifier, SemanticVersion], tuple[Sha256Digest, str]] = {}
     for artifact in submitted_evidence:
         key = (artifact.artifact_id, artifact.version)
         content = (artifact.digest, artifact.media_type)
         previous = evidence_by_identity.setdefault(key, content)
         if previous != content:
-            raise ValueError(
-                "one submitted evidence identity cannot declare conflicting content"
-            )
+            raise ValueError("one submitted evidence identity cannot declare conflicting content")
     for claim in request.artifact_claims:
         key = (claim.artifact.artifact_id, claim.artifact.version)
         content = (claim.artifact.digest, claim.artifact.media_type)
         if key in evidence_by_identity and evidence_by_identity[key] != content:
-            raise ValueError(
-                "an artifact claim cannot contradict a control evidence identity"
-            )
+            raise ValueError("an artifact claim cannot contradict a control evidence identity")
         upstream_matches = (
             *(
                 item.reference
@@ -489,9 +479,7 @@ def _validate_subject_propagation(
     upstream_nodes: dict[Identifier, ResolvedIdentityNode],
 ) -> None:
     subjects: dict[Identifier, tuple[Sha256Digest, ...]] = {}
-    derivations_by_target = {
-        derivation.target_claim_id: derivation for derivation in derivations
-    }
+    derivations_by_target = {derivation.target_claim_id: derivation for derivation in derivations}
     for role in ArtifactClaimRole:
         for claim in sorted(
             (item for item in claims.values() if item.role is role),
@@ -565,16 +553,14 @@ class ProteinInferenceLineageFinding(FrozenModel):
     code: ReconciliationFindingCode
     action: ReconciliationFindingAction
     claim_ids: tuple[Identifier, ...] = Field(default=(), max_length=M0302_MAX_ARTIFACT_CLAIMS)
-    derivation_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M0302_DERIVATION_COUNT
-    )
+    derivation_ids: tuple[Identifier, ...] = Field(default=(), max_length=M0302_DERIVATION_COUNT)
     evidence_basis_digest: Sha256Digest
 
     @model_validator(mode="after")
     def references_are_unique(self) -> ProteinInferenceLineageFinding:
-        if len(self.claim_ids) != len(set(self.claim_ids)) or len(
-            self.derivation_ids
-        ) != len(set(self.derivation_ids)):
+        if len(self.claim_ids) != len(set(self.claim_ids)) or len(self.derivation_ids) != len(
+            set(self.derivation_ids)
+        ):
             raise ValueError("finding references must be unique")
         return self
 
@@ -585,16 +571,10 @@ class ResolvedProteinInferenceArtifact(FrozenModel):
     artifact_digest: Sha256Digest
     identity_entity_id: Identifier
     lineage_path_digest: Sha256Digest
-    declared_subject_component_ids: tuple[Sha256Digest, ...] = Field(
-        default=(), max_length=256
-    )
-    resolved_subject_component_ids: tuple[Sha256Digest, ...] = Field(
-        default=(), max_length=256
-    )
+    declared_subject_component_ids: tuple[Sha256Digest, ...] = Field(default=(), max_length=256)
+    resolved_subject_component_ids: tuple[Sha256Digest, ...] = Field(default=(), max_length=256)
     evidence_state: Literal["observed"] | DeclaredUnresolvedState
-    finding_codes: tuple[ReconciliationFindingCode, ...] = Field(
-        default=(), max_length=16
-    )
+    finding_codes: tuple[ReconciliationFindingCode, ...] = Field(default=(), max_length=16)
 
 
 class ResolvedProteinInferenceDerivation(FrozenModel):
@@ -606,9 +586,7 @@ class ResolvedProteinInferenceDerivation(FrozenModel):
     method_id: Identifier
     method_version: SemanticVersion
     evidence_digest: Sha256Digest
-    propagated_subject_component_ids: tuple[Sha256Digest, ...] = Field(
-        default=(), max_length=256
-    )
+    propagated_subject_component_ids: tuple[Sha256Digest, ...] = Field(default=(), max_length=256)
 
 
 class ResolvedProteinInferenceLineageGraph(FrozenModel):
@@ -627,9 +605,7 @@ class ResolvedProteinInferenceLineageGraph(FrozenModel):
         _validate_unique_ids(self.derivations, "derivation_id", "resolved derivation")
         artifacts = {artifact.claim_id: artifact for artifact in self.artifacts}
         roles = {
-            role: {
-                artifact.claim_id for artifact in self.artifacts if artifact.role is role
-            }
+            role: {artifact.claim_id for artifact in self.artifacts if artifact.role is role}
             for role in ArtifactClaimRole
         }
         if (
@@ -642,12 +618,11 @@ class ResolvedProteinInferenceLineageGraph(FrozenModel):
         producers: dict[Identifier, ResolvedProteinInferenceDerivation] = {}
         for derivation in self.derivations:
             if (
-                len(derivation.source_claim_ids)
-                != len(set(derivation.source_claim_ids))
+                len(derivation.source_claim_ids) != len(set(derivation.source_claim_ids))
                 or derivation.target_claim_id in derivation.source_claim_ids
-                or not (
-                    set(derivation.source_claim_ids) | {derivation.target_claim_id}
-                ).issubset(artifacts)
+                or not (set(derivation.source_claim_ids) | {derivation.target_claim_id}).issubset(
+                    artifacts
+                )
                 or derivation.target_claim_id in producers
             ):
                 raise ValueError("resolved graph derivation endpoints are not closed")
@@ -669,9 +644,7 @@ class ResolvedProteinInferenceLineageGraph(FrozenModel):
                     {
                         subject
                         for source_id in derivation.source_claim_ids
-                        for subject in artifacts[
-                            source_id
-                        ].resolved_subject_component_ids
+                        for subject in artifacts[source_id].resolved_subject_component_ids
                     }
                 )
             )
@@ -740,9 +713,7 @@ def derive_reconciliation(  # noqa: PLR0912, PLR0915 - explicit closed finding m
     """Derive the exact privacy-minimized graph, findings, and disposition."""
 
     claims = {claim.claim_id: claim for claim in request.artifact_claims}
-    upstream_nodes = {
-        node.entity_id: node for node in request.identity_resolution.graph.nodes
-    }
+    upstream_nodes = {node.entity_id: node for node in request.identity_resolution.graph.nodes}
     subjects: dict[Identifier, tuple[Sha256Digest, ...]] = {}
     finding_codes: dict[Identifier, set[ReconciliationFindingCode]] = {
         claim_id: set() for claim_id in claims
@@ -775,9 +746,7 @@ def derive_reconciliation(  # noqa: PLR0912, PLR0915 - explicit closed finding m
                 "basis": basis,
             }
         )
-        finding_specs.add(
-            (code, action, canonical_claims, canonical_derivations, digest)
-        )
+        finding_specs.add((code, action, canonical_claims, canonical_derivations, digest))
         for claim_id in canonical_claims:
             finding_codes[claim_id].add(code)
 
@@ -853,9 +822,8 @@ def derive_reconciliation(  # noqa: PLR0912, PLR0915 - explicit closed finding m
                     claim_ids=(claim.claim_id,),
                     basis=(node_subjects, propagated),
                 )
-            if (
-                tuple(sorted(claim.declared_subject_component_ids)) != node_subjects
-                or (producer is not None and propagated != node_subjects)
+            if tuple(sorted(claim.declared_subject_component_ids)) != node_subjects or (
+                producer is not None and propagated != node_subjects
             ):
                 add_finding(
                     ReconciliationFindingCode.IDENTITY_SWAP,
@@ -937,13 +905,11 @@ def derive_reconciliation(  # noqa: PLR0912, PLR0915 - explicit closed finding m
         tuple[Identifier, SemanticVersion], list[ProteinInferenceArtifactClaim]
     ] = {}
     for claim in request.artifact_claims:
-        identity_groups.setdefault(
-            (claim.artifact.artifact_id, claim.artifact.version), []
-        ).append(claim)
+        identity_groups.setdefault((claim.artifact.artifact_id, claim.artifact.version), []).append(
+            claim
+        )
     for identity, grouped in identity_groups.items():
-        declarations = {
-            (claim.artifact.digest, claim.artifact.media_type) for claim in grouped
-        }
+        declarations = {(claim.artifact.digest, claim.artifact.media_type) for claim in grouped}
         if len(declarations) < _MINIMUM_DUPLICATE_COUNT:
             continue
         add_finding(
@@ -982,9 +948,7 @@ def derive_reconciliation(  # noqa: PLR0912, PLR0915 - explicit closed finding m
             lineage_path_digest=_lineage_path_digest(
                 request.identity_resolution, claim.identity_entity_id
             ),
-            declared_subject_component_ids=tuple(
-                sorted(claim.declared_subject_component_ids)
-            ),
+            declared_subject_component_ids=tuple(sorted(claim.declared_subject_component_ids)),
             resolved_subject_component_ids=subjects[claim.claim_id],
             evidence_state=claim.evidence_state,
             finding_codes=tuple(sorted(finding_codes[claim.claim_id])),
@@ -1079,8 +1043,7 @@ def reconciliation_evidence_index(
         *(item.evidence for item in request.cn_receipts),
     )
     unique = {
-        (item.artifact_id, item.version, item.digest, item.media_type): item
-        for item in artifacts
+        (item.artifact_id, item.version, item.digest, item.media_type): item for item in artifacts
     }
     return tuple(
         EvidenceReference(
@@ -1271,9 +1234,7 @@ def _normalized_findings(
 def _normalized_provenance(provenance: ProvenanceRecord) -> dict[str, object]:
     value = provenance.model_dump(mode="python", exclude_none=False)
     value["input_digests"] = tuple(sorted(provenance.input_digests))
-    value["control_decisions"] = tuple(
-        sorted(value["control_decisions"], key=canonical_json_bytes)
-    )
+    value["control_decisions"] = tuple(sorted(value["control_decisions"], key=canonical_json_bytes))
     return value
 
 
@@ -1283,7 +1244,7 @@ def _normalized_uncertainty(uncertainty: UncertaintyProfile) -> dict[str, object
     return value
 
 
-class ProteinInferenceIdentityLineageResolution(FrozenModel):
+class ProteinInferenceIdentityLineageResolution(NonInferenceResultModel):
     output_type: Literal["protein_inference_identity_lineage_resolution"] = (
         "protein_inference_identity_lineage_resolution"
     )
@@ -1341,8 +1302,7 @@ class ProteinInferenceIdentityLineageResolution(FrozenModel):
         if (
             self.result_id != f"result.m0302.{suffix}"
             or self.request_digest != request_hash
-            or self.identity_resolution_digest
-            != self.request.identity_resolution.resolution_digest
+            or self.identity_resolution_digest != self.request.identity_resolution.resolution_digest
             or self.protocol_result_digest != self.request.protocol_result.result_digest
             or self.policy_digest != active_policy_hash
             or self.configuration_digest != config_hash
@@ -1359,9 +1319,7 @@ class ProteinInferenceIdentityLineageResolution(FrozenModel):
                 expected_provenance(self.request, request_hash, graph.graph_digest)
             )
             or tuple(sorted(self.evidence, key=canonical_json_bytes))
-            != tuple(
-                sorted(reconciliation_evidence_index(self.request), key=canonical_json_bytes)
-            )
+            != tuple(sorted(reconciliation_evidence_index(self.request), key=canonical_json_bytes))
             or tuple(sorted(self.limitations, key=canonical_json_bytes))
             != tuple(sorted(expected_limitations(), key=canonical_json_bytes))
             or self.human_review_required

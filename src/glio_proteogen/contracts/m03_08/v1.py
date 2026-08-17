@@ -34,6 +34,7 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -931,7 +932,7 @@ class ProteinInferenceReleasePackageDescriptor(FrozenModel):
         return self
 
 
-class ProteinInferenceReleaseResult(FrozenModel):
+class ProteinInferenceReleaseResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_release_result"] = "protein_inference_release_result"
     release_result_id: Identifier
     result_version: Literal["1.0.0"] = M0308_CONTRACT_VERSION

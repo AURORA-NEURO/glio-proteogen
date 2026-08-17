@@ -45,6 +45,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1564,7 +1565,7 @@ def _normalized_uncertainty(uncertainty: UncertaintyProfile) -> dict[str, object
     return value
 
 
-class ProteoformIdentityLineageResolution(FrozenModel):
+class ProteoformIdentityLineageResolution(NonInferenceResultModel):
     output_type: Literal["proteoform_identity_lineage_resolution"] = (
         "proteoform_identity_lineage_resolution"
     )

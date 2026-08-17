@@ -39,6 +39,7 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1765,7 +1766,7 @@ class ProteinInferenceHarmonizationComputationReceipt(FrozenModel):
     disposition: ProteinInferenceHarmonizationDisposition
 
 
-class ProteinInferenceHarmonizationResult(FrozenModel):
+class ProteinInferenceHarmonizationResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_harmonized_analysis"] = (
         "protein_inference_harmonized_analysis"
     )

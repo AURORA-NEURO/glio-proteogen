@@ -54,6 +54,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -802,7 +803,7 @@ def expected_limitations() -> tuple[Limitation, ...]:
     )
 
 
-class ProteoformRawInputValidationResult(FrozenModel):
+class ProteoformRawInputValidationResult(NonInferenceResultModel):
     output_type: Literal["proteoform_raw_input_validation_result"] = (
         "proteoform_raw_input_validation_result"
     )

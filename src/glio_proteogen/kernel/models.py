@@ -62,6 +62,105 @@ class FrozenModel(BaseModel):
     )
 
 
+_NON_INFERENCE_FALSE_FIELDS = frozenset(
+    {
+        "infers_identity",
+        "infers_consent",
+        "infers_protein",
+        "infers_proteoform",
+        "infers_isoform",
+        "infers_glioma_specific_biology",
+        "infers_kinase_activity",
+        "emits_complex_activity",
+        "emits_protein_rna_discordance",
+        "emits_proteogenomic_state",
+        "emits_proteotype",
+        "emits_protein_level_subtype",
+        "localizes_modification",
+        "performs_cn_to_protein_regression",
+        "performs_all_omics_fusion",
+        "recommends_treatment",
+        "mutates_upstream",
+        "executes_model",
+    }
+)
+_NON_INFERENCE_FALSE_ALIASES = frozenset(
+    {
+        "identityInference",
+        "consentInference",
+        "proteinInference",
+        "proteoformInference",
+        "isoformInference",
+        "gliomaSpecificBiologyInference",
+        "kinaseActivityInference",
+        "complexActivityInference",
+        "proteinRnaDiscordanceInference",
+        "proteogenomicStateEmission",
+        "proteotypeEmission",
+        "proteinLevelSubtypeEmission",
+        "modificationLocalization",
+        "copyNumberRegression",
+        "allOmicsFusion",
+        "treatmentRecommendation",
+        "upstreamMutation",
+        "modelExecution",
+    }
+)
+
+
+def _assert_non_inference_field(key: str, child: object, *, path: str) -> None:
+    if (
+        key in _NON_INFERENCE_FALSE_FIELDS or key in _NON_INFERENCE_FALSE_ALIASES
+    ) and child is not False:
+        raise ValueError(f"{path}.{key} must remain literal false")
+    _assert_non_inference_storage(child, path=f"{path}.{key}")
+
+
+def _assert_non_inference_mapping(mapping: dict[object, object], *, path: str) -> None:
+    for key in dict.keys(mapping):
+        if type(key) is not str:
+            raise ValueError(f"{path} contains a non-string field name")
+        _assert_non_inference_field(key, dict.__getitem__(mapping, key), path=path)
+
+
+def _assert_non_inference_storage(value: object, *, path: str = "result") -> None:
+    """Reject post-validation biological claims without invoking user accessors.
+
+    M03/M04 result models are immutable by contract, but Python callers can still
+    mutate a Pydantic instance's internal storage with ``object.__getattribute__``.
+    This result-only firewall therefore walks only exact built-in containers and
+    exact BaseModel storage. It is deliberately not applied to requests or shared
+    control objects, where caller-declared vocabulary may legitimately contain
+    domain words such as ``identity`` or ``protein``.
+    """
+
+    if isinstance(value, BaseModel):
+        storage = object.__getattribute__(value, "__dict__")
+        if type(storage) is not dict:
+            raise ValueError(f"{path} model storage must be an exact dict")
+        _assert_non_inference_mapping(storage, path=path)
+        return
+    if type(value) is dict:
+        _assert_non_inference_mapping(value, path=path)
+        return
+    if type(value) is list:
+        for index, child in enumerate(list.__iter__(value)):
+            _assert_non_inference_storage(child, path=f"{path}[{index}]")
+        return
+    if type(value) is tuple:
+        for index, child in enumerate(tuple.__iter__(value)):
+            _assert_non_inference_storage(child, path=f"{path}[{index}]")
+
+
+class NonInferenceResultModel(FrozenModel):
+    """Frozen result base that makes M03/M04 non-inference flags tamper-evident."""
+
+    @model_validator(mode="after")
+    def non_inference_boundary_is_closed(self) -> NonInferenceResultModel:
+        _assert_non_inference_storage(self)
+        return self
+
+
 class ArtifactReference(FrozenModel):
     """Content-addressed reference to evidence owned outside the current module."""
 

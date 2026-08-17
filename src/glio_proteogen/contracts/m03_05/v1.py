@@ -50,6 +50,7 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1333,7 +1334,7 @@ class ProteinInferenceArtifactComputationReceipt(FrozenModel):
     disposition: ProteinInferenceArtifactDisposition
 
 
-class ProteinInferenceArtifactDetectionResult(FrozenModel):
+class ProteinInferenceArtifactDetectionResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_artifact_mask"] = "protein_inference_artifact_mask"
     result_id: Identifier
     result_version: Literal["1.0.0"] = M0305_CONTRACT_VERSION

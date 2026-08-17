@@ -31,6 +31,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1456,7 +1457,7 @@ def expected_provenance(
     )
 
 
-class ProteoformProtocolConformanceResult(FrozenModel):
+class ProteoformProtocolConformanceResult(NonInferenceResultModel):
     output_type: Literal["proteoform_protocol_conformance_result"] = (
         "proteoform_protocol_conformance_result"
     )
