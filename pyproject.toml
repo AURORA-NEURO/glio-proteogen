@@ -55,6 +55,8 @@ packages = ["src/glio_proteogen"]
     "/glio-proteogen-evidence.tar.gz",
   "/release-build-*",
   "/release-evidence",
+  "/docs/evidence/M20-02.md",
+  "/docs/evidence/m20_02",
 ]
 
 [tool.pytest.ini_options]
