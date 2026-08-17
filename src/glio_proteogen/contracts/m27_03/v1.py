@@ -14,6 +14,9 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_03.canonical import (
     canonical_request_digest,
+    execution_id_for_request_digest,
+    package_id_for_request_digest,
+    result_id_for_request_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -141,6 +144,47 @@ class WorkflowDAG(FrozenModel):
             for edge in self.edges
         ):
             raise ValueError("workflow edge references an unknown node")
+        pairs = {(edge.source_node_id, edge.target_node_id) for edge in self.edges}
+        if len(pairs) != len(self.edges):
+            raise ValueError("workflow edges must not duplicate source and target")
+        outgoing = {node_id: [] for node_id in node_ids}
+        incoming = {node_id: [] for node_id in node_ids}
+        for edge in self.edges:
+            outgoing[edge.source_node_id].append(edge.target_node_id)
+            incoming[edge.target_node_id].append(edge.source_node_id)
+        indegree = {node_id: len(incoming[node_id]) for node_id in node_ids}
+        ready = sorted(node_id for node_id, degree in indegree.items() if degree == 0)
+        visited: list[Identifier] = []
+        while ready:
+            current = ready.pop(0)
+            visited.append(current)
+            for target in sorted(outgoing[current]):
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    ready.append(target)
+                    ready.sort()
+        if len(visited) != len(node_ids):
+            raise ValueError("workflow graph must be acyclic")
+        reachable = {self.entry_node_id}
+        frontier = [self.entry_node_id]
+        while frontier:
+            current = frontier.pop()
+            for target in outgoing[current]:
+                if target not in reachable:
+                    reachable.add(target)
+                    frontier.append(target)
+        if reachable != node_set:
+            raise ValueError("every workflow node must be reachable from entry")
+        reverse_reachable = {self.exit_node_id}
+        frontier = [self.exit_node_id]
+        while frontier:
+            current = frontier.pop()
+            for source in incoming[current]:
+                if source not in reverse_reachable:
+                    reverse_reachable.add(source)
+                    frontier.append(source)
+        if reverse_reachable != node_set:
+            raise ValueError("every workflow node must reach exit")
         return self
 
 
@@ -225,6 +269,10 @@ class OrchestrateComplexActivityPipelineRequest(FrozenModel):
     def request_is_bound(self) -> OrchestrateComplexActivityPipelineRequest:
         if self.upstream_result.media_type != M2703_M2702_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M27-02 lineage result")
+        ids = tuple(item.artifact_id for item in self.source_artifacts)
+        digests = tuple(item.digest for item in self.source_artifacts)
+        if len(ids) != len(set(ids)) or len(digests) != len(set(digests)):
+            raise ValueError("source artifacts must have unique ids and digests")
         return self
 
 
@@ -256,6 +304,8 @@ class ComplexActivityPipelineResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityPipelineResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_id_for_request_digest(self.request_digest):
+            raise ValueError("result id must be derived from the request digest")
         if self.status is PipelineStatus.EXECUTED:
             if (
                 self.execution_record is None
@@ -265,6 +315,27 @@ class ComplexActivityPipelineResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("executed result requires supported execution records")
+            execution = self.execution_record
+            package = self.result_package
+            assert execution is not None and package is not None
+            if execution.execution_id != execution_id_for_request_digest(self.request_digest):
+                raise ValueError("execution id must be derived from the request digest")
+            if execution.workflow_id != self.request.workflow.workflow_id:
+                raise ValueError("execution record must bind the request workflow")
+            expected_nodes = {node.node_id for node in self.request.workflow.nodes}
+            completed = set(execution.completed_node_ids)
+            if completed != expected_nodes:
+                raise ValueError("executed record must close every workflow node")
+            if package.execution_id != execution.execution_id:
+                raise ValueError("result package must bind the execution record")
+            if package.package_id != package_id_for_request_digest(self.request_digest):
+                raise ValueError("result package id must be derived from the request digest")
+            if package.environment_digest != execution.environment_digest:
+                raise ValueError("result package must bind execution environment")
+            if execution.output_digest is None:
+                raise ValueError("executed record requires output digest")
+            if self.human_review_required:
+                raise ValueError("supported executed result cannot require human review")
         elif (
             self.execution_record is not None
             or self.result_package is not None
@@ -274,6 +345,8 @@ class ComplexActivityPipelineResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires safe failure and safe status")
+        if self.status is PipelineStatus.ABSTAINED and not self.human_review_required:
+            raise ValueError("abstained result requires human review")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

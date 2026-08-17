@@ -26,6 +26,33 @@ def canonical_request_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
     return sha256_digest(normalized_request(value))
 
 
+def result_id_for_request_digest(value: Sha256Digest | str) -> str:
+    """Return the deterministic provisional result identity for one request."""
+
+    text = str(value)
+    if not text.startswith("sha256:") or len(text) != 71:
+        raise ValueError("request digest must be a canonical sha256 digest")
+    return f"m2703.result.{text.removeprefix('sha256:')}"
+
+
+def execution_id_for_request_digest(value: Sha256Digest | str) -> str:
+    """Return the deterministic provisional execution identity for one request."""
+
+    text = str(value)
+    if not text.startswith("sha256:") or len(text) != 71:
+        raise ValueError("request digest must be a canonical sha256 digest")
+    return f"m2703.execution.{text.removeprefix('sha256:')}"
+
+
+def package_id_for_request_digest(value: Sha256Digest | str) -> str:
+    """Return the deterministic provisional package identity for one request."""
+
+    text = str(value)
+    if not text.startswith("sha256:") or len(text) != 71:
+        raise ValueError("request digest must be a canonical sha256 digest")
+    return f"m2703.package.{text.removeprefix('sha256:')}"
+
+
 def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document = _dump(value)
     document.pop("result_digest", None)
@@ -38,7 +65,10 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 __all__ = [
     "canonical_request_digest",
+    "execution_id_for_request_digest",
     "normalized_request",
     "normalized_result_payload",
+    "package_id_for_request_digest",
+    "result_id_for_request_digest",
     "result_payload_digest",
 ]
