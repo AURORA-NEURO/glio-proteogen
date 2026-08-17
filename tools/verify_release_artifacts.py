@@ -298,6 +298,10 @@ _CLI_SCHEMA_SMOKE_TESTS = (
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-06:1.0.0:request",
     ),
     (
+        ("m05-01-export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-01:1.0.0:request",
+    ),
+    (
         ("proteoform-support", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-07:1.0.0:request",
     ),

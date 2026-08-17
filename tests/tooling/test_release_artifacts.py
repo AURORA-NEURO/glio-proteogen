@@ -468,6 +468,7 @@ def test_m0407_evidence_verifier_requires_exact_corpus_shape_and_budgets(
         verify_m0407_evidence(evaluation, benchmark)
 
     evaluation_report["executed_case_count"] = 19
+    evaluation.write_text(json.dumps(evaluation_report), encoding="utf-8")
     benchmark_report["evidence_count"] = 17
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
     with pytest.raises(ReleaseArtifactError, match="evidence_count"):
