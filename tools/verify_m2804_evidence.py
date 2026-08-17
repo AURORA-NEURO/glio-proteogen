@@ -19,6 +19,20 @@ EXPECTED_ITERATIONS = 10
 EXPECTED_FOCUSED_TESTS = 35
 EXPECTED_WEIGHTED_COVERED = 963
 EXPECTED_WEIGHTED_TOTAL = 1011
+EXPECTED_PACKAGE = {
+    "wheel": {
+        "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+        "bytes": 3336600,
+        "members": 1810,
+        "sha256": "c4a45503756d411826051769cfc0c1a77461c9ca928a5d8950035212abf54908",
+    },
+    "sdist": {
+        "filename": "glio_proteogen-0.1.0.tar.gz",
+        "bytes": 3653128,
+        "members": 4143,
+        "sha256": "bd134a4dfae5d2b262bf12cf7141499febdf806614b6a1e50bb9efd4e5e520be",
+    },
+}
 
 
 class M2804EvidenceError(ValueError):
@@ -96,13 +110,24 @@ def verify() -> dict[str, Any]:
     if not isinstance(wheel, dict) or not isinstance(sdist, dict):
         raise M2804EvidenceError("package records missing")
     for label, artifact in (("wheel", wheel), ("sdist", sdist)):
-        _require(bool(artifact.get("filename")), f"{label} filename missing")
-        _require(int(artifact.get("bytes", 0)) > 0, f"{label} size missing")
+        expected = EXPECTED_PACKAGE[label]
+        _require(
+            artifact.get("filename") == expected["filename"],
+            f"{label} filename drifted",
+        )
+        _require(
+            artifact.get("bytes") == expected["bytes"],
+            f"{label} byte count drifted",
+        )
+        _require(
+            artifact.get("members") == expected["members"],
+            f"{label} member count drifted",
+        )
         _require(
             SHA256_PATTERN.fullmatch(str(artifact.get("sha256", ""))) is not None,
             f"{label} hash invalid",
         )
-        _require(int(artifact.get("members", 0)) > 0, f"{label} member count missing")
+        _require(artifact.get("sha256") == expected["sha256"], f"{label} hash drifted")
     _require(package.get("isolated_import") is True, "isolated import was not verified")
     _require(package.get("release_verifier") == "passed", "release verifier did not pass")
     artifact_audit = package.get("artifact_audit")
