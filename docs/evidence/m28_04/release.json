@@ -1,0 +1,35 @@
+{
+  "abi": "0.1.0-provisional",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_slice": "9888-9928",
+  "benchmark_mean_ns": 2113360.0,
+  "benchmark_p95_ns": 2663800,
+  "branch_coverage_exact": 95.25222551928783,
+  "commit_chain": [
+    "26d39655",
+    "b4949000",
+    "7ba0e71e",
+    "4da9424a",
+    "c7063d0d",
+    "03557340",
+    "570b918b",
+    "e13e82e0",
+    "677ec1fc"
+  ],
+  "focused_tests": 35,
+  "module_id": "GLIO-PROTEOGEN-M28-04",
+  "python_loc": {
+    "implementation_and_evaluator_additions": 2073,
+    "test_additions": 914,
+    "total_additions": 2987
+  },
+  "ruff": "passed",
+  "mypy_strict_files": 21,
+  "mypy": "passed",
+  "compileall": "passed",
+  "evaluator": "10/10",
+  "package": "passed",
+  "release_verifier": "passed",
+  "worktree_clean_before_evidence": true,
+  "ci_note": "Repository Actions billing/spending-limit failures before job steps are external CI provisioning blockers."
+}
