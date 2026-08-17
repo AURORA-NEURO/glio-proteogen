@@ -1076,6 +1076,8 @@ def _proteoform_support_contract_schema(
     name: M0407ContractName,
 ) -> dict[str, object]:
     return m0407_contract_json_schema(name)
+
+
 def _ptm_localization_lineage_contract_schema(
     name: M0502ContractName,
 ) -> dict[str, object]:
@@ -2596,6 +2598,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformSupportRouteResult:
         return proteoform_support_service._execute_validated(request)
+
     @app.get("/v1/contracts/M05-02/{name}/schema", tags=["contracts"])
     def ptm_localization_lineage_contract_schema(
         name: M0502ContractName,
