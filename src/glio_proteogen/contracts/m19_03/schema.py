@@ -103,7 +103,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
 
 
 def contract_json_schemas() -> dict[ContractName, dict[str, object]]:
-    """Return all seven provisional M19-03 schemas in ABI order."""
+    """Return all public provisional M19-03 schemas in ABI order."""
 
     names = cast("tuple[ContractName, ...]", tuple(_CONTRACTS))
     return {name: contract_json_schema(name) for name in names}
