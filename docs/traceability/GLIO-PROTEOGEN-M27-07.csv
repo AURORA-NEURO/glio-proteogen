@@ -1,0 +1,7 @@
+requirement,implementation,evidence,status
+classification and impact,contracts/m27_07/v1.py::ChangeClassification,tests/contract/test_m27_07_provisional.py,passed
+revalidation completeness,contracts/m27_07/v1.py::RevalidationPlan,tests/coverage/test_m2707_adversarial.py,passed
+champion/challenger comparison,engine.py::M2707ChangeControlEngine.evaluate,evals/m27_07/run.py,passed
+tested rollback,contracts/m27_07/v1.py::RollbackPoint,tests/runtime/test_m2707_change_control.py,passed
+critical regression abstention,engine.py::M2707ChangeControlEngine.evaluate,tests/coverage/test_m2707_adversarial.py,passed
+strict API/CLI/plugin,api.py + cli.py + plugin.py,tests/integration/test_m2707_interfaces.py,passed
