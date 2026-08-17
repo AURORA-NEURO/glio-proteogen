@@ -852,6 +852,8 @@ def verify_m2607_evidence(evaluation: Path, benchmark: Path, package: Path | Non
     _verify_m2607_benchmark(_load_json_evidence(benchmark, "M26-07 benchmark report"))
     if package is not None:
         _verify_m2607_package(_load_json_evidence(package, "M26-07 package report"))
+
+
 def _verify_m0406_evaluation(evaluation_report: Mapping[str, object]) -> None:
     label = "M04-06 evaluation report"
     if evaluation_report.get("module_id") != _M0406_MODULE_ID:
