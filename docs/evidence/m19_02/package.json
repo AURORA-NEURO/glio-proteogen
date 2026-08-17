@@ -4,14 +4,14 @@
   "dossier_slice": "6560-6600",
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "sha256": "a3d349504405ed27e269a34b085235a3fd53340633044ffba0f13409ee631153",
-    "size_bytes": 927647,
-    "member_count": 403
+    "sha256": "20c3ed6a46326212de4f4c090983848ad8013de074ded7d52bb0db5c1eaca918",
+    "size_bytes": 2396370,
+    "member_count": 1253
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "f587c19ce621a6e21b560b85753a1ff938e6a277e2147ea973b142d929f0a819",
-    "size_bytes": 1507306
+    "sha256": "d1c979f945fea61a7d58326225067bc97695070c9229f6f4a3ca422cbd737d19",
+    "size_bytes": 2913090
   },
   "isolated_import": true,
   "build_backend": "hatchling 1.31.0",

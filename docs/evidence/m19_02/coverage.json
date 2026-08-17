@@ -3,12 +3,12 @@
   "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "6560-6600",
   "branch": true,
-  "percent": 98.4585741811175,
+  "percent": 98.73015873015873,
   "fail_under": 95.0,
-  "statements": 431,
-  "covered_statements": 427,
-  "branches": 88,
-  "covered_branches": 84,
+  "statements": 534,
+  "covered_statements": 530,
+  "branches": 96,
+  "covered_branches": 92,
   "missing_statements": 4,
   "partial_branches": 4
 }
