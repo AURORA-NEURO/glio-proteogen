@@ -721,6 +721,7 @@ class PtmLocalizationArtifactDetectionResult(FrozenModel):
         from glio_proteogen.contracts.m05_05.canonical import (  # noqa: PLC0415
             canonical_request_digest,
             configuration_digest,
+            contamination_flag_digest,
             policy_digest,
             result_payload_digest,
         )
@@ -734,6 +735,39 @@ class PtmLocalizationArtifactDetectionResult(FrozenModel):
             raise ValueError("result configuration digest is stale")
         if self.receipt_digest != self.receipt.receipt_digest:
             raise ValueError("result receipt digest is stale")
+        if self.receipt.disposition is not self.disposition:
+            raise ValueError("result disposition does not match its receipt")
+        expected_receipt_bindings = (
+            (self.receipt.quality_result_digest, self.request.quality_result_digest),
+            (self.receipt.quality_contract_version, self.request.quality_contract_version),
+            (self.receipt.quality_configuration_digest, self.request.quality_configuration_digest),
+            (self.receipt.quality_receipt_digest, self.request.quality_receipt_digest),
+            (self.receipt.identity_resolution_digest, self.request.identity_resolution_digest),
+            (self.receipt.raw_input_receipt_digest, self.request.raw_input_receipt_digest),
+            (self.receipt.detector_policy_digest, self.policy_digest),
+            (self.receipt.detector_configuration_digest, self.configuration_digest),
+            (
+                self.receipt.evidence_ledger_digest,
+                self.request.evidence_ledger.ledger_digest
+                if self.request.evidence_ledger is not None
+                else None,
+            ),
+            (self.receipt.finding_codes, tuple(item.code for item in self.findings)),
+            (
+                self.receipt.posterior_digests,
+                tuple(item.posterior_digest for item in self.artifact_posteriors),
+            ),
+            (
+                self.receipt.contamination_flag_digests,
+                tuple(sorted(contamination_flag_digest(item) for item in self.contamination_flags)),
+            ),
+            (
+                self.receipt.excluded_target_ids,
+                tuple(item.target_id for item in self.exclusion_mask),
+            ),
+        )
+        if any(actual != expected for actual, expected in expected_receipt_bindings):
+            raise ValueError("result receipt does not bind the complete detector output")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not bind its canonical payload")
         posteriors = {item.posterior_digest: item for item in self.artifact_posteriors}

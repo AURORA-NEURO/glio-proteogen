@@ -267,33 +267,35 @@ def _result(  # noqa: PLR0913 - each closure field is independently auditable.
 ) -> PtmLocalizationReleaseResult:
     released = not quarantine_reasons
     req_digest = canonical_request_digest(request)
-    result = PtmLocalizationReleaseResult(
-        release_result_id=f"result.{request.manifest.release_id}",
-        request_digest=req_digest,
-        manifest_digest=manifest_digest(request.manifest),
-        disposition=(
+    payload: dict[str, object] = {
+        "release_result_id": f"result.{request.manifest.release_id}",
+        "request_digest": req_digest,
+        "manifest_digest": manifest_digest(request.manifest),
+        "disposition": (
             PtmLocalizationReleaseDisposition.RELEASED
             if released
             else PtmLocalizationReleaseDisposition.QUARANTINED
         ),
-        signature_verified=signature_verified,
-        signature_reason=signature_reason,
-        package_digest=package_digest,
-        package_member_count=package_member_count,
-        support=SupportDecision(
+        "signature_verified": signature_verified,
+        "signature_reason": signature_reason,
+        "package_digest": package_digest,
+        "package_member_count": package_member_count,
+        "support": SupportDecision(
             status=request.manifest.support_status,
             reason_code="manifest_support_status",
             rationale="support status is caller-owned and was not inferred by M05-08",
         ),
-        provenance=_provenance(request, req_digest, request.manifest),
-        evidence=_evidence(request),
-        limitations=_limitations(),
-        quarantine_reasons=quarantine_reasons,
-        human_review_required=not released,
-        completed_at=datetime.now(UTC),
-        result_digest="sha256:" + "0" * 64,
-    )
-    return result.model_copy(update={"result_digest": result_payload_digest(result)})
+        "provenance": _provenance(request, req_digest, request.manifest),
+        "evidence": _evidence(request),
+        "limitations": _limitations(),
+        "quarantine_reasons": quarantine_reasons,
+        "human_review_required": not released,
+        "completed_at": datetime.now(UTC),
+        "result_digest": "sha256:" + "0" * 64,
+    }
+    constructed = PtmLocalizationReleaseResult.model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(constructed)
+    return PtmLocalizationReleaseResult.model_validate(payload, strict=True)
 
 
 def _artifact_members(
