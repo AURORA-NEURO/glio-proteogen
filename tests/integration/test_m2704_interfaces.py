@@ -12,11 +12,14 @@ from glio_proteogen.contracts.m27_04 import contract_json_schemas
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.api import create_app
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.cli import app
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.sdk import M2704Client
-
 from tests.runtime.test_m2704_runtime import _request
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+HTTP_OK = 200
+HTTP_NOT_FOUND = 404
+HTTP_UNPROCESSABLE_CONTENT = 422
 
 
 def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
@@ -31,17 +34,17 @@ def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
         malformed = client.post("/v1/modules/M27-04/publish", content=b"{not-json")
         unknown = client.get("/v1/modules/M27-04/schemas/unknown")
 
-    assert schemas.status_code == 200
+    assert schemas.status_code == HTTP_OK
     assert set(schemas.json()) == set(contract_json_schemas())
-    assert schema.status_code == 200
+    assert schema.status_code == HTTP_OK
     assert schema.json()["x-glio-contract"]["provisionalAbi"] is True
-    assert validated.status_code == 200
-    assert published.status_code == 200
-    assert verified.status_code == 200
+    assert validated.status_code == HTTP_OK
+    assert published.status_code == HTTP_OK
+    assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
-    assert malformed.status_code == 422
+    assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert "Traceback" not in malformed.text
-    assert unknown.status_code == 404
+    assert unknown.status_code == HTTP_NOT_FOUND
 
 
 def test_api_rejects_duplicate_json_keys_and_true_async_claims() -> None:
@@ -53,8 +56,8 @@ def test_api_rejects_duplicate_json_keys_and_true_async_claims() -> None:
         claim["unknown_claim"] = True
         claim_response = client.post("/v1/modules/M27-04/validate", json=claim)
 
-    assert duplicate_response.status_code == 422
-    assert claim_response.status_code == 422
+    assert duplicate_response.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert claim_response.status_code == HTTP_UNPROCESSABLE_CONTENT
 
 
 def test_cli_schema_validate_publish_verify_and_no_overwrite(tmp_path: Path) -> None:
