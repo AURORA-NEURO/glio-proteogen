@@ -24,6 +24,7 @@ else:
     from evals.m27_05.fixture import build_request
 
 _EXPECTED_SAMPLE_COUNT = 9
+_FIXTURE_DIGEST = "sha256:ff5606a7368f85fdecffc0ce9a44f94def90e8a9c8286e532cd2b2c83636704d"
 
 
 def run() -> dict[str, object]:
@@ -55,6 +56,9 @@ def run() -> dict[str, object]:
     return {
         "module_id": "GLIO-PROTEOGEN-M27-05",
         "checks": checks,
+        "checks_declared": len(checks),
+        "checks_passed": sum(checks.values()),
+        "fixture_digest": _FIXTURE_DIGEST,
         "passed": all(checks.values()),
     }
 
