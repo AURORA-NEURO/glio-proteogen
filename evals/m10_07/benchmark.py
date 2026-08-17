@@ -11,6 +11,12 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m10_07.run import MODULE_ID, build_request
 from glio_proteogen.contracts.m10_07 import (
     M1007_BENCHMARK_ITERATIONS,
     M1007_MEAN_BUDGET_NS,
@@ -19,8 +25,6 @@ from glio_proteogen.contracts.m10_07 import (
 from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction import (
     M1007Service,
 )
-
-from .run import MODULE_ID, build_request
 
 ITERATIONS: Final = M1007_BENCHMARK_ITERATIONS
 

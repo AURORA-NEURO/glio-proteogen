@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Final, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m07_07.fixtures import request
 from glio_proteogen.contracts.m07_07 import SelectiveCandidate
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction import (
@@ -13,8 +20,6 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_
     M0707CalibrationEngine,
     M0707Service,
 )
-
-from .fixtures import request
 
 _SCENARIOS: Final = Path(__file__).with_name("scenarios.json")
 

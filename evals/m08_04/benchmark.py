@@ -4,8 +4,15 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Final
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m08_04.run import build_request
 from glio_proteogen.modules.c08_transcript_protein_discordance import (

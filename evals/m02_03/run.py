@@ -12,6 +12,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, TypedDict, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from glio_proteogen.contracts.m01_03 import Compression, RawFormat, RawIngestionPolicy
 from glio_proteogen.contracts.m02_03 import (
     IdentificationIngestionPolicy,

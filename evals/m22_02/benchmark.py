@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from statistics import mean, median
 from time import perf_counter_ns
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m22_02.run import build_request
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501

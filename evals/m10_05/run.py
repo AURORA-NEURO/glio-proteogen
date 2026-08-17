@@ -11,6 +11,11 @@ from typing import Final
 
 from pydantic import ValidationError
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from glio_proteogen.contracts.m10_05 import (
     M1005_M1002_RESULT_MEDIA_TYPE,
     M1005_M1004_RESULT_MEDIA_TYPE,

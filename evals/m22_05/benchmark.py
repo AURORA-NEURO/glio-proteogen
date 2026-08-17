@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from statistics import median
 from time import perf_counter_ns
 from typing import Any
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m22_05.fixture import build_request
 from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evaluator import (
     M2205EquityEngine,
 )
-
-from .fixture import build_request
 
 MEAN_BUDGET_NS = 500_000_000
 P95_BUDGET_NS = 750_000_000

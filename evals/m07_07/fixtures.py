@@ -75,7 +75,11 @@ def artifact(name: str, media_type: str = "application/json") -> ArtifactReferen
     )
 
 
-def context(consent_state: ConsentState = ConsentState.GRANTED) -> ExecutionContext:
+def context(
+    consent_state: ConsentState = ConsentState.GRANTED,
+    *,
+    request_id: str = "request.context",
+) -> ExecutionContext:
     accepted = UpstreamDecisionReference(
         decision_id="decision.accepted",
         state=UpstreamDecisionState.ACCEPTED,
@@ -83,7 +87,7 @@ def context(consent_state: ConsentState = ConsentState.GRANTED) -> ExecutionCont
         evidence=artifact("control"),
     )
     return ExecutionContext(
-        request_id="request.context",
+        request_id=request_id,
         actor_id="actor.synthetic",
         occurred_at=_WHEN,
         references=ContextReferences(
@@ -118,7 +122,7 @@ def upstream(*, supported: bool) -> CopyNumberDosageUncertaintyDecompositionResu
     )
     request = DecomposeCopyNumberDosageUncertaintyRequest(
         request_id="request.upstream",
-        context=context(),
+        context=context(request_id="request.upstream"),
         constraint_result=artifact("constraint", M0706_CONSTRAINT_MEDIA_TYPE),
         policy=policy,
         source_artifacts=(artifact("upstream"),),
@@ -240,7 +244,7 @@ def request(
         )
     return CalibrateSelectiveCopyNumberDosageRequest(
         request_id="request.m0707",
-        context=context(consent_state),
+        context=context(consent_state, request_id="request.m0707"),
         uncertainty_result=upstream(supported=supported),
         policy=active_policy,
         source_artifacts=(artifact("input"),),

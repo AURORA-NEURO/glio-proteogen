@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import statistics
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m25_03.fixture import build_request
 from glio_proteogen.modules.c21_reference_material.m25_03_internal_benchmark_ablation import (
     M2503Service,
 )
-
-from .fixture import build_request
 
 BENCHMARK_VERSION: Final = "m25-03-benchmark-v1"
 MEAN_BUDGET_NS: Final = 500_000_000

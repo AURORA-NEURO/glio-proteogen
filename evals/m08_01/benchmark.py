@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import statistics
+import sys
 import time
+from pathlib import Path
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m08_01.fixtures import request
 from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import M0801Service
-
-from .fixtures import request
 
 
 def measure(iterations: int = 10) -> dict[str, float | int]:

@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m26_06.fixture import request_for
 from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
     M2606SecurityService,
 )
-
-from .fixture import request_for
 
 _MIN_ITERATIONS = 3
 
