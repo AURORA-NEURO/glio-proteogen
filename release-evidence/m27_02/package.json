@@ -5,8 +5,8 @@
   "reproducible_builds": 2,
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "e8552a7bb6d5964197a7ec175f58b96b03b5b39fa1ea46a7def2e64c7d314be4",
-    "size_bytes": 2210679
+    "sha256": "9fd472060f34d080d2568f8a4f5bb36aad6052747f450437fc986ace65ee4920",
+    "size_bytes": 1487947
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
