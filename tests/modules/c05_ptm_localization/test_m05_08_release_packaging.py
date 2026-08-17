@@ -193,8 +193,7 @@ def test_limited_support_quarantines_even_with_valid_signature() -> None:
 
     assert built.result.disposition is PtmLocalizationReleaseDisposition.QUARANTINED
     assert any(
-        item.code.value == "upstream_not_releasable"
-        for item in built.result.quarantine_reasons
+        item.code.value == "upstream_not_releasable" for item in built.result.quarantine_reasons
     )
 
 
@@ -205,9 +204,7 @@ def test_service_and_engine_return_same_manifest_and_package() -> None:
     built = service.build(request, artifacts)
 
     assert service.manifest(request) == request.manifest
-    assert built.result.request_digest == M0508PtmLocalizationReleaseEngine.request_digest(
-        request
-    )
+    assert built.result.request_digest == M0508PtmLocalizationReleaseEngine.request_digest(request)
 
 
 def test_plugin_parse_once_and_run_token() -> None:
@@ -253,6 +250,15 @@ def test_result_round_trips_strictly_after_package_build() -> None:
     encoded = canonical_json_bytes(built.result.model_dump(mode="json"))
 
     assert PtmLocalizationReleaseResult.model_validate_json(encoded, strict=True) == built.result
+
+
+def test_result_replay_rejects_forged_result_digest() -> None:
+    request, artifacts = _valid_fixture()
+    built = M0508PtmLocalizationReleaseEngine(_Verifier()).build(request, artifacts)
+    forged = built.result.model_copy(update={"result_digest": "sha256:" + ("0" * 64)})
+
+    with pytest.raises(ValueError, match="result digest"):
+        PtmLocalizationReleaseResult.model_validate(forged, strict=True)
 
 
 def test_authorization_denies_withheld_consent() -> None:

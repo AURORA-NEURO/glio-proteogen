@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m05_06 import (
     PtmLocalizationHarmonizationFinding,
     PtmLocalizationHarmonizationFindingAction,
     PtmLocalizationHarmonizationFindingCode,
+    PtmLocalizationHarmonizationResult,
     PtmLocalizationSupportLevelShift,
     PtmLocalizationSupportObservationState,
     PtmLocalizationSupportShiftState,
@@ -41,6 +42,7 @@ from glio_proteogen.contracts.m05_06.canonical import (
     normalized_result_payload,
     normalized_support_ledger,
     policy_digest,
+    result_payload_digest,
     support_ledger_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -237,6 +239,19 @@ def test_engine_rejects_stale_receipt_and_abstains_for_missing_profile_or_ledger
         M0506PtmLocalizationHarmonizationEngine().harmonize_validated(
             request.model_copy(update={"support_ledger": None})
         )
+
+
+def test_result_replay_rejects_self_digested_receipt_output_tamper(
+    clear_scenario: Any,
+) -> None:
+    result = M0506Service().execute(clear_scenario.request)
+    forged_receipt = result.receipt.model_copy(update={"analysis_digest": None})
+    object.__setattr__(forged_receipt, "receipt_digest", computation_receipt_digest(forged_receipt))
+    forged = result.model_copy(update={"receipt": forged_receipt})
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+
+    with pytest.raises(ValueError, match="receipt does not bind"):
+        PtmLocalizationHarmonizationResult.model_validate(forged, strict=True)
 
 
 def test_plugin_rejects_invalid_typed_token_and_post_validation_mutation(

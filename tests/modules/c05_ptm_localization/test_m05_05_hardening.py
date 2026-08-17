@@ -11,6 +11,7 @@ from evals.m05_05.run import build_scenario
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m05_05 import (
+    PtmLocalizationArtifactDetectionResult,
     PtmLocalizationArtifactDetectorClass,
     PtmLocalizationArtifactDisposition,
     PtmLocalizationArtifactEvidenceLedger,
@@ -99,6 +100,24 @@ def test_non_builtin_mapping_is_rejected_without_key_access() -> None:
         detect_ptm_localization_artifacts(cast("Any", _ExplodingMapping()))
 
     assert _ExplodingMapping.accesses == 0
+
+
+def test_result_replay_rejects_self_digested_receipt_disposition_tamper() -> None:
+    result = detect_ptm_localization_artifacts(build_scenario("clear").request)
+    forged_receipt = result.receipt.model_copy(
+        update={"disposition": PtmLocalizationArtifactDisposition.QUARANTINED}
+    )
+    object.__setattr__(forged_receipt, "receipt_digest", receipt_digest(forged_receipt))
+    forged = result.model_copy(
+        update={
+            "receipt": forged_receipt,
+            "receipt_digest": forged_receipt.receipt_digest,
+        }
+    )
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+
+    with pytest.raises(ValidationError, match="disposition"):
+        PtmLocalizationArtifactDetectionResult.model_validate(forged, strict=True)
 
 
 def test_unknown_outer_member_is_rejected_before_execution() -> None:
