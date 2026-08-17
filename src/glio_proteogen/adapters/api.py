@@ -330,6 +330,12 @@ from glio_proteogen.contracts.m05_02.v1 import (
     PtmLocalizationIdentityLineageResolution,
     ReconcilePtmLocalizationIdentityLineageRequest,
 )
+from glio_proteogen.contracts.m05_03.schema import (
+    ContractName as M0503ContractName,
+)
+from glio_proteogen.contracts.m05_03.schema import (
+    contract_json_schema as m0503_contract_json_schema,
+)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -522,11 +528,6 @@ from glio_proteogen.contracts.m27_02.v1 import (
     M2702_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
-from glio_proteogen.contracts.m05_03.schema import (
-    ContractName as M0503ContractName,
-)
-from glio_proteogen.contracts.m05_03.schema import (
-    contract_json_schema as m0503_contract_json_schema,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (

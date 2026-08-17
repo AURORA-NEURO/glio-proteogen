@@ -203,6 +203,13 @@ from glio_proteogen.contracts.m05_02 import (
     M0502_MAX_CANONICAL_REQUEST_BYTES,
     ReconcilePtmLocalizationIdentityLineageRequest,
 )
+from glio_proteogen.contracts.m05_03 import (
+    M0503_MAX_CANONICAL_REQUEST_BYTES,
+    M0503_MAX_DOCUMENT_BYTES,
+    M0503_MAX_TOTAL_DOCUMENT_BYTES,
+    IngestPtmLocalizationRawInputsRequest,
+    PtmLocalizationRawInputRole,
+)
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
     SimulateProteotypePerturbationRequest,
@@ -292,12 +299,6 @@ from glio_proteogen.contracts.m27_02 import (
     M2702_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
-from glio_proteogen.contracts.m05_03 import (
-    M0503_MAX_CANONICAL_REQUEST_BYTES,
-    M0503_MAX_DOCUMENT_BYTES,
-    M0503_MAX_TOTAL_DOCUMENT_BYTES,
-    IngestPtmLocalizationRawInputsRequest,
-    PtmLocalizationRawInputRole,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -474,6 +475,14 @@ from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import 
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
     _validate_json_request as _validate_m0502_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
+    M0503Service,
+    PtmLocalizationRawInputAuthorizationError,
+    PtmLocalizationRawInputError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
+    _validate_json_request as _validate_m0503_json_request,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -536,13 +545,6 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702Service,
     preflight_m2702_authorization,
-from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
-    M0503Service,
-    PtmLocalizationRawInputAuthorizationError,
-    PtmLocalizationRawInputError,
-)
-from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
-    _validate_json_request as _validate_m0503_json_request,
 )
 
 if TYPE_CHECKING:

@@ -1855,7 +1855,7 @@ def main() -> int:  # noqa: C901, PLR0912
         elif arguments.command == "m05-03-evidence":
             verify_m0503_evidence(arguments.evaluation, arguments.benchmark, arguments.fixture)
         else:
-            raise ReleaseArtifactError(f"unsupported release-evidence command: {arguments.command}")
+            return 2
     except ReleaseArtifactError as error:
         sys.stderr.write(f"release artifact verification failed: {error}\n")
         return 1

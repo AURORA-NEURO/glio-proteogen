@@ -34,7 +34,7 @@ SECURITY_POLICY = ROOT / "SECURITY.md"
 EVIDENCE_POLICY = ROOT / "docs" / "evidence" / "M01-01.md"
 SHA256_HEX_LENGTH = 64
 EXPECTED_RUNTIME_COMPONENTS = 2
-EXPECTED_MODULE_COUNT = 33
+EXPECTED_MODULE_COUNT = 34
 M0407_LOCKED_CHECK_NAMES = (
     "scenario.joint_supported",
     "scenario.outside_assay",
