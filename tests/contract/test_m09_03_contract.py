@@ -1,5 +1,6 @@
 """Focused contract/schema smoke for provisional M09-03."""
 
+from glio_proteogen.contracts import m09_03 as m0903
 from glio_proteogen.contracts.m09_03 import (
     M0903_OUTPUT_MEDIA_TYPE,
     M0903_PROVISIONAL_ABI,
@@ -8,6 +9,10 @@ from glio_proteogen.contracts.m09_03 import (
 )
 
 _SCHEMA_COUNT = 5
+
+
+def test_public_exports_are_defined_by_the_contract_package() -> None:
+    assert all(hasattr(m0903, name) for name in m0903.__all__)
 
 
 def test_provisional_schemas_require_locked_baseline_evidence() -> None:
