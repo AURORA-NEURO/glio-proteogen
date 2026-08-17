@@ -10,6 +10,9 @@ import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from tests.modules.c05_ptm_localization.test_m05_08_release_packaging import (
     _valid_fixture,
     _Verifier,
