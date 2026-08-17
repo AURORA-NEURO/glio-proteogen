@@ -1594,12 +1594,15 @@ def _verify_m0504_evaluation(
     if evaluation_report.get("passed") is not True:
         raise ReleaseArtifactError("M05-04 evaluation report did not pass")
     for field in ("declared_case_count", "executed_case_count"):
-        _require_exact_integer(evaluation_report, field, _M0504_CASE_COUNT, "M05-04 evaluation report")
+        _require_exact_integer(
+            evaluation_report, field, _M0504_CASE_COUNT, "M05-04 evaluation report"
+        )
     for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
         _require_empty_array(evaluation_report, field, "M05-04 evaluation report")
-    checks = tuple(_mapping(check, "M05-04 evaluation check") for check in _sequence(
-        evaluation_report.get("checks"), "M05-04 evaluation checks"
-    ))
+    checks = tuple(
+        _mapping(check, "M05-04 evaluation check")
+        for check in _sequence(evaluation_report.get("checks"), "M05-04 evaluation checks")
+    )
     if any(
         set(check) != {"name", "passed", "detail"}
         or type(check.get("name")) is not str
@@ -1610,12 +1613,16 @@ def _verify_m0504_evaluation(
     ):
         raise ReleaseArtifactError("M05-04 evaluation report contains a malformed or failed check")
     names = tuple(cast("str", check["name"]) for check in checks)
-    expected_names = ("corpus.inventory", *(f"scenario.{case_id}" for case_id in fixture_case_ids), "corpus.executable_coverage")
+    expected_names = (
+        "corpus.inventory",
+        *(f"scenario.{case_id}" for case_id in fixture_case_ids),
+        "corpus.executable_coverage",
+    )
     if names != expected_names or len(set(names)) != len(names):
         raise ReleaseArtifactError("M05-04 evaluation report lacks exact fixture scenario closure")
 
 
-def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:
+def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:  # noqa: C901
     if benchmark_report.get("module_id") != _M0504_MODULE_ID:
         raise ReleaseArtifactError("M05-04 benchmark report has the wrong module identity")
     if benchmark_report.get("contract_version") != "1.0.0":
@@ -1645,7 +1652,9 @@ def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:
     if benchmark_report.get("result_digest") != _M0504_BENCHMARK_RESULT_DIGEST:
         raise ReleaseArtifactError("M05-04 benchmark report has the wrong result digest")
     values = _sequence(benchmark_report.get("samples_ns"), "M05-04 timing samples")
-    if len(values) != _M0504_BENCHMARK_ITERATIONS or any(type(value) is not int or value <= 0 for value in values):
+    if len(values) != _M0504_BENCHMARK_ITERATIONS or any(
+        type(value) is not int or value <= 0 for value in values
+    ):
         raise ReleaseArtifactError("M05-04 benchmark report has invalid timing samples")
     samples = tuple(cast("int", value) for value in values)
     ordered = sorted(samples)
@@ -1654,24 +1663,35 @@ def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:
     p95 = benchmark_report.get("p95_ns")
     maximum = benchmark_report.get("maximum_ns")
     if (
-        isinstance(mean, bool) or not isinstance(mean, (int, float))
-        or isinstance(p50, bool) or not isinstance(p50, (int, float))
-        or isinstance(p95, bool) or not isinstance(p95, int)
-        or isinstance(maximum, bool) or not isinstance(maximum, int)
-        or not math.isfinite(mean) or not math.isfinite(p50)
-        or mean != fmean(samples) or p50 != median(samples)
+        isinstance(mean, bool)
+        or not isinstance(mean, (int, float))
+        or isinstance(p50, bool)
+        or not isinstance(p50, (int, float))
+        or isinstance(p95, bool)
+        or not isinstance(p95, int)
+        or isinstance(maximum, bool)
+        or not isinstance(maximum, int)
+        or not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean != fmean(samples)
+        or p50 != median(samples)
         or p95 != ordered[(95 * len(ordered) - 1) // 100]
         or maximum != max(samples)
         or benchmark_report.get("request_bytes") > _M0504_MAX_REQUEST_BYTES
-        or mean > _M0504_MEAN_BUDGET_NS or p95 > _M0504_P95_BUDGET_NS
+        or mean > _M0504_MEAN_BUDGET_NS
+        or p95 > _M0504_P95_BUDGET_NS
     ):
-        raise ReleaseArtifactError("M05-04 benchmark report disagrees with its samples, shape, or timing budgets")
+        raise ReleaseArtifactError(
+            "M05-04 benchmark report disagrees with its samples, shape, or timing budgets"
+        )
 
 
 def verify_m0504_evidence(evaluation: Path, benchmark: Path, fixture: Path) -> None:
     """Verify M05-04 exact corpus closure and maximum-shape timing evidence."""
     fixture_case_ids = _m0504_fixture_case_ids(fixture)
-    _verify_m0504_evaluation(_load_json_evidence(evaluation, "M05-04 evaluation report"), fixture_case_ids)
+    _verify_m0504_evaluation(
+        _load_json_evidence(evaluation, "M05-04 evaluation report"), fixture_case_ids
+    )
     _verify_m0504_benchmark(_load_json_evidence(benchmark, "M05-04 benchmark report"))
 
 
