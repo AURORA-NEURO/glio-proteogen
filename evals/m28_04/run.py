@@ -80,7 +80,9 @@ def run_evaluator() -> EvaluationReport:
     denied = request.model_copy(
         update={
             "authorizations": (
-                request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY}),
+                request.authorizations[0].model_copy(
+                    update={"decision": AuthorizationDecision.DENY}
+                ),
             )
         }
     )
@@ -90,7 +92,11 @@ def run_evaluator() -> EvaluationReport:
     rejected_context = request.context.model_copy(
         update={
             "references": request.context.references.model_copy(
-                update={"support": request.context.references.support.model_copy(update={"state": "rejected"})}
+                update={
+                    "support": request.context.references.support.model_copy(
+                        update={"state": "rejected"}
+                    )
+                }
             )
         }
     )
@@ -101,18 +107,59 @@ def run_evaluator() -> EvaluationReport:
             baseline.status is GatewayStatus.PUBLISHED and baseline.access_surface is not None,
             f"status={baseline.status.value}",
         ),
-        _check("deterministic_digest", engine.publish(request) == baseline, "repeated publication is byte-equivalent"),
-        _check("supported_replay", engine.replay(baseline) == baseline, "canonical result replay verified"),
-        _check("authorization_abstention", engine.publish(denied).status is GatewayStatus.ABSTAINED, "denied operation has no access surface"),
-        _check("unresolved_job_abstention", engine.publish(queued).status is GatewayStatus.ABSTAINED, "queued asynchronous job abstains safely"),
-        _check("control_preflight_fail_closed", _preflight_rejects(engine, request.model_copy(update={"context": rejected_context})), "rejected support control cannot publish"),
-        _check("sealed_plugin_parity", plugin.run(plugin.validate(GatewaySubmission(request.model_dump_json()))) == baseline, "plugin preserves service result"),
-        _check("tamper_replay_rejected", _tamper_rejected(baseline), "forged result identity cannot pass canonical replay"),
-        _check("strict_schema_metadata", len(contract_json_schemas()) == EXPECTED_SCHEMA_COUNT and all(_schema_requires_abstention(schema) for schema in contract_json_schemas().values()), "all schemas carry explicit abstention metadata"),
-        _check("api_publish_and_invalid_json", _api_paths(request.model_dump(mode="json")), "API publication succeeds and malformed JSON is rejected"),
+        _check(
+            "deterministic_digest",
+            engine.publish(request) == baseline,
+            "repeated publication is byte-equivalent",
+        ),
+        _check(
+            "supported_replay",
+            engine.replay(baseline) == baseline,
+            "canonical result replay verified",
+        ),
+        _check(
+            "authorization_abstention",
+            engine.publish(denied).status is GatewayStatus.ABSTAINED,
+            "denied operation has no access surface",
+        ),
+        _check(
+            "unresolved_job_abstention",
+            engine.publish(queued).status is GatewayStatus.ABSTAINED,
+            "queued asynchronous job abstains safely",
+        ),
+        _check(
+            "control_preflight_fail_closed",
+            _preflight_rejects(engine, request.model_copy(update={"context": rejected_context})),
+            "rejected support control cannot publish",
+        ),
+        _check(
+            "sealed_plugin_parity",
+            plugin.run(plugin.validate(GatewaySubmission(request.model_dump_json()))) == baseline,
+            "plugin preserves service result",
+        ),
+        _check(
+            "tamper_replay_rejected",
+            _tamper_rejected(baseline),
+            "forged result identity cannot pass canonical replay",
+        ),
+        _check(
+            "strict_schema_metadata",
+            len(contract_json_schemas()) == EXPECTED_SCHEMA_COUNT
+            and all(
+                _schema_requires_abstention(schema) for schema in contract_json_schemas().values()
+            ),
+            "all schemas carry explicit abstention metadata",
+        ),
+        _check(
+            "api_publish_and_invalid_json",
+            _api_paths(request.model_dump(mode="json")),
+            "API publication succeeds and malformed JSON is rejected",
+        ),
     ]
     if len(checks) != EXPECTED_CHECK_COUNT:
-        raise InvalidEvaluatorMatrixError(f"expected {EXPECTED_CHECK_COUNT} checks, got {len(checks)}")  # noqa: TRY003
+        raise InvalidEvaluatorMatrixError(  # noqa: TRY003
+            f"expected {EXPECTED_CHECK_COUNT} checks, got {len(checks)}"
+        )
     return EvaluationReport(
         module_id=MODULE_ID,
         scenario_id=SCENARIO_ID,
@@ -122,7 +169,9 @@ def run_evaluator() -> EvaluationReport:
     )
 
 
-def _preflight_rejects(engine: M2804GatewayEngine, request: PublishProteinRnaDiscordanceAccessSurfaceRequest) -> bool:
+def _preflight_rejects(
+    engine: M2804GatewayEngine, request: PublishProteinRnaDiscordanceAccessSurfaceRequest
+) -> bool:
     try:
         engine.publish(request)
     except M2804AuthorizationError:

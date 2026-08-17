@@ -123,13 +123,13 @@ def test_collection_validator_closes_each_typed_reference_path() -> None:
             match=r"(gateway|authorization|idempotency|async|compatibility|audit|protocol)",
         ):
             _validate_gateway_collections(
-                operations_,
-                authorizations_,
-                idempotency_,
-                jobs_,
-                compatibility_,
-                audit_,
-                configuration_,
+                operations=operations_,
+                authorizations=authorizations_,
+                idempotency_records=idempotency_,
+                jobs=jobs_,
+                compatibility_rules=compatibility_,
+                audit_events=audit_,
+                configuration=configuration_,
             )
 
     check(operations_=(operations[0], operations[0]))

@@ -16,7 +16,9 @@ if not __package__:
 
 from evals.m28_04.fixture import build_request
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.engine import M2804GatewayEngine
+from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.engine import (
+    M2804GatewayEngine,
+)
 
 ITERATIONS: Final = 10
 MEAN_BUDGET_NS: Final = 500_000_000

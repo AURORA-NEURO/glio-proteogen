@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M28-04."""
 
+from typing import Any, cast
+
 from glio_proteogen.contracts.m28_04 import (
     M2804_OUTPUT_MEDIA_TYPE,
     M2804_PROVISIONAL_ABI,
@@ -27,7 +29,7 @@ def _evidence() -> EvidenceReference:
 
 
 def test_provisional_schemas_preserve_gateway_boundaries() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == _SCHEMA_COUNT
     assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())

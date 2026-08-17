@@ -221,6 +221,7 @@ class GatewayConfiguration(FrozenModel):
 
 
 def _validate_gateway_collections(  # noqa: PLR0912, PLR0913
+    *,
     operations: tuple[GatewayOperation, ...],
     authorizations: tuple[AuthorizationRecord, ...],
     idempotency_records: tuple[IdempotencyRecord, ...],
@@ -286,13 +287,13 @@ class AccessSurface(FrozenModel):
     @model_validator(mode="after")
     def surface_is_closed(self) -> AccessSurface:
         _validate_gateway_collections(
-            self.operations,
-            self.authorizations,
-            self.idempotency_records,
-            self.jobs,
-            self.compatibility_rules,
-            self.audit_events,
-            self.configuration,
+            operations=self.operations,
+            authorizations=self.authorizations,
+            idempotency_records=self.idempotency_records,
+            jobs=self.jobs,
+            compatibility_rules=self.compatibility_rules,
+            audit_events=self.audit_events,
+            configuration=self.configuration,
         )
         return self
 
@@ -336,13 +337,13 @@ class PublishProteinRnaDiscordanceAccessSurfaceRequest(FrozenModel):
     @model_validator(mode="after")
     def request_is_closed(self) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
         _validate_gateway_collections(
-            self.operations,
-            self.authorizations,
-            self.idempotency_records,
-            self.jobs,
-            self.compatibility_rules,
-            self.audit_events,
-            self.configuration,
+            operations=self.operations,
+            authorizations=self.authorizations,
+            idempotency_records=self.idempotency_records,
+            jobs=self.jobs,
+            compatibility_rules=self.compatibility_rules,
+            audit_events=self.audit_events,
+            configuration=self.configuration,
         )
         return self
 

@@ -90,7 +90,9 @@ def _context(request_id: str) -> ExecutionContext:
     )
 
 
-def build_request(request_id: str = "m2804.request.gateway") -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
+def build_request(
+    request_id: str = "m2804.request.gateway",
+) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
     """Build the frozen representative request used by executable evidence."""
 
     evidence = (_evidence(),)
