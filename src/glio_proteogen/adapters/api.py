@@ -297,6 +297,17 @@ from glio_proteogen.contracts.m04_06.v1 import (
     HarmonizeProteoformAnalysisRequest,
     ProteoformHarmonizationResult,
 )
+from glio_proteogen.contracts.m04_07.schema import (
+    ContractName as M0407ContractName,
+)
+from glio_proteogen.contracts.m04_07.schema import (
+    contract_json_schema as m0407_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_07.v1 import (
+    M0407_MAX_CANONICAL_REQUEST_BYTES,
+    ProteoformSupportRouteResult,
+    RouteProteoformSupportRequest,
+)
 from glio_proteogen.contracts.m05_01.schema import (
     ContractName as M0501ContractName,
 )
@@ -501,17 +512,6 @@ from glio_proteogen.contracts.m27_02.v1 import (
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
 )
-from glio_proteogen.contracts.m04_07.schema import (
-    ContractName as M0407ContractName,
-)
-from glio_proteogen.contracts.m04_07.schema import (
-    contract_json_schema as m0407_contract_json_schema,
-)
-from glio_proteogen.contracts.m04_07.v1 import (
-    M0407_MAX_CANONICAL_REQUEST_BYTES,
-    ProteoformSupportRouteResult,
-    RouteProteoformSupportRequest,
-)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -676,6 +676,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
     _validate_json_request as _validate_m0406_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
+    M0407Service,
+    ProteoformSupportAuthorizationError,
+    preflight_proteoform_support_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
+    _validate_json_request as _validate_m0407_json_request,
+)
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
     M0501Service,
     PtmLocalizationProtocolAuthorizationError,
@@ -747,14 +755,6 @@ from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
     M2702Service,
     preflight_m2702_authorization,
-)
-from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
-    M0407Service,
-    ProteoformSupportAuthorizationError,
-    preflight_proteoform_support_authorization,
-)
-from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
-    _validate_json_request as _validate_m0407_json_request,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)

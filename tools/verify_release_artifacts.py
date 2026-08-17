@@ -1484,7 +1484,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:  # noqa: C901
+def main() -> int:  # noqa: C901, PLR0912
     """Run release-artifact verification without exposing artifact contents on failure."""
 
     arguments = _parser().parse_args()
