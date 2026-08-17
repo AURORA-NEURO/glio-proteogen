@@ -1,6 +1,7 @@
 """Negative-path and replay hardening tests for M05-07."""
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -147,7 +148,7 @@ def _request(**updates: object) -> RoutePtmLocalizationSupportRequest:
         "declared_facts": _facts(),
     }
     values.update(updates)
-    return RoutePtmLocalizationSupportRequest(**values)
+    return RoutePtmLocalizationSupportRequest(**cast("Any", values))
 
 
 def _receipt(
@@ -171,9 +172,9 @@ def _receipt(
         )
     values.update(updates)
     values["receipt_digest"] = receipt_digest(
-        PtmLocalizationSupportReceipt.model_construct(**values)
+        PtmLocalizationSupportReceipt.model_construct(**cast("Any", values))
     )
-    return PtmLocalizationSupportReceipt(**values)
+    return PtmLocalizationSupportReceipt(**cast("Any", values))
 
 
 def _provenance(request: RoutePtmLocalizationSupportRequest) -> ProvenanceRecord:
@@ -304,9 +305,9 @@ def _result(
         )
     values.update(updates)
     values["result_digest"] = result_payload_digest(
-        PtmLocalizationSupportRouteResult.model_construct(**values)
+        PtmLocalizationSupportRouteResult.model_construct(**cast("Any", values))
     )
-    return PtmLocalizationSupportRouteResult(**values)
+    return PtmLocalizationSupportRouteResult(**cast("Any", values))
 
 
 def test_policy_rejects_missing_dimension() -> None:

@@ -1,6 +1,7 @@
 """Focused checks for the provisional M05-07 contract spine."""
 
 from datetime import UTC, datetime
+from typing import cast
 
 from glio_proteogen.contracts.m05_07 import (
     M0507_M0506_RESULT_MEDIA_TYPE,
@@ -56,4 +57,7 @@ def test_m05_06_handoff_is_opaque_and_media_type_bound() -> None:
 def test_schema_exports_mark_the_abi_provisional() -> None:
     schemas = contract_json_schemas()
     assert set(schemas) == {"request", "output", "policy", "prerequisites", "fact", "receipt"}
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
+    assert all(
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"]
+        for schema in schemas.values()
+    )

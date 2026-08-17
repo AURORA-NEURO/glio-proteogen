@@ -30,12 +30,12 @@ from tests.contract.test_m05_07_hardening import _request
 
 
 def _receipt_payload() -> dict[str, Any]:
-    return cast("dict[str, Any]", M0507Service().execute(_request()).receipt.model_dump())
+    return M0507Service().execute(_request()).receipt.model_dump()
 
 
 def _result_payload() -> dict[str, Any]:
     result = M0507Service().execute(_request())
-    payload = cast("dict[str, Any]", result.model_dump())
+    payload = result.model_dump()
     payload["result_digest"] = result_payload_digest(payload)
     return payload
 
@@ -157,7 +157,7 @@ def test_supported_result_requires_supported_decision_and_no_remediation() -> No
         }
     )
     with pytest.raises(ValueError, match="supported result cannot carry"):
-        candidate.result_is_closed()
+        cast("Any", candidate).result_is_closed()
 
     candidate = PtmLocalizationSupportRouteResult.model_construct(
         **{
@@ -168,7 +168,7 @@ def test_supported_result_requires_supported_decision_and_no_remediation() -> No
         }
     )
     with pytest.raises(ValueError, match="requires supported status"):
-        candidate.result_is_closed()
+        cast("Any", candidate).result_is_closed()
 
 
 def test_strict_validator_preserves_authorization_errors() -> None:
