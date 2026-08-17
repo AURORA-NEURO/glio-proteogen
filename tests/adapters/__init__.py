@@ -1,1 +1,1 @@
-"""M19-01 adapter test package."""
+"""Adapter test package for the stacked module integrations."""
