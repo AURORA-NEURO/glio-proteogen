@@ -19,8 +19,8 @@ from glio_proteogen.contracts.m27_04 import (
     CompatibilityStatus,
     GatewayConfiguration,
     GatewayError,
-    GatewayStatus,
     GatewayOperation,
+    GatewayStatus,
     IdempotencyRecord,
     JobStatus,
     OperationStatus,
@@ -104,7 +104,9 @@ def _context(request_id: str) -> ExecutionContext:
     )
 
 
-def _request(request_id: str = "m2704.request.gateway") -> PublishComplexActivityAccessSurfaceRequest:
+def _request(
+    request_id: str = "m2704.request.gateway",
+) -> PublishComplexActivityAccessSurfaceRequest:
     evidence = (_evidence(),)
     operation = GatewayOperation(
         operation_id="m2704.operation.read",
@@ -178,7 +180,15 @@ def _request(request_id: str = "m2704.request.gateway") -> PublishComplexActivit
         idempotency_records=(idempotency,),
         jobs=(job,),
         compatibility_rules=(compatibility,),
-        errors=(GatewayError(error_id="m2704.error.denied", code="authorization_denied", message="The operation is not authorized.", retryable=False, evidence=evidence),),
+        errors=(
+            GatewayError(
+                error_id="m2704.error.denied",
+                code="authorization_denied",
+                message="The operation is not authorized.",
+                retryable=False,
+                evidence=evidence,
+            ),
+        ),
         audit_events=(audit,),
         configuration=configuration,
         source_artifacts=sources,
@@ -196,9 +206,18 @@ def test_published_surface_is_deterministic_and_replayable() -> None:
     assert first.result_id == result_identifier(first.request_digest)
     assert first.support_decision.status is SupportStatus.SUPPORTED
     assert engine.replay(first) == first
-    assert all(getattr(first.uncertainty, axis).state.value == "not_estimable" for axis in (
-        "measurement", "sampling", "parameter", "model_form", "identification", "support", "transport"
-    ))
+    assert all(
+        getattr(first.uncertainty, axis).state.value == "not_estimable"
+        for axis in (
+            "measurement",
+            "sampling",
+            "parameter",
+            "model_form",
+            "identification",
+            "support",
+            "transport",
+        )
+    )
 
 
 def test_denied_operation_abstains_without_surface() -> None:
@@ -222,9 +241,13 @@ def test_unresolved_job_abstains_without_surface() -> None:
 def test_authorization_preflight_fails_closed() -> None:
     request = _request()
     references = request.context.references.model_copy(
-        update={"support": request.context.references.support.model_copy(update={"state": "rejected"})}
+        update={
+            "support": request.context.references.support.model_copy(update={"state": "rejected"})
+        }
     )
-    denied = request.model_copy(update={"context": request.context.model_copy(update={"references": references})})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
     with pytest.raises(M2704AuthorizationError):
         M2704GatewayEngine().publish(denied)
 
