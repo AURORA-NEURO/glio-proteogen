@@ -172,15 +172,11 @@ def test_request_byte_caps_fail_closed_for_mapping_and_typed_requests(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     payload = cast("dict[str, object]", _request().model_dump(mode="json"))
-    payload["padding"] = "x" * (
-        cast("Any", engine_module).M0507_MAX_CANONICAL_REQUEST_BYTES + 1
-    )
+    payload["padding"] = "x" * (cast("Any", engine_module).M0507_MAX_CANONICAL_REQUEST_BYTES + 1)
     with pytest.raises(ValueError, match="canonical request exceeds"):
         M0507PtmLocalizationSupportEngine().route(payload)
 
-    monkeypatch.setattr(
-        cast("Any", engine_module), "M0507_MAX_CANONICAL_REQUEST_BYTES", 0
-    )
+    monkeypatch.setattr(cast("Any", engine_module), "M0507_MAX_CANONICAL_REQUEST_BYTES", 0)
     with pytest.raises(ValueError, match="canonical request exceeds"):
         M0507PtmLocalizationSupportEngine().route(_request())
 
