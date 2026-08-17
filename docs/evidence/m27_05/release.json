@@ -7,8 +7,8 @@
   "mypy_strict": "passed",
   "coverage": 95.0,
   "evaluator": "7/7",
-  "benchmark_mean_ns": 4714230,
-  "benchmark_p95_ns": 5212300,
+  "benchmark_mean_ns": 2343460,
+  "benchmark_p95_ns": 2596200,
   "package": "passed",
   "worktree_clean": true,
   "ci_note": "Repository Actions billing/spending-limit failures are external pre-step blockers when present."
