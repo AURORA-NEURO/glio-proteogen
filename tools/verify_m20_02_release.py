@@ -58,7 +58,7 @@ def verify_reproducibility(path: Path, package: dict[str, object]) -> None:
     _require(
         report,
         "source_commit",
-        "576ba238",
+        "5a881ea4",
         "reproducibility evidence",
     )
     _require(report, "build_backend", "hatchling 1.31.0", "reproducibility evidence")
