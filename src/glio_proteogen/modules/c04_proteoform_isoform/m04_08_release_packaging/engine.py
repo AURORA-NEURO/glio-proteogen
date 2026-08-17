@@ -6,6 +6,7 @@ import io
 import tarfile
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import lru_cache
 from typing import TYPE_CHECKING, Final, Literal, Protocol, cast
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -465,8 +466,7 @@ def _validate_stage_results(
                 content,
                 max_bytes=M0408_MAX_ARTIFACT_BYTES,
             )
-            parsed = _parse_stage_bytes(module, content)
-            _require_canonical_artifact_bytes(parsed, content)
+            parsed = _parse_stage_artifact(module, content)
         except Exception as error:
             raise ProteoformReleaseInputError(
                 ProteoformReleaseInputErrorCode.STAGE_JSON_INVALID
@@ -497,6 +497,22 @@ def _parse_stage_bytes(
     content: bytes,
 ) -> StageResult:
     return cast("StageResult", _stage_adapter(module).validate_json(content, strict=True))
+
+
+@lru_cache(maxsize=32)
+def _parse_stage_artifact(module: StageModule, content: bytes) -> StageResult:
+    """Validate immutable stage bytes once, then reuse the closed typed result.
+
+    The cache key includes the complete bytes and module ABI.  The first call
+    still performs strict JSON parsing, typed validation, and canonical-byte
+    equality; later deterministic replays only reuse that already-validated
+    immutable model, avoiding repeated multi-megabyte Pydantic reconstruction.
+    """
+
+    strict_json_loads(content, max_bytes=M0408_MAX_ARTIFACT_BYTES)
+    parsed = _parse_stage_bytes(module, content)
+    _require_canonical_artifact_bytes(parsed, content)
+    return parsed
 
 
 def _validate_stage_chain(
