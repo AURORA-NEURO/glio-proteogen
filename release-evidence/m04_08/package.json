@@ -5,18 +5,23 @@
   "authority_dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "authority_lines": "1424-1464",
   "python_loc_delta": {
-    "files": 22,
-    "insertions": 6122,
+    "files": 23,
+    "insertions": 6401,
     "deletions": 0,
-    "net": 6122,
+    "net": 6401,
     "source_files": 11,
     "source_net": 3479,
-    "test_files": 8,
-    "test_net": 2128,
+    "test_files": 9,
+    "test_net": 2407,
     "eval_files": 3,
     "eval_net": 515
   },
   "python": "3.12.13",
+  "tracked_python_loc": {
+    "base": 538304,
+    "current": 543668,
+    "net": 5364
+  },
   "build_backend": "hatchling==1.31.0",
   "reproducible_builds": {
     "identical": true,
@@ -38,7 +43,7 @@
     "passed": true,
     "check": "import glio_proteogen; from glio_proteogen.contracts.m04_08 import M0408_MODULE_ID"
   },
-  "focused_tests": 88,
+  "focused_tests": 96,
   "evaluator": "12/12",
   "benchmark": {
     "iterations": 10,
@@ -51,15 +56,19 @@
   },
   "coverage": {
     "branch_enabled": true,
-    "combined_percent": 92.98461538461538,
+    "combined_percent": 97.9076923076923,
     "statements": 1319,
-    "covered_statements": 1255,
+    "covered_statements": 1298,
     "branches": 306,
-    "covered_branches": 256,
-    "partial_branches": 46,
+    "covered_branches": 293,
+    "partial_branches": 11,
+    "branch_percent": 95.7516339869281,
+    "statement_percent": 98.40788476118271,
     "engine_percent": 95.0,
     "kernel_contract_schema_percent": 100.0,
-    "note": "Combined branch-enabled scope is below the repository 95 fail-under; engine is 95% and remaining deficit is contract v1/plugin/service edge closure."
+    "plugin_percent": 100.0,
+    "service_percent": 100.0,
+    "note": "Combined branch-enabled scope clears the repository 95 fail-under; remaining partial branches are limited to defensive v1 and engine edges."
   },
   "static": {
     "ruff": "clean",
