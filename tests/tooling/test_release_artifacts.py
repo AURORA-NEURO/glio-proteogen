@@ -605,7 +605,7 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
         "request_bytes": 83_113,
         "result_bytes": 109_985,
         "request_digest": "sha256:55d852052b12e741cafd94a206c57b43d5e4c67601b41673d8bb75d467bd679c",
-        "result_digest": "sha256:06b5f27a7cafa4e89d50579cc2600b14dc1c9d81caf6021cef872dd38460d93b",
+        "result_digest": "sha256:6d130299f1e37a82f9fb5f106c02cbce900b23e46c73b069497b68956da9219c",
         "samples_ns": samples,
         "mean_ns": 200_000_000.0,
         "p50_ns": 200_000_000,
@@ -699,7 +699,7 @@ def test_m0503_evidence_verifier_requires_exact_corpus_shape_and_budgets(  # noq
         verify_m0503_evidence(evaluation, benchmark, fixture)
 
     benchmark_report["result_digest"] = (
-        "sha256:06b5f27a7cafa4e89d50579cc2600b14dc1c9d81caf6021cef872dd38460d93b"
+        "sha256:6d130299f1e37a82f9fb5f106c02cbce900b23e46c73b069497b68956da9219c"
     )
     benchmark_report["result_bytes"] = 109_984
     benchmark.write_text(json.dumps(benchmark_report), encoding="utf-8")
