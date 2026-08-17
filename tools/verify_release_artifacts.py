@@ -147,7 +147,7 @@ _M0407_REQUIRED_CHECK_NAMES = _M0407_SCENARIO_CHECK_NAMES | {
     "corpus.locked_inventory",
     "corpus.executable_coverage",
 }
-_M0407_BENCHMARK_SHAPE = {
+_M0407_BENCHMARK_SHAPE: dict[str, int] = {
     "envelope_count": 1,
     "dimension_count": 8,
     "evidence_count": 18,
@@ -549,7 +549,7 @@ def _verify_m0404_benchmark(benchmark_report: Mapping[str, object]) -> None:
         raise ReleaseArtifactError("M04-04 benchmark report has the wrong module identity")
     if benchmark_report.get("passed") is not True:
         raise ReleaseArtifactError("M04-04 benchmark report did not pass")
-    exact_fields = {
+    exact_fields: dict[str, int] = {
         "iterations": _M0404_BENCHMARK_ITERATIONS,
         "warmup_count": _M0404_BENCHMARK_WARMUPS,
         "mean_budget_ns": _M0404_MEAN_BUDGET_NS,
@@ -613,7 +613,7 @@ def _verify_m0501_benchmark(benchmark_report: Mapping[str, object]) -> None:
         raise ReleaseArtifactError("M05-01 benchmark report has the wrong contract version")
     if benchmark_report.get("passed") is not True:
         raise ReleaseArtifactError("M05-01 benchmark report did not pass")
-    exact_fields = {
+    exact_fields: dict[str, int] = {
         "iterations": _M0501_BENCHMARK_ITERATIONS,
         "warmup_count": _M0501_BENCHMARK_WARMUPS,
         "mean_budget_ns": _M0501_MEAN_BUDGET_NS,
@@ -1149,15 +1149,15 @@ def _verify_m0407_benchmark(benchmark_report: Mapping[str, object]) -> None:
         value = benchmark_report.get(field)
         if not isinstance(value, str) or _CANONICAL_SHA256.fullmatch(value) is None:
             raise ReleaseArtifactError(f"{label} has invalid canonical digests")
-    exact_fields = {
+    exact_fields: dict[str, int] = {
         "iterations": _M0407_BENCHMARK_ITERATIONS,
         "warmup_count": _M0407_BENCHMARK_WARMUPS,
         "mean_budget_ns": _M0407_MEAN_BUDGET_NS,
         "p95_budget_ns": _M0407_P95_BUDGET_NS,
         **_M0407_BENCHMARK_SHAPE,
     }
-    for field, expected in exact_fields.items():
-        _require_exact_integer(benchmark_report, field, expected, label)
+    for field, expected_integer in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected_integer, label)
     mean = benchmark_report.get("mean_ns")
     p50 = _require_nonnegative_integer(benchmark_report, "p50_ns", label)
     p95 = _require_nonnegative_integer(benchmark_report, "p95_ns", label)

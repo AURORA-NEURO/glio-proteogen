@@ -5,10 +5,11 @@ from __future__ import annotations
 import copy
 import gc
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import replace
+from typing import Any, cast, overload
 from weakref import ref
 
 import pytest
@@ -52,6 +53,8 @@ _HOSTILE_KEY_CANARY = "hostile key equality was invoked"
 _HOSTILE_SEQUENCE_CANARY = "hostile sequence subclass access was invoked"
 _HOSTILE_EQUALITY_CANARY = "hostile equality was invoked"
 _HOSTILE_PREREQUISITE_CANARY = "hostile prerequisite accessor was invoked"
+_EXPECTED_BUNDLE_ATTRIBUTE = "_expected_support_route_bundle"
+_STRICT_JSON_LOADS_ATTRIBUTE = "strict_json_loads"
 _EXPECTED_ROUTE_COUNT = 2
 
 
@@ -159,7 +162,7 @@ def test_plugin_rejects_unvalidated_execution_capability() -> None:
     plugin = M0407Plugin(M0407Service())
 
     with pytest.raises(TypeError, match="validated request token"):
-        plugin.run(build_scenario_request())  # type: ignore[arg-type]
+        plugin.run(cast("Any", build_scenario_request()))
 
 
 def _reverse_mapping_keys(value: object) -> object:
@@ -302,7 +305,7 @@ def test_internal_prerequisite_capability_fields_and_snapshot_fail_without_callb
         object.__setattr__(capability, field, hostile)
         try:
             assert support_router_contract._prerequisites_capability_is_issued(capability) is False
-            if type(hostile) is _HostilePrerequisiteReplacement:
+            if isinstance(hostile, _HostilePrerequisiteReplacement):
                 assert hostile.touched is False
             else:
                 assert hostile.compared is False
@@ -316,8 +319,8 @@ def test_internal_prerequisite_capability_fields_and_snapshot_fail_without_callb
         corrupted = list(original_snapshot)
         corrupted[index] = hostile
         with support_router_contract._VALIDATION_CAPABILITY_LOCK:
-            support_router_contract._ISSUED_PREREQUISITES_CAPABILITIES[capability] = tuple(
-                corrupted
+            cast("Any", support_router_contract._ISSUED_PREREQUISITES_CAPABILITIES)[capability] = (
+                tuple(corrupted)
             )
         try:
             assert support_router_contract._prerequisites_capability_is_issued(capability) is False
@@ -332,7 +335,10 @@ def test_internal_prerequisite_capability_fields_and_snapshot_fail_without_callb
 def test_owned_result_derives_once_then_validates_the_sealed_full_bundle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    original = support_router_contract._expected_support_route_bundle
+    original = cast(
+        "Callable[[object], object]",
+        support_router_contract._expected_support_route_bundle,
+    )
     derivation_count = 0
 
     def count_bundle(request: object) -> object:
@@ -353,8 +359,14 @@ def test_public_route_reuses_only_one_fully_admitted_exact_request_and_rederives
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     request = build_scenario_request()
-    original_prepare = support_router_engine._prepare_support_request_candidate
-    original_bundle = support_router_engine._expected_support_route_bundle
+    original_prepare = cast(
+        "Callable[[object], object]",
+        support_router_engine._prepare_support_request_candidate,
+    )
+    original_bundle = cast(
+        "Callable[[object], object]",
+        getattr(support_router_engine, _EXPECTED_BUNDLE_ATTRIBUTE),
+    )
     prepare_count = 0
     bundle_count = 0
 
@@ -612,7 +624,7 @@ def test_owned_result_capability_fields_snapshots_and_bundle_fail_without_callba
         object.__setattr__(capability, field, hostile)
         try:
             assert support_router_contract._request_capability_is_issued(capability) is False
-            if type(hostile) is _HostilePrerequisiteReplacement:
+            if isinstance(hostile, _HostilePrerequisiteReplacement):
                 assert hostile.touched is False
             else:
                 assert hostile.compared is False
@@ -626,7 +638,9 @@ def test_owned_result_capability_fields_snapshots_and_bundle_fail_without_callba
         corrupted = list(original_snapshot)
         corrupted[index] = hostile
         with support_router_contract._VALIDATION_CAPABILITY_LOCK:
-            support_router_contract._ISSUED_REQUEST_CAPABILITIES[capability] = tuple(corrupted)
+            cast("Any", support_router_contract._ISSUED_REQUEST_CAPABILITIES)[capability] = tuple(
+                corrupted
+            )
         try:
             assert support_router_contract._request_capability_is_issued(capability) is False
             assert hostile.compared is False
@@ -678,7 +692,10 @@ def test_plugin_json_boundary_strict_decodes_once_without_service_reparse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     request = build_scenario_request()
-    original_decode = support_router_plugin.strict_json_loads
+    original_decode = cast(
+        "Callable[..., object]",
+        getattr(support_router_plugin, _STRICT_JSON_LOADS_ATTRIBUTE),
+    )
     decode_count = 0
 
     def count_decode(
@@ -725,7 +742,13 @@ class _HostileSequence(Sequence[object]):
     def __init__(self) -> None:
         self.touched = False
 
-    def __getitem__(self, index: int) -> object:
+    @overload
+    def __getitem__(self, index: int) -> object: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[object]: ...
+
+    def __getitem__(self, index: int | slice) -> object | Sequence[object]:
         self.touched = True
         raise AssertionError(index)
 
@@ -816,8 +839,8 @@ def test_preflight_rejects_non_exact_string_keys_without_equality_or_upstream_tr
     if container == "dict":
         candidate: object = request.model_dump(mode="python")
         assert type(candidate) is dict
-        candidate[hostile_key] = "forbidden"  # type: ignore[index]
-        candidate["prerequisites"] = _HostilePrerequisites()  # type: ignore[index]
+        candidate[hostile_key] = "forbidden"
+        candidate["prerequisites"] = _HostilePrerequisites()
     else:
         candidate = request.model_copy()
         storage = object.__getattribute__(candidate, "__dict__")
