@@ -1,12 +1,8 @@
 """Runtime, safety, and replay coverage for M19-03."""
 
-# The repository intentionally keeps test directories namespace-only.
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 import pytest
-from tests.contract.test_m19_03_adversarial import _artifact, _evidence, _request
 
 from glio_proteogen.contracts.m19_03 import (
     DisagreementRecord,
@@ -23,6 +19,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregat
     M1903ReplayError,
     M1903Service,
 )
+from tests.contract.test_m19_03_adversarial import _artifact, _evidence, _request
 
 
 def test_attributable_fusion_integrates_and_replays() -> None:
