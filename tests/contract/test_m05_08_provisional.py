@@ -31,6 +31,7 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging import (
     M0508Plugin,
     M0508Service,
+    PtmLocalizationReleaseInputError,
 )
 
 
@@ -139,5 +140,5 @@ def test_provisional_runtime_manifest_and_plugin_smoke() -> None:
     assert M0508Plugin.descriptor["status"] == "provisional"
     assert M0508Plugin().validate_request(request) == request
 
-    with pytest.raises(NotImplementedError, match="provisional"):
+    with pytest.raises(PtmLocalizationReleaseInputError, match="artifact map"):
         service.execute(request)

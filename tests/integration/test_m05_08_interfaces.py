@@ -8,17 +8,26 @@ import json
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m05_08 import contract_json_schema
+from glio_proteogen.contracts.m05_08 import contract_json_schema, contract_json_schemas
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.api import (
     create_app,
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.cli import (
     app as cli_app,
 )
-from tests.modules.c05_ptm_localization.test_m05_08_release_packaging import _valid_fixture
+from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.service import (
+    M0508Service,
+)
+from tests.modules.c05_ptm_localization.test_m05_08_release_packaging import (
+    _valid_fixture,
+    _Verifier,
+)
 
 _HTTP_OK = 200
+_HTTP_FORBIDDEN = 403
+_HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
 
 
@@ -35,6 +44,7 @@ def test_api_and_cli_export_identical_schema() -> None:
         "transformation",
         "quality-decision",
     )
+    assert tuple(contract_json_schemas()) == contracts
     runner = CliRunner()
     with TestClient(create_app()) as client:
         for name in contracts:
@@ -123,3 +133,97 @@ def test_cli_build_matches_api_quarantine_result(tmp_path) -> None:
     assert api_payload["result"]["quarantine_reasons"] == cli_payload["result"][
         "quarantine_reasons"
     ]
+
+
+def test_api_strict_errors_cover_unknown_schema_build_and_authorization() -> None:
+    request, _artifacts = _valid_fixture()
+    with TestClient(create_app()) as client:
+        unknown = client.get("/v1/modules/M05-08/schemas/unknown")
+        malformed_validate = client.post(
+            "/v1/modules/M05-08/validate",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        )
+        malformed_build = client.post("/v1/modules/M05-08/build", json={})
+        invalid_artifact = client.post(
+            "/v1/modules/M05-08/build",
+            json={
+                "request": request.model_dump(mode="json"),
+                "artifacts": {"parent/variant-peptide.json": "not-base64!"},
+            },
+        )
+        missing_artifacts = client.post(
+            "/v1/modules/M05-08/build",
+            json={"request": request.model_dump(mode="json"), "artifacts": {}},
+        )
+    assert unknown.status_code == _HTTP_NOT_FOUND
+    assert malformed_validate.status_code == _HTTP_UNPROCESSABLE
+    assert malformed_build.status_code == _HTTP_UNPROCESSABLE
+    assert invalid_artifact.status_code == _HTTP_UNPROCESSABLE
+    assert missing_artifacts.status_code == _HTTP_UNPROCESSABLE
+
+    withheld_refs = request.context.references.model_copy(
+        update={
+            "consent": request.context.references.consent.model_copy(
+                update={"state": ConsentState.WITHHELD}
+            )
+        }
+    )
+    withheld = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": withheld_refs})}
+    )
+    with TestClient(create_app()) as client:
+        denied = client.post(
+            "/v1/modules/M05-08/validate",
+            content=canonical_json_bytes(withheld.model_dump(mode="json")),
+        )
+    assert denied.status_code == _HTTP_FORBIDDEN
+    assert "authorization denied" in denied.text
+
+
+def test_cli_strict_errors_and_output_lifecycle(tmp_path) -> None:
+    request, artifacts = _valid_fixture()
+    invalid_request = tmp_path / "invalid.json"
+    invalid_request.write_bytes(b"{}")
+    invalid_result = CliRunner().invoke(cli_app, ["validate", str(invalid_request)])
+    unknown_schema = CliRunner().invoke(cli_app, ["export-schema", "unknown"])
+    assert invalid_result.exit_code != 0
+    assert unknown_schema.exit_code != 0
+
+    envelope = {
+        "request": request.model_dump(mode="json"),
+        "artifacts": {
+            path: base64.b64encode(content).decode("ascii")
+            for path, content in artifacts.items()
+        },
+    }
+    build_input = tmp_path / "build-output.json"
+    build_input.write_bytes(canonical_json_bytes(envelope))
+    output = tmp_path / "result.json"
+    first = CliRunner().invoke(cli_app, ["build", str(build_input), "--output", str(output)])
+    second = CliRunner().invoke(cli_app, ["build", str(build_input), "--output", str(output)])
+    assert first.exit_code == 1
+    assert output.exists()
+    assert second.exit_code != 0
+
+    invalid_envelope = tmp_path / "invalid-envelope.json"
+    invalid_envelope.write_bytes(canonical_json_bytes({"request": request.model_dump(mode="json")}))
+    invalid_build = CliRunner().invoke(cli_app, ["build", str(invalid_envelope)])
+    assert invalid_build.exit_code != 0
+
+
+def test_api_release_path_emits_package_with_injected_verifier() -> None:
+    request, artifacts = _valid_fixture()
+
+    envelope = {
+        "request": request.model_dump(mode="json"),
+        "artifacts": {
+            path: base64.b64encode(content).decode("ascii")
+            for path, content in artifacts.items()
+        },
+    }
+    with TestClient(create_app(M0508Service(verifier=_Verifier()))) as client:
+        response = client.post("/v1/modules/M05-08/build", json=envelope)
+    assert response.status_code == _HTTP_OK
+    assert response.json()["result"]["disposition"] == "released"
+    assert response.json()["package"] is not None
