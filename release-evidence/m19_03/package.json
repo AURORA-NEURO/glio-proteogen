@@ -4,13 +4,13 @@
   "module_id": "GLIO-PROTEOGEN-M19-03",
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "0656383e7ee3d54610c481081607aebf8e011421507f873888cd51d3001b51d4",
-    "size_bytes": 1496538
+    "sha256": "4ba9914e4ab0fc71ea93ee79ddbc212a995858c5b87e5e7deb41687813535000",
+    "size_bytes": 2922437
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "member_count": 399,
-    "sha256": "f064c247aea479e6c466d6a7988ec38356db3c090d88df8eab3a312363a68bdc",
-    "size_bytes": 919448
+    "member_count": 1262,
+    "sha256": "9e18e738e5f1c0544ca4f6f04521831c6ada4ae45d106b8d7892e7ffee9bb7b1",
+    "size_bytes": 2410560
   }
 }

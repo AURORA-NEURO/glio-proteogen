@@ -1,10 +1,11 @@
 {
   "branch": true,
-  "branches": 84,
-  "covered_branches": 83,
-  "covered_statements": 411,
+  "branches": 86,
+  "covered_branches": 85,
+  "covered_statements": 419,
   "fail_under": 95.0,
   "module_id": "GLIO-PROTEOGEN-M19-03",
-  "percent": 98.99799599198397,
-  "statements": 415
+  "percent": 99.40828402366864,
+  "scope": "contracts/m19_03 and modules/c19_immunopeptidomic_evidence/m19_03_fusion_aggregation",
+  "statements": 421
 }
