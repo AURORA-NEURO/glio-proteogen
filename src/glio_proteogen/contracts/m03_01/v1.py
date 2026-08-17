@@ -25,6 +25,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -395,9 +396,7 @@ class ReviewedProteinInferenceConformanceProfile(FrozenModel):
     approved_controlled_vocabularies: tuple[ApprovedControlledVocabulary, ...] = Field(
         min_length=1, max_length=32
     )
-    approved_unit_system_versions: tuple[SemanticVersion, ...] = Field(
-        min_length=1, max_length=32
-    )
+    approved_unit_system_versions: tuple[SemanticVersion, ...] = Field(min_length=1, max_length=32)
     allowed_target_decoy_strategies: tuple[TargetDecoyStrategy, ...] = Field(
         min_length=1, max_length=3
     )
@@ -542,8 +541,7 @@ def expected_protocol_findings(
         for threshold in protocol.error_control.thresholds
     )
     peptide_fraction_ok = (
-        peptide_threshold is None
-        or peptide_threshold.maximum <= profile.max_peptide_error_fraction
+        peptide_threshold is None or peptide_threshold.maximum <= profile.max_peptide_error_fraction
     )
     eligibility = protocol.peptide_eligibility
     eligibility_ok = (
@@ -555,8 +553,7 @@ def expected_protocol_findings(
     applicability_ok = (
         protocol.applicability in profile.approved_applicabilities
         and protocol.assay_protocol_version in profile.approved_assay_protocol_versions
-        and protocol.specimen_processing_version
-        in profile.approved_specimen_processing_versions
+        and protocol.specimen_processing_version in profile.approved_specimen_processing_versions
         and ApprovedControlledVocabulary(
             vocabulary_id=protocol.controlled_vocabulary_id,
             version=protocol.controlled_vocabulary_version,
@@ -694,7 +691,7 @@ class ProteinInferenceProtocolReceipt(FrozenModel):
     disposition: ProtocolConformanceDisposition
 
 
-class ProteinInferenceProtocolConformanceResult(FrozenModel):
+class ProteinInferenceProtocolConformanceResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_protocol_conformance_result"] = (
         "protein_inference_protocol_conformance_result"
     )
@@ -802,15 +799,19 @@ class ProteinInferenceProtocolConformanceResult(FrozenModel):
             else ProtocolConformanceDisposition.QUARANTINED
         )
         expected_support = (
-            SupportStatus.SUPPORTED,
-            "protein_inference_protocol_conformant",
-            M0301_CONFORMANT_SUPPORT_RATIONALE,
-            False,
-        ) if expected_disposition is ProtocolConformanceDisposition.CONFORMANT else (
-            SupportStatus.REVIEW_REQUIRED,
-            "protein_inference_protocol_quarantined",
-            M0301_QUARANTINED_SUPPORT_RATIONALE,
-            True,
+            (
+                SupportStatus.SUPPORTED,
+                "protein_inference_protocol_conformant",
+                M0301_CONFORMANT_SUPPORT_RATIONALE,
+                False,
+            )
+            if expected_disposition is ProtocolConformanceDisposition.CONFORMANT
+            else (
+                SupportStatus.REVIEW_REQUIRED,
+                "protein_inference_protocol_quarantined",
+                M0301_QUARANTINED_SUPPORT_RATIONALE,
+                True,
+            )
         )
         if (
             self.status is not expected_status
@@ -957,17 +958,14 @@ class ProteinInferenceProtocolConformanceResult(FrozenModel):
             self.uncertainty.support,
             self.uncertainty.transport,
         )
-        if (
-            tuple(
-                (estimate.state, estimate.probability, estimate.rationale)
-                for estimate in uncertainty_estimates
-            )
-            != tuple(
-                (EstimateState.NOT_ESTIMABLE, None, rationale)
-                for rationale in M0301_UNCERTAINTY_RATIONALES
-            )
-            or tuple(sorted(self.uncertainty.sensitivity_notes))
-            != tuple(sorted(M0301_SENSITIVITY_NOTES))
+        if tuple(
+            (estimate.state, estimate.probability, estimate.rationale)
+            for estimate in uncertainty_estimates
+        ) != tuple(
+            (EstimateState.NOT_ESTIMABLE, None, rationale)
+            for rationale in M0301_UNCERTAINTY_RATIONALES
+        ) or tuple(sorted(self.uncertainty.sensitivity_notes)) != tuple(
+            sorted(M0301_SENSITIVITY_NOTES)
         ):
             raise ValueError("M03-01 uncertainty cannot claim calibrated estimates")
         expected_digest = result_payload_digest(self)

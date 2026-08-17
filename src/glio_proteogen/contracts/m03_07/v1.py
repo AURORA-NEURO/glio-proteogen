@@ -39,6 +39,7 @@ from glio_proteogen.kernel.models import (
     Identifier,
     IdentityLineageState,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -802,7 +803,7 @@ class ProteinInferenceAbstention(FrozenModel):
         return self
 
 
-class ProteinInferenceSupportRouteResult(FrozenModel):
+class ProteinInferenceSupportRouteResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_support_route_result"] = (
         "protein_inference_support_route_result"
     )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from evals.m03_01.run import build_scenario_request as build_m0301_request
@@ -34,6 +34,7 @@ from glio_proteogen.contracts.m04_03.v1 import ProteoformRawInputValidationResul
 from glio_proteogen.contracts.m04_04.schema import contract_json_schema as m0404_schema
 from glio_proteogen.contracts.m04_04.v1 import ProteoformQualityResult
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import NonInferenceResultModel
 from glio_proteogen.modules.c03_protein_inference.m03_01_protocol_metadata import (
     M0301Plugin,
     M0301Service,
@@ -136,3 +137,40 @@ def test_plugin_request_boundaries_reject_inference_claims_before_execution() ->
         payload["infers_glioma_specific_biology"] = True
         with pytest.raises(ValidationError):
             plugin.validate(canonical_json_bytes(payload))
+
+
+@pytest.mark.contract
+def test_every_result_uses_the_runtime_non_inference_firewall() -> None:
+    assert all(issubclass(model, NonInferenceResultModel) for model in _RESULT_MODELS)
+
+
+class _NestedBoundaryProbe(NonInferenceResultModel):
+    infers_protein: Literal[False] = False
+
+
+class _BoundaryProbe(NonInferenceResultModel):
+    infers_protein: Literal[False] = False
+    nested: _NestedBoundaryProbe
+
+
+@pytest.mark.contract
+def test_post_validation_top_level_and_nested_claim_mutation_is_rejected() -> None:
+    probe = _BoundaryProbe(nested=_NestedBoundaryProbe())
+    storage = object.__getattribute__(probe, "__dict__")
+    nested_storage = object.__getattribute__(probe.nested, "__dict__")
+    storage["infers_protein"] = True
+    with pytest.raises(ValidationError):
+        _BoundaryProbe.model_validate(probe, strict=True)
+    storage["infers_protein"] = False
+    nested_storage["infers_protein"] = True
+    with pytest.raises(ValidationError):
+        _BoundaryProbe.model_validate(probe, strict=True)
+
+
+@pytest.mark.contract
+def test_non_inference_firewall_rejects_positive_schema_aliases_in_nested_storage() -> None:
+    probe = _BoundaryProbe(nested=_NestedBoundaryProbe())
+    nested_storage = object.__getattribute__(probe.nested, "__dict__")
+    nested_storage["proteinInference"] = True
+    with pytest.raises(ValidationError):
+        _BoundaryProbe.model_validate(probe, strict=True)
