@@ -293,7 +293,7 @@ def _result(  # noqa: PLR0913 - each closure field is independently auditable.
         "completed_at": datetime.now(UTC),
         "result_digest": "sha256:" + "0" * 64,
     }
-    constructed = PtmLocalizationReleaseResult.model_construct(**payload)
+    constructed = PtmLocalizationReleaseResult.model_construct(**payload)  # type: ignore[arg-type]
     payload["result_digest"] = result_payload_digest(constructed)
     return PtmLocalizationReleaseResult.model_validate(payload, strict=True)
 
