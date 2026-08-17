@@ -31,12 +31,11 @@ class M2707Service:
             if isinstance(payload, bytes):
                 if len(payload) > M2707_MAX_CANONICAL_REQUEST_BYTES:
                     raise ValueError("request exceeds canonical byte limit")
-                document: Any = json.loads(payload)
-            elif isinstance(payload, str):
-                document = json.loads(payload)
-            else:
-                document = payload
-            return ControlComplexActivityChangeRequest.model_validate(document, strict=True)
+                return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
+            if isinstance(payload, str):
+                return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
+            document: Any = json.dumps(payload, separators=(",", ":"))
+            return ControlComplexActivityChangeRequest.model_validate_json(document, strict=True)
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             raise ValueError("M27-07 request validation failed") from error
 

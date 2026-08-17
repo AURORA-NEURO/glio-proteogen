@@ -1,5 +1,9 @@
 """Provisional M27-07 change-control runtime exports."""
 
+from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.api import (
+    app,
+    create_app,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.engine import (
     M2707ChangeControlEngine,
     control_complex_activity_change,
@@ -18,6 +22,8 @@ __all__ = [
     "M2707ChangeControlEngine",
     "M2707Plugin",
     "M2707Service",
+    "app",
     "control_complex_activity_change",
+    "create_app",
     "preflight_change_control_authorization",
 ]
