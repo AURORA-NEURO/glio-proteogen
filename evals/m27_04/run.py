@@ -10,7 +10,11 @@ from pathlib import Path
 from typing import Final
 
 from fastapi.testclient import TestClient
-from tests.runtime.test_m2704_runtime import _request
+
+if __package__:
+    from evals.m27_04.fixture import build_request
+else:
+    from fixture import build_request  # type: ignore[no-redef]
 
 from glio_proteogen.contracts.m27_04 import (
     AuthorizationDecision,
@@ -69,7 +73,7 @@ def _check(name: str, condition: bool, detail: str) -> EvalCheck:  # noqa: FBT00
 def run_evaluator() -> EvaluationReport:
     """Exercise supported, abstained, replay, interface, and tamper paths."""
 
-    request = _request()
+    request = build_request()
     fixture_digest = sha256_digest(request.model_dump(mode="json"))
     engine = M2704GatewayEngine()
     baseline = engine.publish(request)

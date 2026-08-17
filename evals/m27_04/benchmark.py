@@ -11,7 +11,10 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
-from tests.runtime.test_m2704_runtime import _request
+if __package__:
+    from evals.m27_04.fixture import build_request
+else:
+    from fixture import build_request  # type: ignore[no-redef]
 
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
@@ -48,7 +51,7 @@ class NonDeterministicBenchmarkError(RuntimeError):
 def run_benchmark() -> BenchmarkReport:
     """Warm once, then time exactly ten deterministic engine publications."""
 
-    request = _request()
+    request = build_request()
     engine = M2704GatewayEngine()
     warmup = engine.publish(request)
     samples: list[int] = []
