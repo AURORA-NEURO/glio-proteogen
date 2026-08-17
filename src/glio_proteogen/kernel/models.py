@@ -69,10 +69,14 @@ _NON_INFERENCE_FALSE_FIELDS = frozenset(
         "infers_protein",
         "infers_proteoform",
         "infers_isoform",
+        "infers_proteoform_or_isoform",
         "infers_glioma_specific_biology",
         "infers_kinase_activity",
+        "infers_identity_or_consent",
         "emits_complex_activity",
+        "emit_activity_inference",
         "emits_protein_rna_discordance",
+        "emit_protein_rna_discordance",
         "emits_proteogenomic_state",
         "emits_proteotype",
         "emits_protein_level_subtype",
@@ -81,6 +85,7 @@ _NON_INFERENCE_FALSE_FIELDS = frozenset(
         "performs_all_omics_fusion",
         "recommends_treatment",
         "mutates_upstream",
+        "mutates_upstream_evidence",
         "executes_model",
     }
 )
