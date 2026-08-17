@@ -1,0 +1,9 @@
+{
+  "checks_declared": 10,
+  "checks_passed": 10,
+  "fixture_digest": "sha256:f3a681830908eaf1ab86163b4c002d5a287dd9363ff3cd8710503c9af8fd9c22",
+  "module_id": "GLIO-PROTEOGEN-M28-04",
+  "passed": true,
+  "scenario_id": "m2804.gateway.safety.v1",
+  "source": "evals/m28_04/run.py"
+}

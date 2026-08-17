@@ -1,0 +1,19 @@
+{
+  "branch_enabled": true,
+  "covered_branches": 133,
+  "covered_statements": 830,
+  "coverage_percent": 95.25222551928783,
+  "coverage_percent_exact": 95.25222551928783,
+  "fail_under": 95.0,
+  "missed_statements": 31,
+  "module_id": "GLIO-PROTEOGEN-M28-04",
+  "partial_branches": 17,
+  "passed": true,
+  "scope": "contracts/m28_04; modules/c13_proteotype/m28_04_api_sdk_cli_gateway; evals/m28_04",
+  "source_command": "python -m pytest -q -o addopts='' --cov=glio_proteogen.contracts.m28_04 --cov=glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway --cov=evals.m28_04 --cov-branch --cov-fail-under=95 <M28-04 focused suite>",
+  "statement_percent_exact": 96.39953542392567,
+  "total_branches": 150,
+  "total_statements": 861,
+  "weighted_covered": 963,
+  "weighted_total": 1011
+}
