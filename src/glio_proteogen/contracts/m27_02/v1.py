@@ -56,6 +56,26 @@ M2702_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
 M2702_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 
 
+def _assert_acyclic(adjacency: dict[str, set[str]], start: str) -> None:
+    """Reject a directed cycle without imposing a single-parent topology."""
+
+    seen: set[str] = set()
+    active: set[str] = set()
+
+    def visit(current: str) -> None:
+        if current in active:
+            raise ValueError("lineage graph cannot contain a directed cycle")
+        if current in seen:
+            return
+        active.add(current)
+        for child in adjacency[current]:
+            visit(child)
+        active.remove(current)
+        seen.add(current)
+
+    visit(start)
+
+
 class LineageNodeKind(StrEnum):
     SOURCE_DATA = "source_data"
     TRANSFORMATION = "transformation"
@@ -94,9 +114,7 @@ class LineageNode(FrozenModel):
     version: SemanticVersion
     digest: Sha256Digest
     media_type: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2702_MAX_EVIDENCE)
 
 
 class LineageEdge(FrozenModel):
@@ -105,9 +123,7 @@ class LineageEdge(FrozenModel):
     target_node_id: Identifier
     relation: LineageRelation
     producing_version: SemanticVersion
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2702_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def endpoints_are_distinct(self) -> LineageEdge:
@@ -126,9 +142,7 @@ class ReproducibilityBundle(FrozenModel):
         min_length=1, max_length=M2702_MAX_VERSIONS
     )
     manifest_digest: Sha256Digest
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2702_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def bundle_ids_are_unique(self) -> ReproducibilityBundle:
@@ -149,9 +163,7 @@ class LineageGraph(FrozenModel):
     nodes: tuple[LineageNode, ...] = Field(min_length=1, max_length=M2702_MAX_NODES)
     edges: tuple[LineageEdge, ...] = Field(default=(), max_length=M2702_MAX_EDGES)
     reproducibility_bundle: ReproducibilityBundle
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2702_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def graph_is_closed(self) -> LineageGraph:
@@ -173,19 +185,11 @@ class LineageGraph(FrozenModel):
             raise ValueError("bundle references an unknown lineage node")
         if not set(self.reproducibility_bundle.edge_ids).issubset(set(edge_ids)):
             raise ValueError("bundle references an unknown lineage edge")
-        parents: dict[str, str] = {}
+        adjacency: dict[str, set[str]] = {node_id: set() for node_id in node_set}
         for edge in self.edges:
-            if edge.target_node_id in parents:
-                raise ValueError("lineage graph cannot have multiple incoming links")
-            parents[edge.target_node_id] = edge.source_node_id
+            adjacency[edge.source_node_id].add(edge.target_node_id)
         for node_id in node_set:
-            seen: set[str] = set()
-            current = node_id
-            while current in parents:
-                if current in seen:
-                    raise ValueError("lineage graph cannot contain a directed cycle")
-                seen.add(current)
-                current = parents[current]
+            _assert_acyclic(adjacency, node_id)
         return self
 
 
@@ -193,9 +197,7 @@ class LineageFinding(FrozenModel):
     finding_id: Identifier
     code: LineageFindingCode
     message: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        default=(), max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2702_MAX_EVIDENCE)
 
 
 class SafeFailureReport(FrozenModel):
@@ -205,9 +207,7 @@ class SafeFailureReport(FrozenModel):
     action: NonEmptyStr
     abstained: Literal[True] = True
     recovery_note: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2702_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2702_MAX_EVIDENCE)
 
 
 class ResolveComplexActivityLineageRequest(FrozenModel):
@@ -260,17 +260,20 @@ class ComplexActivityLineageResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityLineageResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        finding_ids = tuple(finding.finding_id for finding in self.findings)
+        if len(finding_ids) != len(set(finding_ids)):
+            raise ValueError("result finding ids must be unique")
         if self.status is LineageStatus.RESOLVED:
             if (
                 self.lineage_graph is None
                 or self.safe_failure_report is not None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.human_review_required
             ):
                 raise ValueError("resolved result requires a supported lineage graph")
-            if (
-                self.lineage_graph.reproducibility_bundle.manifest_digest
-                != graph_payload_digest(self.lineage_graph)
+            if self.lineage_graph.reproducibility_bundle.manifest_digest != graph_payload_digest(
+                self.lineage_graph
             ):
                 raise ValueError("resolved result bundle does not bind graph content")
         elif (
@@ -279,6 +282,8 @@ class ComplexActivityLineageResult(FrozenModel):
             or self.abstention_reason is None
             or self.support_decision.status
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+            or self.human_review_required
+            is not (self.support_decision.status is SupportStatus.REVIEW_REQUIRED)
         ):
             raise ValueError("abstained result requires safe failure and safe status")
         if self.result_digest != result_payload_digest(self):

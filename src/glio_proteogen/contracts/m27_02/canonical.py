@@ -37,9 +37,18 @@ def result_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 
 def graph_payload_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
-    """Digest the exact graph bytes used by its reproducibility manifest."""
+    """Digest graph content while excluding the manifest's derived digest field.
 
-    return sha256_digest(_dump(value))
+    The reproducibility manifest is part of the graph envelope, so hashing it
+    verbatim would require a cryptographic fixed point.  The manifest digest
+    instead binds every graph field other than that derived field.
+    """
+
+    document = _dump(value)
+    bundle = document.get("reproducibility_bundle")
+    if isinstance(bundle, dict):
+        bundle.pop("manifest_digest", None)
+    return sha256_digest(document)
 
 
 __all__ = [

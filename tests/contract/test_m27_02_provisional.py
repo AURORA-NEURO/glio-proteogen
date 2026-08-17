@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m27_02 import (
     LineageStatus,
     ReproducibilityBundle,
     contract_json_schemas,
+    graph_payload_digest,
 )
 from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
@@ -168,3 +169,51 @@ def test_graph_rejects_unknown_endpoints_and_cycles() -> None:
             ),
             strict=True,
         )
+
+
+def test_graph_allows_multi_parent_lineage_and_manifest_digest_is_derived() -> None:
+    first = _node("node.first", LineageNodeKind.SOURCE_DATA)
+    second = _node("node.second", LineageNodeKind.SOURCE_DATA)
+    target = _node("node.target", LineageNodeKind.TRANSFORMATION)
+    first_edge = LineageEdge(
+        edge_id="edge.first",
+        source_node_id=first.node_id,
+        target_node_id=target.node_id,
+        relation=LineageRelation.DERIVED_FROM,
+        producing_version=_VERSION,
+        evidence=(_evidence(),),
+    )
+    second_edge = LineageEdge(
+        edge_id="edge.second",
+        source_node_id=second.node_id,
+        target_node_id=target.node_id,
+        relation=LineageRelation.USES,
+        producing_version=_VERSION,
+        evidence=(_evidence(),),
+    )
+    bundle = ReproducibilityBundle(
+        bundle_id="bundle.multi-parent",
+        version=_VERSION,
+        root_node_id=first.node_id,
+        node_ids=(first.node_id, second.node_id, target.node_id),
+        edge_ids=(first_edge.edge_id, second_edge.edge_id),
+        producing_versions=(_VERSION,),
+        manifest_digest=_DIGEST,
+        evidence=(_evidence(),),
+    )
+    graph = LineageGraph(
+        graph_id="graph.multi-parent",
+        version=_VERSION,
+        nodes=(first, second, target),
+        edges=(first_edge, second_edge),
+        reproducibility_bundle=bundle,
+        evidence=(_evidence(),),
+    )
+    changed_manifest = graph.model_copy(
+        update={
+            "reproducibility_bundle": bundle.model_copy(
+                update={"manifest_digest": "sha256:" + "b" * 64}
+            )
+        }
+    )
+    assert graph_payload_digest(graph) == graph_payload_digest(changed_manifest)
