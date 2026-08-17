@@ -319,6 +319,17 @@ from glio_proteogen.contracts.m05_01.v1 import (
     EvaluatePtmLocalizationProtocolRequest,
     PtmLocalizationProtocolConformanceResult,
 )
+from glio_proteogen.contracts.m05_02.schema import (
+    ContractName as M0502ContractName,
+)
+from glio_proteogen.contracts.m05_02.schema import (
+    contract_json_schema as m0502_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_02.v1 import (
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    PtmLocalizationIdentityLineageResolution,
+    ReconcilePtmLocalizationIdentityLineageRequest,
+)
 from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
 from glio_proteogen.contracts.m13_06.schema import (
     contract_json_schema as m1306_contract_json_schema,
@@ -512,17 +523,6 @@ from glio_proteogen.contracts.m27_02.v1 import (
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
 )
-from glio_proteogen.contracts.m05_02.schema import (
-    ContractName as M0502ContractName,
-)
-from glio_proteogen.contracts.m05_02.schema import (
-    contract_json_schema as m0502_contract_json_schema,
-)
-from glio_proteogen.contracts.m05_02.v1 import (
-    M0502_MAX_CANONICAL_REQUEST_BYTES,
-    PtmLocalizationIdentityLineageResolution,
-    ReconcilePtmLocalizationIdentityLineageRequest,
-)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -702,6 +702,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
     _validate_json_request as _validate_m0501_json_request,
 )
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
+    M0502Service,
+    PtmLocalizationIdentityLineageAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
+    _validate_json_request as _validate_m0502_json_request,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -766,13 +773,6 @@ from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
     M2702Service,
     preflight_m2702_authorization,
-)
-from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
-    M0502Service,
-    PtmLocalizationIdentityLineageAuthorizationError,
-)
-from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
-    _validate_json_request as _validate_m0502_json_request,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
@@ -1711,6 +1711,8 @@ async def _m1906_body(request: Request) -> AdjudicateProteotypeQueueRequest:
         m1906_adjudication.preflight_m1906_authorization,
         M1906_MAX_CANONICAL_REQUEST_BYTES,
     )
+
+
 async def _ptm_localization_lineage_body(
     request: Request,
 ) -> ReconcilePtmLocalizationIdentityLineageRequest:
@@ -1721,8 +1723,6 @@ async def _ptm_localization_lineage_body(
         M0502_MAX_CANONICAL_REQUEST_BYTES,
         _validate_m0502_json_request,
     )
-
-
 
 
 async def _m1904_body(request: Request) -> AdaptProteotypeIntendedUseRequest:
