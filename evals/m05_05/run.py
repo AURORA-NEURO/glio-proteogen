@@ -214,7 +214,10 @@ def build_scenario(case_id: str = "clear") -> Scenario:
     }
     if case_id not in allowed:
         raise _UnknownScenarioError
-    raw_result = _raw_result()
+    # The canonical upstream fixture is cached for benchmark determinism, but
+    # every downstream scenario owns an isolated tree.  This prevents a
+    # hostile replay test from mutating the fixture seen by later scenarios.
+    raw_result = _raw_result().model_copy(deep=True)
     quality_result_digest = _digest("quality-result")
     quality_configuration_digest = _digest("quality-configuration")
     quality_receipt_digest = _digest("quality-receipt")

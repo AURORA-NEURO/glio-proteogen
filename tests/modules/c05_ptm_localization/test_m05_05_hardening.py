@@ -19,9 +19,24 @@ from glio_proteogen.contracts.m05_05.canonical import (
     contamination_flag_digest,
     event_digest,
     evidence_ledger_digest,
+    normalized_contamination_flag,
+    normalized_event,
+    normalized_exclusion_mask_entry,
+    normalized_finding,
+    normalized_policy,
+    normalized_posterior,
+    normalized_profile,
+    normalized_receipt,
+    normalized_request,
+    normalized_result,
+    normalized_result_payload,
+    normalized_threshold,
+    policy_digest,
     posterior_digest,
+    profile_digest,
     receipt_digest,
     result_payload_digest,
+    threshold_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
@@ -183,6 +198,63 @@ def test_canonical_dict_projections_cover_digest_helpers() -> None:
     assert receipt_digest(result.receipt.model_dump(mode="json"))
 
 
+def test_canonical_projections_cover_owned_dict_and_model_paths() -> None:
+    scenario = build_scenario("contamination_detected")
+    request = scenario.request
+    result = detect_ptm_localization_artifacts(request)
+    profile = request.policy.profiles[0]
+    threshold = profile.thresholds[0]
+    ledger = cast("PtmLocalizationArtifactEvidenceLedger", request.evidence_ledger)
+    event = ledger.events[0]
+    posterior = result.artifact_posteriors[0]
+    finding = result.findings[0]
+    exclusion = result.exclusion_mask[0]
+    flag = result.contamination_flags[0]
+    values = (
+        (normalized_threshold, threshold),
+        (normalized_profile, profile),
+        (normalized_policy, request.policy),
+        (normalized_event, event),
+        (normalized_exclusion_mask_entry, exclusion),
+        (normalized_posterior, posterior),
+        (normalized_contamination_flag, flag),
+        (normalized_finding, finding),
+        (normalized_receipt, result.receipt),
+        (normalized_request, request),
+        (normalized_result, result),
+        (normalized_result_payload, result),
+    )
+    for projector, model in values:
+        assert projector(model) == projector(model.model_dump(mode="json"))
+    assert threshold_digest(threshold) == threshold_digest(threshold.model_dump(mode="json"))
+    assert profile_digest(profile) == profile_digest(profile.model_dump(mode="json"))
+    assert policy_digest(request.policy) == policy_digest(request.policy.model_dump(mode="json"))
+
+
+def test_result_replay_rejects_every_derived_region_projection() -> None:
+    result = detect_ptm_localization_artifacts(build_scenario("contamination_detected").request)
+    posterior = result.artifact_posteriors[0]
+    flag = result.contamination_flags[0]
+    exclusion = result.exclusion_mask[0]
+
+    for field in ("request_digest", "policy_digest", "configuration_digest", "receipt_digest"):
+        _reject_model(result, **{field: "sha256:" + ("0" * 64)})
+    _reject_model(result, artifact_posteriors=(posterior, posterior))
+    _reject_model(result, contamination_flags=(flag, flag))
+    _reject_model(
+        result,
+        contamination_flags=(flag.model_copy(update={"target_id": "target." + ("f" * 64)}),),
+    )
+    _reject_model(
+        result,
+        exclusion_mask=(
+            exclusion.model_copy(
+                update={"triggering_posterior_digests": ("sha256:" + ("0" * 64),)}
+            ),
+        ),
+    )
+
+
 @pytest.mark.parametrize(
     ("case_id", "field", "value"),
     [
@@ -251,6 +323,37 @@ def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() 
         request,
         context=request.context.model_copy(update={"request_id": "request." + ("0" * 64)}),
     )
+    _reject_model(request, quality_contract_version="9.9.9")
+    _reject_model(request, quality_configuration_digest="sha256:" + ("0" * 64))
+    _reject_model(request, quality_receipt_digest="sha256:" + ("0" * 64))
+    _reject_model(request, identity_resolution_digest="sha256:" + ("0" * 64))
+    _reject_model(
+        request,
+        context=request.context.model_copy(
+            update={
+                "references": request.context.references.model_copy(
+                    update={
+                        "quality": request.context.references.quality.model_copy(
+                            update={"evidence": request.context.references.quality.evidence.model_copy(
+                                update={"digest": "sha256:" + ("0" * 64)}
+                            )}
+                        )
+                    }
+                )
+            }
+        ),
+    )
+    _reject_model(
+        ledger,
+        events=(ledger.events[0].model_copy(update={"sequence": 2}), *ledger.events[1:]),
+    )
+    _reject_model(
+        ledger,
+        events=(
+            ledger.events[0].model_copy(update={"detector_class": ledger.events[1].detector_class}),
+            *ledger.events[1:],
+        ),
+    )
 
 
 def test_contract_closure_rejects_output_nested_digest_and_capability_tampering() -> None:
@@ -266,5 +369,30 @@ def test_contract_closure_rejects_output_nested_digest_and_capability_tampering(
     _reject_model(exclusion, triggering_posterior_digests=(posterior.posterior_digest,) * 2)
     _reject_model(finding, message="forged finding message")
     _reject_model(result.receipt, receipt_digest="sha256:" + ("0" * 64))
+    _reject_model(result.receipt, event_digests=(), posterior_digests=result.receipt.posterior_digests)
     _reject_model(result, result_digest="sha256:" + ("0" * 64))
     _reject_model(result, human_review_required=False)
+    _reject_model(
+        result,
+        contamination_flags=(
+            flag.model_copy(
+                update={
+                    "detector_class": "technical_artifact",
+                }
+            ),
+        ),
+    )
+
+
+def test_safe_failure_receipt_cannot_claim_traversal() -> None:
+    result = detect_ptm_localization_artifacts(build_scenario("missing_required").request)
+    with pytest.raises(ValidationError):
+        type(result.receipt).model_validate(
+            result.receipt.model_copy(
+                update={
+                    "event_digests": ("sha256:" + ("0" * 64),),
+                    "posterior_digests": ("sha256:" + ("0" * 64),),
+                }
+            ).model_dump(mode="python"),
+            strict=True,
+        )
