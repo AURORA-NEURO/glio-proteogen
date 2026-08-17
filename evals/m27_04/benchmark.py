@@ -11,6 +11,9 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from evals.m27_04.fixture import build_request
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (

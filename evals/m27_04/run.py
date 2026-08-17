@@ -11,6 +11,9 @@ from typing import Final
 
 from fastapi.testclient import TestClient
 
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from evals.m27_04.fixture import build_request
 from glio_proteogen.contracts.m27_04 import (
     AuthorizationDecision,
