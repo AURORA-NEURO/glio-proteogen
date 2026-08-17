@@ -297,6 +297,17 @@ from glio_proteogen.contracts.m04_06.v1 import (
     HarmonizeProteoformAnalysisRequest,
     ProteoformHarmonizationResult,
 )
+from glio_proteogen.contracts.m04_07.schema import (
+    ContractName as M0407ContractName,
+)
+from glio_proteogen.contracts.m04_07.schema import (
+    contract_json_schema as m0407_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_07.v1 import (
+    M0407_MAX_CANONICAL_REQUEST_BYTES,
+    ProteoformSupportRouteResult,
+    RouteProteoformSupportRequest,
+)
 from glio_proteogen.contracts.m05_01.schema import (
     ContractName as M0501ContractName,
 )
@@ -665,6 +676,14 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
 from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
     _validate_json_request as _validate_m0406_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
+    M0407Service,
+    ProteoformSupportAuthorizationError,
+    preflight_proteoform_support_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
+    _validate_json_request as _validate_m0407_json_request,
+)
 from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
     M0501Service,
     PtmLocalizationProtocolAuthorizationError,
@@ -784,6 +803,7 @@ _M1405_ADAPTER: Final = TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequ
 _M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest)
 _M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
 _M0406_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteoformAnalysisRequest)
+_M0407_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteoformSupportRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -1031,6 +1051,12 @@ def _proteoform_harmonization_contract_schema(
     name: M0406ContractName,
 ) -> dict[str, object]:
     return m0406_contract_json_schema(name)
+
+
+def _proteoform_support_contract_schema(
+    name: M0407ContractName,
+) -> dict[str, object]:
+    return m0407_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -1373,6 +1399,15 @@ def _proteoform_harmonization_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0406_contract_json_schema("request")}},
+        }
+    }
+
+
+def _proteoform_support_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0407_contract_json_schema("request")}},
         }
     }
 
@@ -1849,6 +1884,18 @@ async def _ptm_localization_protocol_body(
     )
 
 
+async def _proteoform_support_body(
+    request: Request,
+) -> RouteProteoformSupportRequest:
+    return await _strict_json_body(
+        request,
+        _M0407_SUPPORT_ADAPTER,
+        preflight_proteoform_support_authorization,
+        M0407_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0407_json_request,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1896,6 +1943,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     m1708_service = m1708_monitoring.M1708Service()
     m2702_service = M2702Service()
     proteoform_harmonization_service = M0406Service()
+    proteoform_support_service = M0407Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1961,6 +2009,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
     @app.exception_handler(M2702AuthorizationError)
     @app.exception_handler(ProteoformHarmonizationAuthorizationError)
+    @app.exception_handler(ProteoformSupportAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -2481,6 +2530,26 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformHarmonizationResult:
         return proteoform_harmonization_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M04-07/{name}/schema", tags=["contracts"])
+    def proteoform_support_contract_schema(
+        name: M0407ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_support_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M04-07/support-route",
+        response_model=ProteoformSupportRouteResult,
+        tags=["M04-07"],
+        openapi_extra=_proteoform_support_request_body(),
+    )
+    def route_proteoform_support(
+        request: Annotated[
+            RouteProteoformSupportRequest,
+            Depends(_proteoform_support_body),
+        ],
+    ) -> ProteoformSupportRouteResult:
+        return proteoform_support_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-05/artifact-detection",

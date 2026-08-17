@@ -1,0 +1,214 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-07",
+  "schema_version": "1.0.0",
+  "operation": "route_proteoform_support",
+  "output_media_type": "application/vnd.glio-proteogen.m04-07+json",
+  "parent_target": "protein_rna_discordance",
+  "data_classification": "synthetic_nonclinical_content_addressed_support_declarations",
+  "claims_ceiling": "deterministic_joint_envelope_support_and_abstention_routing_not_identity_consent_protein_proteoform_isoform_modification_discordance_proteogenomic_state_proteotype_subtype_kinase_fusion_treatment_or_clinical_readiness",
+  "dimensions": [
+    "assay",
+    "specimen",
+    "disease_class",
+    "quality",
+    "completeness",
+    "platform",
+    "reference",
+    "intended_use"
+  ],
+  "declared_states": [
+    "observed",
+    "missing",
+    "unknown"
+  ],
+  "dimension_decisions": [
+    "supported",
+    "outside_domain",
+    "indeterminate"
+  ],
+  "envelope_decisions": [
+    "confirmed",
+    "eliminated",
+    "provisional"
+  ],
+  "route_dispositions": [
+    "supported",
+    "abstained"
+  ],
+  "context_roles": [
+    "genome_transcriptome",
+    "ptm_annotations",
+    "treatment_history"
+  ],
+  "abstention_codes": [
+    "dimension_outside_domain",
+    "dimension_indeterminate",
+    "prerequisite_unreleasable",
+    "joint_combination_outside_domain"
+  ],
+  "remediation_paths": [
+    "correct_support_declaration",
+    "supply_required_support_evidence",
+    "resolve_upstream_prerequisite",
+    "select_one_reviewed_joint_envelope",
+    "request_governed_support_review"
+  ],
+  "installed_capacity": {
+    "dimensions": 8,
+    "declared_facts": 4,
+    "context_receipts": 3,
+    "envelopes": 64,
+    "fact_values": 64,
+    "platform_levels": 32,
+    "analysis_targets": 32,
+    "approved_versions_per_domain": 32,
+    "evidence_per_fact": 8,
+    "abstentions": 514,
+    "result_evidence": 46,
+    "rate_scale": 1000000,
+    "canonical_request_bytes": 4194304
+  },
+  "opaque_identifier_namespaces": [
+    "request",
+    "profile",
+    "policy",
+    "envelope",
+    "specimen",
+    "disease",
+    "reference",
+    "use",
+    "reason",
+    "remediation",
+    "evidence",
+    "reviewer",
+    "route"
+  ],
+  "opaque_identifier_pattern": "^(request|profile|policy|envelope|specimen|disease|reference|use|reason|remediation|evidence|reviewer|route)\\.[0-9a-f]{64}$",
+  "upstream_platform_identifier_pattern": "^level\\.[0-9a-f]{64}$",
+  "schema_names": [
+    "request",
+    "output",
+    "prerequisites",
+    "quality-receipt",
+    "harmonization-receipt",
+    "fact",
+    "context-receipt",
+    "profile",
+    "policy",
+    "envelope",
+    "remediation",
+    "dimension-assessment",
+    "envelope-assessment",
+    "abstention"
+  ],
+  "output_ceiling": {
+    "support_decision": true,
+    "typed_reasons": true,
+    "reviewed_remediation": true,
+    "emits_protein_rna_discordance": false,
+    "emits_proteogenomic_state": false,
+    "emits_proteotype": false,
+    "emits_protein_level_subtype": false,
+    "infers_identity": false,
+    "infers_consent": false,
+    "infers_protein": false,
+    "infers_proteoform": false,
+    "infers_isoform": false,
+    "localizes_modification": false,
+    "infers_kinase_activity": false,
+    "performs_cn_to_protein_regression": false,
+    "performs_all_omics_fusion": false,
+    "recommends_treatment": false,
+    "mutates_upstream": false,
+    "executes_model": false
+  },
+  "scenario_groups": [
+    {
+      "group_id": "exact_joint_envelope_supported",
+      "case_ids": [
+        "joint_supported"
+      ],
+      "expected_case_count": 1,
+      "expected_disposition": "supported",
+      "expected_abstention_codes": []
+    },
+    {
+      "group_id": "each_dimension_outside_envelope",
+      "case_ids": [
+        "outside_assay",
+        "outside_specimen",
+        "outside_disease_class",
+        "outside_quality",
+        "outside_completeness",
+        "outside_platform",
+        "outside_reference",
+        "outside_intended_use"
+      ],
+      "expected_case_count": 8,
+      "expected_disposition": "abstained",
+      "expected_abstention_code": "dimension_outside_domain",
+      "completeness_reachability": "qualified_quality_and_accepted_harmonization_can_remain_releasable_below_a_stricter_route_envelope_minimum"
+    },
+    {
+      "group_id": "missing_and_unknown_evidence",
+      "case_ids": [
+        "missing_declared_fact",
+        "unknown_declared_fact"
+      ],
+      "expected_case_count": 2,
+      "expected_disposition": "abstained",
+      "expected_abstention_code": "dimension_indeterminate"
+    },
+    {
+      "group_id": "unreleasable_prerequisite_receipts",
+      "case_ids": [
+        "m0404_unreleasable",
+        "m0406_unreleasable"
+      ],
+      "expected_case_count": 2,
+      "expected_disposition": "abstained",
+      "expected_abstention_code": "prerequisite_unreleasable"
+    },
+    {
+      "group_id": "all_members_platform_reference",
+      "case_ids": [
+        "platform_extra_member",
+        "reference_extra_member"
+      ],
+      "expected_case_count": 2,
+      "expected_disposition": "abstained",
+      "expected_abstention_code": "dimension_outside_domain"
+    },
+    {
+      "group_id": "cross_envelope_combination_rejected",
+      "case_ids": [
+        "cross_envelope_composite"
+      ],
+      "expected_case_count": 1,
+      "expected_disposition": "abstained",
+      "expected_abstention_code": "joint_combination_outside_domain"
+    },
+    {
+      "group_id": "semantic_reorder_full_equality",
+      "case_ids": [
+        "canonical_order",
+        "semantic_reorder"
+      ],
+      "expected_case_count": 2,
+      "expected_disposition": "supported",
+      "expected_relation": "complete_typed_result_equality"
+    },
+    {
+      "group_id": "denied_consent_hostile_preflight",
+      "case_ids": [
+        "consent_denied_hostile_evidence"
+      ],
+      "expected_case_count": 1,
+      "expected_outcome": "validation_rejected_before_traversal",
+      "expected_disposition": null
+    }
+  ],
+  "expected_group_count": 8,
+  "expected_total_case_count": 19,
+  "expected_case_allocation": [1, 8, 2, 2, 2, 1, 2, 1]
+}
