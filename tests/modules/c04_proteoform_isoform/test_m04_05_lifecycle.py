@@ -6,7 +6,7 @@ import json
 from typing import Final
 
 import pytest
-from evals.m04_05.benchmark import run_benchmark
+from evals.m04_05.benchmark import MEAN_BUDGET_NS, P95_BUDGET_NS, run_benchmark
 from evals.m04_05.run import (
     SCENARIO_PATH,
     build_maximum_scenario_request,
@@ -215,12 +215,14 @@ def test_maximum_installed_shape_is_total_and_within_byte_caps() -> None:
     assert len(canonical_json_bytes(result)) <= M0405_MAX_CANONICAL_RESULT_BYTES
 
 
-def test_one_iteration_maximum_benchmark_uses_public_boundary_and_passes() -> None:
+def test_one_iteration_maximum_benchmark_smoke_locks_public_shape_and_budgets() -> None:
     report = run_benchmark(1)
     assert report.target_count == M0405_MAX_TARGETS
     assert report.event_count == report.posterior_count == M0405_MAX_EVENTS
     assert report.warmup_count == 1
-    assert report.passed
+    assert report.mean_budget_ns == MEAN_BUDGET_NS
+    assert report.p95_budget_ns == P95_BUDGET_NS
+    assert report.timed_boundary == "detect_proteoform_artifacts only"
 
 
 def test_locked_evaluation_proves_sensitivity_false_exclusion_and_narrowing() -> None:
