@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 from evals.m05_05.run import canonical_smoke
@@ -36,10 +37,9 @@ _EXPECTED_SCHEMA_COUNT = 14
 def test_schema_abi_is_explicit_and_provisional() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _EXPECTED_SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] is True for schema in schemas.values())
-    assert all(
-        schema["x-glio-contract"]["pendingOwnerConfirmation"] is True for schema in schemas.values()
-    )
+    metadata = [cast("dict[str, object]", schema["x-glio-contract"]) for schema in schemas.values()]
+    assert all(item["provisionalAbi"] is True for item in metadata)
+    assert all(item["pendingOwnerConfirmation"] is True for item in metadata)
     assert M0506_PROVISIONAL_ABI is True
 
 

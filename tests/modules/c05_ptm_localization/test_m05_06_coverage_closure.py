@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from evals.m05_06.run import build_scenario
@@ -240,7 +241,7 @@ def test_plugin_rejects_invalid_typed_token_and_post_validation_mutation(
     clear_scenario: Any,
 ) -> None:
     plugin = M0506Plugin(M0506Service())
-    invalid = ValidatedM0506Request(request=object(), _seal=_TOKEN_SEAL)
+    invalid = ValidatedM0506Request(request=cast("Any", object()), _seal=_TOKEN_SEAL)
     with pytest.raises(TypeError):
         plugin.run(invalid)
     token = plugin.validate(clear_scenario.request)
@@ -366,11 +367,17 @@ def test_ledger_stage_profile_shift_and_finding_contracts_reject_invalid_shapes(
         validation_pair_count=1,
     )
     with pytest.raises(ValueError, match="cannot carry numbers"):
-        shift.model_copy(
-            update={"state": PtmLocalizationSupportShiftState.NOT_EVALUABLE}
-        ).shift_shape_is_closed()
+        cast(
+            "Callable[[], object]",
+            shift.model_copy(
+                update={"state": PtmLocalizationSupportShiftState.NOT_EVALUABLE}
+            ).shift_shape_is_closed,
+        )()
     with pytest.raises(ValueError, match="require an estimate"):
-        shift.model_copy(update={"estimated_shift_ppm": None}).shift_shape_is_closed()
+        cast(
+            "Callable[[], object]",
+            shift.model_copy(update={"estimated_shift_ppm": None}).shift_shape_is_closed,
+        )()
     finding = PtmLocalizationHarmonizationFinding.model_construct(
         finding_id="evidence." + ("0" * 64),
         code=PtmLocalizationHarmonizationFindingCode.UPSTREAM_ABSTAINED,
@@ -378,4 +385,4 @@ def test_ledger_stage_profile_shift_and_finding_contracts_reject_invalid_shapes(
         message="invalid",
     )
     with pytest.raises(ValueError, match="action contradicts"):
-        finding.finding_is_closed()
+        cast("Callable[[], object]", finding.finding_is_closed)()

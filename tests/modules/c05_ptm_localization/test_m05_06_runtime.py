@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import cast
 
 import pytest
 from evals.m05_06.run import build_scenario, run_evaluation
@@ -122,7 +123,7 @@ def test_failed_upstream_cannot_traverse_support_ledger() -> None:
 def test_evaluator_matrix_covers_all_safe_dispositions() -> None:
     report = run_evaluation()
     assert report["passed"] is True
-    assert len(report["checks"]) == _EXPECTED_CASES
+    assert len(cast("list[object]", report["checks"])) == _EXPECTED_CASES
 
 
 def test_clear_harmonized_value_preserves_coordinate_and_source_binding() -> None:

@@ -1681,7 +1681,10 @@ def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:  # 
         or p50 != median(samples)
         or p95 != ordered[(95 * len(ordered) - 1) // 100]
         or maximum != max(samples)
-        or benchmark_report.get("request_bytes") > _M0504_MAX_REQUEST_BYTES
+        or (
+            type(benchmark_report.get("request_bytes")) is not int
+            or cast("int", benchmark_report.get("request_bytes")) > _M0504_MAX_REQUEST_BYTES
+        )
         or mean > _M0504_MEAN_BUDGET_NS
         or p95 > _M0504_P95_BUDGET_NS
     ):

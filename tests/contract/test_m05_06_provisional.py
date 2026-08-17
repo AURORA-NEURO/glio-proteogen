@@ -1,5 +1,7 @@
 """Focused provisional M05-06 ABI smoke checks."""
 
+from typing import cast
+
 import pytest
 from evals.m05_05.run import build_scenario
 
@@ -27,8 +29,9 @@ _EXPECTED_SCHEMA_COUNT = 14
 def test_provisional_schema_and_full_m0505_projection() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _EXPECTED_SCHEMA_COUNT
-    assert schemas["request"]["x-glio-contract"]["provisionalAbi"] is True
-    assert schemas["request"]["x-glio-contract"]["pendingOwnerConfirmation"] is True
+    metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
+    assert metadata["provisionalAbi"] is True
+    assert metadata["pendingOwnerConfirmation"] is True
     assert M0506_OPERATION == "harmonize_ptm_localization_analysis"
 
     result = detect_ptm_localization_artifacts(build_scenario("clear").request)
