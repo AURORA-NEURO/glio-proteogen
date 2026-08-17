@@ -14,7 +14,6 @@ from glio_proteogen.contracts.m04_08 import (
     M0408_MAX_PACKAGE_BYTES,
     M0408_SIGNATURE_RECEIPT_PATH,
     ExternalProteoformSignature,
-    M0408DependencyUnavailableError,
     ProteoformParentDiscordanceReceipt,
     ProteoformReferenceVersion,
     ProteoformReleaseArtifact,
@@ -259,7 +258,7 @@ def test_owned_known_stage_vocabulary_version_and_digest_set_are_closed() -> Non
 
 
 def test_owned_m0407_stage_vocabulary_remains_sealed_until_real_binding() -> None:
-    with pytest.raises(M0408DependencyUnavailableError, match="frozen M04-07"):
+    with pytest.raises(ValidationError, match="disposition contradicts its module"):
         _stage(ProteoformStageModuleId.M04_07, disposition="unbound")
 
 

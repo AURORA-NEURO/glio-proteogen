@@ -12,7 +12,6 @@ from glio_proteogen.contracts.m04_08 import (
     M0408_MANIFEST_PATH,
     BuildProteoformReleaseRequest,
     ExternalProteoformSignature,
-    M0408DependencyUnavailableError,
     ProteoformPackageVerificationReason,
     ProteoformReleaseArtifact,
     ProteoformReleaseArtifactRole,
@@ -401,11 +400,7 @@ def test_external_verifier_rejects_non_tuple_allowlist_and_non_boolean_chain_sta
             chain_releasable=chain,
             verifier=None,
         )
-        expected = (
-            ProteoformSignatureVerificationReason.VERIFIER_UNAVAILABLE
-            if type(allowed) is not tuple
-            else ProteoformSignatureVerificationReason.NOT_ATTEMPTED
-        )
+        expected = ProteoformSignatureVerificationReason.NOT_ATTEMPTED
         assert receipt.reason_code is expected
 
 
@@ -538,16 +533,15 @@ def test_archive_assembly_enforces_the_package_ceiling_after_canonical_build(
 
 def test_service_facade_preserves_fail_closed_runtime_boundary() -> None:
     service = M0408Service()
-    for operation in (
-        lambda: service.execute(object(), {}, {}),
-        lambda: service.manifest(object(), {}, {}),
-        lambda: service.verify(object(), b""),
-    ):
-        with pytest.raises(RuntimeError, match="exact frozen M04-07"):
-            operation()
+    with pytest.raises(PermissionError, match="not authorized"):
+        service.execute(object(), {}, {})
+    with pytest.raises(PermissionError, match="not authorized"):
+        service.manifest(object(), {}, {})
+    with pytest.raises(ValidationError):
+        service.verify(object(), b"")
 
     plugin = M0408Plugin(service)
-    with pytest.raises(M0408DependencyUnavailableError, match="frozen M04-07"):
+    with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
 
 
