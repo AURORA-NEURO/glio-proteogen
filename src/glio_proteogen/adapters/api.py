@@ -1337,7 +1337,12 @@ async def _strict_json_body[ModelT](
     except (TypeError, ValueError) as error:
         if json_validator is None:
             raise
-        raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
+        detail = (
+            "M04-04 request validation failed"
+            if adapter is _M0404_QUALITY_ADAPTER
+            else "request validation failed"
+        )
+        raise HTTPException(status_code=422, detail=detail) from error
 
 
 async def _register_body(request: Request) -> RegisterProtocolRequest:
