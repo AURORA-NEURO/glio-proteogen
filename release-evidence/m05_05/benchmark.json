@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-05",
+  "workload": "genuine_m05_03_replay_one_target_seven_detector_classes",
+  "timed_boundary": "detect_ptm_localization_artifacts_only",
+  "iterations": 25,
+  "warmup_count": 1,
+  "mean_ns": 1785038752,
+  "p50_ns": 1621576100,
+  "p95_ns": 2313523700,
+  "maximum_ns": 2372226400,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "passed": true,
+  "request_bytes": 123482,
+  "result_bytes": 144808,
+  "request_digest": "sha256:7c4353b98a5e89023c05c3041a88f53d69e044a461bc9ba7060c9fb959e41fa1",
+  "result_digest": "sha256:4f34a12eaaab74d73bcee79473bd787a32065d19ebdb28eaac04e212d1e3dda9"
+}

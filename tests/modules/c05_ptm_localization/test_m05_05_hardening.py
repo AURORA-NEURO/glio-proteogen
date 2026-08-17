@@ -224,9 +224,7 @@ def test_contract_closure_rejects_threshold_profile_policy_and_event_tampering()
     _reject_model(threshold, review_threshold_ppm=800_000)
     _reject_model(
         threshold,
-        evidence=threshold.evidence.model_copy(
-            update={"media_type": "application/json"}
-        ),
+        evidence=threshold.evidence.model_copy(update={"media_type": "application/json"}),
     )
     _reject_model(profile, thresholds=())
     _reject_model(request.policy, profiles=(profile, profile))
@@ -236,7 +234,9 @@ def test_contract_closure_rejects_threshold_profile_policy_and_event_tampering()
 
 
 def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() -> None:
-    request = build_scenario("clear").request
+    # The locked builder is cached for evaluator determinism; isolate this
+    # mutation matrix from prior hostile object.__setattr__ tests.
+    request = build_scenario("clear").request.model_copy(deep=True)
     ledger = cast("PtmLocalizationArtifactEvidenceLedger", request.evidence_ledger)
     binding = build_scenario("ledger_binding_only").request.evidence_ledger
     assert binding is not None
@@ -249,9 +249,7 @@ def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() 
     _reject_model(request, raw_input_receipt_digest="sha256:" + ("0" * 64))
     _reject_model(
         request,
-        context=request.context.model_copy(
-            update={"request_id": "request." + ("0" * 64)}
-        ),
+        context=request.context.model_copy(update={"request_id": "request." + ("0" * 64)}),
     )
 
 

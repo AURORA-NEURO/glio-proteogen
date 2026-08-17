@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-05",
+  "scope": [
+    "src/glio_proteogen/contracts/m05_05",
+    "src/glio_proteogen/modules/c05_ptm_localization/m05_05_artifact_detection"
+  ],
+  "command": "coverage run --branch --source=<scope> -m pytest --no-cov -o addopts='' <M05-05 focused files>",
+  "tests": 54,
+  "statements": {"covered": 962, "total": 1027},
+  "branches": {"covered": 223, "total": 280, "partial": 55},
+  "combined_percent": 90.66564651874522,
+  "fail_under": 95,
+  "passed": false,
+  "status": "coverage_gap_requires_additional_closure_tests"
+}
