@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -49,3 +50,58 @@ def test_m2608_release_evidence_rejects_incomplete_package(tmp_path: Path) -> No
 
     with pytest.raises(M2608ReleaseVerificationError, match="isolated_import_passed"):
         verify_release(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package, FIXTURE)
+
+
+def test_m2608_release_rejects_non_reproducible_package_receipt(tmp_path: Path) -> None:
+    payload = json.loads((EVIDENCE / "package.json").read_text(encoding="utf-8"))
+    payload["reproducibility"]["byte_identical"] = False
+    package = tmp_path / "package.json"
+    package.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="reproducibility gate"):
+        verify_release(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package, FIXTURE)
+
+
+def test_m2608_release_binds_receipt_to_artifact_bytes(tmp_path: Path) -> None:
+    wheel = tmp_path / "glio_proteogen-0.1.0-py3-none-any.whl"
+    sdist = tmp_path / "glio_proteogen-0.1.0.tar.gz"
+    wheel.write_bytes(b"wheel bytes")
+    sdist.write_bytes(b"sdist bytes")
+    payload = json.loads((EVIDENCE / "package.json").read_text(encoding="utf-8"))
+    payload["wheel"].update(
+        {"size_bytes": wheel.stat().st_size, "sha256": sha256(wheel.read_bytes()).hexdigest()}
+    )
+    payload["sdist"].update(
+        {"size_bytes": sdist.stat().st_size, "sha256": sha256(sdist.read_bytes()).hexdigest()}
+    )
+    payload["reproducibility"].update(
+        {
+            "wheel_sha256": payload["wheel"]["sha256"],
+            "sdist_sha256": payload["sdist"]["sha256"],
+        }
+    )
+    package = tmp_path / "package.json"
+    package.write_text(json.dumps(payload), encoding="utf-8")
+
+    verify_release(
+        EVIDENCE / "evaluation.json",
+        EVIDENCE / "benchmark.json",
+        package,
+        FIXTURE,
+        wheel=wheel,
+        sdist=sdist,
+    )
+
+
+def test_m2608_release_rejects_receipt_for_different_artifact(tmp_path: Path) -> None:
+    wheel = tmp_path / "glio_proteogen-0.1.0-py3-none-any.whl"
+    wheel.write_bytes(b"different wheel bytes")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="receipt does not match"):
+        verify_release(
+            EVIDENCE / "evaluation.json",
+            EVIDENCE / "benchmark.json",
+            EVIDENCE / "package.json",
+            FIXTURE,
+            wheel=wheel,
+        )
