@@ -1,1 +1,1 @@
-"""Complex-activity modules."""
+"""Reference-material and spike-in modules for complex-activity validation."""
