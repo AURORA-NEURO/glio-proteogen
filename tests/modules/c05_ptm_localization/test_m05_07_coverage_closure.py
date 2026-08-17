@@ -18,7 +18,7 @@ from glio_proteogen.contracts.m05_07 import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m05_07 import canonical as canonical_module
-from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
     M0507Service,
     PtmLocalizationSupportAuthorizationError,
@@ -137,6 +137,38 @@ def test_result_rejects_abstention_code_and_remediation_mismatch() -> None:
     payload["result_digest"] = result_payload_digest(payload)
     with pytest.raises(ValidationError, match="result remediation does not match"):
         PtmLocalizationSupportRouteResult.model_validate(payload)
+
+
+def test_supported_result_requires_supported_decision_and_no_remediation() -> None:
+    result = M0507Service().execute(_request())
+    payload = _result_payload()
+    remediation = (PtmLocalizationRemediationPath.CORRECT_SUPPORT_DECLARATION,)
+    payload["receipt"] = PtmLocalizationSupportReceipt.model_construct(
+        **{
+            **result.receipt.model_dump(),
+            "remediation": remediation,
+        }
+    )
+    candidate = PtmLocalizationSupportRouteResult.model_construct(
+        **{
+            **result.__dict__,
+            "receipt": payload["receipt"],
+            "remediation": remediation,
+        }
+    )
+    with pytest.raises(ValueError, match="supported result cannot carry"):
+        candidate.result_is_closed()
+
+    candidate = PtmLocalizationSupportRouteResult.model_construct(
+        **{
+            **result.__dict__,
+            "support_decision": result.support_decision.model_copy(
+                update={"status": SupportStatus.REVIEW_REQUIRED}
+            ),
+        }
+    )
+    with pytest.raises(ValueError, match="requires supported status"):
+        candidate.result_is_closed()
 
 
 def test_strict_validator_preserves_authorization_errors() -> None:
