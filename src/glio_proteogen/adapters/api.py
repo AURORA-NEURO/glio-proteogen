@@ -500,6 +500,7 @@ from glio_proteogen.contracts.m27_02.v1 import (
     M2702_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
+)
 from glio_proteogen.contracts.m05_02.schema import (
     ContractName as M0502ContractName,
 )
@@ -746,6 +747,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
     M2702Service,
     preflight_m2702_authorization,
+)
 from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
     M0502Service,
     PtmLocalizationIdentityLineageAuthorizationError,
