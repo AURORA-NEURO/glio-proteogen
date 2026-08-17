@@ -1,16 +1,22 @@
 """Typer CLI for strict M09-06 execution and canonical replay."""
 
 # CLI diagnostics intentionally collapse internal exceptions into stable messages.
-# ruff: noqa: TRY003, TRY300, TC003
+# ruff: noqa: TRY003, TRY300
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m09_06 import (
     M0906_MAX_CANONICAL_REQUEST_BYTES,
@@ -20,9 +26,13 @@ from glio_proteogen.contracts.m09_06 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
-
-from .engine import M0906AuthorizationError, M0906UncertaintyDecompositionEngine
-from .service import M0906Service
+from glio_proteogen.modules.c09_complex_stoichiometry.m09_06_uncertainty_decomposition_engine.engine import (  # noqa: E501
+    M0906AuthorizationError,
+    M0906UncertaintyDecompositionEngine,
+)
+from glio_proteogen.modules.c09_complex_stoichiometry.m09_06_uncertainty_decomposition_engine.service import (  # noqa: E501
+    M0906Service,
+)
 
 _REQUEST_ADAPTER: Final = TypeAdapter(DecomposeComplexActivityUncertaintyRequest)
 _CONTRACT_NAMES: Final = frozenset(

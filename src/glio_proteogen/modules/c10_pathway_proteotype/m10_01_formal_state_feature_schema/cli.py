@@ -1,16 +1,22 @@
 """Typer CLI for strict M10-01 validation and execution."""
 
 # CLI diagnostics intentionally collapse internal details into stable messages.
-# ruff: noqa: TRY003, TRY300, TC003
+# ruff: noqa: TRY003, TRY300
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m10_01 import (
     M1001_MAX_CANONICAL_REQUEST_BYTES,
@@ -20,9 +26,12 @@ from glio_proteogen.contracts.m10_01 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
-
-from .engine import M1001AuthorizationError
-from .service import M1001Service
+from glio_proteogen.modules.c10_pathway_proteotype.m10_01_formal_state_feature_schema.engine import (  # noqa: E501
+    M1001AuthorizationError,
+)
+from glio_proteogen.modules.c10_pathway_proteotype.m10_01_formal_state_feature_schema.service import (  # noqa: E501
+    M1001Service,
+)
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ValidateProteinRnaDiscordanceStateRequest)
 _CONTRACT_NAMES: Final = frozenset(

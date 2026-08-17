@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path  # noqa: TC003
+import sys
+from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m08_07 import contract_json_schema, contract_json_schemas
 from glio_proteogen.kernel.strict_json import (
@@ -15,8 +21,9 @@ from glio_proteogen.kernel.strict_json import (
     sanitized_validation_errors,
     strict_json_loads,
 )
-
-from .service import M0807Service
+from glio_proteogen.modules.c08_transcript_protein_discordance.m08_07_calibration_selective_prediction.service import (  # noqa: E501
+    M0807Service,
+)
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 

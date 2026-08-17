@@ -1,16 +1,22 @@
 """Typer CLI for strict M09-05 validation and integration."""
 
 # CLI diagnostics intentionally collapse internal exceptions into stable messages.
-# ruff: noqa: TRY003, TRY300, TC003
+# ruff: noqa: TRY003, TRY300
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.contracts.m09_05 import (
     M0905_MAX_CANONICAL_REQUEST_BYTES,
@@ -19,9 +25,12 @@ from glio_proteogen.contracts.m09_05 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
-
-from .engine import M0905AuthorizationError
-from .service import M0905Service
+from glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator.engine import (  # noqa: E501
+    M0905AuthorizationError,
+)
+from glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator.service import (  # noqa: E501
+    M0905Service,
+)
 
 _REQUEST_ADAPTER: Final = TypeAdapter(IntegrateComplexActivityConstraintsRequest)
 _CONTRACT_NAMES: Final = frozenset(
