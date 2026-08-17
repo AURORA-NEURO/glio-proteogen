@@ -805,8 +805,10 @@ class PtmLocalizationHarmonizationResult(FrozenModel):
     @model_validator(mode="after")
     def result_is_closed(self) -> PtmLocalizationHarmonizationResult:
         from glio_proteogen.contracts.m05_06.canonical import (
+            analysis_digest,
             canonical_request_digest,
             configuration_digest,
+            manifest_digest,
             policy_digest,
             result_payload_digest,
         )
@@ -848,6 +850,16 @@ class PtmLocalizationHarmonizationResult(FrozenModel):
         )
         if any(actual != expected for actual, expected in expected_receipt_bindings):
             raise ValueError("result receipt does not bind the complete harmonization output")
+        if self.analysis is not None and self.analysis.analysis_digest != analysis_digest(
+            self.analysis
+        ):
+            raise ValueError("harmonized analysis digest is stale")
+        if (
+            self.transformation_manifest is not None
+            and self.transformation_manifest.manifest_digest
+            != manifest_digest(self.transformation_manifest)
+        ):
+            raise ValueError("transformation manifest digest is stale")
         if self.disposition is PtmLocalizationHarmonizationDisposition.ACCEPTED and (
             self.analysis is None or self.transformation_manifest is None
         ):

@@ -722,7 +722,9 @@ class PtmLocalizationArtifactDetectionResult(FrozenModel):
             canonical_request_digest,
             configuration_digest,
             contamination_flag_digest,
+            event_digest,
             policy_digest,
+            profile_digest,
             result_payload_digest,
         )
 
@@ -737,6 +739,21 @@ class PtmLocalizationArtifactDetectionResult(FrozenModel):
             raise ValueError("result receipt digest is stale")
         if self.receipt.disposition is not self.disposition:
             raise ValueError("result disposition does not match its receipt")
+        matching_profiles = tuple(
+            profile
+            for profile in self.request.policy.profiles
+            if self.request.quality_contract_version in profile.approved_quality_contract_versions
+            and self.request.quality_configuration_digest
+            in profile.approved_quality_configuration_digests
+        )
+        expected_profile_digest = (
+            profile_digest(matching_profiles[0]) if matching_profiles else None
+        )
+        expected_event_digests = (
+            tuple(sorted(event_digest(item) for item in self.request.evidence_ledger.events))
+            if isinstance(self.request.evidence_ledger, PtmLocalizationArtifactEvidenceLedger)
+            else ()
+        )
         expected_receipt_bindings = (
             (self.receipt.quality_result_digest, self.request.quality_result_digest),
             (self.receipt.quality_contract_version, self.request.quality_contract_version),
@@ -746,12 +763,14 @@ class PtmLocalizationArtifactDetectionResult(FrozenModel):
             (self.receipt.raw_input_receipt_digest, self.request.raw_input_receipt_digest),
             (self.receipt.detector_policy_digest, self.policy_digest),
             (self.receipt.detector_configuration_digest, self.configuration_digest),
+            (self.receipt.selected_profile_digest, expected_profile_digest),
             (
                 self.receipt.evidence_ledger_digest,
                 self.request.evidence_ledger.ledger_digest
                 if self.request.evidence_ledger is not None
                 else None,
             ),
+            (self.receipt.event_digests, expected_event_digests),
             (self.receipt.finding_codes, tuple(item.code for item in self.findings)),
             (
                 self.receipt.posterior_digests,
