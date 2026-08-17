@@ -6,8 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import tarfile
 import sys
+import tarfile
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
