@@ -299,9 +299,7 @@ def test_fastapi_validate_execute_verify_and_unknown_schema() -> None:
 
 def test_fastapi_sanitizes_route_service_errors() -> None:
     class FailingService(M2703Service):
-        def validate_request(
-            self, _candidate: object
-        ) -> OrchestrateComplexActivityPipelineRequest:
+        def validate_request(self, _candidate: object) -> OrchestrateComplexActivityPipelineRequest:
             raise ValueError("internal detail")
 
         def execute(self, _request: object) -> ComplexActivityPipelineResult:

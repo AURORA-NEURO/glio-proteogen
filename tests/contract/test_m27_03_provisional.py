@@ -1,5 +1,7 @@
 """Focused schema and deterministic-execution smoke for provisional M27-03."""
 
+from typing import Any, cast
+
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m27_03 import (
@@ -31,7 +33,7 @@ def test_provisional_schemas_require_reproducible_execution_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["workflowDagRequired"] is True
         assert metadata["containerDigestRequired"] is True
@@ -42,7 +44,8 @@ def test_provisional_schemas_require_reproducible_execution_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "complex activity"
         assert metadata["upstreamInputMediaType"] == M2703_M2702_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2703_OUTPUT_MEDIA_TYPE
+    output_metadata = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2703_OUTPUT_MEDIA_TYPE
     assert M2703_PROVISIONAL_ABI is True
 
 
