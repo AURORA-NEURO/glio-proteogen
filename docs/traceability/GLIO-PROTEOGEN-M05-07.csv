@@ -1,0 +1,13 @@
+requirement_id,source_anchor,requirement,contract_or_algorithm,executable_evidence,gate
+M05-07-R01,"dossier:1740-1744","Route PTM-localization unsupported cases through a closed support interface","provisional request policy and eight-dimension enum","all_dimensions_supported fixture and schema registry",G1
+M05-07-R02,"dossier:1744","Evaluate assay specimen disease class quality completeness platform reference and intended use","one typed fact per closed dimension","eight isolated outside-domain matrix cases",G1
+M05-07-R03,"dossier:1744-1748","Return typed abstention reasons and remediation paths","dimension decision to closed reason/remediation mapping","outside-domain missing unknown and multiple-failure eval cases",G1
+M05-07-R04,"dossier:1748","Never turn unsupported or unavailable evidence into a negative finding","abstention disposition and explicit limitations","indeterminate route and recursive output ceiling tests",G1
+M05-07-R05,"dossier:1750-1752","Preserve variant-peptide parent context without emitting downstream claims","parent target and emits-parent false result fields","parent target and authority-boundary runtime tests",G1
+M05-07-R06,"dossier:1752-1754","Bind the full M05-06 prerequisite and quarantine unreleasable input","typed prerequisite media type and authorization preflight","tampered prerequisite and denied-control fixtures",G1
+M05-07-R07,"dossier:1754-1758","Check identity version units completeness assay support and parent quality controls","seven-control preflight plus typed policy contract","authorization denial and provenance-control tests",G1
+M05-07-R08,"dossier:1758-1762","Carry typed support uncertainty provenance evidence and limitations","closed result envelope with seven not-estimable uncertainty dimensions","result envelope and lifecycle provenance tests",G1
+M05-07-R09,"dossier:1762-1766","Replay deterministically and reject tampered derived regions","canonical request/result/receipt digest derivation","replay equality, result tamper, and extra-field rejection tests",G1
+M05-07-R10,"dossier:1766-1770","Require governed human review for override promotion release exception and conflict","provisional metadata flags and review-required support status","schema metadata and abstention-boundary assertions",G1
+M05-07-R11,"dossier:1770-1776","Provide Python service plugin API and CLI surfaces with shared semantics","single public engine behind service/plugin/HTTP/CLI adapters","M05-07 interface parity tests",G1
+M05-07-R12,"dossier:1776-1780","Provide fixtures evaluator lifecycle evidence traceability benchmark and package verification","locked corpus, evaluator, benchmark, docs, and package verifier","eval report, benchmark, traceability, and wheel-member gate",G1

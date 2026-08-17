@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {"detail": "disposition=supported;dimensions=;replay=True", "name": "scenario.all_dimensions_supported", "passed": true},
+    {"detail": "isolated=assay,specimen,disease_class,quality,completeness,platform,reference,intended_use", "name": "scenario.each_dimension_outside_domain", "passed": true},
+    {"detail": "disposition=abstained;dimensions=quality;replay=True", "name": "scenario.unknown_dimension_indeterminate", "passed": true},
+    {"detail": "disposition=abstained;dimensions=completeness;replay=True", "name": "scenario.missing_dimension_indeterminate", "passed": true},
+    {"detail": "disposition=abstained;dimensions=assay,reference;replay=True", "name": "scenario.multiple_failures_union", "passed": true},
+    {"detail": "rejected before route", "name": "scenario.denied_control_quarantines", "passed": true},
+    {"detail": "rejected before route", "name": "scenario.tampered_prerequisite_rejected", "passed": true},
+    {"detail": "tamper rejected", "name": "tamper.result_digest", "passed": true},
+    {"detail": "extra field rejected", "name": "tamper.request_extra", "passed": true},
+    {"detail": "eight closed support dimensions", "name": "corpus.dimensions", "passed": true}
+  ],
+  "corpus_digest": "sha256:c5365f0e85b9dc16fe480263fdf60d82cbc48e05b5d08ed89122bb0cdd38658b",
+  "module_id": "GLIO-PROTEOGEN-M05-07",
+  "passed": true,
+  "scenario_count": 7
+}

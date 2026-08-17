@@ -1,0 +1,83 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-07",
+  "schema_version": "0.1.0-provisional",
+  "data_classification": "synthetic_nonclinical",
+  "claims_ceiling": "support-routing-fixtures-not-domain-validation",
+  "dimensions": [
+    "assay",
+    "specimen",
+    "disease_class",
+    "quality",
+    "completeness",
+    "platform",
+    "reference",
+    "intended_use"
+  ],
+  "scenarios": [
+    {
+      "case_id": "all_dimensions_supported",
+      "request_case": "supported",
+      "outcome": "result",
+      "expected_disposition": "supported",
+      "expected_code": null,
+      "expected_dimensions": []
+    },
+    {
+      "case_id": "each_dimension_outside_domain",
+      "request_case": "outside_matrix",
+      "outcome": "matrix",
+      "expected_disposition": "abstained",
+      "expected_code": "dimension_outside_domain",
+      "expected_dimensions": [
+        "assay",
+        "specimen",
+        "disease_class",
+        "quality",
+        "completeness",
+        "platform",
+        "reference",
+        "intended_use"
+      ]
+    },
+    {
+      "case_id": "unknown_dimension_indeterminate",
+      "request_case": "unknown",
+      "outcome": "result",
+      "expected_disposition": "abstained",
+      "expected_code": "dimension_indeterminate",
+      "expected_dimensions": ["quality"]
+    },
+    {
+      "case_id": "missing_dimension_indeterminate",
+      "request_case": "missing",
+      "outcome": "result",
+      "expected_disposition": "abstained",
+      "expected_code": "dimension_indeterminate",
+      "expected_dimensions": ["completeness"]
+    },
+    {
+      "case_id": "multiple_failures_union",
+      "request_case": "multiple",
+      "outcome": "result",
+      "expected_disposition": "abstained",
+      "expected_code": "dimension_outside_domain",
+      "expected_dimensions": ["assay", "reference"]
+    },
+    {
+      "case_id": "denied_control_quarantines",
+      "request_case": "denied_control",
+      "outcome": "validation_rejected",
+      "expected_disposition": null,
+      "expected_code": null,
+      "expected_dimensions": []
+    },
+    {
+      "case_id": "tampered_prerequisite_rejected",
+      "request_case": "tampered_prerequisite",
+      "outcome": "validation_rejected",
+      "expected_disposition": null,
+      "expected_code": null,
+      "expected_dimensions": []
+    }
+  ]
+}

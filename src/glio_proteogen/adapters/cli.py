@@ -70,6 +70,7 @@ from glio_proteogen.adapters.api import (
     _ptm_localization_protocol_contract_schema,
     _ptm_localization_quality_contract_schema,
     _ptm_localization_raw_contract_schema,
+    _ptm_localization_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -225,6 +226,10 @@ from glio_proteogen.contracts.m05_05 import (
 from glio_proteogen.contracts.m05_06 import (
     M0506_MAX_CANONICAL_REQUEST_BYTES,
     HarmonizePtmLocalizationAnalysisRequest,
+)
+from glio_proteogen.contracts.m05_07 import (
+    M0507_MAX_CANONICAL_REQUEST_BYTES,
+    RoutePtmLocalizationSupportRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -519,6 +524,13 @@ from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
 )
 from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
     _validate_json_request as _validate_m0506_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
+    M0507Service,
+    PtmLocalizationSupportAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (  # noqa: E501
+    _validate_json_request as _validate_m0507_json_request,
 )
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
@@ -850,6 +862,11 @@ ptm_localization_harmonization_app = typer.Typer(
     help="M05-06 deterministic PTM-localization harmonization and normalization.",
 )
 app.add_typer(ptm_localization_harmonization_app, name="ptm-localization-harmonization")
+ptm_localization_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-07 deterministic PTM-localization support and abstention routing.",
+)
+app.add_typer(ptm_localization_support_app, name="ptm-localization-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -4454,6 +4471,45 @@ def harmonize_ptm_localization_analysis_cli(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo("PTM-localization harmonization failed: invalid request or output", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_support_app.command("export-schema")
+def export_ptm_localization_support_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "prerequisites", "fact", "receipt"],
+        typer.Argument(help="M05-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M05-07 support contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_support_app.command("route")
+def route_ptm_localization_support_cli(request: RequestArgument) -> None:
+    """Route PTM-localization support facts and emit canonical JSON."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(RoutePtmLocalizationSupportRequest),
+            None,
+            M0507_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0507_json_request,
+        )
+        _emit(M0507Service()._execute_validated(parsed))
+    except PtmLocalizationSupportAuthorizationError as error:
+        typer.echo(f"PTM-localization support routing failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization support routing failed: invalid request", err=True)
         raise typer.Exit(code=1) from error
 
 
