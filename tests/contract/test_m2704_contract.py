@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M27-04."""
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m27_04 import (
@@ -29,6 +31,10 @@ _SCHEMA_COUNT = 12
 _SHA256_HEX_LENGTH = 64
 
 
+def _metadata(schema: dict[str, object]) -> dict[str, object]:
+    return cast("dict[str, object]", schema["x-glio-contract"])
+
+
 def _evidence() -> EvidenceReference:
     return EvidenceReference(
         reference=ArtifactReference(
@@ -45,31 +51,30 @@ def _evidence() -> EvidenceReference:
 def test_provisional_schemas_preserve_gateway_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
+    assert all(str(schema["$schema"]).endswith("2020-12/schema") for schema in schemas.values())
+    assert all(_metadata(schema)["provisionalAbi"] for schema in schemas.values())
+    assert all(_metadata(schema)["pendingOwnerConfirmation"] for schema in schemas.values())
     assert all(
-        schema["x-glio-contract"]["variantPeptideGraphAvailable"]
-        and schema["x-glio-contract"]["ptmAwareStateModelAvailable"]
-        and schema["x-glio-contract"]["proteoformProbabilisticModelRequired"]
-        and schema["x-glio-contract"]["typedOperationsRequired"]
-        and schema["x-glio-contract"]["authorizationRequired"]
-        and schema["x-glio-contract"]["idempotencyRequired"]
-        and schema["x-glio-contract"]["asynchronousJobsRequired"]
-        and schema["x-glio-contract"]["errorTaxonomyRequired"]
-        and schema["x-glio-contract"]["auditRequired"]
-        and schema["x-glio-contract"]["compatibilityRequired"]
-        and schema["x-glio-contract"]["signedReleaseBundleFallback"]
-        and schema["x-glio-contract"]["humanReviewRequired"]
-        and schema["x-glio-contract"]["explicitAbstentionRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
+        _metadata(schema)["variantPeptideGraphAvailable"]
+        and _metadata(schema)["ptmAwareStateModelAvailable"]
+        and _metadata(schema)["proteoformProbabilisticModelRequired"]
+        and _metadata(schema)["typedOperationsRequired"]
+        and _metadata(schema)["authorizationRequired"]
+        and _metadata(schema)["idempotencyRequired"]
+        and _metadata(schema)["asynchronousJobsRequired"]
+        and _metadata(schema)["errorTaxonomyRequired"]
+        and _metadata(schema)["auditRequired"]
+        and _metadata(schema)["compatibilityRequired"]
+        and _metadata(schema)["signedReleaseBundleFallback"]
+        and _metadata(schema)["humanReviewRequired"]
+        and _metadata(schema)["explicitAbstentionRequired"]
+        and _metadata(schema)["unsupportedToNegative"] is False
         for schema in schemas.values()
     )
     assert all(
-        schema["x-glio-contract"]["parentTarget"] == "complex activity"
-        for schema in schemas.values()
+        _metadata(schema)["parentTarget"] == "complex activity" for schema in schemas.values()
     )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2704_OUTPUT_MEDIA_TYPE
+    assert _metadata(schemas["output"])["outputMediaType"] == M2704_OUTPUT_MEDIA_TYPE
     assert M2704_PROVISIONAL_ABI is True
 
 

@@ -6,15 +6,22 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m27_04 import (
+    AccessProtocol,
+    AsyncJobRecord,
     CompatibilityStatus,
+    GatewayConfiguration,
     GatewayFindingCode,
     GatewayStatus,
+    JobStatus,
     OperationStatus,
+    PublishComplexActivityAccessSurfaceRequest,
 )
+from glio_proteogen.contracts.m27_04.canonical import canonical_request_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,
     M2704ReplayError,
+    _validate_request,
     preflight_m2704_authorization,
 )
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.plugin import (
@@ -25,7 +32,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.plugi
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.service import (
     M2704Service,
 )
-from tests.runtime.test_m2704_runtime import _request
+from tests.runtime.test_m2704_runtime import _evidence, _request
 
 
 def test_mapping_and_json_inputs_preserve_one_canonical_result() -> None:
@@ -99,3 +106,127 @@ def test_replay_rejects_forged_payload_and_plugin_metadata_is_closed() -> None:
     assert descriptor.treatment_recommendation is False
     assert descriptor.identity_inference is False
     assert descriptor.consent_inference is False
+
+
+def test_contract_rejects_invalid_terminal_job_outcomes() -> None:
+    request = _request()
+    idempotency = request.idempotency_records[0]
+    evidence = (_evidence(),)
+    with pytest.raises(ValueError, match="requires a result artifact"):
+        AsyncJobRecord(
+            job_id="m2704.invalid.succeeded",
+            operation_id=idempotency.operation_id,
+            status=JobStatus.SUCCEEDED,
+            idempotency=idempotency,
+            evidence=evidence,
+        )
+    with pytest.raises(ValueError, match="cannot carry a result artifact"):
+        AsyncJobRecord(
+            job_id="m2704.invalid.abstained",
+            operation_id=idempotency.operation_id,
+            status=JobStatus.ABSTAINED,
+            idempotency=idempotency,
+            result_artifact=request.source_artifacts[0],
+            evidence=evidence,
+        )
+    with pytest.raises(ValueError, match="requires a typed error code"):
+        AsyncJobRecord(
+            job_id="m2704.invalid.failed",
+            operation_id=idempotency.operation_id,
+            status=JobStatus.FAILED,
+            idempotency=idempotency,
+            evidence=evidence,
+        )
+
+
+def test_contract_rejects_duplicate_protocols_and_source_identity() -> None:
+    evidence = (_evidence(),)
+    with pytest.raises(ValueError, match="protocols must be unique"):
+        GatewayConfiguration(
+            configuration_id="m2704.invalid.configuration",
+            version="1.0.0",
+            supported_protocols=(AccessProtocol.API, AccessProtocol.API),
+            evidence=evidence,
+        )
+    request = _request()
+    with pytest.raises(ValueError, match="source artifact ids must be unique"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {
+                **request.model_dump(mode="python"),
+                "source_artifacts": (request.source_artifacts[0], request.source_artifacts[0]),
+            },
+            strict=True,
+        )
+    duplicate_digest = request.source_artifacts[1].model_copy(
+        update={"digest": request.source_artifacts[0].digest}
+    )
+    with pytest.raises(ValueError, match="source artifact digests must be unique"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {
+                **request.model_dump(mode="python"),
+                "source_artifacts": (request.source_artifacts[0], duplicate_digest),
+            },
+            strict=True,
+        )
+
+
+def test_contract_rejects_unresolved_graph_references() -> None:
+    request = _request()
+    authorization = request.authorizations[0].model_copy(update={"operation_id": "unknown"})
+    with pytest.raises(ValueError, match="unknown operation"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {**request.model_dump(mode="python"), "authorizations": (authorization,)},
+            strict=True,
+        )
+    configuration = request.configuration.model_copy(
+        update={"supported_protocols": (AccessProtocol.SDK,)}
+    )
+    with pytest.raises(ValueError, match="protocol is not enabled"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {**request.model_dump(mode="python"), "configuration": configuration},
+            strict=True,
+        )
+
+
+def test_canonical_dict_projection_and_engine_parse_paths() -> None:
+    request = _request()
+    assert canonical_request_digest(request) == canonical_request_digest(
+        request.model_dump(mode="json")
+    )
+    assert _validate_request(request.model_dump_json()) == request
+    assert _validate_request(request.model_dump(mode="json")) == request
+
+
+def test_preflight_property_errors_fail_closed() -> None:
+    class ExplodingContext:
+        @property
+        def context(self) -> object:
+            raise RuntimeError("hostile context")  # noqa: TRY003
+
+    with pytest.raises(ValueError, match="requires accepted configuration"):
+        preflight_m2704_authorization(ExplodingContext())
+
+
+def test_plugin_and_sdk_passthrough_edges_are_exercised() -> None:
+    request = _request()
+    plugin = M2704Plugin()
+    with pytest.raises(M2704TokenError):
+        plugin.validate(object())  # type: ignore[arg-type]
+    assert plugin.validate_request(request) == request
+    result = plugin.run(plugin.validate(GatewaySubmission(request)))
+    assert plugin.replay(result) == result
+    assert M2704Service().descriptor["module_id"] == "GLIO-PROTEOGEN-M27-04"
+
+
+def test_replay_checks_each_digest_and_identifier_binding() -> None:
+    request = _request()
+    engine = M2704GatewayEngine()
+    result = engine.publish(request)
+    for field, value in (
+        ("request_digest", "sha256:" + "0" * 64),
+        ("result_id", "gateway.m2704.forged"),
+        ("result_digest", "sha256:" + "1" * 64),
+    ):
+        forged = result.model_copy(update={field: value})
+        with pytest.raises(M2704ReplayError):
+            engine.replay(forged)

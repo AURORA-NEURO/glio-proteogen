@@ -11,11 +11,7 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
-if __package__:
-    from evals.m27_04.fixture import build_request
-else:
-    from fixture import build_request  # type: ignore[no-redef]
-
+from evals.m27_04.fixture import build_request
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,

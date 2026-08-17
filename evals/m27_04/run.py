@@ -11,15 +11,12 @@ from typing import Final
 
 from fastapi.testclient import TestClient
 
-if __package__:
-    from evals.m27_04.fixture import build_request
-else:
-    from fixture import build_request  # type: ignore[no-redef]
-
+from evals.m27_04.fixture import build_request
 from glio_proteogen.contracts.m27_04 import (
     AuthorizationDecision,
     GatewayStatus,
     JobStatus,
+    PublishComplexActivityAccessSurfaceRequest,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -146,8 +143,7 @@ def run_evaluator() -> EvaluationReport:
             "strict_schema_metadata",
             len(contract_json_schemas()) == EXPECTED_SCHEMA_COUNT
             and all(
-                schema["x-glio-contract"]["explicitAbstentionRequired"]
-                for schema in contract_json_schemas().values()
+                _schema_requires_abstention(schema) for schema in contract_json_schemas().values()
             ),
             "all contract schemas carry explicit abstention metadata",
         ),
@@ -171,12 +167,20 @@ def run_evaluator() -> EvaluationReport:
     )
 
 
-def _preflight_rejects(engine: M2704GatewayEngine, request: object) -> bool:
+def _preflight_rejects(
+    engine: M2704GatewayEngine,
+    request: PublishComplexActivityAccessSurfaceRequest,
+) -> bool:
     try:
-        engine.publish(request)  # type: ignore[arg-type]
+        engine.publish(request)
     except M2704AuthorizationError:
         return True
     return False
+
+
+def _schema_requires_abstention(schema: dict[str, object]) -> bool:
+    metadata = schema.get("x-glio-contract")
+    return isinstance(metadata, dict) and metadata.get("explicitAbstentionRequired") is True
 
 
 def _tamper_rejected(result: object) -> bool:
