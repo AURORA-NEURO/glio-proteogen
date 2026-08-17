@@ -78,11 +78,15 @@ def inspect_canonical_ustar(package_bytes: bytes) -> tuple[PackageMember, ...]:
     """Read regular USTAR members without extracting them to a filesystem."""
 
     members: list[PackageMember] = []
+    seen_paths: set[str] = set()
     try:
         with tarfile.open(fileobj=io.BytesIO(package_bytes), mode="r:") as archive:
             for info in archive.getmembers():
                 if not info.isfile():
                     raise PackageAssemblyError.non_regular()
+                if info.name in seen_paths:
+                    raise PackageAssemblyError.duplicate_paths()
+                seen_paths.add(info.name)
                 source = archive.extractfile(info)
                 if source is None:
                     raise PackageAssemblyError.missing_content()
