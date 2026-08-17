@@ -70,8 +70,8 @@ def create_app() -> FastAPI:
     @api.post("/v1/modules/M27-07/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
-            value = await _body(request)
-            result = ComplexActivityChangeControlResult.model_validate(value, strict=True)
+            raw = await request.body()
+            result = ComplexActivityChangeControlResult.model_validate_json(raw, strict=True)
             return JSONResponse({"verified": service.verify(result)})
         except HTTPException:
             raise
