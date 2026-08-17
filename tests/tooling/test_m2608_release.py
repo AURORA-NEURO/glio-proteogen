@@ -62,6 +62,16 @@ def test_m2608_release_rejects_non_reproducible_package_receipt(tmp_path: Path) 
         verify_release(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package, FIXTURE)
 
 
+def test_m2608_release_rejects_unlocked_build_epoch(tmp_path: Path) -> None:
+    payload = json.loads((EVIDENCE / "package.json").read_text(encoding="utf-8"))
+    payload["reproducibility"]["source_date_epoch"] = 0
+    package = tmp_path / "package.json"
+    package.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="reproducibility gate"):
+        verify_release(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package, FIXTURE)
+
+
 def test_m2608_release_binds_receipt_to_artifact_bytes(tmp_path: Path) -> None:
     wheel = tmp_path / "glio_proteogen-0.1.0-py3-none-any.whl"
     sdist = tmp_path / "glio_proteogen-0.1.0.tar.gz"

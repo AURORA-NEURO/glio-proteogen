@@ -157,7 +157,11 @@ def verify_package(
     reproducibility = report.get("reproducibility")
     if not isinstance(reproducibility, dict):
         raise M2608ReleaseVerificationError("package reproducibility evidence is missing")
-    if reproducibility.get("build_count") != 2 or reproducibility.get("byte_identical") is not True:
+    if (
+        reproducibility.get("build_count") != 2
+        or reproducibility.get("byte_identical") is not True
+        or reproducibility.get("source_date_epoch") != 315532800
+    ):
         raise M2608ReleaseVerificationError("package reproducibility gate did not pass")
     wheel_report = cast("Mapping[str, object]", report["wheel"])
     sdist_report = cast("Mapping[str, object]", report["sdist"])
