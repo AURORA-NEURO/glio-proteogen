@@ -1,0 +1,9 @@
+{
+  "authorized_with_verifier": "released",
+  "authorized_without_verifier": "quarantined",
+  "contract_version": "0.1.0-provisional",
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "passed": true,
+  "safe_failure": true,
+  "tamper_verified": true
+}
