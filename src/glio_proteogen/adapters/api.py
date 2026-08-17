@@ -456,6 +456,18 @@ from glio_proteogen.contracts.m19_08.v1 import (
     MonitorProteotypeTranslationHealthRequest,
     ProteotypeTranslationMonitoringResult,
 )
+from glio_proteogen.contracts.m27_02.schema import (
+    ContractName as M2702ContractName,
+)
+from glio_proteogen.contracts.m27_02.schema import (
+    contract_json_schema as m2702_contract_json_schema,
+)
+from glio_proteogen.contracts.m27_02.v1 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
+)
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
@@ -665,6 +677,11 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904Service,
     preflight_m1904_authorization,
 )
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702AuthorizationError,
+    M2702Service,
+    preflight_m2702_authorization,
+)
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
 _EVALUATE_ADAPTER: Final = TypeAdapter(EvaluateMetadataRequest)
@@ -688,6 +705,8 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M2702_REQUEST_ADAPTER: Final = TypeAdapter(ResolveComplexActivityLineageRequest)
+_M2702_RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityLineageResult)
 _M1908_REQUEST_ADAPTER: Final = TypeAdapter(MonitorProteotypeTranslationHealthRequest)
 _M1906_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeQueueRequest)
 _M1904_REQUEST_ADAPTER: Final = TypeAdapter(AdaptProteotypeIntendedUseRequest)
@@ -859,6 +878,10 @@ def _proteoform_quality_contract_schema(
     name: M0404ContractName,
 ) -> dict[str, object]:
     return m0404_contract_json_schema(name)
+
+
+def _m2702_contract_schema(name: M2702ContractName) -> dict[str, object]:
+    return m2702_contract_json_schema(name)
 
 
 def _m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
@@ -1119,6 +1142,15 @@ def _proteoform_quality_request_body() -> dict[str, object]:
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0404_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m2702_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m2702_contract_json_schema("request")}},
         }
     }
 
@@ -1658,6 +1690,26 @@ async def _m1708_body(
     )
 
 
+async def _m2702_request_body_dependency(
+    request: Request,
+) -> ResolveComplexActivityLineageRequest:
+    return await _strict_json_body(
+        request,
+        _M2702_REQUEST_ADAPTER,
+        preflight_m2702_authorization,
+        M2702_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m2702_result_body_dependency(request: Request) -> ComplexActivityLineageResult:
+    return await _strict_json_body(
+        request,
+        _M2702_RESULT_ADAPTER,
+        None,
+        M2702_MAX_CANONICAL_RESULT_BYTES,
+    )
+
+
 def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route composition.
     """Create an isolated API instance backed by one append-only event database."""
 
@@ -1701,6 +1753,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     m1701_service = m1701_resolver.M1701Service()
     m1704_service = m1704_adapter.M1704Service()
     m1708_service = m1708_monitoring.M1708Service()
+    m2702_service = M2702Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1762,6 +1815,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(m1701_resolver.M1701AuthorizationError)
     @app.exception_handler(m1704_adapter.M1704AuthorizationError)
     @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
+    @app.exception_handler(M2702AuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
@@ -2688,6 +2742,34 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         result: Annotated[ProteotypeIntegratedEvidenceResult, Depends(_m1903_result_body)],
     ) -> ProteotypeIntegratedEvidenceResult:
         return m1903_service.replay(result)
+
+    @app.get("/v1/contracts/M27-02/{name}/schema", tags=["contracts"])
+    def m2702_contract_schema(name: M2702ContractName) -> dict[str, object]:
+        return _m2702_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M27-02/lineage",
+        response_model=ComplexActivityLineageResult,
+        tags=["M27-02"],
+        openapi_extra=_m2702_request_body(),
+    )
+    def resolve_m2702_lineage(
+        request: Annotated[
+            ResolveComplexActivityLineageRequest,
+            Depends(_m2702_request_body_dependency),
+        ],
+    ) -> ComplexActivityLineageResult:
+        return m2702_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M27-02/verify",
+        response_model=ComplexActivityLineageResult,
+        tags=["M27-02"],
+    )
+    def verify_m2702_lineage(
+        result: Annotated[ComplexActivityLineageResult, Depends(_m2702_result_body_dependency)],
+    ) -> ComplexActivityLineageResult:
+        return result
 
     return app
 
