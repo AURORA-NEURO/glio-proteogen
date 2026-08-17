@@ -1,15 +1,15 @@
 {
-  "branch_coverage_percent": 95.03464203233257,
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "tool": "coverage.py branch-enabled",
+  "scope": "M05-08 contract/runtime/evaluator/interfaces",
+  "tests": 57,
+  "statements": 716,
+  "covered_statements": 693,
+  "missed_statements": 23,
   "branches": 150,
   "covered_branches": 130,
-  "covered_statements": 693,
+  "partial_branches": 20,
+  "branch_coverage_percent": 95.0346,
   "fail_under_percent": 95.0,
-  "missing_statements": 23,
-  "scope": [
-    "src/glio_proteogen/contracts/m05_08/*",
-    "src/glio_proteogen/modules/c05_ptm_localization/m05_08_release_packaging/*"
-  ],
-  "statements": 716,
-  "tool": "coverage.py branch-enabled",
-  "tests": 57
+  "passed": true
 }

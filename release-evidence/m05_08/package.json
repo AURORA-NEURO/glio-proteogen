@@ -1,20 +1,22 @@
 {
-  "build_tool": "uv build",
-  "isolated_import": {
-    "module_id": "GLIO-PROTEOGEN-M05-08",
-    "passed": true,
-    "service": "M0508Service"
-  },
   "module_id": "GLIO-PROTEOGEN-M05-08",
+  "contract_version": "0.1.0-provisional",
+  "build_backend": "hatchling==1.31.0",
   "reproducible_builds": true,
-  "sdist": {
-    "bytes": 4148119,
-    "members": 4360,
-    "sha256": "7dbcaafc21f1e48f46058ddc9c777973a608fc2de840703c6fd1929061977dfe"
-  },
   "wheel": {
     "bytes": 3632117,
-    "members": 1904,
-    "sha256": "5ce6eaaff7b3c61466f6005d829b250e0422e659a8d7e64daa4d20a2b3f31eee"
-  }
+    "sha256": "5ce6eaaff7b3c61466f6005d829b250e0422e659a8d7e64daa4d20a2b3f31eee",
+    "members": 1904
+  },
+  "sdist": {
+    "bytes": 4148119,
+    "sha256": "7dbcaafc21f1e48f46058ddc9c777973a608fc2de840703c6fd1929061977dfe",
+    "members": 4360
+  },
+  "isolated_import": {
+    "passed": true,
+    "service": "M0508Service",
+    "engine": "M0508PtmLocalizationReleaseEngine"
+  },
+  "passed": true
 }

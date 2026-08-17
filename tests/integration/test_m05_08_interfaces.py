@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import base64
 import json
+from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m05_08 import contract_json_schema, contract_json_schemas
+from glio_proteogen.contracts.m05_08 import (
+    ContractName,
+    contract_json_schema,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c05_ptm_localization.m05_08_release_packaging.api import (
@@ -25,6 +30,9 @@ from tests.modules.c05_ptm_localization.test_m05_08_release_packaging import (
     _Verifier,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
@@ -32,7 +40,7 @@ _HTTP_UNPROCESSABLE = 422
 
 
 def test_api_and_cli_export_identical_schema() -> None:
-    contracts = (
+    contracts: tuple[ContractName, ...] = (
         "request",
         "output",
         "policy",
@@ -56,7 +64,7 @@ def test_api_and_cli_export_identical_schema() -> None:
             assert api_schema.json() == contract_json_schema(name)
 
 
-def test_api_and_cli_validate_the_same_canonical_request(tmp_path) -> None:
+def test_api_and_cli_validate_the_same_canonical_request(tmp_path: Path) -> None:
     request, _ = _valid_fixture()
     request_path = tmp_path / "request.json"
     request_path.write_bytes(canonical_json_bytes(request.model_dump(mode="json")))
@@ -74,7 +82,7 @@ def test_api_and_cli_validate_the_same_canonical_request(tmp_path) -> None:
     assert api.json() == json.loads(cli.stdout)
 
 
-def test_api_and_cli_reject_duplicate_keys_without_leaking_input(tmp_path) -> None:
+def test_api_and_cli_reject_duplicate_keys_without_leaking_input(tmp_path: Path) -> None:
     payload = b'{"request_id":"safe","request_id":"secret"}'
     request_path = tmp_path / "duplicate.json"
     request_path.write_bytes(payload)
@@ -94,8 +102,7 @@ def test_api_build_quarantines_without_default_signing_verifier() -> None:
     envelope = {
         "request": request.model_dump(mode="json"),
         "artifacts": {
-            path: base64.b64encode(content).decode("ascii")
-            for path, content in artifacts.items()
+            path: base64.b64encode(content).decode("ascii") for path, content in artifacts.items()
         },
     }
 
@@ -107,13 +114,12 @@ def test_api_build_quarantines_without_default_signing_verifier() -> None:
     assert response.json()["result"]["disposition"] == "quarantined"
 
 
-def test_cli_build_matches_api_quarantine_result(tmp_path) -> None:
+def test_cli_build_matches_api_quarantine_result(tmp_path: Path) -> None:
     request, artifacts = _valid_fixture()
     envelope = {
         "request": request.model_dump(mode="json"),
         "artifacts": {
-            path: base64.b64encode(content).decode("ascii")
-            for path, content in artifacts.items()
+            path: base64.b64encode(content).decode("ascii") for path, content in artifacts.items()
         },
     }
     request_path = tmp_path / "build.json"
@@ -130,9 +136,9 @@ def test_cli_build_matches_api_quarantine_result(tmp_path) -> None:
     assert api_payload["package"] == cli_payload["package"]
     assert api_payload["result"]["request_digest"] == cli_payload["result"]["request_digest"]
     assert api_payload["result"]["disposition"] == cli_payload["result"]["disposition"]
-    assert api_payload["result"]["quarantine_reasons"] == cli_payload["result"][
-        "quarantine_reasons"
-    ]
+    assert (
+        api_payload["result"]["quarantine_reasons"] == cli_payload["result"]["quarantine_reasons"]
+    )
 
 
 def test_api_strict_errors_cover_unknown_schema_build_and_authorization() -> None:
@@ -181,7 +187,7 @@ def test_api_strict_errors_cover_unknown_schema_build_and_authorization() -> Non
     assert "authorization denied" in denied.text
 
 
-def test_cli_strict_errors_and_output_lifecycle(tmp_path) -> None:
+def test_cli_strict_errors_and_output_lifecycle(tmp_path: Path) -> None:
     request, artifacts = _valid_fixture()
     invalid_request = tmp_path / "invalid.json"
     invalid_request.write_bytes(b"{}")
@@ -193,8 +199,7 @@ def test_cli_strict_errors_and_output_lifecycle(tmp_path) -> None:
     envelope = {
         "request": request.model_dump(mode="json"),
         "artifacts": {
-            path: base64.b64encode(content).decode("ascii")
-            for path, content in artifacts.items()
+            path: base64.b64encode(content).decode("ascii") for path, content in artifacts.items()
         },
     }
     build_input = tmp_path / "build-output.json"
@@ -218,8 +223,7 @@ def test_api_release_path_emits_package_with_injected_verifier() -> None:
     envelope = {
         "request": request.model_dump(mode="json"),
         "artifacts": {
-            path: base64.b64encode(content).decode("ascii")
-            for path, content in artifacts.items()
+            path: base64.b64encode(content).decode("ascii") for path, content in artifacts.items()
         },
     }
     with TestClient(create_app(M0508Service(verifier=_Verifier()))) as client:

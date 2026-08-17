@@ -47,9 +47,7 @@ def manifest_digest(value: BaseModel | dict[str, Any]) -> Sha256Digest:
 
 def normalized_policy(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     document = _dump(value)
-    document["allowed_signature_algorithms"] = sorted(
-        document["allowed_signature_algorithms"]
-    )
+    document["allowed_signature_algorithms"] = sorted(document["allowed_signature_algorithms"])
     document["allowed_verifier_ids"] = sorted(document["allowed_verifier_ids"])
     return document
 
@@ -78,9 +76,7 @@ def normalized_result_payload(value: BaseModel | dict[str, Any]) -> dict[str, An
     document["evidence"] = _sorted(document["evidence"])
     document["limitations"] = _sorted(document["limitations"])
     document["quarantine_reasons"] = _sorted(document["quarantine_reasons"])
-    document["provenance"]["input_digests"] = sorted(
-        document["provenance"]["input_digests"]
-    )
+    document["provenance"]["input_digests"] = sorted(document["provenance"]["input_digests"])
     document["provenance"]["control_decisions"] = _sorted(
         document["provenance"]["control_decisions"]
     )

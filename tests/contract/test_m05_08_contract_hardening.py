@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts.m05_08 import (
     BuildPtmLocalizationReleaseRequest,
@@ -137,10 +138,10 @@ def _request() -> BuildPtmLocalizationReleaseRequest:
     )
 
 
-def _rebuild(model: object, **updates: object) -> object:
-    payload = model.model_dump(mode="python")  # type: ignore[union-attr]
+def _rebuild(model: BaseModel, **updates: Any) -> BaseModel:
+    payload = model.model_dump(mode="python")
     payload.update(updates)
-    return type(model).model_validate(payload, strict=True)  # type: ignore[attr-defined]
+    return model.__class__.model_validate(payload, strict=True)
 
 
 def test_manifest_digest_is_order_independent() -> None:
@@ -152,9 +153,10 @@ def test_manifest_digest_is_order_independent() -> None:
             manifest.reproducibility_evidence[0],
         ),
     )
-    assert normalized_manifest(manifest)["reproducibility_evidence"] != normalized_manifest(
-        swapped
-    )["reproducibility_evidence"]
+    assert (
+        normalized_manifest(manifest)["reproducibility_evidence"]
+        != normalized_manifest(swapped)["reproducibility_evidence"]
+    )
 
 
 def test_manifest_rejects_duplicate_artifact_digests() -> None:
