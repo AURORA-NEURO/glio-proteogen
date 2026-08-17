@@ -1,0 +1,20 @@
+{
+  "build_tool": "uv build",
+  "isolated_import": {
+    "module_id": "GLIO-PROTEOGEN-M05-08",
+    "passed": true,
+    "service": "M0508Service"
+  },
+  "module_id": "GLIO-PROTEOGEN-M05-08",
+  "reproducible_builds": true,
+  "sdist": {
+    "bytes": 4148119,
+    "members": 4360,
+    "sha256": "7dbcaafc21f1e48f46058ddc9c777973a608fc2de840703c6fd1929061977dfe"
+  },
+  "wheel": {
+    "bytes": 3632117,
+    "members": 1904,
+    "sha256": "5ce6eaaff7b3c61466f6005d829b250e0422e659a8d7e64daa4d20a2b3f31eee"
+  }
+}
