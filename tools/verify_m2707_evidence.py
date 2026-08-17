@@ -1,6 +1,6 @@
 """Verify internally consistent M27-07 machine evidence."""
 
-# ruff: noqa: E501, PLR2004
+# ruff: noqa: PLR2004
 
 # ruff: noqa: TRY003, T201
 
