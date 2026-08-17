@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any, cast
 
 import pytest
 from evals.m05_01.run import build_scenario_request
@@ -273,7 +274,7 @@ def test_request_cap_and_replay_reject_semantically_mutated_models(
     ["non_string_key", "context", "references", "control"],
 )
 def test_authorization_preflight_rejects_malformed_builtin_shapes(mutation: str) -> None:
-    payload = build_scenario_request().model_dump(mode="python")
+    payload = cast(dict[object, Any], build_scenario_request().model_dump(mode="python"))
     if mutation == "non_string_key":
         payload[1] = "hostile-key"
     elif mutation == "context":
