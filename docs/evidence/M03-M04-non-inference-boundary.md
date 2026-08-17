@@ -7,6 +7,7 @@
 | Closed fields | `infers_protein`, `infers_proteoform`, `infers_isoform`, and `infers_glioma_specific_biology` are `Literal[False]` on every audited result envelope |
 | Schema metadata | Every audited contract schema publishes `proteinInference`, `proteoformInference`, `isoformInference`, and `gliomaSpecificBiologyInference` as `false`; output properties use JSON Schema `const: false` |
 | Runtime/replay | Service payloads bind all four flags before result digest calculation; nested M03-06 analysis and M04-03 result replay include the same fields |
+| Result firewall | Every M03/M04 result now inherits `NonInferenceResultModel`; exact built-in/BaseModel storage is recursively checked so post-validation mutation or nested positive aliases fail closed before replay acceptance |
 | Interface boundary | FastAPI, Typer, and strict parse-once plugin paths reject true or unknown inference claims and preserve false flags in output |
 | Python LOC delta | +114 production source lines (+87 M03, +27 M04); +226/−9 test lines; 47 Python files changed from `fad7ffd5` |
 | Commits | `b718a733`, `7db3f552`, `cb95a619`, `030c0a2a`, `769a57be`, `a5e7318d`, `4195fe8d`, `db7d7ace` |
@@ -33,6 +34,9 @@ biology.
   rejection/output parity.
 - Replay tests cover digest binding after the new flags are added; missing or altered flags cannot
   be silently dropped from a canonical result.
+- The follow-up firewall suite adds inheritance coverage for all 12 result models, top-level and
+  nested storage mutation attempts, positive schema-alias injection, and exact-container traversal
+  with no caller-defined mapping/sequence access.
 - Ruff check passes on all 47 changed Python files; the edited tests are Ruff-format clean.
 - MyPy `--strict` passes on 100 targeted contract/module source files; compileall passes.
 - Combined contract+interface coverage is 94.14% (12,919 statements, 525 missed; 3,178
@@ -45,6 +49,16 @@ biology.
   3,661,582 bytes with SHA-256
   `9255227fff9e9521e4cfdd322835d77ca161840e772131290dc8aa66f3c6eca2`. Installing the wheel
   into an isolated target and importing the package/schema succeeds.
+
+## Follow-up firewall checkpoint
+
+- Production commit `8eb552aa` adds the common result-only firewall and binds all 12 M03/M04
+  result envelopes without changing their public fields, schema IDs, or canonical digest shape.
+- Test commit `50e9e578` adds the nested/tamper adversarial cases. The full M03/M04 contract corpus
+  remains green at 1,397 tests, and all 12 locked module evaluators pass after the change.
+- The follow-up is additive to the merged M26-08 safety ancestry; no scientific inference
+  capability is introduced. Only declared quality, lineage, support, provenance, artifact, and
+  release metadata can be emitted.
 
 M04-05 through M04-08 are not ancestors of the merged M26-08 stack and are intentionally not
 represented as audited by this record; they require the corresponding M04-08 branch to be based
