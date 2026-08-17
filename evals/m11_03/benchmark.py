@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from statistics import mean, median
 from time import perf_counter_ns
 from typing import Any
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m11_03.run import request_for
 from glio_proteogen.modules.c11_protein_native_subtype.m11_03_mechanistic_feature_constructor import (  # noqa: E501

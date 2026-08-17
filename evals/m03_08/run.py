@@ -17,6 +17,11 @@ from typing import TYPE_CHECKING, Final, cast
 
 from pydantic import ValidationError
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from evals.m03_02.run import build_scenario_request as build_m0302_request
 from evals.m03_03 import run as m0303_evidence
 from evals.m03_03.run import ScenarioOptions as M0303ScenarioOptions

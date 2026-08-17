@@ -4,8 +4,15 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from statistics import mean
 from time import perf_counter_ns
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from tests.modules.c16_kinophos_object_consumer.test_m16_05_engine import _request
 

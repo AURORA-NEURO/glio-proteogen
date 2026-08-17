@@ -6,10 +6,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m16_08 import (
     M1608_M1607_INPUT_MEDIA_TYPE,
@@ -149,7 +155,7 @@ def _configuration() -> TranslationMonitoringConfiguration:
     )
 
 
-def _signal(
+def _signal(  # noqa: PLR0917
     signal_id: str,
     kind: HealthSignalKind,
     metric: str,

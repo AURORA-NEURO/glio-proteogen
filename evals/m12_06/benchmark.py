@@ -14,6 +14,11 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from evals.m12_06.run import build_request
 from glio_proteogen.contracts.m12_06 import M1206_CONTRACT_VERSION, M1206_MODULE_ID
 from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator import (

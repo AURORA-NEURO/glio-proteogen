@@ -5,7 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m18_05.run import build_scenario_request
 from glio_proteogen.modules.c18_spatial_proteomics.m18_05_workflow_presentation_service import (

@@ -7,13 +7,18 @@ import json
 import statistics
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m25_01.fixture import build_request
 from glio_proteogen.modules.c21_reference_material.m25_01_reference_truth_benchmark_curator import (
     M2501ReferenceTruthBenchmarkCurator,
 )
-
-from .fixture import build_request
 
 MEAN_BUDGET_NS = 500_000_000
 P95_BUDGET_NS = 750_000_000

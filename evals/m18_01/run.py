@@ -9,6 +9,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from tests.modules.c17_metabolomic_lipidomic_integration.test_m18_01_engine import (
     _candidate,
     _request,

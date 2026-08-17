@@ -8,8 +8,15 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Final
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m12_05.run import build_scenario_request
 from glio_proteogen.modules.c12_driver_to_protein_consequence.m12_05_longitudinal_evolution import (

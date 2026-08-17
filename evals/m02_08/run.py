@@ -14,6 +14,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from evals.m02_01.run import build_scenario_request as build_m0201_request
 from evals.m02_02.run import (
     build_scenario_request as build_m0202_request,

@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from statistics import mean, median
 from time import perf_counter_ns
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m14_01.run import build_scenario_request
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_01_biological_hypothesis_registry.engine import (  # noqa: E501
     M1401HypothesisEngine,
 )
-
-from .run import build_scenario_request
 
 MEAN_BUDGET_NS: Final = 2_000_000_000
 P95_BUDGET_NS: Final = 3_000_000_000

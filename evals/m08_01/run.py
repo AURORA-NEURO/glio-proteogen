@@ -5,8 +5,14 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import asdict
+from pathlib import Path
 
-from .evaluator import evaluate_all
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m08_01.evaluator import evaluate_all
 
 
 def main() -> int:

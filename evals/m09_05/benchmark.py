@@ -10,6 +10,11 @@ from pathlib import Path
 from statistics import fmean, median
 from time import perf_counter_ns
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from tests.modules.c09_complex_activity.test_m09_05_integrator import _request
 
 from glio_proteogen.modules.c09_complex_activity.m09_05_mechanism_constraint_integrator import (

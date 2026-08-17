@@ -5,9 +5,15 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m18_05 import (
     M1805_M1804_INPUT_MEDIA_TYPE,

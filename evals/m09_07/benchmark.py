@@ -11,11 +11,15 @@ from statistics import fmean, median
 from time import perf_counter_ns
 from typing import Final
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
+from evals.m09_07.run import build_request, candidate
 from glio_proteogen.modules.c09_complex_stoichiometry import (
     m09_07_calibration_selective_prediction as m0907,
 )
-
-from .run import build_request, candidate
 
 ITERATIONS: Final = 10
 MEAN_BUDGET_NS: Final = 2_000_000_000

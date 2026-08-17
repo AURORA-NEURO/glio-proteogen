@@ -16,6 +16,12 @@ from typing import NotRequired, TypedDict, cast
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from tests.m01_01_support import load_case, load_manifest, load_protocol_schema, load_request
 
 from glio_proteogen.contracts.m01_01.canonical import (
