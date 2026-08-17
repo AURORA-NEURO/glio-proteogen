@@ -334,9 +334,11 @@ def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() 
                 "references": request.context.references.model_copy(
                     update={
                         "quality": request.context.references.quality.model_copy(
-                            update={"evidence": request.context.references.quality.evidence.model_copy(
-                                update={"digest": "sha256:" + ("0" * 64)}
-                            )}
+                            update={
+                                "evidence": request.context.references.quality.evidence.model_copy(
+                                    update={"digest": "sha256:" + ("0" * 64)}
+                                )
+                            }
                         )
                     }
                 )
@@ -357,10 +359,11 @@ def test_contract_closure_rejects_ledger_binding_and_request_replay_tampering() 
 
 
 def test_contract_closure_rejects_output_nested_digest_and_capability_tampering() -> None:
-    result = detect_ptm_localization_artifacts(build_scenario("seeded_critical").request)
+    result = detect_ptm_localization_artifacts(build_scenario("contamination_detected").request)
     posterior = result.artifact_posteriors[0]
     exclusion = result.exclusion_mask[0]
     finding = result.findings[0]
+    flag = result.contamination_flags[0]
 
     _reject_model(posterior, posterior_ppm=None)
     _reject_model(posterior, lower_bound_ppm=1_000_000, upper_bound_ppm=0)
@@ -369,7 +372,9 @@ def test_contract_closure_rejects_output_nested_digest_and_capability_tampering(
     _reject_model(exclusion, triggering_posterior_digests=(posterior.posterior_digest,) * 2)
     _reject_model(finding, message="forged finding message")
     _reject_model(result.receipt, receipt_digest="sha256:" + ("0" * 64))
-    _reject_model(result.receipt, event_digests=(), posterior_digests=result.receipt.posterior_digests)
+    _reject_model(
+        result.receipt, event_digests=(), posterior_digests=result.receipt.posterior_digests
+    )
     _reject_model(result, result_digest="sha256:" + ("0" * 64))
     _reject_model(result, human_review_required=False)
     _reject_model(
