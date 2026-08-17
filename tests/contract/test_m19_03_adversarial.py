@@ -414,6 +414,40 @@ def test_result_closure_rejects_bad_abstention_findings_review_and_digest() -> N
         _validate_result(result.model_copy(update={"result_digest": zero}))
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["aggregate_values", "configuration", "disagreements"],
+)
+def test_runtime_scans_all_caller_declared_claim_surfaces(field: str) -> None:
+    request = _request()
+    if field == "configuration":
+        candidate = request.model_copy(
+            update={
+                "configuration": request.configuration.model_copy(
+                    update={"method": "all-omics fusion"}
+                )
+            }
+        )
+    elif field == "disagreements":
+        disagreement = DisagreementRecord(
+            disagreement_id="disagreement.m1903.forbidden-text",
+            source_ids=("source.m1903.proteome", "source.m1903.genome"),
+            description="identity inference claim",
+            status=DisagreementStatus.OPEN,
+            evidence=(_evidence(_artifact("forbidden-text")),),
+        )
+        candidate = request.model_copy(update={"disagreements": (disagreement,)})
+    else:
+        candidate = request.model_copy(
+            update={"aggregate_values": ("glioma specific biology", "source_count=2")}
+        )
+
+    result = M1903Engine().adapt(candidate)
+    assert result.status is FusionStatus.ABSTAINED
+    assert result.integrated_evidence is None
+    assert any(item.code is FusionFindingCode.OWNERSHIP_UNCLEAR for item in result.findings)
+
+
 def test_runtime_entrypoints_and_replay_request_mismatch_are_covered() -> None:
     request = _request()
     result = fuse_proteotype_evidence(request)
