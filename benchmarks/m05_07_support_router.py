@@ -1,10 +1,20 @@
 """M05-07 representative public support-router microbenchmark."""
 
+# The benchmark is also a direct repository-root script.
+# ruff: noqa: E402
+
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
+_ROOT = Path(__file__).parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 from evals.m05_07.run import build_scenario_request
 
 from glio_proteogen.contracts.m05_07 import (
