@@ -193,4 +193,9 @@ class M0503Plugin(
         return self._service._execute_prepared(request.request, request._prepared)
 
 
-__all__ = ["M0503Plugin", "M0503Submission", "ValidatedM0503Request"]
+__all__ = [
+    "M0503Plugin",
+    "M0503Submission",
+    "ValidatedM0503Request",
+    "strict_json_loads",
+]

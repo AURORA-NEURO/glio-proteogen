@@ -11,7 +11,7 @@ import pytest
 from evals.m05_02.run import build_scenario_request as build_m0502_request
 from evals.m05_03.run import build_scenario as build_m0503_scenario
 from evals.m05_03.run import canonical_smoke
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from jsonschema import Draft202012Validator
 from pydantic import BaseModel, ValidationError
 
 from glio_proteogen.contracts import m05_03
