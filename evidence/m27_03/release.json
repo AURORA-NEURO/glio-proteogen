@@ -1,0 +1,46 @@
+{
+  "module": "GLIO-PROTEOGEN-M27-03",
+  "contract_version": "0.1.0-provisional",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "9484-9524"
+  },
+  "focused_tests": 21,
+  "scoped_coverage": {
+    "percent": 95.19,
+    "statements": 656,
+    "branches": 134,
+    "fail_under": 95
+  },
+  "evaluator": {
+    "scenario_count": 5,
+    "passed": 5,
+    "fixture_type": "locked synthetic caller-declared metadata"
+  },
+  "benchmark": {
+    "iterations": 10,
+    "mean_ns": 2091910.0,
+    "median_ns": 1897500.0,
+    "p95_ns": 3773500.0,
+    "mean_budget_ns": 500000000,
+    "p95_budget_ns": 750000000
+  },
+  "packages": {
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 1033595,
+      "sha256": "df0dfef62b47e62092f354605feef9edd3e3c528697d659d3d3e5ee311eba673",
+      "builds_identical": true
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 1534334,
+      "sha256": "702f9641048180b38dd73bc156934098064acbea640672a54f4489581cdf80ae",
+      "builds_identical": true
+    },
+    "isolated_import": true,
+    "build_output_external_to_repository": true
+  },
+  "abi_status": "provisional-owner-confirmation-pending",
+  "biological_claims": false
+}
