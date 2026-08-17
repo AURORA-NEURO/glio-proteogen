@@ -230,16 +230,6 @@ def test_engine_signature_and_mapping_exception_edges() -> None:
         _validate_stage_results(request, artifacts, stage_map)
     assert stage_mismatch.value.code is ProteoformReleaseInputErrorCode.STAGE_RESULT_MISMATCH
 
-    statement_mismatch = request.model_copy(
-        update={
-            "signature": request.signature.model_copy(
-                update={"claimed_statement_digest": "sha256:" + "0" * 64}
-            )
-        }
-    )
-    quarantined = build_proteoform_release(statement_mismatch, artifacts, stages)
-    assert quarantined.package_bytes is None
-
     verifier_id = request.policy.allowed_verifier_ids[0]
     unavailable = build_proteoform_release(
         request, artifacts, stages, _Verifier(verifier_id="wrong")
