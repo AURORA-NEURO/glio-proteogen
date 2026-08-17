@@ -15,11 +15,13 @@
     "1c66e1b test(m09-03): prove api cli and plugin parity",
     "fcc5deb feat(m09-03): add evaluator fixtures and benchmark gate",
     "ad62df4 test(m09-03): close adversarial coverage and fixture matrix",
-    "c4ba8b0 test(m09-03): enforce warning-free interface gates"
+    "c4ba8b0 test(m09-03): enforce warning-free interface gates",
+    "0e15e61d fix(m09-03): remove stale result identifier export",
+    "b3d24ecb test(m09-03): guard public export closure"
   ],
   "focusedTests": {
-    "count": 21,
-    "command": "python -W error -m pytest -o addopts='' tests/modules/c09_complex_activity/test_m09_03_estimator.py tests/integration/test_m09_03_interfaces.py tests/evals/test_m09_03_evaluation.py",
+    "count": 24,
+    "command": "python -W error -m pytest -o addopts='' tests/contract/test_m09_03_contract.py tests/modules/c09_complex_activity/test_m09_03_estimator.py tests/integration/test_m09_03_interfaces.py tests/evals/test_m09_03_evaluation.py",
     "passed": true
   },
   "coverage": {
