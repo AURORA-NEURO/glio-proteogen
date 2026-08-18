@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters import m2001
+from glio_proteogen.adapters.api import create_app as create_central_app
+from glio_proteogen.adapters.cli import app as central_cli_app
 from glio_proteogen.contracts.m20_01 import (
     ProteinSubtypeUpstreamResolutionResult,
     contract_json_schema,
@@ -162,3 +164,47 @@ def test_cli_refuses_overwrite(tmp_path: Path) -> None:
     assert cli.exit_code != 0
     assert "output already exists" in cli.output
     assert output_path.read_text(encoding="utf-8") == "existing"
+
+
+def test_central_api_and_cli_register_m2001_surface(tmp_path: Path) -> None:
+    request = _request()
+    serialized = canonical_json_bytes(request.model_dump(mode="json"))
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(serialized)
+
+    with TestClient(create_central_app(tmp_path / "events.sqlite")) as client:
+        schema = client.get("/v1/contracts/M20-01/request/schema")
+        resolved = client.post(
+            "/v1/modules/M20-01/resolve",
+            content=serialized,
+            headers={"content-type": "application/json"},
+        )
+        verified = client.post(
+            "/v1/modules/M20-01/verify",
+            content=resolved.content,
+            headers={"content-type": "application/json"},
+        )
+
+    assert schema.status_code == HTTP_OK
+    assert schema.json() == contract_json_schema("request")
+    assert resolved.status_code == HTTP_OK, resolved.text
+    assert verified.status_code == HTTP_OK, verified.text
+    assert verified.json() == resolved.json()
+
+    schema_cli = CliRunner().invoke(
+        central_cli_app,
+        ["m2001-upstream", "export-schema", "request"],
+    )
+    result_cli = CliRunner().invoke(
+        central_cli_app,
+        ["m2001-upstream", "resolve", str(request_path), "--output", str(result_path)],
+    )
+    assert schema_cli.exit_code == 0, schema_cli.output
+    assert json.loads(schema_cli.stdout) == contract_json_schema("request")
+    assert result_cli.exit_code == 0, result_cli.output
+    assert ProteinSubtypeUpstreamResolutionResult.model_validate_json(
+        result_path.read_bytes(), strict=True
+    ) == ProteinSubtypeUpstreamResolutionResult.model_validate_json(
+        resolved.content, strict=True
+    )
