@@ -7,7 +7,12 @@ from typing import Any
 import pytest
 from evals.m25_07.fixture import build_request, denied_request
 
-from glio_proteogen.contracts.m25_07 import EvaluationStatus, OperationalStatus, result_identifier
+from glio_proteogen.contracts.m25_07 import (
+    EvaluationStatus,
+    OperationalStatus,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material import (
     m25_07_human_factors_operational_evaluator as m2507,
 )
@@ -61,6 +66,23 @@ def test_replay_rejects_tampered_digest() -> None:
 
     with pytest.raises(m2507.M2507ReplayError):
         m2507.M2507HumanFactorsEngine().replay(tampered)
+
+
+@pytest.mark.parametrize("field", ["report", "evidence", "limitations"])
+def test_replay_rejects_self_rehashed_operational_region(field: str) -> None:
+    engine = m2507.M2507HumanFactorsEngine()
+    result = engine.generate(build_request())
+    forged = result.model_copy(deep=True)
+    if field == "report":
+        assert forged.report is not None
+        object.__setattr__(forged, "report", forged.report.model_copy(update={"metrics": ()}))
+    elif field == "evidence":
+        object.__setattr__(forged, "evidence", ())
+    else:
+        object.__setattr__(forged, "limitations", ())
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+    with pytest.raises(m2507.M2507ReplayError):
+        engine.replay(forged)
 
 
 def test_service_and_plugin_require_validated_submission() -> None:
