@@ -16,6 +16,13 @@ ceiling and raises before strict JSON decoding or model construction. CLI
 verification maps oversized result files to the existing sanitized failure
 path.
 
+The standalone FastAPI apps now use the same streamed
+`RequestSizeLimitMiddleware`, configured to the 8 MiB result ceiling. This
+rejects oversized content-length and chunked request bodies before a route
+calls `request.body()`. The route-level request parsers retain their stricter
+4 MiB request ceiling, while verify routes can admit the full declared result
+envelope.
+
 This closes a concrete resource gap: the prior adapters used unbounded
 `Path.read_bytes()`, allowing arbitrarily large local payloads to be
 materialized before the declared limit was checked. Existing API behavior and
@@ -24,12 +31,13 @@ scientific semantics remain unchanged.
 ## Verification
 
 The focused matrix covers sparse request/result files one byte over every M20
-ceiling, sanitized CLI result failures for all four adapters, and an AST guard
-preventing direct `Path.read_bytes()` from returning to the affected files.
+ceiling, sanitized CLI result failures for all four adapters, HTTP request and
+verify routes for all four apps, and an AST guard preventing direct
+`Path.read_bytes()` from returning to the affected files.
 
-* 13 resource-boundary tests passed;
+* 22 resource-boundary tests passed;
 * 26 existing M20 integration/evaluator tests passed;
-* 39 focused tests passed with coverage disabled;
+* 47 focused tests passed with coverage disabled;
 * Ruff check/format, strict MyPy, compileall, and `git diff --check` passed.
 
 The evidence is limited to file-admission safety. It is not evidence of
