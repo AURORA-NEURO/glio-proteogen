@@ -10,7 +10,7 @@ import math
 import struct
 import zlib
 from dataclasses import replace
-from hashlib import md5
+from hashlib import md5, sha256
 from pathlib import Path
 from typing import BinaryIO, Self, cast
 
@@ -18,9 +18,12 @@ import pytest
 
 from glio_proteogen.research import (
     EvidenceRecord,
+    PdcSourceReceipt,
+    PdcStudySnapshot,
     PeptideQuant,
     Psm,
     SearchParameters,
+    SourceReference,
     aggregate_evidence,
     digest_trypsin,
     infer_protein_group_candidates,
@@ -757,6 +760,52 @@ def test_pdc_signed_download_rejects_missing_or_bad_digest(
     )
     with pytest.raises(pdc.PdcError):
         pdc.PdcClient().download_file(missing, io.BytesIO())
+
+
+def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"catalog-attested-bytes"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "fixture.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "https://pdc.cancer.gov/files/fixture.mzML",
+        "https://pdc.cancer.gov/download/fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:PDC000204:fixture",
+        file.location,
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "public metadata-bound research fixture",
+    )
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    destination = io.BytesIO()
+    receipt = pdc.PdcClient().download_file_with_receipt(file, snapshot, reference, destination)
+    assert isinstance(receipt, PdcSourceReceipt)
+    assert receipt.response_sha256 == "a" * 64
+    assert receipt.observed_size == len(payload)
+    assert receipt.as_dict()["file"] == {
+        **pdc._file_dict(file),
+    }
+    with pytest.raises(pdc.PdcError, match="absent"):
+        pdc.PdcClient().download_file_with_receipt(
+            replace(file, file_name="not-listed.mzML"), snapshot, reference, io.BytesIO()
+        )
 
 
 def test_pdc_private_file_size_and_required_fields() -> None:

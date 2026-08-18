@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
+from evals.research_proteomics.cohort import _pdc_sample
 from evals.research_proteomics.run import build_scenario_request, scenarios
 
 from glio_proteogen.research import (
@@ -119,3 +120,44 @@ def test_cohort_boundary_types_and_bounded_cardinality() -> None:
         ResearchCohortRequest(too_many)
     with pytest.raises(ValueError, match="no run"):
         _compatible_configuration(())
+
+
+def test_cohort_provenance_policy_rejects_mixed_and_binds_external_catalog() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    local = _sample("target_supported", "local", "r1")
+    external = _pdc_sample(target, "external", "r2")
+    with pytest.raises(ValueError, match="mix local"):
+        run_research_cohort(ResearchCohortRequest((local, external)))
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            (external, _pdc_sample(target, "external-2", "r3")),
+            provenance_policy="external_same_study",
+        )
+    )
+    configuration = dict(result.configuration)
+    assert configuration["cohort_provenance_policy"] == "external_same_study"
+    provenance = configuration["sample_source_provenance"]
+    assert isinstance(provenance, list)
+    assert all(isinstance(item, dict) and item["external_pdc_receipt"] for item in provenance)
+
+
+def test_cohort_provenance_policy_rejects_different_catalog_response() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    first = _pdc_sample(target, "pdc-a", "r1")
+    second = _pdc_sample(target, "pdc-b", "r2")
+    assert first.request.external_pdc_receipt is not None
+    assert second.request.external_pdc_receipt is not None
+    second_receipt = replace(
+        second.request.external_pdc_receipt,
+        snapshot=replace(second.request.external_pdc_receipt.snapshot, response_sha256="e" * 64),
+    )
+    second_request = replace(
+        second.request,
+        external_pdc_receipt=second_receipt,
+        external_pdc_response_sha256="e" * 64,
+    )
+    altered = replace(second, request=second_request)
+    with pytest.raises(ValueError, match="one study and one catalog response"):
+        run_research_cohort(
+            ResearchCohortRequest((first, altered), provenance_policy="external_same_study")
+        )

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from glio_proteogen.research import (
     PdcFile,
+    PdcStudySnapshot,
     ResearchCohortRequest,
     ResearchCohortSample,
     ResearchRunRequest,
@@ -80,11 +81,25 @@ def _pdc_sample(scenario: Scenario, sample_id: str, replicate: str) -> ResearchC
         retrieved_at="2026-08-18T00:00:00Z",
         license_or_terms="public metadata-bound research fixture",
     )
+    metadata_fixture = (
+        Path(__file__).resolve().parents[2]
+        / "tests"
+        / "fixtures"
+        / "research"
+        / "pdc000204_snapshot.json"
+    )
+    snapshot = PdcStudySnapshot(
+        study_id="PDC000204",
+        counts=(("Proteome", "processed_mzML", 2),),
+        files=(pdc_file,),
+        source_url="https://pdc.cancer.gov/pdc/study/PDC000204",
+        response_sha256=sha256(metadata_fixture.read_bytes()).hexdigest(),
+    )
     bound = bind_pdc_mzml_source(
         request,
         pdc_file,
         source_reference,
-        pdc_response_sha256="a" * 64,
+        pdc_snapshot=snapshot,
     )
     return ResearchCohortSample(
         sample_id=sample_id,
@@ -165,12 +180,14 @@ def run_evaluator() -> dict[str, object]:
 
     pdc_result = run_research_cohort(
         ResearchCohortRequest(
-            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2"))
+            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2")),
+            provenance_policy="external_same_study",
         )
     )
     replay = replay_research_cohort(
         ResearchCohortRequest(
-            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2"))
+            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2")),
+            provenance_policy="external_same_study",
         ),
         pdc_result,
     )
