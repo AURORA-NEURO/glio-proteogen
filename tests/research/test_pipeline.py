@@ -11,6 +11,7 @@ from hashlib import md5, sha256
 import pytest
 
 from glio_proteogen.research import (
+    EvidenceQualitySummary,
     EvidenceRecord,
     PdcFile,
     PdcStudySnapshot,
@@ -107,6 +108,37 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.result_digest == run_research_protein_inference(request).result_digest
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
     assert result.as_dict()["evidence_digest"] == result.evidence.digest
+    assert result.as_dict()["evidence_bundle"] == result.evidence.as_dict()
+
+
+def test_pipeline_replay_rejects_tampered_evidence_quality_projection() -> None:
+    """Derived quality metadata must be inside the replay verification boundary."""
+
+    request = ResearchRunRequest(
+        "quality-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    assert result.evidence.quality_summary is None
+    forged_quality = EvidenceQualitySummary(
+        scored_records=1,
+        ungraded_records=len(result.evidence.records) - 1,
+        abstained_records=0,
+        independent_sources=1,
+        weighted_auditability=1.0,
+        weighted_completeness=1.0,
+        weighted_score=1.0,
+    )
+    tampered = replace(
+        result,
+        evidence=replace(result.evidence, quality_summary=forged_quality),
+    )
+    with pytest.raises(ValueError, match=r"evidence bundle|digest"):
+        replay_research_protein_inference(request, tampered)
 
 
 def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
