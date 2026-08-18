@@ -1,0 +1,33 @@
+{
+  "evidence_type": "research_protein_group_quantification_integrity",
+  "version": "protein-group-quantification-input-1",
+  "claims": {
+    "research_only": true,
+    "calibrated_abundance": false,
+    "protein_identity": false,
+    "proteoform_identity": false,
+    "glioma_specific_biology": false,
+    "numerical_fusion": false
+  },
+  "invariants": [
+    "group_accessions_are_disjoint",
+    "group_peptide_memberships_are_disjoint",
+    "intensity_keys_are_declared_group_peptides",
+    "psm_count_keys_are_declared_group_peptides",
+    "missing_and_explicit_zero_inputs_have_distinct_receipts",
+    "shared_only_groups_do_not_create_primary_estimates",
+    "per_group_input_receipts_are_sha256_bound"
+  ],
+  "adversarial_cases": [
+    "overlapping_group_peptide_rejected",
+    "unreferenced_intensity_rejected",
+    "unreferenced_psm_count_rejected",
+    "missing_vs_explicit_zero_digest_difference"
+  ],
+  "validation": {
+    "focused_tests": 6,
+    "pipeline_evaluator_tests": 34,
+    "static_scope": "quantification.py + test_scientific_foundation.py",
+    "research_claim_ceiling": "matched-ion arbitrary signal only"
+  }
+}
