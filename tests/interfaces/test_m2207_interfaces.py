@@ -8,6 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m22_07 import (
+    ProteinRnaDiscordanceHumanFactorsResult,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_reference_material import (
@@ -63,6 +67,28 @@ def test_fastapi_not_evaluable_dimension_is_explicit_abstention() -> None:
     assert response.status_code == _HTTP_OK
     assert response.json()["status"] == "abstained"
     assert response.json()["report"] is None
+
+
+def test_fastapi_verify_rejects_self_rehashed_report_mutation() -> None:
+    request = _request()
+    client = TestClient(m2207.create_app(m2207.M2207Service()))
+    generated = client.post("/v1/modules/M22-07/evaluate", json=request.model_dump(mode="json"))
+    typed = ProteinRnaDiscordanceHumanFactorsResult.model_validate_json(generated.text, strict=True)
+    assert typed.report is not None
+    metric = typed.report.metrics[0].model_copy(
+        update={"metric_name": typed.report.metrics[0].metric_name + "-forged"}
+    )
+    report = typed.report.model_copy(update={"metrics": (metric, *typed.report.metrics[1:])})
+    tampered = typed.model_copy(update={"report": report})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    response = client.post(
+        "/v1/modules/M22-07/verify",
+        json={"result": tampered.model_dump(mode="json")},
+    )
+
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "replay envelope is invalid"
 
 
 def test_fastapi_denied_controls_are_sanitized() -> None:
@@ -153,3 +179,33 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 
     monkeypatch.setattr(m2207.cli, "_SERVICE", ReplayFailure())
     assert runner.invoke(m2207.app, ["verify", str(result_path)]).exit_code != 0
+
+
+def test_typer_verify_rejects_self_rehashed_report_mutation(tmp_path: Path) -> None:
+    request = _request()
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(request))
+    runner = CliRunner()
+    assert (
+        runner.invoke(
+            m2207.app, ["evaluate", str(request_path), "--output", str(result_path)]
+        ).exit_code
+        == 0
+    )
+    typed = ProteinRnaDiscordanceHumanFactorsResult.model_validate_json(
+        result_path.read_bytes(), strict=True
+    )
+    assert typed.report is not None
+    metric = typed.report.metrics[0].model_copy(
+        update={"metric_name": typed.report.metrics[0].metric_name + "-forged"}
+    )
+    report = typed.report.model_copy(update={"metrics": (metric, *typed.report.metrics[1:])})
+    tampered = typed.model_copy(update={"report": report})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    result_path.write_bytes(canonical_json_bytes(tampered))
+
+    verified = runner.invoke(m2207.app, ["verify", str(result_path)])
+
+    assert verified.exit_code != 0
+    assert "result replay is invalid" in verified.output

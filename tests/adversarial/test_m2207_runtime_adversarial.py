@@ -8,10 +8,25 @@ import pytest
 from evals.m22_07.fixture import build_request
 from pydantic import ValidationError
 
-from glio_proteogen.contracts.m22_07 import HumanFactorsOperationalReport, OperationalStatus
+from glio_proteogen.contracts.m22_07 import (
+    HumanFactorsOperationalReport,
+    OperationalStatus,
+    ProteinRnaDiscordanceHumanFactorsResult,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material import (
     m22_07_human_factors_operational_evaluator as m2207,
 )
+
+
+def _self_rehashed(
+    result: ProteinRnaDiscordanceHumanFactorsResult,
+    **updates: Any,
+) -> ProteinRnaDiscordanceHumanFactorsResult:
+    """Forge a valid-looking result whose digest covers attacker changes."""
+
+    forged = result.model_copy(update=updates)
+    return forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
 
 def test_authorization_boundary_rejects_hostile_mappings_before_validation() -> None:
@@ -44,6 +59,49 @@ def test_replay_rejects_request_mutation_even_when_result_digest_is_unchanged() 
 
     with pytest.raises(m2207.M2207ReplayError, match="request digest"):
         service.replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_report_metric_mutation() -> None:
+    service = m2207.M2207Service()
+    result = service.evaluate(build_request())
+    assert result.report is not None
+    metric = result.report.metrics[0].model_copy(
+        update={"metric_name": result.report.metrics[0].metric_name + "-forged"}
+    )
+    report = result.report.model_copy(update={"metrics": (metric, *result.report.metrics[1:])})
+    tampered = _self_rehashed(result, report=report)
+
+    with pytest.raises(m2207.M2207ReplayError, match="differs from deterministic"):
+        service.replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_provenance_mutation() -> None:
+    service = m2207.M2207Service()
+    result = service.evaluate(build_request())
+    tampered = _self_rehashed(
+        result,
+        provenance=result.provenance.model_copy(update={"activity_id": "forged-activity"}),
+    )
+
+    with pytest.raises(m2207.M2207ReplayError, match="differs from deterministic"):
+        service.replay(tampered)
+
+
+def test_plugin_rejects_self_rehashed_operational_mutation() -> None:
+    service = m2207.M2207Service()
+    plugin = m2207.M2207Plugin(service)
+    result = service.evaluate(build_request())
+    assert result.report is not None
+    fallback = result.report.fallbacks[0].model_copy(
+        update={"fallback_path": result.report.fallbacks[0].fallback_path + "-forged"}
+    )
+    report = result.report.model_copy(
+        update={"fallbacks": (fallback, *result.report.fallbacks[1:])}
+    )
+    tampered = _self_rehashed(result, report=report)
+
+    with pytest.raises(m2207.M2207ReplayError, match="differs from deterministic"):
+        plugin.replay(tampered)
 
 
 def test_media_boundary_drift_is_rejected_without_upstream_traversal() -> None:

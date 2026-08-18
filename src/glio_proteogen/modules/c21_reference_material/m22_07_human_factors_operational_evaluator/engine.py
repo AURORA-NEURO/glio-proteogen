@@ -45,6 +45,7 @@ _AUTHORIZATION_MESSAGE: Final = (
     "M22-07 operational evaluation requires accepted configuration, resolved identity, granted "
     "consent, accepted provenance/quality/support/intended-use controls"
 )
+_SEMANTIC_REPLAY_MESSAGE: Final = "M22-07 replay output differs from deterministic regeneration"
 _LIMITATIONS: Final = (
     Limitation(
         code="caller_declared_upstream",
@@ -155,15 +156,28 @@ class M2207OperationalEngine:
         self,
         result: ProteinRnaDiscordanceHumanFactorsResult,
     ) -> ProteinRnaDiscordanceHumanFactorsResult:
+        # Preserve the existing direct digest failures before parsing the full
+        # envelope, so callers receive precise closure errors for forged IDs or
+        # digests rather than a generic validation failure.
         if result.request_digest != canonical_request_digest(result.request):
             raise M2207ReplayError("M22-07 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2207ReplayError("M22-07 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2207ReplayError("M22-07 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceHumanFactorsResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ProteinRnaDiscordanceHumanFactorsResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise M2207ReplayError from error
+        try:
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2207ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2207ReplayError(_SEMANTIC_REPLAY_MESSAGE)
+        return replayed
 
 
 def evaluate_protein_rna_discordance_human_factors_operational(
