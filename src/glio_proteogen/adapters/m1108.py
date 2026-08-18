@@ -12,8 +12,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m11_08 import (
     M1108_MAX_CANONICAL_REQUEST_BYTES,
+    M1108_MAX_CANONICAL_RESULT_BYTES,
     AssembleVariantPeptideMechanismDossierRequest,
     VariantPeptideMechanismDossierResult,
     contract_json_schema,
@@ -79,7 +81,7 @@ def create_m1108_app(
 
 
 async def _parse_request(request: Request) -> AssembleVariantPeptideMechanismDossierRequest:
-    decoded, serialized = await _strict_body(request)
+    decoded, serialized = await _strict_body(request, M1108_MAX_CANONICAL_REQUEST_BYTES)
     try:
         m1108_runtime.preflight_m1108_authorization(decoded)
     except m1108_runtime.M1108AuthorizationError as error:
@@ -96,7 +98,7 @@ async def _parse_request(request: Request) -> AssembleVariantPeptideMechanismDos
 
 
 async def _parse_result(request: Request) -> VariantPeptideMechanismDossierResult:
-    decoded, serialized = await _strict_body(request)
+    decoded, serialized = await _strict_body(request, M1108_MAX_CANONICAL_RESULT_BYTES)
     try:
         return VariantPeptideMechanismDossierResult.model_validate_json(serialized, strict=True)
     except ValidationError as error:
@@ -114,10 +116,10 @@ async def _parse_result(request: Request) -> VariantPeptideMechanismDossierResul
         ) from error
 
 
-async def _strict_body(request: Request) -> tuple[object, bytes]:
+async def _strict_body(request: Request, max_bytes: int) -> tuple[object, bytes]:
     body = await request.body()
     try:
-        return strict_json_loads(body, max_bytes=M1108_MAX_CANONICAL_REQUEST_BYTES), body
+        return strict_json_loads(body, max_bytes=max_bytes), body
     except StrictJsonError as error:
         raise HTTPException(
             status_code=400,
@@ -202,7 +204,7 @@ def verify_cli(
 
 
 def _load_request_path(path: str) -> AssembleVariantPeptideMechanismDossierRequest:
-    serialized = _read_path(path)
+    serialized = _read_path(path, M1108_MAX_CANONICAL_REQUEST_BYTES)
     decoded = strict_json_loads(serialized, max_bytes=M1108_MAX_CANONICAL_REQUEST_BYTES)
     m1108_runtime.preflight_m1108_authorization(decoded)
     return AssembleVariantPeptideMechanismDossierRequest.model_validate_json(
@@ -211,8 +213,8 @@ def _load_request_path(path: str) -> AssembleVariantPeptideMechanismDossierReque
 
 
 def _load_result_path(path: str) -> VariantPeptideMechanismDossierResult:
-    serialized = _read_path(path)
-    decoded = strict_json_loads(serialized, max_bytes=M1108_MAX_CANONICAL_REQUEST_BYTES)
+    serialized = _read_path(path, M1108_MAX_CANONICAL_RESULT_BYTES)
+    decoded = strict_json_loads(serialized, max_bytes=M1108_MAX_CANONICAL_RESULT_BYTES)
     try:
         return VariantPeptideMechanismDossierResult.model_validate_json(serialized, strict=True)
     except ValidationError as error:
@@ -230,8 +232,13 @@ class _ResultReplayError(ValueError):
         super().__init__("result replay verification failed")
 
 
-def _read_path(path: str) -> bytes:
-    return sys.stdin.buffer.read() if path == "-" else Path(path).read_bytes()
+def _read_path(path: str, max_bytes: int) -> bytes:
+    if path == "-":
+        payload = sys.stdin.buffer.read(max_bytes + 1)
+        if len(payload) > max_bytes:
+            raise RequestBodyTooLargeError
+        return payload
+    return read_bounded(Path(path), max_bytes)
 
 
 def _cli_error(error: Exception) -> None:

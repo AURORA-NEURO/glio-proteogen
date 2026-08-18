@@ -17,9 +17,10 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m11_02 import (
     M1102_MAX_CANONICAL_REQUEST_BYTES,
+    M1102_MAX_CANONICAL_RESULT_BYTES,
     StratifyVariantPeptideContextRequest,
     VariantPeptideContextStratificationResult,
     canonical_request_digest,
@@ -147,15 +148,15 @@ m1102_app = typer.Typer(
 )
 
 
-def _read_argument(value: str) -> bytes:
+def _read_argument(value: str, max_bytes: int = M1102_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
     path = Path(value)
     if path.is_file():
-        return path.read_bytes()
+        return read_bounded(path, max_bytes)
     return value.encode("utf-8")
 
 
-def _parse_argument(value: str) -> object:
-    return strict_json_loads(_read_argument(value), max_bytes=M1102_MAX_CANONICAL_REQUEST_BYTES)
+def _parse_argument(value: str, max_bytes: int = M1102_MAX_CANONICAL_REQUEST_BYTES) -> object:
+    return strict_json_loads(_read_argument(value, max_bytes), max_bytes=max_bytes)
 
 
 def _emit(value: object) -> None:
@@ -216,7 +217,7 @@ def stratify_cli(
 @m1102_app.command("verify")
 def verify_cli(result: Annotated[str, typer.Argument(help="JSON result text or path.")]) -> None:
     try:
-        parsed = _parse_argument(result)
+        parsed = _parse_argument(result, M1102_MAX_CANONICAL_RESULT_BYTES)
         typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
         _emit(M1102Service().verify(typed))
     except (StrictJsonError, ValidationError, M1102AuthorizationError, ValueError) as error:
