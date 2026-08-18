@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m23_03 import BenchmarkStatus
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -13,7 +20,10 @@ from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_abl
     M2303Service,
 )
 
-from .fixture import build_request, denied_request, not_evaluable_request
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    from evals.m23_03.fixture import build_request, denied_request, not_evaluable_request
+else:
+    from .fixture import build_request, denied_request, not_evaluable_request
 
 
 def run_evaluator() -> dict[str, Any]:
