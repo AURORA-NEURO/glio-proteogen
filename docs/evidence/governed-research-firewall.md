@@ -1,4 +1,4 @@
-# Governed M03/M04/M05 research firewall
+# Governed C03/C04/C05 research firewall
 
 ## Purpose
 
@@ -21,24 +21,28 @@ safety property, not a missing implementation feature.
 `tests/architecture/test_governed_research_firewall.py` checks the boundary at
 four levels:
 
-1. **Static import graph.** Every Python file beneath frozen M03/M04/M05
-   contract and module directories, plus the central FastAPI and Typer
-   composers, is parsed with `ast`. Direct and aliased imports of
-   `glio_proteogen.research` (including submodules) fail the test.
+1. **Static import graph.** Every Python file beneath the tracked
+   `modules/c03_*`, `modules/c04_*`, and `modules/c05_*` implementation
+   families, all `contracts/m03_*` through `m05_*` packages, and the central
+   FastAPI/Typer composers is parsed with `ast`. Direct and aliased imports of
+   `glio_proteogen.research` (including submodules) fail the test. The family
+   inventory itself must resolve all three C03/C04/C05 roots, so a new module
+   cannot silently fall outside the scan.
 2. **Fresh-process import isolation.** A clean interpreter imports the central
    FastAPI composer and asserts that no research execution module is loaded.
    This catches an accidental eager import that an in-process test could hide.
-3. **Runtime route inventory.** The assembled central FastAPI application is
-   inspected through a temporary event store. Every application-owned endpoint
-   must be implemented by the adapter composer, and no route may expose
-   research-only vocabulary such as spectrum, mzML, PSM, FDR, quantification,
-   cohort, or protein-group execution.
+3. **Runtime/OpenAPI route inventory.** The assembled central FastAPI
+   application is inspected through a temporary event store. Every
+   application-owned endpoint must be implemented by the adapter composer,
+   and no path, callback metadata, operation ID, summary, description, or tag
+   may expose research-only vocabulary such as spectrum, mzML, PSM, FDR,
+   quantification, cohort, or protein-group execution.
 4. **CLI callback inventory and manifest claims ceiling.** Root and nested
-   Typer callbacks must stay in adapter-owned modules and cannot acquire a
-   research operation name. The 20 owner-frozen M03/M04/M05 manifests must
-   retain a claims ceiling, explicit non-inference language, and their own
-   domain boundary. Provisional M05-06 and M05-08 manifests are deliberately
-   excluded from the frozen set.
+   Typer callbacks are walked recursively, must stay in adapter-owned modules,
+   and cannot acquire a research operation name. The 20 owner-frozen
+   M03/M04/M05 manifests must retain a claims ceiling, explicit
+   non-inference language, and their own domain boundary. Provisional M05-06
+   and M05-08 manifests are deliberately excluded from the frozen set.
 
 The existing contract suites remain authoritative for schema-level false
 constants, forbidden biological fields, nested mutation firewalls, plugin
