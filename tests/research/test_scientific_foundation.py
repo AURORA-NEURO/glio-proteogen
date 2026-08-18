@@ -606,9 +606,13 @@ def test_protein_group_fdr_abstains_mixed_collision_and_allows_decoy_only_reject
 
 
 class _FakeResponse:
-    def __init__(self, payload: bytes) -> None:
+    def __init__(self, payload: bytes, *, content_type: str = "application/mzml") -> None:
         self.payload = payload
         self._read = False
+        self.headers = {
+            "Content-Type": content_type,
+            "Content-Length": str(len(payload)),
+        }
 
     def __enter__(self) -> Self:
         return self
@@ -702,7 +706,9 @@ def test_pdc_explicit_signed_download_verifies_bytes(monkeypatch: pytest.MonkeyP
         location="studies/204/fixture.mzML",
         signed_url="https://pdc.cancer.gov/download/fixture",
     )
-    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    monkeypatch.setattr(
+        pdc, "_open_download_response", lambda *_args, **_kwargs: _FakeResponse(payload)
+    )
     destination = io.BytesIO()
     assert pdc.PdcClient().download_file(file, destination) == len(payload)
     assert destination.getvalue() == payload
@@ -710,7 +716,9 @@ def test_pdc_explicit_signed_download_verifies_bytes(monkeypatch: pytest.MonkeyP
         pdc.PdcClient().download_file(file, io.BytesIO(), max_bytes=4)
     with pytest.raises(ValueError):
         pdc.PdcClient().download_file(file, io.BytesIO(), max_bytes=0)
-    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    monkeypatch.setattr(
+        pdc, "_open_download_response", lambda *_args, **_kwargs: _FakeResponse(payload)
+    )
     with pytest.raises(pdc.PdcError):
         pdc.PdcClient().download_file(replace(file, file_size=4, md5=None), io.BytesIO())
     with pytest.raises(pdc.PdcError):
@@ -726,7 +734,9 @@ def test_pdc_explicit_signed_download_verifies_bytes(monkeypatch: pytest.MonkeyP
         )
     cloudfront_file = replace(file, signed_url="https://d3iwtkuvwz4jtf.cloudfront.net/x")
     assert pdc.PDC_DOWNLOAD_HOSTS
-    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    monkeypatch.setattr(
+        pdc, "_open_download_response", lambda *_args, **_kwargs: _FakeResponse(payload)
+    )
     assert pdc.PdcClient().download_file(cloudfront_file, io.BytesIO()) == len(payload)
 
 
@@ -745,7 +755,9 @@ def test_pdc_signed_download_rejects_missing_or_bad_digest(
         "fixture",
         "https://pdc.cancer.gov/download/fixture",
     )
-    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    monkeypatch.setattr(
+        pdc, "_open_download_response", lambda *_args, **_kwargs: _FakeResponse(payload)
+    )
     with pytest.raises(pdc.PdcError):
         pdc.PdcClient().download_file(file, io.BytesIO())
     missing = file.__class__(
@@ -793,7 +805,9 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
         "2026-08-18T00:00:00Z",
         "public metadata-bound research fixture",
     )
-    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    monkeypatch.setattr(
+        pdc, "_open_download_response", lambda *_args, **_kwargs: _FakeResponse(payload)
+    )
     destination = io.BytesIO()
     receipt = pdc.PdcClient().download_file_with_receipt(file, snapshot, reference, destination)
     assert isinstance(receipt, PdcSourceReceipt)
@@ -807,9 +821,13 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
             replace(file, file_name="not-listed.mzML"), snapshot, reference, io.BytesIO()
         )
     with pytest.raises(TypeError, match="PdcStudySnapshot"):
-        pdc.PdcClient().download_file_with_receipt(file, object(), reference, io.BytesIO())
+        pdc.PdcClient().download_file_with_receipt(
+            file, cast("PdcStudySnapshot", object()), reference, io.BytesIO()
+        )
     with pytest.raises(TypeError, match="SourceReference"):
-        pdc.PdcClient().download_file_with_receipt(file, snapshot, object(), io.BytesIO())
+        pdc.PdcClient().download_file_with_receipt(
+            file, snapshot, cast("SourceReference", object()), io.BytesIO()
+        )
 
 
 @pytest.mark.parametrize(
