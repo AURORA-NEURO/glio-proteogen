@@ -23,10 +23,16 @@ one deterministic, auditable path:
    shared peptides remain attached to all compatible accessions.
 7. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
-The locked evaluator covers six paths: a target match, decoy rejection, no-match safe path,
-precursor rejection, shared-peptide grouping, and a two-spectrum input. The fixture binds
-scenario order, expected PSM/accepted counts, group membership, shared-peptide expectations,
-and all claim-boundary flags. The benchmark uses one warm-up followed by timed public calls.
+The result also carries a replay-bound `FdrSummary`: winner count per spectrum, target and
+decoy winner counts, accepted target count, the declared threshold, maximum accepted q-value,
+and the descriptive decoy/target ratio. This is an audit trail for the implemented competition
+rule, not a claim of calibrated error control beyond the supplied target/decoy search space.
+
+The locked evaluator covers seven paths: a target match, decoy rejection, no-match safe path,
+precursor rejection, shared-peptide grouping, a two-spectrum input, and a two-peptide
+quantification run. The fixture binds scenario order, expected PSM/accepted counts, target/decoy
+winner counts, quantified-peptide counts, group membership, shared-peptide expectations, and all
+claim-boundary flags. The benchmark uses one warm-up followed by timed public calls.
 
 ## Scientific limits
 

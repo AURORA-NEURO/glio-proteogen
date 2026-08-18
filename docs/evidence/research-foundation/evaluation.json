@@ -1,10 +1,10 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "a55b31903caaa46b2026b191842df23d59a2c0cf6b2cf80fa59250183e2304ff",
+  "fixture_sha256": "f409d91401358dfd4d719539da381e473b0c98ed8023c1ad1bc30fbfe523c90d",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
-    "declared": 6,
-    "executed": 6,
+    "declared": 7,
+    "executed": 7,
     "passed": true,
     "scenario_ids": [
       "target_supported",
@@ -12,16 +12,17 @@
       "no_match",
       "precursor_rejected",
       "shared_peptide_group",
-      "multi_spectrum"
+      "multi_spectrum",
+      "multi_peptide_quantification"
     ]
   },
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
-    "mean_ns": 456350,
-    "median_ns": 406400,
-    "p95_ns": 562600,
-    "result_digest": "8971349612fd65bbeba28e9a7ea3c4a9e8b49406a4bfc593f03b1a9e0aeb98e4"
+    "mean_ns": 283680,
+    "median_ns": 268100,
+    "p95_ns": 321900,
+    "result_digest": "3b9ad9b4dff55ffa33db6945f8fc24b416c9b788d59364d3ecb8f5f7568d3ddd"
   },
   "coverage": {
     "statements": 1130,

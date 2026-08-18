@@ -19,6 +19,7 @@ import pytest
 from glio_proteogen.research import (
     EvidenceRecord,
     PeptideQuant,
+    Psm,
     SearchParameters,
     aggregate_evidence,
     digest_trypsin,
@@ -29,6 +30,7 @@ from glio_proteogen.research import (
     quantify_matched_ions,
     read_fasta,
     search_spectrum,
+    summarize_target_decoy,
     target_decoy_qvalues,
 )
 
@@ -107,6 +109,21 @@ def test_digest_search_target_decoy_and_protein_ambiguity() -> None:
     groups = infer_protein_groups({"MPEPTIDER": ("P1",), "MPEPTIDE": ("P1", "P2")})
     assert groups[0].accessions == ("P1", "P2")
     assert groups[0].shared_peptides == ("MPEPTIDE",)
+
+
+def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
+    target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
+    decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
+    summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
+    assert summary.method == "winner-per-spectrum-monotone-target-decoy-1"
+    assert summary.spectrum_winners == 2
+    assert summary.target_winners == 1
+    assert summary.decoy_winners == 1
+    assert summary.accepted_targets == 1
+    assert summary.max_accepted_q_value == 0.0
+    assert summary.decoy_to_target_ratio == 1.0
+    with pytest.raises(ValueError, match="between zero and one"):
+        summarize_target_decoy((target,), q_value_threshold=1.1)
 
 
 def test_median_quantification_preserves_missingness() -> None:

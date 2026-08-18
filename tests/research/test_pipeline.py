@@ -65,6 +65,13 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert len(result.psms) == 1
     assert len(result.accepted_psms) == 1
     assert result.psms[0].matched_intensity == 20.0
+    assert result.fdr_summary is not None
+    assert result.fdr_summary.target_winners == 1
+    assert result.fdr_summary.decoy_winners == 0
+    assert result.fdr_summary.accepted_targets == 1
+    fdr_summary = result.as_dict()["fdr_summary"]
+    assert isinstance(fdr_summary, dict)
+    assert fdr_summary["method"] == ("winner-per-spectrum-monotone-target-decoy-1")
     assert result.peptide_spectral_counts == (("MPEPTIDER", 1),)
     assert result.peptide_intensities == (("MPEPTIDER", 20.0),)
     assert result.protein_groups[0].accessions == ("P1",)

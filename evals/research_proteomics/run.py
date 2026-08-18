@@ -23,6 +23,9 @@ class Scenario:
     expected_accepted: int
     expected_groups: tuple[tuple[str, ...], ...] = ()
     expected_shared: tuple[str, ...] = ()
+    expected_target_winners: int = 0
+    expected_decoy_winners: int = 0
+    expected_quantified_peptides: int = 0
 
 
 def _array(values: tuple[float, ...], accession: str) -> str:
@@ -34,9 +37,16 @@ def _array(values: tuple[float, ...], accession: str) -> str:
     )
 
 
-def _spectrum(*, matched: bool, precursor_mz: float, spectrum_id: str) -> str:
-    mz = (132.0, 229.1, 358.1) if matched else (1.0,)
-    intensity = (10.0, 20.0, 30.0) if matched else (1.0,)
+def _spectrum(
+    *,
+    matched: bool,
+    precursor_mz: float,
+    spectrum_id: str,
+    mz: tuple[float, ...] | None = None,
+    intensity: tuple[float, ...] | None = None,
+) -> str:
+    mz = mz if mz is not None else ((132.0, 229.1, 358.1) if matched else (1.0,))
+    intensity = intensity if intensity is not None else ((10.0, 20.0, 30.0) if matched else (1.0,))
     return (
         f'<spectrum id="{spectrum_id}">'
         '<cvParam accession="MS:1000511" value="2"/>'
@@ -68,6 +78,27 @@ def _multi_mzml() -> bytes:
     ).encode()
 
 
+def _multi_peptide_mzml() -> bytes:
+    return (
+        "<mzML><run><spectrumList>"
+        + _spectrum(
+            matched=True,
+            precursor_mz=1087.508837466,
+            spectrum_id="scan=1",
+            mz=(132.047761466, 229.100525466, 358.143118466),
+            intensity=(10.0, 20.0, 30.0),
+        )
+        + _spectrum(
+            matched=True,
+            precursor_mz=928.462204466,
+            spectrum_id="scan=2",
+            mz=(98.060040466, 227.102633466, 324.155397466),
+            intensity=(5.0, 15.0, 25.0),
+        )
+        + "</spectrumList></run></mzML>"
+    ).encode()
+
+
 def scenarios() -> tuple[Scenario, ...]:
     return (
         Scenario(
@@ -77,13 +108,33 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             1,
             (("P1",),),
+            (),
+            1,
+            0,
+            1,
         ),
-        Scenario("decoy_rejected", b">DECOY_P1\nMPEPTIDER\n", _mzml(matched=True), 1, 0),
-        Scenario("no_match", b">P1\nMPEPTIDER\n", _mzml(matched=False), 0, 0),
+        Scenario(
+            "decoy_rejected",
+            b">DECOY_P1\nMPEPTIDER\n",
+            _mzml(matched=True),
+            1,
+            0,
+            (),
+            (),
+            0,
+            1,
+            0,
+        ),
+        Scenario("no_match", b">P1\nMPEPTIDER\n", _mzml(matched=False), 0, 0, (), (), 0, 0, 0),
         Scenario(
             "precursor_rejected",
             b">P1\nMPEPTIDER\n",
             _mzml(matched=True, precursor_mz=500.0),
+            0,
+            0,
+            (),
+            (),
+            0,
             0,
             0,
         ),
@@ -95,6 +146,9 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             (("P1", "P2"),),
             ("MPEPTIDER",),
+            1,
+            0,
+            1,
         ),
         Scenario(
             "multi_spectrum",
@@ -103,6 +157,22 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             1,
             (("P1",),),
+            (),
+            1,
+            0,
+            1,
+        ),
+        Scenario(
+            "multi_peptide_quantification",
+            b">P1\nMPEPTIDER\n>P2\nPEPTIDEK\n",
+            _multi_peptide_mzml(),
+            2,
+            2,
+            (("P1",), ("P2",)),
+            (),
+            2,
+            0,
+            2,
         ),
     )
 
@@ -124,6 +194,9 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item["expected_accepted"],
             tuple(tuple(group) for group in item.get("expected_groups", [])),
             tuple(item.get("expected_shared", [])),
+            item.get("expected_target_winners", 0),
+            item.get("expected_decoy_winners", 0),
+            item.get("expected_quantified_peptides", 0),
         )
         for item in fixture["scenarios"]
     )
@@ -134,6 +207,9 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item.expected_accepted,
             item.expected_groups,
             item.expected_shared,
+            item.expected_target_winners,
+            item.expected_decoy_winners,
+            item.expected_quantified_peptides,
         )
         for item in locked
     )
@@ -173,6 +249,11 @@ def run_evaluator() -> dict[str, object]:
                 peptide for group in result.protein_groups for peptide in group.shared_peptides
             )
             == scenario.expected_shared
+            and result.fdr_summary is not None
+            and result.fdr_summary.target_winners == scenario.expected_target_winners
+            and result.fdr_summary.decoy_winners == scenario.expected_decoy_winners
+            and result.fdr_summary.accepted_targets == scenario.expected_accepted
+            and len(result.peptide_intensities) == scenario.expected_quantified_peptides
         )
         outcomes.append(
             {
@@ -182,6 +263,8 @@ def run_evaluator() -> dict[str, object]:
                 "psms": len(result.psms),
                 "accepted_psms": len(result.accepted_psms),
                 "groups": [list(group.accessions) for group in result.protein_groups],
+                "fdr_summary": result.fdr_summary.as_dict() if result.fdr_summary else None,
+                "quantified_peptides": len(result.peptide_intensities),
             }
         )
     return {

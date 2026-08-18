@@ -9,6 +9,7 @@
       "tryptic_digest",
       "b_y_fragment_matching",
       "target_decoy_q_values",
+      "winner_level_fdr_summary",
       "spectral_count_quantification",
       "matched_ion_intensity_quantification",
       "median_scaled_missingness_preserving_normalization",
@@ -23,14 +24,15 @@
     }
   },
   "validation": {
-    "scenarios": 6,
+    "scenarios": 7,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",
       "no_match",
       "precursor_rejected",
       "shared_peptide_group",
-      "multi_spectrum"
+      "multi_spectrum",
+      "multi_peptide_quantification"
     ],
     "replay": "full_result_projection_and_digest",
     "raw_cohort_bytes_bundled": false
