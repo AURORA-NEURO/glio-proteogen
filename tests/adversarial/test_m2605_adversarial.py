@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_05 import (
     M2605_M2604_INPUT_MEDIA_TYPE,
     TelemetryMetricKind,
 )
+from glio_proteogen.contracts.m26_05.canonical import result_payload_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry import (
     M2605AuthorizationError,
@@ -27,6 +28,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry i
     cli,
     emit_proteomics_telemetry,
     preflight_m2605_authorization,
+    verify_telemetry_result,
 )
 from glio_proteogen.modules.c20_biomarker_panel.m26_05_observability_telemetry.plugin import (
     ValidatedM2605Request,
@@ -117,6 +119,56 @@ def test_api_verify_rejects_tamper_and_unknown_result_envelope() -> None:
     unknown = client.post("/v1/modules/M26-05/verify", json={"result": {"unknown": True}})
     assert rejected.status_code == _UNPROCESSABLE
     assert unknown.status_code == _UNPROCESSABLE
+
+
+def _self_rehashed_result(result: object, updates: dict[str, object]) -> object:
+    forged = result.model_copy(update=updates)  # type: ignore[union-attr]
+    return type(forged).model_construct(  # type: ignore[union-attr]
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+
+def test_self_rehashed_telemetry_mutation_is_rejected_by_all_replay_seams() -> None:
+    result = M2605ObservabilityEngine().emit(_request())
+    assert result.telemetry_stream is not None
+    sample = result.telemetry_stream.samples[0].model_copy(update={"value": 0.42})
+    forged = _self_rehashed_result(
+        result,
+        {
+            "telemetry_stream": result.telemetry_stream.model_copy(
+                update={"samples": (sample, *result.telemetry_stream.samples[1:])}
+            )
+        },
+    )
+    with pytest.raises(M2605ReplayError):
+        verify_telemetry_result(forged)  # type: ignore[arg-type]
+    with pytest.raises(M2605ReplayError):
+        M2605ObservabilityService.verify(forged)
+    with pytest.raises(M2605ReplayError):
+        M2605Plugin().replay(forged)
+
+
+def test_api_and_cli_reject_self_rehashed_telemetry_mutation(tmp_path: Path) -> None:
+    result = M2605ObservabilityEngine().emit(_request())
+    assert result.telemetry_stream is not None
+    finding = result.telemetry_stream.findings[0].model_copy(update={"message": "forged"})
+    forged = _self_rehashed_result(
+        result,
+        {
+            "telemetry_stream": result.telemetry_stream.model_copy(
+                update={"findings": (finding, *result.telemetry_stream.findings[1:])}
+            )
+        },
+    )
+    response = TestClient(api.create_m2605_app()).post(
+        "/v1/modules/M26-05/verify", json=forged.model_dump(mode="json")
+    )
+    assert response.status_code == _UNPROCESSABLE
+    result_path = tmp_path / "forged.json"
+    result_path.write_text(forged.model_dump_json(), encoding="utf-8")
+    invoked = CliRunner().invoke(cli.app, ["verify", str(result_path)])
+    assert invoked.exit_code != 0
+    assert "replay is invalid" in invoked.output
 
 
 def test_api_sanitizes_service_validation_errors() -> None:
