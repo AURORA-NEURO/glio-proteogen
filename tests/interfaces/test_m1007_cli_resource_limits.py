@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from evals.m10_07.run import build_request
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m10_07 import (
@@ -15,10 +16,6 @@ from glio_proteogen.contracts.m10_07 import (
 from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction import (
     cli as m1007_cli,
 )
-from glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction.service import (
-    M1007Service,
-)
-from evals.m10_07.run import build_request
 
 if TYPE_CHECKING:
     from collections.abc import Callable
