@@ -3,30 +3,507 @@
   "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
+    "passed": true,
     "declared": 8,
     "executed": 8,
-    "passed": true,
-    "scenario_ids": [
-      "target_supported",
-      "decoy_rejected",
-      "target_decoy_collision",
-      "no_match",
-      "precursor_rejected",
-      "shared_peptide_group",
-      "multi_spectrum",
-      "multi_peptide_quantification"
+    "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
+    "outcomes": [
+      {
+        "scenario_id": "target_supported",
+        "passed": true,
+        "result_digest": "4518331dad8b7bc3252f8e7afd4577ea1ca47f5101edb1a48c5e11f1a5a5eb40",
+        "psms": 1,
+        "accepted_psms": 1,
+        "groups": [
+          [
+            "P1"
+          ]
+        ],
+        "fdr_summary": {
+          "accepted_targets": 1,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": 0.0,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 1,
+          "target_winners": 1
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 1,
+          "candidates": 1,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": 0.0,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 1
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "P1"
+            ],
+            "acceptance": "accepted",
+            "q_value": 0.0,
+            "status": "target"
+          }
+        ],
+        "quantified_peptides": 1,
+        "protein_group_quantifications": [
+          {
+            "group_accessions": [
+              "P1"
+            ],
+            "primary_intensity": 20.0,
+            "shared_peptides": [],
+            "shared_signal": 0,
+            "status": "quantified",
+            "supporting_psms": 1,
+            "total_signal": 20.0,
+            "unique_peptides": [
+              "MPEPTIDER"
+            ],
+            "unique_signal": 20.0
+          }
+        ],
+        "search_diagnostics": {
+          "matched_psms": 1,
+          "max_fragment_error_da": 0.0005254659999991418,
+          "max_precursor_error_ppm": 0.0,
+          "mean_fragment_error_da": 0.0005254659999991418,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "decoy_rejected",
+        "passed": true,
+        "result_digest": "786e1a2cbd9b447d0abcfa64857a6f98dee59c208ce7755fd0691d4107743c14",
+        "psms": 1,
+        "accepted_psms": 0,
+        "groups": [],
+        "fdr_summary": {
+          "accepted_targets": 0,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 1,
+          "collision_winners": 0,
+          "max_accepted_q_value": null,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 1,
+          "target_winners": 0
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 0,
+          "candidates": 1,
+          "collision_candidates": 0,
+          "decoy_candidates": 1,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": null,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 0
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "DECOY_P1"
+            ],
+            "acceptance": "rejected",
+            "q_value": null,
+            "status": "decoy"
+          }
+        ],
+        "quantified_peptides": 0,
+        "protein_group_quantifications": [],
+        "search_diagnostics": {
+          "matched_psms": 1,
+          "max_fragment_error_da": 0.0005254659999991418,
+          "max_precursor_error_ppm": 0.0,
+          "mean_fragment_error_da": 0.0005254659999991418,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "target_decoy_collision",
+        "passed": true,
+        "result_digest": "75b4b3e9e98f9f92ef8a00607476d075b027e9b3a561359aeae92f0a8af0ab10",
+        "psms": 1,
+        "accepted_psms": 0,
+        "groups": [],
+        "fdr_summary": {
+          "accepted_targets": 0,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 1,
+          "max_accepted_q_value": null,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 1,
+          "target_winners": 0
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 0,
+          "candidates": 1,
+          "collision_candidates": 1,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": null,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 0
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "DECOY_P1",
+              "P1"
+            ],
+            "acceptance": "abstained",
+            "q_value": null,
+            "status": "collision"
+          }
+        ],
+        "quantified_peptides": 0,
+        "protein_group_quantifications": [],
+        "search_diagnostics": {
+          "matched_psms": 1,
+          "max_fragment_error_da": 0.0005254659999991418,
+          "max_precursor_error_ppm": 0.0,
+          "mean_fragment_error_da": 0.0005254659999991418,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "no_match",
+        "passed": true,
+        "result_digest": "fef93f2c651c69142670f782ead71b5101f86037172b02bed27a24a34d69e230",
+        "psms": 0,
+        "accepted_psms": 0,
+        "groups": [],
+        "fdr_summary": {
+          "accepted_targets": 0,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": null,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 0,
+          "target_winners": 0
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 0,
+          "candidates": 0,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": null,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 0
+        },
+        "protein_group_candidates": [],
+        "quantified_peptides": 0,
+        "protein_group_quantifications": [],
+        "search_diagnostics": {
+          "matched_psms": 0,
+          "max_fragment_error_da": null,
+          "max_precursor_error_ppm": null,
+          "mean_fragment_error_da": null,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "precursor_rejected",
+        "passed": true,
+        "result_digest": "efb68c354cff0adef41f1bf4aeef8de473aad506c25322521181b01247894716",
+        "psms": 0,
+        "accepted_psms": 0,
+        "groups": [],
+        "fdr_summary": {
+          "accepted_targets": 0,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": null,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 0,
+          "target_winners": 0
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 0,
+          "candidates": 0,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": null,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 0
+        },
+        "protein_group_candidates": [],
+        "quantified_peptides": 0,
+        "protein_group_quantifications": [],
+        "search_diagnostics": {
+          "matched_psms": 0,
+          "max_fragment_error_da": null,
+          "max_precursor_error_ppm": null,
+          "mean_fragment_error_da": null,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "shared_peptide_group",
+        "passed": true,
+        "result_digest": "954aa85a38da744b8b74ca28f5cc355ba74ef30d2a5bb483b1b2159ef2df23da",
+        "psms": 1,
+        "accepted_psms": 1,
+        "groups": [
+          [
+            "P1",
+            "P2"
+          ]
+        ],
+        "fdr_summary": {
+          "accepted_targets": 1,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": 0.0,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 1,
+          "target_winners": 1
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 1,
+          "candidates": 1,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": 0.0,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 1
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "P1",
+              "P2"
+            ],
+            "acceptance": "accepted",
+            "q_value": 0.0,
+            "status": "target"
+          }
+        ],
+        "quantified_peptides": 1,
+        "protein_group_quantifications": [
+          {
+            "group_accessions": [
+              "P1",
+              "P2"
+            ],
+            "primary_intensity": null,
+            "shared_peptides": [
+              "MPEPTIDER"
+            ],
+            "shared_signal": 20.0,
+            "status": "non_quantifiable_shared_only",
+            "supporting_psms": 1,
+            "total_signal": 20.0,
+            "unique_peptides": [],
+            "unique_signal": 0
+          }
+        ],
+        "search_diagnostics": {
+          "matched_psms": 1,
+          "max_fragment_error_da": 0.0005254659999991418,
+          "max_precursor_error_ppm": 0.0,
+          "mean_fragment_error_da": 0.0005254659999991418,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "multi_spectrum",
+        "passed": true,
+        "result_digest": "2cfa9552584e66d6c02494c1b6b9db87e4a2ae6644cc04827199eafdc01e0343",
+        "psms": 1,
+        "accepted_psms": 1,
+        "groups": [
+          [
+            "P1"
+          ]
+        ],
+        "fdr_summary": {
+          "accepted_targets": 1,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": 0.0,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 1,
+          "target_winners": 1
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 1,
+          "candidates": 1,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": 0.0,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 1
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "P1"
+            ],
+            "acceptance": "accepted",
+            "q_value": 0.0,
+            "status": "target"
+          }
+        ],
+        "quantified_peptides": 1,
+        "protein_group_quantifications": [
+          {
+            "group_accessions": [
+              "P1"
+            ],
+            "primary_intensity": 20.0,
+            "shared_peptides": [],
+            "shared_signal": 0,
+            "status": "quantified",
+            "supporting_psms": 1,
+            "total_signal": 20.0,
+            "unique_peptides": [
+              "MPEPTIDER"
+            ],
+            "unique_signal": 20.0
+          }
+        ],
+        "search_diagnostics": {
+          "matched_psms": 1,
+          "max_fragment_error_da": 0.0005254659999991418,
+          "max_precursor_error_ppm": 0.0,
+          "mean_fragment_error_da": 0.0005254659999991418,
+          "precursor_tolerance_ppm": 20
+        }
+      },
+      {
+        "scenario_id": "multi_peptide_quantification",
+        "passed": true,
+        "result_digest": "6d964f48779e4cc3cddcb2f44f7d12b801f4c9f81531e4aee0f032c3bf2eb7bf",
+        "psms": 2,
+        "accepted_psms": 2,
+        "groups": [
+          [
+            "P1"
+          ],
+          [
+            "P2"
+          ]
+        ],
+        "fdr_summary": {
+          "accepted_targets": 2,
+          "decoy_to_target_ratio": 0.0,
+          "decoy_winners": 0,
+          "collision_winners": 0,
+          "max_accepted_q_value": 0.0,
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "spectrum_winners": 2,
+          "target_winners": 2
+        },
+        "protein_group_fdr_summary": {
+          "accepted_targets": 2,
+          "candidates": 2,
+          "collision_candidates": 0,
+          "decoy_candidates": 0,
+          "decoy_to_target_ratio": 0.0,
+          "max_accepted_q_value": 0.0,
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+          "q_value_threshold": 0.01,
+          "target_candidates": 2
+        },
+        "protein_group_candidates": [
+          {
+            "accessions": [
+              "P1"
+            ],
+            "acceptance": "accepted",
+            "q_value": 0.0,
+            "status": "target"
+          },
+          {
+            "accessions": [
+              "P2"
+            ],
+            "acceptance": "accepted",
+            "q_value": 0.0,
+            "status": "target"
+          }
+        ],
+        "quantified_peptides": 2,
+        "protein_group_quantifications": [
+          {
+            "group_accessions": [
+              "P1"
+            ],
+            "primary_intensity": 60.0,
+            "shared_peptides": [],
+            "shared_signal": 0,
+            "status": "quantified",
+            "supporting_psms": 1,
+            "total_signal": 60.0,
+            "unique_peptides": [
+              "MPEPTIDER"
+            ],
+            "unique_signal": 60.0
+          },
+          {
+            "group_accessions": [
+              "P2"
+            ],
+            "primary_intensity": 45.0,
+            "shared_peptides": [],
+            "shared_signal": 0,
+            "status": "quantified",
+            "supporting_psms": 1,
+            "total_signal": 45.0,
+            "unique_peptides": [
+              "PEPTIDEK"
+            ],
+            "unique_signal": 45.0
+          }
+        ],
+        "search_diagnostics": {
+          "matched_psms": 2,
+          "max_fragment_error_da": 1.8947806286936004e-14,
+          "max_precursor_error_ppm": 1.224463819580059e-10,
+          "mean_fragment_error_da": 1.6579330501069002e-14,
+          "precursor_tolerance_ppm": 20
+        }
+      }
     ]
   },
   "cohort_evaluation": {
     "passed": true,
-    "declared": 5,
-    "executed": 5,
-    "fixture_sha256": "689008b230a4db7f06c53605cee98fd367c5ae6266b875e209b3210115beb8d4",
+    "declared": 6,
+    "executed": 6,
+    "fixture_sha256": "d1c8ac59b8bdd361f10c71883baa1fbf1582bfae6cfa1307c352a3156268fd1b",
     "outcomes": [
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "1d3a06b902369c19796b13d011f7996276ff14cb26d95c2aaf9ccbf18180902e",
+        "result_digest": "ce6bdc1b890db2d960e5b51eaeda8ec07a6f41687cee436c3029a97e125cdbc4",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -47,7 +524,12 @@
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "homogeneous",
-            "cohort_version": "research-cohort-2",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
             "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -128,7 +610,7 @@
               ]
             ]
           ],
-          "result_digest": "1d3a06b902369c19796b13d011f7996276ff14cb26d95c2aaf9ccbf18180902e",
+          "result_digest": "ce6bdc1b890db2d960e5b51eaeda8ec07a6f41687cee436c3029a97e125cdbc4",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -195,7 +677,8 @@
               "observed_cells": 2,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "not_applied"
+              "status": "descriptive",
+              "normalization_status": "not_applied"
             }
           ],
           "label_group_evidence": [
@@ -215,9 +698,206 @@
         }
       },
       {
+        "id": "qc_abstention",
+        "passed": true,
+        "result_digest": "94f870fd3438a9a6102ea707b8dbefe0dd72a958c34c2c448c47f35ed5a34090",
+        "missing_cells": 1,
+        "projection": {
+          "child_result_digests": [
+            [
+              "qc-absent",
+              "612653d5be6f9484775733a19c58be0dc3718ec4cbe0f4cfd590c1631c018576"
+            ],
+            [
+              "qc-present",
+              "03c4af8246c5bce14f6bfb48a245dd6c6c4b7082ef83e0235990ed1ca78af02b"
+            ]
+          ],
+          "configuration": {
+            "child_result_digests": [
+              "612653d5be6f9484775733a19c58be0dc3718ec4cbe0f4cfd590c1631c018576",
+              "03c4af8246c5bce14f6bfb48a245dd6c6c4b7082ef83e0235990ed1ca78af02b"
+            ],
+            "cohort_normalization_policy": "none",
+            "cohort_normalization_version": "none",
+            "cohort_provenance_policy": "homogeneous",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.0,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_version": "research-cohort-3",
+            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+            "matrix_feature": "accepted-protein-group-primary-intensity",
+            "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+            "sample_ids": [
+              "qc-absent",
+              "qc-present"
+            ],
+            "sample_source_provenance": [
+              {
+                "sample_id": "qc-absent",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              },
+              {
+                "sample_id": "qc-present",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              }
+            ]
+          },
+          "group_accessions": [
+            [
+              "P1"
+            ]
+          ],
+          "group_qc": [
+            {
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_intensity": 0.0,
+              "median_intensity": 20.0,
+              "missing_samples": 1,
+              "missingness_rate": 0.5,
+              "observed_samples": 1
+            }
+          ],
+          "matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                null,
+                20.0
+              ]
+            ]
+          ],
+          "normalized_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                null,
+                null
+              ]
+            ]
+          ],
+          "raw_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                null,
+                20.0
+              ]
+            ]
+          ],
+          "result_digest": "94f870fd3438a9a6102ea707b8dbefe0dd72a958c34c2c448c47f35ed5a34090",
+          "sample_ids": [
+            "qc-absent",
+            "qc-present"
+          ],
+          "sample_qc": [
+            {
+              "accepted_psms": 0,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": null,
+              "missing_groups": 1,
+              "missingness_rate": 1.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 0,
+              "replicate_label": "r2",
+              "sample_id": "qc-absent",
+              "spectra_seen": 1,
+              "normalization_scale": 1.0,
+              "normalization_status": "not_applied"
+            },
+            {
+              "accepted_psms": 1,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": 0.0,
+              "missing_groups": 0,
+              "missingness_rate": 0.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 1,
+              "replicate_label": "r1",
+              "sample_id": "qc-present",
+              "spectra_seen": 1,
+              "normalization_scale": 1.0,
+              "normalization_status": "not_applied"
+            }
+          ],
+          "sample_scales": [
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 0,
+              "positive_groups": 0,
+              "sample_id": "qc-absent",
+              "scale_factor": 1.0,
+              "status": "not_applied"
+            },
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 0,
+              "positive_groups": 1,
+              "sample_id": "qc-present",
+              "scale_factor": 1.0,
+              "status": "not_applied"
+            }
+          ],
+          "label_qc": [
+            {
+              "cohort_label": "locked-cohort",
+              "mad_intensity": null,
+              "median_intensity": null,
+              "missing_cells": 1,
+              "missingness_rate": 0.5,
+              "observed_cells": 1,
+              "replicate_count": 2,
+              "sample_count": 2,
+              "status": "abstained_missingness",
+              "normalization_status": "not_applied"
+            }
+          ],
+          "label_group_evidence": [
+            {
+              "cohort_label": "locked-cohort",
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_normalized_intensity": null,
+              "median_normalized_intensity": null,
+              "missing_replicates": 2,
+              "missingness_rate": 1.0,
+              "observed_replicates": 0,
+              "status": "abstained_missingness"
+            }
+          ]
+        }
+      },
+      {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "f64b963c63c90a56e5bc2818ea3c3de5fbe688fa128fc8c0ae7b2094ac52b455",
+        "result_digest": "5d6ec9a571707573e1048a04d5c82c762f04eecfc578d3fea3f66e5cbe721939",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -238,7 +918,12 @@
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "homogeneous",
-            "cohort_version": "research-cohort-2",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
             "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -319,7 +1004,7 @@
               ]
             ]
           ],
-          "result_digest": "f64b963c63c90a56e5bc2818ea3c3de5fbe688fa128fc8c0ae7b2094ac52b455",
+          "result_digest": "5d6ec9a571707573e1048a04d5c82c762f04eecfc578d3fea3f66e5cbe721939",
           "sample_ids": [
             "absent",
             "present"
@@ -386,7 +1071,8 @@
               "observed_cells": 1,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "not_applied"
+              "status": "descriptive",
+              "normalization_status": "not_applied"
             }
           ],
           "label_group_evidence": [
@@ -400,7 +1086,7 @@
               "missing_replicates": 1,
               "missingness_rate": 0.5,
               "observed_replicates": 1,
-              "status": "abstained_insufficient_replicates"
+              "status": "descriptive"
             }
           ]
         }
@@ -408,7 +1094,7 @@
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "046b3fd11e8b0372d425a63388ae6c04c6c03f0540098c92b9480c78765cca72",
+        "result_digest": "990045140801f1ef2d97da108f732e599ab0a4e9edd8d8abab63fd3ab0af9fa7",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -439,7 +1125,12 @@
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
             "cohort_provenance_policy": "homogeneous",
-            "cohort_version": "research-cohort-2",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
             "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -594,7 +1285,7 @@
               ]
             ]
           ],
-          "result_digest": "046b3fd11e8b0372d425a63388ae6c04c6c03f0540098c92b9480c78765cca72",
+          "result_digest": "990045140801f1ef2d97da108f732e599ab0a4e9edd8d8abab63fd3ab0af9fa7",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -711,7 +1402,8 @@
               "observed_cells": 4,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "normalized"
+              "status": "descriptive",
+              "normalization_status": "normalized"
             },
             {
               "cohort_label": "control",
@@ -722,7 +1414,8 @@
               "observed_cells": 4,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "normalized"
+              "status": "descriptive",
+              "normalization_status": "normalized"
             }
           ],
           "label_group_evidence": [
@@ -787,7 +1480,7 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "3554d6b7da49410cf1b6f6acd4c9a0febc0145ece82cd7bf12ca7a22186e9354",
+        "result_digest": "7ccbf8a58726cabd954c06d304626b699a741d397540b356baff8ac93b791130",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -808,7 +1501,12 @@
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "external_same_study",
-            "cohort_version": "research-cohort-2",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
             "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -1011,7 +1709,7 @@
               ]
             ]
           ],
-          "result_digest": "3554d6b7da49410cf1b6f6acd4c9a0febc0145ece82cd7bf12ca7a22186e9354",
+          "result_digest": "7ccbf8a58726cabd954c06d304626b699a741d397540b356baff8ac93b791130",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -1078,7 +1776,8 @@
               "observed_cells": 2,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "not_applied"
+              "status": "descriptive",
+              "normalization_status": "not_applied"
             }
           ],
           "label_group_evidence": [
@@ -1097,41 +1796,34 @@
           ]
         }
       }
-    ],
-    "scenario_ids": [
-      "replicate_matrix",
-      "explicit_missingness",
-      "label_normalization",
-      "incompatible_search_space",
-      "pdc_provenance_replay"
     ]
   },
   "benchmark": {
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      345800,
-      333700,
-      328000,
-      337200,
-      323800,
-      349500,
-      352800,
-      424800,
-      442500,
-      349600
+      365200,
+      354100,
+      340300,
+      340700,
+      345200,
+      334200,
+      334800,
+      325700,
+      332400,
+      337900
     ],
-    "mean_ns": 358770.0,
-    "median_ns": 349500,
-    "p95_ns": 442500,
+    "mean_ns": 341050.0,
+    "median_ns": 340300,
+    "p95_ns": 365200,
     "result_digest": "4518331dad8b7bc3252f8e7afd4577ea1ca47f5101edb1a48c5e11f1a5a5eb40"
   },
   "coverage": {
-    "statements": 1692,
+    "statements": 1722,
     "missed_statements": 57,
-    "branches": 620,
+    "branches": 638,
     "partial_branches": 50,
-    "percent": 95.11,
+    "percent": 95.21,
     "fail_under": 95
   }
 }

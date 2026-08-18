@@ -44,6 +44,10 @@ C03/C04 computation contract:
   overlap or replicate support abstains explicitly; no null is imputed. It aggregates evidence
   only; it does not perform differential testing, batch correction, glioma inference, or
   mechanism discovery.
+- Cohort QC is an explicit, replay-bound `CohortQcPolicy`: minimum replicates, minimum observed
+  groups, and maximum missingness are validated before normalized evidence is emitted. Failed
+  gates preserve the raw matrix for audit but null the normalized label projection and emit a
+  typed abstention status; the policy never imputes values or infers biological strata.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or

@@ -21,6 +21,8 @@
       "replicate_median_mad_quality_summary",
       "within_label_median_normalization_with_scale_receipts",
       "label_group_descriptive_evidence_and_overlap_abstention",
+      "caller_declared_qc_policy",
+      "missingness_and_observed_group_abstention",
       "cohort_configuration_compatibility_and_child_replay",
       "content_addressed_replay"
     ],
@@ -33,7 +35,7 @@
   },
   "validation": {
     "scenarios": 8,
-    "cohort_scenarios": 5,
+    "cohort_scenarios": 6,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",

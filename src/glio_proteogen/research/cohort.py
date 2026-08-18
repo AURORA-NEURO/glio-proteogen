@@ -49,12 +49,44 @@ class ResearchCohortSample:
 
 
 @dataclass(frozen=True, slots=True)
+class CohortQcPolicy:
+    """Caller-declared descriptive QC gate; it never infers a biological label."""
+
+    min_replicates: int = 2
+    max_missingness_rate: float = 0.5
+    min_observed_groups: int = 1
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.min_replicates) is not int
+            or not 1 <= self.min_replicates <= MAX_COHORT_SAMPLES
+        ):
+            raise ValueError("min_replicates is outside the bounded range")
+        if (
+            type(self.max_missingness_rate) is not float
+            or not isfinite(self.max_missingness_rate)
+            or not 0.0 <= self.max_missingness_rate <= 1.0
+        ):
+            raise ValueError("max_missingness_rate must be a finite fraction")
+        if type(self.min_observed_groups) is not int or not self.min_observed_groups >= 0:
+            raise ValueError("min_observed_groups must be a non-negative integer")
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "max_missingness_rate": self.max_missingness_rate,
+            "min_observed_groups": self.min_observed_groups,
+            "min_replicates": self.min_replicates,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchCohortRequest:
     """Caller-declared, configuration-compatible set of research runs."""
 
     samples: tuple[ResearchCohortSample, ...]
     provenance_policy: str = "homogeneous"
     normalization_policy: str = "none"
+    qc_policy: CohortQcPolicy = CohortQcPolicy()
 
     def __post_init__(self) -> None:
         if type(self.samples) is not tuple or any(
@@ -70,6 +102,8 @@ class ResearchCohortRequest:
             raise ValueError("provenance_policy is not supported")
         if self.normalization_policy not in _NORMALIZATION_POLICIES:
             raise ValueError("normalization_policy is not supported")
+        if not isinstance(self.qc_policy, CohortQcPolicy):
+            raise TypeError("qc_policy must be a CohortQcPolicy")
         if not 2 <= len(self.samples) <= MAX_COHORT_SAMPLES:
             raise ValueError("cohort sample count is outside the bounded range")
         sample_ids = tuple(sample.sample_id for sample in self.samples)
@@ -173,6 +207,7 @@ class CohortLabelQc:
     median_intensity: float | None
     mad_intensity: float | None
     status: str
+    normalization_status: str = "not_applied"
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -185,6 +220,7 @@ class CohortLabelQc:
             "replicate_count": self.replicate_count,
             "sample_count": self.sample_count,
             "status": self.status,
+            "normalization_status": self.normalization_status,
         }
 
 
@@ -328,6 +364,7 @@ def _build_label_evidence(  # noqa: PLR0915
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     policy: str,
+    qc_policy: CohortQcPolicy,
 ) -> tuple[
     tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     tuple[CohortSampleScale, ...],
@@ -396,7 +433,26 @@ def _build_label_evidence(  # noqa: PLR0915
                 factors = dict.fromkeys(indices)
             else:
                 status = "normalized"
-        label_status[label] = status
+        observed_groups = sum(
+            any(_positive(sample_rows[index].get(group)) for index in indices) for group in groups
+        )
+        total_cells = len(indices) * len(groups)
+        observed_cells = sum(
+            _positive(sample_rows[index].get(group)) for index in indices for group in groups
+        )
+        missingness_rate = (total_cells - observed_cells) / total_cells if total_cells else 1.0
+        if status in {"normalized", "not_applied"}:
+            if len(indices) < qc_policy.min_replicates:
+                qc_status = "abstained_insufficient_replicates"
+            elif observed_groups < qc_policy.min_observed_groups:
+                qc_status = "abstained_insufficient_observed_groups"
+            elif missingness_rate > qc_policy.max_missingness_rate:
+                qc_status = "abstained_missingness"
+            else:
+                qc_status = "descriptive"
+        else:
+            qc_status = status
+        label_status[label] = qc_status
         for index in indices:
             factor = factors[index]
             if factor is None:
@@ -416,6 +472,9 @@ def _build_label_evidence(  # noqa: PLR0915
                 positive_groups=positive_counts[index],
                 status=status,
             )
+        if qc_status.startswith("abstained"):
+            for index in indices:
+                normalized_rows[index] = dict.fromkeys(groups)
         label_values = tuple(
             float(value)
             for index in indices
@@ -423,10 +482,6 @@ def _build_label_evidence(  # noqa: PLR0915
             if value is not None and _positive(value)
         )
         label_center, label_mad = _median_mad(label_values)
-        observed_cells = sum(
-            _positive(sample_rows[index].get(group)) for index in indices for group in groups
-        )
-        total_cells = len(indices) * len(groups)
         label_qc.append(
             CohortLabelQc(
                 cohort_label=label,
@@ -439,7 +494,8 @@ def _build_label_evidence(  # noqa: PLR0915
                 else 1.0,
                 median_intensity=label_center,
                 mad_intensity=label_mad,
-                status=status,
+                status=qc_status,
+                normalization_status=status,
             )
         )
         for group in groups:
@@ -448,9 +504,7 @@ def _build_label_evidence(  # noqa: PLR0915
                 float(value) for value in values if value is not None and _positive(value)
             )
             center, mad = _median_mad(observed)
-            evidence_status = "descriptive" if status in {"not_applied", "normalized"} else status
-            if status in {"not_applied", "normalized"} and len(observed) < _MIN_LABEL_REPLICATES:
-                evidence_status = "abstained_insufficient_replicates"
+            evidence_status = qc_status
             label_evidence.append(
                 CohortLabelGroupEvidence(
                     cohort_label=label,
@@ -558,7 +612,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         (group, tuple(values.get(group) for values in values_by_sample)) for group in groups
     )
     normalized_matrix, sample_scales, label_qc, label_group_evidence, _ = _build_label_evidence(
-        ordered_samples, groups, matrix, request.normalization_policy
+        ordered_samples, groups, matrix, request.normalization_policy, request.qc_policy
     )
     scale_by_sample = {item.sample_id: item for item in sample_scales}
     qc = [
@@ -587,12 +641,13 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     configuration = tuple(
         sorted(
             {
-                "cohort_version": "research-cohort-2",
+                "cohort_version": "research-cohort-3",
                 "cohort_provenance_policy": request.provenance_policy,
                 "cohort_normalization_policy": request.normalization_policy,
                 "cohort_normalization_version": (
                     "none" if request.normalization_policy == "none" else "within-label-median-v1"
                 ),
+                "cohort_qc_policy": request.qc_policy.as_dict(),
                 "sample_ids": list(sample_ids),
                 "fasta_sha256": child[0].fasta_sha256,
                 "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
