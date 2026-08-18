@@ -19,12 +19,15 @@ from glio_proteogen.contracts.m22_03 import (
     canonical_request_digest,
     normalized_request,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.modules.c21_reference_material.m22_03_internal_benchmark_ablation import (
     BenchmarkSubmission,
+    M2203BenchmarkEngine,
     M2203Plugin,
+    M2203ReplayError,
     M2203Service,
     cli_app,
     create_app,
@@ -114,6 +117,17 @@ def test_result_replay_closure_rejects_each_identity_invariant() -> None:
     )
     with pytest.raises(ValidationError, match="finding ids"):
         _result_update(result, findings=(finding, finding))
+
+
+def test_result_replay_rejects_self_rehashed_dossier_mutation() -> None:
+    request = _request()
+    result = _completed_result(request)
+    forged = result.model_copy(deep=True)
+    assert forged.dossier is not None
+    object.__setattr__(forged, "dossier", forged.dossier.model_copy(update={"comparisons": ()}))
+    object.__setattr__(forged, "result_digest", result_payload_digest(forged))
+    with pytest.raises(M2203ReplayError):
+        M2203BenchmarkEngine().replay(forged)
 
 
 def test_result_status_closure_rejects_unsafe_completed_and_abstained() -> None:

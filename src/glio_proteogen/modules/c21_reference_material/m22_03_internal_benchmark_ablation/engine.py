@@ -131,15 +131,22 @@ class M2203BenchmarkEngine:
         self,
         result: ProteinRnaDiscordanceInternalBenchmarkResult,
     ) -> ProteinRnaDiscordanceInternalBenchmarkResult:
-        if result.request_digest != canonical_request_digest(result.request):
+        try:
+            replayed = ProteinRnaDiscordanceInternalBenchmarkResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2203ReplayError from error
+        if replayed.request_digest != canonical_request_digest(replayed.request):
             raise M2203ReplayError("M22-03 result request digest mismatch")  # noqa: TRY003
-        if result.result_id != result_identifier(result.request):
+        if replayed.result_id != result_identifier(replayed.request):
             raise M2203ReplayError("M22-03 result identifier mismatch")  # noqa: TRY003
-        if result.result_digest != result_payload_digest(result):
+        if replayed.result_digest != result_payload_digest(replayed):
             raise M2203ReplayError("M22-03 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceInternalBenchmarkResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2203ReplayError("M22-03 deterministic replay output mismatch")  # noqa: TRY003
+        return replayed
 
 
 def run_protein_rna_discordance_internal_benchmark(
