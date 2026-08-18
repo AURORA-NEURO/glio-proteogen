@@ -59,7 +59,7 @@ def test_provisional_schemas_preserve_attribution_and_conflict() -> None:
     assert _metadata(schemas["output"])["outputMediaType"] == M1903_OUTPUT_MEDIA_TYPE
     assert M1903_PROVISIONAL_ABI is True
     assert all(
-        cast("tuple[str, ...]", item["prohibitedClaimTerms"]) == M1903_PROHIBITED_CLAIM_TERMS
+        tuple(cast("list[str]", item["prohibitedClaimTerms"])) == M1903_PROHIBITED_CLAIM_TERMS
         for item in metadata
     )
 
