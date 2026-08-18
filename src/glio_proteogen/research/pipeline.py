@@ -11,15 +11,17 @@ from __future__ import annotations
 import json
 import math
 from collections import Counter
-from dataclasses import dataclass
-from hashlib import sha256
+from dataclasses import dataclass, replace
+from hashlib import md5, sha256
 from typing import BinaryIO
 
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
+from .pdc import PdcFile
 from .protein import ProteinGroup, infer_protein_groups
-from .quantification import quantify_matched_ions
+from .public_proteomics.provenance import SourceReference
+from .quantification import ProteinGroupQuant, quantify_matched_ions, quantify_protein_groups
 from .search import (
     FdrSummary,
     Psm,
@@ -50,6 +52,7 @@ class ResearchRunRequest:
     max_spectra: int = 100_000
     q_value_threshold: float = 0.01
     max_bytes: int = 256 * 1024 * 1024
+    external_source_reference: SourceReference | None = None
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -58,6 +61,45 @@ class ResearchRunRequest:
             raise ValueError("max_bytes is outside the research limit")
         object.__setattr__(self, "mzml_source", _read_bytes(self.mzml_source, self.max_bytes))
         object.__setattr__(self, "fasta_source", _read_bytes(self.fasta_source, self.max_bytes))
+
+
+def bind_pdc_mzml_source(
+    request: ResearchRunRequest,
+    pdc_file: PdcFile,
+    source_reference: SourceReference,
+) -> ResearchRunRequest:
+    """Bind caller-downloaded PDC mzML bytes to immutable provenance metadata.
+
+    The function never performs network I/O.  The caller must download bytes
+    explicitly (for example with ``PdcClient.download_file``), then provide the
+    PDC file declaration and a matching ``SourceReference``.  Any mismatch in
+    format, declared size, MD5, locator, or SHA-256 aborts before parsing.
+    """
+
+    if not isinstance(pdc_file, PdcFile):
+        raise TypeError("pdc_file must be a PdcFile declaration")
+    if not isinstance(source_reference, SourceReference):
+        raise TypeError("source_reference must be a SourceReference")
+    if pdc_file.file_format is None or pdc_file.file_format.lower() not in {"mzml", "mzml.gz"}:
+        raise ValueError("PDC source must declare mzML format")
+    if source_reference.locator != pdc_file.location:
+        raise ValueError("PDC source locator does not match the file declaration")
+    snapshot = _read_bytes(request.mzml_source, request.max_bytes)
+    observed_sha = "sha256:" + sha256(snapshot).hexdigest()
+    if len(snapshot) != pdc_file.file_size:
+        raise ValueError("downloaded PDC mzML size differs from its declaration")
+    if (
+        pdc_file.md5 is not None
+        and md5(snapshot, usedforsecurity=False).hexdigest().lower() != pdc_file.md5.lower()
+    ):
+        raise ValueError("downloaded PDC mzML MD5 differs from its declaration")
+    if source_reference.byte_length != len(snapshot) or source_reference.sha256 != observed_sha:
+        raise ValueError("PDC source reference does not match downloaded bytes")
+    return replace(
+        request,
+        mzml_source=snapshot,
+        external_source_reference=source_reference,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +123,7 @@ class ResearchRunResult:
     peptide_intensities: tuple[tuple[str, float], ...] = ()
     fdr_summary: FdrSummary | None = None
     search_diagnostics: tuple[tuple[str, object], ...] = ()
+    protein_group_quantifications: tuple[ProteinGroupQuant, ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -101,6 +144,9 @@ class ResearchRunResult:
             "peptide_intensities": [list(item) for item in self.peptide_intensities],
             "fdr_summary": self.fdr_summary.as_dict() if self.fdr_summary else None,
             "search_diagnostics": dict(self.search_diagnostics),
+            "protein_group_quantifications": [
+                item.as_dict() for item in self.protein_group_quantifications
+            ],
             "protein_groups": [_group_dict(item) for item in self.protein_groups],
             "configuration": dict(self.configuration),
             "evidence_records": [
@@ -151,6 +197,7 @@ def _psm_dict(value: Psm) -> dict[str, object]:
         "matched_intensity": value.matched_intensity,
         "mean_fragment_error_da": value.mean_fragment_error_da,
         "precursor_error_ppm": value.precursor_error_ppm,
+        "target_decoy_collision": value.target_decoy_collision,
     }
 
 
@@ -212,6 +259,14 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     _validate_request(request)
     mzml_bytes = _read_bytes(request.mzml_source, request.max_bytes)
     fasta_bytes = _read_bytes(request.fasta_source, request.max_bytes)
+    external_reference = request.external_source_reference
+    if external_reference is not None:
+        observed_external_sha = "sha256:" + sha256(mzml_bytes).hexdigest()
+        if (
+            external_reference.byte_length != len(mzml_bytes)
+            or external_reference.sha256 != observed_external_sha
+        ):
+            raise ValueError("external source reference does not match mzML input bytes")
     spectra = parse_mzml(mzml_bytes, max_bytes=request.max_bytes, max_spectra=request.max_spectra)
     entries = read_fasta(fasta_bytes)
     peptide_map = digest_trypsin(
@@ -259,7 +314,12 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     accepted = tuple(
         item
         for item in scored
-        if not item.decoy and item.q_value is not None and item.q_value <= request.q_value_threshold
+        if (
+            not item.decoy
+            and not item.target_decoy_collision
+            and item.q_value is not None
+            and item.q_value <= request.q_value_threshold
+        )
     )
     quantified = quantify_matched_ions(
         request.sample_id,
@@ -290,6 +350,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         {peptide: tuple(sorted(proteins)) for peptide, proteins in peptide_to_proteins.items()}
     )
     counts = tuple(sorted(Counter(item.peptide for item in accepted).items()))
+    protein_group_quantifications = quantify_protein_groups(
+        groups,
+        dict(peptide_intensities),
+        dict(counts),
+    )
     mzml_digest = sha256(mzml_bytes).hexdigest()
     fasta_digest = sha256(fasta_bytes).hexdigest()
     configuration = tuple(
@@ -310,48 +375,68 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_bytes": request.max_bytes,
                 "quantification_version": "matched-ion-median-1",
                 "quantification_unit": "median_scaled_matched_ion_intensity",
+                "protein_group_quantification_version": "unique-peptide-median-v1",
+                "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
                 "require_precursor_mz": True,
                 "precursor_charge_source": "mzml_selected_ion",
+                "external_source_id": (
+                    external_reference.source_id if external_reference is not None else None
+                ),
+                "external_source_sha256": (
+                    external_reference.sha256 if external_reference is not None else None
+                ),
             }.items()
         )
     )
-    evidence = aggregate_evidence(
-        (
+    evidence_records = [
+        EvidenceRecord.create(
+            "input:fasta",
+            f"sha256:{fasta_digest}",
+            "search_space",
+            {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
+        ),
+        EvidenceRecord.create(
+            "input:mzml",
+            f"sha256:{mzml_digest}",
+            "spectra",
+            {"bytes": len(mzml_bytes), "spectra": len(spectra), "ms2": ms2_count},
+        ),
+        EvidenceRecord.create(
+            "run:configuration",
+            "research:pipeline",
+            "configuration",
+            dict(configuration),
+        ),
+        EvidenceRecord.create(
+            "computed:protein-groups",
+            "research:pipeline",
+            "protein_groups",
+            {
+                "accepted_psms": len(accepted),
+                "decoy_psms": sum(item.decoy for item in scored),
+                "target_decoy_collisions": sum(item.target_decoy_collision for item in scored),
+                "groups": len(groups),
+                "missing_precursor_ms2": missing_precursor_count,
+                "quantified_peptides": len(peptide_intensities),
+                "quantification_unit": "median_scaled_matched_ion_intensity",
+                "fdr_summary": fdr_summary.as_dict(),
+                "search_diagnostics": dict(search_diagnostics),
+                "protein_group_quantifications": [
+                    item.as_dict() for item in protein_group_quantifications
+                ],
+            },
+        ),
+    ]
+    if external_reference is not None:
+        evidence_records.append(
             EvidenceRecord.create(
-                "input:fasta",
-                f"sha256:{fasta_digest}",
-                "search_space",
-                {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
-            ),
-            EvidenceRecord.create(
-                "input:mzml",
-                f"sha256:{mzml_digest}",
-                "spectra",
-                {"bytes": len(mzml_bytes), "spectra": len(spectra), "ms2": ms2_count},
-            ),
-            EvidenceRecord.create(
-                "run:configuration",
-                "research:pipeline",
-                "configuration",
-                dict(configuration),
-            ),
-            EvidenceRecord.create(
-                "computed:protein-groups",
-                "research:pipeline",
-                "protein_groups",
-                {
-                    "accepted_psms": len(accepted),
-                    "decoy_psms": sum(item.decoy for item in scored),
-                    "groups": len(groups),
-                    "missing_precursor_ms2": missing_precursor_count,
-                    "quantified_peptides": len(peptide_intensities),
-                    "quantification_unit": "median_scaled_matched_ion_intensity",
-                    "fdr_summary": fdr_summary.as_dict(),
-                    "search_diagnostics": dict(search_diagnostics),
-                },
-            ),
+                "input:external-mzml",
+                external_reference.source_id,
+                "external_proteomics_mzml",
+                external_reference.as_dict(),
+            )
         )
-    )
+    evidence = aggregate_evidence(tuple(evidence_records))
     result_payload = {
         "sample_id": request.sample_id,
         "mzml_sha256": mzml_digest,
@@ -366,6 +451,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "peptide_intensities": [list(item) for item in peptide_intensities],
         "fdr_summary": fdr_summary.as_dict(),
         "search_diagnostics": dict(search_diagnostics),
+        "protein_group_quantifications": [item.as_dict() for item in protein_group_quantifications],
         "protein_groups": [_group_dict(item) for item in groups],
         "configuration": dict(configuration),
         "evidence_records": [
@@ -400,6 +486,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         peptide_intensities=peptide_intensities,
         fdr_summary=fdr_summary,
         search_diagnostics=search_diagnostics,
+        protein_group_quantifications=protein_group_quantifications,
     )
 
 

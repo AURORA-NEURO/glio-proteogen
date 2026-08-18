@@ -14,14 +14,19 @@ one deterministic, auditable path:
    controls.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold.
-4. Perform target/decoy competition and calculate monotone q-values. PSMs are accepted
-   only at the caller-declared q-value threshold.
+4. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
+   peptide maps to both target and decoy accessions is recorded as a collision and
+   conservatively abstained rather than promoted to either side. PSMs are accepted only
+   at the caller-declared q-value threshold.
 5. Aggregate matched fragment-ion intensity per accepted peptide and median-normalize
    within the sample with explicit zero-signal missingness; spectral counts remain a
    separate transparent measure.
 6. Resolve protein groups with the existing ambiguity-preserving component routine;
    shared peptides remain attached to all compatible accessions.
-7. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
+7. Quantify each protein group from the median positive unique-peptide intensity. Shared
+   signal remains visible, but shared-only groups are explicitly non-quantifiable rather
+   than assigned a fabricated protein value.
+8. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
 The result also carries a replay-bound `FdrSummary`: winner count per spectrum, target and
 decoy winner counts, accepted target count, the declared threshold, maximum accepted q-value,
@@ -31,11 +36,12 @@ Each PSM also records mean absolute fragment error and precursor ppm error when 
 filtering is enabled; aggregate search diagnostics retain the maximum observed errors and the
 declared precursor tolerance so a replay can audit mass-error behavior directly.
 
-The locked evaluator covers seven paths: a target match, decoy rejection, no-match safe path,
-precursor rejection, shared-peptide grouping, a two-spectrum input, and a two-peptide
-quantification run. The fixture binds scenario order, expected PSM/accepted counts, target/decoy
-winner counts, quantified-peptide counts, group membership, shared-peptide expectations, and all
-claim-boundary flags. The benchmark uses one warm-up followed by timed public calls.
+The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy sequence
+collision, no-match safe path, precursor rejection, shared-peptide grouping, a two-spectrum input,
+and a two-peptide quantification run. The fixture binds scenario order, expected PSM/accepted counts,
+target/decoy/collision winner counts, peptide and protein-group quantitative statuses/intensities,
+group membership, shared-peptide expectations, and all claim-boundary flags. The benchmark uses one
+warm-up followed by timed public calls.
 
 ## Scientific limits
 

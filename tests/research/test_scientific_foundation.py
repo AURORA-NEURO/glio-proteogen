@@ -28,6 +28,7 @@ from glio_proteogen.research import (
     parse_mzml,
     pdc,
     quantify_matched_ions,
+    quantify_protein_groups,
     read_fasta,
     search_spectrum,
     summarize_target_decoy,
@@ -117,7 +118,7 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
     decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
     summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
-    assert summary.method == "winner-per-spectrum-monotone-target-decoy-1"
+    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-1"
     assert summary.spectrum_winners == 2
     assert summary.target_winners == 1
     assert summary.decoy_winners == 1
@@ -733,3 +734,31 @@ def test_pdc_private_file_size_and_required_fields() -> None:
         pdc._file({**base, "file_size": "-1"})
     with pytest.raises(pdc.PdcError):
         pdc._file({**base, "file_name": ""})
+
+
+def test_protein_group_quantification_is_unique_signal_bound_and_deterministic() -> None:
+    groups = infer_protein_groups(
+        {
+            "UNIQUE_A": ("P1",),
+            "UNIQUE_B": ("P1",),
+            "SHARED": ("P2", "P3"),
+            "MISSING": ("P4",),
+        }
+    )
+    quantified = quantify_protein_groups(
+        tuple(reversed(groups)),
+        {"UNIQUE_A": 10.0, "UNIQUE_B": 30.0, "SHARED": 5.0, "MISSING": 0.0},
+        {"UNIQUE_A": 2, "UNIQUE_B": 1, "SHARED": 3},
+    )
+    assert tuple(item.group_accessions for item in quantified) == (("P1",), ("P2", "P3"), ("P4",))
+    by_accessions = {item.group_accessions: item for item in quantified}
+    shared_only = by_accessions[("P2", "P3")]
+    assert shared_only.status == "non_quantifiable_shared_only"
+    assert shared_only.primary_intensity is None
+    assert shared_only.shared_signal == 5.0
+    assert by_accessions[("P4",)].status == "missing"
+    p1 = by_accessions[("P1",)]
+    assert p1.status == "quantified"
+    assert p1.primary_intensity == 20.0
+    assert p1.unique_signal == 40.0
+    assert p1.supporting_psms == 3

@@ -16,11 +16,15 @@ C03/C04 computation contract:
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
-- `target_decoy_qvalues` performs explicit target/decoy competition.
+- `target_decoy_qvalues` performs explicit target/decoy competition and preserves
+  target/decoy sequence collisions as conservative abstentions.
 - `summarize_target_decoy` records winner-level target/decoy counts, accepted targets, threshold,
   and descriptive decoy/target ratio in the replay-bound result evidence.
 - `quantify_matched_ions` aggregates finite matched-fragment intensity per peptide and applies
-  median scaling while preserving zero-signal missingness. It is not precursor-based abundance.
+  median scaling while preserving zero-signal missingness. `quantify_protein_groups` reports
+  unique/shared/total signal and uses only positive unique-peptide medians for a primary group
+  intensity; shared-only groups remain explicitly non-quantifiable. Neither is precursor-based
+  abundance.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
