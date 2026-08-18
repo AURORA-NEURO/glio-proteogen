@@ -1,26 +1,28 @@
 {
-  "fixture_version": "research-proteomics-1",
-  "scenarios": [
-    {
-      "id": "target_supported",
-      "expected_psms": 1,
-      "expected_accepted": 1
-    },
-    {
-      "id": "decoy_rejected",
-      "expected_psms": 1,
-      "expected_accepted": 0
-    },
-    {
-      "id": "no_match",
-      "expected_psms": 0,
-      "expected_accepted": 0
-    }
-  ],
-  "claims": {
-    "production_abi": false,
-    "clinical": false,
-    "glioma": false,
-    "mechanism": false
-  }
+    "fixture_version": "research-proteomics-1",
+    "scenarios": [
+        {
+            "id": "target_supported",
+            "expected_psms": 1,
+            "expected_accepted": 1,
+            "expected_groups": [["P1"]]
+        },
+        {"id": "decoy_rejected", "expected_psms": 1, "expected_accepted": 0},
+        {"id": "no_match", "expected_psms": 0, "expected_accepted": 0},
+        {"id": "precursor_rejected", "expected_psms": 0, "expected_accepted": 0},
+        {
+            "id": "shared_peptide_group",
+            "expected_psms": 1,
+            "expected_accepted": 1,
+            "expected_groups": [["P1", "P2"]],
+            "expected_shared": ["MPEPTIDER"]
+        },
+        {
+            "id": "multi_spectrum",
+            "expected_psms": 1,
+            "expected_accepted": 1,
+            "expected_groups": [["P1"]]
+        }
+    ],
+    "claims": {"production_abi": false, "clinical": false, "glioma": false, "mechanism": false}
 }

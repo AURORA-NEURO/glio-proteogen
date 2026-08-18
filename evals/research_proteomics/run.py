@@ -21,6 +21,8 @@ class Scenario:
     mzml: bytes
     expected_psms: int
     expected_accepted: int
+    expected_groups: tuple[tuple[str, ...], ...] = ()
+    expected_shared: tuple[str, ...] = ()
 
 
 def _array(values: tuple[float, ...], accession: str) -> str:
@@ -32,24 +34,76 @@ def _array(values: tuple[float, ...], accession: str) -> str:
     )
 
 
-def _mzml(*, matched: bool) -> bytes:
+def _spectrum(*, matched: bool, precursor_mz: float, spectrum_id: str) -> str:
     mz = (132.0, 229.1, 358.1) if matched else (1.0,)
     intensity = (10.0, 20.0, 30.0) if matched else (1.0,)
     return (
-        '<mzML><run><spectrumList><spectrum id="scan=1">'
+        f'<spectrum id="{spectrum_id}">'
         '<cvParam accession="MS:1000511" value="2"/>'
+        "<precursorList><precursor><selectedIonList><selectedIon>"
+        f'<cvParam accession="MS:1000744" value="{precursor_mz}"/>'
+        '<cvParam accession="MS:1000041" value="1"/>'
+        "</selectedIon></selectedIonList></precursor></precursorList>"
         "<binaryDataArrayList>"
         + _array(mz, "MS:1000514")
         + _array(intensity, "MS:1000515")
-        + "</binaryDataArrayList></spectrum></spectrumList></run></mzML>"
+        + "</binaryDataArrayList></spectrum>"
+    )
+
+
+def _mzml(*, matched: bool, precursor_mz: float = 1087.508837466) -> bytes:
+    return (
+        "<mzML><run><spectrumList>"
+        + _spectrum(matched=matched, precursor_mz=precursor_mz, spectrum_id="scan=1")
+        + "</spectrumList></run></mzML>"
+    ).encode()
+
+
+def _multi_mzml() -> bytes:
+    return (
+        "<mzML><run><spectrumList>"
+        + _spectrum(matched=True, precursor_mz=1087.508837466, spectrum_id="scan=1")
+        + _spectrum(matched=False, precursor_mz=1087.508837466, spectrum_id="scan=2")
+        + "</spectrumList></run></mzML>"
     ).encode()
 
 
 def scenarios() -> tuple[Scenario, ...]:
     return (
-        Scenario("target_supported", b">P1\nMPEPTIDER\n", _mzml(matched=True), 1, 1),
+        Scenario(
+            "target_supported",
+            b">P1\nMPEPTIDER\n",
+            _mzml(matched=True),
+            1,
+            1,
+            (("P1",),),
+        ),
         Scenario("decoy_rejected", b">DECOY_P1\nMPEPTIDER\n", _mzml(matched=True), 1, 0),
         Scenario("no_match", b">P1\nMPEPTIDER\n", _mzml(matched=False), 0, 0),
+        Scenario(
+            "precursor_rejected",
+            b">P1\nMPEPTIDER\n",
+            _mzml(matched=True, precursor_mz=500.0),
+            0,
+            0,
+        ),
+        Scenario(
+            "shared_peptide_group",
+            b">P1\nMPEPTIDER\n>P2\nMPEPTIDER\n",
+            _mzml(matched=True),
+            1,
+            1,
+            (("P1", "P2"),),
+            ("MPEPTIDER",),
+        ),
+        Scenario(
+            "multi_spectrum",
+            b">P1\nMPEPTIDER\n",
+            _multi_mzml(),
+            1,
+            1,
+            (("P1",),),
+        ),
     )
 
 
@@ -64,11 +118,24 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
     fixture_bytes = fixture_path.read_bytes()
     fixture = json.loads(fixture_bytes)
     declared = tuple(
-        (item["id"], item["expected_psms"], item["expected_accepted"])
+        (
+            item["id"],
+            item["expected_psms"],
+            item["expected_accepted"],
+            tuple(tuple(group) for group in item.get("expected_groups", [])),
+            tuple(item.get("expected_shared", [])),
+        )
         for item in fixture["scenarios"]
     )
     observed = tuple(
-        (item.scenario_id, item.expected_psms, item.expected_accepted) for item in locked
+        (
+            item.scenario_id,
+            item.expected_psms,
+            item.expected_accepted,
+            item.expected_groups,
+            item.expected_shared,
+        )
+        for item in locked
     )
     if declared != observed or fixture["fixture_version"] != "research-proteomics-1":
         raise ValueError
@@ -97,6 +164,15 @@ def run_evaluator() -> dict[str, object]:
         passed = (
             len(result.psms) == scenario.expected_psms
             and len(result.accepted_psms) == scenario.expected_accepted
+            and all(
+                item.decoy is False and item.q_value is not None for item in result.accepted_psms
+            )
+            and tuple(tuple(group.accessions) for group in result.protein_groups)
+            == scenario.expected_groups
+            and tuple(
+                peptide for group in result.protein_groups for peptide in group.shared_peptides
+            )
+            == scenario.expected_shared
         )
         outcomes.append(
             {
@@ -105,6 +181,7 @@ def run_evaluator() -> dict[str, object]:
                 "result_digest": result.result_digest,
                 "psms": len(result.psms),
                 "accepted_psms": len(result.accepted_psms),
+                "groups": [list(group.accessions) for group in result.protein_groups],
             }
         )
     return {
