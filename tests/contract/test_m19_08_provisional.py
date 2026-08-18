@@ -4,6 +4,7 @@ from typing import cast
 
 from glio_proteogen.contracts.m19_08 import (
     M1908_OUTPUT_MEDIA_TYPE,
+    M1908_PROHIBITED_CLAIM_TERMS,
     M1908_PROVISIONAL_ABI,
     RollbackDecision,
     TranslationFindingCode,
@@ -38,6 +39,14 @@ def test_provisional_schemas_require_translation_health_controls() -> None:
         for schema in schemas.values()
     )
     assert _metadata(schemas["output"])["outputMediaType"] == M1908_OUTPUT_MEDIA_TYPE
+    assert tuple(cast("list[str]", _metadata(schemas["request"])["prohibitedClaimTerms"])) == (
+        *M1908_PROHIBITED_CLAIM_TERMS,
+    )
+    assert all(
+        _metadata(schema)["mutationInference"] is False
+        and _metadata(schema)["clinicalClaims"] is False
+        for schema in schemas.values()
+    )
     assert M1908_PROVISIONAL_ABI is True
 
 

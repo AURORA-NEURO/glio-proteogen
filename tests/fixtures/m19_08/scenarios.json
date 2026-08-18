@@ -32,7 +32,7 @@
   "adversarial_cases": [
     "critical_telemetry_drift_rolls_back",
     "support_drift_rolls_back",
-    "workflow_effect_rolls_back",
+    "prohibited_claim_abstains",
     "unresolved_discrepancy_suspends",
     "not_evaluable_abstains",
     "consent_control_denied",

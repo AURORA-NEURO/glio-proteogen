@@ -27,6 +27,12 @@ not own kinase activity, generic all-omics fusion, or clinical decision-making. 
 not erase disagreement, convert missing evidence into a negative finding, authenticate
 an issuer, or promote a translation-health state into a biological or clinical claim.
 
+Caller-controlled free-text fields are claims-bearing metadata. A narrow prohibited-term
+policy covers kinase/all-omics, treatment, identity/consent, mutation,
+protein/proteoform/isoform, glioma-specific biology, clinical/biological claims, and
+relabeling language. A match produces `ABSTAINED` with no health report and a typed
+`prohibited_claim_boundary` finding; ordinary operational telemetry text remains allowed.
+
 ## Contract and runtime boundary
 
 The strict request binds one M19-07 artifact, unique source artifacts, telemetry,
@@ -70,10 +76,18 @@ replay validation.
 The locked fixture contains eight named scenarios and eight adversarial cases, with a
 95 percent adversarial target. The executable evaluator passed all scenarios and all
 adversarial cases. The focused contract, runtime, interface, evaluator, and adversarial
-suite contains 38 passing tests. Scoped branch-enabled coverage is 96 percent over 488
-statements and 84 branches. The 25-iteration benchmark times only the deterministic
-engine call after construction and warm-up; the observed mean was approximately 2.9 ms
-and p95 approximately 3.3 ms against provisional 500 ms / 750 ms budgets.
+suite contains 47 passing tests, including seven caller-claim surfaces and API/CLI/service
+parity. Scoped branch-enabled coverage is 96.2171 percent over 514 statements and 94
+branches (499 statements and 86 branches covered; fail-under 95). The 25-iteration
+benchmark times only the deterministic engine call after construction and warm-up; the
+observed mean was 1,719,444 ns and p95 1,945,100 ns against provisional 500 ms / 750 ms
+budgets.
+
+Two pinned builds were byte-identical: wheel 3,776,744 bytes with SHA-256
+`6f3f8533f883b968bfe8d1f720f067614aff94310085704df1feeae8211511fb` and sdist
+4,333,010 bytes with SHA-256
+`1763af6f463c1e1ad236df46c867424b6f9d6116a36f02e4f7c40c463dd352d6`. An isolated-wheel
+import and release verifier passed.
 
 These results establish software contract and deterministic control-flow behavior for
 synthetic caller-declared metadata only. They do not establish telemetry truth, support
