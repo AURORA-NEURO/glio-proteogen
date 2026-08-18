@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m13_05 import (
     M1305_MAX_CANONICAL_REQUEST_BYTES,
     M1305_MAX_CANONICAL_RESULT_BYTES,
@@ -110,12 +111,22 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> ModelProteotypeLongitudinalEvolutionRequest:
     try:
-        raw = path.read_bytes()
+        raw = read_bounded(path, M1305_MAX_CANONICAL_REQUEST_BYTES)
         decoded = strict_json_loads(raw, max_bytes=M1305_MAX_CANONICAL_REQUEST_BYTES)
         preflight_longitudinal_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-    except (OSError, StrictJsonError, ValidationError, M1305AuthorizationError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        M1305AuthorizationError,
+    ) as error:
         raise typer.BadParameter(_INVALID_REQUEST) from error
+
+
+def _read_result(path: Path) -> bytes:
+    return read_bounded(path, M1305_MAX_CANONICAL_RESULT_BYTES)
 
 
 @m1305_app.command("export-schema")
@@ -156,11 +167,17 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        raw = result_path.read_bytes()
+        raw = _read_result(result_path)
         strict_json_loads(raw, max_bytes=M1305_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.verify(result)
-    except (OSError, StrictJsonError, ValidationError, M1305ReplayVerificationError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        M1305ReplayVerificationError,
+    ) as error:
         typer.echo("verification failed: M13-05 result is invalid", err=True)
         raise typer.Exit(code=1) from error
     typer.echo(canonical_json_bytes(verified).decode("utf-8"))
