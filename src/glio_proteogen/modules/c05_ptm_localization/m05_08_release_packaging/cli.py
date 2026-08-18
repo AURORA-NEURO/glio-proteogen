@@ -15,6 +15,7 @@ from typing import Annotated, Final
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m05_08 import (
     M0508_MAX_CANONICAL_REQUEST_BYTES,
     BuildPtmLocalizationReleaseRequest,
@@ -47,7 +48,7 @@ app = typer.Typer(help="M05-08 provenance and release packaging.")
 
 def _read(path: Path) -> bytes:
     try:
-        body = path.read_bytes()
+        body = read_bounded(path, M0508_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(body, max_bytes=M0508_MAX_CANONICAL_REQUEST_BYTES)
         return body
     except (OSError, StrictJsonError) as error:
