@@ -47,6 +47,7 @@
       "explicit_null_missingness_and_replicate_qc",
       "within_label_median_normalization_with_scale_receipts",
       "label_group_descriptive_evidence_and_overlap_abstention",
+      "caller_label_pairwise_median_contrasts_with_missingness_abstention",
       "cohort_pdc_provenance_replay",
       "caller_declared_qc_policy",
       "missingness_and_observed_group_abstention",
@@ -67,26 +68,26 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "c97c60855b4a68dbe86026b43592cee71ca3176cbf59f0aa8e6fc720dde2a7fe",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 260,
+    "focused_tests": 273,
     "coverage": {
-      "statements": 2649,
+      "statements": 2722,
       "missed_statements": 92,
-      "branches": 1002,
+      "branches": 1036,
       "partial_branches": 84,
-      "percent": 95.02,
+      "percent": 95.16,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3842792,
+      "bytes": 3844381,
       "members": 1989,
-      "sha256": "dc6bda16b3fd48cb37f6736658f0e18b1538dbe2ef0e05b5c716547bd11d1fc6"
+      "sha256": "21c7155eea55d118e362a9273e43573853b1f309419fc2776341363323cee17d"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4472176,
-      "members": 4617,
-      "sha256": "4ae4ec4efecaa426bf63723aea4437e9f4a9c92483e4d994418198d72e0be715"
+      "bytes": 4493576,
+      "members": 4618,
+      "sha256": "dc9c718313cfbdeede6dbad1cf7e2296cb590a63202d029ce60d79fd6ceec398"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
