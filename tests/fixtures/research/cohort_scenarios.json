@@ -1,5 +1,5 @@
 {
-  "fixture_version": "research-cohort-1",
+  "fixture_version": "research-cohort-2",
   "claims": {
     "clinical": false,
     "differential": false,
@@ -10,6 +10,7 @@
   "scenarios": [
     {"id": "replicate_matrix"},
     {"id": "explicit_missingness"},
+    {"id": "label_normalization"},
     {"id": "incompatible_search_space"},
     {"id": "pdc_provenance_replay"}
   ]

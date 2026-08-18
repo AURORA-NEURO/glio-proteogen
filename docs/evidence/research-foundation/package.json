@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "e72efa17",
-  "pipeline_commit": "7836fa8f",
+  "base_commit": "1e16db73",
+  "pipeline_commit": "f01f4424",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -32,6 +32,8 @@
       "content_addressed_evidence_aggregation",
       "multi_sample_cohort_matrix",
       "explicit_null_missingness_and_replicate_qc",
+      "within_label_median_normalization_with_scale_receipts",
+      "label_group_descriptive_evidence_and_overlap_abstention",
       "cohort_pdc_provenance_replay"
     ],
     "clinical_or_mechanistic_claims": false,
@@ -41,32 +43,32 @@
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
-    "cohort_fixture_sha256": "92404e0c40f38e9f825af10b5b08d9116fe97ea81702e30ee6f2130c01e6dff5",
-    "focused_tests": 129,
+    "cohort_fixture_sha256": "689008b230a4db7f06c53605cee98fd367c5ae6266b875e209b3210115beb8d4",
+    "focused_tests": 133,
     "coverage": {
-      "statements": 1571,
-      "missed_statements": 53,
-      "branches": 590,
-      "partial_branches": 47,
-      "percent": 95.09,
+      "statements": 1692,
+      "missed_statements": 57,
+      "branches": 620,
+      "partial_branches": 50,
+      "percent": 95.11,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3814775,
+      "bytes": 3816995,
       "members": 1986,
-      "sha256": "95a275af5b4d85f75d7c512e1ac02f28de3fa364448d641337f27525f5d20b6d"
+      "sha256": "4746df426a8f91ee0ac5f29b30d44a57f84bf8c049b878ab5a9a1a38083bb1d2"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4399696,
-      "members": 4583,
-      "sha256": "db00f0ab942662541e48245ad823a1f021901749ae743ac83739e90aa9c53efc"
+      "bytes": 4404039,
+      "members": 4584,
+      "sha256": "fb6bf28c65594cb2042e85437f2d2f684e6a5b8ea49dbb6e3bcd388faf9fdd3f"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "95a275af5b4d85f75d7c512e1ac02f28de3fa364448d641337f27525f5d20b6d",
-      "sdist": "db00f0ab942662541e48245ad823a1f021901749ae743ac83739e90aa9c53efc"
+      "wheel": "4746df426a8f91ee0ac5f29b30d44a57f84bf8c049b878ab5a9a1a38083bb1d2",
+      "sdist": "fb6bf28c65594cb2042e85437f2d2f684e6a5b8ea49dbb6e3bcd388faf9fdd3f"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

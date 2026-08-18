@@ -10,8 +10,8 @@ from evals.research_proteomics.cohort import run_evaluator
 def test_locked_cohort_evaluator() -> None:
     report = run_evaluator()
     assert report["passed"] is True
-    assert report["declared"] == 4
-    assert report["executed"] == 4
+    assert report["declared"] == 5
+    assert report["executed"] == 5
     outcomes = cast("list[dict[str, object]]", report["outcomes"])
     assert all(item["passed"] is True for item in outcomes)
 
@@ -33,6 +33,11 @@ def test_locked_cohort_evaluator_emits_replay_complete_projections() -> None:
             "result_digest",
             "sample_ids",
             "sample_qc",
+            "raw_matrix",
+            "normalized_matrix",
+            "sample_scales",
+            "label_qc",
+            "label_group_evidence",
         } <= projection.keys()
         configuration = projection["configuration"]
         assert isinstance(configuration, dict)
