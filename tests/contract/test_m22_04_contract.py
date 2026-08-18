@@ -1,5 +1,7 @@
 """Focused contract/schema smoke for provisional M22-04."""
 
+from typing import Any, cast
+
 from glio_proteogen.contracts.m22_04 import (
     M2204_OUTPUT_MEDIA_TYPE,
     M2204_PROVISIONAL_ABI,
@@ -51,24 +53,21 @@ def _uncertainty() -> UncertaintyProfile:
 def test_provisional_schemas_preserve_external_transport_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["$schema"].endswith("2020-12/schema") for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["pendingOwnerConfirmation"] for schema in schemas.values())
-    assert all(
-        schema["x-glio-contract"]["externalTransportRequired"]
-        and schema["x-glio-contract"]["independentSiteLabPlatformValidationRequired"]
-        and schema["x-glio-contract"]["treatmentEraPopulationDiseaseClassSpecimenRequired"]
-        and schema["x-glio-contract"]["calibrationFloorsRequired"]
-        and schema["x-glio-contract"]["supportDomainNarrowingAllowed"]
-        and schema["x-glio-contract"]["provenanceRequired"]
-        and schema["x-glio-contract"]["unsupportedToNegative"] is False
-        for schema in schemas.values()
-    )
-    assert all(
-        schema["x-glio-contract"]["parentTarget"] == "protein-RNA discordance"
-        for schema in schemas.values()
-    )
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2204_OUTPUT_MEDIA_TYPE
+    for schema in schemas.values():
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
+        assert cast("str", schema["$schema"]).endswith("2020-12/schema")
+        assert metadata["provisionalAbi"] is True
+        assert metadata["pendingOwnerConfirmation"] is True
+        assert metadata["externalTransportRequired"] is True
+        assert metadata["independentSiteLabPlatformValidationRequired"] is True
+        assert metadata["treatmentEraPopulationDiseaseClassSpecimenRequired"] is True
+        assert metadata["calibrationFloorsRequired"] is True
+        assert metadata["supportDomainNarrowingAllowed"] is True
+        assert metadata["provenanceRequired"] is True
+        assert metadata["unsupportedToNegative"] is False
+        assert metadata["parentTarget"] == "protein-RNA discordance"
+    output_metadata = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2204_OUTPUT_MEDIA_TYPE
     assert M2204_PROVISIONAL_ABI is True
 
 

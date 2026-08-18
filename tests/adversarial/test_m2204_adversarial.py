@@ -93,15 +93,9 @@ def test_empty_support_and_request_context_closures_fail_closed() -> None:
     request = _request()
     result = M2204Engine().evaluate(request)
     assert result.report is not None
-    empty = result.report.support_domain.model_construct(
-        update_id="support.empty",
-        version=result.report.support_domain.version,
-        status=result.report.support_domain.status,
-        retained_dimensions=(),
-        narrowed_dimensions=(),
-        rationale="empty",
-        evidence=result.report.support_domain.evidence,
-    )
+    empty = result.report.support_domain.model_dump(mode="python")
+    empty["retained_dimensions"] = ()
+    empty["narrowed_dimensions"] = ()
     with pytest.raises(ValidationError, match="Tuple should have at least 1"):
         SupportDomainUpdate.model_validate(empty)
     with pytest.raises(ValidationError, match="context request id"):

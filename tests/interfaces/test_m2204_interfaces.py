@@ -25,6 +25,11 @@ from tests.runtime.test_m2204_transport import _request
 if TYPE_CHECKING:
     import pytest
 
+    from glio_proteogen.contracts.m22_04 import (
+        EvaluateProteinRnaDiscordanceExternalTransportRequest,
+        ProteinRnaDiscordanceExternalTransportResult,
+    )
+
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
@@ -62,11 +67,13 @@ def test_fastapi_parse_once_and_validation_errors_are_sanitized() -> None:
 
 
 class _RejectingService(M2204Service):
-    def validate_request(self, request: object) -> object:
+    def validate_request(
+        self, request: object
+    ) -> EvaluateProteinRnaDiscordanceExternalTransportRequest:
         del request
         raise ValueError
 
-    def evaluate(self, request: object) -> object:
+    def evaluate(self, request: object) -> ProteinRnaDiscordanceExternalTransportResult:
         del request
         raise ValueError
 
