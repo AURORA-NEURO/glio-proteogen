@@ -9,6 +9,7 @@ from typing import Annotated, cast
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m26_08 import (
     M2608_MAX_CANONICAL_REQUEST_BYTES,
     M2608_MAX_CANONICAL_RESULT_BYTES,
@@ -49,7 +50,7 @@ class M2608CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> RetireProteinSubtypeServiceRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2608_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2608_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -60,7 +61,7 @@ def _read_request(path: Path) -> RetireProteinSubtypeServiceRequest:
 
 def _read_result(path: Path) -> ProteinSubtypeRetirementResult:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2608_MAX_CANONICAL_RESULT_BYTES)
         strict_json_loads(data, max_bytes=M2608_MAX_CANONICAL_RESULT_BYTES)
         return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:

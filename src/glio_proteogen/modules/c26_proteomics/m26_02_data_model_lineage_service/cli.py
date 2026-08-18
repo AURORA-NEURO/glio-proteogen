@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m26_02 import (
     M2602_MAX_CANONICAL_REQUEST_BYTES,
     M2602_MAX_CANONICAL_RESULT_BYTES,
@@ -32,15 +33,9 @@ def _read(path: Path, *, max_bytes: int) -> bytes:
     """Read a canonical JSON file without allocating beyond its contract bound."""
 
     try:
-        if path.stat().st_size > max_bytes:
-            raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
-        payload = path.read_bytes()
-    except OSError as error:
-        raise ValueError("input cannot be read") from error  # noqa: TRY003
-    # A file may grow between stat and read; keep the post-read check as well.
-    if len(payload) > max_bytes:
-        raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
-    return payload
+        return read_bounded(path, max_bytes)
+    except (OSError, ValueError) as error:
+        raise ValueError("input cannot be read within the bounded JSON byte limit") from error  # noqa: TRY003
 
 
 def _validated_request(path: Path) -> BuildProteinSubtypeLineageRequest:
