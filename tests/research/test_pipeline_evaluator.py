@@ -27,6 +27,12 @@ def test_locked_research_pipeline_evaluator() -> None:
     assert receipt["missing_peptides"] == 0
     diagnostics = cast("dict[str, object]", target["search_diagnostics"])
     assert diagnostics["max_fragment_error_da"] == pytest.approx(0.0005254659999991418)
+    generated = cast("dict[str, object]", report["generated_search_space"])
+    assert generated["passed"] is True
+    receipt = cast("dict[str, object]", generated["search_space_receipt"])
+    assert receipt["decoy_strategy"] == "reverse_protein"
+    assert receipt["generated_decoy_entries"] == 1
+    assert receipt["collision_peptides"] == 0
 
 
 def test_research_pipeline_benchmark_is_deterministic() -> None:

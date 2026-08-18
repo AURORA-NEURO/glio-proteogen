@@ -14,6 +14,9 @@ from pathlib import Path
 
 from glio_proteogen.research import ResearchRunRequest, run_research_protein_inference
 
+_DIGEST_LENGTH = 64
+_GENERATED_SEARCH_SPACE_PEPTIDES = 2
+
 
 @dataclass(frozen=True, slots=True)
 class Scenario:
@@ -377,16 +380,46 @@ def run_evaluator() -> dict[str, object]:
                     item.as_dict() for item in result.protein_group_quantifications
                 ],
                 "search_diagnostics": dict(result.search_diagnostics),
-                "competition_audit": [
-                    item.as_dict() for item in result.competition_audit
-                ],
+                "competition_audit": [item.as_dict() for item in result.competition_audit],
             }
         )
+    generated_request = ResearchRunRequest(
+        sample_id="research-eval:generated-reverse-decoy",
+        mzml_source=locked_scenarios[0].mzml,
+        fasta_source=locked_scenarios[0].fasta,
+        decoy_strategy="reverse_protein",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    generated_result = run_research_protein_inference(generated_request)
+    generated_receipt = generated_result.search_space_receipt
+    generated_search_space = {
+        "passed": (
+            generated_receipt is not None
+            and generated_receipt.decoy_strategy == "reverse_protein"
+            and generated_receipt.target_entries == 1
+            and generated_receipt.generated_decoy_entries == 1
+            and generated_receipt.target_peptides == 1
+            and generated_receipt.decoy_peptides == 1
+            and generated_receipt.peptide_count == _GENERATED_SEARCH_SPACE_PEPTIDES
+            and len(generated_receipt.digest) == _DIGEST_LENGTH
+            and bool(generated_result.accepted_psms)
+            and all(not item.decoy for item in generated_result.accepted_psms)
+        ),
+        "result_digest": generated_result.result_digest,
+        "search_space_receipt": (
+            generated_receipt.as_dict() if generated_receipt is not None else None
+        ),
+        "accepted_psms": len(generated_result.accepted_psms),
+    }
     return {
-        "passed": all(bool(item["passed"]) for item in outcomes),
+        "passed": all(bool(item["passed"]) for item in outcomes)
+        and bool(generated_search_space["passed"]),
         "declared": len(outcomes),
         "executed": len(outcomes),
         "fixture_sha256": fixture_digest,
+        "generated_search_space": generated_search_space,
         "outcomes": outcomes,
     }
 

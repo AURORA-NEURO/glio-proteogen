@@ -18,6 +18,12 @@ C03/C04 computation contract:
   stages bytes until all catalog/reference hashes pass. It never fetches raw cohort data implicitly.
 - `parse_mzml` decodes bounded m/z and intensity arrays from local mzML or gzip-compressed mzML.
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
+  `build_search_space` can additionally construct one deterministic reversed-protein
+  decoy per target entry, or retain caller-declared decoys, and emits a content-addressed
+  `SearchSpaceReceipt` recording target/decoy entries, peptide counts, collision peptides,
+  digestion controls, and the complete peptide map. The strategy is explicit rather than
+  silently assuming that a decoy database exists; reversed decoys are a research control,
+  not a universally calibrated error model.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
 - `search_spectrum_candidates` retains every compatible candidate for one spectrum and

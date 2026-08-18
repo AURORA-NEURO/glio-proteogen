@@ -10,19 +10,27 @@ and does not widen M03/M04 contracts.
 one deterministic, auditable path:
 
 1. Decode bounded mzML spectra and retain MS2 spectra only for identification.
-2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
+2. Build a deterministic target/decoy search space. The default `caller_declared`
+   strategy searches exactly the supplied entries and requires decoy accessions to use
+   the declared prefix. The opt-in `reverse_protein` strategy adds one reversed sequence
+   per target entry. Both paths emit a replay-bound `SearchSpaceReceipt` containing the
+   target/decoy entry counts, peptide counts, collision-peptide count, digestion controls,
+   and a canonical digest of the complete peptide map. A generated reverse decoy is a
+   transparent research control, not a claim that its score distribution is calibrated
+   for every instrument or acquisition design.
+3. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
    controls.
-3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
+4. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold.
-4. Retain every precursor-compatible candidate in a per-spectrum competition receipt,
+5. Retain every precursor-compatible candidate in a per-spectrum competition receipt,
    including target/decoy/collision counts, winner/runner-up scores, score margin, and a
    canonical candidate digest. The legacy single-winner projection is derived from this
    receipt; lower-scoring contenders are never silently discarded from replay evidence.
-5. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
+6. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. PSMs are accepted only
    at the caller-declared q-value threshold.
-6. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
+7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in
    the group summary. Each candidate receives a deterministic max-supporting-PSM score and
@@ -30,16 +38,16 @@ one deterministic, auditable path:
    as null-q collision abstentions, and shared-only groups are marked ambiguous before
    quantification. Only target groups passing this second threshold become reportable groups.
    This is transparent group-FDR evidence, not a calibrated protein probability.
-7. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
+8. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral
    counts remain a separate transparent measure. Every run emits a replay-bound
    quantification receipt containing the arbitrary measurement unit, raw and normalized
    peptide signals, duplicate-observation count, positive/missing counts, raw median,
    normalization target, and scale factor.
-8. Quantify each reportable protein group from the median positive unique-peptide
+9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
-9. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
+10. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
 ## Multi-sample cohort evidence
 
