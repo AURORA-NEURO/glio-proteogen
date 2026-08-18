@@ -196,9 +196,17 @@
       "expected_case_count": 1,
       "expected_outcome": "validation_rejected_before_traversal",
       "expected_disposition": null
+    },
+    {
+      "group_id": "interfaces_replay_verification",
+      "case_ids": [
+        "api_cli_and_service_replay_verify_reject_forged_results"
+      ],
+      "expected_case_count": 1,
+      "expected_outcome": "bounded_service_api_cli_replay_with_forgery_rejection"
     }
   ],
-  "expected_group_count": 8,
-  "expected_total_case_count": 19,
-  "expected_case_allocation": [1, 8, 2, 2, 2, 1, 2, 1]
+  "expected_group_count": 9,
+  "expected_total_case_count": 20,
+  "expected_case_allocation": [1, 8, 2, 2, 2, 1, 2, 1, 1]
 }

@@ -5,11 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from collections.abc import Iterator, Mapping
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal, TypedDict, cast
+
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from typer.testing import CliRunner
 
 if __package__ in {None, ""}:
     _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +39,7 @@ from glio_proteogen.contracts.m03_06 import (
     opaque_harmonization_identifier,
 )
 from glio_proteogen.contracts.m03_07 import (
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     ProteinInferenceAbstentionCode,
     ProteinInferenceContextReceipt,
     ProteinInferenceContextRole,
@@ -55,6 +61,7 @@ from glio_proteogen.contracts.m03_07 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import ArtifactReference
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
     compute_protein_inference_quality,
 )
@@ -65,6 +72,7 @@ from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
     harmonize_protein_inference_support,
 )
 from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
+    M0307Service,
     ProteinInferenceSupportAuthorizationError,
     preflight_protein_inference_support_authorization,
     protein_inference_support_prerequisites,
@@ -79,9 +87,10 @@ if TYPE_CHECKING:
 MODULE_ID: Final = "GLIO-PROTEOGEN-M03-07"
 ROOT: Final = Path(__file__).parents[2]
 SCENARIO_PATH: Final = ROOT / "tests" / "fixtures" / "m03_07" / "scenarios.json"
-_EXPECTED_GROUP_COUNT: Final = 8
-_EXPECTED_CASE_COUNT: Final = 19
+_EXPECTED_GROUP_COUNT: Final = 9
+_EXPECTED_CASE_COUNT: Final = 20
 _RATE_SCALE: Final = 1_000_000
+_HTTP_OK: Final = 200
 
 
 class ScenarioGroup(TypedDict):
@@ -916,6 +925,75 @@ def _reorder_checks(scenario: Scenario) -> list[EvalCheck]:
     ]
 
 
+def _replay_interface_check(scenario: Scenario) -> EvalCheck:
+    """Exercise bounded service/API/CLI replay and semantic forgery rejection."""
+
+    from glio_proteogen.adapters.api import create_app  # noqa: PLC0415
+    from glio_proteogen.adapters.cli import app as cli_app  # noqa: PLC0415
+
+    expected = M0307Service().execute(scenario.request)
+    result_bytes = canonical_json_bytes(expected)
+    forged = expected.model_dump(mode="json")
+    forged["result_digest"] = "sha256:" + ("f" * 64)
+    duplicate = expected.model_dump_json().replace(
+        '"route_id":', '"route_id":"duplicate","route_id":', 1
+    )
+    forged_rejected = False
+    duplicate_rejected = False
+    try:
+        M0307Service().verify(forged)
+    except ValidationError:
+        forged_rejected = True
+    try:
+        M0307Service().verify(duplicate)
+    except StrictJsonError:
+        duplicate_rejected = True
+
+    with tempfile.TemporaryDirectory() as directory:
+        temp = Path(directory)
+        result_path = temp / "result.json"
+        result_path.write_bytes(result_bytes)
+        with TestClient(create_app(temp / "eval.sqlite3")) as client:
+            api_response = client.post(
+                "/v1/modules/M03-07/support-route/verify",
+                content=result_bytes,
+                headers={"content-type": "application/json"},
+            )
+        cli_response = CliRunner().invoke(
+            cli_app,
+            ["protein-inference-support", "verify", str(result_path)],
+        )
+        api_result = ProteinInferenceSupportRouteResult.model_validate_json(
+            api_response.content,
+            strict=True,
+        )
+        cli_result = ProteinInferenceSupportRouteResult.model_validate_json(
+            cli_response.stdout,
+            strict=True,
+        )
+        bounded = len(result_bytes) <= M0307_MAX_CANONICAL_RESULT_BYTES
+
+    passed = (
+        M0307Service().verify(result_bytes) == expected
+        and api_response.status_code == _HTTP_OK
+        and api_result == expected
+        and cli_response.exit_code == 0
+        and cli_result == expected
+        and forged_rejected
+        and duplicate_rejected
+        and bounded
+    )
+    return _scenario(
+        "api_cli_and_service_replay_verify_reject_forged_results",
+        passed=passed,
+        detail=(
+            f"api={api_response.status_code};cli={cli_response.exit_code};"
+            f"forged_rejected={forged_rejected};duplicate_rejected={duplicate_rejected};"
+            f"result_bytes={len(result_bytes)};bounded={bounded}"
+        ),
+    )
+
+
 def _hostile_preflight_check(scenario: Scenario) -> EvalCheck:
     hostile = _HostileEvidence()
     references = scenario.request.context.references.model_dump(mode="python")
@@ -974,6 +1052,7 @@ def main(argv: list[str] | None = None) -> int:
         *_all_member_checks(scenario),
         _cross_envelope_check(scenario),
         *_reorder_checks(scenario),
+        _replay_interface_check(scenario),
         _hostile_preflight_check(scenario),
     ]
     executed = {
