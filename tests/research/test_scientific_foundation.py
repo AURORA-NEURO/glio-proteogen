@@ -12,7 +12,7 @@ import zlib
 from dataclasses import replace
 from hashlib import md5
 from pathlib import Path
-from typing import Self
+from typing import BinaryIO, Self, cast
 
 import pytest
 
@@ -272,6 +272,8 @@ def test_mzml_precision_compression_retention_and_limits() -> None:
     assert spectrum.retention_time_seconds == 120.0
     assert spectrum.mz == pytest.approx((100.0, 200.0))
     assert spectrum.intensity == pytest.approx((10.0, 20.0))
+    seconds = parse_mzml(payload.replace(b'unitName="minute"', b'unitName="second"'))[0]
+    assert seconds.retention_time_seconds == 2.0
     precursor_payload = payload.replace(
         b"<binaryDataArrayList>",
         b"<precursorList><precursor><selectedIonList><selectedIon>"
@@ -319,6 +321,51 @@ def test_mzml_precision_compression_retention_and_limits() -> None:
     )
     with pytest.raises(ValueError):
         parse_mzml(expanded_payload, max_bytes=1024)
+    truncated = zlib.compress(b"\x00\x00\x00\x00")[:-1]
+    truncated_payload = (
+        b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
+        b'<binaryDataArray><cvParam accession="MS:1000574"/>'
+        b'<cvParam accession="MS:1000523"/><binary>'
+        + base64.b64encode(truncated)
+        + b"</binary></binaryDataArray></binaryDataArrayList>"
+        b"</spectrum></spectrumList></run></mzML>"
+    )
+    with pytest.raises(ValueError):
+        parse_mzml(truncated_payload)
+
+
+def test_mzml_nonseekable_gzip_and_precursor_validation() -> None:
+    payload = b'<mzML><run><spectrumList><spectrum id="x"/></spectrumList></run></mzML>'
+
+    class NonSeekable:
+        def __init__(self, value: bytes) -> None:
+            self.value = value
+
+        def read(self, size: int = -1) -> bytes:
+            if size < 0:
+                value, self.value = self.value, b""
+                return value
+            value, self.value = self.value[:size], self.value[size:]
+            return value
+
+        def seekable(self) -> bool:
+            return False
+
+    assert parse_mzml(cast("BinaryIO", NonSeekable(gzip.compress(payload))))[0].spectrum_id == "x"
+    precursor = (
+        b"<mzML><run><spectrumList><spectrum><precursorList><precursor>"
+        b'<selectedIonList><selectedIon><cvParam accession="MS:1000744" value="nan"/>'
+        b"</selectedIon></selectedIonList></precursor></precursorList></spectrum>"
+        b"</spectrumList></run></mzML>"
+    )
+    with pytest.raises(ValueError):
+        parse_mzml(precursor)
+    charge = precursor.replace(b'value="nan"', b'value="1.0"').replace(
+        b'accession="MS:1000744" value="1.0"',
+        b'accession="MS:1000744" value="1.0"/><cvParam accession="MS:1000041" value="0"',
+    )
+    with pytest.raises(ValueError):
+        parse_mzml(charge)
 
 
 def test_search_and_quantification_edge_closures() -> None:
@@ -333,6 +380,54 @@ def test_search_and_quantification_edge_closures() -> None:
     normalized = median_normalize(values)
     assert normalized[0].intensity == 0.0
     assert normalized[2].intensity == 0.0
+
+
+def test_search_parameter_and_peak_validation() -> None:
+    for kwargs in (
+        {"precursor_tolerance_ppm": -1},
+        {"fragment_tolerance_da": math.nan},
+        {"min_matched_ions": 0},
+        {"precursor_charge": 0},
+    ):
+        with pytest.raises(ValueError):
+            SearchParameters(**kwargs)
+    assert (
+        search_spectrum(
+            "negative-intensity",
+            1.0,
+            {"PEPTIDE": ("P1",)},
+            (1.0,),
+            (-1.0,),
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "infinite-intensity",
+            1.0,
+            {"PEPTIDE": ("P1",)},
+            (1.0,),
+            (math.inf,),
+        )
+        is None
+    )
+
+
+def test_target_tie_prefers_target_winner() -> None:
+    target = search_spectrum(
+        "tie",
+        1087.508837466,
+        {"MPEPTIDER": ("P1",)},
+        (132.0, 229.1, 358.1),
+        (10.0, 20.0, 30.0),
+        parameters=SearchParameters(fragment_tolerance_da=0.2, min_matched_ions=1),
+    )
+    assert target is not None
+    decoy = replace(target, protein_accessions=("DECOY_P1",), decoy=True)
+    scored = target_decoy_qvalues((decoy, target))
+    assert len(scored) == 1
+    assert scored[0].decoy is False
+    assert scored[0].q_value == 0.0
 
 
 def test_search_requires_precursor_and_matches_each_peak_once() -> None:
