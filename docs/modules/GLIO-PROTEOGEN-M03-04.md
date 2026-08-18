@@ -62,8 +62,8 @@ findings, provenance, uncertainty, evidence, limitations, and a disposition for 
     installed schemas are exported through `GET /v1/contracts/M03-04/{name}/schema` and
     `protein-inference-quality export-schema NAME`.
 12. Recover append-only. A corrected fact ledger, policy, threshold, or upstream handoff creates a
-    new content-addressed quality result with explicit supersession provenance; a prior result is
-    never edited or silently promoted.
+    new content-addressed quality result with the superseded result digest carried in
+    `provenance.input_digests`; a prior result is never edited or silently promoted.
 13. Emit no direct patient identifier, raw identity token, observed peptide sequence, accession,
     protein-presence or protein-absence assertion, proteoform assignment, abundance, complex-
     activity score, subtype, proteotype, kinase state, fused-omics conclusion, treatment
