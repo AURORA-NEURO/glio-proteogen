@@ -9,12 +9,14 @@ operation is part of the frozen public API.
 from __future__ import annotations
 
 import json
+from pathlib import Path  # noqa: TC003 - Typer resolves this runtime type.
 from typing import TYPE_CHECKING, Annotated
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m06_08 import (
     ProteinAbundanceEvidencePublicationResult,
     PublishProteinAbundanceEvidenceRequest,
@@ -143,12 +145,17 @@ def export_schema(
 
 @m0608_app.command("validate")
 def validate_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Validate one request, preserving the parse-once boundary."""
 
     try:
-        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        parsed = _strict_json_bytes(read_bounded(path))
         request = _REQUEST_ADAPTER.validate_json(parsed, strict=True)
         typer.echo(canonical_json_bytes(request.model_dump(mode="json")).decode("utf-8"))
     except (ValidationError, ValueError) as error:
@@ -158,12 +165,17 @@ def validate_request(
 
 @m0608_app.command("publish")
 def publish_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Execute one request and emit the canonical result envelope."""
 
     try:
-        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        parsed = _strict_json_bytes(read_bounded(path))
         result = M0608Service().execute(_REQUEST_ADAPTER.validate_json(parsed, strict=True))
         typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
     except M0608EvidencePublisherAuthorizationError as error:
@@ -176,12 +188,15 @@ def publish_request(
 
 @m0608_app.command("verify")
 def verify_result(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON result file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(exists=True, readable=True, dir_okay=False, help="Strict JSON result file."),
+    ],
 ) -> None:
     """Verify a result using mandatory deterministic request reconstruction."""
 
     try:
-        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        parsed = _strict_json_bytes(read_bounded(path))
         result = M0608Service().verify(_RESULT_ADAPTER.validate_json(parsed, strict=True))
         typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
     except M0608ReplayVerificationError as error:
