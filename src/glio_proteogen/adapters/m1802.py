@@ -11,8 +11,10 @@ import typer
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m18_02 import (
     M1802_MAX_CANONICAL_REQUEST_BYTES,
+    M1802_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     contract_json_schema,
 )
@@ -29,8 +31,8 @@ def _sanitized(error: Exception) -> str:
     return f"M18-02 request rejected: {type(error).__name__}"
 
 
-def _parse_bytes(payload: bytes) -> object:
-    parsed = strict_json_loads(payload, max_bytes=M1802_MAX_CANONICAL_REQUEST_BYTES)
+def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
+    parsed = strict_json_loads(payload, max_bytes=max_bytes)
     return json.loads(canonical_json_bytes(parsed))
 
 
@@ -50,7 +52,9 @@ def create_app(service: M1802Service | None = None) -> FastAPI:
     @api.post("/v1/modules/M18-02/align")
     async def align(request: Request) -> JSONResponse:
         try:
-            result = operation.execute(_parse_bytes(await request.body()))
+            result = operation.execute(
+                _parse_bytes(await request.body(), max_bytes=M1802_MAX_CANONICAL_REQUEST_BYTES)
+            )
         except M1802AuthorizationError as error:
             raise HTTPException(status_code=403, detail="M18-02 authorization denied") from error
         except Exception as error:
@@ -60,7 +64,9 @@ def create_app(service: M1802Service | None = None) -> FastAPI:
     @api.post("/v1/modules/M18-02/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
-            result = operation.verify(_parse_bytes(await request.body()))
+            result = operation.verify(
+                _parse_bytes(await request.body(), max_bytes=M1802_MAX_CANONICAL_RESULT_BYTES)
+            )
         except M1802ReplayVerificationError as error:
             raise HTTPException(
                 status_code=422, detail="M18-02 replay verification failed"
@@ -76,10 +82,17 @@ app = create_app()
 cli = typer.Typer(help="Provisional M18-02 cross-source alignment.")
 
 
-def _load_path(path: str) -> object:
+def _read_stdin(max_bytes: int) -> bytes:
+    payload = sys.stdin.buffer.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise RequestBodyTooLargeError
+    return payload
+
+
+def _load_path(path: str, *, max_bytes: int) -> object:
     if path == "-":
-        return _parse_bytes(sys.stdin.buffer.read())
-    return _parse_bytes(Path(path).read_bytes())
+        return _parse_bytes(_read_stdin(max_bytes), max_bytes=max_bytes)
+    return _parse_bytes(read_bounded(Path(path), max_bytes), max_bytes=max_bytes)
 
 
 def _emit(result: object, output: str | None) -> None:
@@ -111,7 +124,9 @@ def align_command(
     """Align one authorized cross-source request."""
 
     try:
-        result = M1802Service().execute(_load_path(request))
+        result = M1802Service().execute(
+            _load_path(request, max_bytes=M1802_MAX_CANONICAL_REQUEST_BYTES)
+        )
         _emit(result, output)
     except M1802AuthorizationError as error:
         typer.echo("M18-02 authorization denied", err=True)
@@ -130,7 +145,9 @@ def verify_command(
     """Verify result digest and deterministic replay."""
 
     try:
-        verified = M1802Service().verify(_load_path(result))
+        verified = M1802Service().verify(
+            _load_path(result, max_bytes=M1802_MAX_CANONICAL_RESULT_BYTES)
+        )
     except Exception as error:
         typer.echo(_sanitized(error), err=True)
         raise typer.Exit(code=1) from error
