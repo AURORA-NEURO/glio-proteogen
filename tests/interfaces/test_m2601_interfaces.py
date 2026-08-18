@@ -22,9 +22,9 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_01_registry_configuration_se
 from tests.contract.test_m2601_deep import _request
 
 if TYPE_CHECKING:
-    import pytest
-
     from pathlib import Path
+
+    import pytest
 
 _SCHEMA_COUNT = 8
 
