@@ -91,6 +91,14 @@ C03/C04 computation contract:
   projection and is explicitly not a probability of biological truth. Aggregation rejects two
   different payloads claiming the same source/kind so a stale or contradictory external receipt
   cannot silently coexist with a newer one under a different evidence ID.
+- `aggregate_external_evidence` provides a separate external-cohort evidence ledger. Each
+  observation is bound to an opaque caller claim, study/source identity, source SHA-256/size, and
+  method ID. The ledger preserves caller-declared support, contradiction, inconclusive, and
+  abstained directions; repeated observations from one source are not counted as independent, and
+  contradictory directions from one source force an explicit abstention. The aggregate emits only
+  descriptive status/counts and a replay-bound `EvidenceBundle`: it performs no numerical fusion,
+  p-value calculation, posterior inference, disease labeling, or mechanism discovery. An
+  independent-source threshold is an auditability gate, not statistical power or biological truth.
 - `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
   research run: fragment matching, target/decoy q-values, spectral counts, matched-ion
   intensity quantification, ambiguity-preserving protein groups, and deterministic replay.

@@ -29,6 +29,12 @@ from .evidence import (
     aggregate_evidence,
     verify_evidence_bundle,
 )
+from .evidence_aggregation import (
+    ExternalEvidenceAggregate,
+    ExternalEvidenceObservation,
+    aggregate_external_evidence,
+    replay_external_evidence,
+)
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .modifications import (
     ModificationSpec,
@@ -101,6 +107,8 @@ __all__ = [
     "EvidenceQuality",
     "EvidenceQualitySummary",
     "EvidenceRecord",
+    "ExternalEvidenceAggregate",
+    "ExternalEvidenceObservation",
     "FastaEntry",
     "FdrSummary",
     "ModificationSpec",
@@ -132,6 +140,7 @@ __all__ = [
     "Spectrum",
     "aggregate_cohort_evidence",
     "aggregate_evidence",
+    "aggregate_external_evidence",
     "bind_pdc_mzml_source",
     "build_search_space_receipt",
     "digest_trypsin",
@@ -148,6 +157,7 @@ __all__ = [
     "quantify_matched_ions_with_receipt",
     "quantify_protein_groups",
     "read_fasta",
+    "replay_external_evidence",
     "replay_research_cohort",
     "replay_research_protein_inference",
     "run_research_cohort",
