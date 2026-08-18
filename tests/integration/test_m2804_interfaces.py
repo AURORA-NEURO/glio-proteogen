@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m28_04 import AuthorizationDecision, contract_json_schemas
+from glio_proteogen.contracts.m28_04 import (
+    M2804_MAX_CANONICAL_REQUEST_BYTES,
+    M2804_MAX_CANONICAL_RESULT_BYTES,
+    AuthorizationDecision,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.api import create_app
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.cli import app
@@ -169,3 +174,19 @@ def test_sdk_uses_the_same_canonical_service_boundary() -> None:
     sdk_result = client.publish(request)
     assert client.verify(sdk_result) == sdk_result
     assert client.publish_json(request) == sdk_result.model_dump(mode="json")
+
+
+def test_cli_rejects_oversized_request_and_result_before_parse(tmp_path: Path) -> None:
+    oversized_request = tmp_path / "oversized-request.json"
+    oversized_result = tmp_path / "oversized-result.json"
+    oversized_request.write_bytes(b"{" + b"a" * M2804_MAX_CANONICAL_REQUEST_BYTES + b"}")
+    oversized_result.write_bytes(b"{" + b"a" * M2804_MAX_CANONICAL_RESULT_BYTES + b"}")
+    runner = CliRunner()
+
+    request_result = runner.invoke(app, ["validate", str(oversized_request)])
+    result_result = runner.invoke(app, ["verify", str(oversized_result)])
+
+    assert request_result.exit_code != 0
+    assert result_result.exit_code != 0
+    assert "Traceback" not in request_result.output
+    assert "Traceback" not in result_result.output
