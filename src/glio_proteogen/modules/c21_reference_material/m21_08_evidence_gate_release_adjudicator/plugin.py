@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m21_08 import (
     M2108_MAX_CANONICAL_REQUEST_BYTES,
@@ -16,7 +16,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2108Engine, preflight_m2108_authorization
+from .engine import M2108Engine, M2108ReplayError, preflight_m2108_authorization
 from .service import M2108Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdjudicateComplexActivityEvidenceGateRequest)
@@ -77,8 +77,11 @@ class M2108Plugin:
         *,
         replay: bool = True,
     ) -> ComplexActivityEvidenceGateResult:
-        _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(result, replay=replay)
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except (TypeError, ValueError, ValidationError) as error:
+            raise M2108ReplayError("M21-08 result is invalid") from error
+        return self._service.verify(validated, replay=replay)
 
 
 __all__ = ["M2108Plugin", "ValidatedM2108Request"]

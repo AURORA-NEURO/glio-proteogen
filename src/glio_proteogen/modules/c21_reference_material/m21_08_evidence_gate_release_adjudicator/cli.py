@@ -121,7 +121,7 @@ def adjudicate(
 
 @app.command("verify")
 def verify(path: Annotated[Path, typer.Argument(exists=True, readable=True)]) -> None:
-    """Verify one immutable evidence-gate result by replaying its digest."""
+    """Verify one immutable evidence-gate result by full deterministic replay."""
     result = _read_result(path)
     try:
         replay = _SERVICE.verify(result)
