@@ -32,16 +32,26 @@ _EXPECTED_SCENARIOS = (
     "multi_spectrum",
     "multi_peptide_quantification",
 )
+_EXPECTED_COHORT_SCENARIOS = (
+    "replicate_matrix",
+    "explicit_missingness",
+    "incompatible_search_space",
+    "pdc_provenance_replay",
+)
 _RESEARCH_MEMBERS = (
     "glio_proteogen/research/pipeline.py",
     "glio_proteogen/research/search.py",
     "glio_proteogen/research/protein.py",
+    "glio_proteogen/research/cohort.py",
 )
 _EXPECTED_SOURCE_DATE_EPOCH = 315532800
 
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from evals.research_proteomics.cohort import (  # noqa: E402
+    run_evaluator as run_cohort_evaluator,
+)
 from evals.research_proteomics.run import run_benchmark, run_evaluator  # noqa: E402
 
 
@@ -123,14 +133,21 @@ def _require_installed_research_runtime() -> None:
         )
 
 
-def _verify_evaluation(path: Path) -> str:
+def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
     evidence = _read_json(path)
     observed = run_evaluator()
     benchmark = run_benchmark(iterations=10)
     recorded_eval = evidence.get("evaluation") or evidence.get("evaluator")
+    recorded_cohort = evidence.get("cohort_evaluation")
     recorded_benchmark = evidence.get("benchmark")
-    if not isinstance(recorded_eval, dict) or not isinstance(recorded_benchmark, dict):
-        raise VerificationError("research evaluation must contain evaluation and benchmark")
+    if (
+        not isinstance(recorded_eval, dict)
+        or not isinstance(recorded_cohort, dict)
+        or not isinstance(recorded_benchmark, dict)
+    ):
+        raise VerificationError(
+            "research evaluation must contain evaluation, cohort_evaluation, and benchmark"
+        )
     outcomes = observed.get("outcomes")
     if not isinstance(outcomes, list):
         raise VerificationError("research evaluator returned no outcomes")
@@ -156,6 +173,31 @@ def _verify_evaluation(path: Path) -> str:
         or not recorded_eval.get("passed")
     ):
         raise VerificationError("research evaluation evidence is not passing")
+    observed_cohort = run_cohort_evaluator()
+    cohort_outcomes = observed_cohort.get("outcomes")
+    cohort_ids = (
+        tuple(item.get("id") for item in cohort_outcomes if isinstance(item, dict))
+        if isinstance(cohort_outcomes, list)
+        else ()
+    )
+    if (
+        cohort_ids != _EXPECTED_COHORT_SCENARIOS
+        or observed_cohort.get("declared") != len(_EXPECTED_COHORT_SCENARIOS)
+        or observed_cohort.get("executed") != len(_EXPECTED_COHORT_SCENARIOS)
+        or not observed_cohort.get("passed")
+    ):
+        raise VerificationError("research cohort evaluator did not pass all locked scenarios")
+    if recorded_cohort.get("fixture_sha256") != observed_cohort.get("fixture_sha256"):
+        raise VerificationError("research cohort fixture digest does not match the evaluator")
+    recorded_cohort_ids = recorded_cohort.get("scenario_ids", cohort_ids)
+    if tuple(recorded_cohort_ids) != _EXPECTED_COHORT_SCENARIOS:
+        raise VerificationError("research cohort scenario inventory is not locked")
+    if (
+        recorded_cohort.get("declared") != len(_EXPECTED_COHORT_SCENARIOS)
+        or recorded_cohort.get("executed") != len(_EXPECTED_COHORT_SCENARIOS)
+        or not recorded_cohort.get("passed")
+    ):
+        raise VerificationError("research cohort evidence is not passing")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
         raise VerificationError("research benchmark result digest changed")
     _verify_benchmark_record(recorded_benchmark)
@@ -198,7 +240,7 @@ def _verify_package(path: Path, receipt: dict[str, object]) -> None:
             raise VerificationError(f"package omits research member {member}")
 
 
-def _verify_package_receipt(
+def _verify_package_receipt(  # noqa: C901
     path: Path,
     wheel: Path | None,
     sdist: Path | None,
@@ -237,6 +279,10 @@ def _verify_package_receipt(
     recorded_fixture = verification.get("fixture_sha256")
     if expected_fixture_sha256 is not None and recorded_fixture != expected_fixture_sha256:
         raise VerificationError("research package fixture digest does not match evaluation")
+    cohort_fixture = verification.get("cohort_fixture_sha256")
+    cohort_path = _ROOT / "tests" / "fixtures" / "research" / "cohort_scenarios.json"
+    if cohort_fixture != _sha256(cohort_path):
+        raise VerificationError("research package cohort fixture digest does not match source")
     if wheel is not None and sdist is not None:
         _verify_package(wheel, wheel_receipt)
         _verify_package(sdist, sdist_receipt)

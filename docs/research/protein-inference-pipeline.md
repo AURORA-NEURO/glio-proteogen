@@ -32,6 +32,32 @@ one deterministic, auditable path:
    non-quantifiable rather than assigned a fabricated protein value.
 8. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
+## Multi-sample cohort evidence
+
+`run_research_cohort` is the bounded multi-run layer above the single-sample pipeline.
+The caller supplies two to 32 independently replayable `ResearchCohortSample` records,
+with opaque sample/cohort/replicate identifiers. Every child run must use the same FASTA
+digest and search/digestion/quantification configuration; incompatible search spaces are
+rejected before a matrix is emitted. External PDC declarations and response digests are
+retained per child in the cohort configuration and remain bound through the child result
+digests, so a file rename, response change, or source substitution cannot replay as the
+same cohort.
+
+The result is a deterministic sample-by-protein-group matrix. Groups are the union of
+reportable child groups; an absent or non-quantifiable child cell is represented as JSON
+`null`, never zero or imputed. Per-group QC reports observed/missing counts, missingness
+rate, median intensity, and median absolute deviation. Per-sample QC reports spectra,
+accepted PSMs, quantified/missing groups, target/decoy/collision winners, and precursor
+error diagnostics. Sample order is canonicalized by opaque sample ID, and the complete
+matrix, QC, child digests, source declarations, and configuration are replay-verified.
+
+This is evidence aggregation, not a differential-expression or cohort inference model:
+there are no p-values, effect-size claims, batch correction, survival endpoints, glioma
+subtype claims, mechanism discovery, or clinical recommendations. A future governed
+cohort ABI still needs owner-approved cohort provenance, replicate/QC thresholds,
+normalization units, missingness policy, privacy/consent boundaries, and independent
+validation data.
+
 The result carries replay-bound `FdrSummary` and `ProteinGroupFdrSummary` records. The
 latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
 group threshold, accepted target groups, and the descriptive decoy/target ratio.

@@ -35,6 +35,10 @@ C03/C04 computation contract:
 - `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
   research run: fragment matching, target/decoy q-values, spectral counts, matched-ion
   intensity quantification, ambiguity-preserving protein groups, and deterministic replay.
+- `run_research_cohort` composes compatible child runs into a deterministic sample-by-group
+  matrix with explicit null missingness, replicate QC (median/MAD), child/source digests, and
+  replay verification. It aggregates evidence only; it does not perform differential testing,
+  batch correction, glioma inference, or mechanism discovery.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or

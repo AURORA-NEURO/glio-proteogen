@@ -404,5 +404,15 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-    sys.stdout.write(json.dumps({"evaluation": run_evaluator(), "benchmark": run_benchmark()}))
+    from .cohort import run_evaluator as run_cohort_evaluator
+
+    sys.stdout.write(
+        json.dumps(
+            {
+                "evaluation": run_evaluator(),
+                "cohort_evaluation": run_cohort_evaluator(),
+                "benchmark": run_benchmark(),
+            }
+        )
+    )
     sys.stdout.write("\n")
