@@ -1,9 +1,9 @@
 {
   "module_id": "GLIO-PROTEOGEN-M22-04",
   "branch_enabled": true,
-  "coverage_percent": 96.39115250291036,
-  "statements": 731,
-  "covered_statements": 712,
+  "coverage_percent": 96.39953542392567,
+  "statements": 733,
+  "covered_statements": 714,
   "branches": 128,
   "covered_branches": 116,
   "partial_branches": 12,
