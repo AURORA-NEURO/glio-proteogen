@@ -164,9 +164,18 @@ class M2305EquityEngine:
             raise M2305ReplayError("M23-05 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2305ReplayError("M23-05 result payload digest mismatch")  # noqa: TRY003
-        return VariantPeptideSubgroupEvaluationResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            validated = VariantPeptideSubgroupEvaluationResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(validated.request)
+        except M2305ReplayError:
+            raise
+        except Exception as error:
+            raise M2305ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
+            raise M2305ReplayError("M23-05 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def evaluate_variant_peptide_subgroup_equity(
