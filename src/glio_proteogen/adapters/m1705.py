@@ -1,8 +1,6 @@
 """FastAPI and Typer adapters for provisional M17-05."""
 
 # Adapter entry points intentionally keep framework errors sanitized.
-# ruff: noqa: E501
-
 from __future__ import annotations
 
 import json
@@ -14,8 +12,10 @@ import typer
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m17_05 import (
     M1705_MAX_CANONICAL_REQUEST_BYTES,
+    M1705_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     contract_json_schema,
 )
@@ -32,8 +32,8 @@ def _sanitized(error: Exception) -> str:
     return f"M17-05 request rejected: {type(error).__name__}"
 
 
-def _parse_bytes(payload: bytes) -> object:
-    parsed = strict_json_loads(payload, max_bytes=M1705_MAX_CANONICAL_REQUEST_BYTES)
+def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
+    parsed = strict_json_loads(payload, max_bytes=max_bytes)
     return json.loads(canonical_json_bytes(parsed))
 
 
@@ -53,7 +53,9 @@ def create_app(service: M1705Service | None = None) -> FastAPI:
     @api.post("/v1/modules/M17-05/present")
     async def present(request: Request) -> JSONResponse:
         try:
-            result = operation.execute(_parse_bytes(await request.body()))
+            result = operation.execute(
+                _parse_bytes(await request.body(), max_bytes=M1705_MAX_CANONICAL_REQUEST_BYTES)
+            )
         except M1705AuthorizationError as error:
             raise HTTPException(status_code=403, detail="M17-05 authorization denied") from error
         except Exception as error:
@@ -63,9 +65,13 @@ def create_app(service: M1705Service | None = None) -> FastAPI:
     @api.post("/v1/modules/M17-05/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
-            result = operation.verify(_parse_bytes(await request.body()))
+            result = operation.verify(
+                _parse_bytes(await request.body(), max_bytes=M1705_MAX_CANONICAL_RESULT_BYTES)
+            )
         except M1705ReplayVerificationError as error:
-            raise HTTPException(status_code=422, detail="M17-05 replay verification failed") from error
+            raise HTTPException(
+                status_code=422, detail="M17-05 replay verification failed"
+            ) from error
         except Exception as error:
             raise HTTPException(status_code=422, detail=_sanitized(error)) from error
         return JSONResponse(result.model_dump(mode="json"))
@@ -77,10 +83,17 @@ app = create_app()
 cli = typer.Typer(help="Provisional M17-05 workflow presentation service.")
 
 
-def _load_path(path: str) -> object:
+def _read_stdin(max_bytes: int) -> bytes:
+    payload = sys.stdin.buffer.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise RequestBodyTooLargeError
+    return payload
+
+
+def _load_path(path: str, *, max_bytes: int) -> object:
     if path == "-":
-        return _parse_bytes(sys.stdin.buffer.read())
-    return _parse_bytes(Path(path).read_bytes())
+        return _parse_bytes(_read_stdin(max_bytes), max_bytes=max_bytes)
+    return _parse_bytes(read_bounded(Path(path), max_bytes), max_bytes=max_bytes)
 
 
 def _emit(result: object, output: str | None) -> None:
@@ -112,7 +125,9 @@ def present_command(
     """Present one authorized human-review workspace."""
 
     try:
-        result = M1705Service().execute(_load_path(request))
+        result = M1705Service().execute(
+            _load_path(request, max_bytes=M1705_MAX_CANONICAL_REQUEST_BYTES)
+        )
         _emit(result, output)
     except M1705AuthorizationError as error:
         typer.echo("M17-05 authorization denied", err=True)
@@ -131,7 +146,9 @@ def verify_command(
     """Verify result digest and deterministic replay."""
 
     try:
-        verified = M1705Service().verify(_load_path(result))
+        verified = M1705Service().verify(
+            _load_path(result, max_bytes=M1705_MAX_CANONICAL_RESULT_BYTES)
+        )
     except Exception as error:
         typer.echo(_sanitized(error), err=True)
         raise typer.Exit(code=1) from error
