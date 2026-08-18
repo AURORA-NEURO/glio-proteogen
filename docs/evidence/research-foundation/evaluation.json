@@ -1,12 +1,12 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "76039c7639a19e91e17dc0f3dffad7ef5051bd62e2898b61a8374b3c6adf2fd5",
+  "fixture_sha256": "c97c60855b4a68dbe86026b43592cee71ca3176cbf59f0aa8e6fc720dde2a7fe",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "76039c7639a19e91e17dc0f3dffad7ef5051bd62e2898b61a8374b3c6adf2fd5",
+    "fixture_sha256": "c97c60855b4a68dbe86026b43592cee71ca3176cbf59f0aa8e6fc720dde2a7fe",
     "outcomes": [
       {
         "scenario_id": "target_supported",
@@ -486,7 +486,7 @@
       {
         "scenario_id": "shared_peptide_group",
         "passed": true,
-        "result_digest": "df575ee7ea61631f96e458e60e113c877642ae70dde4304def9d22826b697ca9",
+        "result_digest": "65424d1675e4ceab8cccaddce99e30a98e4e0f856e8c721dafae1af83add2fbe",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -507,7 +507,7 @@
           "target_winners": 1
         },
         "protein_group_fdr_summary": {
-          "accepted_targets": 1,
+          "accepted_targets": 0,
           "candidates": 1,
           "collision_candidates": 0,
           "decoy_candidates": 0,
@@ -515,7 +515,7 @@
           "duplicate_spectrum_psms": 0,
           "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
           "input_psms": 1,
-          "max_accepted_q_value": 0.0,
+          "max_accepted_q_value": null,
           "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "target_candidates": 1,
@@ -529,7 +529,7 @@
               "P1",
               "P2"
             ],
-            "acceptance": "accepted",
+            "acceptance": "abstained",
             "q_value": 0.0,
             "status": "target"
           }
@@ -5886,20 +5886,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      663400,
-      651600,
-      639100,
-      637000,
-      611900,
-      619000,
-      620700,
-      623100,
-      620200,
-      618700
+      636300,
+      783700,
+      745900,
+      649300,
+      706500,
+      626500,
+      614100,
+      601700,
+      780500,
+      680700
     ],
-    "mean_ns": 630470.0,
-    "median_ns": 623100,
-    "p95_ns": 663400,
+    "mean_ns": 682520.0,
+    "median_ns": 680700,
+    "p95_ns": 783700,
     "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
   },
   "coverage": {
@@ -5948,5 +5948,36 @@
     "baseline_result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74",
     "bound_result_digest": "75882fae29bca3dc39401e7268c8ad68ab436f877fdaec3591d80008d07909ac",
     "mzidentml_sha256": "sha256:c77bda79fc6c3adb95cdc311a05e1546eb0de20f0f676f453ff10b4fdc9137c9"
+  },
+  "fdr_quant_group_invariants_evaluation": {
+    "evaluator": "fdr-quantification-group-invariants-v1",
+    "passed": true,
+    "declared": 8,
+    "executed": 8,
+    "checks": {
+      "target_decoy_winner_count": true,
+      "decoys_have_no_q_value": true,
+      "target_q_values_monotone": true,
+      "forged_decoy_flag_rejected": true,
+      "exact_loq_is_missing": true,
+      "no_imputation_at_loq": true,
+      "shared_only_group_abstains": true,
+      "fixture_provenance_is_bound": true
+    },
+    "fixture_id": "target_supported",
+    "fixture_sha256": {
+      "fasta": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+      "mzml": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f"
+    },
+    "target_q_values": [
+      0.0,
+      0.0
+    ],
+    "shared_group_accessions": [
+      [
+        "P1",
+        "P2"
+      ]
+    ]
   }
 }

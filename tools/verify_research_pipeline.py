@@ -62,6 +62,9 @@ if str(_ROOT) not in sys.path:
 from evals.research_proteomics.cohort import (  # noqa: E402
     run_evaluator as run_cohort_evaluator,
 )
+from evals.research_proteomics.fdr_quant_group_invariants import (  # noqa: E402
+    run_fdr_quant_group_invariants_evaluator,
+)
 from evals.research_proteomics.mzidentml_provenance import (  # noqa: E402
     run_mzidentml_provenance_evaluator,
 )
@@ -157,12 +160,14 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
     recorded_cohort = evidence.get("cohort_evaluation")
     recorded_precursor_policy = evidence.get("precursor_policy_evaluation")
     recorded_mzidentml_provenance = evidence.get("mzidentml_provenance_evaluation")
+    recorded_fdr_quant_group_invariants = evidence.get("fdr_quant_group_invariants_evaluation")
     recorded_benchmark = evidence.get("benchmark")
     if (
         not isinstance(recorded_eval, dict)
         or not isinstance(recorded_cohort, dict)
         or not isinstance(recorded_precursor_policy, dict)
         or not isinstance(recorded_mzidentml_provenance, dict)
+        or not isinstance(recorded_fdr_quant_group_invariants, dict)
         or not isinstance(recorded_benchmark, dict)
     ):
         raise VerificationError(
@@ -235,6 +240,14 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
         != observed_mzidentml_provenance.get("executed")
     ):
         raise VerificationError("research mzIdentML provenance evidence is not passing")
+    observed_fdr_quant_group_invariants = run_fdr_quant_group_invariants_evaluator()
+    if (
+        recorded_fdr_quant_group_invariants != observed_fdr_quant_group_invariants
+        or observed_fdr_quant_group_invariants.get("passed") is not True
+        or observed_fdr_quant_group_invariants.get("declared")
+        != observed_fdr_quant_group_invariants.get("executed")
+    ):
+        raise VerificationError("research FDR/quantification/group evidence is not passing")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
         raise VerificationError("research benchmark result digest changed")
     _verify_benchmark_record(recorded_benchmark)
