@@ -59,8 +59,8 @@ def verify(evidence_dir: Path, wheel: Path | None = None, sdist: Path | None = N
         _assert(report.get("dossier_slice") == DOSSIER_SLICE, "authority slice mismatch")
 
     checks = evaluation.get("checks")
-    _assert(evaluation.get("passed") == 10, "evaluator case inventory changed")
-    _assert(evaluation.get("scenario_count") == 10, "evaluator scenario count changed")
+    _assert(evaluation.get("passed") == 11, "evaluator case inventory changed")
+    _assert(evaluation.get("scenario_count") == 11, "evaluator scenario count changed")
     _assert(isinstance(checks, dict) and all(checks.values()), "evaluator did not pass")
     _assert(
         evaluation.get("fixture_digest") == evaluation.get("fixture_request_digest"),

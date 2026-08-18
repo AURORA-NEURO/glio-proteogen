@@ -1,12 +1,12 @@
 {
-  "branch_coverage_percent": 98.80952380952381,
-  "covered_branches": 83,
-  "covered_statements": 532,
+  "branch_coverage_percent": 98.83720930232558,
+  "covered_branches": 85,
+  "covered_statements": 537,
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8220-8260",
-  "focused_tests": 27,
+  "focused_tests": 29,
   "module_id": "GLIO-PROTEOGEN-M23-07",
   "partial_branches": 1,
-  "statement_count": 532,
+  "statement_count": 539,
   "threshold_percent": 95.0
 }

@@ -12,7 +12,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from glio_proteogen.contracts.m23_07 import OperationalDimension
+from glio_proteogen.contracts.m23_07 import OperationalDimension, result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c21_reference_material import (
     m23_07_human_factors_operational_evaluator as m2307,
@@ -67,6 +67,20 @@ def run_evaluator() -> dict[str, Any]:
         checks["tamper_rejected"] = True
     else:
         checks["tamper_rejected"] = False
+    if result.report is None:
+        checks["semantic_tamper_rejected"] = False
+    else:
+        forged_report = result.report.model_copy(update={"version": "0.1.1"})
+        semantic_tamper = result.model_copy(update={"report": forged_report})
+        semantic_tamper = semantic_tamper.model_copy(
+            update={"result_digest": result_payload_digest(semantic_tamper)}
+        )
+        try:
+            service.replay(semantic_tamper)
+        except m2307.M2307ReplayError:
+            checks["semantic_tamper_rejected"] = True
+        else:
+            checks["semantic_tamper_rejected"] = False
     return {
         "module": "M23-07",
         "checks": checks,

@@ -9,6 +9,7 @@
     "parent_boundary": true,
     "replay_verified": true,
     "report_present": true,
+    "semantic_tamper_rejected": true,
     "tamper_rejected": true
   },
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
@@ -16,9 +17,9 @@
   "fixture_digest": "sha256:0570da0f82d0608e70de66e8f1aa122fe77eeb69190884df262cfc917de70b87",
   "fixture_request_digest": "sha256:0570da0f82d0608e70de66e8f1aa122fe77eeb69190884df262cfc917de70b87",
   "fixture_result_digest": "sha256:55cdc1ed2a03f0fd226d4206761e4c29b64edc62361fdfa8849fe2fd6a436876",
-  "focused_tests": 27,
+  "focused_tests": 29,
   "module_id": "GLIO-PROTEOGEN-M23-07",
-  "passed": 10,
-  "scenario_count": 10,
+  "passed": 11,
+  "scenario_count": 11,
   "uncertainty_dimensions": 7
 }
