@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, cast
 
 import glio_proteogen.research.cohort as cohort_module
 from glio_proteogen.research import (
+    CohortQcPolicy,
     PdcFile,
     PdcStudySnapshot,
     ProteinGroup,
@@ -54,7 +55,7 @@ def _fixture_path() -> Path:
 
 def _locked_ids() -> tuple[str, ...]:
     fixture = json.loads(_fixture_path().read_text(encoding="utf-8"))
-    if fixture.get("fixture_version") != "research-cohort-2":
+    if fixture.get("fixture_version") != "research-cohort-3":
         raise ValueError
     if any(bool(value) for value in fixture.get("claims", {}).values()):
         raise ValueError
@@ -193,6 +194,7 @@ def run_evaluator() -> dict[str, object]:
 
     expected_ids = (
         "replicate_matrix",
+        "qc_abstention",
         "explicit_missingness",
         "label_normalization",
         "incompatible_search_space",
@@ -219,6 +221,27 @@ def run_evaluator() -> dict[str, object]:
                 value is None for _, values in replicate.matrix for value in values
             ),
             "projection": _projection(replicate),
+        }
+    )
+    qc_result = run_research_cohort(
+        ResearchCohortRequest(
+            (
+                _sample("target_supported", "qc-present", "r1"),
+                _sample("no_match", "qc-absent", "r2"),
+            ),
+            qc_policy=CohortQcPolicy(max_missingness_rate=0.0),
+        )
+    )
+    outcomes.append(
+        {
+            "id": "qc_abstention",
+            "passed": qc_result.raw_matrix == ((("P1",), (None, 20.0)),)
+            and qc_result.normalized_matrix == ((("P1",), (None, None)),)
+            and qc_result.label_qc[0].status == "abstained_missingness"
+            and qc_result.label_group_evidence[0].status == "abstained_missingness",
+            "result_digest": qc_result.result_digest,
+            "missing_cells": 1,
+            "projection": _projection(qc_result),
         }
     )
     missing = run_research_cohort(

@@ -10,8 +10,8 @@ from evals.research_proteomics.cohort import run_evaluator
 def test_locked_cohort_evaluator() -> None:
     report = run_evaluator()
     assert report["passed"] is True
-    assert report["declared"] == 5
-    assert report["executed"] == 5
+    assert report["declared"] == 6
+    assert report["executed"] == 6
     outcomes = cast("list[dict[str, object]]", report["outcomes"])
     assert all(item["passed"] is True for item in outcomes)
 
