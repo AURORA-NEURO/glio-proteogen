@@ -249,6 +249,30 @@ def test_mzidentml_duplicate_xml_ids_are_quarantined() -> None:
     }
 
 
+def test_mzidentml_dangling_reference_is_quarantined() -> None:
+    scenario = build_scenario()
+    source_id = next(
+        item.source_id
+        for item in scenario.request.sources
+        if item.role is ProteinInferenceRawRole.PEPTIDE_EVIDENCE
+    )
+    payload = scenario.sources[source_id].replace(
+        b"</Inputs><AnalysisData>",
+        b'<PeptideEvidence id="evidence-1" peptide_ref="missing-peptide" '
+        b'dBSequence_ref="missing-db"/></Inputs><AnalysisData>',
+    )
+    scenario = build_scenario(
+        options=ScenarioOptions(raw_overrides={ProteinInferenceRawRole.PEPTIDE_EVIDENCE: payload})
+    )
+
+    result = ingest_protein_inference_raw_inputs(scenario.request, scenario.sources)
+
+    assert result.disposition is ProteinInferenceAdmissionDisposition.QUARANTINED
+    assert ProteinInferenceDiagnosticCode.DANGLING_REFERENCE in {
+        item.code for item in result.diagnostics
+    }
+
+
 def test_fasta_duplicate_sequence_identifiers_are_quarantined() -> None:
     payload = b">duplicate first\nMPEPTIDEK\n>duplicate second\nKEDITPEPM\n"
     scenario = build_scenario(
