@@ -54,7 +54,11 @@ findings, provenance, uncertainty, evidence, limitations, and a disposition for 
     an inner contradiction. Coherently re-authored caller declarations remain outside authenticity
     attestation and are stated as a limitation.
 11. Expose the computation through the public library operation, engine, service, plugin,
-    `POST /v1/modules/M03-04/quality`, and `protein-inference-quality compute REQUEST`. Exact
+    `POST /v1/modules/M03-04/quality`, and `protein-inference-quality compute REQUEST`. Expose
+    bounded replay verification through `POST /v1/modules/M03-04/quality/verify` and
+    `protein-inference-quality verify RESULT`; verification replays the embedded request and
+    rejects duplicate keys, oversize documents, stale digests, forged metric values, and
+    contradictory support/uncertainty/provenance. Exact
     installed schemas are exported through `GET /v1/contracts/M03-04/{name}/schema` and
     `protein-inference-quality export-schema NAME`.
 12. Recover append-only. A corrected fact ledger, policy, threshold, or upstream handoff creates a
@@ -74,7 +78,7 @@ execution, establish a protein observation, or qualify clinical performance.
 
 ## Evidence gate
 
-Gate G1 contains exactly 56 executable cases in eight groups: genuine handoff and evidence-graph
+Gate G1 contains exactly 57 executable cases in eight groups: genuine handoff and evidence-graph
 closure; exact rational calculations and thresholds; ambiguity, proteoform censoring, and zero
 denominators; assay-profile, control, and reference coherence; safe-failure precedence and zero
 ledger traversal; strict ingress, capacity, and hostile authorization; canonical privacy and

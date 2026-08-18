@@ -1,0 +1,56 @@
+{
+  "module": "GLIO-PROTEOGEN-M03-04",
+  "scope": "bounded replay verification depth",
+  "abi": "1.0.0",
+  "claims_ceiling": "caller-declared metadata quality only; no protein, proteoform, isoform, biology, activity, or clinical inference",
+  "python_loc_delta": {
+    "files": 8,
+    "insertions": 217,
+    "deletions": 133,
+    "net": 84,
+    "note": "service replay verifier, API/CLI adapters, evaluator and adversarial interface coverage; formatter normalization is included in the Python diff"
+  },
+  "tests": {
+    "focused": 262,
+    "evaluator_cases": 57,
+    "passed": true
+  },
+  "coverage": {
+    "branch_enabled": true,
+    "statements": 1095,
+    "missed_statements": 3,
+    "branches": 310,
+    "partial_branches": 4,
+    "percent": 99.5,
+    "fail_under": 95
+  },
+  "static": {
+    "ruff_check": "clean",
+    "mypy_strict": "clean",
+    "compileall": "clean",
+    "format": "clean on touched Python files"
+  },
+  "replay": {
+    "service": true,
+    "api": "POST /v1/modules/M03-04/quality/verify",
+    "cli": "protein-inference-quality verify RESULT",
+    "duplicate_key_rejection": true,
+    "forged_digest_rejection": true,
+    "result_byte_limit": 2097152
+  },
+  "package": {
+    "python": "3.12.13",
+    "source_date_epoch": 315532800,
+    "reproducible_two_builds": true,
+    "wheel": {
+      "bytes": 3834971,
+      "members": 1988,
+      "sha256": "19b5f14cd113ffbbde058b0c313ff0909ac85851ea70eb892de41942828b5cd5"
+    },
+    "sdist": {
+      "bytes": 4444871,
+      "members": 4597,
+      "sha256": "f0aa4b6ca4f8a0351c7207d2ed72e73b81d14a85d9eadc67b367c37367eaa1bb"
+    }
+  }
+}

@@ -104,7 +104,7 @@ MODULE_ID = "GLIO-PROTEOGEN-M03-04"
 ROOT = Path(__file__).parents[2]
 SCENARIO_PATH = ROOT / "tests" / "fixtures" / "m03_04" / "scenarios.json"
 _EXPECTED_GROUP_COUNT = 8
-_EXPECTED_CASE_COUNT = 56
+_EXPECTED_CASE_COUNT = 57
 _HTTP_OK = 200
 _SCHEMA_COUNT = 9
 
@@ -373,11 +373,7 @@ def _request_with_policy(
         }
     )
     context = request.context.model_copy(
-        update={
-            "references": references.model_copy(
-                update={"approved_configuration": approved}
-            )
-        }
+        update={"references": references.model_copy(update={"approved_configuration": approved})}
     )
     return ComputeProteinInferenceQualityRequest(
         **{
@@ -464,9 +460,7 @@ def _m0303_safe_failure_results() -> dict[str, ProteinInferenceRawAdmissionResul
 def _m0303_unsupported_shape_result() -> ProteinInferenceRawAdmissionResult:
     """Execute a genuine 256-claim M03-02 result through M03-03 safe admission."""
 
-    lineage = reconcile_protein_inference_identity_lineage(
-        build_m0302_request("maximum")
-    )
+    lineage = reconcile_protein_inference_identity_lineage(build_m0302_request("maximum"))
     template = build_m0303_scenario().request
     references = lineage.request.context.references
     approved = references.approved_configuration.model_copy(
@@ -550,9 +544,7 @@ def _fails(operation: Callable[[], object]) -> bool:
 
 
 def _authorization_fails(candidate: object) -> bool:
-    return _fails(
-        lambda: preflight_protein_inference_quality_authorization(candidate)
-    )
+    return _fails(lambda: preflight_protein_inference_quality_authorization(candidate))
 
 
 def _metric_by_code(
@@ -648,8 +640,7 @@ def _genuine_and_metric_checks(scenario: Scenario) -> list[EvalCheck]:
             "canonical_raw_quality_receipt_binds_exact_m0303_result",
             passed=(
                 receipt.receipt_digest == raw_quality_receipt_digest(receipt)
-                and receipt.admission_request_digest
-                == scenario.upstream_result.request_digest
+                and receipt.admission_request_digest == scenario.upstream_result.request_digest
                 and receipt.source_manifest_digest
                 == scenario.upstream_result.receipt.source_manifest_digest
             ),
@@ -659,9 +650,7 @@ def _genuine_and_metric_checks(scenario: Scenario) -> list[EvalCheck]:
             "source_and_claim_projections_close_over_complete_upstream_handoff",
             passed=(
                 len(receipt.sources) == receipt.source_count == scenario.source_count
-                and len(receipt.claims)
-                == receipt.lineage_artifact_count
-                == scenario.claim_count
+                and len(receipt.claims) == receipt.lineage_artifact_count == scenario.claim_count
             ),
             detail=f"sources={len(receipt.sources)};claims={len(receipt.claims)}",
         ),
@@ -745,9 +734,7 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
         raise _MissingLedgerError
 
     missing_states = ledger.states.model_copy(
-        update={
-            "proteoform_discrimination": ProteinInferenceQualityObservationState.MISSING
-        }
+        update={"proteoform_discrimination": ProteinInferenceQualityObservationState.MISSING}
     )
     missing_request = _request_with_ledger(
         request,
@@ -776,26 +763,16 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
         counts=_zero_partition_counts(ledger.counts, partition="control"),
         states=na_states,
     )
-    profile = na_request.policy.profiles[0].model_copy(
-        update={"controls_applicable": False}
-    )
+    profile = na_request.policy.profiles[0].model_copy(update={"controls_applicable": False})
     na_request = _request_with_policy(
         na_request,
         na_request.policy.model_copy(update={"profiles": (profile,)}),
     )
     na_result = compute_protein_inference_quality(na_request)
-    na_metric = _metric_by_code(na_result)[
-        ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY
-    ]
-    peptide = canonical_metrics[
-        ProteinInferenceQualityMetricCode.PEPTIDE_ASSIGNMENT_COVERAGE
-    ]
-    ambiguity = canonical_metrics[
-        ProteinInferenceQualityMetricCode.PROTEIN_GROUP_AMBIGUITY_BURDEN
-    ]
-    detection = canonical_metrics[
-        ProteinInferenceQualityMetricCode.PROTEIN_GROUP_DETECTION_SUPPORT
-    ]
+    na_metric = _metric_by_code(na_result)[ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY]
+    peptide = canonical_metrics[ProteinInferenceQualityMetricCode.PEPTIDE_ASSIGNMENT_COVERAGE]
+    ambiguity = canonical_metrics[ProteinInferenceQualityMetricCode.PROTEIN_GROUP_AMBIGUITY_BURDEN]
+    detection = canonical_metrics[ProteinInferenceQualityMetricCode.PROTEIN_GROUP_DETECTION_SUPPORT]
     expected = ledger.counts
     return [
         _scenario_check(
@@ -805,10 +782,8 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
                 == expected.unique_assigned_peptide_evidence_count
                 + expected.shared_group_assigned_peptide_evidence_count
                 and peptide.denominator == expected.eligible_peptide_evidence_count
-                and ambiguity.numerator
-                == expected.ambiguous_group_member_assignment_count
-                and ambiguity.denominator
-                == expected.total_group_member_assignment_count
+                and ambiguity.numerator == expected.ambiguous_group_member_assignment_count
+                and ambiguity.denominator == expected.total_group_member_assignment_count
             ),
             detail="assignment=75 unique+20 shared/100;ambiguity=10/100",
         ),
@@ -817,8 +792,7 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
             passed=(
                 ambiguity.metric_code
                 is ProteinInferenceQualityMetricCode.PROTEIN_GROUP_AMBIGUITY_BURDEN
-                and ambiguity.numerator
-                == expected.ambiguous_group_member_assignment_count
+                and ambiguity.numerator == expected.ambiguous_group_member_assignment_count
                 and not canonical.infers_identity
                 and not canonical.infers_protein
             ),
@@ -827,8 +801,7 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "detection_censored_observation_is_retained_outside_quantifiable_numerator",
             passed=(
-                detection.observation_state
-                is ProteinInferenceQualityObservationState.CENSORED
+                detection.observation_state is ProteinInferenceQualityObservationState.CENSORED
                 and detection.numerator == expected.quantifiable_group_count
                 and detection.denominator == expected.detection_eligible_group_count
                 and detection.censored_count == expected.left_censored_group_count
@@ -838,8 +811,7 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "missing_proteoform_evidence_is_not_negative_evidence",
             passed=(
-                missing_metric.observation_state
-                is ProteinInferenceQualityObservationState.MISSING
+                missing_metric.observation_state is ProteinInferenceQualityObservationState.MISSING
                 and missing_metric.numerator is None
                 and missing_metric.denominator is None
                 and missing_metric.value_ppm is None
@@ -859,12 +831,10 @@ def _ambiguity_and_missingness_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "zero_denominator_metric_is_typed_not_evaluable",
             passed=(
-                zero_metric.observation_state
-                is ProteinInferenceQualityObservationState.OBSERVED
+                zero_metric.observation_state is ProteinInferenceQualityObservationState.OBSERVED
                 and zero_metric.denominator == 0
                 and zero_metric.value_ppm is None
-                and zero_metric.status
-                is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
+                and zero_metric.status is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
             ),
             detail=f"denominator=0;status={zero_metric.status.value}",
         ),
@@ -953,8 +923,7 @@ def _profile_and_reference_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "no_matching_assay_profile_abstains_as_unsupported",
             passed=(
-                unsupported_result.disposition
-                is ProteinInferenceQualityDisposition.ABSTAINED
+                unsupported_result.disposition is ProteinInferenceQualityDisposition.ABSTAINED
                 and not unsupported_result.metrics
                 and any(
                     finding.code.value == "assay_profile_unsupported"
@@ -985,8 +954,7 @@ def _profile_and_reference_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "missing_required_control_group_is_not_evaluable",
             passed=(
-                missing_control_metric.status
-                is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
+                missing_control_metric.status is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
                 and missing_control_result.disposition
                 is ProteinInferenceQualityDisposition.ABSTAINED
             ),
@@ -1009,8 +977,7 @@ def _profile_and_reference_checks(scenario: Scenario) -> list[EvalCheck]:
             passed=(
                 len(exact_builds) >= len({role for role, _, _ in exact_builds})
                 and receipt.controlled_vocabulary_id.startswith("vocabulary.")
-                and receipt.unit_system_version
-                in profile.approved_unit_system_versions
+                and receipt.unit_system_version in profile.approved_unit_system_versions
                 and any(role == "genomic_context" for role, _, _ in exact_builds)
                 and any(role == "ptm_vocabulary" for role, _, _ in exact_builds)
             ),
@@ -1023,9 +990,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
     request = scenario.request
     safe_admissions = _m0303_safe_failure_results()
     safe_results = {
-        name: compute_protein_inference_quality(
-            _request_from_admission(request, admission)
-        )
+        name: compute_protein_inference_quality(_request_from_admission(request, admission))
         for name, admission in safe_admissions.items()
     }
     shape_admission = _m0303_unsupported_shape_result()
@@ -1037,9 +1002,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
         _request_with_ledger(
             request,
             ledger_updates={
-                "admission_result_digest": sha256_digest(
-                    {"stale": "admission-result"}
-                )
+                "admission_result_digest": sha256_digest({"stale": "admission-result"})
             },
         )
     )
@@ -1047,9 +1010,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
     peptide_code = ProteinInferenceQualityMetricCode.PEPTIDE_ASSIGNMENT_COVERAGE
     profile = request.policy.profiles[0]
     warning_thresholds = tuple(
-        item.model_copy(
-            update={"pass_threshold_ppm": 960_000, "warning_threshold_ppm": 950_000}
-        )
+        item.model_copy(update={"pass_threshold_ppm": 960_000, "warning_threshold_ppm": 950_000})
         if item.metric_code is peptide_code
         else item
         for item in profile.thresholds
@@ -1116,8 +1077,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "receipt_ledger_binding_mismatch_fails_before_metric_evaluation",
             passed=(
-                mismatch_result.disposition
-                is ProteinInferenceQualityDisposition.QUARANTINED
+                mismatch_result.disposition is ProteinInferenceQualityDisposition.QUARANTINED
                 and not mismatch_result.metrics
                 and any(
                     finding.code.value == "fact_ledger_binding_mismatch"
@@ -1129,17 +1089,14 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "unsupported_lineage_shape_abstains_without_metric_evaluation",
             passed=(
-                shape_admission.disposition
-                is ProteinInferenceAdmissionDisposition.ABSTAINED
+                shape_admission.disposition is ProteinInferenceAdmissionDisposition.ABSTAINED
                 and len(shape_admission.request.lineage_receipt.artifacts)
                 > M0304_MAX_LINEAGE_ARTIFACTS
                 and shape_result.disposition is ProteinInferenceQualityDisposition.ABSTAINED
                 and shape_result.request.fact_ledger is None
                 and not shape_result.metrics
             ),
-            detail=(
-                f"lineage={len(shape_admission.request.lineage_receipt.artifacts)};metrics=0"
-            ),
+            detail=(f"lineage={len(shape_admission.request.lineage_receipt.artifacts)};metrics=0"),
         ),
         _scenario_check(
             "reject_quarantine_abstain_warning_precedence_is_deterministic",
@@ -1150,10 +1107,8 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
                     and propagated[name][2] == 0
                     for name, expected in expected_dispositions.items()
                 )
-                and warning_metric.status
-                is ProteinInferenceQualityMetricStatus.WARNING
-                and warning_result.disposition
-                is ProteinInferenceQualityDisposition.QUARANTINED
+                and warning_metric.status is ProteinInferenceQualityMetricStatus.WARNING
+                and warning_result.disposition is ProteinInferenceQualityDisposition.QUARANTINED
                 and canonical.disposition is ProteinInferenceQualityDisposition.QUALIFIED
             ),
             detail="rejected>quarantined>abstained safe gates; required warning quarantines",
@@ -1204,9 +1159,7 @@ def _capacity_request(
     sources = (*receipt.sources, *extra_bound_sources)
     unbound_excess = M0304_MAX_SOURCES - len(sources)
     unbound_template = next(
-        item
-        for item in receipt.sources
-        if item.role is ProteinInferenceRawRole.SPECTRA
+        item for item in receipt.sources if item.role is ProteinInferenceRawRole.SPECTRA
     )
     extra_unbound_sources = tuple(
         unbound_template.model_copy(
@@ -1304,9 +1257,7 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
                 "sources": source_excess,
                 "receipt_digest": raw_quality_receipt_digest(
                     {
-                        **capacity_receipt.model_dump(
-                            mode="python", exclude={"receipt_digest"}
-                        ),
+                        **capacity_receipt.model_dump(mode="python", exclude={"receipt_digest"}),
                         "source_count": len(source_excess),
                         "sources": source_excess,
                     }
@@ -1323,9 +1274,7 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
                 "claims": claim_excess,
                 "receipt_digest": raw_quality_receipt_digest(
                     {
-                        **capacity_receipt.model_dump(
-                            mode="python", exclude={"receipt_digest"}
-                        ),
+                        **capacity_receipt.model_dump(mode="python", exclude={"receipt_digest"}),
                         "lineage_artifact_count": len(claim_excess),
                         "claims": claim_excess,
                     }
@@ -1576,8 +1525,7 @@ def _canonical_privacy_forgery_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "semantic_reordering_preserves_complete_result_equality",
             passed=(
-                canonical_request_digest(reordered_request)
-                == canonical_request_digest(request)
+                canonical_request_digest(reordered_request) == canonical_request_digest(request)
                 and reordered_result == result
             ),
             detail=f"result_digest={result.result_digest}",
@@ -1599,10 +1547,7 @@ def _canonical_privacy_forgery_checks(scenario: Scenario) -> list[EvalCheck]:
                     compute_protein_inference_quality(request).result_digest,
                 )
                 and all(item.startswith("sha256:") for item in stable_digests)
-                and all(
-                    threshold_digest(item).startswith("sha256:")
-                    for item in profile.thresholds
-                )
+                and all(threshold_digest(item).startswith("sha256:") for item in profile.thresholds)
             ),
             detail="request,policy,profile,ledger,threshold,result digests repeat exactly",
         ),
@@ -1628,8 +1573,7 @@ def _canonical_privacy_forgery_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario_check(
             "resigned_nested_receipt_without_ledger_rebinding_is_quarantined",
             passed=(
-                forged_result.disposition
-                is ProteinInferenceQualityDisposition.QUARANTINED
+                forged_result.disposition is ProteinInferenceQualityDisposition.QUARANTINED
                 and not forged_result.metrics
                 and any(
                     finding.code.value == "fact_ledger_binding_mismatch"
@@ -1664,6 +1608,14 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             api_result = ProteinInferenceQualityResult.model_validate_json(
                 api_response.content, strict=True
             )
+            api_verify_response = client.post(
+                "/v1/modules/M03-04/quality/verify",
+                content=canonical_json_bytes(library),
+                headers={"content-type": "application/json"},
+            )
+            api_verified = ProteinInferenceQualityResult.model_validate_json(
+                api_verify_response.content, strict=True
+            )
             api_schemas = {
                 name: client.get(f"/v1/contracts/M03-04/{name}/schema")
                 for name in (
@@ -1686,6 +1638,16 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             cli_compute.stdout,
             strict=True,
         )
+        result_path = root / "result.json"
+        result_path.write_bytes(canonical_json_bytes(library))
+        cli_verify = CliRunner().invoke(
+            cli_app,
+            ["protein-inference-quality", "verify", str(result_path)],
+        )
+        cli_verified = ProteinInferenceQualityResult.model_validate_json(
+            cli_verify.stdout,
+            strict=True,
+        )
         cli_schemas = {
             name: CliRunner().invoke(
                 cli_app,
@@ -1702,9 +1664,7 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
     )
     superseding_result = compute_protein_inference_quality(superseding_request)
     scenario_ids = {
-        case_id
-        for group in _corpus()["scenario_groups"]
-        for case_id in group["case_ids"]
+        case_id for group in _corpus()["scenario_groups"] for case_id in group["case_ids"]
     }
     evidence_files = (
         ROOT / "docs" / "modules" / "GLIO-PROTEOGEN-M03-04.md",
@@ -1738,6 +1698,19 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             detail=f"exit={cli_compute.exit_code};digest={cli_result.result_digest}",
         ),
         _scenario_check(
+            "api_and_cli_replay_verify_the_complete_result",
+            passed=(
+                api_verify_response.status_code == _HTTP_OK
+                and api_verified == library
+                and cli_verify.exit_code == 0
+                and cli_verified == library
+            ),
+            detail=(
+                f"api_status={api_verify_response.status_code};"
+                f"cli_exit={cli_verify.exit_code};digest={library.result_digest}"
+            ),
+        ),
+        _scenario_check(
             "schema_api_and_cli_export_exact_installed_contracts",
             passed=(
                 schema_parity
@@ -1754,9 +1727,7 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
                 and library.request.supersedes_result_digest is None
                 and library == compute_protein_inference_quality(request)
             ),
-            detail=(
-                f"prior={library.result_digest};new={superseding_result.result_digest}"
-            ),
+            detail=(f"prior={library.result_digest};new={superseding_result.result_digest}"),
         ),
         _scenario_check(
             "evidence_artifacts_and_benchmark_time_only_public_m0304_operation",
@@ -1769,6 +1740,7 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             detail=f"evidence_files={len(evidence_files)};declared_cases={len(scenario_ids)}",
         ),
     ]
+
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1789,11 +1761,7 @@ def main(argv: list[str] | None = None) -> int:
         *_canonical_privacy_forgery_checks(scenario),
         *_interface_recovery_evidence_checks(scenario),
     ]
-    declared = {
-        case_id
-        for group in _corpus()["scenario_groups"]
-        for case_id in group["case_ids"]
-    }
+    declared = {case_id for group in _corpus()["scenario_groups"] for case_id in group["case_ids"]}
     executed = {
         check.name.removeprefix("scenario.")
         for check in checks
@@ -1805,13 +1773,10 @@ def main(argv: list[str] | None = None) -> int:
         EvalCheck(
             name="corpus.executable_coverage",
             passed=(
-                len(declared) == len(executed) == _EXPECTED_CASE_COUNT
-                and not missing
-                and not extra
+                len(declared) == len(executed) == _EXPECTED_CASE_COUNT and not missing and not extra
             ),
             detail=(
-                f"declared={len(declared)};executed={len(executed)};"
-                f"missing={missing};extra={extra}"
+                f"declared={len(declared)};executed={len(executed)};missing={missing};extra={extra}"
             ),
         )
     )
