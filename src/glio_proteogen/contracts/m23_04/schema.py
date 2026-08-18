@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m23_04.v1 import (
     M2304_CONTRACT_VERSION,
+    M2304_DOSSIER_SHA256,
+    M2304_DOSSIER_SLICE,
     M2304_GATE,
     M2304_MAX_CANONICAL_REQUEST_BYTES,
     M2304_MODULE_ID,
@@ -26,9 +28,7 @@ from glio_proteogen.contracts.m23_04.v1 import (
     VariantPeptideExternalTransportResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M23-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M23-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2304_CONTRACT_VERSION
 ContractName = Literal[
     "request",
@@ -60,6 +60,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     schema["$id"] = f"{SCHEMA_ID_PREFIX}:{name}"
     schema["x-glio-contract"] = {
         "moduleId": M2304_MODULE_ID,
+        "dossierSha256": M2304_DOSSIER_SHA256,
+        "dossierSlice": M2304_DOSSIER_SLICE,
         "contractVersion": CONTRACT_VERSION,
         "owner": M2304_OWNER,
         "safetyClass": M2304_SAFETY_CLASS,
