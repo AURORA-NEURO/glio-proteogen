@@ -73,6 +73,10 @@ M0304_MAX_EVIDENCE: Final = 32
 M0304_MAX_PROFILES: Final = 16
 M0304_MAX_APPROVED_VERSIONS: Final = 32
 M0304_MAX_CANONICAL_REQUEST_BYTES: Final = 2 * 1024 * 1024
+# Results contain only bounded, privacy-minimized metadata projections. Keep a
+# separate replay limit so a verifier never accepts an unbounded stored result
+# merely because request ingress is bounded.
+M0304_MAX_CANONICAL_RESULT_BYTES: Final = 2 * 1024 * 1024
 M0304_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 M0304_QUALITY_LIMITATION_CODE: Final = "protein_inference_evidence_graph_quality_only"
 M0304_AUTHORITY_LIMITATION_CODE: Final = "external_controls_not_authenticated"
