@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -51,6 +52,8 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionState,
 )
 from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_challenge import (
+    M2106Engine,
+    M2106ReplayError,
     run_complex_activity_robustness_challenge,
 )
 
@@ -287,6 +290,26 @@ def _result(
     )
 
 
+def _supported_request() -> ChallengeComplexActivityRobustnessRequest:
+    payload = _request().model_dump(mode="python")
+    for scenario in payload["scenarios"]:
+        scenario["expected_disposition"] = (
+            ChallengeDisposition.WITHIN_ENVELOPE
+            if scenario["kind"] is ChallengeKind.LOW_INPUT
+            else ChallengeDisposition.REVIEW_REQUIRED
+        )
+    return ChallengeComplexActivityRobustnessRequest(**payload)
+
+
+def _self_rehashed(
+    result: ComplexActivityRobustnessChallengeResult, updates: dict[str, Any]
+) -> ComplexActivityRobustnessChallengeResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+
 def test_request_requires_all_challenge_kinds_and_upstream_source() -> None:
     request = _request()
     assert {scenario.kind for scenario in request.scenarios} == set(ChallengeKind)
@@ -484,6 +507,68 @@ def test_result_digest_and_provenance_identity_are_closed() -> None:
     payload["findings"] = (finding, finding)
     with pytest.raises(ValidationError, match="finding ids must be unique"):
         ComplexActivityRobustnessChallengeResult(**payload)
+
+
+@pytest.mark.parametrize(
+    "region",
+    ["surface", "finding", "support", "provenance", "evidence", "limitations", "review"],
+)
+def test_self_rehashed_output_mutations_are_rejected_by_regeneration(region: str) -> None:
+    result = run_complex_activity_robustness_challenge(_supported_request())
+    assert result.robustness_surface is not None
+    updates: dict[str, Any]
+    if region == "surface":
+        observation = result.robustness_surface.observations[0].model_copy(
+            update={"challenged_value": 0.81}
+        )
+        updates = {
+            "robustness_surface": result.robustness_surface.model_copy(
+                update={"observations": (observation, *result.robustness_surface.observations[1:])}
+            )
+        }
+    elif region == "finding":
+        assert result.findings
+        finding = result.findings[0].model_copy(update={"message": "forged OOD rationale"})
+        updates = {"findings": (finding, *result.findings[1:])}
+    elif region == "support":
+        updates = {
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged support rationale"}
+            )
+        }
+    elif region == "provenance":
+        updates = {"provenance": result.provenance.model_copy(update={"actor_id": "forged-actor"})}
+    elif region == "evidence":
+        evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
+        updates = {"evidence": (evidence, *result.evidence[1:])}
+    elif region == "limitations":
+        limitation = result.limitations[0].model_copy(update={"statement": "forged limitation"})
+        updates = {"limitations": (limitation, *result.limitations[1:])}
+    else:
+        updates = {"human_review_required": False}
+    forged = _self_rehashed(result, updates)
+    with pytest.raises(M2106ReplayError, match="replay verification failed"):
+        M2106Engine().replay(forged)
+
+
+def test_self_rehashed_request_is_rejected_after_full_regeneration() -> None:
+    request = _supported_request()
+    result = run_complex_activity_robustness_challenge(request)
+    changed_request = request.model_copy(
+        update={"configuration": request.configuration.model_copy(update={"ood_threshold": 0.7})}
+    )
+    forged = result.model_copy(
+        update={
+            "request": changed_request,
+            "request_digest": canonical_request_digest(changed_request),
+            "result_id": result_identifier(changed_request),
+        }
+    )
+    forged = type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    with pytest.raises(M2106ReplayError, match="replay verification failed"):
+        M2106Engine().replay(forged)
 
 
 def test_canonical_dict_projection_and_entrypoint_are_deterministic() -> None:

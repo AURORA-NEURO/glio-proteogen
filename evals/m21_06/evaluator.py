@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
+from glio_proteogen.contracts.m21_06 import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_challenge import (
@@ -69,7 +70,16 @@ def run_evaluator() -> dict[str, Any]:
         checks["support_control_fail_closed"] = True
     else:
         checks["support_control_fail_closed"] = False
-    tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
+    tampered = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged support rationale"}
+            )
+        }
+    )
+    tampered = type(tampered).model_construct(
+        **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
+    )
     try:
         service.replay(tampered)
     except M2106ReplayError:
