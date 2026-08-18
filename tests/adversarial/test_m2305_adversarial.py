@@ -13,16 +13,19 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m23_05 import (
     CoverageSummary,
     EvaluationStatus,
+    VariantPeptideSubgroupEvaluationResult,
     canonical_request_digest,
     normalized_request,
     result_identifier,
+    result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
     EquityEvaluationSubmission,
     M2305AuthorizationError,
     M2305Plugin,
+    M2305ReplayError,
     M2305Service,
     cli_app,
     create_app,
@@ -146,6 +149,25 @@ def test_cli_abstention_denial_and_replay_mismatch(
 def test_authentication_denial_is_not_recast_as_a_negative_equity_result() -> None:
     with pytest.raises(M2305AuthorizationError):
         M2305Service().evaluate(denied_request())
+
+
+def test_replay_rejects_self_rehashed_report_mutation() -> None:
+    request = _request()
+    result = _completed_result(request)
+    assert result.report is not None
+    performance = result.report.performance[0].model_copy(update={"value": 0.71})
+    report = result.report.model_copy(
+        update={"performance": (performance, *result.report.performance[1:])}
+    )
+    forged = result.model_copy(update={"report": report})
+    forged = VariantPeptideSubgroupEvaluationResult.model_validate_json(
+        canonical_json_bytes(
+            forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+        ),
+        strict=True,
+    )
+    with pytest.raises(M2305ReplayError, match="deterministic replay"):
+        M2305Service().replay(forged)
 
 
 __all__ = []
