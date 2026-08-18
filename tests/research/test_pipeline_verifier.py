@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 _ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE = _ROOT / "docs" / "evidence" / "research-foundation" / "evaluation.json"
+_PACKAGE = _ROOT / "docs" / "evidence" / "research-foundation" / "package.json"
 
 
 def _write_mutation(tmp_path: Path, mutate: Callable[[dict[str, object]], None]) -> Path:
@@ -46,3 +47,29 @@ def test_research_evidence_verifier_rejects_scenario_inventory_mutation(tmp_path
     evidence = _write_mutation(tmp_path, mutate)
     with pytest.raises(VerificationError, match="scenario inventory"):
         verify(evidence)
+
+
+def test_research_evidence_verifier_rejects_package_hash_receipt_mutation(
+    tmp_path: Path,
+) -> None:
+    package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
+    verification = package["verification"]
+    assert isinstance(verification, dict)
+    wheel = verification["wheel"]
+    assert isinstance(wheel, dict)
+    wheel["sha256"] = "not-a-sha"
+    mutated = tmp_path / "package.json"
+    mutated.write_text(json.dumps(package), encoding="utf-8")
+    with pytest.raises(VerificationError, match=r"sha256|SHA-256|receipt"):
+        verify(_EVIDENCE, package_evidence=mutated)
+
+
+def test_research_evidence_verifier_rejects_non_reproducible_receipt(
+    tmp_path: Path,
+) -> None:
+    package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
+    package["verification"]["reproducible_builds"] = 1
+    mutated = tmp_path / "package.json"
+    mutated.write_text(json.dumps(package), encoding="utf-8")
+    with pytest.raises(VerificationError, match="two reproducible builds"):
+        verify(_EVIDENCE, package_evidence=mutated)
