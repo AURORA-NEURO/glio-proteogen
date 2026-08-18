@@ -9,6 +9,10 @@ from evals.m21_03.fixture import denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m21_03 import (
+    ComplexActivityInternalBenchmarkResult,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_ablation import (
     BenchmarkSubmission,
@@ -90,6 +94,28 @@ def test_plugin_is_strict_parse_once_and_requires_token() -> None:
         plugin.run(cast("Any", request))
 
 
+def test_fastapi_verify_rejects_self_rehashed_dossier_mutation() -> None:
+    request = _request()
+    client = TestClient(create_app(M2103Service()))
+    generated = client.post("/v1/modules/M21-03/benchmark", json=request.model_dump(mode="json"))
+    typed = ComplexActivityInternalBenchmarkResult.model_validate_json(generated.text, strict=True)
+    assert typed.dossier is not None
+    metric = typed.dossier.metrics[0].model_copy(
+        update={"metric_name": typed.dossier.metrics[0].metric_name + "-forged"}
+    )
+    dossier = typed.dossier.model_copy(update={"metrics": (metric, *typed.dossier.metrics[1:])})
+    tampered = typed.model_copy(update={"dossier": dossier})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    response = client.post(
+        "/v1/modules/M21-03/verify",
+        json={"result": tampered.model_dump(mode="json")},
+    )
+
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "replay envelope is invalid"
+
+
 def test_typer_export_validate_benchmark_verify_and_no_overwrite(tmp_path: Path) -> None:
     request = _request()
     request_path = tmp_path / "request.json"
@@ -150,3 +176,32 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 
     monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
     assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
+
+
+def test_typer_verify_rejects_self_rehashed_dossier_mutation(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(canonical_json_bytes(_request()))
+    runner = CliRunner()
+    assert (
+        runner.invoke(
+            cli_app, ["benchmark", str(request_path), "--output", str(result_path)]
+        ).exit_code
+        == 0
+    )
+    typed = ComplexActivityInternalBenchmarkResult.model_validate_json(
+        result_path.read_bytes(), strict=True
+    )
+    assert typed.dossier is not None
+    metric = typed.dossier.metrics[0].model_copy(
+        update={"metric_name": typed.dossier.metrics[0].metric_name + "-forged"}
+    )
+    dossier = typed.dossier.model_copy(update={"metrics": (metric, *typed.dossier.metrics[1:])})
+    tampered = typed.model_copy(update={"dossier": dossier})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    result_path.write_bytes(canonical_json_bytes(tampered))
+
+    verified = runner.invoke(cli_app, ["verify", str(result_path)])
+
+    assert verified.exit_code != 0
+    assert "result replay is invalid" in verified.output
