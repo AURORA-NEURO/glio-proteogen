@@ -36,6 +36,16 @@ def _request_data() -> dict[str, Any]:
     return build_request().model_dump(mode="python")
 
 
+def _self_rehashed(
+    result: ProteotypeInternalBenchmarkResult,
+    **updates: Any,
+) -> ProteotypeInternalBenchmarkResult:
+    """Forge a valid-looking result whose digest covers attacker changes."""
+
+    forged = result.model_copy(update=updates)
+    return forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+
 def test_unknown_request_field_is_rejected() -> None:
     data = _request_data()
     data["unexpected"] = "hostile"
@@ -161,6 +171,46 @@ def test_result_identifier_tampering_is_rejected() -> None:
         service.verify_replay(tampered)
 
 
+def test_self_rehashed_nested_dossier_mutation_is_rejected() -> None:
+    service = M2503Service()
+    result = service.execute(build_request())
+    assert result.dossier is not None
+    metric = result.dossier.metrics[0].model_copy(
+        update={"candidate_value": result.dossier.metrics[0].candidate_value + 1.0}
+    )
+    dossier = result.dossier.model_copy(update={"metrics": (metric, *result.dossier.metrics[1:])})
+    tampered = _self_rehashed(result, dossier=dossier)
+
+    with pytest.raises(M2503ReplayError, match="differs from deterministic"):
+        service.verify_replay(tampered)
+
+
+def test_self_rehashed_provenance_mutation_is_rejected() -> None:
+    service = M2503Service()
+    result = service.execute(build_request())
+    tampered = _self_rehashed(
+        result,
+        provenance=result.provenance.model_copy(update={"activity_id": "forged-activity"}),
+    )
+
+    with pytest.raises(M2503ReplayError, match="differs from deterministic"):
+        service.verify_replay(tampered)
+
+
+def test_plugin_rejects_self_rehashed_nested_mutation() -> None:
+    service = M2503Service()
+    plugin = M2503Plugin(service)
+    result = service.execute(build_request())
+    assert result.dossier is not None
+    dossier = result.dossier.model_copy(
+        update={"evidence": (*result.dossier.evidence, result.dossier.evidence[0])}
+    )
+    tampered = _self_rehashed(result, dossier=dossier)
+
+    with pytest.raises(M2503ReplayError, match="differs from deterministic"):
+        plugin.replay(tampered)
+
+
 def test_result_finding_ids_are_unique() -> None:
     result = M2503Service().execute(build_request(metric_status=ValidationStatus.FAIL))
     assert result.findings
@@ -215,9 +265,7 @@ def test_cli_abstention_has_nonzero_exit_and_no_false_success(tmp_path: Path) ->
 
 
 def test_result_abstention_never_contains_dossier() -> None:
-    result = M2503Service().execute(
-        build_request(comparison_status=ValidationStatus.NOT_EVALUABLE)
-    )
+    result = M2503Service().execute(build_request(comparison_status=ValidationStatus.NOT_EVALUABLE))
 
     assert result.status is BenchmarkStatus.ABSTAINED
     assert result.dossier is None

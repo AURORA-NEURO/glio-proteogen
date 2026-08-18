@@ -9,6 +9,10 @@ from evals.m25_03.fixture import build_request, denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m25_03 import (
+    ProteotypeInternalBenchmarkResult,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material.m25_03_internal_benchmark_ablation.api import (
     create_app,
 )
@@ -133,6 +137,30 @@ def test_api_verify_rejects_tampered_result() -> None:
     assert response.json()["detail"] == "replay envelope is invalid"
 
 
+def test_api_verify_rejects_self_rehashed_nested_mutation() -> None:
+    client = TestClient(create_app())
+    result = client.post(
+        "/v1/modules/M25-03/benchmark",
+        json=build_request().model_dump(mode="json"),
+    ).json()
+    typed = ProteotypeInternalBenchmarkResult.model_validate_json(json.dumps(result), strict=True)
+    assert typed.dossier is not None
+    metric = typed.dossier.metrics[0].model_copy(
+        update={"candidate_value": typed.dossier.metrics[0].candidate_value + 1.0}
+    )
+    dossier = typed.dossier.model_copy(update={"metrics": (metric, *typed.dossier.metrics[1:])})
+    tampered = typed.model_copy(update={"dossier": dossier})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    response = client.post(
+        "/v1/modules/M25-03/verify",
+        content=json.dumps({"result": tampered.model_dump(mode="json")}),
+    )
+
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "replay envelope is invalid"
+
+
 def test_cli_exports_schema(tmp_path: Path) -> None:
     output = tmp_path / "request-schema.json"
     result = CliRunner().invoke(app, ["export-schema", "request", "--output", str(output)])
@@ -205,6 +233,33 @@ def test_cli_verify_result(tmp_path: Path) -> None:
 
     assert verified.exit_code == 0
     assert json.loads(verified.stdout)["verified"] is True
+
+
+def test_cli_verify_rejects_self_rehashed_nested_mutation(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    assert (
+        runner.invoke(app, ["benchmark", str(request_path), "--output", str(result_path)]).exit_code
+        == 0
+    )
+    result = ProteotypeInternalBenchmarkResult.model_validate_json(
+        result_path.read_bytes(), strict=True
+    )
+    assert result.dossier is not None
+    metric = result.dossier.metrics[0].model_copy(
+        update={"candidate_value": result.dossier.metrics[0].candidate_value + 1.0}
+    )
+    dossier = result.dossier.model_copy(update={"metrics": (metric, *result.dossier.metrics[1:])})
+    tampered = result.model_copy(update={"dossier": dossier})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    result_path.write_text(tampered.model_dump_json(), encoding="utf-8")
+
+    verified = runner.invoke(app, ["verify", str(result_path)])
+
+    assert verified.exit_code != 0
+    assert "result replay is invalid" in verified.output
 
 
 def test_cli_benchmark_can_print_to_stdout(tmp_path: Path) -> None:

@@ -50,6 +50,7 @@ _AUTHORIZATION_MESSAGE: Final = (
     "M25-03 benchmarking requires accepted configuration, resolved identity, granted consent, "
     "accepted provenance/quality/support/intended-use controls"
 )
+_SEMANTIC_REPLAY_MESSAGE: Final = "M25-03 replay output differs from deterministic regeneration"
 _LIMITATIONS: Final = (
     Limitation(
         code="caller_declared_upstream",
@@ -136,6 +137,15 @@ class M2503BenchmarkEngine:
         self,
         result: ProteotypeInternalBenchmarkResult,
     ) -> ProteotypeInternalBenchmarkResult:
+        """Validate and semantically regenerate one immutable result.
+
+        The payload digest is an integrity check, not proof that the payload was
+        produced by this engine: an attacker who can edit a nested dossier or
+        provenance record can also recompute that digest.  Keep the cheap
+        request/result closure checks first so malformed or directly forged
+        digests retain their existing failure behavior, then regenerate from
+        the bound request and compare the complete canonical result.
+        """
         try:
             replayed = ProteotypeInternalBenchmarkResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
@@ -148,6 +158,12 @@ class M2503BenchmarkEngine:
             raise M2503ReplayError
         if replayed.result_digest != result_payload_digest(replayed):
             raise M2503ReplayError
+        try:
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2503ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2503ReplayError(_SEMANTIC_REPLAY_MESSAGE)
         return replayed
 
 
@@ -235,9 +251,7 @@ def _findings(
             BenchmarkFinding(
                 finding_id=f"finding.comparison.{comparison.comparison_id}",
                 code=BenchmarkFindingCode.COMPUTE_MISMATCH,
-                message=(
-                    f"Compute-matched comparison {comparison.comparison_id} is not passing."
-                ),
+                message=(f"Compute-matched comparison {comparison.comparison_id} is not passing."),
                 evidence=evidence,
             )
             for comparison in request.comparisons
