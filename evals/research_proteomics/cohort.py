@@ -32,7 +32,7 @@ from glio_proteogen.research.pipeline import run_research_protein_inference
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from evals.research_proteomics.run import (  # noqa: PLC0415
+    from evals.research_proteomics.run import (
         Scenario,
         build_scenario_request,
         scenarios,

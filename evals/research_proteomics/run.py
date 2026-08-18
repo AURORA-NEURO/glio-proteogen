@@ -455,11 +455,11 @@ if __name__ == "__main__":
     # context, so resolve the repository root before importing the cohort lane.
     if __package__ in {None, ""}:
         sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-        from evals.research_proteomics.cohort import (  # noqa: PLC0415
+        from evals.research_proteomics.cohort import (
             run_evaluator as run_cohort_evaluator,
         )
     else:
-        from .cohort import run_evaluator as run_cohort_evaluator  # noqa: PLC0415
+        from .cohort import run_evaluator as run_cohort_evaluator
 
     sys.stdout.write(
         json.dumps(
