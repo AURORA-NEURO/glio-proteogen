@@ -19,5 +19,8 @@ Safety boundaries:
 - Seven caller-declared controls are checked before contribution traversal.
 
 The service, plugin, FastAPI adapter, and Typer adapter share the same strict parse-once
-request path and canonical replay digest. The evaluator executes eight scenarios and eight
-adversarial cases; benchmark budgets are provisional 500 ms mean and 750 ms p95.
+request path and replay contract. Verification checks both canonical digests and
+regenerates the result from its bound request before comparing the complete canonical
+result, so a forged result cannot become valid by recomputing only its own digest. The
+evaluator executes eight scenarios and eight adversarial cases; benchmark budgets are
+provisional 500 ms mean and 750 ms p95.

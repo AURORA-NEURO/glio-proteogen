@@ -354,15 +354,23 @@ class M2003Engine:
         self,
         result: ProteinSubtypeIntegratedEvidenceResult,
     ) -> ProteinSubtypeIntegratedEvidenceResult:
-        if result.request_digest != canonical_request_digest(result.request):
+        request_digest_matches = result.request_digest == canonical_request_digest(result.request)
+        payload_digest_matches = result.result_digest == result_payload_digest(result)
+        if not request_digest_matches:
             raise M2003ReplayError(  # noqa: TRY003
                 "M20-03 result request digest mismatch"
             )
-        if result.result_digest != result_payload_digest(result):
+        if not payload_digest_matches:
             raise M2003ReplayError(  # noqa: TRY003
                 "M20-03 result payload digest mismatch"
             )
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = self.fuse(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2003ReplayError(  # noqa: TRY003
+                "M20-03 deterministic replay result mismatch"
+            )
+        return validated
 
 
 def fuse_protein_subtype_evidence(candidate: object) -> ProteinSubtypeIntegratedEvidenceResult:

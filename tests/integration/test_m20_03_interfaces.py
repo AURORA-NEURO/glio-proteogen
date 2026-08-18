@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m2003 import app, m2003_app
+from glio_proteogen.contracts.m20_03 import result_payload_digest
+from tests.contract.test_m20_03_adversarial import _request
 
 
 def test_fastapi_exposes_schema_fuse_and_verify_routes() -> None:
@@ -31,3 +33,17 @@ def test_fastapi_sanitizes_missing_control_failure() -> None:
     )
     assert response.status_code == 403  # noqa: PLR2004 - HTTP authorization status.
     assert "all seven upstream controls" in response.json()["detail"]
+
+
+def test_fastapi_rejects_self_rehashed_semantic_result() -> None:
+    response = TestClient(app).post(
+        "/v1/modules/M20-03/fuse",
+        json=_request().model_dump(mode="json"),
+    )
+    assert response.status_code == 200  # noqa: PLR2004 - HTTP success status.
+    forged = response.json()
+    forged["human_review_required"] = True
+    forged["result_digest"] = result_payload_digest(forged)
+    verification = TestClient(app).post("/v1/modules/M20-03/verify", json=forged)
+    assert verification.status_code == 422  # noqa: PLR2004 - HTTP validation status.
+    assert verification.json()["detail"] == "M20-03 result verification failed"
