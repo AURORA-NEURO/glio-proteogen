@@ -56,6 +56,9 @@ from glio_proteogen.contracts.m04_01 import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
+from glio_proteogen.modules.c04_proteoform_isoform.m04_01_protocol_metadata import (
+    evaluate_proteoform_protocol,
+)
 from tests.contract.test_m04_01_contract import build_request, build_result
 
 if TYPE_CHECKING:
@@ -778,3 +781,17 @@ def test_public_maximum_profile_shape_executes_exact_result_replay_within_cap() 
     result = build_result(request)
     assert result.request == request
     assert result.disposition.value == "conformant"
+
+
+@pytest.mark.contract
+def test_evaluator_bounds_hostile_nested_mapping_before_recursion() -> None:
+    """Authorized input must fail closed instead of leaking a RecursionError."""
+
+    payload = build_scenario_request().model_dump(mode="python")
+    nested: object = "hostile"
+    for _ in range(80):
+        nested = {"nested": nested}
+    payload["protocol_schema"]["required_identity_keys"] = nested
+
+    with pytest.raises(TypeError, match="strict request values"):
+        evaluate_proteoform_protocol(payload)
