@@ -65,6 +65,10 @@ def verify_release(  # noqa: C901, PLR0912
         errors.append("evaluation contract version mismatch")
     if evaluation.get("allPassed") is not True or evaluation.get("passed") != EXPECTED_SCENARIOS:
         errors.append("evaluator did not pass all six scenarios")
+    if evaluation.get("semanticReplayRecompute") is not True:
+        errors.append("semantic replay recomputation evidence is missing")
+    if evaluation.get("selfRehashedDigestRejected") is not True:
+        errors.append("self-rehashed result rejection evidence is missing")
     if evaluation.get("authoritySha256", AUTHORITY_SHA256) != AUTHORITY_SHA256:
         errors.append("authority digest mismatch")
     if evaluation.get("authoritySlice", AUTHORITY_SLICE) != AUTHORITY_SLICE:
