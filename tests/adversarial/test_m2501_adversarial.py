@@ -247,6 +247,34 @@ def test_result_identifier_is_derived_from_request_and_status() -> None:
     assert result.result_id == result_identifier(result.request, result.status.value)
 
 
+def test_replay_rejects_self_rehashed_semantic_regions() -> None:
+    """A forged payload must fail even when its result digest is recomputed."""
+
+    service = M2501Service()
+    result = service.execute(build_request())
+    evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+    provenance = result.provenance.model_copy(update={"activity_id": "forged.activity"})
+    support = result.support_decision.model_copy(update={"rationale": "forged support"})
+    mutations: tuple[tuple[str, object], ...] = (
+        (
+            "limitations",
+            (result.limitations[0].model_copy(update={"statement": "forged limitation"}),)
+            + result.limitations[1:],
+        ),
+        ("evidence", (evidence,)),
+        ("provenance", provenance),
+        ("support_decision", support),
+    )
+
+    for field, value in mutations:
+        forged = result.model_copy(update={field: value})
+        forged = ProteotypeReferenceTruthResult.model_construct(
+            **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+        )
+        with pytest.raises(M2501ReplayError):
+            service.verify_replay(forged)
+
+
 def test_plugin_rejects_unwrapped_request_and_duplicate_json_keys() -> None:
     plugin = M2501Plugin(M2501Service())
     with pytest.raises(TypeError, match="reference-truth submission"):
