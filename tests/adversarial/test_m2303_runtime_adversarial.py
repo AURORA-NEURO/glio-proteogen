@@ -143,6 +143,13 @@ def test_plugin_json_path_is_strict_and_replays() -> None:
         plugin.validate(BenchmarkSubmission(request=b'{"request_id":null}'))
 
 
+def test_plugin_rejects_untyped_submission_and_exposes_descriptor() -> None:
+    plugin = M2303Plugin(M2303Service())
+    with pytest.raises(TypeError, match="validation requires"):
+        plugin.validate(object())
+    assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M23-03"
+
+
 def test_fastapi_verify_rejects_tampered_result_without_traceback() -> None:
     service = M2303Service()
     client = TestClient(create_app(service))
@@ -189,6 +196,14 @@ def test_typer_abstention_writes_result_and_returns_nonzero(tmp_path: Path) -> N
     assert json.loads(result_path.read_text(encoding="utf-8"))["status"] == "abstained"
 
 
+def test_typer_benchmark_emits_stdout_when_output_is_omitted(tmp_path: Path) -> None:
+    path = tmp_path / "request.json"
+    path.write_text(_request().model_dump_json(), encoding="utf-8")
+    invoked = CliRunner().invoke(cli_app, ["benchmark", str(path)])
+    assert invoked.exit_code == 0
+    assert json.loads(invoked.stdout)["status"] == "completed"
+
+
 def test_typer_sanitizes_auth_unknown_schema_and_replay_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -211,6 +226,16 @@ def test_typer_sanitizes_auth_unknown_schema_and_replay_errors(
 
     monkeypatch.setattr(cli_module, "_SERVICE", FakeService())
     assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code == 1
+
+    class BrokenService:
+        def replay(self, result: Any) -> Any:
+            del result
+            raise ValueError("private replay details")  # noqa: TRY003
+
+    monkeypatch.setattr(cli_module, "_SERVICE", BrokenService())
+    failed = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert failed.exit_code != 0
+    assert "private replay details" not in failed.output
 
 
 __all__ = []

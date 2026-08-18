@@ -9,9 +9,13 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m23_03 import (
     BenchmarkDossier,
+    BenchmarkStatus,
     ComputeMatchedComparison,
     canonical_request_digest,
     result_identifier,
+)
+from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
+    M2303Service,
 )
 from tests.contract.test_m23_03_hardening import _dossier, _request
 
@@ -78,6 +82,31 @@ def test_ablation_replay_does_not_accept_a_forged_delta() -> None:
         ablation.__class__.model_validate(
             ablation.model_dump(mode="python") | {"score_delta": 99.0}, strict=True
         )
+
+
+def test_result_envelope_rejects_identity_and_status_drift() -> None:
+    result = M2303Service().generate(_request())
+
+    changed = result.__dict__.copy()
+    changed["request_digest"] = "sha256:" + ("f" * 64)
+    with pytest.raises(ValidationError, match="request digest"):
+        result.__class__.model_validate(changed)
+
+    changed = result.__dict__.copy()
+    changed["result_id"] = "result." + ("f" * 64)
+    with pytest.raises(ValidationError, match="identifier must"):
+        result.__class__.model_validate(changed)
+
+    changed = result.__dict__.copy()
+    changed["dossier"] = None
+    with pytest.raises(ValidationError, match="supported benchmark dossier"):
+        result.__class__.model_validate(changed)
+
+    changed = result.__dict__.copy()
+    changed["status"] = BenchmarkStatus.ABSTAINED
+    changed["abstention_reason"] = "manual review required"
+    with pytest.raises(ValidationError, match="safe status"):
+        result.__class__.model_validate(changed)
 
 
 __all__ = []
