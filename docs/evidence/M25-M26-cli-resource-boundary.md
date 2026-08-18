@@ -16,3 +16,11 @@ full multi-megabyte payload.
 The change is deliberately limited to resource admission. It does not alter
 any M25/M26-03 contract model, digest/replay algorithm, media type, provisional
 ABI, scientific claim, privacy rule, or execution behavior after validation.
+
+Validation evidence:
+
+- 15 adversarial resource-boundary tests and 51 scoped M25/M26-03 tests passed.
+- Ruff/format, strict MyPy on 8 touched files, and compileall passed.
+- Two `SOURCE_DATE_EPOCH=315532800` builds were byte-identical: wheel 3,868,492 bytes,
+  SHA-256 `59d022fc7dc202b59a4afb5be6f0d43e05e15b035fb2815ceecc091a66c545c9`; sdist
+  4,533,751 bytes, SHA-256 `e8697c2836f248fd57059ab1bf3a8ef1db9b47fcf9baddc99d7cc4dd46571cf1`.
