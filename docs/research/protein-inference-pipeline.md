@@ -18,32 +18,47 @@ one deterministic, auditable path:
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. PSMs are accepted only
    at the caller-declared q-value threshold.
-5. Aggregate matched fragment-ion intensity per accepted peptide and median-normalize
-   within the sample with explicit zero-signal missingness; spectral counts remain a
-   separate transparent measure.
-6. Resolve protein groups with the existing ambiguity-preserving component routine;
-   shared peptides remain attached to all compatible accessions.
-7. Quantify each protein group from the median positive unique-peptide intensity. Shared
-   signal remains visible, but shared-only groups are explicitly non-quantifiable rather
-   than assigned a fabricated protein value.
+5. Resolve protein-group candidates from **all** scored PSMs, including target, decoy, and
+   mixed target/decoy collision evidence. Each candidate receives a deterministic
+   max-supporting-PSM score and monotone group-level target/decoy q-value. Decoy groups
+   are rejected, mixed groups are retained as null-q collision abstentions, and only
+   target groups passing this second threshold become reportable groups. This is
+   transparent group-FDR evidence, not a calibrated protein probability.
+6. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
+   and median-normalize within the sample with explicit zero-signal missingness; spectral
+   counts remain a separate transparent measure.
+7. Quantify each reportable protein group from the median positive unique-peptide
+   intensity. Shared signal remains visible, but shared-only groups are explicitly
+   non-quantifiable rather than assigned a fabricated protein value.
 8. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
-The result also carries a replay-bound `FdrSummary`: winner count per spectrum, target and
-decoy winner counts, accepted target count, the declared threshold, maximum accepted q-value,
-and the descriptive decoy/target ratio. This is an audit trail for the implemented competition
-rule, not a claim of calibrated error control beyond the supplied target/decoy search space.
-Each PSM also records mean absolute fragment error and precursor ppm error when precursor
-filtering is enabled; aggregate search diagnostics retain the maximum observed errors and the
-declared precursor tolerance so a replay can audit mass-error behavior directly.
+The result carries replay-bound `FdrSummary` and `ProteinGroupFdrSummary` records. The
+latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
+group threshold, accepted target groups, and the descriptive decoy/target ratio.
+Quantification is downstream of both accepted peptide PSMs and accepted target groups;
+a peptide that passes spectrum-level FDR but belongs only to a rejected or abstained
+group cannot create a reported group intensity. The spectrum-level summary records
+winner count per spectrum, target and decoy winner counts, accepted target count, the
+declared threshold, maximum accepted q-value, and descriptive decoy/target ratio. These
+are audit trails for the implemented competition rules, not claims of calibrated error
+control beyond the supplied target/decoy search space.
 
-The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy sequence
-collision, no-match safe path, precursor rejection, shared-peptide grouping, a two-spectrum input,
-and a two-peptide quantification run. The fixture binds scenario order, expected PSM/accepted counts,
-target/decoy/collision winner counts, peptide and protein-group quantitative statuses/intensities,
-group membership, shared-peptide expectations, exact FASTA/mzML SHA-256 inputs, expected result
-digests, PSM peptide/q-value projections, and mass-error diagnostics. The benchmark uses one warm-up
-followed by timed public calls. The package-replay CI job runs the same verifier against the exact
-wheel and sdist it built, so a metadata-only receipt cannot mask an artifact mismatch.
+Each PSM also records mean absolute fragment error and precursor ppm error when precursor
+filtering is enabled; aggregate search diagnostics retain the maximum observed errors and
+the declared precursor tolerance so a replay can audit mass-error behavior directly.
+
+The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy
+sequence collision, no-match safe path, precursor rejection, shared-peptide grouping,
+a two-spectrum input, and a two-peptide quantification run. Unit coverage additionally
+exercises decoy-only groups, target/decoy group competition, permutation stability, and
+collision abstention. The fixture binds scenario order, expected PSM/accepted counts,
+target/decoy/collision winner counts, peptide and protein-group quantitative
+statuses/intensities, group membership, group-FDR summaries/candidate acceptance,
+shared-peptide expectations, exact FASTA/mzML SHA-256 inputs, expected result digests,
+PSM peptide/q-value projections, and mass-error diagnostics. The benchmark uses one
+warm-up followed by timed public calls. The package-replay CI job runs the same verifier
+against the exact wheel and sdist it built, so a metadata-only receipt cannot mask an
+artifact mismatch.
 
 ## Scientific limits
 

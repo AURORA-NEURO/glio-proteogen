@@ -16,7 +16,13 @@ from .pipeline import (
     replay_research_protein_inference,
     run_research_protein_inference,
 )
-from .protein import ProteinGroup, infer_protein_groups
+from .protein import (
+    ProteinGroup,
+    ProteinGroupCandidate,
+    ProteinGroupFdrSummary,
+    infer_protein_group_candidates,
+    infer_protein_groups,
+)
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     PeptideQuant,
@@ -44,6 +50,8 @@ __all__ = [
     "PdcStudySnapshot",
     "PeptideQuant",
     "ProteinGroup",
+    "ProteinGroupCandidate",
+    "ProteinGroupFdrSummary",
     "ProteinGroupQuant",
     "Psm",
     "ResearchRunRequest",
@@ -54,6 +62,7 @@ __all__ = [
     "aggregate_evidence",
     "bind_pdc_mzml_source",
     "digest_trypsin",
+    "infer_protein_group_candidates",
     "infer_protein_groups",
     "median_normalize",
     "parse_mzml",
