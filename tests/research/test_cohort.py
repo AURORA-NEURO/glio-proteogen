@@ -111,6 +111,10 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
     assert result.evidence_bundle is not None
     bundle = aggregate_cohort_evidence(result)
     assert bundle.digest == result.evidence_bundle.digest
+    assert bundle.quality_summary is not None
+    assert bundle.quality_summary.scored_records == 3
+    assert bundle.quality_summary.independent_sources == 2
+    assert bundle.quality_summary.weighted_score is not None
     assert tuple(record.evidence_id for record in bundle.records) == (
         "cohort.matrix.v1",
         "cohort.provenance.v1",

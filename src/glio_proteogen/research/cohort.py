@@ -11,7 +11,7 @@ from statistics import median
 from typing import cast
 
 from .cohort_provenance import CohortSourceManifest
-from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
+from .evidence import EvidenceBundle, EvidenceQuality, EvidenceRecord, aggregate_evidence
 from .pipeline import ResearchRunRequest, ResearchRunResult, run_research_protein_inference
 
 MAX_COHORT_SAMPLES = 32
@@ -355,6 +355,31 @@ def _build_evidence_bundle(
     deterministic outer digest.  This is descriptive research evidence only.
     """
 
+    total_cells = sum(len(values) for _, values in matrix)
+    observed_cells = sum(value is not None for _, values in matrix for value in values)
+    matrix_completeness = observed_cells / total_cells if total_cells else 0.0
+    independent_sources = source_manifest.source_identity_counts(sample_ids)["unique_sources"]
+    matrix_quality = EvidenceQuality(
+        status="computed",
+        auditability=1.0,
+        completeness=matrix_completeness,
+        independent_sources=independent_sources,
+        basis="deterministic_matrix_projection",
+    )
+    qc_quality = EvidenceQuality(
+        status="computed",
+        auditability=1.0,
+        completeness=1.0 if sample_qc and group_qc else 0.0,
+        independent_sources=independent_sources,
+        basis="deterministic_qc_projection",
+    )
+    provenance_quality = EvidenceQuality(
+        status="verified",
+        auditability=1.0,
+        completeness=1.0,
+        independent_sources=independent_sources,
+        basis="source_manifest_bytes_and_receipts",
+    )
     records = (
         EvidenceRecord.create(
             "cohort.matrix.v1",
@@ -369,6 +394,7 @@ def _build_evidence_bundle(
                 "raw_matrix": [[list(group), list(values)] for group, values in raw_matrix],
                 "sample_ids": list(sample_ids),
             },
+            quality=matrix_quality,
         ),
         EvidenceRecord.create(
             "cohort.qc.v1",
@@ -381,6 +407,7 @@ def _build_evidence_bundle(
                 "sample_qc": [item.as_dict() for item in sample_qc],
                 "sample_scales": [item.as_dict() for item in sample_scales],
             },
+            quality=qc_quality,
         ),
         EvidenceRecord.create(
             "cohort.provenance.v1",
@@ -391,6 +418,7 @@ def _build_evidence_bundle(
                 "source_manifest": source_manifest.as_dict(),
                 "source_manifest_digest": source_manifest.digest,
             },
+            quality=provenance_quality,
         ),
     )
     return aggregate_evidence(records)

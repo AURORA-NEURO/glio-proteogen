@@ -17,6 +17,7 @@ from typing import BinaryIO, Self, cast
 import pytest
 
 from glio_proteogen.research import (
+    EvidenceQuality,
     EvidenceRecord,
     PdcSourceReceipt,
     PdcStudySnapshot,
@@ -221,6 +222,108 @@ def test_evidence_aggregation_is_order_stable_and_explicitly_limited() -> None:
     assert [record.evidence_id for record in bundle.records] == ["pdc", "psm"]
     assert len(bundle.digest) == HEX_DIGEST_LENGTH
     assert any("clinical" in item for item in bundle.limitations)
+
+
+def test_evidence_quality_is_explicit_weighted_and_replay_bound() -> None:
+    quality = EvidenceQuality(
+        status="verified",
+        auditability=1.0,
+        completeness=0.75,
+        independent_sources=2,
+        basis="sha256_and_size",
+    )
+    record = EvidenceRecord.create(
+        "verified-source", "fixture", "metadata", {"rows": 3}, quality=quality
+    )
+    bundle = aggregate_evidence((record,))
+    assert bundle.quality_summary is not None
+    assert bundle.quality_summary.weighted_score == pytest.approx(0.75)
+    assert bundle.quality_summary.independent_sources == 2
+    projection = bundle.as_dict()
+    assert projection["records"][0]["quality"] == quality.as_dict()  # type: ignore[index]
+    assert projection["quality_summary"]["weighted_completeness"] == pytest.approx(0.75)  # type: ignore[index]
+    with pytest.raises(ValueError, match="digest"):
+        aggregate_evidence(
+            (
+                replace(
+                    record,
+                    quality=EvidenceQuality(
+                        status="declared",
+                        auditability=0.5,
+                        completeness=1.0,
+                        basis="caller_declared",
+                    ),
+                ),
+            )
+        )
+
+
+def test_evidence_aggregation_rejects_conflicting_source_kind_receipts() -> None:
+    first = EvidenceRecord.create("one", "external", "catalog", {"study": "PDC000204"})
+    second = EvidenceRecord.create("two", "external", "catalog", {"study": "PDC000205"})
+    with pytest.raises(ValueError, match="conflicting evidence"):
+        aggregate_evidence((first, second))
+
+
+@pytest.mark.parametrize(
+    "quality",
+    [
+        EvidenceQuality(status="ungraded"),
+        EvidenceQuality(
+            status="abstained", auditability=1.0, completeness=0.0, basis="missing_input"
+        ),
+    ],
+)
+def test_evidence_quality_statuses_are_not_truth_claims(quality: EvidenceQuality) -> None:
+    record = EvidenceRecord.create("status", "source", "kind", {}, quality=quality)
+    bundle = aggregate_evidence((record,))
+    if quality.status == "ungraded":
+        assert bundle.quality_summary is None
+    else:
+        assert bundle.quality_summary is not None
+        assert bundle.quality_summary.abstained_records == 1
+
+
+@pytest.mark.parametrize(
+    "quality",
+    [
+        {"status": "unknown"},
+        {
+            "status": "verified",
+            "auditability": math.nan,
+            "completeness": 1.0,
+            "basis": "x",
+        },
+        {"status": "ungraded", "auditability": 1.0},
+        {"status": "verified", "auditability": 1.0, "completeness": 1.0},
+        {
+            "status": "verified",
+            "auditability": 1.0,
+            "completeness": 1.0,
+            "basis": "bad basis",
+        },
+        {
+            "status": "verified",
+            "auditability": 1.0,
+            "completeness": 1.0,
+            "basis": "x",
+            "independent_sources": 33,
+        },
+    ],
+)
+def test_evidence_quality_rejects_unbounded_assessments(quality: dict[str, object]) -> None:
+    with pytest.raises(ValueError):
+        EvidenceQuality(**quality)  # type: ignore[arg-type]
+
+
+def test_evidence_quality_and_record_shape_edge_paths() -> None:
+    assert EvidenceQuality().weighted_score is None
+    with pytest.raises(TypeError, match="payload"):
+        EvidenceRecord.create("not-a-map", "source", "kind", [])  # type: ignore[arg-type]
+    record = EvidenceRecord.create("shape", "source", "kind", {})
+    altered = replace(record, payload=object())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="mapping"):
+        _ = altered.payload_jsonable
 
 
 @pytest.mark.parametrize("source", [b"", b">P1\n", b"P1\nACDEFGH"])

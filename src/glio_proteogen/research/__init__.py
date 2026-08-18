@@ -20,7 +20,13 @@ from .cohort import (
     run_research_cohort,
 )
 from .cohort_provenance import CohortSourceBinding, CohortSourceManifest
-from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
+from .evidence import (
+    EvidenceBundle,
+    EvidenceQuality,
+    EvidenceQualitySummary,
+    EvidenceRecord,
+    aggregate_evidence,
+)
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
 from .pdc import PdcClient, PdcFile, PdcSourceReceipt, PdcStudySnapshot
@@ -70,6 +76,8 @@ __all__ = [
     "CohortSourceBinding",
     "CohortSourceManifest",
     "EvidenceBundle",
+    "EvidenceQuality",
+    "EvidenceQualitySummary",
     "EvidenceRecord",
     "FastaEntry",
     "FdrSummary",
