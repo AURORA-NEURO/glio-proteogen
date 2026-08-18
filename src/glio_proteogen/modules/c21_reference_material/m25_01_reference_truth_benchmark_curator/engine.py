@@ -144,13 +144,20 @@ class M2501ReferenceTruthBenchmarkCurator:
         self,
         result: ProteotypeReferenceTruthResult,
     ) -> ProteotypeReferenceTruthResult:
-        """Revalidate an immutable result and all canonical digest closures."""
+        """Revalidate an immutable result and all canonical digest closures.
+
+        Digest checks alone only prove that a payload was rehashed.  Rebuild the
+        result from its bound request and compare the complete canonical result
+        so callers cannot alter evidence, limitations, support, or status and
+        then make the forged object internally self-consistent.
+        """
 
         try:
             replayed = ProteotypeReferenceTruthResult.model_validate_json(
                 canonical_json_bytes(result),
                 strict=True,
             )
+            expected = self.curate(replayed.request)
         except Exception as error:
             raise M2501ReplayError from error
         if replayed.result_id != result_identifier(replayed.request, replayed.status.value):
@@ -162,6 +169,8 @@ class M2501ReferenceTruthBenchmarkCurator:
         if replayed.package is not None and replayed.package.lock_digest != package_lock_digest(
             replayed.package
         ):
+            raise M2501ReplayError
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
             raise M2501ReplayError
         return replayed
 
