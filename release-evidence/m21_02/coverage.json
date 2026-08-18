@@ -1,14 +1,14 @@
 {
   "branch_enabled": true,
-  "branches": 80,
-  "covered_branches": 73,
-  "coverage_percent": 98.16,
+  "branches": 86,
+  "covered_branches": 76,
+  "coverage_percent": 97.0326409495549,
   "fail_under_percent": 95,
-  "missed_statements": 5,
+  "missed_statements": 10,
   "module_id": "GLIO-PROTEOGEN-M21-02",
-  "partial_branches": 7,
+  "partial_branches": 8,
   "scope": "contracts/m21_02 + c21_reference_material/m21_02_synthetic_truth_simulation_generator + evals/m21_02",
-  "statements": 572,
-  "covered_statements": 567,
+  "statements": 588,
+  "covered_statements": 578,
   "passed": true
 }
