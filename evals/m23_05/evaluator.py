@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.contracts.m23_05 import SubgroupDimension
 from glio_proteogen.kernel.canonical import sha256_digest
@@ -13,7 +20,15 @@ from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evalua
     M2305Service,
 )
 
-from .fixture import build_request, denied_request, restricted_request, unsupported_request
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    from evals.m23_05.fixture import (
+        build_request,
+        denied_request,
+        restricted_request,
+        unsupported_request,
+    )
+else:
+    from .fixture import build_request, denied_request, restricted_request, unsupported_request
 
 _CONTROL_COUNT = 7
 
