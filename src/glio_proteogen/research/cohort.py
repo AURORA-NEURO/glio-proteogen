@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from hashlib import sha256
+from math import isfinite
 from statistics import median
 
 from .pipeline import ResearchRunRequest, ResearchRunResult, run_research_protein_inference
 
 MAX_COHORT_SAMPLES = 32
+_NORMALIZATION_POLICIES = {"none", "within_label_median_v1"}
+_MIN_LABEL_REPLICATES = 2
+__all__ = ["run_research_protein_inference"]
 
 
 def _label(value: str, field: str) -> str:
@@ -49,6 +54,7 @@ class ResearchCohortRequest:
 
     samples: tuple[ResearchCohortSample, ...]
     provenance_policy: str = "homogeneous"
+    normalization_policy: str = "none"
 
     def __post_init__(self) -> None:
         if type(self.samples) is not tuple or any(
@@ -62,6 +68,8 @@ class ResearchCohortRequest:
             "mixed_declared",
         }:
             raise ValueError("provenance_policy is not supported")
+        if self.normalization_policy not in _NORMALIZATION_POLICIES:
+            raise ValueError("normalization_policy is not supported")
         if not 2 <= len(self.samples) <= MAX_COHORT_SAMPLES:
             raise ValueError("cohort sample count is outside the bounded range")
         sample_ids = tuple(sample.sample_id for sample in self.samples)
@@ -88,6 +96,8 @@ class CohortSampleQc:
     decoy_winners: int
     collision_winners: int
     max_precursor_error_ppm: float | None
+    normalization_scale: float | None = None
+    normalization_status: str = "not_applied"
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -103,6 +113,8 @@ class CohortSampleQc:
             "replicate_label": self.replicate_label,
             "sample_id": self.sample_id,
             "spectra_seen": self.spectra_seen,
+            "normalization_scale": self.normalization_scale,
+            "normalization_status": self.normalization_status,
         }
 
 
@@ -127,6 +139,82 @@ class CohortGroupQc:
 
 
 @dataclass(frozen=True, slots=True)
+class CohortSampleScale:
+    """Auditable sample-level scale derived from positive shared groups only."""
+
+    sample_id: str
+    cohort_label: str
+    scale_factor: float | None
+    overlap_groups: int
+    positive_groups: int
+    status: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "cohort_label": self.cohort_label,
+            "overlap_groups": self.overlap_groups,
+            "positive_groups": self.positive_groups,
+            "sample_id": self.sample_id,
+            "scale_factor": self.scale_factor,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CohortLabelQc:
+    """Label-local descriptive QC; labels are caller metadata, never inferred biology."""
+
+    cohort_label: str
+    sample_count: int
+    replicate_count: int
+    observed_cells: int
+    missing_cells: int
+    missingness_rate: float
+    median_intensity: float | None
+    mad_intensity: float | None
+    status: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "cohort_label": self.cohort_label,
+            "mad_intensity": self.mad_intensity,
+            "median_intensity": self.median_intensity,
+            "missing_cells": self.missing_cells,
+            "missingness_rate": self.missingness_rate,
+            "observed_cells": self.observed_cells,
+            "replicate_count": self.replicate_count,
+            "sample_count": self.sample_count,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CohortLabelGroupEvidence:
+    """Label-by-group descriptive evidence with explicit abstention states."""
+
+    cohort_label: str
+    group_accessions: tuple[str, ...]
+    observed_replicates: int
+    missing_replicates: int
+    missingness_rate: float
+    median_normalized_intensity: float | None
+    mad_normalized_intensity: float | None
+    status: str
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "cohort_label": self.cohort_label,
+            "group_accessions": list(self.group_accessions),
+            "mad_normalized_intensity": self.mad_normalized_intensity,
+            "median_normalized_intensity": self.median_normalized_intensity,
+            "missing_replicates": self.missing_replicates,
+            "missingness_rate": self.missingness_rate,
+            "observed_replicates": self.observed_replicates,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchCohortResult:
     """Content-addressed sample-by-group matrix with explicit missing cells."""
 
@@ -138,6 +226,11 @@ class ResearchCohortResult:
     child_result_digests: tuple[tuple[str, str], ...]
     configuration: tuple[tuple[str, object], ...]
     result_digest: str
+    raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...] = ()
+    normalized_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...] = ()
+    sample_scales: tuple[CohortSampleScale, ...] = ()
+    label_qc: tuple[CohortLabelQc, ...] = ()
+    label_group_evidence: tuple[CohortLabelGroupEvidence, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -146,9 +239,16 @@ class ResearchCohortResult:
             "group_accessions": [list(item) for item in self.group_accessions],
             "group_qc": [item.as_dict() for item in self.group_qc],
             "matrix": [[list(group), list(values)] for group, values in self.matrix],
+            "normalized_matrix": [
+                [list(group), list(values)] for group, values in self.normalized_matrix
+            ],
+            "raw_matrix": [[list(group), list(values)] for group, values in self.raw_matrix],
             "result_digest": self.result_digest,
             "sample_ids": list(self.sample_ids),
             "sample_qc": [item.as_dict() for item in self.sample_qc],
+            "sample_scales": [item.as_dict() for item in self.sample_scales],
+            "label_qc": [item.as_dict() for item in self.label_qc],
+            "label_group_evidence": [item.as_dict() for item in self.label_group_evidence],
         }
 
 
@@ -203,6 +303,179 @@ def _source_provenance(result: ResearchRunResult) -> dict[str, object]:
         "mzml_sha256": result.mzml_sha256,
         "fasta_sha256": result.fasta_sha256,
     }
+
+
+def _positive(value: float | None) -> bool:
+    return value is not None and isfinite(value) and value > 0.0
+
+
+def _require_positive(value: float | None) -> float:
+    if value is None or not isfinite(value) or value <= 0.0:
+        raise RuntimeError("normalization shared group was not positive")
+    return value
+
+
+def _median_mad(values: tuple[float, ...]) -> tuple[float | None, float | None]:
+    if not values:
+        return None, None
+    center = float(median(values))
+    deviations = tuple(abs(value - center) for value in values)
+    return center, float(median(deviations)) if deviations else None
+
+
+def _build_label_evidence(  # noqa: PLR0915
+    ordered_samples: tuple[ResearchCohortSample, ...],
+    groups: tuple[tuple[str, ...], ...],
+    raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+    policy: str,
+) -> tuple[
+    tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+    tuple[CohortSampleScale, ...],
+    tuple[CohortLabelQc, ...],
+    tuple[CohortLabelGroupEvidence, ...],
+    tuple[str, ...],
+]:
+    """Normalize only within caller labels and retain every abstention explicitly."""
+
+    labels: dict[str, list[int]] = defaultdict(list)
+    for index, sample in enumerate(ordered_samples):
+        labels[sample.cohort_label].append(index)
+    # The matrix is group-major; transpose once into sample-major rows.
+    sample_rows: list[dict[tuple[str, ...], float | None]] = [
+        {group: values[index] for group, values in raw_matrix}
+        for index in range(len(ordered_samples))
+    ]
+    normalized_rows = [dict(row) for row in sample_rows]
+    scale_values: list[CohortSampleScale | None] = [None] * len(ordered_samples)
+    label_status: dict[str, str] = {}
+    label_qc: list[CohortLabelQc] = []
+    label_evidence: list[CohortLabelGroupEvidence] = []
+
+    for label in sorted(labels):
+        indices = tuple(labels[label])
+        shared = tuple(
+            group
+            for group in groups
+            if all(_positive(sample_rows[index].get(group)) for index in indices)
+        )
+        positive_counts = {
+            index: sum(_positive(sample_rows[index].get(group)) for group in groups)
+            for index in indices
+        }
+        if policy == "none":
+            status = "not_applied"
+            factors: dict[int, float | None] = dict.fromkeys(indices, 1.0)
+        elif len(indices) < _MIN_LABEL_REPLICATES:
+            status = "abstained_insufficient_replicates"
+            factors = dict.fromkeys(indices)
+        elif not shared:
+            status = "abstained_insufficient_overlap"
+            factors = dict.fromkeys(indices)
+        else:
+            sample_centers = {
+                index: float(
+                    median(
+                        tuple(
+                            _require_positive(sample_rows[index][group])
+                            for group in shared
+                            if sample_rows[index][group] is not None
+                        )
+                    )
+                )
+                for index in indices
+            }
+            target = float(median(tuple(sample_centers.values())))
+            factors = {
+                index: target / sample_centers[index]
+                if isfinite(sample_centers[index]) and sample_centers[index] > 0
+                else None
+                for index in indices
+            }
+            if any(factor is None or not isfinite(factor) for factor in factors.values()):
+                status = "abstained_invalid_scale"
+                factors = dict.fromkeys(indices)
+            else:
+                status = "normalized"
+        label_status[label] = status
+        for index in indices:
+            factor = factors[index]
+            if factor is None:
+                normalized_rows[index] = dict.fromkeys(groups)
+            elif policy == "none":
+                normalized_rows[index] = dict(sample_rows[index])
+            else:
+                normalized_rows[index] = {
+                    group: value * factor if value is not None and _positive(value) else value
+                    for group, value in sample_rows[index].items()
+                }
+            scale_values[index] = CohortSampleScale(
+                sample_id=ordered_samples[index].sample_id,
+                cohort_label=label,
+                scale_factor=factor,
+                overlap_groups=len(shared),
+                positive_groups=positive_counts[index],
+                status=status,
+            )
+        label_values = tuple(
+            float(value)
+            for index in indices
+            for value in normalized_rows[index].values()
+            if value is not None and _positive(value)
+        )
+        label_center, label_mad = _median_mad(label_values)
+        observed_cells = sum(
+            _positive(sample_rows[index].get(group)) for index in indices for group in groups
+        )
+        total_cells = len(indices) * len(groups)
+        label_qc.append(
+            CohortLabelQc(
+                cohort_label=label,
+                sample_count=len(indices),
+                replicate_count=len(indices),
+                observed_cells=observed_cells,
+                missing_cells=total_cells - observed_cells,
+                missingness_rate=(total_cells - observed_cells) / total_cells
+                if total_cells
+                else 1.0,
+                median_intensity=label_center,
+                mad_intensity=label_mad,
+                status=status,
+            )
+        )
+        for group in groups:
+            values = tuple(normalized_rows[index].get(group) for index in indices)
+            observed = tuple(
+                float(value) for value in values if value is not None and _positive(value)
+            )
+            center, mad = _median_mad(observed)
+            evidence_status = "descriptive" if status in {"not_applied", "normalized"} else status
+            if status in {"not_applied", "normalized"} and len(observed) < _MIN_LABEL_REPLICATES:
+                evidence_status = "abstained_insufficient_replicates"
+            label_evidence.append(
+                CohortLabelGroupEvidence(
+                    cohort_label=label,
+                    group_accessions=group,
+                    observed_replicates=len(observed),
+                    missing_replicates=len(values) - len(observed),
+                    missingness_rate=(len(values) - len(observed)) / len(values) if values else 1.0,
+                    median_normalized_intensity=center,
+                    mad_normalized_intensity=mad,
+                    status=evidence_status,
+                )
+            )
+    if any(value is None for value in scale_values):
+        raise RuntimeError("cohort normalization did not produce one scale record per sample")
+    normalized_matrix = tuple(
+        (group, tuple(normalized_rows[index].get(group) for index in range(len(ordered_samples))))
+        for group in groups
+    )
+    return (
+        normalized_matrix,
+        tuple(value for value in scale_values if value is not None),
+        tuple(label_qc),
+        tuple(label_evidence),
+        tuple(label_status[label] for label in sorted(label_status)),
+    )
 
 
 def _validate_provenance_policy(
@@ -284,6 +557,18 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     matrix = tuple(
         (group, tuple(values.get(group) for values in values_by_sample)) for group in groups
     )
+    normalized_matrix, sample_scales, label_qc, label_group_evidence, _ = _build_label_evidence(
+        ordered_samples, groups, matrix, request.normalization_policy
+    )
+    scale_by_sample = {item.sample_id: item for item in sample_scales}
+    qc = [
+        replace(
+            item,
+            normalization_scale=scale_by_sample[item.sample_id].scale_factor,
+            normalization_status=scale_by_sample[item.sample_id].status,
+        )
+        for item in qc
+    ]
     group_qc: list[CohortGroupQc] = []
     for group, row in matrix:
         observed = tuple(value for value in row if value is not None)
@@ -302,8 +587,12 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     configuration = tuple(
         sorted(
             {
-                "cohort_version": "research-cohort-1",
+                "cohort_version": "research-cohort-2",
                 "cohort_provenance_policy": request.provenance_policy,
+                "cohort_normalization_policy": request.normalization_policy,
+                "cohort_normalization_version": (
+                    "none" if request.normalization_policy == "none" else "within-label-median-v1"
+                ),
                 "sample_ids": list(sample_ids),
                 "fasta_sha256": child[0].fasta_sha256,
                 "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -323,8 +612,13 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         "sample_ids": list(sample_ids),
         "group_accessions": [list(group) for group in groups],
         "matrix": [[list(group), list(values)] for group, values in matrix],
+        "raw_matrix": [[list(group), list(values)] for group, values in matrix],
+        "normalized_matrix": [[list(group), list(values)] for group, values in normalized_matrix],
         "sample_qc": [item.as_dict() for item in qc],
         "group_qc": [item.as_dict() for item in group_qc],
+        "sample_scales": [item.as_dict() for item in sample_scales],
+        "label_qc": [item.as_dict() for item in label_qc],
+        "label_group_evidence": [item.as_dict() for item in label_group_evidence],
         "child_result_digests": [
             [sample.sample_id, result.result_digest]
             for sample, result in zip(ordered_samples, child, strict=True)
@@ -343,6 +637,11 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         ),
         configuration=configuration,
         result_digest=_digest(payload),
+        raw_matrix=matrix,
+        normalized_matrix=normalized_matrix,
+        sample_scales=sample_scales,
+        label_qc=label_qc,
+        label_group_evidence=label_group_evidence,
     )
 
 

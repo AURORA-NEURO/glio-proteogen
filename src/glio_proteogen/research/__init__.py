@@ -7,7 +7,10 @@ protein, disease, or clinical claims and is not wired into the M03/M04 execution
 
 from .cohort import (
     CohortGroupQc,
+    CohortLabelGroupEvidence,
+    CohortLabelQc,
     CohortSampleQc,
+    CohortSampleScale,
     ResearchCohortRequest,
     ResearchCohortResult,
     ResearchCohortSample,
@@ -51,7 +54,10 @@ from .search import (
 
 __all__ = [
     "CohortGroupQc",
+    "CohortLabelGroupEvidence",
+    "CohortLabelQc",
     "CohortSampleQc",
+    "CohortSampleScale",
     "EvidenceBundle",
     "EvidenceRecord",
     "FastaEntry",
