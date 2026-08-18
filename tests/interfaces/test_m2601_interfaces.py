@@ -138,8 +138,6 @@ def test_api_verify_parser_uses_result_ceiling(monkeypatch: pytest.MonkeyPatch) 
         return {}
 
     monkeypatch.setattr(m2601_api, "strict_json_loads", capture)
-    response = TestClient(m2601_api.create_app()).post(
-        "/v1/modules/M26-01/verify", content=b"{}"
-    )
+    response = TestClient(m2601_api.create_app()).post("/v1/modules/M26-01/verify", content=b"{}")
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert observed == [M2601_MAX_CANONICAL_RESULT_BYTES]
