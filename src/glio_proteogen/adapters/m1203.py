@@ -11,8 +11,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m12_03 import (
     M1203_MAX_CANONICAL_REQUEST_BYTES,
+    M1203_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelMechanisticFeatureResult,
     contract_json_schema,
 )
@@ -95,7 +97,7 @@ async def construct(request: Request) -> JSONResponse:
 async def verify(request: Request) -> JSONResponse:
     raw = await request.body()
     try:
-        strict_json_loads(raw, max_bytes=8 * 1024 * 1024)
+        strict_json_loads(raw, max_bytes=M1203_MAX_CANONICAL_RESULT_BYTES)
         result = BiomarkerPanelMechanisticFeatureResult.model_validate_json(raw)
     except (ValueError, TypeError, ValidationError):
         return _error("M12-03 result failed replay verification")
@@ -112,7 +114,10 @@ async def verify(request: Request) -> JSONResponse:
 def _read_json(path: pathlib.Path) -> dict[str, object]:
     return cast(
         "dict[str, object]",
-        strict_json_loads(path.read_bytes(), max_bytes=M1203_MAX_CANONICAL_REQUEST_BYTES),
+        strict_json_loads(
+            read_bounded(path, M1203_MAX_CANONICAL_REQUEST_BYTES),
+            max_bytes=M1203_MAX_CANONICAL_REQUEST_BYTES,
+        ),
     )
 
 
@@ -151,8 +156,9 @@ def cli_verify(
     result: Annotated[pathlib.Path, typer.Argument(exists=True, dir_okay=False)],
 ) -> None:
     try:
-        _read_json(result)
-        checked = BiomarkerPanelMechanisticFeatureResult.model_validate_json(result.read_bytes())
+        result_payload = read_bounded(result, M1203_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(result_payload, max_bytes=M1203_MAX_CANONICAL_RESULT_BYTES)
+        checked = BiomarkerPanelMechanisticFeatureResult.model_validate_json(result_payload)
     except (ValueError, TypeError, ValidationError) as exc:
         raise _CliResultError from exc
     typer.echo(

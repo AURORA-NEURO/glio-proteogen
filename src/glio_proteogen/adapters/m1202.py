@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m12_02 import (
     M1202_MAX_CANONICAL_REQUEST_BYTES,
     M1202_MAX_CANONICAL_RESULT_BYTES,
@@ -116,7 +117,7 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> StratifyBiomarkerPanelContextRequest:
     try:
-        raw = path.read_bytes()
+        raw = read_bounded(path, M1202_MAX_CANONICAL_REQUEST_BYTES)
         decoded = strict_json_loads(raw, max_bytes=M1202_MAX_CANONICAL_REQUEST_BYTES)
         preflight_context_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(raw, strict=True)
@@ -162,7 +163,7 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        raw = result_path.read_bytes()
+        raw = read_bounded(result_path, M1202_MAX_CANONICAL_RESULT_BYTES)
         strict_json_loads(raw, max_bytes=M1202_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.verify(result)
