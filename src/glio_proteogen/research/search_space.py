@@ -8,9 +8,11 @@ from hashlib import sha256
 from typing import Iterable
 
 from .fasta import FastaEntry, digest_entry_trypsin
+from .modifications import expand_peptide, normalize_modification_rules
 
 _DECOY_PREFIX = "DECOY_"
-_VERSION = "search-space-receipt-1"
+_BASE_VERSION = "search-space-receipt-1"
+_MODIFICATION_VERSION = "search-space-receipt-2-modifications"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,9 +62,13 @@ class SearchSpaceReceipt:
     pairs: tuple[DecoyPair, ...]
     pairing_digest: str
     search_space_digest: str
+    modification_rules: tuple[str, ...] = ()
+    max_variable_modifications: int = 0
+    modified_target_peptides: int = 0
+    modified_decoy_peptides: int = 0
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "cleavage_compatible_pairs": self.cleavage_compatible_pairs,
             "decoy_peptides": self.decoy_peptides,
             "decoy_prefix": self.decoy_prefix,
@@ -83,6 +89,16 @@ class SearchSpaceReceipt:
             "unmatched_target_proteins": self.unmatched_target_proteins,
             "version": self.version,
         }
+        if self.modification_rules:
+            payload.update(
+                {
+                    "max_variable_modifications": self.max_variable_modifications,
+                    "modification_rules": list(self.modification_rules),
+                    "modified_decoy_peptides": self.modified_decoy_peptides,
+                    "modified_target_peptides": self.modified_target_peptides,
+                }
+            )
+        return payload
 
 
 def _digest(payload: object) -> str:
@@ -105,6 +121,8 @@ def build_search_space_receipt(
     min_peptide_length: int = 7,
     max_peptide_length: int = 40,
     decoy_prefix: str = _DECOY_PREFIX,
+    modification_rules: tuple[str, ...] = (),
+    max_variable_modifications: int = 0,
 ) -> SearchSpaceReceipt:
     """Digest entries and bind target/decoy pairing to the source bytes.
 
@@ -121,6 +139,12 @@ def build_search_space_receipt(
         raise ValueError("search-space source cannot be empty")
     if len(decoy_prefix) < 2 or any(char.isspace() for char in decoy_prefix):
         raise ValueError("decoy_prefix must be a bounded non-whitespace token")
+    modification_rules = normalize_modification_rules(modification_rules)
+    receipt_version = _MODIFICATION_VERSION if modification_rules else _BASE_VERSION
+    if type(max_variable_modifications) is not int or not 0 <= max_variable_modifications <= 3:
+        raise ValueError("max_variable_modifications must be between zero and three")
+    if modification_rules and max_variable_modifications == 0:
+        raise ValueError("declared modification rules require a positive site limit")
     entries_tuple = tuple(entries)
     if not entries_tuple:
         raise ValueError("search-space receipt requires at least one FASTA entry")
@@ -143,6 +167,24 @@ def build_search_space_receipt(
     )
     target_peptide_set = {peptide for accession in targets for peptide in digests[accession]}
     decoy_peptide_set = {peptide for accession in decoys for peptide in digests[accession]}
+    modified_digests = {
+        accession: tuple(
+            variant
+            for peptide in digests[accession]
+            for variant in expand_peptide(
+                peptide,
+                allowed_modifications=modification_rules,
+                max_variable_modifications=max_variable_modifications,
+            )
+        )
+        for accession in by_accession
+    }
+    modified_target_peptide_set = {
+        peptide for accession in targets for peptide in modified_digests[accession]
+    }
+    modified_decoy_peptide_set = {
+        peptide for accession in decoys for peptide in modified_digests[accession]
+    }
     pairs: list[DecoyPair] = []
     unmatched_targets = 0
     unmatched_decoys = 0
@@ -152,8 +194,8 @@ def build_search_space_receipt(
         if decoy not in by_accession:
             unmatched_targets += 1
             continue
-        target_count = len(digests[target])
-        decoy_count = len(digests[decoy])
+        target_count = len(modified_digests[target])
+        decoy_count = len(modified_digests[decoy])
         status = (
             "cleavage_compatible"
             if target_count == decoy_count and target_count > 0
@@ -195,10 +237,19 @@ def build_search_space_receipt(
         "target_proteins": len(targets),
         "unmatched_decoy_proteins": unmatched_decoys,
         "unmatched_target_proteins": unmatched_targets,
-        "version": _VERSION,
+        "version": receipt_version,
     }
+    if modification_rules:
+        payload.update(
+            {
+                "max_variable_modifications": max_variable_modifications,
+                "modification_rules": list(modification_rules),
+                "modified_decoy_peptides": len(modified_decoy_peptide_set),
+                "modified_target_peptides": len(modified_target_peptide_set),
+            }
+        )
     return SearchSpaceReceipt(
-        version=_VERSION,
+        version=receipt_version,
         source_sha256=sha256(source_bytes).hexdigest(),
         digestion_enzyme="trypsin",
         missed_cleavages=missed_cleavages,
@@ -228,6 +279,10 @@ def build_search_space_receipt(
         ),
         pairing_digest=pairing_digest,
         search_space_digest=_digest(payload),
+        modification_rules=modification_rules,
+        max_variable_modifications=max_variable_modifications,
+        modified_target_peptides=len(modified_target_peptide_set),
+        modified_decoy_peptides=len(modified_decoy_peptide_set),
     )
 
 

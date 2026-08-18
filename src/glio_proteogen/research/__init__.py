@@ -29,6 +29,16 @@ from .evidence import (
     verify_evidence_bundle,
 )
 from .fasta import FastaEntry, digest_trypsin, read_fasta
+from .modifications import (
+    ModificationSpec,
+    ParsedPeptide,
+    PeptideModification,
+    expand_peptide,
+    expand_peptide_map,
+    normalize_modification_rules,
+    parse_modified_peptide,
+    supported_modifications,
+)
 from .mzml import Spectrum, parse_mzml
 from .pdc import PdcClient, PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .pipeline import (
@@ -89,10 +99,13 @@ __all__ = [
     "EvidenceRecord",
     "FastaEntry",
     "FdrSummary",
+    "ModificationSpec",
+    "ParsedPeptide",
     "PdcClient",
     "PdcFile",
     "PdcSourceReceipt",
     "PdcStudySnapshot",
+    "PeptideModification",
     "PeptideQuant",
     "PeptideQuantification",
     "ProteinGroup",
@@ -114,11 +127,15 @@ __all__ = [
     "aggregate_cohort_evidence",
     "aggregate_evidence",
     "bind_pdc_mzml_source",
-    "digest_trypsin",
     "build_search_space_receipt",
+    "digest_trypsin",
+    "expand_peptide",
+    "expand_peptide_map",
     "infer_protein_group_candidates",
     "infer_protein_groups",
     "median_normalize",
+    "normalize_modification_rules",
+    "parse_modified_peptide",
     "parse_mzml",
     "quantify_matched_ions",
     "quantify_matched_ions_with_receipt",
@@ -131,6 +148,7 @@ __all__ = [
     "search_spectrum",
     "search_spectrum_candidates",
     "summarize_target_decoy",
+    "supported_modifications",
     "target_decoy_qvalues",
     "verify_evidence_bundle",
     "verify_search_space_receipt",

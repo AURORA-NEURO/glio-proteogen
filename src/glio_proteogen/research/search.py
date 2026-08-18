@@ -8,6 +8,8 @@ from dataclasses import dataclass, replace
 from hashlib import sha256
 from math import hypot, isfinite
 
+from .modifications import normalize_modification_rules, parse_modified_peptide
+
 
 @dataclass(frozen=True, slots=True)
 class SearchParameters:
@@ -16,16 +18,28 @@ class SearchParameters:
     min_matched_ions: int = 2
     precursor_charge: int = 1
     require_precursor_mz: bool = False
+    allowed_modifications: tuple[str, ...] = ()
+    max_variable_modifications: int = 0
 
     def __post_init__(self) -> None:
-        if self.precursor_tolerance_ppm < 0:
+        if type(self.precursor_tolerance_ppm) is not int or self.precursor_tolerance_ppm < 0:
             raise ValueError("precursor_tolerance_ppm must be non-negative")
         if not isfinite(self.fragment_tolerance_da) or self.fragment_tolerance_da <= 0:
             raise ValueError("fragment_tolerance_da must be finite and positive")
         if self.min_matched_ions < 1:
             raise ValueError("min_matched_ions must be positive")
-        if self.precursor_charge < 1:
+        if type(self.precursor_charge) is not int or not 1 <= self.precursor_charge <= 20:
             raise ValueError("precursor_charge must be positive")
+        if type(self.require_precursor_mz) is not bool:
+            raise ValueError("require_precursor_mz must be boolean")
+        normalized = normalize_modification_rules(self.allowed_modifications)
+        if normalized != self.allowed_modifications:
+            object.__setattr__(self, "allowed_modifications", normalized)
+        if (
+            type(self.max_variable_modifications) is not int
+            or not 0 <= self.max_variable_modifications <= 3
+        ):
+            raise ValueError("max_variable_modifications must be between zero and three")
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,22 +179,29 @@ _WATER = 18.010565
 _DEFAULT_PARAMETERS = SearchParameters()
 
 
-def _fragments(peptide: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
+def _fragments(
+    peptide: str, *, allowed_modifications: tuple[str, ...] = ()
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    parsed = parse_modified_peptide(peptide, allowed_modifications=allowed_modifications)
+    masses = parsed.residue_masses
     running = 0.0
     b: list[float] = []
-    for residue in peptide[:-1]:
-        running += _MASS[residue]
+    for residue_mass in masses[:-1]:
+        running += residue_mass
         b.append(running + _PROTON)
     running = 18.010565
     y: list[float] = []
-    for residue in reversed(peptide[1:]):
-        running += _MASS[residue]
+    for residue_mass in reversed(masses[1:]):
+        running += residue_mass
         y.append(running + _PROTON)
     return tuple(b), tuple(y)
 
 
-def _precursor_mz(peptide: str, charge: int) -> float:
-    neutral_mass = _WATER + sum(_MASS[residue] for residue in peptide)
+def _precursor_mz(
+    peptide: str, charge: int, *, allowed_modifications: tuple[str, ...] = ()
+) -> float:
+    parsed = parse_modified_peptide(peptide, allowed_modifications=allowed_modifications)
+    neutral_mass = _WATER + sum(parsed.residue_masses)
     return (neutral_mass + (charge * _PROTON)) / charge
 
 
@@ -233,16 +254,29 @@ def search_spectrum_candidates(
     norm = hypot(*intensity) if intensity else 0.0
     all_candidates: list[Psm] = []
     for peptide, accessions in peptide_map.items():
-        if not peptide or any(residue not in _MASS for residue in peptide):
+        if not peptide:
+            continue
+        try:
+            parsed = parse_modified_peptide(
+                peptide, allowed_modifications=parameters.allowed_modifications
+            )
+        except ValueError:
+            continue
+        if len(parsed.modifications) > parameters.max_variable_modifications:
             continue
         if parameters.require_precursor_mz:
-            theoretical_precursor = _precursor_mz(peptide, parameters.precursor_charge)
+            theoretical_precursor = _precursor_mz(
+                peptide,
+                parameters.precursor_charge,
+                allowed_modifications=parameters.allowed_modifications,
+            )
             ppm_error = (
                 abs(precursor_mz - theoretical_precursor) / theoretical_precursor * 1_000_000
             )
             if ppm_error > parameters.precursor_tolerance_ppm:
                 continue
-        theoretical = _fragments(peptide)[0] + _fragments(peptide)[1]
+        fragments = _fragments(peptide, allowed_modifications=parameters.allowed_modifications)
+        theoretical = fragments[0] + fragments[1]
         matched = 0
         intensity_score = 0.0
         matched_intensity = 0.0
