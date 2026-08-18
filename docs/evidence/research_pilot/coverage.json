@@ -1,14 +1,14 @@
 {
   "branch_enabled": true,
-  "branch_coverage_percent": 97.37827715355806,
-  "covered_branches": 318,
-  "covered_statements": 982,
+  "branch_coverage_percent": 97.5,
+  "covered_branches": 39,
+  "covered_statements": 158,
   "fail_under": 95.0,
   "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
   "passed": true,
-  "scope": "glio_proteogen.research",
-  "statements": 997,
-  "branches": 338,
-  "test_count": 69,
-  "command": "python -m pytest -o addopts='' -p no:cacheprovider tests/research --cov=glio_proteogen.research --cov-branch --cov-report=term-missing"
+  "branches": 40,
+  "test_count": 14,
+  "statements": 158,
+  "scope": "glio_proteogen.research.pilot",
+  "command": "python -m pytest -o addopts='' -p no:cacheprovider tests/research/test_pilot.py --cov=glio_proteogen.research.pilot --cov-branch --cov-report=term-missing"
 }

@@ -18,19 +18,28 @@ evidence.
 ## Computation boundary
 
 The pilot content-addresses the metadata response, local FASTA/mzML bytes,
-source manifest, structural evidence aggregate, and result receipt. It then:
+source manifest, structural evidence aggregate, the complete search parameter
+policy, and result receipt. It then:
 
 - digests the caller-declared FASTA with bounded tryptic rules;
 - decodes only bounded mzML arrays and searches MS2 spectra with explicit
   fragment tolerance and minimum-ion parameters;
+- when `require_precursor_mz` is enabled, uses the parsed mzML precursor m/z
+  and charge and abstains rather than opening the search when either is absent
+  or incompatible with the declared charge;
 - performs target/decoy competition and records exploratory q-values;
 - preserves shared-peptide ambiguity in deterministic research protein groups;
 - computes a median-normalized total-peak signal proxy, explicitly not an
   abundance estimate; and
 - abstains when there are no MS2 spectra or no supported PSM.
 
+The locked research evaluation also exercises strict precursor mode with an
+MS2 fixture that has no precursor metadata; the run abstains with
+`NO_SUPPORTED_PSM` instead of treating every peptide as precursor-compatible.
+
 `verify_pilot_replay` reruns the same offline bytes and rejects any changed
-payload or digest. The result policy is closed: research-only and owner review
+payload, search parameters, or digest. The result policy is closed:
+research-only and owner review
 are true, network access and clinical/disease/treatment/mechanistic claims are
 false. Protein-group objects remain exploratory research objects and are not
 production identity assertions.

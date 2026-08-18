@@ -5,15 +5,20 @@
     "positive_ms2_search": {
       "status": "COMPLETED",
       "matched_psms": 1,
-      "result_digest": "sha256:3fc04337fbfc2066dcdd8e990519ff67e29962dd8eb5c3c6578e09b12447c2a9"
+      "result_digest": "sha256:fe41047d9623281957976567c6a3feb6490622184bbfe944793c9f2ddf92c7a8"
     },
     "checked_in_fixture": {
       "status": "ABSTAINED",
       "reason": "NO_MS2_SPECTRA",
-      "result_digest": "sha256:3569a11d6bc6ac0a2c12e7cb3c190027818060d23dd5f9ffb5e7ef768a326f69"
+      "result_digest": "sha256:6c84289dd76a15c99fe7784ffe55d97d71c7100f6f9f07f5978466a97de5995d"
     },
     "replay": {
       "passed": true
+    },
+    "strict_precursor_without_metadata": {
+      "passed": true,
+      "status": "ABSTAINED",
+      "reason": "NO_SUPPORTED_PSM"
     },
     "policy_true_claim_rejection": {
       "passed": true
