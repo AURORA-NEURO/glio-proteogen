@@ -18,6 +18,7 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m09_02 import (
     M0902_MAX_CANONICAL_REQUEST_BYTES,
     ConstructComplexActivityRepresentationRequest,
@@ -50,7 +51,7 @@ app = typer.Typer(help="M09-02 complex-activity representation constructor.")
 
 def _read(path: Path) -> bytes:
     try:
-        body = path.read_bytes()
+        body = read_bounded(path, max_bytes=M0902_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(body, max_bytes=M0902_MAX_CANONICAL_REQUEST_BYTES)
         return body
     except (OSError, StrictJsonError) as error:

@@ -18,6 +18,7 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m09_06 import (
     M0906_MAX_CANONICAL_REQUEST_BYTES,
     M0906_MAX_CANONICAL_RESULT_BYTES,
@@ -43,7 +44,7 @@ app = typer.Typer(help="M09-06 complex-activity uncertainty decomposition engine
 
 def _read(path: Path, *, max_bytes: int) -> bytes:
     try:
-        body = path.read_bytes()
+        body = read_bounded(path, max_bytes=max_bytes)
         strict_json_loads(body, max_bytes=max_bytes)
         return body
     except (OSError, StrictJsonError) as error:
@@ -113,7 +114,7 @@ def verify(
 
     try:
         result_body = _read(result, max_bytes=M0906_MAX_CANONICAL_RESULT_BYTES)
-        canonical_body = canonical.read_bytes()
+        canonical_body = read_bounded(canonical, max_bytes=M0906_MAX_CANONICAL_RESULT_BYTES)
         decoded = strict_json_loads(result_body, max_bytes=M0906_MAX_CANONICAL_RESULT_BYTES)
         if not isinstance(decoded, dict):
             raise typer.BadParameter("result is not an object")
