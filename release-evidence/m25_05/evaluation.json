@@ -1,7 +1,7 @@
 {
   "adversarial_case_count": 5,
   "adversarial_passed_count": 5,
-  "base_commit": "c9ba741eb270bd602ff615dda6f469436b5a211c",
+  "base_commit": "99a5139dad860d076c375a7f28f2392f2a0baed6",
   "checks": {
     "completed_evaluation": true,
     "control_denial": true,
