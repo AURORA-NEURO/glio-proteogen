@@ -172,6 +172,7 @@ class PilotResult:
     fasta_digest: str
     mzml_digest: str
     policy: PilotPolicy
+    parameters: SearchParameters
     limitations: tuple[str, ...]
     result_digest: str
 
@@ -202,6 +203,16 @@ def _result_payload(result: PilotResult) -> dict[str, object]:
         "ms2_spectra": result.ms2_spectra,
         "mzml_digest": result.mzml_digest,
         "policy": result.policy.as_dict(),
+        "parameters": {
+            "allowed_modifications": list(result.parameters.allowed_modifications),
+            "decoy_prefix": result.parameters.decoy_prefix,
+            "fragment_tolerance_da": result.parameters.fragment_tolerance_da,
+            "max_variable_modifications": result.parameters.max_variable_modifications,
+            "min_matched_ions": result.parameters.min_matched_ions,
+            "precursor_charge": result.parameters.precursor_charge,
+            "precursor_tolerance_ppm": result.parameters.precursor_tolerance_ppm,
+            "require_precursor_mz": result.parameters.require_precursor_mz,
+        },
         "protein_groups": [
             {
                 "accessions": list(group.accessions),
@@ -307,6 +318,7 @@ def _abstained(
             fasta_digest=sha256_digest(request.fasta_bytes),
             mzml_digest=sha256_digest(request.mzml_bytes),
             policy=request.policy,
+            parameters=request.parameters,
             limitations=_NO_CLAIMS,
             result_digest="",
         )
@@ -346,9 +358,15 @@ def run_pilot(request: PilotRequest) -> PilotResult:
     for spectrum in ms2:
         searched_spectra += 1
         signal_by_spectrum[spectrum.spectrum_id] = sum(spectrum.intensity)
+        if request.parameters.require_precursor_mz and (
+            spectrum.precursor_mz is None
+            or spectrum.precursor_charge is None
+            or spectrum.precursor_charge != request.parameters.precursor_charge
+        ):
+            continue
         psm = search_spectrum(
             spectrum.spectrum_id,
-            0.0,
+            spectrum.precursor_mz if spectrum.precursor_mz is not None else 0.0,
             peptide_map,
             spectrum.mz,
             spectrum.intensity,
@@ -410,6 +428,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             fasta_digest=sha256_digest(request.fasta_bytes),
             mzml_digest=sha256_digest(request.mzml_bytes),
             policy=request.policy,
+            parameters=request.parameters,
             limitations=_NO_CLAIMS,
             result_digest="",
         )
