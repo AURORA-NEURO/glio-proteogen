@@ -54,7 +54,8 @@ def _read_bounded(path: Path, *, max_bytes: int) -> bytes:
     try:
         if path.stat().st_size > max_bytes:
             raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
-        data = path.read_bytes()
+        with path.open("rb") as stream:
+            data = stream.read(max_bytes + 1)
     except OSError as error:
         raise ValueError("input cannot be read") from error  # noqa: TRY003
     if len(data) > max_bytes:

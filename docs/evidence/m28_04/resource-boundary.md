@@ -16,9 +16,10 @@ paths did not use those caps:
 The engine now serializes Mapping requests once and enforces the existing
 `M2804_MAX_CANONICAL_REQUEST_BYTES` limit before validation. The service applies
 the corresponding existing result limit before replay validation. The CLI
-pre-read boundary was already present on current main and remains covered by
-the existing interface regression. No new limit, field, endpoint, media type,
-or scientific claim was introduced.
+pre-read boundary now streams at most `max_bytes + 1` bytes after its metadata
+check, closing the stat/read TOCTOU path without an unbounded `Path.read_bytes()`
+allocation. No new limit, field, endpoint, media type, or scientific claim was
+introduced.
 
 ## Verification
 
@@ -28,7 +29,7 @@ or scientific claim was introduced.
   `tests/runtime/test_m2804_runtime.py`.
 - Existing oversized CLI request/result pre-read coverage remains in
   `tests/integration/test_m2804_interfaces.py`.
-- The complete M28-04 scoped suite passes: 39 tests.
+- The complete M28-04 scoped suite passes: 40 tests.
 - Ruff, formatted-source checks, and strict MyPy pass for the three touched
   production gateway files.
 
