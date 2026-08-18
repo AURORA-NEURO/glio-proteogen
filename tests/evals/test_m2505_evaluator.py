@@ -3,8 +3,8 @@
 from evals.m25_05.benchmark import run_benchmark
 from evals.m25_05.evaluator import evaluate, run_adversarial, run_scenarios
 
-_LOCKED_SCENARIOS = 9
-_ADVERSARIAL_SCENARIOS = 4
+_LOCKED_SCENARIOS = 10
+_ADVERSARIAL_SCENARIOS = 5
 _BENCHMARK_ITERATIONS = 3
 
 

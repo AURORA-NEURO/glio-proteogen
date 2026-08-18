@@ -114,6 +114,26 @@ def test_result_identifier_tampering_is_rejected() -> None:
         service.verify_replay(tampered)
 
 
+@pytest.mark.parametrize("mutation", ["report", "evidence"])
+def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
+    """A forged digest must not make a changed report or evidence replayable."""
+
+    service = M2505Service()
+    result = service.execute(build_request())
+    if mutation == "report":
+        assert result.report is not None
+        changed_report = result.report.model_copy(update={"version": "1.0.1"})
+        forged = result.model_copy(update={"report": changed_report})
+    else:
+        assert result.evidence
+        changed_evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
+        forged = result.model_copy(update={"evidence": (changed_evidence,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2505ReplayError):
+        service.verify_replay(forged)
+
+
 def test_result_finding_ids_are_unique() -> None:
     result = M2505Service().execute(build_request(performance_status=EquityStatus.BELOW_FLOOR))
     assert result.findings

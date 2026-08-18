@@ -143,17 +143,23 @@ class M2505SubgroupEquityEngine:
         self,
         result: ProteotypeSubgroupEvaluationResult,
     ) -> ProteotypeSubgroupEvaluationResult:
+        """Regenerate and compare the complete canonical result.
+
+        The result digest protects the candidate's self-consistency, but a caller
+        who can rewrite both a nested field and that digest could otherwise make
+        a semantically different report appear replayable.  Re-running the
+        deterministic evaluator from the canonical request and comparing the
+        complete serialized result closes that gap without trusting any caller
+        supplied report, finding, provenance, or evidence field.
+        """
         try:
             replayed = ProteotypeSubgroupEvaluationResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
+            regenerated = self.generate(replayed.request)
         except Exception as error:
             raise M2505ReplayError from error
-        if replayed.request_digest != canonical_request_digest(replayed.request):
-            raise M2505ReplayError
-        if replayed.result_id != result_identifier(replayed.request, replayed.status.value):
-            raise M2505ReplayError
-        if replayed.result_digest != result_payload_digest(replayed):
+        if canonical_json_bytes(replayed) != canonical_json_bytes(regenerated):
             raise M2505ReplayError
         return replayed
 
