@@ -12,7 +12,7 @@ truth.
 - Dossier SHA-256:
   `0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181`.
 - Exact authority slice: `GLIO-PROTEOGEN_240_Module_Dossier.md:6736-6776`.
-- Base: `e8071eab` (M19-05 boundary hardening merged into `main`).
+- Base: `33a4947` (current `main` after the latest merged module lane).
 - Parent: `proteotype`; owner Platform engineering; S2/G4; ABI
   `0.1.0-provisional`.
 - Upstream remains a caller-declared M19-05 media reference; no external
@@ -57,8 +57,8 @@ truth.
 
 ## Python LOC
 
-Against `e8071eab`, this lane changes **6 Python files**, with **227
-additions, 5 deletions, +222 net LOC**. Current tracked total is **631,681
+Against `33a4947`, this lane changes **7 Python files**, with **386
+additions, 5 deletions, +381 net LOC**. Current tracked total is **634,299
 Python LOC**.
 
 Package, evaluator, benchmark, and scoped coverage receipts are in
