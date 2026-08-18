@@ -33,8 +33,9 @@ diagnostics that support a later `complex_activity` workflow.
 6. Parse enough structure to prove the declared profile and reference closure, never to issue a
    biological result. mzML and mzIdentML identifiers and references, JSON object keys and declared
    references, FASTA component records, PSI-MOD identifiers, VCF headers/records, and GFF3
-   directives/records are checked within explicit caps. Duplicate JSON keys and silent scalar
-   coercions are forbidden.
+   directives/records are checked within explicit caps. mzIdentML requires a unique XML-ID index
+   and complete reviewed container shape; FASTA component keys are nonempty, identifier-safe, and
+   unique. Duplicate JSON keys and silent scalar coercions are forbidden.
 7. Bind all five exact M03-01 FASTA component roles and the PTM ontology digest. Missing,
    unexpected, or swapped components fail closed. Matching basenames, display labels, versions, or
    descriptions cannot override a role or content-digest mismatch.
@@ -72,7 +73,7 @@ a laboratory step occurred, or establish biological truth.
 
 ## Evidence gate
 
-Gate G0 contains exactly 77 executable cases in eight synthetic, non-clinical groups: genuine
+Gate G0 contains exactly 79 executable cases in eight synthetic, non-clinical groups: genuine
 upstream closure and the canonical admission capsule; role/format and cross-reference parsing;
 M03-01 search-space and PTM closure; M03-02 identity-graph and source-manifest binding; build/CV/unit
 coherence; typed failure precedence and disagreement retention; authorization, strictness,
