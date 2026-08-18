@@ -5032,23 +5032,23 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "9e4b1022c0ddd2cc02cf76bd458972a6fdfddf94163f4530be786f0369768013",
+        "result_digest": "9bcff93a5bb894ba5cd3d4585fc4ebe55a342aab817c126a15068efa64c4ed67",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "pdc-a",
-              "4dae875c1312d0675b6879c119d5d3b885d8f46a57c02ee79c9dbb02fb83978b"
+              "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769"
             ],
             [
               "pdc-b",
-              "85570ab7e71708d5bdb2f745ff1dc974ee72f3b251bf5a8960277167d4d93e99"
+              "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "4dae875c1312d0675b6879c119d5d3b885d8f46a57c02ee79c9dbb02fb83978b",
-              "85570ab7e71708d5bdb2f745ff1dc974ee72f3b251bf5a8960277167d4d93e99"
+              "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
+              "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -5068,7 +5068,7 @@
                   "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
                   "pdc_file_name": "pdc-a.mzML",
                   "pdc_study_id": "PDC000204",
-                  "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                  "receipt_digest": "cd6ab3c0a41fbf4d16a2d36032b3d6e0a425f0cbfd05c3ff256e95243f06a760",
                   "replicate_kind": "unknown",
                   "sample_id": "pdc-a",
                   "source_id": "pdc:pdc-a",
@@ -5084,7 +5084,7 @@
                   "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
                   "pdc_file_name": "pdc-b.mzML",
                   "pdc_study_id": "PDC000204",
-                  "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                  "receipt_digest": "a20de378c1d2a6fcb883b8487ac397c9ee7818fec9f0cf9f01cff32e3275fdda",
                   "replicate_kind": "unknown",
                   "sample_id": "pdc-b",
                   "source_id": "pdc:pdc-b",
@@ -5094,7 +5094,7 @@
                 }
               ]
             },
-            "cohort_source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390",
+            "cohort_source_manifest_digest": "19a8f913c2e05f808df283d7496483b9df75f271c8734cdb9ce85f5e0cb09d8b",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -5133,6 +5133,7 @@
                     "study_id": "PDC000204"
                   },
                   "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                  "observed_media_type": "application/mzml",
                   "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
                   "observed_size": 687,
                   "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
@@ -5204,6 +5205,7 @@
                     "study_id": "PDC000204"
                   },
                   "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                  "observed_media_type": "application/mzml",
                   "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
                   "observed_size": 687,
                   "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
@@ -5298,7 +5300,7 @@
               ]
             ]
           ],
-          "result_digest": "9e4b1022c0ddd2cc02cf76bd458972a6fdfddf94163f4530be786f0369768013",
+          "result_digest": "9bcff93a5bb894ba5cd3d4585fc4ebe55a342aab817c126a15068efa64c4ed67",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -5398,7 +5400,7 @@
                 "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
                 "pdc_file_name": "pdc-a.mzML",
                 "pdc_study_id": "PDC000204",
-                "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                "receipt_digest": "cd6ab3c0a41fbf4d16a2d36032b3d6e0a425f0cbfd05c3ff256e95243f06a760",
                 "replicate_kind": "unknown",
                 "sample_id": "pdc-a",
                 "source_id": "pdc:pdc-a",
@@ -5414,7 +5416,7 @@
                 "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
                 "pdc_file_name": "pdc-b.mzML",
                 "pdc_study_id": "PDC000204",
-                "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                "receipt_digest": "a20de378c1d2a6fcb883b8487ac397c9ee7818fec9f0cf9f01cff32e3275fdda",
                 "replicate_kind": "unknown",
                 "sample_id": "pdc-b",
                 "source_id": "pdc:pdc-b",
@@ -5425,7 +5427,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "853b33518dd9ee7f792f420a51ac8c4be368a1883f376af3f0d065b580406f1a",
+            "digest": "13d721c0ed1e6d96848731ba5ccad11ed32a09d31eed3de0fb78bf85591367de",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -5499,14 +5501,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "7ef04bfade9bdc665d0cc7801c9006c6740547571e4928cddfae349658e50313",
+                "digest": "526aa7ccc9b3cb85b1de1bde2ab36d27fdd70be929e6e8f176fed7105b40b0fb",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "4dae875c1312d0675b6879c119d5d3b885d8f46a57c02ee79c9dbb02fb83978b",
-                      "85570ab7e71708d5bdb2f745ff1dc974ee72f3b251bf5a8960277167d4d93e99"
+                      "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
+                      "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
                     ],
                     "cohort_normalization_policy": "none",
                     "cohort_normalization_version": "none",
@@ -5526,7 +5528,7 @@
                           "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
                           "pdc_file_name": "pdc-a.mzML",
                           "pdc_study_id": "PDC000204",
-                          "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                          "receipt_digest": "cd6ab3c0a41fbf4d16a2d36032b3d6e0a425f0cbfd05c3ff256e95243f06a760",
                           "replicate_kind": "unknown",
                           "sample_id": "pdc-a",
                           "source_id": "pdc:pdc-a",
@@ -5542,7 +5544,7 @@
                           "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
                           "pdc_file_name": "pdc-b.mzML",
                           "pdc_study_id": "PDC000204",
-                          "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                          "receipt_digest": "a20de378c1d2a6fcb883b8487ac397c9ee7818fec9f0cf9f01cff32e3275fdda",
                           "replicate_kind": "unknown",
                           "sample_id": "pdc-b",
                           "source_id": "pdc:pdc-b",
@@ -5552,7 +5554,7 @@
                         }
                       ]
                     },
-                    "cohort_source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390",
+                    "cohort_source_manifest_digest": "19a8f913c2e05f808df283d7496483b9df75f271c8734cdb9ce85f5e0cb09d8b",
                     "cohort_version": "research-cohort-3",
                     "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
                     "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -5591,6 +5593,7 @@
                             "study_id": "PDC000204"
                           },
                           "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "observed_media_type": "application/mzml",
                           "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
                           "observed_size": 687,
                           "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
@@ -5662,6 +5665,7 @@
                             "study_id": "PDC000204"
                           },
                           "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "observed_media_type": "application/mzml",
                           "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
                           "observed_size": 687,
                           "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
@@ -5716,7 +5720,7 @@
                         "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
                         "pdc_file_name": "pdc-a.mzML",
                         "pdc_study_id": "PDC000204",
-                        "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                        "receipt_digest": "cd6ab3c0a41fbf4d16a2d36032b3d6e0a425f0cbfd05c3ff256e95243f06a760",
                         "replicate_kind": "unknown",
                         "sample_id": "pdc-a",
                         "source_id": "pdc:pdc-a",
@@ -5732,7 +5736,7 @@
                         "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
                         "pdc_file_name": "pdc-b.mzML",
                         "pdc_study_id": "PDC000204",
-                        "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                        "receipt_digest": "a20de378c1d2a6fcb883b8487ac397c9ee7818fec9f0cf9f01cff32e3275fdda",
                         "replicate_kind": "unknown",
                         "sample_id": "pdc-b",
                         "source_id": "pdc:pdc-b",
@@ -5742,7 +5746,7 @@
                       }
                     ]
                   },
-                  "source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390"
+                  "source_manifest_digest": "19a8f913c2e05f808df283d7496483b9df75f271c8734cdb9ce85f5e0cb09d8b"
                 },
                 "quality": {
                   "auditability": 1.0,
@@ -5875,20 +5879,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      881500,
-      853100,
-      844500,
-      860600,
-      910300,
-      722900,
-      685800,
-      676500,
-      677500,
-      802700
+      634000,
+      600700,
+      582700,
+      589500,
+      710300,
+      651500,
+      593900,
+      591000,
+      606100,
+      587300
     ],
-    "mean_ns": 791540.0,
-    "median_ns": 844500,
-    "p95_ns": 910300,
+    "mean_ns": 614700.0,
+    "median_ns": 600700,
+    "p95_ns": 710300,
     "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
   },
   "coverage": {
