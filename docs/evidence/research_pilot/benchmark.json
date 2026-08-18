@@ -1,0 +1,17 @@
+{
+  "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
+  "iterations": 20,
+  "warmup_iterations": 1,
+  "scenario": "one local MS2 spectrum, one FASTA entry, checked-in PDC metadata",
+  "mean_ns": 274285,
+  "median_ns": 269100,
+  "p95_ns": 299300,
+  "min_ns": 254600,
+  "max_ns": 361200,
+  "budgets_ns": {
+    "mean": 500000000,
+    "p95": 750000000
+  },
+  "passed": true,
+  "result_digest": "sha256:3fc04337fbfc2066dcdd8e990519ff67e29962dd8eb5c3c6578e09b12447c2a9"
+}

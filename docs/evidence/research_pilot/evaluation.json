@@ -1,0 +1,24 @@
+{
+  "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
+  "passed": true,
+  "scenarios": {
+    "positive_ms2_search": {
+      "status": "COMPLETED",
+      "matched_psms": 1,
+      "result_digest": "sha256:3fc04337fbfc2066dcdd8e990519ff67e29962dd8eb5c3c6578e09b12447c2a9"
+    },
+    "checked_in_fixture": {
+      "status": "ABSTAINED",
+      "reason": "NO_MS2_SPECTRA",
+      "result_digest": "sha256:3569a11d6bc6ac0a2c12e7cb3c190027818060d23dd5f9ffb5e7ef768a326f69"
+    },
+    "replay": {
+      "passed": true
+    },
+    "policy_true_claim_rejection": {
+      "passed": true
+    }
+  },
+  "fixture_metadata": "research/fixtures/pdc/pdc000204.metadata.json",
+  "fixture_boundary": "metadata only; no raw public cohort file is checked in"
+}

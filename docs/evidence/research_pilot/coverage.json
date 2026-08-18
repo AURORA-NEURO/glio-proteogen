@@ -1,0 +1,14 @@
+{
+  "branch_enabled": true,
+  "branch_coverage_percent": 97.37827715355806,
+  "covered_branches": 318,
+  "covered_statements": 982,
+  "fail_under": 95.0,
+  "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
+  "passed": true,
+  "scope": "glio_proteogen.research",
+  "statements": 997,
+  "branches": 338,
+  "test_count": 69,
+  "command": "python -m pytest -o addopts='' -p no:cacheprovider tests/research --cov=glio_proteogen.research --cov-branch --cov-report=term-missing"
+}
