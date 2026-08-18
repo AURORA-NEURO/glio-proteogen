@@ -23,6 +23,7 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -670,7 +671,7 @@ class PtmLocalizationArtifactComputationReceipt(FrozenModel):
         return self
 
 
-class PtmLocalizationArtifactDetectionResult(FrozenModel):
+class PtmLocalizationArtifactDetectionResult(NonInferenceResultModel):
     output_type: Literal["ptm_localization_artifact_contamination_assessment"] = (
         "ptm_localization_artifact_contamination_assessment"
     )

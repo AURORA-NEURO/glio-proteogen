@@ -57,6 +57,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1076,7 +1077,7 @@ def expected_limitations() -> tuple[Limitation, ...]:
     )
 
 
-class PtmLocalizationRawInputValidationResult(FrozenModel):
+class PtmLocalizationRawInputValidationResult(NonInferenceResultModel):
     output_type: Literal["ptm_localization_raw_input_validation_result"] = (
         "ptm_localization_raw_input_validation_result"
     )
