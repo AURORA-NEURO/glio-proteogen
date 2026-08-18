@@ -44,6 +44,8 @@ and the complete sorted archive-member inventory for each artifact. The
 standard-library verifier checks the receipt against both candidate files,
 rejects duplicate or missing members, and is invoked by the release-evidence
 workflow after the candidate wheel is installed into its isolated runtime.
+The receipt also records the 140-test research gate and 95.21% branch-enabled
+coverage result (95% minimum).
 
 ## Promotion gate
 

@@ -6603,5 +6603,14 @@
   },
   "isolated_wheel_import": "passed",
   "status": "passed",
-  "source_date_epoch": 315532800
+  "source_date_epoch": 315532800,
+  "focused_tests": 140,
+  "coverage": {
+    "statements": 1722,
+    "missed_statements": 57,
+    "branches": 638,
+    "partial_branches": 50,
+    "percent": 95.21,
+    "fail_under": 95
+  }
 }
