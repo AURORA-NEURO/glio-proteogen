@@ -17,6 +17,18 @@
   "total": 6,
   "allPassed": true,
   "replayAndTamperChecks": true,
+  "semanticReplayRecompute": true,
+  "selfRehashedDigestRejected": true,
+  "mutatedRegions": [
+    "access_decision.reason",
+    "status",
+    "security_posture.findings",
+    "evidence",
+    "limitations",
+    "result_id",
+    "request.authorization"
+  ],
+  "surfaceParity": ["engine", "service", "plugin", "api", "cli"],
   "deterministicDigests": true,
   "safeAbstention": true
 }
