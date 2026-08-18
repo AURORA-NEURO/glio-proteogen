@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from tools.verify_research_pilot import verify as verify_pilot_evidence
 
 from glio_proteogen.research import (
     PilotError,
@@ -127,6 +128,53 @@ def test_request_rejects_non_bytes_and_oversized_input() -> None:
         )
 
 
+def test_request_rejects_invalid_sample_timestamp_and_search_bounds() -> None:
+    with pytest.raises(PilotError, match="sample"):
+        PilotRequest(metadata_response=b"{}", fasta_bytes=b"x", mzml_bytes=b"x", sample_id=" ")
+    with pytest.raises(PilotError, match="sample"):
+        PilotRequest(
+            metadata_response=b"{}", fasta_bytes=b"x", mzml_bytes=b"x", retrieved_at="not-utc"
+        )
+    invalid_fragment = SearchParameters.__new__(SearchParameters)
+    object.__setattr__(invalid_fragment, "fragment_tolerance_da", 0.0)
+    object.__setattr__(invalid_fragment, "min_matched_ions", 1)
+    with pytest.raises(PilotError, match="fragment tolerance"):
+        PilotRequest(
+            metadata_response=b"{}",
+            fasta_bytes=b"x",
+            mzml_bytes=b"x",
+            parameters=invalid_fragment,
+        )
+    invalid_ions = SearchParameters.__new__(SearchParameters)
+    object.__setattr__(invalid_ions, "fragment_tolerance_da", 0.2)
+    object.__setattr__(invalid_ions, "min_matched_ions", 0)
+    with pytest.raises(PilotError, match="minimum matched ions"):
+        PilotRequest(
+            metadata_response=b"{}",
+            fasta_bytes=b"x",
+            mzml_bytes=b"x",
+            parameters=invalid_ions,
+        )
+
+
+def test_pilot_abstains_when_search_space_exceeds_cap() -> None:
+    request = _request(_mzml_with_ms2())
+    request = replace(
+        request,
+        fasta_bytes=b">P1\nMPEPTIDER\n>P2\nPEPTIDEK\n",
+        limits=PilotLimits(max_peptides=1),
+    )
+    with pytest.raises(PilotError, match="search space"):
+        run_pilot(request)
+
+
+def test_pilot_stops_at_psm_limit() -> None:
+    request = replace(_request(_mzml_with_ms2()), limits=PilotLimits(max_psms=1))
+    result = run_pilot(request)
+    assert result.status == "COMPLETED"
+    assert len(result.matched_psms) == 1
+
+
 def test_replay_detects_tampered_receipt() -> None:
     request = _request(_mzml_with_ms2())
     result = run_pilot(request)
@@ -140,3 +188,12 @@ def test_replay_detects_tampered_receipt() -> None:
     )
     with pytest.raises(PilotError, match="replay"):
         verify_pilot_replay(request, changed_parameters)
+
+
+def test_checked_in_pilot_evidence_and_package_receipt_are_closed() -> None:
+    receipt = verify_pilot_evidence(_ROOT)
+    assert receipt["module_id"] == "RESEARCH-PUBLIC-PROTEOMICS-PILOT"
+    assert receipt["package"] == {
+        "passed": True,
+        "artifacts": ["wheel", "sdist"],
+    }
