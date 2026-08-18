@@ -508,7 +508,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         if spectrum.ms_level != 2:
             continue
         ms2_count += 1
-        if spectrum.precursor_mz is None or spectrum.precursor_charge is None:
+        if (
+            spectrum.precursor_ambiguous
+            or spectrum.precursor_mz is None
+            or spectrum.precursor_charge is None
+        ):
             missing_precursor_count += 1
             continue
         candidates = search_spectrum_candidates(

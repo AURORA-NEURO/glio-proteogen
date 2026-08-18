@@ -8,6 +8,13 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import BinaryIO
 
+DEFAULT_FASTA_MAX_BYTES = 256 * 1024 * 1024
+DEFAULT_FASTA_MAX_ENTRIES = 1_000_000
+DEFAULT_FASTA_MAX_RESIDUES = 100_000_000
+_MAX_FASTA_BYTES = 512 * 1024 * 1024
+_MAX_FASTA_ENTRIES = 2_000_000
+_MAX_FASTA_RESIDUES = 500_000_000
+
 
 @dataclass(frozen=True, slots=True)
 class FastaEntry:
@@ -64,18 +71,44 @@ class SearchSpace:
         return dict(self.peptide_map)
 
 
-def read_fasta(source: bytes | str | BinaryIO) -> tuple[FastaEntry, ...]:
+def _read_fasta_source(source: bytes | str | BinaryIO, max_bytes: int) -> str:
+    if type(max_bytes) is not int or not 0 < max_bytes <= _MAX_FASTA_BYTES:
+        raise ValueError("FASTA byte limit is outside the bounded range")
     if isinstance(source, bytes):
-        text = source.decode("utf-8")
+        payload = source
     elif isinstance(source, str):
-        text = source
+        payload = source.encode("utf-8")
     else:
-        value = source.read()
-        text = value.decode("utf-8") if isinstance(value, bytes) else value
+        payload = source.read(max_bytes + 1)
+        if not isinstance(payload, bytes):
+            raise TypeError("FASTA binary stream must return bytes")
+    if len(payload) > max_bytes:
+        raise ValueError("FASTA source exceeds the research byte limit")
+    try:
+        return payload.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError("FASTA source is not valid UTF-8") from error
+
+
+def read_fasta(
+    source: bytes | str | BinaryIO,
+    *,
+    max_bytes: int = DEFAULT_FASTA_MAX_BYTES,
+    max_entries: int = DEFAULT_FASTA_MAX_ENTRIES,
+    max_residues: int = DEFAULT_FASTA_MAX_RESIDUES,
+) -> tuple[FastaEntry, ...]:
+    """Read bounded FASTA text with explicit entry and residue ceilings."""
+
+    if type(max_entries) is not int or not 0 < max_entries <= _MAX_FASTA_ENTRIES:
+        raise ValueError("FASTA entry limit is outside the bounded range")
+    if type(max_residues) is not int or not 0 < max_residues <= _MAX_FASTA_RESIDUES:
+        raise ValueError("FASTA residue limit is outside the bounded range")
+    text = _read_fasta_source(source, max_bytes)
     entries: list[FastaEntry] = []
     seen_accessions: set[str] = set()
     accession: str | None = None
     residues: list[str] = []
+    residue_count = 0
     alphabet = set("ABCDEFGHIKLMNOPQRSTUVWYXZ*")
     for raw in text.splitlines():
         line = raw.strip()
@@ -89,6 +122,8 @@ def read_fasta(source: bytes | str | BinaryIO) -> tuple[FastaEntry, ...]:
                     raise ValueError("FASTA contains duplicate accessions")
                 seen_accessions.add(accession)
                 entries.append(FastaEntry(accession, "".join(residues)))
+                if len(entries) > max_entries:
+                    raise ValueError("FASTA entry count exceeds the research limit")
             header = line[1:].split(None, 1)
             if not header or not header[0]:
                 raise ValueError("FASTA header has no accession")
@@ -98,6 +133,9 @@ def read_fasta(source: bytes | str | BinaryIO) -> tuple[FastaEntry, ...]:
             raise ValueError("invalid FASTA sequence")
         else:
             residues.append(line.upper())
+            residue_count += len(line)
+            if residue_count > max_residues:
+                raise ValueError("FASTA residue count exceeds the research limit")
     if accession is not None:
         if not residues:
             raise ValueError("FASTA entry has no residues")
@@ -105,6 +143,8 @@ def read_fasta(source: bytes | str | BinaryIO) -> tuple[FastaEntry, ...]:
             raise ValueError("FASTA contains duplicate accessions")
         seen_accessions.add(accession)
         entries.append(FastaEntry(accession, "".join(residues)))
+        if len(entries) > max_entries:
+            raise ValueError("FASTA entry count exceeds the research limit")
     if not entries:
         raise ValueError("FASTA contains no entries")
     return tuple(entries)

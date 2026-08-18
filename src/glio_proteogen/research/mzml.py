@@ -26,6 +26,7 @@ class Spectrum:
     intensity: tuple[float, ...]
     precursor_mz: float | None = None
     precursor_charge: int | None = None
+    precursor_ambiguous: bool = False
 
 
 def _local(tag: object) -> str:
@@ -129,6 +130,7 @@ def parse_mzml(
         retention: float | None = None
         precursor_mz: float | None = None
         precursor_charge: int | None = None
+        precursor_ambiguous = False
         for cv in element.findall("{*}cvParam"):
             accession = cv.attrib.get("accession")
             if accession == "MS:1000511":
@@ -136,12 +138,22 @@ def parse_mzml(
             elif accession == "MS:1000016":
                 value = float(cv.attrib["value"])
                 retention = value * 60.0 if cv.attrib.get("unitName") == "minute" else value
-        for cv in element.findall(".//{*}cvParam"):
-            accession = cv.attrib.get("accession")
-            if accession == "MS:1000744" and cv.attrib.get("value") is not None:
-                precursor_mz = float(cv.attrib["value"])
-            elif accession == "MS:1000041" and cv.attrib.get("value") is not None:
-                precursor_charge = int(cv.attrib["value"])
+        selected_ions: set[tuple[float | None, int | None]] = set()
+        for selected_ion in element.findall(".//{*}selectedIon"):
+            ion_mz: float | None = None
+            ion_charge: int | None = None
+            for cv in selected_ion.findall("{*}cvParam"):
+                accession = cv.attrib.get("accession")
+                if accession == "MS:1000744" and cv.attrib.get("value") is not None:
+                    ion_mz = float(cv.attrib["value"])
+                elif accession == "MS:1000041" and cv.attrib.get("value") is not None:
+                    ion_charge = int(cv.attrib["value"])
+            if ion_mz is not None or ion_charge is not None:
+                selected_ions.add((ion_mz, ion_charge))
+        if len(selected_ions) > 1:
+            precursor_ambiguous = True
+        elif selected_ions:
+            precursor_mz, precursor_charge = next(iter(selected_ions))
         if precursor_mz is not None and (not math.isfinite(precursor_mz) or precursor_mz <= 0):
             raise ValueError("mzML precursor m/z must be finite and positive")
         if precursor_charge is not None and precursor_charge < 1:
@@ -167,6 +179,7 @@ def parse_mzml(
                 intensity,
                 precursor_mz,
                 precursor_charge,
+                precursor_ambiguous,
             )
         )
     return tuple(output)
