@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-08",
+  "branch": true,
+  "fail_under": 95.0,
+  "percent": 96.21710526315789,
+  "statements": 514,
+  "covered_statements": 499,
+  "branches": 94,
+  "covered_branches": 86,
+  "partial_branches": 8,
+  "source_scope": [
+    "src/glio_proteogen/contracts/m19_08",
+    "src/glio_proteogen/modules/c17_metabolomic_lipidomic_integration/m19_08_translation_monitoring_service"
+  ],
+  "focused_tests": 47
+}
