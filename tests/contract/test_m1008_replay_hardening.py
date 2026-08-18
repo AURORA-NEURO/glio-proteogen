@@ -48,6 +48,10 @@ def test_canonical_projection_rejects_dict_subclass() -> None:
         canonical_request_digest(_DictSubclass(value=1))
 
 
+def test_result_verifier_rejects_hostile_mapping_without_access() -> None:
+    assert not m1008_runtime.verify_publication_result(_HostileMapping())
+
+
 def _rehashed_result(result: ProteinRnaEvidencePublicationResult, **updates: Any) -> dict[str, Any]:
     payload = result.model_dump(mode="python")
     payload.update(updates)
