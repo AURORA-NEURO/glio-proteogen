@@ -97,6 +97,37 @@ def test_receipt_rejects_duplicate_accessions_and_bad_source() -> None:
         build_search_space_receipt(b"fixture", (entry,), decoy_prefix=" ")
 
 
+def test_receipt_rejects_unsupported_generation_and_modification_controls() -> None:
+    entry = FastaEntry("P1", "MPEPTIDER")
+    with pytest.raises(ValueError, match="unsupported decoy_strategy"):
+        build_search_space_receipt(b"fixture", (entry,), decoy_strategy="random")
+    with pytest.raises(ValueError, match="at least one"):
+        build_search_space_receipt(b"fixture", ())
+    with pytest.raises(ValueError, match="between zero and three"):
+        build_search_space_receipt(b"fixture", (entry,), max_variable_modifications=4)
+    with pytest.raises(ValueError, match="positive site limit"):
+        build_search_space_receipt(
+            b"fixture",
+            (entry,),
+            modification_rules=("UNIMOD:35",),
+            max_variable_modifications=0,
+        )
+    with pytest.raises(ValueError, match="non-empty"):
+        build_search_space_receipt(b"fixture", (FastaEntry(" ", "MPEPTIDER"),))
+
+
+def test_receipt_verifier_rejects_strategy_and_digest_alias_tampering() -> None:
+    receipt = build_search_space_receipt(
+        b">P1\nMPEPTIDER\n",
+        (FastaEntry("P1", "MPEPTIDER"),),
+        decoy_strategy="reverse_protein",
+    )
+    with pytest.raises(ValueError, match="decoy strategy"):
+        verify_search_space_receipt(_rehashed(receipt, decoy_strategy="random"))
+    with pytest.raises(ValueError, match="digest alias"):
+        verify_search_space_receipt(replace(receipt, digest="0" * 64))
+
+
 def test_receipt_verifier_rejects_pairing_and_outer_tampering() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
     receipt = build_search_space_receipt(b"fixture", entries)
