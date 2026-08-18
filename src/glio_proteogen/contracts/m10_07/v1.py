@@ -8,6 +8,7 @@ catalogue.  These symbols are reviewable scaffolding only.
 from __future__ import annotations
 
 from enum import StrEnum
+from hashlib import sha256
 from typing import Final, Literal
 
 from pydantic import Field, model_validator
@@ -18,6 +19,9 @@ from glio_proteogen.contracts.m10_07.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
+    EstimateState,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -29,6 +33,7 @@ from glio_proteogen.kernel.models import (
     Sha256Digest,
     SupportDecision,
     SupportStatus,
+    UncertaintyEstimate,
     UncertaintyProfile,
 )
 
@@ -236,6 +241,9 @@ class ProteinRnaDiscordanceSelectivePredictionResult(FrozenModel):
     def result_is_closed(self) -> ProteinRnaDiscordanceSelectivePredictionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_result_id = f"result.{self.request_digest.removeprefix('sha256:')}"
+        if self.result_id != expected_result_id:
+            raise ValueError("result identifier does not bind the request digest")
         failed = {
             CalibrationDiagnosticStatus.FAIL,
             CalibrationDiagnosticStatus.NOT_EVALUABLE,
@@ -264,9 +272,154 @@ class ProteinRnaDiscordanceSelectivePredictionResult(FrozenModel):
             raise ValueError("calibration diagnostic ids must be unique")
         if len(self.findings) != len(set(self.findings)):
             raise ValueError("calibration findings must be unique")
+        if self.evidence != expected_evidence(self.request):
+            raise ValueError("result evidence does not bind the exact request sources")
+        if self.uncertainty != expected_uncertainty(self.request_digest):
+            raise ValueError("result uncertainty does not match deterministic calibration")
+        if not provenance_is_bound(self.request, self.request_digest, self.provenance):
+            raise ValueError("result provenance does not bind the exact request context")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def expected_evidence(
+    request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
+) -> tuple[EvidenceReference, ...]:
+    """Project the immutable calibration inputs into result evidence."""
+
+    artifacts = (
+        request.uncertainty_result,
+        request.configuration.calibration_artifact,
+        request.configuration.benchmark_artifact,
+        *request.source_artifacts,
+    )
+    return tuple(
+        EvidenceReference(reference=item, role="evidence", claim=M1007_EVIDENCE_CLAIM)
+        for item in artifacts
+    )
+
+
+def expected_input_digests(
+    request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
+) -> tuple[Sha256Digest, ...]:
+    """Return sorted source digests bound into deterministic provenance."""
+
+    return tuple(
+        sorted(
+            {
+                request.uncertainty_result.digest,
+                request.configuration.calibration_artifact.digest,
+                request.configuration.benchmark_artifact.digest,
+                *(item.digest for item in request.source_artifacts),
+            }
+        )
+    )
+
+
+def expected_uncertainty(digest: Sha256Digest) -> UncertaintyProfile:
+    """Return the deterministic provisional uncertainty profile for a request."""
+
+    def one(name: str) -> UncertaintyEstimate:
+        raw = int.from_bytes(sha256(f"{digest}|{name}|m10-07".encode()).digest()[:8], "big") / 2**64
+        return UncertaintyEstimate(
+            state=EstimateState.ESTIMATED,
+            probability=round(0.05 + raw * 0.3, 8),
+            rationale=(
+                f"Deterministic provisional {name} uncertainty from scoped calibration inputs."
+            ),
+        )
+
+    return UncertaintyProfile(
+        measurement=one("measurement"),
+        sampling=one("sampling"),
+        parameter=one("parameter"),
+        model_form=one("model_form"),
+        identification=one("identification"),
+        support=one("support"),
+        transport=one("transport"),
+        sensitivity_notes=(
+            "Nominal selective coverage is 90% within the provisional 85-95% envelope.",
+        ),
+    )
+
+
+def provenance_is_bound(
+    request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
+    request_digest: Sha256Digest,
+    provenance: ProvenanceRecord,
+) -> bool:
+    """Check request, control, consent, and source digest provenance closure."""
+
+    refs = request.context.references
+    expected_controls = (
+        ControlDecisionRecord(
+            role=ControlRole.APPROVED_CONFIGURATION,
+            decision_id=refs.approved_configuration.decision_id,
+            state=refs.approved_configuration.state.value,
+            policy_version=refs.approved_configuration.policy_version,
+            evidence_digest=refs.approved_configuration.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.IDENTITY_LINEAGE,
+            decision_id=refs.identity_lineage.decision_id,
+            state=refs.identity_lineage.state.value,
+            policy_version=refs.identity_lineage.policy_version,
+            evidence_digest=refs.identity_lineage.evidence.digest,
+            subject_digest=refs.identity_lineage.binding_digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.PROVENANCE,
+            decision_id=refs.provenance.decision_id,
+            state=refs.provenance.state.value,
+            policy_version=refs.provenance.policy_version,
+            evidence_digest=refs.provenance.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.CONSENT,
+            decision_id=refs.consent.decision_id,
+            state=refs.consent.state.value,
+            policy_version=refs.consent.policy_version,
+            evidence_digest=refs.consent.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.QUALITY,
+            decision_id=refs.quality.decision_id,
+            state=refs.quality.state.value,
+            policy_version=refs.quality.policy_version,
+            evidence_digest=refs.quality.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.SUPPORT,
+            decision_id=refs.support.decision_id,
+            state=refs.support.state.value,
+            policy_version=refs.support.policy_version,
+            evidence_digest=refs.support.evidence.digest,
+        ),
+        ControlDecisionRecord(
+            role=ControlRole.INTENDED_USE,
+            decision_id=refs.intended_use.decision_id,
+            state=refs.intended_use.state.value,
+            policy_version=refs.intended_use.policy_version,
+            evidence_digest=refs.intended_use.evidence.digest,
+        ),
+    )
+    actual = {item.role: item for item in provenance.control_decisions}
+    return (
+        provenance.activity_id == f"activity.{request_digest.removeprefix('sha256:')}"
+        and provenance.actor_id == request.context.actor_id
+        and provenance.module_id == M1007_MODULE_ID
+        and provenance.module_version == M1007_CONTRACT_VERSION
+        and provenance.input_digests == expected_input_digests(request)
+        and provenance.configuration_digest == refs.approved_configuration.evidence.digest
+        and provenance.consent_decision_id == refs.consent.decision_id
+        and provenance.consent_state is refs.consent.state
+        and provenance.consent_policy_version == refs.consent.policy_version
+        and provenance.consent_evidence_digest == refs.consent.evidence.digest
+        and len(provenance.control_decisions) == len(expected_controls)
+        and set(actual) == {item.role for item in expected_controls}
+        and all(actual.get(expected.role) == expected for expected in expected_controls)
+    )
 
 
 __all__ = [
@@ -306,4 +459,8 @@ __all__ = [
     "CalibrationStatus",
     "PredictionSet",
     "ProteinRnaDiscordanceSelectivePredictionResult",
+    "expected_evidence",
+    "expected_input_digests",
+    "expected_uncertainty",
+    "provenance_is_bound",
 ]
