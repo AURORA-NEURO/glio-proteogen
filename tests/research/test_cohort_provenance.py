@@ -145,7 +145,13 @@ def test_pdc_manifest_cannot_forge_receipt_identity(field: str, value: str, mess
         (first.request, second.request),
         replicate_kinds={"pdc-a": "technical", "pdc-b": "technical"},
     )
-    forged = replace(manifest.for_sample("pdc-a"), **{field: value})
+    original = manifest.for_sample("pdc-a")
+    if field == "source_id":
+        forged = replace(original, source_id=value)
+    elif field == "catalog_response_sha256":
+        forged = replace(original, catalog_response_sha256=value)
+    else:
+        forged = replace(original, pdc_file_name=value)
     bad = CohortSourceManifest((forged, manifest.for_sample("pdc-b")))
     with pytest.raises(ValueError, match=message):
         run_research_cohort(
