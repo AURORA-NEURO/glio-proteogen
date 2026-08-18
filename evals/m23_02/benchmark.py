@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any, Final
 
-if __package__ in {None, ""}:
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     _PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
@@ -18,7 +18,7 @@ from glio_proteogen.modules.c21_reference_material.m23_02_synthetic_truth_simula
     M2302Service,
 )
 
-if __package__ in {None, ""}:
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     from evals.m23_02.fixture import build_request
 else:
     from .fixture import build_request
