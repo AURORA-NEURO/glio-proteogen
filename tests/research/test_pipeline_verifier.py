@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 _ROOT = Path(__file__).resolve().parents[2]
 _EVIDENCE = _ROOT / "docs" / "evidence" / "research-foundation" / "evaluation.json"
 _PACKAGE = _ROOT / "docs" / "evidence" / "research-foundation" / "package.json"
+_FIXTURE = _ROOT / "tests" / "fixtures" / "research" / "proteomics_scenarios.json"
 
 
 def _write_mutation(tmp_path: Path, mutate: Callable[[dict[str, object]], None]) -> Path:
@@ -35,6 +36,15 @@ def _write_mutation(tmp_path: Path, mutate: Callable[[dict[str, object]], None])
 
 def test_research_evidence_verifier_accepts_locked_record() -> None:
     verify(_EVIDENCE, allow_metadata_only=True)
+
+
+def test_research_evaluation_receipt_binds_source_fixture() -> None:
+    evidence = json.loads(_EVIDENCE.read_text(encoding="utf-8"))
+    fixture_digest = sha256(_FIXTURE.read_bytes()).hexdigest()
+    assert evidence["fixture_sha256"] == fixture_digest
+    evaluator = evidence["evaluator"]
+    assert isinstance(evaluator, dict)
+    assert evaluator["fixture_sha256"] == fixture_digest
 
 
 def test_research_evidence_verifier_requires_artifacts_by_default() -> None:
