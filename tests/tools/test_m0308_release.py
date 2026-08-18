@@ -6,7 +6,11 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-from tools.verify_m03_08_release import M0308ReleaseEvidenceError, verify_release
+from tools.verify_m03_08_release import (
+    EXPECTED_EVALUATOR_CHECK_NAMES,
+    M0308ReleaseEvidenceError,
+    verify_release,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,7 +19,7 @@ if TYPE_CHECKING:
 def _evidence(tmp_path: Path) -> Path:
     directory = tmp_path / "evidence"
     directory.mkdir()
-    checks = [{"name": f"case-{index}", "passed": True} for index in range(40)]
+    checks = [{"name": name, "passed": True} for name in sorted(EXPECTED_EVALUATOR_CHECK_NAMES)]
     (directory / "evaluation.json").write_text(
         json.dumps(
             {
@@ -130,3 +134,12 @@ def test_release_verifier_binds_external_artifact_bytes(tmp_path: Path) -> None:
     (artifacts / "package.tar.gz").write_bytes(b"good")
     with pytest.raises(M0308ReleaseEvidenceError, match="digest mismatch"):
         verify_release(directory, artifacts)
+
+
+def test_release_verifier_rejects_forged_evaluator_inventory(tmp_path: Path) -> None:
+    directory = _evidence(tmp_path)
+    evaluation = json.loads((directory / "evaluation.json").read_text(encoding="utf-8"))
+    evaluation["checks"][0]["name"] = "scenario.fake"
+    (directory / "evaluation.json").write_text(json.dumps(evaluation), encoding="utf-8")
+    with pytest.raises(M0308ReleaseEvidenceError, match="locked corpus"):
+        verify_release(directory)

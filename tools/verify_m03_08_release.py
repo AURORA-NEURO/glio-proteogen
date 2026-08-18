@@ -29,6 +29,50 @@ MEAN_BUDGET_NS: Final = 2_000_000_000
 P95_BUDGET_NS: Final = 3_000_000_000
 MIN_COVERAGE_PERCENT: Final = 95.0
 SOURCE_DATE_EPOCH: Final = 315532800
+EXPECTED_EVALUATOR_CHECK_NAMES: Final = frozenset(
+    {
+        "corpus.exact_eight_groups_thirty_eight_cases",
+        "scenario.canonical_release",
+        "scenario.semantic_reorder_replay",
+        "scenario.m03_01_quarantined",
+        "scenario.m03_02_unreleasable",
+        "scenario.m03_03_unreleasable",
+        "scenario.m03_04_quarantined",
+        "scenario.m03_05_quarantined",
+        "scenario.m03_06_quarantined",
+        "scenario.m03_07_abstained",
+        "scenario.identity_lineage_substitution",
+        "scenario.predecessor_digest_substitution",
+        "scenario.harmonization_support_substitution",
+        "scenario.artifact_byte_digest_mismatch",
+        "scenario.artifact_declared_digest_mismatch",
+        "scenario.artifact_size_mismatch",
+        "scenario.missing_artifact_member",
+        "scenario.undeclared_artifact_member",
+        "scenario.duplicate_canonical_member",
+        "scenario.unsafe_member_path",
+        "scenario.archive_member_alias",
+        "scenario.verified_statement_releases",
+        "scenario.statement_digest_mismatch_quarantines",
+        "scenario.unsupported_signature_algorithm_rejected",
+        "scenario.verifier_unavailable_quarantines",
+        "scenario.verifier_rejected_quarantines",
+        "scenario.malformed_signature_value_rejected",
+        "scenario.coerced_integer_rejected",
+        "scenario.coerced_boolean_rejected",
+        "scenario.unknown_field_rejected",
+        "scenario.invalid_enumeration_rejected",
+        "scenario.stale_derived_digest_rejected",
+        "scenario.semantic_duplicate_rejected",
+        "scenario.recursive_output_boundary",
+        "scenario.consent_denied_before_hostile_chain",
+        "scenario.consent_denied_before_hostile_artifacts",
+        "scenario.typed_blocked_recovery",
+        "scenario.maximum_accepted_shape",
+        "scenario.first_excess_rejected_before_archive",
+        "coverage.exact_declared_executable_case_set",
+    }
+)
 
 
 class M0308ReleaseEvidenceError(ValueError):
@@ -89,6 +133,14 @@ def _require_exact_evaluator(evaluation: Mapping[str, object]) -> None:
     checks = evaluation.get("checks")
     if not isinstance(checks, list) or len(checks) != EXPECTED_CASE_COUNT + 2:
         raise M0308ReleaseEvidenceError("evaluator check inventory changed")
+    names = [item.get("name") for item in checks if isinstance(item, dict)]
+    if (
+        len(names) != len(checks)
+        or any(not isinstance(name, str) for name in names)
+        or len(set(names)) != len(names)
+        or set(names) != EXPECTED_EVALUATOR_CHECK_NAMES
+    ):
+        raise M0308ReleaseEvidenceError("evaluator check names do not match the locked corpus")
     if any(not isinstance(item, dict) or item.get("passed") is not True for item in checks):
         raise M0308ReleaseEvidenceError("evaluator contains a failing or malformed check")
 
