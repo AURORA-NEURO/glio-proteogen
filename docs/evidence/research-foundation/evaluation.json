@@ -1,12 +1,12 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "1e01ce78aa35e86781179d64baeb2e3b050d29695c0abdcdb778e94f5a9d1e49",
+  "fixture_sha256": "dc16177dff9cf34d6583ffe97c99159837f0443f440925fdb7bc142a3f9bb0c8",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "1e01ce78aa35e86781179d64baeb2e3b050d29695c0abdcdb778e94f5a9d1e49",
+    "fixture_sha256": "dc16177dff9cf34d6583ffe97c99159837f0443f440925fdb7bc142a3f9bb0c8",
     "outcomes": [
       {
         "scenario_id": "target_supported",
@@ -5875,20 +5875,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      515000,
-      497800,
-      498700,
-      502600,
-      495800,
-      488700,
-      494300,
-      484700,
-      512300,
-      523600
+      532000,
+      639800,
+      506000,
+      496900,
+      507700,
+      523700,
+      749300,
+      594200,
+      538000,
+      533100
     ],
-    "mean_ns": 501350.0,
-    "median_ns": 498700,
-    "p95_ns": 523600,
+    "mean_ns": 562070.0,
+    "median_ns": 533100,
+    "p95_ns": 749300,
     "result_digest": "65e7f3894f0f3bdb8d4a0c888a18658c555d582a18694a304d9e194f570875d4"
   },
   "coverage": {
