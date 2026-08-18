@@ -80,7 +80,7 @@ class M2108Plugin:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except (TypeError, ValueError, ValidationError) as error:
-            raise M2108ReplayError("M21-08 result is invalid") from error
+            raise M2108ReplayError from error
         return self._service.verify(validated, replay=replay)
 
 

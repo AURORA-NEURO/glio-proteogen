@@ -58,6 +58,7 @@ from glio_proteogen.kernel.models import (
 )
 from glio_proteogen.modules.c21_reference_material.m21_08_evidence_gate_release_adjudicator import (
     M2108Engine,
+    M2108ReplayError,
 )
 
 _SCHEMA_COUNT = 9
@@ -445,9 +446,7 @@ def test_self_rehashed_release_evidence_regions_are_rejected_by_replay(region: s
             )
         }
     elif region == "provenance":
-        updates = {
-            "provenance": result.provenance.model_copy(update={"actor_id": "actor.forged"})
-        }
+        updates = {"provenance": result.provenance.model_copy(update={"actor_id": "actor.forged"})}
     elif region == "evidence":
         evidence = result.evidence[0].model_copy(update={"claim": "Forged evidence claim."})
         updates = {"evidence": (evidence, *result.evidence[1:])}
@@ -460,7 +459,7 @@ def test_self_rehashed_release_evidence_regions_are_rejected_by_replay(region: s
         }
     forged = _self_rehashed(result, updates)
     assert forged.result_digest == result_payload_digest(forged)
-    with pytest.raises(ValueError):
+    with pytest.raises(M2108ReplayError, match="replay"):
         M2108Engine().verify(forged)
 
 
@@ -469,7 +468,7 @@ def test_self_rehashed_request_and_disabled_replay_are_rejected() -> None:
     result = _result(request)
     changed_request = request.model_copy(update={"request_id": "request.m2108.forged"})
     forged = _self_rehashed(result, {"request": changed_request})
-    with pytest.raises(ValueError):
+    with pytest.raises(M2108ReplayError, match="result is invalid"):
         M2108Engine().verify(forged)
     with pytest.raises(ValueError, match="cannot be disabled"):
         M2108Engine().verify(result, replay=False)

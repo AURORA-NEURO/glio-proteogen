@@ -396,15 +396,15 @@ class M2108Engine:
         except Exception as error:
             raise M2108ReplayError("M21-08 result is invalid") from error
         try:
-            if validated.result_digest != result_payload_digest(validated):
-                raise M2108ReplayError("M21-08 result digest mismatch")
+            digest_matches = validated.result_digest == result_payload_digest(validated)
             expected = self.evaluate(validated.request)
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M2108ReplayError("M21-08 deterministic replay mismatch")
-        except M2108ReplayError:
-            raise
+            canonical_match = expected.model_dump(mode="json") == validated.model_dump(mode="json")
         except Exception as error:
-            raise M2108ReplayError() from error
+            raise M2108ReplayError from error
+        if not digest_matches:
+            raise M2108ReplayError("M21-08 result digest mismatch")
+        if not canonical_match:
+            raise M2108ReplayError("M21-08 deterministic replay mismatch")
         return validated
 
 

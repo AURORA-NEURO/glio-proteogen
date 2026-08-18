@@ -70,7 +70,7 @@ def build_scenario_request() -> AdjudicateComplexActivityEvidenceGateRequest:
     return _request()
 
 
-def run_evaluator() -> dict[str, object]:
+def run_evaluator() -> dict[str, object]:  # noqa: C901, PLR0915
     fixture = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
     case_ids = tuple(item["case_id"] for item in fixture["cases"])
     if case_ids != EXPECTED_CASE_IDS:
