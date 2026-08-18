@@ -187,6 +187,26 @@ def test_search_space_handles_decoy_only_and_custom_prefix_inputs() -> None:
     assert decoy.receipt.peptide_count == 1
 
 
+def test_search_parameters_validate_and_honor_custom_decoy_prefix() -> None:
+    parameters = SearchParameters(
+        fragment_tolerance_da=0.2,
+        min_matched_ions=1,
+        decoy_prefix="REV_",
+    )
+    psm = search_spectrum(
+        "custom-decoy",
+        0.0,
+        {"MPEPTIDER": ("REV_P1",)},
+        (132.0, 229.1, 358.1),
+        (10.0, 20.0, 30.0),
+        parameters=parameters,
+    )
+    assert psm is not None
+    assert psm.decoy is True
+    with pytest.raises(ValueError, match="decoy_prefix"):
+        SearchParameters(decoy_prefix="bad prefix")
+
+
 def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
     decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)

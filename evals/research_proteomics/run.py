@@ -450,7 +450,16 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-    from .cohort import run_evaluator as run_cohort_evaluator
+    # Keep the evaluator usable both as ``python -m`` and as the exact file
+    # path used by release smoke jobs.  The latter gives Python no package
+    # context, so resolve the repository root before importing the cohort lane.
+    if __package__ in {None, ""}:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from evals.research_proteomics.cohort import (  # noqa: PLC0415
+            run_evaluator as run_cohort_evaluator,
+        )
+    else:
+        from .cohort import run_evaluator as run_cohort_evaluator  # noqa: PLC0415
 
     sys.stdout.write(
         json.dumps(

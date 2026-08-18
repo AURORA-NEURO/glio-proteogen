@@ -16,6 +16,7 @@ class SearchParameters:
     min_matched_ions: int = 2
     precursor_charge: int = 1
     require_precursor_mz: bool = False
+    decoy_prefix: str = "DECOY_"
 
     def __post_init__(self) -> None:
         if self.precursor_tolerance_ppm < 0:
@@ -26,6 +27,12 @@ class SearchParameters:
             raise ValueError("min_matched_ions must be positive")
         if self.precursor_charge < 1:
             raise ValueError("precursor_charge must be positive")
+        if (
+            not isinstance(self.decoy_prefix, str)
+            or not 1 <= len(self.decoy_prefix) <= 32
+            or any(character.isspace() or ord(character) < 33 for character in self.decoy_prefix)
+        ):
+            raise ValueError("decoy_prefix must be a bounded non-whitespace token")
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,7 +278,7 @@ def search_spectrum_candidates(
             protein_accessions=tuple(accessions),
             score=matched + (intensity_score / norm if norm else 0.0),
             matched_ions=matched,
-            decoy=all(accession.startswith("DECOY_") for accession in accessions),
+            decoy=all(accession.startswith(parameters.decoy_prefix) for accession in accessions),
             matched_intensity=matched_intensity,
             mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
             precursor_error_ppm=(
@@ -280,8 +287,8 @@ def search_spectrum_candidates(
                 else None
             ),
             target_decoy_collision=(
-                any(accession.startswith("DECOY_") for accession in accessions)
-                and not all(accession.startswith("DECOY_") for accession in accessions)
+                any(accession.startswith(parameters.decoy_prefix) for accession in accessions)
+                and not all(accession.startswith(parameters.decoy_prefix) for accession in accessions)
             ),
         )
         all_candidates.append(candidate)

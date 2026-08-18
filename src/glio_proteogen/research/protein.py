@@ -141,7 +141,7 @@ def infer_protein_groups(
 
 
 def infer_protein_group_candidates(
-    psms: tuple[Psm, ...], *, q_value_threshold: float
+    psms: tuple[Psm, ...], *, q_value_threshold: float, decoy_prefix: str = "DECOY_"
 ) -> tuple[tuple[ProteinGroupCandidate, ...], ProteinGroupFdrSummary]:
     """Build deterministic group candidates from *all* scored PSMs.
 
@@ -153,7 +153,10 @@ def infer_protein_group_candidates(
 
     if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
-    input_psms, psms, competition_digest = _prepare_group_psms(psms)
+    _validate_decoy_prefix(decoy_prefix)
+    input_psms, psms, competition_digest = _prepare_group_psms(
+        psms, decoy_prefix=decoy_prefix
+    )
     peptide_to_proteins: dict[str, set[str]] = {}
     for psm in psms:
         if not isinstance(psm.peptide, str) or not psm.peptide:
@@ -171,8 +174,8 @@ def infer_protein_group_candidates(
         )
         if not supporting:
             continue
-        has_decoy = any(accession.startswith("DECOY_") for accession in group.accessions)
-        has_target = any(not accession.startswith("DECOY_") for accession in group.accessions)
+        has_decoy = any(accession.startswith(decoy_prefix) for accession in group.accessions)
+        has_target = any(not accession.startswith(decoy_prefix) for accession in group.accessions)
         status = "collision" if has_decoy and has_target else "decoy" if has_decoy else "target"
         candidates.append(
             ProteinGroupCandidate(
@@ -281,7 +284,7 @@ def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[st
 
 
 def _prepare_group_psms(
-    psms: tuple[Psm, ...],
+    psms: tuple[Psm, ...], *, decoy_prefix: str,
 ) -> tuple[tuple[Psm, ...], tuple[Psm, ...], str]:
     """Validate contenders, select one winner per spectrum, and digest all inputs."""
 
@@ -289,7 +292,7 @@ def _prepare_group_psms(
     winners_by_spectrum: dict[str, Psm] = {}
     contenders_by_spectrum: dict[str, list[Psm]] = {}
     for psm in input_psms:
-        _validate_group_psm(psm)
+        _validate_group_psm(psm, decoy_prefix=decoy_prefix)
         contenders_by_spectrum.setdefault(psm.spectrum_id, []).append(psm)
         current = winners_by_spectrum.get(psm.spectrum_id)
         if current is None or _group_competition_key(psm) > _group_competition_key(current):
@@ -311,20 +314,29 @@ def _prepare_group_psms(
     return input_psms, winners, digest
 
 
-def _validate_group_psm(psm: Psm) -> None:
+def _validate_group_psm(psm: Psm, *, decoy_prefix: str) -> None:
     if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
         raise ValueError("PSM spectrum_id must be a non-empty string")
     if not isinstance(psm.protein_accessions, tuple) or not psm.protein_accessions:
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
-    derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+    derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
     derived_collision = (
-        any(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+        any(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
         and not derived_decoy
     )
     if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
         raise ValueError("PSM target/decoy flags do not match protein accessions")
+
+
+def _validate_decoy_prefix(value: str) -> None:
+    if (
+        not isinstance(value, str)
+        or not 1 <= len(value) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in value)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
 
 
 def _psm_payload(value: Psm) -> dict[str, object]:

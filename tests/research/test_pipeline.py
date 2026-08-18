@@ -172,6 +172,26 @@ def test_pipeline_preserves_decoy_rejection_and_ms2_boundary() -> None:
     assert run_research_protein_inference(ms1).psms == ()
 
 
+def test_pipeline_applies_custom_decoy_prefix_to_search_and_group_fdr() -> None:
+    result = run_research_protein_inference(
+        ResearchRunRequest(
+            "custom-prefix",
+            _mzml(),
+            b">REV_P1\nMPEPTIDER\n",
+            decoy_prefix="REV_",
+            min_matched_ions=1,
+            min_peptide_length=7,
+            max_peptide_length=12,
+        )
+    )
+    assert result.psms[0].decoy is True
+    assert result.accepted_psms == ()
+    assert result.protein_group_candidates[0].status == "decoy"
+    assert result.protein_group_fdr_summary is not None
+    assert result.protein_group_fdr_summary.decoy_candidates == 1
+    assert dict(result.configuration)["decoy_prefix"] == "REV_"
+
+
 def test_pipeline_binds_generated_reverse_decoy_search_space() -> None:
     request = ResearchRunRequest(
         "generated-decoy",

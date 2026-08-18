@@ -420,6 +420,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     parameters = SearchParameters(
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
+        decoy_prefix=request.decoy_prefix,
         require_precursor_mz=True,
     )
     candidate_psms: list[Psm] = []
@@ -444,6 +445,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 fragment_tolerance_da=parameters.fragment_tolerance_da,
                 min_matched_ions=parameters.min_matched_ions,
                 precursor_charge=spectrum.precursor_charge,
+                decoy_prefix=request.decoy_prefix,
                 require_precursor_mz=True,
             ),
         )
@@ -494,7 +496,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         )
     )
     group_candidates, protein_group_fdr_summary = infer_protein_group_candidates(
-        scored, q_value_threshold=request.q_value_threshold
+        scored,
+        q_value_threshold=request.q_value_threshold,
+        decoy_prefix=request.decoy_prefix,
     )
     accepted_group_candidates = tuple(
         item for item in group_candidates if item.acceptance == "accepted"
