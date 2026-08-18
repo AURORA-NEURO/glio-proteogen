@@ -11,7 +11,7 @@
   "schema_names": ["request", "output", "record", "queue-entry", "assignment", "audit-event", "configuration", "finding"],
   "scenario_groups": [
     {"group": "nominal", "case_ids": ["resolved_records"]},
-    {"group": "adversarial", "case_ids": ["unresolved_queue_abstains", "not_evaluable_abstains", "consent_denied_preflight", "upstream_media_rejected", "replay_tamper_rejected", "audit_chain_tamper_rejected", "duplicate_discrepancy_rejected"]}
+    {"group": "adversarial", "case_ids": ["unresolved_queue_abstains", "not_evaluable_abstains", "consent_denied_preflight", "upstream_media_rejected", "replay_tamper_rejected", "audit_chain_tamper_rejected", "duplicate_discrepancy_rejected", "prohibited_claims_abstain"]}
   ],
   "claims_ceiling": "structured reviewer discrepancy adjudication only; no identity, mutation, all-omics, kinase, treatment, or biological truth inference"
 }

@@ -16,11 +16,13 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
+from tests.contract.test_m19_06_deep import _request_with_surface
 from tests.contract.test_m19_06_provisional import _assignment, _entry, _request
 
 from glio_proteogen.contracts.m19_06 import (
     M1906_DOSSIER_SHA256,
     M1906_DOSSIER_SLICE,
+    QueueFindingCode,
     QueueEntryState,
     QueueResultStatus,
     ReviewDecision,
@@ -36,8 +38,8 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudi
 
 MODULE_ID: Final = "GLIO-PROTEOGEN-M19-06"
 SCENARIO_PATH: Final = Path("tests/fixtures/m19_06/scenarios.json")
-EXPECTED_CASE_COUNT: Final = 8
-ADVERSARIAL_CASE_COUNT: Final = 7
+EXPECTED_CASE_COUNT: Final = 9
+ADVERSARIAL_CASE_COUNT: Final = 8
 TARGET_COVERAGE_PERCENT: Final = 95
 
 
@@ -203,6 +205,22 @@ def _checks() -> list[EvalCheck]:  # noqa: C901, PLR0915 - executable evidence m
     checks.append(
         EvalCheck("duplicate_discrepancy_rejected", duplicate_passed, "queue IDs are unique")
     )
+    prohibited = engine.adapt(_request_with_surface("entry.description"))
+    prohibited_passed = (
+        prohibited.status is QueueResultStatus.ABSTAINED
+        and prohibited.record is None
+        and any(
+            finding.code is QueueFindingCode.PROHIBITED_CLAIM_BOUNDARY
+            for finding in prohibited.findings
+        )
+    )
+    checks.append(
+        EvalCheck(
+            "prohibited_claims_abstain",
+            prohibited_passed,
+            f"status={prohibited.status.value};record={prohibited.record is not None}",
+        )
+    )
     executed = [item.name for item in checks if item.name not in {"authority", "schema_inventory"}]
     checks.append(
         EvalCheck(
@@ -227,6 +245,7 @@ def _checks() -> list[EvalCheck]:  # noqa: C901, PLR0915 - executable evidence m
                     "replay_tamper_rejected",
                     "audit_chain_tamper_rejected",
                     "duplicate_discrepancy_rejected",
+                    "prohibited_claims_abstain",
                 }
             ),
             f"adversarial_passed={ADVERSARIAL_CASE_COUNT}/{ADVERSARIAL_CASE_COUNT};target={TARGET_COVERAGE_PERCENT}%",
