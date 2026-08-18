@@ -194,6 +194,7 @@ from glio_proteogen.contracts.m03_04.schema import (
 )
 from glio_proteogen.contracts.m03_04.v1 import (
     M0304_MAX_CANONICAL_REQUEST_BYTES,
+    M0304_MAX_CANONICAL_RESULT_BYTES,
     ComputeProteinInferenceQualityRequest,
     ProteinInferenceQualityResult,
 )
@@ -965,6 +966,7 @@ _M0207_SUPPORT_ADAPTER: Final = TypeAdapter(RouteIdentificationSupportRequest)
 _M0301_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteinInferenceProtocolRequest)
 _M0302_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteinInferenceIdentityLineageRequest)
 _M0304_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteinInferenceQualityRequest)
+_M0304_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceQualityResult)
 _M0305_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteinInferenceArtifactsRequest)
 _M0306_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
@@ -1472,6 +1474,15 @@ def _protein_inference_quality_request_body() -> dict[str, object]:
     }
 
 
+def _protein_inference_quality_result_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0304_contract_json_schema("output")}},
+        }
+    }
+
+
 def _protein_inference_artifact_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -1927,6 +1938,16 @@ async def _protein_inference_quality_body(
         _M0304_QUALITY_ADAPTER,
         preflight_protein_inference_quality_authorization,
         M0304_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _protein_inference_quality_result_body_parser(
+    request: Request,
+) -> ProteinInferenceQualityResult:
+    return await _strict_json_body(
+        request,
+        _M0304_RESULT_ADAPTER,
+        max_bytes=M0304_MAX_CANONICAL_RESULT_BYTES,
     )
 
 
@@ -3399,6 +3420,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinInferenceQualityResult:
         return protein_inference_quality_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M03-04/quality/verify",
+        response_model=ProteinInferenceQualityResult,
+        tags=["M03-04"],
+        openapi_extra=_protein_inference_quality_result_body(),
+    )
+    def verify_protein_inference_quality(
+        result: Annotated[
+            ProteinInferenceQualityResult,
+            Depends(_protein_inference_quality_result_body_parser),
+        ],
+    ) -> ProteinInferenceQualityResult:
+        return protein_inference_quality_service.verify(result)
 
     @app.post(
         "/v1/modules/M03-02/identity-lineage-reconciliation",
