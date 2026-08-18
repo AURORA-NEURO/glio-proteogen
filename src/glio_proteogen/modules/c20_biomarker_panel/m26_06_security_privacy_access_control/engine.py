@@ -478,12 +478,25 @@ def evaluate_proteomics_security_access(request: object) -> ProteomicsSecurityAc
 def verify_security_access_result(
     result: ProteomicsSecurityAccessResult,
 ) -> ProteomicsSecurityAccessResult:
-    """Revalidate canonical request/result digests and safe-status closure."""
+    """Recompute and compare the complete result bound to its request.
+
+    A canonical result digest proves only that the supplied bytes have not
+    changed.  It does not prove that the bytes were emitted by this engine: a
+    caller who can forge a result can also recompute that digest.  Replay must
+    therefore use the validated request embedded in the result as its source
+    of truth and compare every canonical output field, including security
+    decisions and evidence.
+    """
 
     try:
         validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = M2606SecurityEngine().evaluate(validated.request)
     except ValidationError as error:
         raise M2606ReplayError from error
+    except Exception as error:
+        raise M2606ReplayError from error
+    if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+        raise M2606ReplayError
     return validated
 
 
