@@ -496,14 +496,14 @@
   },
   "cohort_evaluation": {
     "passed": true,
-    "declared": 6,
-    "executed": 6,
-    "fixture_sha256": "d1c8ac59b8bdd361f10c71883baa1fbf1582bfae6cfa1307c352a3156268fd1b",
+    "declared": 9,
+    "executed": 9,
+    "fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
     "outcomes": [
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "ce6bdc1b890db2d960e5b51eaeda8ec07a6f41687cee436c3029a97e125cdbc4",
+        "result_digest": "e66bd8784f62e25ab2b53b7238a50fc804863747b2d9cc5560d75a9833528bce",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -529,6 +529,43 @@
               "min_observed_groups": 1,
               "min_replicates": 2
             },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "rep-a",
+                  "source_id": "local:rep-a",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "rep-b",
+                  "source_id": "local:rep-b",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "f649aaaa31200ce1c1aec3cf49e935a70b6462d4acec6ada215f8af886c7a7ed",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -610,7 +647,7 @@
               ]
             ]
           ],
-          "result_digest": "ce6bdc1b890db2d960e5b51eaeda8ec07a6f41687cee436c3029a97e125cdbc4",
+          "result_digest": "e66bd8784f62e25ab2b53b7238a50fc804863747b2d9cc5560d75a9833528bce",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -677,8 +714,12 @@
               "observed_cells": 2,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "descriptive",
-              "normalization_status": "not_applied"
+              "status": "unverified_independence",
+              "normalization_status": "not_applied",
+              "independent_replicates": 0,
+              "technical_replicates": 0,
+              "unknown_replicates": 2,
+              "duplicate_sources": 1
             }
           ],
           "label_group_evidence": [
@@ -692,15 +733,52 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "unverified_independence",
+              "independent_observed_replicates": 0
             }
-          ]
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "rep-a",
+                "source_id": "local:rep-a",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "rep-b",
+                "source_id": "local:rep-b",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
         }
       },
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "94f870fd3438a9a6102ea707b8dbefe0dd72a958c34c2c448c47f35ed5a34090",
+        "result_digest": "caf2ad754ccfc41bf84cb4a9c5c24da709cf4d8a6979da319e956c6805c384bd",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -726,6 +804,43 @@
               "min_observed_groups": 1,
               "min_replicates": 2
             },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "qc-absent",
+                  "source_id": "local:qc-absent",
+                  "source_kind": "local",
+                  "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                  "source_size": 647
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "qc-present",
+                  "source_id": "local:qc-present",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "79c756e75e7d6a9ba4e26b9b9b1d3667d9b419123df02e43be2308192f5b609b",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -807,7 +922,7 @@
               ]
             ]
           ],
-          "result_digest": "94f870fd3438a9a6102ea707b8dbefe0dd72a958c34c2c448c47f35ed5a34090",
+          "result_digest": "caf2ad754ccfc41bf84cb4a9c5c24da709cf4d8a6979da319e956c6805c384bd",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -849,7 +964,7 @@
           "sample_scales": [
             {
               "cohort_label": "locked-cohort",
-              "overlap_groups": 0,
+              "overlap_groups": 1,
               "positive_groups": 0,
               "sample_id": "qc-absent",
               "scale_factor": 1.0,
@@ -857,7 +972,7 @@
             },
             {
               "cohort_label": "locked-cohort",
-              "overlap_groups": 0,
+              "overlap_groups": 1,
               "positive_groups": 1,
               "sample_id": "qc-present",
               "scale_factor": 1.0,
@@ -875,7 +990,11 @@
               "replicate_count": 2,
               "sample_count": 2,
               "status": "abstained_missingness",
-              "normalization_status": "not_applied"
+              "normalization_status": "not_applied",
+              "independent_replicates": 0,
+              "technical_replicates": 0,
+              "unknown_replicates": 2,
+              "duplicate_sources": 0
             }
           ],
           "label_group_evidence": [
@@ -889,15 +1008,52 @@
               "missing_replicates": 2,
               "missingness_rate": 1.0,
               "observed_replicates": 0,
-              "status": "abstained_missingness"
+              "status": "abstained_missingness",
+              "independent_observed_replicates": 0
             }
-          ]
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "qc-absent",
+                "source_id": "local:qc-absent",
+                "source_kind": "local",
+                "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                "source_size": 647
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "qc-present",
+                "source_id": "local:qc-present",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
         }
       },
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "5d6ec9a571707573e1048a04d5c82c762f04eecfc578d3fea3f66e5cbe721939",
+        "result_digest": "d12a0743680738be94a1774cccbaf12cf73dec59b56e2ddf7f364f2b4d17039e",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -923,6 +1079,43 @@
               "min_observed_groups": 1,
               "min_replicates": 2
             },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "absent",
+                  "source_id": "local:absent",
+                  "source_kind": "local",
+                  "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                  "source_size": 647
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "present",
+                  "source_id": "local:present",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "7a2ca3afa8fb570254ce770cdf048acb9a51e3379dea4cf8cd2d6ee901177fa8",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -1004,7 +1197,7 @@
               ]
             ]
           ],
-          "result_digest": "5d6ec9a571707573e1048a04d5c82c762f04eecfc578d3fea3f66e5cbe721939",
+          "result_digest": "d12a0743680738be94a1774cccbaf12cf73dec59b56e2ddf7f364f2b4d17039e",
           "sample_ids": [
             "absent",
             "present"
@@ -1046,7 +1239,7 @@
           "sample_scales": [
             {
               "cohort_label": "locked-cohort",
-              "overlap_groups": 0,
+              "overlap_groups": 1,
               "positive_groups": 0,
               "sample_id": "absent",
               "scale_factor": 1.0,
@@ -1054,7 +1247,7 @@
             },
             {
               "cohort_label": "locked-cohort",
-              "overlap_groups": 0,
+              "overlap_groups": 1,
               "positive_groups": 1,
               "sample_id": "present",
               "scale_factor": 1.0,
@@ -1071,8 +1264,12 @@
               "observed_cells": 1,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "descriptive",
-              "normalization_status": "not_applied"
+              "status": "unverified_independence",
+              "normalization_status": "not_applied",
+              "independent_replicates": 0,
+              "technical_replicates": 0,
+              "unknown_replicates": 2,
+              "duplicate_sources": 0
             }
           ],
           "label_group_evidence": [
@@ -1086,15 +1283,52 @@
               "missing_replicates": 1,
               "missingness_rate": 0.5,
               "observed_replicates": 1,
-              "status": "descriptive"
+              "status": "unverified_independence",
+              "independent_observed_replicates": 0
             }
-          ]
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "absent",
+                "source_id": "local:absent",
+                "source_kind": "local",
+                "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                "source_size": 647
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "present",
+                "source_id": "local:present",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
         }
       },
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "990045140801f1ef2d97da108f732e599ab0a4e9edd8d8abab63fd3ab0af9fa7",
+        "result_digest": "422f9af713adf3617b2b6a72c2b6c39351dd2884c8ca6cdf5f4a380af0b9d60e",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -1130,6 +1364,75 @@
               "min_observed_groups": 1,
               "min_replicates": 2
             },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "biological",
+                  "sample_id": "case-a",
+                  "source_id": "local:case-a",
+                  "source_kind": "local",
+                  "source_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
+                  "source_size": 700
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "biological",
+                  "sample_id": "case-b",
+                  "source_id": "local:case-b",
+                  "source_kind": "local",
+                  "source_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
+                  "source_size": 700
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "biological",
+                  "sample_id": "control-a",
+                  "source_id": "local:control-a",
+                  "source_kind": "local",
+                  "source_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
+                  "source_size": 703
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "biological",
+                  "sample_id": "control-b",
+                  "source_id": "local:control-b",
+                  "source_kind": "local",
+                  "source_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
+                  "source_size": 703
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "fbc448a1207955428a124e8a5638d03682aea778a6818324bb8884474055e6a4",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -1148,7 +1451,7 @@
                 "external_pdc_file": null,
                 "external_pdc_response_sha256": null,
                 "external_pdc_receipt": null,
-                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "mzml_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
                 "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
               },
               {
@@ -1158,7 +1461,7 @@
                 "external_pdc_file": null,
                 "external_pdc_response_sha256": null,
                 "external_pdc_receipt": null,
-                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "mzml_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
                 "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
               },
               {
@@ -1168,7 +1471,7 @@
                 "external_pdc_file": null,
                 "external_pdc_response_sha256": null,
                 "external_pdc_receipt": null,
-                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "mzml_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
                 "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
               },
               {
@@ -1178,7 +1481,7 @@
                 "external_pdc_file": null,
                 "external_pdc_response_sha256": null,
                 "external_pdc_receipt": null,
-                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "mzml_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
                 "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
               }
             ]
@@ -1285,7 +1588,7 @@
               ]
             ]
           ],
-          "result_digest": "990045140801f1ef2d97da108f732e599ab0a4e9edd8d8abab63fd3ab0af9fa7",
+          "result_digest": "422f9af713adf3617b2b6a72c2b6c39351dd2884c8ca6cdf5f4a380af0b9d60e",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -1403,7 +1706,11 @@
               "replicate_count": 2,
               "sample_count": 2,
               "status": "descriptive",
-              "normalization_status": "normalized"
+              "normalization_status": "normalized",
+              "independent_replicates": 2,
+              "technical_replicates": 0,
+              "unknown_replicates": 0,
+              "duplicate_sources": 0
             },
             {
               "cohort_label": "control",
@@ -1415,7 +1722,11 @@
               "replicate_count": 2,
               "sample_count": 2,
               "status": "descriptive",
-              "normalization_status": "normalized"
+              "normalization_status": "normalized",
+              "independent_replicates": 2,
+              "technical_replicates": 0,
+              "unknown_replicates": 0,
+              "duplicate_sources": 0
             }
           ],
           "label_group_evidence": [
@@ -1429,7 +1740,8 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "descriptive",
+              "independent_observed_replicates": 2
             },
             {
               "cohort_label": "case",
@@ -1441,7 +1753,8 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "descriptive",
+              "independent_observed_replicates": 2
             },
             {
               "cohort_label": "control",
@@ -1453,7 +1766,8 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "descriptive",
+              "independent_observed_replicates": 2
             },
             {
               "cohort_label": "control",
@@ -1465,9 +1779,635 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "descriptive",
+              "independent_observed_replicates": 2
             }
-          ]
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "biological",
+                "sample_id": "case-a",
+                "source_id": "local:case-a",
+                "source_kind": "local",
+                "source_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
+                "source_size": 700
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "biological",
+                "sample_id": "case-b",
+                "source_id": "local:case-b",
+                "source_kind": "local",
+                "source_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
+                "source_size": 700
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "biological",
+                "sample_id": "control-a",
+                "source_id": "local:control-a",
+                "source_kind": "local",
+                "source_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
+                "source_size": 703
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "biological",
+                "sample_id": "control-b",
+                "source_id": "local:control-b",
+                "source_kind": "local",
+                "source_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
+                "source_size": 703
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "duplicate_biological_source",
+        "passed": true,
+        "result_digest": null,
+        "missing_cells": null,
+        "projection": null
+      },
+      {
+        "id": "technical_duplicate_visibility",
+        "passed": true,
+        "result_digest": "86bdd314bf25ddecc969102af00cec0df8b3774cffc73b71d4dfad60830fc1be",
+        "missing_cells": 0,
+        "projection": {
+          "child_result_digests": [
+            [
+              "duplicate-a",
+              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b"
+            ],
+            [
+              "duplicate-b",
+              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+            ]
+          ],
+          "configuration": {
+            "child_result_digests": [
+              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b",
+              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+            ],
+            "cohort_normalization_policy": "within_label_median_v1",
+            "cohort_normalization_version": "within-label-median-v1",
+            "cohort_provenance_policy": "homogeneous",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "technical",
+                  "sample_id": "duplicate-a",
+                  "source_id": "local:duplicate-a",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "technical",
+                  "sample_id": "duplicate-b",
+                  "source_id": "local:duplicate-b",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "e42ccba7a658dfe65b42d516ed7ca6603ce27d1dd9b603f59ff8eaf12842f52b",
+            "cohort_version": "research-cohort-3",
+            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+            "matrix_feature": "accepted-protein-group-primary-intensity",
+            "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+            "sample_ids": [
+              "duplicate-a",
+              "duplicate-b"
+            ],
+            "sample_source_provenance": [
+              {
+                "sample_id": "duplicate-a",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              },
+              {
+                "sample_id": "duplicate-b",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              }
+            ]
+          },
+          "group_accessions": [
+            [
+              "P1"
+            ]
+          ],
+          "group_qc": [
+            {
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_intensity": 0.0,
+              "median_intensity": 20.0,
+              "missing_samples": 0,
+              "missingness_rate": 0.0,
+              "observed_samples": 2
+            }
+          ],
+          "matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                20.0,
+                20.0
+              ]
+            ]
+          ],
+          "normalized_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                null,
+                null
+              ]
+            ]
+          ],
+          "raw_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                20.0,
+                20.0
+              ]
+            ]
+          ],
+          "result_digest": "86bdd314bf25ddecc969102af00cec0df8b3774cffc73b71d4dfad60830fc1be",
+          "sample_ids": [
+            "duplicate-a",
+            "duplicate-b"
+          ],
+          "sample_qc": [
+            {
+              "accepted_psms": 1,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": 0.0,
+              "missing_groups": 0,
+              "missingness_rate": 0.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 1,
+              "replicate_label": "r1",
+              "sample_id": "duplicate-a",
+              "spectra_seen": 1,
+              "normalization_scale": null,
+              "normalization_status": "abstained_insufficient_replicates"
+            },
+            {
+              "accepted_psms": 1,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": 0.0,
+              "missing_groups": 0,
+              "missingness_rate": 0.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 1,
+              "replicate_label": "r2",
+              "sample_id": "duplicate-b",
+              "spectra_seen": 1,
+              "normalization_scale": null,
+              "normalization_status": "abstained_insufficient_replicates"
+            }
+          ],
+          "sample_scales": [
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 1,
+              "positive_groups": 1,
+              "sample_id": "duplicate-a",
+              "scale_factor": null,
+              "status": "abstained_insufficient_replicates"
+            },
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 1,
+              "positive_groups": 1,
+              "sample_id": "duplicate-b",
+              "scale_factor": null,
+              "status": "abstained_insufficient_replicates"
+            }
+          ],
+          "label_qc": [
+            {
+              "cohort_label": "locked-cohort",
+              "mad_intensity": null,
+              "median_intensity": null,
+              "missing_cells": 0,
+              "missingness_rate": 0.0,
+              "observed_cells": 2,
+              "replicate_count": 2,
+              "sample_count": 2,
+              "status": "abstained_insufficient_replicates",
+              "normalization_status": "abstained_insufficient_replicates",
+              "independent_replicates": 0,
+              "technical_replicates": 2,
+              "unknown_replicates": 0,
+              "duplicate_sources": 1
+            }
+          ],
+          "label_group_evidence": [
+            {
+              "cohort_label": "locked-cohort",
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_normalized_intensity": null,
+              "median_normalized_intensity": null,
+              "missing_replicates": 2,
+              "missingness_rate": 1.0,
+              "observed_replicates": 0,
+              "status": "abstained_insufficient_replicates",
+              "independent_observed_replicates": 0
+            }
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "technical",
+                "sample_id": "duplicate-a",
+                "source_id": "local:duplicate-a",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "technical",
+                "sample_id": "duplicate-b",
+                "source_id": "local:duplicate-b",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "unknown_independence_abstention",
+        "passed": true,
+        "result_digest": "de5b85cb97c0e868912b6ff76477c3e9995b8893256f9b6a4eaa0d34d080e1fa",
+        "missing_cells": 0,
+        "projection": {
+          "child_result_digests": [
+            [
+              "duplicate-a",
+              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b"
+            ],
+            [
+              "duplicate-b",
+              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+            ]
+          ],
+          "configuration": {
+            "child_result_digests": [
+              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b",
+              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+            ],
+            "cohort_normalization_policy": "within_label_median_v1",
+            "cohort_normalization_version": "within-label-median-v1",
+            "cohort_provenance_policy": "homogeneous",
+            "cohort_qc_policy": {
+              "max_missingness_rate": 0.5,
+              "min_observed_groups": 1,
+              "min_replicates": 2
+            },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "duplicate-a",
+                  "source_id": "local:duplicate-a",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": null,
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": null,
+                  "pdc_file_name": null,
+                  "pdc_study_id": null,
+                  "receipt_digest": null,
+                  "replicate_kind": "unknown",
+                  "sample_id": "duplicate-b",
+                  "source_id": "local:duplicate-b",
+                  "source_kind": "local",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "cdd241f6b77f13172bb85cd1e700a7b21289c04cc254f3f2e1555b13decfde1e",
+            "cohort_version": "research-cohort-3",
+            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+            "matrix_feature": "accepted-protein-group-primary-intensity",
+            "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+            "sample_ids": [
+              "duplicate-a",
+              "duplicate-b"
+            ],
+            "sample_source_provenance": [
+              {
+                "sample_id": "duplicate-a",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              },
+              {
+                "sample_id": "duplicate-b",
+                "external_source_id": null,
+                "external_source_sha256": null,
+                "external_pdc_file": null,
+                "external_pdc_response_sha256": null,
+                "external_pdc_receipt": null,
+                "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+              }
+            ]
+          },
+          "group_accessions": [
+            [
+              "P1"
+            ]
+          ],
+          "group_qc": [
+            {
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_intensity": 0.0,
+              "median_intensity": 20.0,
+              "missing_samples": 0,
+              "missingness_rate": 0.0,
+              "observed_samples": 2
+            }
+          ],
+          "matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                20.0,
+                20.0
+              ]
+            ]
+          ],
+          "normalized_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                null,
+                null
+              ]
+            ]
+          ],
+          "raw_matrix": [
+            [
+              [
+                "P1"
+              ],
+              [
+                20.0,
+                20.0
+              ]
+            ]
+          ],
+          "result_digest": "de5b85cb97c0e868912b6ff76477c3e9995b8893256f9b6a4eaa0d34d080e1fa",
+          "sample_ids": [
+            "duplicate-a",
+            "duplicate-b"
+          ],
+          "sample_qc": [
+            {
+              "accepted_psms": 1,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": 0.0,
+              "missing_groups": 0,
+              "missingness_rate": 0.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 1,
+              "replicate_label": "r1",
+              "sample_id": "duplicate-a",
+              "spectra_seen": 1,
+              "normalization_scale": null,
+              "normalization_status": "abstained_unknown_independence"
+            },
+            {
+              "accepted_psms": 1,
+              "cohort_label": "locked-cohort",
+              "collision_winners": 0,
+              "decoy_winners": 0,
+              "max_precursor_error_ppm": 0.0,
+              "missing_groups": 0,
+              "missingness_rate": 0.0,
+              "ms2_spectra_seen": 1,
+              "quantified_groups": 1,
+              "replicate_label": "r2",
+              "sample_id": "duplicate-b",
+              "spectra_seen": 1,
+              "normalization_scale": null,
+              "normalization_status": "abstained_unknown_independence"
+            }
+          ],
+          "sample_scales": [
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 1,
+              "positive_groups": 1,
+              "sample_id": "duplicate-a",
+              "scale_factor": null,
+              "status": "abstained_unknown_independence"
+            },
+            {
+              "cohort_label": "locked-cohort",
+              "overlap_groups": 1,
+              "positive_groups": 1,
+              "sample_id": "duplicate-b",
+              "scale_factor": null,
+              "status": "abstained_unknown_independence"
+            }
+          ],
+          "label_qc": [
+            {
+              "cohort_label": "locked-cohort",
+              "mad_intensity": null,
+              "median_intensity": null,
+              "missing_cells": 0,
+              "missingness_rate": 0.0,
+              "observed_cells": 2,
+              "replicate_count": 2,
+              "sample_count": 2,
+              "status": "abstained_unknown_independence",
+              "normalization_status": "abstained_unknown_independence",
+              "independent_replicates": 0,
+              "technical_replicates": 0,
+              "unknown_replicates": 2,
+              "duplicate_sources": 1
+            }
+          ],
+          "label_group_evidence": [
+            {
+              "cohort_label": "locked-cohort",
+              "group_accessions": [
+                "P1"
+              ],
+              "mad_normalized_intensity": null,
+              "median_normalized_intensity": null,
+              "missing_replicates": 2,
+              "missingness_rate": 1.0,
+              "observed_replicates": 0,
+              "status": "abstained_unknown_independence",
+              "independent_observed_replicates": 0
+            }
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "duplicate-a",
+                "source_id": "local:duplicate-a",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": null,
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": null,
+                "pdc_file_name": null,
+                "pdc_study_id": null,
+                "receipt_digest": null,
+                "replicate_kind": "unknown",
+                "sample_id": "duplicate-b",
+                "source_id": "local:duplicate-b",
+                "source_kind": "local",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
         }
       },
       {
@@ -1480,7 +2420,7 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "7ccbf8a58726cabd954c06d304626b699a741d397540b356baff8ac93b791130",
+        "result_digest": "b814ffe328d7d576ca0a809a599167879de32e79d1662f02673261f00b5efc1f",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -1506,6 +2446,43 @@
               "min_observed_groups": 1,
               "min_replicates": 2
             },
+            "cohort_source_manifest": {
+              "bindings": [
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                  "pdc_file_name": "pdc-a.mzML",
+                  "pdc_study_id": "PDC000204",
+                  "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                  "replicate_kind": "unknown",
+                  "sample_id": "pdc-a",
+                  "source_id": "pdc:pdc-a",
+                  "source_kind": "pdc",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                },
+                {
+                  "acquisition_id": null,
+                  "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                  "declared_aliquot_id": null,
+                  "metadata_snapshot_digest": null,
+                  "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                  "pdc_file_name": "pdc-b.mzML",
+                  "pdc_study_id": "PDC000204",
+                  "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                  "replicate_kind": "unknown",
+                  "sample_id": "pdc-b",
+                  "source_id": "pdc:pdc-b",
+                  "source_kind": "pdc",
+                  "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                  "source_size": 687
+                }
+              ]
+            },
+            "cohort_source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390",
             "cohort_version": "research-cohort-3",
             "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
             "matrix_feature": "accepted-protein-group-primary-intensity",
@@ -1709,7 +2686,7 @@
               ]
             ]
           ],
-          "result_digest": "7ccbf8a58726cabd954c06d304626b699a741d397540b356baff8ac93b791130",
+          "result_digest": "b814ffe328d7d576ca0a809a599167879de32e79d1662f02673261f00b5efc1f",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -1776,8 +2753,12 @@
               "observed_cells": 2,
               "replicate_count": 2,
               "sample_count": 2,
-              "status": "descriptive",
-              "normalization_status": "not_applied"
+              "status": "unverified_independence",
+              "normalization_status": "not_applied",
+              "independent_replicates": 0,
+              "technical_replicates": 0,
+              "unknown_replicates": 2,
+              "duplicate_sources": 1
             }
           ],
           "label_group_evidence": [
@@ -1791,9 +2772,46 @@
               "missing_replicates": 0,
               "missingness_rate": 0.0,
               "observed_replicates": 2,
-              "status": "descriptive"
+              "status": "unverified_independence",
+              "independent_observed_replicates": 0
             }
-          ]
+          ],
+          "source_manifest": {
+            "bindings": [
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                "pdc_file_name": "pdc-a.mzML",
+                "pdc_study_id": "PDC000204",
+                "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                "replicate_kind": "unknown",
+                "sample_id": "pdc-a",
+                "source_id": "pdc:pdc-a",
+                "source_kind": "pdc",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              },
+              {
+                "acquisition_id": null,
+                "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                "declared_aliquot_id": null,
+                "metadata_snapshot_digest": null,
+                "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                "pdc_file_name": "pdc-b.mzML",
+                "pdc_study_id": "PDC000204",
+                "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                "replicate_kind": "unknown",
+                "sample_id": "pdc-b",
+                "source_id": "pdc:pdc-b",
+                "source_kind": "pdc",
+                "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                "source_size": 687
+              }
+            ]
+          }
         }
       }
     ]

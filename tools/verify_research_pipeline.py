@@ -2,8 +2,8 @@
 """Verify the locked, research-only proteomics evaluator and package surface.
 
 This verifier deliberately checks computation identity and package reachability,
-not scientific validity.  It reruns the eight locked scenarios, binds the fixture
-digest and scenario IDs, and optionally checks that built distributions contain
+not scientific validity. It reruns the eight single-run and nine cohort locked
+scenarios, binds fixture digests and scenario IDs, and optionally checks that built distributions contain
 the research pipeline without requiring or implying a governed ABI.
 """
 
@@ -37,6 +37,9 @@ _EXPECTED_COHORT_SCENARIOS = (
     "qc_abstention",
     "explicit_missingness",
     "label_normalization",
+    "duplicate_biological_source",
+    "technical_duplicate_visibility",
+    "unknown_independence_abstention",
     "incompatible_search_space",
     "pdc_provenance_replay",
 )
@@ -45,6 +48,7 @@ _RESEARCH_MEMBERS = (
     "glio_proteogen/research/search.py",
     "glio_proteogen/research/protein.py",
     "glio_proteogen/research/cohort.py",
+    "glio_proteogen/research/cohort_provenance.py",
 )
 _EXPECTED_SOURCE_DATE_EPOCH = 315532800
 

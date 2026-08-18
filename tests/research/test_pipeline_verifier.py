@@ -188,6 +188,7 @@ def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path
         archive.writestr("glio_proteogen/research/search.py", "")
         archive.writestr("glio_proteogen/research/protein.py", "")
         archive.writestr("glio_proteogen/research/cohort.py", "")
+        archive.writestr("glio_proteogen/research/cohort_provenance.py", "")
     digest = sha256(artifact.read_bytes()).hexdigest()
     receipt = {"filename": artifact.name, "bytes": artifact.stat().st_size, "sha256": digest}
     _verify_package(artifact, receipt)

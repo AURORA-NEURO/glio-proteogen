@@ -48,6 +48,12 @@ C03/C04 computation contract:
   groups, and maximum missingness are validated before normalized evidence is emitted. Failed
   gates preserve the raw matrix for audit but null the normalized label projection and emit a
   typed abstention status; the policy never imputes values or infers biological strata.
+- Cohort source identity is a separate replay-bound `CohortSourceManifest`. It binds each
+  sample to the exact source digest/size and any caller-provided PDC file, catalog, receipt,
+  or metadata snapshot digests, while retaining a declared biological/technical/unknown
+  replicate kind. Biological reuse of one source is rejected; technical reuse remains visible
+  but cannot inflate independent-replicate or normalization support; unknown independence
+  abstains support-dependent projections. No independence is inferred from names or order.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or

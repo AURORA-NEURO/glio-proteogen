@@ -23,6 +23,11 @@
       "label_group_descriptive_evidence_and_overlap_abstention",
       "caller_declared_qc_policy",
       "missingness_and_observed_group_abstention",
+      "independence_aware_source_manifest",
+      "biological_duplicate_source_rejection",
+      "technical_duplicate_retention_without_independent_support",
+      "unknown_independence_safe_abstention",
+      "source_identity_bound_replay",
       "cohort_configuration_compatibility_and_child_replay",
       "content_addressed_replay"
     ],
@@ -35,7 +40,7 @@
   },
   "validation": {
     "scenarios": 8,
-    "cohort_scenarios": 6,
+    "cohort_scenarios": 9,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",
@@ -45,6 +50,17 @@
       "shared_peptide_group",
       "multi_spectrum",
       "multi_peptide_quantification"
+    ],
+    "cohort_expected_paths": [
+      "replicate_matrix",
+      "qc_abstention",
+      "explicit_missingness",
+      "label_normalization",
+      "duplicate_biological_source",
+      "technical_duplicate_visibility",
+      "unknown_independence_abstention",
+      "incompatible_search_space",
+      "pdc_provenance_replay"
     ],
     "replay": "full_result_projection_and_digest",
     "raw_cohort_bytes_bundled": false,
