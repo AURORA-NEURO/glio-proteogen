@@ -67,10 +67,18 @@ class ResearchRunRequest:
         # caller supplied a one-shot BinaryIO object.
         if type(self.max_bytes) is not int or not 0 < self.max_bytes <= 512 * 1024 * 1024:
             raise ValueError("max_bytes is outside the research limit")
-        object.__setattr__(self, "mzml_source", _read_bytes(self.mzml_source, self.max_bytes))
-        object.__setattr__(self, "fasta_source", _read_bytes(self.fasta_source, self.max_bytes))
+        mzml_bytes = _read_bytes(self.mzml_source, self.max_bytes)
+        fasta_bytes = _read_bytes(self.fasta_source, self.max_bytes)
+        object.__setattr__(self, "mzml_source", mzml_bytes)
+        object.__setattr__(self, "fasta_source", fasta_bytes)
         if self.external_pdc_file is not None and not isinstance(self.external_pdc_file, PdcFile):
             raise TypeError("external_pdc_file must be a PdcFile")
+        if self.external_pdc_file is not None:
+            _validate_pdc_file_binding(
+                self.external_pdc_file,
+                self.external_source_reference,
+                mzml_bytes,
+            )
         if self.external_pdc_receipt is not None:
             if not isinstance(self.external_pdc_receipt, PdcSourceReceipt):
                 raise TypeError("external_pdc_receipt must be a PdcSourceReceipt")
@@ -92,6 +100,33 @@ class ResearchRunRequest:
             )
         ):
             raise ValueError("external_pdc_response_sha256 must be a 64-character SHA-256")
+        if self.external_pdc_file is None and self.external_pdc_response_sha256 is not None:
+            raise ValueError("external PDC response hash requires an external PDC file")
+
+
+def _validate_pdc_file_binding(
+    pdc_file: PdcFile,
+    source_reference: SourceReference | None,
+    mzml_bytes: bytes,
+) -> None:
+    """Reject a PDC declaration that is not bound to the supplied mzML bytes."""
+
+    if source_reference is None:
+        raise ValueError("external PDC file requires a matching source reference")
+    if pdc_file.file_format is None or pdc_file.file_format.lower() not in {"mzml", "mzml.gz"}:
+        raise ValueError("external PDC file must declare mzML format")
+    if source_reference.locator != pdc_file.location:
+        raise ValueError("external PDC source locator does not match its file declaration")
+    if pdc_file.file_size != len(mzml_bytes):
+        raise ValueError("external PDC file size does not match supplied mzML bytes")
+    if pdc_file.md5 is not None:
+        if not isinstance(pdc_file.md5, str):
+            raise TypeError("external PDC file MD5 must be text")
+        if md5(mzml_bytes, usedforsecurity=False).hexdigest().lower() != pdc_file.md5.lower():
+            raise ValueError("external PDC file MD5 does not match supplied mzML bytes")
+    observed_sha = "sha256:" + sha256(mzml_bytes).hexdigest()
+    if source_reference.byte_length != len(mzml_bytes) or source_reference.sha256 != observed_sha:
+        raise ValueError("external PDC source reference does not match supplied mzML bytes")
 
 
 def bind_pdc_mzml_source(
