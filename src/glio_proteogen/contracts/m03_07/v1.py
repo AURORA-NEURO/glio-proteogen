@@ -39,6 +39,7 @@ from glio_proteogen.kernel.models import (
     Identifier,
     IdentityLineageState,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -802,7 +803,7 @@ class ProteinInferenceAbstention(FrozenModel):
         return self
 
 
-class ProteinInferenceSupportRouteResult(FrozenModel):
+class ProteinInferenceSupportRouteResult(NonInferenceResultModel):
     output_type: Literal["protein_inference_support_route_result"] = (
         "protein_inference_support_route_result"
     )
@@ -827,6 +828,8 @@ class ProteinInferenceSupportRouteResult(FrozenModel):
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile

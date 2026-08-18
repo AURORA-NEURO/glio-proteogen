@@ -1,0 +1,48 @@
+{
+  "adversarial_case_count": 8,
+  "adversarial_coverage_percent": 100.0,
+  "adversarial_passed_count": 8,
+  "checks": [
+    {
+      "detail": "observed=8 expected=8",
+      "name": "corpus.scenario_count",
+      "passed": true
+    },
+    {
+      "detail": "every declared scenario executes against an explicit oracle",
+      "name": "corpus.executable_oracles",
+      "passed": true
+    },
+    {
+      "detail": "integrated output preserves attributable source contributions",
+      "name": "integrated.attribution",
+      "passed": true
+    },
+    {
+      "detail": "all seven uncertainty dimensions remain explicit",
+      "name": "integrated.uncertainty_explicit",
+      "passed": true
+    },
+    {
+      "detail": "unresolved source disagreement abstains without erasure",
+      "name": "disagreement.safe_failure",
+      "passed": true
+    },
+    {
+      "detail": "payload digest is bound",
+      "name": "replay.tamper_denied",
+      "passed": true
+    },
+    {
+      "detail": "passed=8/8",
+      "name": "adversarial.coverage",
+      "passed": true
+    }
+  ],
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6604-6644",
+  "module_id": "GLIO-PROTEOGEN-M19-03",
+  "passed": true,
+  "scenario_count": 8,
+  "target_percent": 95
+}

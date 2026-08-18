@@ -1,0 +1,22 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-06",
+  "contractVersion": "0.1.0-provisional",
+  "authoritySha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authoritySlice": "source-manifest.yaml:9256-9296",
+  "fixtureDigest": "sha256:31a34bd07bf4df349db40b4a2bfa167d5ba34f61ee35f5921e72778a17ac225d",
+  "scenarioCount": 6,
+  "caseIds": [
+    "supported_all_controls",
+    "least_privilege_denied",
+    "threat_detection_denied",
+    "encryption_not_evaluable",
+    "consent_revoked_fail_closed",
+    "audit_review_required"
+  ],
+  "passed": 6,
+  "total": 6,
+  "allPassed": true,
+  "replayAndTamperChecks": true,
+  "deterministicDigests": true,
+  "safeAbstention": true
+}

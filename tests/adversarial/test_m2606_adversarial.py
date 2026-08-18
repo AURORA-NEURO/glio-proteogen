@@ -1,0 +1,124 @@
+"""Adversarial boundary and branch-closure tests for M26-06."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+
+from glio_proteogen.contracts.m26_06 import (
+    ControlStatus,
+    SecurityControlKind,
+)
+from glio_proteogen.contracts.m26_06.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
+    M2606AuthorizationError,
+    M2606SecurityEngine,
+    M2606SecurityPlugin,
+    M2606TokenError,
+    SecuritySubmission,
+    preflight_m2606_authorization,
+)
+from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control.api import (
+    create_m2606_app,
+)
+from tests.contract.test_m26_06_provisional import _request
+
+_HTTP_UNPROCESSABLE = 422
+_HTTP_NOT_FOUND = 404
+
+
+def test_request_context_and_control_declaration_drift_is_rejected() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="request ID"):
+        type(request).model_validate(
+            request.model_copy(
+                update={
+                    "context": request.context.model_copy(
+                        update={"request_id": "m2606.request.foreign"}
+                    )
+                }
+            )
+        )
+    duplicate = (*request.control_declarations[:-1], request.control_declarations[0])
+    with pytest.raises(ValidationError, match="declarations must be unique"):
+        type(request).model_validate(request.model_copy(update={"control_declarations": duplicate}))
+
+
+def test_plugin_rejects_forged_submission_and_cross_instance_token() -> None:
+    request = _request()
+    plugin = M2606SecurityPlugin()
+    with pytest.raises(M2606TokenError):
+        plugin.validate(object())  # type: ignore[arg-type]
+    token = plugin.validate(SecuritySubmission(canonical_json_bytes(request)))
+    with pytest.raises(M2606TokenError):
+        M2606SecurityPlugin().run(token)
+
+
+def test_preflight_hostile_mapping_fails_closed() -> None:
+    class Hostile:
+        def __getattr__(self, name: str) -> object:
+            raise RuntimeError(name)
+
+    with pytest.raises(M2606AuthorizationError):
+        preflight_m2606_authorization(Hostile())
+
+
+def test_api_rejects_duplicate_keys_nan_and_unknown_schema() -> None:
+    client = TestClient(create_m2606_app())
+    duplicate = client.post(
+        "/v1/modules/M26-06/evaluate",
+        content=b'{"request_id":"a","request_id":"b"}',
+    )
+    nan = client.post("/v1/modules/M26-06/evaluate", content=b'{"value":NaN}')
+    unknown = client.get("/v1/modules/M26-06/schemas/not-a-contract")
+    assert duplicate.status_code == _HTTP_UNPROCESSABLE
+    assert nan.status_code == _HTTP_UNPROCESSABLE
+    assert unknown.status_code == _HTTP_NOT_FOUND
+
+
+def test_api_rejects_oversized_and_non_object_replay_envelopes() -> None:
+    client = TestClient(create_m2606_app())
+    oversized = client.post(
+        "/v1/modules/M26-06/evaluate",
+        content=b"{" + b'"x":"' + b"a" * (4 * 1024 * 1024) + b'"}',
+    )
+    scalar = client.post("/v1/modules/M26-06/verify", content=b"[]")
+    assert oversized.status_code == _HTTP_UNPROCESSABLE
+    assert scalar.status_code == _HTTP_UNPROCESSABLE
+
+
+def test_abstention_never_becomes_negative_access_evidence() -> None:
+    request = _request()
+    declarations = tuple(
+        item.model_copy(
+            update={
+                "status": ControlStatus.NOT_EVALUABLE,
+                "rationale": "Secrets evidence is unavailable.",
+            }
+        )
+        if item.control is SecurityControlKind.SECRETS
+        else item
+        for item in request.control_declarations
+    )
+    result = M2606SecurityEngine().evaluate(
+        type(request).model_validate(
+            request.model_copy(update={"control_declarations": declarations})
+        )
+    )
+    assert result.status.value == "abstained"
+    assert result.access_decision is None
+    assert result.safe_failure_report is not None
+    assert result.support_decision.status.value == "review_required"
+
+
+def test_canonical_request_digest_ignores_only_no_fields_and_is_stable() -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    assert canonical_request_digest(request) == canonical_request_digest(payload)
+    assert canonical_json_bytes(payload) == canonical_json_bytes(
+        json.loads(canonical_json_bytes(payload))
+    )

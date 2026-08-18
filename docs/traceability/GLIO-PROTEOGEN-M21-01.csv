@@ -1,0 +1,9 @@
+requirement_id,authority,implementation,evidence,gate
+M21-01-R01,"7185-7228: reference truth and benchmark curator beneath Reference material/spike-ins","provisional module descriptor, contract identity, parent complex activity, Quality engineering owner","tests/contract/test_m21_01_contract.py::test_provisional_schemas_preserve_reference_truth_boundaries",G0
+M21-01-R02,"7185-7228: controls, provenance, consent, support, intended use","seven-control preflight and seven-entry provenance record","tests/adversarial/test_m2101_adversarial.py::test_preflight_rejects_wrong_control_state",G0
+M21-01-R03,"7185-7228: endpoint definitions, inclusion, leakage audits, challenge sets","closed request/package validators with exact challenge partition","tests/adversarial/test_m2101_adversarial.py::test_challenge_kind_and_flag_cannot_diverge",G0
+M21-01-R04,"7185-7228: adjudication and lock procedures","locked/rejected adjudication closure and canonical package lock digest","tests/contract/test_m21_01_contract.py::test_locked_package_and_result_replay_canonical_digests",G0
+M21-01-R05,"7185-7228: typed uncertainty, support, safe failure","seven uncertainty dimensions and typed abstention","tests/evaluator/test_m2101_evaluator.py::test_m2101_evaluator_matrix_passes",G0
+M21-01-R06,"7185-7228: versioned benchmark/truth package","deterministic result/replay digest, service, plugin, API, CLI","tests/contract/test_m21_01_contract.py::test_fastapi_validate_curate_verify_and_sanitized_tamper",G0
+M21-01-R07,"7185-7228: locked tests and benchmark evidence","frozen evaluator matrix and locked microbenchmark wrapper","evals/m21_01/evaluator.py; evals/m21_01/benchmark.py",G0
+M21-01-R08,"7185-7228: prohibited responsibility boundaries","no issuer authentication, identity inference, kinase/all-omics/treatment outputs","docs/modules/GLIO-PROTEOGEN-M21-01.md",G4

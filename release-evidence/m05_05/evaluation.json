@@ -1,0 +1,23 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-05",
+  "contract_version": "1.0.0",
+  "fixture": "tests/fixtures/m05_05/scenarios.json",
+  "passed": true,
+  "scenario_count": 8,
+  "checks": [
+    {"case_id": "clear", "passed": true},
+    {"case_id": "seeded_critical", "passed": true},
+    {"case_id": "contamination_detected", "passed": true},
+    {"case_id": "missing_required", "passed": true},
+    {"case_id": "unsupported_required", "passed": true},
+    {"case_id": "ledger_binding_only", "passed": true},
+    {"case_id": "upstream_quarantined", "passed": true},
+    {"case_id": "upstream_abstained", "passed": true}
+  ],
+  "safety_assertions": [
+    "missing and unsupported inputs abstain without fabricated findings",
+    "quarantined or abstained upstream inputs do not permit artifact traversal",
+    "canonical replay and tamper checks remain deterministic",
+    "raw input bytes and identity, consent, treatment, kinase, and all-omics claims are outside the output"
+  ]
+}

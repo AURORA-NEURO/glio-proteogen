@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-05",
+  "scope": [
+    "glio_proteogen.contracts.m04_05",
+    "glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection"
+  ],
+  "tests": 87,
+  "statements": 1260,
+  "missed_statements": 33,
+  "branches": 344,
+  "partial_branches": 30,
+  "branch_enabled_percent": 96.07,
+  "fail_under_percent": 95.0,
+  "passed": true
+}

@@ -1,0 +1,53 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M05-06",
+  "contract_version": "1.0.0-provisional",
+  "base_commit": "29637cee",
+  "source_commit": "675bb38e55c609d0dffb565eea4688660ab54ee2",
+  "python_loc_delta": {
+    "changed_files": 21,
+    "insertions": 3666,
+    "deletions": 2,
+    "net": 3664
+  },
+  "python": "3.12.13",
+  "build_backend": "hatchling",
+  "reproducible_builds": {
+    "build_command": "uv build --wheel --sdist --out-dir <external-output>",
+    "identical_wheel_sha256": true,
+    "identical_sdist_sha256": true
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3597988,
+    "sha256": "34c8f45394a8412dd88ddc41d6e381487d15ead1e07bd46d46c65402da8c4231",
+    "members": 1886
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 4142614,
+    "sha256": "146008ab0ce5e2dbbd091a9722b3be9a0ea5f5d76dc4d202b4146807403a5f1a",
+    "members": 4317
+  },
+  "isolated_import": {
+    "passed": true,
+    "check": "import glio_proteogen; importlib.metadata.version('glio-proteogen') == '0.1.0'"
+  },
+  "focused_tests": 81,
+  "mypy_strict_files": 18,
+  "evaluator": "3/3",
+  "coverage": {
+    "scope": "M05-06 contract/runtime source with evaluator coverage data",
+    "weighted_percent": 96.0,
+    "statements": 848,
+    "branches": 160
+  },
+  "benchmark": {
+    "iterations": 25,
+    "stages": 8,
+    "mean_ns": 2481371500,
+    "p95_ns": 2575963600,
+    "mean_budget_ns": 4000000000,
+    "p95_budget_ns": 5000000000
+  },
+  "status": "passed"
+}

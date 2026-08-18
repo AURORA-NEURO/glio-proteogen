@@ -1,0 +1,70 @@
+{
+  "checks": [
+    {
+      "detail": "cases=12",
+      "name": "scenario.corpus_inventory",
+      "passed": true
+    },
+    {
+      "detail": "all seven stage outputs are releasable",
+      "name": "scenario.genuine_m0401_m0407_chain",
+      "passed": true
+    },
+    {
+      "detail": "disposition=released;members=10",
+      "name": "scenario.canonical_release",
+      "passed": true
+    },
+    {
+      "detail": "request/artifact order is canonicalized",
+      "name": "scenario.semantic_reorder_replay",
+      "passed": true
+    },
+    {
+      "detail": "manifest, signature, and eight caller members present",
+      "name": "scenario.archive_inventory",
+      "passed": true
+    },
+    {
+      "detail": "reason=descriptor_mismatch",
+      "name": "scenario.archive_tamper_detection",
+      "passed": true
+    },
+    {
+      "detail": "reason=verified",
+      "name": "scenario.signature_replay",
+      "passed": true
+    },
+    {
+      "detail": "reasons=1",
+      "name": "scenario.signature_quarantine",
+      "passed": true
+    },
+    {
+      "detail": "artifact bytes bind declarations",
+      "name": "scenario.stage_identity_binding",
+      "passed": true
+    },
+    {
+      "detail": "authority flags remain false",
+      "name": "scenario.parent_receipt_ceiling",
+      "passed": true
+    },
+    {
+      "detail": "schemas=9",
+      "name": "scenario.schema_inventory",
+      "passed": true
+    },
+    {
+      "detail": "bounded request inventory",
+      "name": "scenario.maximum_shape_limits",
+      "passed": true
+    }
+  ],
+  "declared_case_count": 12,
+  "executed_check_count": 12,
+  "genuine_e2e_executed": true,
+  "module_id": "GLIO-PROTEOGEN-M04-08",
+  "passed": true,
+  "phase": "locked_executable_release_evidence"
+}

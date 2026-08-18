@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-02",
+  "meta": {"branch_coverage": true, "coverage_version": "7.14.1", "scope": "M20-02 contract/runtime/adapter"},
+  "totals": {
+    "num_statements": 479,
+    "covered_lines": 467,
+    "num_branches": 94,
+    "covered_branches": 84,
+    "num_partial_branches": 10,
+    "percent_covered": 96.1605584642234,
+    "percent_statements_covered": 97.4947807933194,
+    "percent_branches_covered": 89.3617021276596,
+    "fail_under": 95.0
+  },
+  "focused_tests": 27
+}

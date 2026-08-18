@@ -1,0 +1,7 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-05",
+  "fixture_digest": "sha256:ff5606a7368f85fdecffc0ce9a44f94def90e8a9c8286e532cd2b2c83636704d",
+  "checks_declared": 7,
+  "checks_passed": 7,
+  "passed": true
+}

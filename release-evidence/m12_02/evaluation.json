@@ -1,0 +1,25 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M12-02",
+  "contract_version": "0.1.0-provisional",
+  "fixture": "tests/fixtures/m12_02/scenarios.json",
+  "fixture_sha256": "sha256:b0b925512c9ebcf106b2cf4879193ef9c2f5b873deca91a91f4cae13a693e9c8",
+  "declared": 6,
+  "executed": 6,
+  "passed": true,
+  "cases": [
+    {"case_id": "supported_full", "expected": "stratified", "actual": "stratified"},
+    {"case_id": "missing_platform", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "conflicted_subtype", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "limited_territory", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "incomplete_policy", "expected": "abstained", "actual": "abstained"},
+    {"case_id": "denied_control", "expected": "authorization_rejected", "actual": "authorization_rejected"}
+  ],
+  "focused_tests": 29,
+  "coverage": {
+    "branch_enabled": true,
+    "statements": 542,
+    "branches": 98,
+    "percent": 99.0,
+    "fail_under": 95.0
+  }
+}

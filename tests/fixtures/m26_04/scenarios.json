@@ -1,0 +1,15 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M26-04",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9168-9208",
+  "cases": [
+    {"case_id": "published_complete", "expectation": "complete gateway publishes"},
+    {"case_id": "denied_authorization_abstention", "expectation": "denied operation abstains"},
+    {"case_id": "queued_job_abstention", "expectation": "queued job abstains"},
+    {"case_id": "migration_required_abstention", "expectation": "migration review abstains"},
+    {"case_id": "authorization_gate", "expectation": "preflight rejects denied control"},
+    {"case_id": "source_closure_boundary", "expectation": "duplicate source IDs reject"},
+    {"case_id": "replay_tamper_determinism", "expectation": "replay is canonical"},
+    {"case_id": "schema_authority", "expectation": "schemas retain authority metadata"}
+  ]
+}
+

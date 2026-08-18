@@ -1,0 +1,13 @@
+{
+  "iterations": 10,
+  "modules": [
+    {"moduleId": "GLIO-PROTEOGEN-M09-01", "meanNs": 1048850, "p95Ns": 1166500, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-02", "meanNs": 1772530, "p95Ns": 2001100, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-03", "meanNs": 2821840, "p95Ns": 2971100, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-04", "meanNs": 2300440, "p95Ns": 2545800, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-05", "meanNs": 1749610, "p95Ns": 1782500, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-06", "meanNs": 2831840, "p95Ns": 3240600, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-07", "meanNs": 1273850, "p95Ns": 1429700, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-08", "meanNs": 3270110, "p95Ns": 3692700, "meanBudgetNs": 2000000000, "p95BudgetNs": 3000000000, "passed": true}
+  ]
+}

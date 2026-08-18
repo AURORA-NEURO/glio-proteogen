@@ -1,0 +1,10 @@
+[
+  {"id": "supported-immutable-review", "expected": "recorded"},
+  {"id": "deferred-review-abstention", "expected": "abstained"},
+  {"id": "withheld-consent", "expected": "authorization_error"},
+  {"id": "conflicted-identity", "expected": "authorization_error"},
+  {"id": "wrong-upstream-media", "expected": "validation_error"},
+  {"id": "unknown-field", "expected": "validation_error"},
+  {"id": "duplicate-discrepancy", "expected": "validation_error"},
+  {"id": "tampered-result", "expected": "replay_error"}
+]

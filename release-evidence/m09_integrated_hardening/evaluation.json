@@ -1,0 +1,17 @@
+{
+  "focusedTests": {
+    "passed": 247,
+    "failed": 0
+  },
+  "modules": [
+    {"moduleId": "GLIO-PROTEOGEN-M09-01", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-02", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-03", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-04", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-05", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-06", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-07", "scenarios": 8, "passed": true, "replay": true, "tamperRejected": true},
+    {"moduleId": "GLIO-PROTEOGEN-M09-08", "scenarios": 1, "passed": true, "replay": true, "tamperRejected": true}
+  ],
+  "directEntryPoints": "all eight evals/m09_XX/run.py commands passed"
+}

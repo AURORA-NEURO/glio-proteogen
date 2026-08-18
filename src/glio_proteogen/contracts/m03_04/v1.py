@@ -43,6 +43,7 @@ from glio_proteogen.kernel.models import (
     IdentityLineageState,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -296,6 +297,7 @@ _RAW_FORMAT_BY_ROLE: Final = {
     ProteinInferenceRawRole.TRANSCRIPT_CONTEXT: ProteinInferenceRawFormat.GFF3,
 }
 
+
 class ProteinInferenceQualityThreshold(FrozenModel):
     metric_code: ProteinInferenceQualityMetricCode
     direction: ProteinInferenceQualityMetricDirection
@@ -369,9 +371,7 @@ class ProteinInferenceAssayQualityProfile(FrozenModel):
         if any(len(values) != len(set(values)) for values in version_sets):
             raise ValueError("approved profile versions must be unique")
         codes = tuple(item.metric_code for item in self.thresholds)
-        if len(codes) != len(set(codes)) or set(codes) != set(
-            ProteinInferenceQualityMetricCode
-        ):
+        if len(codes) != len(set(codes)) or set(codes) != set(ProteinInferenceQualityMetricCode):
             raise ValueError("quality profile requires each of the eight metrics exactly once")
         return self
 
@@ -439,26 +439,17 @@ class ProteinInferenceRawQualitySourceReceipt(FrozenModel):
     record_count: int = Field(ge=0, le=M0304_MAX_COUNT)
     reference_count: int = Field(ge=0, le=M0304_MAX_COUNT)
     build: ProteinInferenceBuildBindingReceipt
-    diagnostic_codes: tuple[ProteinInferenceDiagnosticCode, ...] = Field(
-        default=(), max_length=64
-    )
+    diagnostic_codes: tuple[ProteinInferenceDiagnosticCode, ...] = Field(default=(), max_length=64)
 
     @model_validator(mode="after")
     def source_projection_is_closed(self) -> ProteinInferenceRawQualitySourceReceipt:
         if len(self.diagnostic_codes) != len(set(self.diagnostic_codes)):
             raise ValueError("projected source diagnostic codes must be unique")
         decoded_cap = (
-            ProteinInferenceDiagnosticCode.DECODED_SIZE_LIMIT_EXCEEDED
-            in self.diagnostic_codes
+            ProteinInferenceDiagnosticCode.DECODED_SIZE_LIMIT_EXCEEDED in self.diagnostic_codes
         )
-        raw_cap = ProteinInferenceDiagnosticCode.RAW_SIZE_LIMIT_EXCEEDED in (
-            self.diagnostic_codes
-        )
-        if (
-            self.decoded_digest is None
-            and self.decoded_size_bytes != 0
-            and not decoded_cap
-        ):
+        raw_cap = ProteinInferenceDiagnosticCode.RAW_SIZE_LIMIT_EXCEEDED in (self.diagnostic_codes)
+        if self.decoded_digest is None and self.decoded_size_bytes != 0 and not decoded_cap:
             raise ValueError("decoded byte count requires a decoded digest")
         if decoded_cap and self.decoded_digest is not None:
             raise ValueError("bounded partial decode cannot claim a complete decoded digest")
@@ -585,10 +576,7 @@ class ProteinInferenceRawQualityReceipt(FrozenModel):
                 raise ValueError("quality source and claim projections do not close")
             claims_by_id = {item.claim_id: item for item in self.claims}
             _validate_quality_receipt_role_shape(self)
-            if any(
-                item.evidence_state != "observed" or item.finding_codes
-                for item in self.claims
-            ):
+            if any(item.evidence_state != "observed" or item.finding_codes for item in self.claims):
                 raise ValueError("validated quality claims must preserve observed clean lineage")
             for source in self.sources:
                 if (
@@ -637,9 +625,9 @@ def _validate_quality_receipt_role_shape(receipt: ProteinInferenceRawQualityRece
     }
     if any(role_counts[role] != 1 for role in exact_source_roles):
         raise ValueError("quality receipt required source roles must occur exactly once")
-    peptide_claim_count = tuple(
-        item.claim_role for item in receipt.claims
-    ).count(ArtifactClaimRole.PEPTIDE_EVIDENCE_MANIFEST)
+    peptide_claim_count = tuple(item.claim_role for item in receipt.claims).count(
+        ArtifactClaimRole.PEPTIDE_EVIDENCE_MANIFEST
+    )
     if role_counts[ProteinInferenceRawRole.PEPTIDE_EVIDENCE] != peptide_claim_count:
         raise ValueError("quality receipt peptide sources and claims must have equal count")
     composition = receipt.search_space_composition
@@ -714,10 +702,8 @@ class ProteinInferenceQualityCounts(FrozenModel):
         ):
             raise ValueError("peptide assignment counts must partition eligible evidence")
         if (
-            self.ambiguous_group_member_assignment_count
-            > self.total_group_member_assignment_count
-            or self.discriminating_proteoform_claim_count
-            > self.eligible_proteoform_claim_count
+            self.ambiguous_group_member_assignment_count > self.total_group_member_assignment_count
+            or self.discriminating_proteoform_claim_count > self.eligible_proteoform_claim_count
         ):
             raise ValueError("quality numerator cannot exceed its eligible denominator")
         if (
@@ -837,9 +823,9 @@ class ProteinInferenceQualityFactLedger(FrozenModel):
             and c.detection_missing_group_count != 0
         ):
             raise ValueError("censored detection facts cannot also count missing groups")
-        if (
-            s.detection_support is ProteinInferenceQualityObservationState.CENSORED
-        ) != (c.left_censored_group_count > 0):
+        if (s.detection_support is ProteinInferenceQualityObservationState.CENSORED) != (
+            c.left_censored_group_count > 0
+        ):
             raise ValueError("detection censoring state must match its censored count")
         from glio_proteogen.contracts.m03_04.canonical import (  # noqa: PLC0415
             fact_ledger_digest,
@@ -886,9 +872,7 @@ class ComputeProteinInferenceQualityRequest(FrozenModel):
         if traversable != (ledger is not None):
             raise ValueError("fact-ledger presence contradicts the safe traversal envelope")
         if ledger is not None and not (
-            receipt.upstream_completed_at
-            <= ledger.recorded_at
-            <= self.context.occurred_at
+            receipt.upstream_completed_at <= ledger.recorded_at <= self.context.occurred_at
         ):
             raise ValueError("quality facts must follow M03-03 and precede computation")
         if len(canonical_json_bytes(self.model_dump(mode="python"))) > (
@@ -931,8 +915,7 @@ class ProteinInferenceQualityMetricResult(FrozenModel):
                 raise ValueError("non-observed quality states cannot carry a ratio")
             expected = (
                 ProteinInferenceQualityMetricStatus.NOT_APPLICABLE
-                if self.observation_state
-                is ProteinInferenceQualityObservationState.NOT_APPLICABLE
+                if self.observation_state is ProteinInferenceQualityObservationState.NOT_APPLICABLE
                 else ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
             )
             if self.status is not expected or self.censored_count != 0:
@@ -945,8 +928,10 @@ class ProteinInferenceQualityMetricResult(FrozenModel):
         if self.censored_count > self.denominator:
             raise ValueError("censored count cannot exceed its metric denominator")
         if self.denominator == 0:
-            if self.numerator != 0 or self.value_ppm is not None or (
-                self.status is not ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
+            if (
+                self.numerator != 0
+                or self.value_ppm is not None
+                or (self.status is not ProteinInferenceQualityMetricStatus.NOT_EVALUABLE)
             ):
                 raise ValueError("zero-denominator metric must remain explicitly not evaluable")
         else:
@@ -958,9 +943,9 @@ class ProteinInferenceQualityMetricResult(FrozenModel):
                 ProteinInferenceQualityMetricStatus.NOT_APPLICABLE,
             }:
                 raise ValueError("quality value does not match the exact integer ratio")
-        if (
-            self.observation_state is ProteinInferenceQualityObservationState.CENSORED
-        ) != (self.censored_count > 0):
+        if (self.observation_state is ProteinInferenceQualityObservationState.CENSORED) != (
+            self.censored_count > 0
+        ):
             raise ValueError("censored observation state requires a positive censored count")
         return self
 
@@ -973,9 +958,7 @@ class ProteinInferenceQualityFinding(FrozenModel):
         default=(), max_length=M0304_METRIC_COUNT
     )
     source_ids: tuple[Identifier, ...] = Field(default=(), max_length=M0304_MAX_SOURCES)
-    claim_ids: tuple[Identifier, ...] = Field(
-        default=(), max_length=M0304_MAX_LINEAGE_ARTIFACTS
-    )
+    claim_ids: tuple[Identifier, ...] = Field(default=(), max_length=M0304_MAX_LINEAGE_ARTIFACTS)
     message: NonEmptyStr
 
     @model_validator(mode="after")
@@ -1004,14 +987,15 @@ class ProteinInferenceQualityComputationReceipt(FrozenModel):
     emits_complex_activity: Literal[False] = False
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
+    infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     disposition: ProteinInferenceQualityDisposition
 
 
-class ProteinInferenceQualityResult(FrozenModel):
-    output_type: Literal["protein_inference_quality_profile"] = (
-        "protein_inference_quality_profile"
-    )
+class ProteinInferenceQualityResult(NonInferenceResultModel):
+    output_type: Literal["protein_inference_quality_profile"] = "protein_inference_quality_profile"
     result_id: Identifier
     result_version: Literal["1.0.0"] = M0304_CONTRACT_VERSION
     request_digest: Sha256Digest
@@ -1031,13 +1015,14 @@ class ProteinInferenceQualityResult(FrozenModel):
     emits_complex_activity: Literal[False] = False
     infers_identity: Literal[False] = False
     infers_protein: Literal[False] = False
+    infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     support: SupportDecision
     uncertainty: UncertaintyProfile
     provenance: ProvenanceRecord
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M0304_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M0304_MAX_EVIDENCE)
     limitations: tuple[Limitation, ...] = Field(min_length=2, max_length=2)
     human_review_required: bool
     completed_at: AwareDatetime
@@ -1526,8 +1511,7 @@ def expected_disposition(  # noqa: PLR0911, PLR0912 - explicit safety precedence
     if request.raw_quality_receipt.lineage_artifact_count > M0304_MAX_LINEAGE_ARTIFACTS:
         return ProteinInferenceQualityDisposition.ABSTAINED
     if (
-        request.raw_quality_receipt.lineage_artifact_count
-        > request.policy.max_lineage_artifacts
+        request.raw_quality_receipt.lineage_artifact_count > request.policy.max_lineage_artifacts
         or request.raw_quality_receipt.source_count > request.policy.max_sources
     ):
         return ProteinInferenceQualityDisposition.ABSTAINED
@@ -1543,7 +1527,8 @@ def expected_disposition(  # noqa: PLR0911, PLR0912 - explicit safety precedence
     if ProteinInferenceQualityFindingAction.ABSTAIN in actions:
         return ProteinInferenceQualityDisposition.ABSTAINED
     if any(
-        item.status in {
+        item.status
+        in {
             ProteinInferenceQualityMetricStatus.WARNING,
             ProteinInferenceQualityMetricStatus.FAIL,
         }
@@ -1552,9 +1537,7 @@ def expected_disposition(  # noqa: PLR0911, PLR0912 - explicit safety precedence
     ) or any(item.status is ProteinInferenceQualityMetricStatus.FAIL for item in metrics):
         return ProteinInferenceQualityDisposition.QUARANTINED
     if any(
-        item.required
-        and item.status
-        is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
+        item.required and item.status is ProteinInferenceQualityMetricStatus.NOT_EVALUABLE
         for item in metrics
     ):
         return ProteinInferenceQualityDisposition.ABSTAINED
@@ -1593,9 +1576,7 @@ def expected_quality_findings(  # noqa: PLR0911, PLR0912 - closed finding matrix
     ):
         return (finding_for(ProteinInferenceQualityFindingCode.UPSTREAM_SHAPE_UNSUPPORTED),)
     if not _ledger_bindings_close(request):
-        return (
-            finding_for(ProteinInferenceQualityFindingCode.FACT_LEDGER_BINDING_MISMATCH),
-        )
+        return (finding_for(ProteinInferenceQualityFindingCode.FACT_LEDGER_BINDING_MISMATCH),)
     profile = _matching_profile(request)
     if profile is None:
         return (finding_for(ProteinInferenceQualityFindingCode.ASSAY_PROFILE_UNSUPPORTED),)
@@ -1603,26 +1584,21 @@ def expected_quality_findings(  # noqa: PLR0911, PLR0912 - closed finding matrix
     ledger = request.fact_ledger
     if ledger is not None:
         control_consistent = (
-            (
-                profile.controls_applicable
-                and ledger.states.control_recovery
-                is not ProteinInferenceQualityObservationState.NOT_APPLICABLE
-            )
-            or (
-                not profile.controls_applicable
-                and ledger.states.control_recovery
-                is ProteinInferenceQualityObservationState.NOT_APPLICABLE
-                and ledger.counts.control_expected_group_count == 0
-                and ledger.counts.control_recovered_group_count == 0
-            )
+            profile.controls_applicable
+            and ledger.states.control_recovery
+            is not ProteinInferenceQualityObservationState.NOT_APPLICABLE
+        ) or (
+            not profile.controls_applicable
+            and ledger.states.control_recovery
+            is ProteinInferenceQualityObservationState.NOT_APPLICABLE
+            and ledger.counts.control_expected_group_count == 0
+            and ledger.counts.control_recovered_group_count == 0
         )
         if not control_consistent:
             findings.append(
                 finding_for(
                     ProteinInferenceQualityFindingCode.CROSS_METRIC_INCONSISTENCY,
-                    metric_codes=(
-                        ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY,
-                    ),
+                    metric_codes=(ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY,),
                 )
             )
     for metric in metrics:
@@ -1640,8 +1616,7 @@ def expected_quality_findings(  # noqa: PLR0911, PLR0912 - closed finding matrix
             or (
                 metric.status is ProteinInferenceQualityMetricStatus.NOT_APPLICABLE
                 and not (
-                    metric.metric_code
-                    is ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY
+                    metric.metric_code is ProteinInferenceQualityMetricCode.CONTROL_GROUP_RECOVERY
                     and not profile.controls_applicable
                 )
             )
@@ -1682,9 +1657,7 @@ def expected_computation_receipt(
     return ProteinInferenceQualityComputationReceipt(
         raw_quality_receipt_digest=raw_quality_receipt_digest(request.raw_quality_receipt),
         fact_ledger_digest=(
-            fact_ledger_digest(request.fact_ledger)
-            if request.fact_ledger is not None
-            else None
+            fact_ledger_digest(request.fact_ledger) if request.fact_ledger is not None else None
         ),
         policy_digest=policy_digest(request.policy),
         configuration_digest=configuration_digest(request.policy),

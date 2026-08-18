@@ -1,0 +1,301 @@
+{
+  "checks": [
+    {
+      "detail": "groups=8;declared=56;canonical_targets=32",
+      "name": "corpus.locked_inventory",
+      "passed": true
+    },
+    {
+      "detail": "public M04-05 builder executes the genuine M04-01 through M04-04 chain",
+      "name": "scenario.genuine_public_m0401_through_m0405_handoff",
+      "passed": true
+    },
+    {
+      "detail": "derived receipt revalidates and binds the exact public M04-05 result",
+      "name": "scenario.derived_artifact_receipt_binds_exact_m0405_result",
+      "passed": true
+    },
+    {
+      "detail": "support ledger closes over all 32 projected artifact targets",
+      "name": "scenario.support_ledger_binds_exact_artifact_target_projection",
+      "passed": true
+    },
+    {
+      "detail": "every observation preserves its exact seven-posterior M04-05 projection",
+      "name": "scenario.every_observation_binds_all_seven_m0405_posteriors_and_mask_action",
+      "passed": true
+    },
+    {
+      "detail": "all 32 observations carry exactly all eight factors",
+      "name": "scenario.every_support_observation_carries_exact_eight_factor_shape",
+      "passed": true
+    },
+    {
+      "detail": "all 8 technical and all 3 invariant diagnostics pass",
+      "name": "scenario.canonical_clean_harmonization_is_accepted",
+      "passed": true
+    },
+    {
+      "detail": "exact parent ceiling retained with every inference flag false",
+      "name": "scenario.result_preserves_parent_without_inferring_protein_rna_discordance",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-1000 ppm",
+      "name": "scenario.platform_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-2000 ppm",
+      "name": "scenario.batch_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-3000 ppm",
+      "name": "scenario.laboratory_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-4000 ppm",
+      "name": "scenario.build_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-5000 ppm",
+      "name": "scenario.depth_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-6000 ppm",
+      "name": "scenario.purity_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-7000 ppm",
+      "name": "scenario.composition_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "exact lower-median shift=-8000 ppm",
+      "name": "scenario.preanalytic_lower_median_signed_integer_shift_is_exact",
+      "passed": true
+    },
+    {
+      "detail": "stage digests chain; exact cap and coordinate clamp both quarantine",
+      "name": "scenario.sequential_replay_shift_cap_and_coordinate_clamp_boundaries_are_exact",
+      "passed": true
+    },
+    {
+      "detail": "closed target receipt maps excluded targets only to exclusion",
+      "name": "scenario.excluded_artifact_target_never_trains_or_receives_correction",
+      "passed": true
+    },
+    {
+      "detail": "closed target receipt maps review targets only to review",
+      "name": "scenario.review_artifact_target_never_trains_or_receives_correction",
+      "passed": true
+    },
+    {
+      "detail": "missing support remains nonnumeric and unadjusted",
+      "name": "scenario.missing_support_state_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "exact 321000 ppm censoring bound is preserved",
+      "name": "scenario.censored_support_bound_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "not-applicable support remains distinct and nonnumeric",
+      "name": "scenario.not_applicable_support_state_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "unsupported support remains distinct and nonnumeric",
+      "name": "scenario.unsupported_support_state_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "observed zero remains typed numeric zero",
+      "name": "scenario.observed_zero_support_is_numeric_zero_not_missing",
+      "passed": true
+    },
+    {
+      "detail": "all eight disjoint held-out residuals reduce exactly to zero",
+      "name": "scenario.heldout_technical_residual_is_reduced_within_tolerance",
+      "passed": true
+    },
+    {
+      "detail": "support-direction score remains exact +200000 ppm",
+      "name": "scenario.support_direction_invariant_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "support-rank score remains exact +200000 ppm",
+      "name": "scenario.support_rank_invariant_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "composition fraction remains exact 200000 ppm",
+      "name": "scenario.composition_fraction_invariant_is_preserved",
+      "passed": true
+    },
+    {
+      "detail": "held-out platform residual remains nonzero and quarantines",
+      "name": "scenario.unreduced_heldout_technical_effect_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "direction inversion is an evaluable invariant quarantine",
+      "name": "scenario.support_direction_or_rank_violation_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "asymmetric technical adjustment drifts composition fraction",
+      "name": "scenario.composition_fraction_drift_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "full strict M04-05 replay completes while the hostile ledger stays untouched",
+      "name": "scenario.m0405_full_result_replay_precedes_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "genuine quarantined M04-05 projection yields ledger-free quarantine",
+      "name": "scenario.m0405_quarantined_receipt_propagates_without_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "genuine abstained M04-05 projection yields ledger-free abstention",
+      "name": "scenario.m0405_abstained_receipt_propagates_without_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "genuine excluded target has exact quarantine firewall action",
+      "name": "scenario.complete_artifact_receipt_with_excluded_target_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "genuine review target has exact quarantine firewall action",
+      "name": "scenario.complete_artifact_receipt_with_review_target_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "stale artifact-result binding emits zero analysis",
+      "name": "scenario.support_ledger_binding_mismatch_quarantines_before_normalization",
+      "passed": true
+    },
+    {
+      "detail": "unsupported profile abstains after exact upstream precedence",
+      "name": "scenario.unsupported_profile_abstains_with_deterministic_precedence",
+      "passed": true
+    },
+    {
+      "detail": "denials=7/7;hostile traversals=0",
+      "name": "scenario.seven_control_authorization_matrix_precedes_hostile_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "strict JSON plugin rejects a duplicated operation member",
+      "name": "scenario.duplicate_json_object_key_is_rejected",
+      "passed": true
+    },
+    {
+      "detail": "string integer, NaN, and extra member fail strict reconstruction",
+      "name": "scenario.scalar_coercion_nonfinite_and_unknown_field_are_rejected",
+      "passed": true
+    },
+    {
+      "detail": "32 targets/observations plus installed integer and result caps accepted",
+      "name": "scenario.exact_installed_collection_and_integer_caps_are_accepted",
+      "passed": true
+    },
+    {
+      "detail": "target 33 upstream is preserved and abstains without truncation; owned observation 33 and the first coordinate-scale excess reject",
+      "name": "scenario.first_excess_collection_or_integer_cap_is_rejected",
+      "passed": true
+    },
+    {
+      "detail": "schema publishes exact 4194304 cap; +1 ingress rejects",
+      "name": "scenario.canonical_request_exact_4mib_cap_and_first_excess_are_enforced",
+      "passed": true
+    },
+    {
+      "detail": "withheld consent; ledger traversals=0",
+      "name": "scenario.hostile_support_ledger_accessors_are_not_traversed_before_authorization",
+      "passed": true
+    },
+    {
+      "detail": "observation, invariant, and profile reorderings normalize",
+      "name": "scenario.semantic_reordering_preserves_complete_result_equality",
+      "passed": true
+    },
+    {
+      "detail": "typed, mapping, and strict JSON public boundaries agree completely",
+      "name": "scenario.typed_dictionary_and_strict_json_requests_produce_equal_results",
+      "passed": true
+    },
+    {
+      "detail": "stable field-owned digest count=20",
+      "name": "scenario.all_field_owned_request_policy_profile_receipt_ledger_finding_and_result_digests_are_stable",
+      "passed": true
+    },
+    {
+      "detail": "owned-biological canaries absent; probability slots null/false;opaque identifiers=2488",
+      "name": "scenario.recursive_privacy_ownership_and_probability_canaries_are_absent",
+      "passed": true
+    },
+    {
+      "detail": "re-signed harmonized-coordinate forgery fails recursive replay",
+      "name": "scenario.nested_derived_forgery_matrix_is_rejected",
+      "passed": true
+    },
+    {
+      "detail": "re-signed target identity is rejected before the stale ledger can execute",
+      "name": "scenario.resigned_artifact_receipt_without_support_ledger_rebind_is_rejected",
+      "passed": true
+    },
+    {
+      "detail": "library, engine, service, and plugin are completely equal",
+      "name": "scenario.library_engine_service_and_plugin_outputs_match",
+      "passed": true
+    },
+    {
+      "detail": "status=200;exact schemas=14",
+      "name": "scenario.api_operation_and_schema_exports_match_installed_contracts",
+      "passed": true
+    },
+    {
+      "detail": "exit=0;exact schemas=14",
+      "name": "scenario.cli_operation_and_schema_exports_match_installed_contracts",
+      "passed": true
+    },
+    {
+      "detail": "prior=sha256:e077d3b7b4aea5a519141ac787f8cea7892ea56f0579cba79595dddbcc0bcf7c;new=sha256:9cb8169c97d59346c9c00f6fa94fb886096e232ddc2f5f369dd45aba65b6b8a5",
+      "name": "scenario.supersession_recovery_is_append_only_and_immutable",
+      "passed": true
+    },
+    {
+      "detail": "evidence_files=6;declared_cases=56",
+      "name": "scenario.evidence_inventory_executes_every_declared_case",
+      "passed": true
+    },
+    {
+      "detail": "shape=32/32;warmups=1;timed=25;genuine upstream and request construction are outside timed boundary",
+      "name": "scenario.representative_public_operation_benchmark_times_only_harmonization",
+      "passed": true
+    },
+    {
+      "detail": "declared=56;executed=56;missing=[];extra=[]",
+      "name": "corpus.executable_coverage",
+      "passed": true
+    }
+  ],
+  "declared_case_count": 56,
+  "executed_case_count": 56,
+  "extra_case_ids": [],
+  "missing_case_ids": [],
+  "module_id": "GLIO-PROTEOGEN-M04-06",
+  "passed": true,
+  "phase": "locked_executable_corpus"
+}

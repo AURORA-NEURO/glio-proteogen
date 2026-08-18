@@ -1,0 +1,14 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M21-05,caller-declared M21-04 upstream media binding,contracts/m21_05/v1.py request_is_bound,contract and evaluator media tests,pass
+GLIO-PROTEOGEN-M21-05,seven-control fail-closed preflight,modules/.../m21_05_subgroup_equity_evaluator/engine.py preflight_m2105_authorization,denial malformed-context and adversarial tests,pass
+GLIO-PROTEOGEN-M21-05,eight-dimension subgroup alignment,contracts/m21_05/v1.py SubgroupEvaluationReport report_is_closed,alignment and duplicate-ID tests,pass
+GLIO-PROTEOGEN-M21-05,finite numeric bounds and equity floor,contracts/m21_05/v1.py SubgroupPerformance and CoverageSummary validators,numeric adversarial tests,pass
+GLIO-PROTEOGEN-M21-05,calibration and coverage safety,engine.py _findings,coverage calibration and rare-context evaluator cases,pass
+GLIO-PROTEOGEN-M21-05,safe abstention without unsupported-to-negative conversion,engine.py EvaluationStatus and SupportDecision,unsupported limited floor and denial tests,pass
+GLIO-PROTEOGEN-M21-05,seven uncertainty dimensions,engine.py _uncertainty,runtime/evaluator assertions,pass
+GLIO-PROTEOGEN-M21-05,provenance and seven-control evidence closure,engine.py _provenance and _evidence,runtime result assertions,pass
+GLIO-PROTEOGEN-M21-05,canonical request/result replay and tamper rejection,contracts/m21_05/canonical.py and engine.py verify,replay payload ownership and API tests,pass
+GLIO-PROTEOGEN-M21-05,strict parse-once plugin,modules/.../plugin.py,plugin token malformed-input parity tests,pass
+GLIO-PROTEOGEN-M21-05,FastAPI and Typer sanitized interfaces,modules/.../api.py and cli.py,interface lifecycle/error/no-overwrite tests,pass
+GLIO-PROTEOGEN-M21-05,evaluator fixture and locked benchmark,evals/m21_05 and tests/fixtures/m21_05,9 cases and 25 iterations,pass
+GLIO-PROTEOGEN-M21-05,provisional authority and prohibited boundaries,docs/modules/M21-05-subgroup-equity-evaluator.md,owner review and release evidence,provisional

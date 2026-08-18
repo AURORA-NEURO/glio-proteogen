@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M20-03",
+  "schema_version": "0.1.0-provisional",
+  "operation": "fuse_protein_subtype_evidence",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6964-7004",
+  "owner": "Clinical science",
+  "safety_class": "S2",
+  "evidence_gate": "G2",
+  "parent_target": "protein subtype",
+  "claims_ceiling": "integrated_component_specific_evidence_with_attribution_only",
+  "forbidden_capabilities": ["kinase_activity", "all_omics_fusion", "treatment_recommendation", "identity_inference", "disagreement_erasure", "unsupported_to_negative"],
+  "scenario_names": ["integrated", "resolved_disagreement", "low_reliability", "open_disagreement", "forbidden_claim", "control_denied", "upstream_media_rejected", "replay_tamper"],
+  "adversarial_cases": ["low_reliability_abstains", "not_evaluable_source_abstains", "open_disagreement_abstains", "forbidden_ownership_claim_abstains", "consent_control_denied", "upstream_media_rejected", "tampered_replay_rejected", "duplicate_source_rejected"],
+  "coverage_target_percent": 95
+}

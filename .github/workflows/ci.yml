@@ -81,9 +81,112 @@ jobs:
           uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
           tests/integration/test_m04_05_interfaces.py
 
+  windows-m04-07-interface:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m04_07_interfaces.py
+
+  windows-m04-06-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m04_06_interfaces.py
+
+  windows-m05-01-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m05_01_interfaces.py
+
+  windows-m05-02-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m05_02_interfaces.py
+
+  windows-m05-03-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m05_03_interfaces.py
+
+  windows-m05-04-interface:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --all-groups
+      - run: >-
+          uv run pytest -o addopts="" --strict-config --strict-markers --no-cov
+          tests/integration/test_m05_04_interfaces.py
+
   test-and-eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # M04-07 focused tests plus its locked evaluator measured over 32 minutes locally.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -124,6 +227,14 @@ jobs:
       - run: uv run python -m evals.m04_03.run --output m04_03-eval.json
       - run: uv run python -m evals.m04_04.run --output m04_04-eval.json
       - run: uv run python -m evals.m04_05.run --output m04_05-eval.json
+      - run: uv run python -m evals.m04_06.run --output m04_06-eval.json
+      - run: uv run python -m evals.m05_01.run --output m05_01-eval.json
+      - run: uv run python -m evals.m04_07.run --output m04_07-eval.json
+      - run: uv run python -m evals.m05_02.run --output m05_02-eval.json
+      - run: uv run python -m evals.m05_03.run --output m05_03-eval.json
+      - run: uv run python -m evals.m05_06.run --output m05_06-eval.json
+      - run: uv run python -m evals.m05_04.run --output m05_04-eval.json
+      - run: uv run python -m evals.m05_08.run --output m05_08-eval.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -269,6 +380,43 @@ jobs:
         with:
           name: m04-05-eval
           path: m04_05-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-06-eval
+          path: m04_06-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-01-eval
+          path: m05_01-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-07-eval
+          path: m04_07-eval.json
+          name: m05-02-eval
+          path: m05_02-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-03-eval
+          path: m05_03-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-06-eval
+          path: m05_06-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-04-eval
+          path: m05_04-eval.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-08-eval
+          path: m05_08-eval.json
 
   microbenchmarks:
     runs-on: ubuntu-latest
@@ -312,6 +460,14 @@ jobs:
       - run: uv run python -m evals.m04_03.benchmark --output m04_03-benchmark.json
       - run: uv run python -m evals.m04_04.benchmark --output m04_04-benchmark.json
       - run: uv run python -m evals.m04_05.benchmark --output m04_05-benchmark.json
+      - run: uv run python -m evals.m04_06.benchmark --output m04_06-benchmark.json
+      - run: uv run python -m evals.m05_01.benchmark --output m05_01-benchmark.json
+      - run: uv run python -m evals.m04_07.benchmark --output m04_07-benchmark.json
+      - run: uv run python -m evals.m05_02.benchmark --output m05_02-benchmark.json
+      - run: uv run python -m evals.m05_03.benchmark --output m05_03-benchmark.json
+      - run: uv run python -m evals.m05_06.benchmark --output m05_06-benchmark.json
+      - run: uv run python -m evals.m05_04.benchmark --output m05_04-benchmark.json
+      - run: uv run python -m evals.m05_08.benchmark --iterations 10 --output m05_08-benchmark.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -457,6 +613,43 @@ jobs:
         with:
           name: m04-05-benchmark
           path: m04_05-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-06-benchmark
+          path: m04_06-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-01-benchmark
+          path: m05_01-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m04-07-benchmark
+          path: m04_07-benchmark.json
+          name: m05-02-benchmark
+          path: m05_02-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-03-benchmark
+          path: m05_03-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-06-benchmark
+          path: m05_06-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-04-benchmark
+          path: m05_04-benchmark.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: m05-08-benchmark
+          path: m05_08-benchmark.json
 
   package-replay:
     runs-on: ubuntu-latest

@@ -1,0 +1,9 @@
+{
+  "branch_enabled": true,
+  "coverage_percent": 98.0,
+  "statements": 592,
+  "statements_covered": 581,
+  "branches": 106,
+  "fail_under_percent": 95.0,
+  "command": "coverage run --branch --source=contracts/m21_04,modules/.../m21_04_external_transport_evaluator -m pytest --no-cov focused-suite"
+}

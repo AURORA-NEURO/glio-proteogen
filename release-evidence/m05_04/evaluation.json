@@ -1,0 +1,383 @@
+{
+  "checks": [
+    {
+      "detail": "groups=8;cases=72;allocation=(8, 9, 9, 9, 8, 8, 8, 13)",
+      "name": "corpus.inventory",
+      "passed": true
+    },
+    {
+      "detail": "disposition=qualified",
+      "name": "scenario.canonical_four_role_quality_qualified",
+      "passed": true
+    },
+    {
+      "detail": "embedded full M05-03 result and receipt replay",
+      "name": "scenario.exact_m0503_full_result_replay",
+      "passed": true
+    },
+    {
+      "detail": "M04-02 lineage and identity digests close transitively",
+      "name": "scenario.exact_m0402_transitive_lineage_binding",
+      "passed": true
+    },
+    {
+      "detail": "M04-01 protocol digest closes transitively",
+      "name": "scenario.exact_m0401_transitive_protocol_binding",
+      "passed": true
+    },
+    {
+      "detail": "areas=4;metrics=32",
+      "name": "scenario.exact_eight_metrics_per_role",
+      "passed": true
+    },
+    {
+      "detail": "two public computations are exactly equal",
+      "name": "scenario.deterministic_full_result_equality",
+      "passed": true
+    },
+    {
+      "detail": "receipt exactly projects the embedded full result",
+      "name": "scenario.compact_receipt_projection_exact",
+      "passed": true
+    },
+    {
+      "detail": "parent context retained; parent output not emitted",
+      "name": "scenario.parent_context_preserved_without_emission",
+      "passed": true
+    },
+    {
+      "detail": "canonical count partitions validate",
+      "name": "scenario.count_partitions_close",
+      "passed": true
+    },
+    {
+      "detail": "2/3=666667ppm;status=pass",
+      "name": "scenario.ratio_round_half_up_exact",
+      "passed": true
+    },
+    {
+      "detail": "value=None;status=not_evaluable",
+      "name": "scenario.zero_denominator_remains_not_evaluable",
+      "passed": true
+    },
+    {
+      "detail": "censored=1;value=333333",
+      "name": "scenario.censored_detection_state_retained",
+      "passed": true
+    },
+    {
+      "detail": "censored state with zero below-limit count is rejected",
+      "name": "scenario.detection_censoring_shape_rejected",
+      "passed": true
+    },
+    {
+      "detail": "invalid numerator partition is rejected",
+      "name": "scenario.numerator_exceeds_denominator_rejected",
+      "passed": true
+    },
+    {
+      "detail": "stale ledger self-digest is rejected",
+      "name": "scenario.fact_ledger_digest_mismatch_rejected",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;metrics=0",
+      "name": "scenario.role_fact_binding_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "semantic role reordering produces exact full equality",
+      "name": "scenario.semantic_role_order_full_equality",
+      "passed": true
+    },
+    {
+      "detail": "exactly one profile selected for every role",
+      "name": "scenario.exact_profile_per_role_selected",
+      "passed": true
+    },
+    {
+      "detail": "overlapping profile match domains are rejected",
+      "name": "scenario.overlapping_profile_domain_rejected",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained",
+      "name": "scenario.missing_role_profile_abstains",
+      "passed": true
+    },
+    {
+      "detail": "codes=['assay_protocol_version_mismatch']",
+      "name": "scenario.assay_protocol_version_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "codes=['specimen_processing_version_mismatch']",
+      "name": "scenario.specimen_processing_version_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "codes=['unit_system_version_mismatch']",
+      "name": "scenario.unit_system_version_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained",
+      "name": "scenario.proteome_assay_kind_mismatch_abstains",
+      "passed": true
+    },
+    {
+      "detail": "metric/direction contradiction is rejected",
+      "name": "scenario.threshold_direction_contradiction_rejected",
+      "passed": true
+    },
+    {
+      "detail": "seven-threshold profile is rejected",
+      "name": "scenario.each_profile_requires_exact_eight_thresholds",
+      "passed": true
+    },
+    {
+      "detail": "all 32 required metrics pass",
+      "name": "scenario.all_required_metrics_pass_qualifies",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined",
+      "name": "scenario.required_metric_warning_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined",
+      "name": "scenario.required_metric_failure_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "ptm_localization_quality_qualified_with_optional_warning",
+      "name": "scenario.optional_metric_warning_limits_support",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined",
+      "name": "scenario.optional_metric_failure_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained",
+      "name": "scenario.required_metric_missing_abstains",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained",
+      "name": "scenario.required_metric_unsupported_abstains",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained",
+      "name": "scenario.required_metric_not_evaluable_abstains",
+      "passed": true
+    },
+    {
+      "detail": "codes=['metric_threshold_failed', 'required_metric_missing']",
+      "name": "scenario.quarantine_precedes_abstention",
+      "passed": true
+    },
+    {
+      "detail": "validated upstream without ledger is rejected",
+      "name": "scenario.validated_upstream_requires_fact_ledger",
+      "passed": true
+    },
+    {
+      "detail": "genuine quarantined M05-03 yields zero metrics and never traverses a supplied ledger",
+      "name": "scenario.quarantined_upstream_zero_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "genuine abstained M05-03 yields zero metrics and never traverses a supplied ledger",
+      "name": "scenario.abstained_upstream_zero_ledger_traversal",
+      "passed": true
+    },
+    {
+      "detail": "stale context binding is rejected",
+      "name": "scenario.stale_identity_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "stale context binding is rejected",
+      "name": "scenario.stale_quality_result_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "stale context binding is rejected",
+      "name": "scenario.stale_support_receipt_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "stale context binding is rejected",
+      "name": "scenario.stale_intended_use_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "re-signed semantic M05-03 forgery is rejected",
+      "name": "scenario.resigned_m0503_full_result_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "all four upstream artifact references are unchanged",
+      "name": "scenario.all_input_artifact_references_preserved",
+      "passed": true
+    },
+    {
+      "detail": "same-content evidence occurrences=2",
+      "name": "scenario.duplicate_content_retained_without_deduplication",
+      "passed": true
+    },
+    {
+      "detail": "missing observation remains nonnumeric and not evaluable",
+      "name": "scenario.missing_evidence_never_becomes_negative",
+      "passed": true
+    },
+    {
+      "detail": "quarantined=12;abstained=12",
+      "name": "scenario.safe_failure_minimum_12_evidence",
+      "passed": true
+    },
+    {
+      "detail": "disposition=qualified;profiles=32;thresholds=256;facts=4;assay=4;metrics=32;evidence=45",
+      "name": "scenario.maximum_45_evidence",
+      "passed": true
+    },
+    {
+      "detail": "external canary is represented only by its opaque content digest",
+      "name": "scenario.recursive_canary_absent_from_result",
+      "passed": true
+    },
+    {
+      "detail": "limitations=3",
+      "name": "scenario.exact_three_limitations",
+      "passed": true
+    },
+    {
+      "detail": "all 16 authority flags are false",
+      "name": "scenario.all_authority_flags_false",
+      "passed": true
+    },
+    {
+      "detail": "dimensions=7",
+      "name": "scenario.all_seven_uncertainty_dimensions_explicit_not_estimable",
+      "passed": true
+    },
+    {
+      "detail": "sensitivity notes and uncertainty profile replay exactly",
+      "name": "scenario.sensitivity_notes_exact",
+      "passed": true
+    },
+    {
+      "detail": "controls=7",
+      "name": "scenario.provenance_controls_exact_seven",
+      "passed": true
+    },
+    {
+      "detail": "digests=70",
+      "name": "scenario.provenance_input_digest_set_exact",
+      "passed": true
+    },
+    {
+      "detail": "findings=1",
+      "name": "scenario.findings_unique_and_canonical",
+      "passed": true
+    },
+    {
+      "detail": "re-signed metric forgery is rejected",
+      "name": "scenario.result_metric_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "re-signed finding forgery is rejected",
+      "name": "scenario.result_finding_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "receipt and result digest forgeries are both rejected",
+      "name": "scenario.receipt_and_result_digest_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.approved_configuration_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.identity_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.provenance_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.consent_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.quality_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.support_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;ledger_touches=0",
+      "name": "scenario.intended_use_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "denied=True;touches=0",
+      "name": "scenario.arbitrary_mapping_rejected_without_access",
+      "passed": true
+    },
+    {
+      "detail": "dict_subclasses_rejected=2;exception_failed_closed=True;baseexception_propagated=True",
+      "name": "scenario.dict_subclass_exception_baseexception_firewall",
+      "passed": true
+    },
+    {
+      "detail": "duplicate key, unknown field, and coercion are rejected",
+      "name": "scenario.duplicate_json_unknown_field_and_coercion_rejected",
+      "passed": true
+    },
+    {
+      "detail": "exact=4194304;excess_rejected=True",
+      "name": "scenario.request_exact_4mib_and_first_excess",
+      "passed": true
+    },
+    {
+      "detail": "library/service/plugin/API/CLI results and all 13 schema surfaces agree;api_status=200;cli_exit=0;api_schemas=13;cli_schemas=13",
+      "name": "scenario.library_service_plugin_api_cli_schema_parity",
+      "passed": true
+    },
+    {
+      "detail": "API/CLI reject duplicate JSON; CLI preserves an existing output and refuses a symlink;symlink_supported=True",
+      "name": "scenario.api_cli_strict_json_symlink_and_existing_output_refused",
+      "passed": true
+    },
+    {
+      "detail": "declared=72;executed=72;allocation=(8, 9, 9, 9, 8, 8, 8, 13);substantive=72",
+      "name": "corpus.executable_coverage",
+      "passed": true
+    }
+  ],
+  "declared_case_count": 72,
+  "duplicated_case_ids": [],
+  "executed_case_count": 72,
+  "extra_case_ids": [],
+  "fixture_digest": "sha256:51937dd64eb9b7458d20ec66c5827f903abc0e02547c8f7d181e9c3c38002889",
+  "missing_case_ids": [],
+  "module_id": "GLIO-PROTEOGEN-M05-04",
+  "passed": true,
+  "phase": "locked_executable_corpus"
+}

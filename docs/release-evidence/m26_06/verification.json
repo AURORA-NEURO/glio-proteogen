@@ -1,0 +1,21 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-06",
+  "contractVersion": "0.1.0-provisional",
+  "authoritySha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authoritySlice": "source-manifest.yaml:9256-9296",
+  "focusedTests": 33,
+  "pythonLoc": {
+    "moduleSpecificAdded": 2786,
+    "stackedDiffAdded": 5116,
+    "repositoryTracked": 527183
+  },
+  "ruff": "clean",
+  "mypy": "strict clean across 20 targeted files",
+  "compileall": "clean",
+  "evaluator": "6/6",
+  "coverage": "96.25% branch-enabled scoped module coverage",
+  "benchmark": {"iterations": 10, "meanNs": 7198920, "p95Ns": 7533600},
+  "isolatedImport": true,
+  "releaseVerifier": true,
+  "generatedDirectoriesRemoved": true
+}

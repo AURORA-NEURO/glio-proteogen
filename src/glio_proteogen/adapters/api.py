@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Final
+from typing import Annotated, Final, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -286,6 +286,109 @@ from glio_proteogen.contracts.m04_05.v1 import (
     DetectProteoformArtifactsRequest,
     ProteoformArtifactDetectionResult,
 )
+from glio_proteogen.contracts.m04_06.schema import (
+    ContractName as M0406ContractName,
+)
+from glio_proteogen.contracts.m04_06.schema import (
+    contract_json_schema as m0406_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_06.v1 import (
+    M0406_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizeProteoformAnalysisRequest,
+    ProteoformHarmonizationResult,
+)
+from glio_proteogen.contracts.m04_07.schema import (
+    ContractName as M0407ContractName,
+)
+from glio_proteogen.contracts.m04_07.schema import (
+    contract_json_schema as m0407_contract_json_schema,
+)
+from glio_proteogen.contracts.m04_07.v1 import (
+    M0407_MAX_CANONICAL_REQUEST_BYTES,
+    ProteoformSupportRouteResult,
+    RouteProteoformSupportRequest,
+)
+from glio_proteogen.contracts.m04_08.schema import (
+    ContractName as M0408ContractName,
+)
+from glio_proteogen.contracts.m04_08.schema import (
+    contract_json_schema as m0408_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_01.schema import (
+    ContractName as M0501ContractName,
+)
+from glio_proteogen.contracts.m05_01.schema import (
+    contract_json_schema as m0501_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_01.v1 import (
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluatePtmLocalizationProtocolRequest,
+    PtmLocalizationProtocolConformanceResult,
+)
+from glio_proteogen.contracts.m05_02.schema import (
+    ContractName as M0502ContractName,
+)
+from glio_proteogen.contracts.m05_02.schema import (
+    contract_json_schema as m0502_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_02.v1 import (
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    PtmLocalizationIdentityLineageResolution,
+    ReconcilePtmLocalizationIdentityLineageRequest,
+)
+from glio_proteogen.contracts.m05_03.schema import (
+    ContractName as M0503ContractName,
+)
+from glio_proteogen.contracts.m05_03.schema import (
+    contract_json_schema as m0503_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_04.schema import (
+    ContractName as M0504ContractName,
+)
+from glio_proteogen.contracts.m05_04.schema import (
+    contract_json_schema as m0504_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_04.v1 import (
+    M0504_MAX_CANONICAL_REQUEST_BYTES,
+    ComputePtmLocalizationQualityMetricsRequest,
+    PtmLocalizationQualityResult,
+)
+from glio_proteogen.contracts.m05_04.v1 import (
+    _ValidatedRequestCapability as _ValidatedM0504RequestCapability,
+)
+from glio_proteogen.contracts.m05_05.schema import (
+    ContractName as M0505ContractName,
+)
+from glio_proteogen.contracts.m05_05.schema import (
+    contract_json_schema as m0505_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_05.v1 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
+    PtmLocalizationArtifactDetectionResult,
+)
+from glio_proteogen.contracts.m05_06.schema import (
+    ContractName as M0506ContractName,
+)
+from glio_proteogen.contracts.m05_06.schema import (
+    contract_json_schema as m0506_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_06.v1 import (
+    M0506_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizePtmLocalizationAnalysisRequest,
+    PtmLocalizationHarmonizationResult,
+)
+from glio_proteogen.contracts.m05_07.schema import (
+    ContractName as M0507ContractName,
+)
+from glio_proteogen.contracts.m05_07.schema import (
+    contract_json_schema as m0507_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_07.v1 import (
+    M0507_MAX_CANONICAL_REQUEST_BYTES,
+    PtmLocalizationSupportRouteResult,
+    RoutePtmLocalizationSupportRequest,
+)
 from glio_proteogen.contracts.m06_01.schema import (
     ContractName as M0601ContractName,
 )
@@ -296,6 +399,232 @@ from glio_proteogen.contracts.m06_01.v1 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
     ValidateFormalProteinStateRequest,
     ValidateFormalProteinStateResult,
+)
+from glio_proteogen.contracts.m06_03.schema import (
+    ContractName as M0603ContractName,
+)
+from glio_proteogen.contracts.m06_03.schema import (
+    contract_json_schema as m0603_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_03.v1 import (
+    M0603_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceBaselineRequest,
+    EstimateProteinAbundanceBaselineResult,
+)
+from glio_proteogen.contracts.m06_04.schema import (
+    ContractName as M0604ContractName,
+)
+from glio_proteogen.contracts.m06_04.schema import (
+    contract_json_schema as m0604_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_04.v1 import (
+    M0604_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceProbabilisticRequest,
+    EstimateProteinAbundanceProbabilisticResult,
+)
+from glio_proteogen.contracts.m06_06.schema import (
+    ContractName as M0606ContractName,
+)
+from glio_proteogen.contracts.m06_06.schema import (
+    contract_json_schema as m0606_contract_json_schema,
+)
+from glio_proteogen.contracts.m06_06.v1 import (
+    M0606_MAX_CANONICAL_REQUEST_BYTES,
+    DecomposeProteinAbundanceUncertaintyRequest,
+    ProteinAbundanceUncertaintyDecompositionResult,
+)
+from glio_proteogen.contracts.m13_06.schema import ContractName as M1306ContractName
+from glio_proteogen.contracts.m13_06.schema import (
+    contract_json_schema as m1306_contract_json_schema,
+)
+from glio_proteogen.contracts.m13_06.v1 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    ProteotypePerturbationSensitivityResult,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03.schema import ContractName as M1403ContractName
+from glio_proteogen.contracts.m14_03.schema import (
+    contract_json_schema as m1403_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_03.v1 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+    ProteinSubtypeMechanisticFeatureResult,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    ContractName as M1405ContractName,
+)
+from glio_proteogen.contracts.m14_05.schema import (
+    contract_json_schema as m1405_contract_json_schema,
+)
+from glio_proteogen.contracts.m14_05.v1 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+    ProteinSubtypeLongitudinalEvolutionResult,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    ContractName as M1502ContractName,
+)
+from glio_proteogen.contracts.m15_02.schema import (
+    contract_json_schema as m1502_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_02.v1 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    LongitudinalRecurrenceContextStratificationResult,
+    StratifyContextAndSubtypeRequest,
+)
+from glio_proteogen.contracts.m15_08.schema import (
+    ContractName as M1508ContractName,
+)
+from glio_proteogen.contracts.m15_08.schema import (
+    contract_json_schema as m1508_contract_json_schema,
+)
+from glio_proteogen.contracts.m15_08.v1 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
+    ComplexActivityMechanismDossierResult,
+)
+from glio_proteogen.contracts.m16_03.schema import (
+    ContractName as M1603ContractName,
+)
+from glio_proteogen.contracts.m16_03.schema import (
+    contract_json_schema as m1603_contract_json_schema,
+)
+from glio_proteogen.contracts.m16_03.v1 import (
+    M1603_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteinRnaDiscordanceEvidenceRequest,
+    ProteinRnaDiscordanceIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m16_06.schema import (
+    ContractName as M1606ContractName,
+)
+from glio_proteogen.contracts.m16_06.schema import (
+    contract_json_schema as m1606_contract_json_schema,
+)
+from glio_proteogen.contracts.m16_06.v1 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
+    ProteinRnaDiscordanceAdjudicationResult,
+)
+from glio_proteogen.contracts.m17_01.schema import (
+    ContractName as M1701ContractName,
+)
+from glio_proteogen.contracts.m17_01.schema import (
+    contract_json_schema as m1701_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_01.v1 import (
+    ResolveVariantPeptideUpstreamContractsRequest,
+    VariantPeptideUpstreamResolutionResult,
+)
+from glio_proteogen.contracts.m17_04.schema import (
+    ContractName as M1704ContractName,
+)
+from glio_proteogen.contracts.m17_04.schema import (
+    contract_json_schema as m1704_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_04.v1 import (
+    AdaptVariantPeptideIntendedUseRequest,
+    VariantPeptideIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m17_08.schema import (
+    ContractName as M1708ContractName,
+)
+from glio_proteogen.contracts.m17_08.schema import (
+    contract_json_schema as m1708_contract_json_schema,
+)
+from glio_proteogen.contracts.m17_08.v1 import (
+    M1708_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorVariantPeptideTranslationHealthRequest,
+    VariantPeptideTranslationMonitoringResult,
+)
+from glio_proteogen.contracts.m18_03.schema import (
+    ContractName as M1803ContractName,
+)
+from glio_proteogen.contracts.m18_03.schema import (
+    contract_json_schema as m1803_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_03.v1 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelIntegratedEvidenceResult,
+    FuseBiomarkerPanelEvidenceRequest,
+)
+from glio_proteogen.contracts.m18_06.schema import (
+    ContractName as M1806ContractName,
+)
+from glio_proteogen.contracts.m18_06.schema import (
+    contract_json_schema as m1806_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_06.v1 import (
+    M1806_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateBiomarkerPanelQueueRequest,
+    BiomarkerPanelAdjudicationResult,
+)
+from glio_proteogen.contracts.m18_08.schema import (
+    ContractName as M1808ContractName,
+)
+from glio_proteogen.contracts.m18_08.schema import (
+    contract_json_schema as m1808_contract_json_schema,
+)
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    BiomarkerPanelTranslationMonitoringResult,
+    MonitorBiomarkerPanelTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_03.v1 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m19_04.schema import (
+    ContractName as M1904ContractName,
+)
+from glio_proteogen.contracts.m19_04.schema import (
+    contract_json_schema as m1904_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_04.v1 import (
+    M1904_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptProteotypeIntendedUseRequest,
+    ProteotypeIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m19_06.schema import (
+    ContractName as M1906ContractName,
+)
+from glio_proteogen.contracts.m19_06.schema import (
+    contract_json_schema as m1906_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_06.v1 import (
+    M1906_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteotypeQueueRequest,
+    ProteotypeAdjudicationResult,
+)
+from glio_proteogen.contracts.m19_08.schema import (
+    ContractName as M1908ContractName,
+)
+from glio_proteogen.contracts.m19_08.schema import (
+    contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_08.v1 import (
+    M1908_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteotypeTranslationHealthRequest,
+    ProteotypeTranslationMonitoringResult,
+)
+from glio_proteogen.contracts.m27_02.schema import (
+    ContractName as M2702ContractName,
+)
+from glio_proteogen.contracts.m27_02.schema import (
+    contract_json_schema as m2702_contract_json_schema,
+)
+from glio_proteogen.contracts.m27_02.v1 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
 )
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
 from glio_proteogen.kernel.strict_json import (
@@ -453,10 +782,156 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection imp
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0405_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    M0406Service,
+    ProteoformHarmonizationAuthorizationError,
+    preflight_proteoform_harmonization_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
+    _validate_json_request as _validate_m0406_json_request,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
+    M0407Service,
+    ProteoformSupportAuthorizationError,
+    preflight_proteoform_support_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
+    _validate_json_request as _validate_m0407_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import (
+    M0501Service,
+    PtmLocalizationProtocolAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
+    _validate_json_request as _validate_m0501_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import (
+    M0502Service,
+    PtmLocalizationIdentityLineageAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
+    _validate_json_request as _validate_m0502_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics import (
+    M0504Service,
+    PtmLocalizationQualityAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics.engine import (
+    _validate_json_request_capability as _validate_m0504_json_request_capability,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
+    M0505Service,
+    PtmLocalizationArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0505_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
+    M0506Service,
+    PtmLocalizationHarmonizationAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
+    _validate_json_request as _validate_m0506_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
+    M0507Service,
+    PtmLocalizationSupportAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (  # noqa: E501
+    _validate_json_request as _validate_m0507_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    PtmBaselineAuthorizationError,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0603_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
+    M0603Service,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     FormalStateAuthorizationError,
     M0601Service,
     preflight_formal_state_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604Service,
+    ProbabilisticEstimatorAuthorizationError,
+    preflight_probabilistic_estimator_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    M0606UncertaintyDecompositionAuthorizationError,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    _validate_json_request as _validate_m0606_json_request,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
+    M0606Service,
+)
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    M1606AuthorizationError,
+    M1606Service,
+    preflight_m1606_authorization,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_01_upstream_contract_resolver as m1701_resolver,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_04_intended_use_adapter as m1704_adapter,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_08_translation_monitoring as m1708_monitoring,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_08_translation_monitoring_service as m1908_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_06_reviewer_adjudication as m1806_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
+    m19_06_reviewer_adjudication as m1906_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904AuthorizationError,
+    M1904ReplayError,
+    M1904Service,
+    preflight_m1904_authorization,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702AuthorizationError,
+    M2702Service,
+    preflight_m2702_authorization,
 )
 
 _REGISTER_ADAPTER: Final = TypeAdapter(RegisterProtocolRequest)
@@ -481,7 +956,40 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
+_M0601_FORMAL_STATE_ADAPTER: Final = TypeAdapter(ValidateFormalProteinStateRequest)
+_M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
+_M0604_PROBABILISTIC_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceProbabilisticRequest)
+_M0606_UNCERTAINTY_ADAPTER: Final = TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest)
 _M0405_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteoformArtifactsRequest)
+_M0501_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluatePtmLocalizationProtocolRequest)
+_M0505_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectPtmLocalizationArtifactsRequest)
+_M0506_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizePtmLocalizationAnalysisRequest)
+_M0507_SUPPORT_ADAPTER: Final = TypeAdapter(RoutePtmLocalizationSupportRequest)
+_M2702_REQUEST_ADAPTER: Final = TypeAdapter(ResolveComplexActivityLineageRequest)
+_M2702_RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityLineageResult)
+_M1908_REQUEST_ADAPTER: Final = TypeAdapter(MonitorProteotypeTranslationHealthRequest)
+_M1906_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeQueueRequest)
+_M1904_REQUEST_ADAPTER: Final = TypeAdapter(AdaptProteotypeIntendedUseRequest)
+_M1904_RESULT_ADAPTER: Final = TypeAdapter(ProteotypeIntendedUseAdapterResult)
+_M1903_ADAPTER: Final = TypeAdapter(FuseProteotypeEvidenceRequest)
+_M1903_RESULT_ADAPTER: Final = TypeAdapter(ProteotypeIntegratedEvidenceResult)
+_M1808_REQUEST_ADAPTER: Final = TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest)
+_M1806_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateBiomarkerPanelQueueRequest)
+_M1803_REQUEST_ADAPTER: Final = TypeAdapter(FuseBiomarkerPanelEvidenceRequest)
+_M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
+_M1704_REQUEST_ADAPTER: Final = TypeAdapter(AdaptVariantPeptideIntendedUseRequest)
+_M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
+_M1606_QUEUE_ADAPTER: Final = TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest)
+_M1603_FUSION_ADAPTER: Final = TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest)
+_M1508_DOSSIER_ADAPTER: Final = TypeAdapter(AssembleComplexActivityMechanismDossierRequest)
+_M1502_ADAPTER: Final = TypeAdapter(StratifyContextAndSubtypeRequest)
+_M1405_ADAPTER: Final = TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest)
+_M1403_ADAPTER: Final = TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest)
+_M1306_ADAPTER: Final = TypeAdapter(SimulateProteotypePerturbationRequest)
+_M0406_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteoformAnalysisRequest)
+_M0407_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteoformSupportRequest)
+_M0502_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest)
+_M0504_QUALITY_ADAPTER: Final = TypeAdapter(ComputePtmLocalizationQualityMetricsRequest)
 _RESOLUTION_DIGEST_ADAPTER: Final = TypeAdapter(Sha256Digest)
 _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
@@ -640,10 +1148,163 @@ def _formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
     return m0601_contract_json_schema(name)
 
 
+def _m0603_baseline_contract_schema(name: M0603ContractName) -> dict[str, object]:
+    return m0603_contract_json_schema(name)
+
+
+def _probabilistic_estimator_contract_schema(
+    name: M0604ContractName,
+) -> dict[str, object]:
+    return m0604_contract_json_schema(name)
+
+
+def _m0606_uncertainty_contract_schema(
+    name: M0606ContractName,
+) -> dict[str, object]:
+    return m0606_contract_json_schema(name)
+
+
+def _ptm_localization_protocol_contract_schema(
+    name: M0501ContractName,
+) -> dict[str, object]:
+    return m0501_contract_json_schema(name)
+
+
 def _proteoform_artifact_contract_schema(
     name: M0405ContractName,
 ) -> dict[str, object]:
     return m0405_contract_json_schema(name)
+
+
+def _m2702_contract_schema(name: M2702ContractName) -> dict[str, object]:
+    return m2702_contract_json_schema(name)
+
+
+def _m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
+    return m1908_contract_json_schema(name)
+
+
+def _m1908_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1908_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1906_contract_schema(name: M1906ContractName) -> dict[str, object]:
+    return m1906_contract_json_schema(name)
+
+
+def _m1903_contract_schema(name: M1903ContractName) -> dict[str, object]:
+    return m1903_contract_json_schema(name)
+
+
+def _m1808_contract_schema(name: M1808ContractName) -> dict[str, object]:
+    return m1808_contract_json_schema(name)
+
+
+def _m1806_contract_schema(name: M1806ContractName) -> dict[str, object]:
+    return m1806_contract_json_schema(name)
+
+
+def _m1803_contract_schema(name: M1803ContractName) -> dict[str, object]:
+    return m1803_contract_json_schema(name)
+
+
+def _m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
+    return m1701_contract_json_schema(name)
+
+
+def _m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
+    return m1704_contract_json_schema(name)
+
+
+def _m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
+    return m1708_contract_json_schema(name)
+
+
+def _m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+    return m1606_contract_json_schema(name)
+
+
+def _m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
+    return m1603_contract_json_schema(name)
+
+
+def _m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+    return m1508_contract_json_schema(name)
+
+
+def _m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+    return m1502_contract_json_schema(name)
+
+
+def _m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
+    return m1405_contract_json_schema(name)
+
+
+def _m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+    return m1403_contract_json_schema(name)
+
+
+def _m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
+    return m1306_contract_json_schema(name)
+
+
+def _proteoform_harmonization_contract_schema(
+    name: M0406ContractName,
+) -> dict[str, object]:
+    return m0406_contract_json_schema(name)
+
+
+def _proteoform_support_contract_schema(
+    name: M0407ContractName,
+) -> dict[str, object]:
+    return m0407_contract_json_schema(name)
+
+
+def _proteoform_release_contract_schema(
+    name: M0408ContractName,
+) -> dict[str, object]:
+    return m0408_contract_json_schema(name)
+
+
+def _ptm_localization_lineage_contract_schema(
+    name: M0502ContractName,
+) -> dict[str, object]:
+    return m0502_contract_json_schema(name)
+
+
+def _ptm_localization_raw_contract_schema(
+    name: M0503ContractName,
+) -> dict[str, object]:
+    return m0503_contract_json_schema(name)
+
+
+def _ptm_localization_quality_contract_schema(
+    name: M0504ContractName,
+) -> dict[str, object]:
+    return m0504_contract_json_schema(name)
+
+
+def _ptm_localization_artifact_contract_schema(
+    name: M0505ContractName,
+) -> dict[str, object]:
+    return m0505_contract_json_schema(name)
+
+
+def _ptm_localization_harmonization_contract_schema(
+    name: M0506ContractName,
+) -> dict[str, object]:
+    return m0506_contract_json_schema(name)
+
+
+def _ptm_localization_support_contract_schema(
+    name: M0507ContractName,
+) -> dict[str, object]:
+    return m0507_contract_json_schema(name)
 
 
 def _request_body(name: M0101ContractName) -> dict[str, object]:
@@ -844,11 +1505,238 @@ def _formal_state_request_body() -> dict[str, object]:
     }
 
 
+def _m0603_baseline_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0603_contract_json_schema("request")}},
+        }
+    }
+
+
+def _probabilistic_estimator_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0604_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m0606_uncertainty_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0606_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_protocol_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0501_contract_json_schema("request")}},
+        }
+    }
+
+
 def _proteoform_artifact_request_body() -> dict[str, object]:
     return {
         "requestBody": {
             "required": True,
             "content": {"application/json": {"schema": m0405_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m2702_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m2702_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1904_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1904_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1903_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1903_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1806_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1806_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1803_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1803_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1701_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1701_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1704_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1704_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1708_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1708_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1606_queue_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1606_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1502_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1502_contract_json_schema("request")}},
+        }
+    }
+
+
+async def _m1606_queue_body(
+    request: Request,
+) -> AdjudicateProteinRnaDiscordanceQueueRequest:
+    return await _strict_json_body(
+        request,
+        _M1606_QUEUE_ADAPTER,
+        preflight_m1606_authorization,
+        M1606_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+def _m1405_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1405_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1403_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1403_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1306_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1306_contract_json_schema("request")}},
+        }
+    }
+
+
+def _proteoform_harmonization_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0406_contract_json_schema("request")}},
+        }
+    }
+
+
+def _proteoform_support_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0407_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_lineage_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0502_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_quality_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0504_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_artifact_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0505_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_harmonization_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0506_contract_json_schema("request")}},
+        }
+    }
+
+
+def _ptm_localization_support_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0507_contract_json_schema("request")}},
         }
     }
 
@@ -882,12 +1770,7 @@ async def _strict_json_body[ModelT](
     except (TypeError, ValueError) as error:
         if json_validator is None:
             raise
-        detail = (
-            "M04-04 request validation failed"
-            if adapter is _M0404_QUALITY_ADAPTER
-            else "request validation failed"
-        )
-        raise HTTPException(status_code=422, detail=detail) from error
+        raise HTTPException(status_code=422, detail="strict request validation failed") from error
 
 
 async def _register_body(request: Request) -> RegisterProtocolRequest:
@@ -1072,6 +1955,19 @@ async def _proteoform_lineage_body(
     )
 
 
+async def _m1903_body(request: Request) -> FuseProteotypeEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1903_ADAPTER,
+        preflight_m1903_authorization,
+        M1903_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1903_result_body(request: Request) -> ProteotypeIntegratedEvidenceResult:
+    return await _strict_json_body(request, _M1903_RESULT_ADAPTER)
+
+
 async def _proteoform_quality_body(
     request: Request,
 ) -> ComputeProteoformQualityMetricsRequest:
@@ -1087,9 +1983,44 @@ async def _proteoform_quality_body(
 async def _formal_state_body(request: Request) -> ValidateFormalProteinStateRequest:
     return await _strict_json_body(
         request,
-        TypeAdapter(ValidateFormalProteinStateRequest),
+        _M0601_FORMAL_STATE_ADAPTER,
         preflight_formal_state_authorization,
         M0601_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m0603_baseline_body(
+    request: Request,
+) -> EstimateProteinAbundanceBaselineRequest:
+    return await _strict_json_body(
+        request,
+        _M0603_BASELINE_ADAPTER,
+        None,
+        M0603_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0603_json_request,
+    )
+
+
+async def _probabilistic_estimator_body(
+    request: Request,
+) -> EstimateProteinAbundanceProbabilisticRequest:
+    return await _strict_json_body(
+        request,
+        _M0604_PROBABILISTIC_ADAPTER,
+        preflight_probabilistic_estimator_authorization,
+        M0604_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m0606_uncertainty_body(
+    request: Request,
+) -> DecomposeProteinAbundanceUncertaintyRequest:
+    return await _strict_json_body(
+        request,
+        _M0606_UNCERTAINTY_ADAPTER,
+        None,
+        M0606_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0606_json_request,
     )
 
 
@@ -1102,6 +2033,303 @@ async def _proteoform_artifact_body(
         None,
         M0405_MAX_CANONICAL_REQUEST_BYTES,
         _validate_m0405_json_request,
+    )
+
+
+async def _m1908_body(request: Request) -> MonitorProteotypeTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1908_REQUEST_ADAPTER,
+        m1908_monitoring.preflight_m1908_authorization,
+        M1908_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1906_body(request: Request) -> AdjudicateProteotypeQueueRequest:
+    return await _strict_json_body(
+        request,
+        _M1906_ADJUDICATION_ADAPTER,
+        m1906_adjudication.preflight_m1906_authorization,
+        M1906_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _ptm_localization_lineage_body(
+    request: Request,
+) -> ReconcilePtmLocalizationIdentityLineageRequest:
+    return await _strict_json_body(
+        request,
+        _M0502_LINEAGE_ADAPTER,
+        None,
+        M0502_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0502_json_request,
+    )
+
+
+async def _ptm_localization_artifact_body(
+    request: Request,
+) -> DetectPtmLocalizationArtifactsRequest:
+    return await _strict_json_body(
+        request,
+        _M0505_ARTIFACT_ADAPTER,
+        None,
+        M0505_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0505_json_request,
+    )
+
+
+async def _ptm_localization_harmonization_body(
+    request: Request,
+) -> HarmonizePtmLocalizationAnalysisRequest:
+    return await _strict_json_body(
+        request,
+        _M0506_HARMONIZATION_ADAPTER,
+        None,
+        M0506_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0506_json_request,
+    )
+
+
+async def _ptm_localization_support_body(
+    request: Request,
+) -> RoutePtmLocalizationSupportRequest:
+    return await _strict_json_body(
+        request,
+        _M0507_SUPPORT_ADAPTER,
+        None,
+        M0507_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0507_json_request,
+    )
+
+
+async def _m1904_body(request: Request) -> AdaptProteotypeIntendedUseRequest:
+    return await _strict_json_body(
+        request,
+        _M1904_REQUEST_ADAPTER,
+        preflight_m1904_authorization,
+        M1904_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1904_result_body(request: Request) -> ProteotypeIntendedUseAdapterResult:
+    return await _strict_json_body(
+        request,
+        _M1904_RESULT_ADAPTER,
+        max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES * 2,
+    )
+
+
+async def _m1808_body(
+    request: Request,
+) -> MonitorBiomarkerPanelTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1808_REQUEST_ADAPTER,
+        m1808_monitoring.preflight_m1808_authorization,
+        M1808_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1806_body(request: Request) -> AdjudicateBiomarkerPanelQueueRequest:
+    return await _strict_json_body(
+        request,
+        _M1806_ADJUDICATION_ADAPTER,
+        m1806_adjudication.preflight_m1806_authorization,
+        M1806_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1803_body(
+    request: Request,
+) -> FuseBiomarkerPanelEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1803_REQUEST_ADAPTER,
+        m1803_fusion.preflight_m1803_authorization,
+        M1803_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+def _m1603_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1603_contract_json_schema("request")}},
+        }
+    }
+
+
+def _m1508_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m1508_contract_json_schema("request")}},
+        }
+    }
+
+
+async def _m1603_fusion_body(
+    request: Request,
+) -> FuseProteinRnaDiscordanceEvidenceRequest:
+    return await _strict_json_body(
+        request,
+        _M1603_FUSION_ADAPTER,
+        m1603.preflight_m1603_authorization,
+        M1603_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1508_dossier_body(
+    request: Request,
+) -> AssembleComplexActivityMechanismDossierRequest:
+    return await _strict_json_body(
+        request,
+        _M1508_DOSSIER_ADAPTER,
+        m1508.preflight_m1508_authorization,
+        M1508_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1502_body(request: Request) -> StratifyContextAndSubtypeRequest:
+    return await _strict_json_body(
+        request,
+        _M1502_ADAPTER,
+        m1502_module.preflight_m1502_authorization,
+        M1502_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1405_body(
+    request: Request,
+) -> ModelProteinSubtypeLongitudinalEvolutionRequest:
+    return await _strict_json_body(
+        request,
+        _M1405_ADAPTER,
+        m1405_module.preflight_m1405_authorization,
+        M1405_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1403_body(
+    request: Request,
+) -> ConstructProteinSubtypeMechanisticFeaturesRequest:
+    return await _strict_json_body(
+        request,
+        _M1403_ADAPTER,
+        m1403_module.preflight_m1403_authorization,
+        M1403_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1306_body(request: Request) -> SimulateProteotypePerturbationRequest:
+    return await _strict_json_body(
+        request,
+        _M1306_ADAPTER,
+        preflight_m1306_authorization,
+        M1306_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m1701_body(
+    request: Request,
+) -> ResolveVariantPeptideUpstreamContractsRequest:
+    return await _strict_json_body(
+        request,
+        _M1701_REQUEST_ADAPTER,
+        m1701_resolver.preflight_m1701_authorization,
+    )
+
+
+async def _m1704_body(
+    request: Request,
+) -> AdaptVariantPeptideIntendedUseRequest:
+    return await _strict_json_body(
+        request,
+        _M1704_REQUEST_ADAPTER,
+        m1704_adapter.preflight_m1704_authorization,
+    )
+
+
+async def _m1708_body(
+    request: Request,
+) -> MonitorVariantPeptideTranslationHealthRequest:
+    return await _strict_json_body(
+        request,
+        _M1708_REQUEST_ADAPTER,
+        m1708_monitoring.preflight_m1708_authorization,
+        M1708_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m2702_request_body_dependency(
+    request: Request,
+) -> ResolveComplexActivityLineageRequest:
+    return await _strict_json_body(
+        request,
+        _M2702_REQUEST_ADAPTER,
+        preflight_m2702_authorization,
+        M2702_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m2702_result_body_dependency(request: Request) -> ComplexActivityLineageResult:
+    return await _strict_json_body(
+        request,
+        _M2702_RESULT_ADAPTER,
+        None,
+        M2702_MAX_CANONICAL_RESULT_BYTES,
+    )
+
+
+async def _proteoform_harmonization_body(
+    request: Request,
+) -> HarmonizeProteoformAnalysisRequest:
+    return await _strict_json_body(
+        request,
+        _M0406_HARMONIZATION_ADAPTER,
+        preflight_proteoform_harmonization_authorization,
+        M0406_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0406_json_request,
+    )
+
+
+async def _ptm_localization_protocol_body(
+    request: Request,
+) -> EvaluatePtmLocalizationProtocolRequest:
+    return await _strict_json_body(
+        request,
+        _M0501_PROTOCOL_ADAPTER,
+        None,
+        M0501_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0501_json_request,
+    )
+
+
+async def _ptm_localization_quality_body(
+    request: Request,
+) -> _ValidatedM0504RequestCapability:
+    adapter = cast(
+        "TypeAdapter[_ValidatedM0504RequestCapability]",
+        _M0504_QUALITY_ADAPTER,
+    )
+    return await _strict_json_body(
+        request,
+        adapter,
+        None,
+        M0504_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0504_json_request_capability,
+    )
+
+
+async def _proteoform_support_body(
+    request: Request,
+) -> RouteProteoformSupportRequest:
+    return await _strict_json_body(
+        request,
+        _M0407_SUPPORT_ADAPTER,
+        preflight_proteoform_support_authorization,
+        M0407_MAX_CANONICAL_REQUEST_BYTES,
+        _validate_m0407_json_request,
     )
 
 
@@ -1132,7 +2360,36 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     proteoform_lineage_service = M0402Service()
     proteoform_quality_service = M0404Service()
     formal_state_service = M0601Service()
+    m0603_service = M0603Service()
+    probabilistic_estimator_service = M0604Service()
+    m0606_service = M0606Service()
     proteoform_artifact_service = M0405Service()
+    ptm_localization_protocol_service = M0501Service()
+    m1908_service = m1908_monitoring.M1908Service()
+    m1906_service = m1906_adjudication.M1906Service()
+    m1904_service = M1904Service()
+    m1903_service = M1903Service()
+    m1808_service = m1808_monitoring.M1808Service()
+    m1806_service = m1806_adjudication.M1806Service()
+    m1803_service = m1803_fusion.M1803Service()
+    m1606_queue_service = M1606Service()
+    m1603_service = m1603.M1603Service()
+    m1508_service = m1508.M1508Service()
+    m1502_service = m1502_module.M1502Service()
+    m1405_service = m1405_module.M1405Service()
+    m1403_service = m1403_module.M1403Service()
+    m1306_service = M1306Service()
+    m1701_service = m1701_resolver.M1701Service()
+    m1704_service = m1704_adapter.M1704Service()
+    m1708_service = m1708_monitoring.M1708Service()
+    m2702_service = M2702Service()
+    proteoform_harmonization_service = M0406Service()
+    proteoform_support_service = M0407Service()
+    ptm_localization_lineage_service = M0502Service()
+    ptm_localization_quality_service = M0504Service()
+    ptm_localization_artifact_service = M0505Service()
+    ptm_localization_harmonization_service = M0506Service()
+    ptm_localization_support_service = M0507Service()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -1180,8 +2437,42 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(ProteoformIdentityLineageAuthorizationError)
     @app.exception_handler(ProteoformQualityAuthorizationError)
     @app.exception_handler(FormalStateAuthorizationError)
+    @app.exception_handler(PtmBaselineAuthorizationError)
+    @app.exception_handler(ProbabilisticEstimatorAuthorizationError)
+    @app.exception_handler(M0606UncertaintyDecompositionAuthorizationError)
+    @app.exception_handler(PtmLocalizationProtocolAuthorizationError)
     @app.exception_handler(ProteoformArtifactAuthorizationError)
+    @app.exception_handler(m1906_adjudication.M1906AuthorizationError)
+    @app.exception_handler(M1904AuthorizationError)
+    @app.exception_handler(M1903AuthorizationError)
+    @app.exception_handler(m1808_monitoring.M1808AuthorizationError)
+    @app.exception_handler(m1806_adjudication.M1806AuthorizationError)
+    @app.exception_handler(m1803_fusion.M1803AuthorizationError)
+    @app.exception_handler(m1603.M1603AuthorizationError)
+    @app.exception_handler(m1508.M1508AuthorizationError)
+    @app.exception_handler(m1502_module.M1502AuthorizationError)
+    @app.exception_handler(m1405_module.M1405AuthorizationError)
+    @app.exception_handler(m1403_module.M1403AuthorizationError)
+    @app.exception_handler(M1306AuthorizationError)
+    @app.exception_handler(m1701_resolver.M1701AuthorizationError)
+    @app.exception_handler(m1704_adapter.M1704AuthorizationError)
+    @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
+    @app.exception_handler(M2702AuthorizationError)
+    @app.exception_handler(ProteoformHarmonizationAuthorizationError)
+    @app.exception_handler(ProteoformSupportAuthorizationError)
+    @app.exception_handler(PtmLocalizationIdentityLineageAuthorizationError)
+    @app.exception_handler(PtmLocalizationQualityAuthorizationError)
+    @app.exception_handler(PtmLocalizationArtifactAuthorizationError)
+    @app.exception_handler(PtmLocalizationHarmonizationAuthorizationError)
+    @app.exception_handler(PtmLocalizationSupportAuthorizationError)
     def authorization_handler(_request: Request, error: Exception) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(error)})
+
+    @app.exception_handler(M1606AuthorizationError)
+    def m1606_authorization_handler(
+        _request: Request,
+        error: M1606AuthorizationError,
+    ) -> JSONResponse:
         return JSONResponse(status_code=403, content={"detail": str(error)})
 
     @app.exception_handler(InvalidProtocolLookupError)
@@ -1450,9 +2741,216 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> dict[str, object]:
         return _proteoform_quality_contract_schema(name)
 
-    @app.get("/v1/contracts/M06-01/{name}/schema", tags=["contracts"])
-    def formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
-        return _formal_state_contract_schema(name)
+    @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
+    def proteoform_artifact_contract_schema(
+        name: M0405ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_artifact_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-01/{name}/schema", tags=["contracts"])
+    def ptm_localization_protocol_contract_schema(
+        name: M0501ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_protocol_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-01/protocol-conformance",
+        response_model=PtmLocalizationProtocolConformanceResult,
+        tags=["M05-01"],
+        openapi_extra=_ptm_localization_protocol_request_body(),
+    )
+    def evaluate_ptm_localization_protocol_conformance(
+        request: Annotated[
+            EvaluatePtmLocalizationProtocolRequest,
+            Depends(_ptm_localization_protocol_body),
+        ],
+    ) -> PtmLocalizationProtocolConformanceResult:
+        return ptm_localization_protocol_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M18-08/{name}/schema", tags=["contracts"])
+    def m1808_contract_schema(name: M1808ContractName) -> dict[str, object]:
+        return _m1808_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M18-08/translation-health",
+        response_model=BiomarkerPanelTranslationMonitoringResult,
+        tags=["M18-08"],
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {"application/json": {"schema": m1808_contract_json_schema("request")}},
+            }
+        },
+    )
+    def monitor_m1808_translation_health(
+        request: Annotated[
+            MonitorBiomarkerPanelTranslationHealthRequest,
+            Depends(_m1808_body),
+        ],
+    ) -> BiomarkerPanelTranslationMonitoringResult:
+        return m1808_service.execute(request)
+
+    @app.get("/v1/contracts/M18-06/{name}/schema", tags=["contracts"])
+    def m1806_contract_schema(name: M1806ContractName) -> dict[str, object]:
+        return _m1806_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M18-06/adjudication",
+        response_model=BiomarkerPanelAdjudicationResult,
+        tags=["M18-06"],
+        openapi_extra=_m1806_request_body(),
+    )
+    def adjudicate_m1806_queue(
+        request: Annotated[
+            AdjudicateBiomarkerPanelQueueRequest,
+            Depends(_m1806_body),
+        ],
+    ) -> BiomarkerPanelAdjudicationResult:
+        return m1806_service.adjudicate(request)
+
+    @app.get("/v1/contracts/M18-03/{name}/schema", tags=["contracts"])
+    def m1803_contract_schema(name: M1803ContractName) -> dict[str, object]:
+        return _m1803_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M18-03/fusion",
+        response_model=BiomarkerPanelIntegratedEvidenceResult,
+        tags=["M18-03"],
+        openapi_extra=_m1803_request_body(),
+    )
+    def fuse_m1803_evidence(
+        request: Annotated[
+            FuseBiomarkerPanelEvidenceRequest,
+            Depends(_m1803_body),
+        ],
+    ) -> BiomarkerPanelIntegratedEvidenceResult:
+        return m1803_service.fuse(request)
+
+    @app.get("/v1/contracts/M17-01/{name}/schema", tags=["contracts"])
+    def m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
+        return _m1701_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-01/upstream-contract-resolution",
+        response_model=VariantPeptideUpstreamResolutionResult,
+        tags=["M17-01"],
+        openapi_extra=_m1701_request_body(),
+    )
+    def resolve_m1701_upstream_contracts(
+        request: Annotated[
+            ResolveVariantPeptideUpstreamContractsRequest,
+            Depends(_m1701_body),
+        ],
+    ) -> VariantPeptideUpstreamResolutionResult:
+        return m1701_service.resolve(request)
+
+    @app.get("/v1/contracts/M17-04/{name}/schema", tags=["contracts"])
+    def m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
+        return _m1704_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-04/intended-use-adaptation",
+        response_model=VariantPeptideIntendedUseAdapterResult,
+        tags=["M17-04"],
+        openapi_extra=_m1704_request_body(),
+    )
+    def adapt_m1704_intended_use(
+        request: Annotated[
+            AdaptVariantPeptideIntendedUseRequest,
+            Depends(_m1704_body),
+        ],
+    ) -> VariantPeptideIntendedUseAdapterResult:
+        return m1704_service.adapt(request)
+
+    @app.get("/v1/contracts/M17-08/{name}/schema", tags=["contracts"])
+    def m1708_contract_schema(name: M1708ContractName) -> dict[str, object]:
+        return _m1708_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M17-08/translation-health",
+        response_model=VariantPeptideTranslationMonitoringResult,
+        tags=["M17-08"],
+        openapi_extra=_m1708_request_body(),
+    )
+    def monitor_m1708_translation_health(
+        request: Annotated[
+            MonitorVariantPeptideTranslationHealthRequest,
+            Depends(_m1708_body),
+        ],
+    ) -> VariantPeptideTranslationMonitoringResult:
+        return m1708_service.monitor(request)
+
+    @app.get("/v1/contracts/M16-06/{name}/schema", tags=["contracts"])
+    def m1606_contract_schema(name: M1606ContractName) -> dict[str, object]:
+        return _m1606_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M16-06/reviewer-discrepancy-adjudication",
+        response_model=ProteinRnaDiscordanceAdjudicationResult,
+        tags=["M16-06"],
+        openapi_extra=_m1606_queue_request_body(),
+    )
+    def adjudicate_m1606_queue(
+        request: Annotated[
+            AdjudicateProteinRnaDiscordanceQueueRequest,
+            Depends(_m1606_queue_body),
+        ],
+    ) -> ProteinRnaDiscordanceAdjudicationResult:
+        return m1606_queue_service.adjudicate(request)
+
+    @app.get("/v1/contracts/M16-03/{name}/schema", tags=["contracts"])
+    def m1603_contract_schema(name: M1603ContractName) -> dict[str, object]:
+        return _m1603_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M16-03/fusion-aggregation",
+        response_model=ProteinRnaDiscordanceIntegratedEvidenceResult,
+        tags=["M16-03"],
+        openapi_extra=_m1603_request_body(),
+    )
+    def fuse_m1603_evidence(
+        request: Annotated[
+            FuseProteinRnaDiscordanceEvidenceRequest,
+            Depends(_m1603_fusion_body),
+        ],
+    ) -> ProteinRnaDiscordanceIntegratedEvidenceResult:
+        return m1603_service.execute(request)
+
+    @app.get("/v1/contracts/M15-08/{name}/schema", tags=["contracts"])
+    def m1508_contract_schema(name: M1508ContractName) -> dict[str, object]:
+        return _m1508_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-08/mechanism-evidence-dossier",
+        response_model=ComplexActivityMechanismDossierResult,
+        tags=["M15-08"],
+        openapi_extra=_m1508_request_body(),
+    )
+    def assemble_m1508_dossier(
+        request: Annotated[
+            AssembleComplexActivityMechanismDossierRequest,
+            Depends(_m1508_dossier_body),
+        ],
+    ) -> ComplexActivityMechanismDossierResult:
+        return m1508_service.execute(request)
+
+    @app.get("/v1/contracts/M15-02/{name}/schema", tags=["contracts"])
+    def m1502_contract_schema(name: M1502ContractName) -> dict[str, object]:
+        return _m1502_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M15-02/context-stratification",
+        response_model=LongitudinalRecurrenceContextStratificationResult,
+        tags=["M15-02"],
+        openapi_extra=_m1502_request_body(),
+    )
+    def stratify_m1502_context(
+        request: Annotated[
+            StratifyContextAndSubtypeRequest,
+            Depends(_m1502_body),
+        ],
+    ) -> LongitudinalRecurrenceContextStratificationResult:
+        return m1502_service.execute(request)
 
     @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
     def proteoform_artifact_contract_schema(
@@ -1474,6 +2972,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> ProteoformQualityResult:
         return proteoform_quality_service.execute(request)
 
+    @app.get("/v1/contracts/M06-01/{name}/schema", tags=["contracts"])
+    def formal_state_contract_schema(name: M0601ContractName) -> dict[str, object]:
+        return _formal_state_contract_schema(name)
+
     @app.post(
         "/v1/modules/M06-01/formal-state-validation",
         response_model=ValidateFormalProteinStateResult,
@@ -1487,6 +2989,298 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ValidateFormalProteinStateResult:
         return formal_state_service.execute(request)
+
+    @app.get("/v1/contracts/M06-03/{name}/schema", tags=["contracts"])
+    def m0603_baseline_contract_schema(name: M0603ContractName) -> dict[str, object]:
+        return _m0603_baseline_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-03/estimate",
+        response_model=EstimateProteinAbundanceBaselineResult,
+        tags=["M06-03"],
+        openapi_extra=_m0603_baseline_request_body(),
+    )
+    def estimate_m0603_baseline(
+        request: Annotated[
+            EstimateProteinAbundanceBaselineRequest,
+            Depends(_m0603_baseline_body),
+        ],
+    ) -> EstimateProteinAbundanceBaselineResult:
+        return m0603_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M06-04/{name}/schema", tags=["contracts"])
+    def probabilistic_estimator_contract_schema(name: M0604ContractName) -> dict[str, object]:
+        return _probabilistic_estimator_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-04/probabilistic-estimation",
+        response_model=EstimateProteinAbundanceProbabilisticResult,
+        tags=["M06-04"],
+        openapi_extra=_probabilistic_estimator_request_body(),
+    )
+    def estimate_probabilistic_abundance(
+        request: Annotated[
+            EstimateProteinAbundanceProbabilisticRequest,
+            Depends(_probabilistic_estimator_body),
+        ],
+    ) -> EstimateProteinAbundanceProbabilisticResult:
+        return probabilistic_estimator_service.estimate(request)
+
+    @app.get("/v1/contracts/M06-06/{name}/schema", tags=["contracts"])
+    def m0606_uncertainty_contract_schema(name: M0606ContractName) -> dict[str, object]:
+        return _m0606_uncertainty_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M06-06/decompose",
+        response_model=ProteinAbundanceUncertaintyDecompositionResult,
+        tags=["M06-06"],
+        openapi_extra=_m0606_uncertainty_request_body(),
+    )
+    def decompose_m0606_uncertainty(
+        request: Annotated[
+            DecomposeProteinAbundanceUncertaintyRequest,
+            Depends(_m0606_uncertainty_body),
+        ],
+    ) -> ProteinAbundanceUncertaintyDecompositionResult:
+        return m0606_service.execute(request)
+
+    @app.get("/v1/contracts/M04-06/{name}/schema", tags=["contracts"])
+    def proteoform_harmonization_contract_schema(
+        name: M0406ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_harmonization_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M04-06/harmonization",
+        response_model=ProteoformHarmonizationResult,
+        tags=["M04-06"],
+        openapi_extra=_proteoform_harmonization_request_body(),
+    )
+    def harmonize_proteoform_analysis(
+        request: Annotated[
+            HarmonizeProteoformAnalysisRequest,
+            Depends(_proteoform_harmonization_body),
+        ],
+    ) -> ProteoformHarmonizationResult:
+        return proteoform_harmonization_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M04-07/{name}/schema", tags=["contracts"])
+    def proteoform_support_contract_schema(
+        name: M0407ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_support_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M04-07/support-route",
+        response_model=ProteoformSupportRouteResult,
+        tags=["M04-07"],
+        openapi_extra=_proteoform_support_request_body(),
+    )
+    def route_proteoform_support(
+        request: Annotated[
+            RouteProteoformSupportRequest,
+            Depends(_proteoform_support_body),
+        ],
+    ) -> ProteoformSupportRouteResult:
+        return proteoform_support_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M04-08/{name}/schema", tags=["contracts"])
+    def proteoform_release_contract_schema(
+        name: M0408ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_release_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-02/{name}/schema", tags=["contracts"])
+    def ptm_localization_lineage_contract_schema(
+        name: M0502ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_lineage_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-03/{name}/schema", tags=["contracts"])
+    def ptm_localization_raw_contract_schema(
+        name: M0503ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_raw_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-04/{name}/schema", tags=["contracts"])
+    def ptm_localization_quality_contract_schema(
+        name: M0504ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_quality_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-04/quality-metric-computation",
+        response_model=PtmLocalizationQualityResult,
+        tags=["M05-04"],
+        openapi_extra=_ptm_localization_quality_request_body(),
+    )
+    def compute_ptm_localization_quality(
+        capability: Annotated[
+            _ValidatedM0504RequestCapability,
+            Depends(_ptm_localization_quality_body),
+        ],
+    ) -> PtmLocalizationQualityResult:
+        return ptm_localization_quality_service._execute_validated(capability)
+
+    @app.get("/v1/contracts/M05-05/{name}/schema", tags=["contracts"])
+    def ptm_localization_artifact_contract_schema(
+        name: M0505ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_artifact_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-06/{name}/schema", tags=["contracts"])
+    def ptm_localization_harmonization_contract_schema(
+        name: M0506ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_harmonization_contract_schema(name)
+
+    @app.get("/v1/contracts/M05-07/{name}/schema", tags=["contracts"])
+    def ptm_localization_support_contract_schema(
+        name: M0507ContractName,
+    ) -> dict[str, object]:
+        return _ptm_localization_support_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M05-05/artifact-detection",
+        response_model=PtmLocalizationArtifactDetectionResult,
+        tags=["M05-05"],
+        openapi_extra=_ptm_localization_artifact_request_body(),
+    )
+    def detect_ptm_localization_artifacts(
+        request: Annotated[
+            DetectPtmLocalizationArtifactsRequest,
+            Depends(_ptm_localization_artifact_body),
+        ],
+    ) -> PtmLocalizationArtifactDetectionResult:
+        return ptm_localization_artifact_service._execute_validated(request)
+
+    @app.post(
+        "/v1/modules/M05-06/harmonization",
+        response_model=PtmLocalizationHarmonizationResult,
+        tags=["M05-06"],
+        openapi_extra=_ptm_localization_harmonization_request_body(),
+    )
+    def harmonize_ptm_localization_analysis(
+        request: Annotated[
+            HarmonizePtmLocalizationAnalysisRequest,
+            Depends(_ptm_localization_harmonization_body),
+        ],
+    ) -> PtmLocalizationHarmonizationResult:
+        return ptm_localization_harmonization_service._execute_validated(request)
+
+    @app.post(
+        "/v1/modules/M05-07/support-route",
+        response_model=PtmLocalizationSupportRouteResult,
+        tags=["M05-07"],
+        openapi_extra=_ptm_localization_support_request_body(),
+    )
+    def route_ptm_localization_support(
+        request: Annotated[
+            RoutePtmLocalizationSupportRequest,
+            Depends(_ptm_localization_support_body),
+        ],
+    ) -> PtmLocalizationSupportRouteResult:
+        return ptm_localization_support_service._execute_validated(request)
+
+    @app.post(
+        "/v1/modules/M05-02/identity-lineage-reconciliation",
+        response_model=PtmLocalizationIdentityLineageResolution,
+        tags=["M05-02"],
+        openapi_extra=_ptm_localization_lineage_request_body(),
+    )
+    def reconcile_ptm_localization_identity_lineage(
+        request: Annotated[
+            ReconcilePtmLocalizationIdentityLineageRequest,
+            Depends(_ptm_localization_lineage_body),
+        ],
+    ) -> PtmLocalizationIdentityLineageResolution:
+        return ptm_localization_lineage_service._execute_validated(request)
+
+    @app.post(
+        "/v1/modules/M04-05/artifact-detection",
+        response_model=ProteoformArtifactDetectionResult,
+        tags=["M04-05"],
+        openapi_extra=_proteoform_artifact_request_body(),
+    )
+    def detect_proteoform_artifacts(
+        request: Annotated[
+            DetectProteoformArtifactsRequest,
+            Depends(_proteoform_artifact_body),
+        ],
+    ) -> ProteoformArtifactDetectionResult:
+        return proteoform_artifact_service._execute_validated(request)
+
+    @app.get("/v1/contracts/M19-08/{name}/schema", tags=["contracts"])
+    def m1908_contract_schema(name: M1908ContractName) -> dict[str, object]:
+        return _m1908_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-08/translation-health",
+        response_model=ProteotypeTranslationMonitoringResult,
+        tags=["M19-08"],
+        openapi_extra=_m1908_request_body(),
+    )
+    def monitor_m1908_translation_health(
+        request: Annotated[
+            MonitorProteotypeTranslationHealthRequest,
+            Depends(_m1908_body),
+        ],
+    ) -> ProteotypeTranslationMonitoringResult:
+        return m1908_service.execute(request)
+
+    @app.get("/v1/contracts/M14-05/{name}/schema", tags=["contracts"])
+    def m1405_contract_schema(name: M1405ContractName) -> dict[str, object]:
+        return _m1405_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M14-05/longitudinal-evolution",
+        response_model=ProteinSubtypeLongitudinalEvolutionResult,
+        tags=["M14-05"],
+        openapi_extra=_m1405_request_body(),
+    )
+    def infer_m1405_evolution(
+        request: Annotated[
+            ModelProteinSubtypeLongitudinalEvolutionRequest,
+            Depends(_m1405_body),
+        ],
+    ) -> ProteinSubtypeLongitudinalEvolutionResult:
+        return m1405_service.execute(request)
+
+    @app.get("/v1/contracts/M14-03/{name}/schema", tags=["contracts"])
+    def m1403_contract_schema(name: M1403ContractName) -> dict[str, object]:
+        return _m1403_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M14-03/mechanistic-feature-construction",
+        response_model=ProteinSubtypeMechanisticFeatureResult,
+        tags=["M14-03"],
+        openapi_extra=_m1403_request_body(),
+    )
+    def construct_m1403_features(
+        request: Annotated[
+            ConstructProteinSubtypeMechanisticFeaturesRequest,
+            Depends(_m1403_body),
+        ],
+    ) -> ProteinSubtypeMechanisticFeatureResult:
+        return m1403_service.execute(request)
+
+    @app.get("/v1/contracts/M13-06/{name}/schema", tags=["contracts"])
+    def m1306_contract_schema(name: M1306ContractName) -> dict[str, object]:
+        return _m1306_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M13-06/perturbations",
+        response_model=ProteotypePerturbationSensitivityResult,
+        tags=["M13-06"],
+        openapi_extra=_m1306_request_body(),
+    )
+    def simulate_m1306_perturbations(
+        request: Annotated[
+            SimulateProteotypePerturbationRequest,
+            Depends(_m1306_body),
+        ],
+    ) -> ProteotypePerturbationSensitivityResult:
+        return m1306_service.execute(request)
 
     @app.post(
         "/v1/modules/M04-05/artifact-detection",
@@ -1797,6 +3591,118 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     )
     def verify_identity_events() -> M0102ChainVerification:
         return _require_valid_identity_chain(identity_service.verify_event_chain())
+
+    @app.get("/v1/contracts/M19-06/{name}/schema", tags=["contracts"])
+    def m1906_contract_schema(name: M1906ContractName) -> dict[str, object]:
+        return _m1906_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-06/adjudication",
+        response_model=ProteotypeAdjudicationResult,
+        tags=["M19-06"],
+    )
+    def adjudicate_m1906(
+        request: Annotated[AdjudicateProteotypeQueueRequest, Depends(_m1906_body)],
+    ) -> ProteotypeAdjudicationResult:
+        return m1906_service.adjudicate(request)
+
+    @app.post(
+        "/v1/modules/M19-06/adjudication/verify",
+        response_model=ProteotypeAdjudicationResult,
+        tags=["M19-06"],
+    )
+    async def verify_m1906(request: Request) -> ProteotypeAdjudicationResult:
+        result = await _strict_json_body(
+            request,
+            TypeAdapter(ProteotypeAdjudicationResult),
+            None,
+            M1906_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        return m1906_service.replay(result)
+
+    @app.get("/v1/contracts/M19-04/{name}/schema", tags=["contracts"])
+    def m1904_contract_schema(name: M1904ContractName) -> dict[str, object]:
+        return m1904_contract_json_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-04/adapt",
+        response_model=ProteotypeIntendedUseAdapterResult,
+        tags=["M19-04"],
+        openapi_extra=_m1904_request_body(),
+    )
+    def adapt_m1904_intended_use(
+        request: Annotated[AdaptProteotypeIntendedUseRequest, Depends(_m1904_body)],
+    ) -> ProteotypeIntendedUseAdapterResult:
+        return m1904_service.adapt(request)
+
+    @app.post(
+        "/v1/modules/M19-04/verify",
+        response_model=ProteotypeIntendedUseAdapterResult,
+        tags=["M19-04"],
+    )
+    def verify_m1904_intended_use(
+        result: Annotated[ProteotypeIntendedUseAdapterResult, Depends(_m1904_result_body)],
+    ) -> ProteotypeIntendedUseAdapterResult:
+        try:
+            return m1904_service.replay(result)
+        except M1904ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M19-04 replay verification failed",
+            ) from error
+
+    @app.get("/v1/contracts/M19-03/{name}/schema", tags=["contracts"])
+    def m1903_contract_schema(name: M1903ContractName) -> dict[str, object]:
+        return _m1903_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M19-03/fusion",
+        response_model=ProteotypeIntegratedEvidenceResult,
+        tags=["M19-03"],
+        openapi_extra=_m1903_request_body(),
+    )
+    def fuse_m1903_evidence(
+        request: Annotated[FuseProteotypeEvidenceRequest, Depends(_m1903_body)],
+    ) -> ProteotypeIntegratedEvidenceResult:
+        return m1903_service.fuse(request)
+
+    @app.post(
+        "/v1/modules/M19-03/verify",
+        response_model=ProteotypeIntegratedEvidenceResult,
+        tags=["M19-03"],
+    )
+    def verify_m1903_evidence(
+        result: Annotated[ProteotypeIntegratedEvidenceResult, Depends(_m1903_result_body)],
+    ) -> ProteotypeIntegratedEvidenceResult:
+        return m1903_service.replay(result)
+
+    @app.get("/v1/contracts/M27-02/{name}/schema", tags=["contracts"])
+    def m2702_contract_schema(name: M2702ContractName) -> dict[str, object]:
+        return _m2702_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M27-02/lineage",
+        response_model=ComplexActivityLineageResult,
+        tags=["M27-02"],
+        openapi_extra=_m2702_request_body(),
+    )
+    def resolve_m2702_lineage(
+        request: Annotated[
+            ResolveComplexActivityLineageRequest,
+            Depends(_m2702_request_body_dependency),
+        ],
+    ) -> ComplexActivityLineageResult:
+        return m2702_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M27-02/verify",
+        response_model=ComplexActivityLineageResult,
+        tags=["M27-02"],
+    )
+    def verify_m2702_lineage(
+        result: Annotated[ComplexActivityLineageResult, Depends(_m2702_result_body_dependency)],
+    ) -> ComplexActivityLineageResult:
+        return result
 
     return app
 

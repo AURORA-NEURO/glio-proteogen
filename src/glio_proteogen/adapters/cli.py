@@ -6,13 +6,20 @@ import ctypes
 import json
 import os
 import stat
+import sys
+from contextlib import suppress
 from ctypes import wintypes
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Annotated, Literal, Never
+from typing import TYPE_CHECKING, Annotated, Literal, Never, cast
 
 import typer
 import uvicorn
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[2]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.adapters.api import (
     _artifact_contract_schema,
@@ -28,6 +35,24 @@ from glio_proteogen.adapters.api import (
     _identification_support_contract_schema,
     _identity_binding_contract_schema,
     _identity_contract_schema,
+    _m0603_baseline_contract_schema,
+    _m0606_uncertainty_contract_schema,
+    _m1306_contract_schema,
+    _m1403_contract_schema,
+    _m1405_contract_schema,
+    _m1502_contract_schema,
+    _m1508_contract_schema,
+    _m1603_contract_schema,
+    _m1606_contract_schema,
+    _m1701_contract_schema,
+    _m1704_contract_schema,
+    _m1708_contract_schema,
+    _m1803_contract_schema,
+    _m1806_contract_schema,
+    _m1808_contract_schema,
+    _m1906_contract_schema,
+    _m2702_contract_schema,
+    _probabilistic_estimator_contract_schema,
     _protein_inference_artifact_contract_schema,
     _protein_inference_harmonization_contract_schema,
     _protein_inference_lineage_contract_schema,
@@ -37,10 +62,19 @@ from glio_proteogen.adapters.api import (
     _protein_inference_release_contract_schema,
     _protein_inference_support_contract_schema,
     _proteoform_artifact_contract_schema,
+    _proteoform_harmonization_contract_schema,
     _proteoform_lineage_contract_schema,
     _proteoform_protocol_contract_schema,
     _proteoform_quality_contract_schema,
     _proteoform_raw_contract_schema,
+    _proteoform_support_contract_schema,
+    _ptm_localization_artifact_contract_schema,
+    _ptm_localization_harmonization_contract_schema,
+    _ptm_localization_lineage_contract_schema,
+    _ptm_localization_protocol_contract_schema,
+    _ptm_localization_quality_contract_schema,
+    _ptm_localization_raw_contract_schema,
+    _ptm_localization_support_contract_schema,
     _quality_contract_schema,
     _raw_contract_schema,
     _release_packaging_contract_schema,
@@ -162,9 +196,153 @@ from glio_proteogen.contracts.m04_05 import (
     M0405_MAX_CANONICAL_REQUEST_BYTES,
     DetectProteoformArtifactsRequest,
 )
+from glio_proteogen.contracts.m04_06 import (
+    M0406_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizeProteoformAnalysisRequest,
+)
+from glio_proteogen.contracts.m04_07 import (
+    M0407_MAX_CANONICAL_REQUEST_BYTES,
+    RouteProteoformSupportRequest,
+)
+from glio_proteogen.contracts.m04_08.schema import (
+    contract_json_schema as m0408_contract_json_schema,
+)
+from glio_proteogen.contracts.m05_01 import (
+    M0501_MAX_CANONICAL_REQUEST_BYTES,
+    EvaluatePtmLocalizationProtocolRequest,
+)
+from glio_proteogen.contracts.m05_02 import (
+    M0502_MAX_CANONICAL_REQUEST_BYTES,
+    ReconcilePtmLocalizationIdentityLineageRequest,
+)
+from glio_proteogen.contracts.m05_03 import (
+    M0503_MAX_CANONICAL_REQUEST_BYTES,
+    M0503_MAX_DOCUMENT_BYTES,
+    M0503_MAX_TOTAL_DOCUMENT_BYTES,
+    IngestPtmLocalizationRawInputsRequest,
+    PtmLocalizationRawInputRole,
+)
+from glio_proteogen.contracts.m05_04 import (
+    M0504_MAX_CANONICAL_REQUEST_BYTES,
+    ComputePtmLocalizationQualityMetricsRequest,
+)
+from glio_proteogen.contracts.m05_05 import (
+    M0505_MAX_CANONICAL_REQUEST_BYTES,
+    DetectPtmLocalizationArtifactsRequest,
+)
+from glio_proteogen.contracts.m05_06 import (
+    M0506_MAX_CANONICAL_REQUEST_BYTES,
+    HarmonizePtmLocalizationAnalysisRequest,
+)
+from glio_proteogen.contracts.m05_07 import (
+    M0507_MAX_CANONICAL_REQUEST_BYTES,
+    RoutePtmLocalizationSupportRequest,
+)
 from glio_proteogen.contracts.m06_01 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
     ValidateFormalProteinStateRequest,
+)
+from glio_proteogen.contracts.m06_03 import (
+    M0603_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceBaselineRequest,
+)
+from glio_proteogen.contracts.m06_04 import (
+    M0604_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinAbundanceProbabilisticRequest,
+)
+from glio_proteogen.contracts.m06_06 import (
+    M0606_MAX_CANONICAL_REQUEST_BYTES,
+    DecomposeProteinAbundanceUncertaintyRequest,
+)
+from glio_proteogen.contracts.m13_06 import (
+    M1306_MAX_CANONICAL_REQUEST_BYTES,
+    SimulateProteotypePerturbationRequest,
+)
+from glio_proteogen.contracts.m14_03 import (
+    M1403_MAX_CANONICAL_REQUEST_BYTES,
+    ConstructProteinSubtypeMechanisticFeaturesRequest,
+)
+from glio_proteogen.contracts.m14_05 import (
+    M1405_MAX_CANONICAL_REQUEST_BYTES,
+    ModelProteinSubtypeLongitudinalEvolutionRequest,
+)
+from glio_proteogen.contracts.m15_02 import (
+    M1502_MAX_CANONICAL_REQUEST_BYTES,
+    StratifyContextAndSubtypeRequest,
+)
+from glio_proteogen.contracts.m15_08 import (
+    M1508_MAX_CANONICAL_REQUEST_BYTES,
+    AssembleComplexActivityMechanismDossierRequest,
+)
+from glio_proteogen.contracts.m16_03 import (
+    M1603_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteinRnaDiscordanceEvidenceRequest,
+)
+from glio_proteogen.contracts.m16_06 import (
+    M1606_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteinRnaDiscordanceQueueRequest,
+)
+from glio_proteogen.contracts.m17_01 import (
+    M1701_MAX_CANONICAL_REQUEST_BYTES,
+    ResolveVariantPeptideUpstreamContractsRequest,
+)
+from glio_proteogen.contracts.m17_04 import (
+    M1704_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptVariantPeptideIntendedUseRequest,
+)
+from glio_proteogen.contracts.m17_08 import (
+    M1708_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorVariantPeptideTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m18_03 import (
+    M1803_MAX_CANONICAL_REQUEST_BYTES,
+    FuseBiomarkerPanelEvidenceRequest,
+)
+from glio_proteogen.contracts.m18_06 import (
+    M1806_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateBiomarkerPanelQueueRequest,
+)
+from glio_proteogen.contracts.m18_08.v1 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorBiomarkerPanelTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    ContractName as M1903ContractName,
+)
+from glio_proteogen.contracts.m19_03.schema import (
+    contract_json_schema as m1903_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_03.v1 import (
+    M1903_MAX_CANONICAL_REQUEST_BYTES,
+    FuseProteotypeEvidenceRequest,
+    ProteotypeIntegratedEvidenceResult,
+)
+from glio_proteogen.contracts.m19_04 import (
+    M1904_MAX_CANONICAL_REQUEST_BYTES,
+    AdaptProteotypeIntendedUseRequest,
+    ProteotypeIntendedUseAdapterResult,
+)
+from glio_proteogen.contracts.m19_04 import (
+    contract_json_schema as m1904_contract_json_schema,
+)
+from glio_proteogen.contracts.m19_04.schema import ContractName as M1904ContractName  # noqa: TC001
+from glio_proteogen.contracts.m19_06 import (
+    M1906_MAX_CANONICAL_REQUEST_BYTES,
+    AdjudicateProteotypeQueueRequest,
+    ProteotypeAdjudicationResult,
+)
+from glio_proteogen.contracts.m19_08 import (
+    M1908_MAX_CANONICAL_REQUEST_BYTES,
+    MonitorProteotypeTranslationHealthRequest,
+)
+from glio_proteogen.contracts.m19_08 import (
+    contract_json_schema as m1908_contract_json_schema,
+)
+from glio_proteogen.contracts.m27_02 import (
+    M2702_MAX_CANONICAL_REQUEST_BYTES,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
+    ComplexActivityLineageResult,
+    ResolveComplexActivityLineageRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import Identifier, Sha256Digest
@@ -317,13 +495,164 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection imp
 from glio_proteogen.modules.c04_proteoform_isoform.m04_05_artifact_detection.engine import (
     _validate_json_request as _validate_m0405_json_request,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization import (
+    M0406Service,
+    ProteoformHarmonizationAuthorizationError,
+    preflight_proteoform_harmonization_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_06_harmonization.engine import (
+    _validate_json_request as _validate_m0406_json_request,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router import (
+    M0407Service,
+    ProteoformSupportAuthorizationError,
+    preflight_proteoform_support_authorization,
+)
+from glio_proteogen.modules.c04_proteoform_isoform.m04_07_support_router.engine import (
+    _validate_json_request as _validate_m0407_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata import M0501Service
+from glio_proteogen.modules.c05_ptm_localization.m05_01_protocol_metadata.engine import (
+    _validate_json_request as _validate_m0501_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage import M0502Service
+from glio_proteogen.modules.c05_ptm_localization.m05_02_identity_lineage.engine import (
+    _validate_json_request as _validate_m0502_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion import (
+    M0503Service,
+    PtmLocalizationRawInputAuthorizationError,
+    PtmLocalizationRawInputError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_03_raw_ingestion.engine import (
+    _validate_json_request as _validate_m0503_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics import (
+    M0504Service,
+    PtmLocalizationQualityAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_04_quality_metrics.engine import (
+    _validate_json_request_capability as _validate_m0504_json_request_capability,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection import (
+    M0505Service,
+    PtmLocalizationArtifactAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_05_artifact_detection.engine import (
+    _validate_json_request as _validate_m0505_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization import (
+    M0506Service,
+    PtmLocalizationHarmonizationAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_06_harmonization.engine import (
+    _validate_json_request as _validate_m0506_json_request,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router import (
+    M0507Service,
+    PtmLocalizationSupportAuthorizationError,
+)
+from glio_proteogen.modules.c05_ptm_localization.m05_07_unsupported_abstention_router.engine import (  # noqa: E501
+    _validate_json_request as _validate_m0507_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    PtmBaselineAuthorizationError,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0603_json_request,
+)
+from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator.service import (
+    M0603Service,
+)
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    FormalStateAuthorizationError,
     M0601Service,
     preflight_formal_state_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    M0604Service,
+    ProbabilisticEstimatorAuthorizationError,
+    preflight_probabilistic_estimator_authorization,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    M0606UncertaintyDecompositionAuthorizationError,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.engine import (
+    _validate_json_request as _validate_m0606_json_request,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
+    M0606Service,
+)
+from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
+    M1306AuthorizationError,
+    M1306Service,
+    preflight_m1306_authorization,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_03_mechanistic_feature_constructor as m1403_module,
+)
+from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
+    m14_05_protein_subtype_evolution as m1405_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_02_context_subtype_stratifier as m1502_module,
+)
+from glio_proteogen.modules.c15_longitudinal_recurrence_proteotype import (
+    m15_08_mechanism_evidence_dossier as m1508,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    M1606Service,
+    preflight_m1606_authorization,
+)
+from glio_proteogen.modules.c16_kinophos_object_consumer import (
+    m16_03_fusion_aggregation_engine as m1603,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_01_upstream_contract_resolver as m1701_resolver,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_04_intended_use_adapter as m1704_adapter,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m17_08_translation_monitoring as m1708_monitoring,
+)
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_08_translation_monitoring_service as m1908_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics import (
+    m18_08_translation_monitoring_service as m1808_monitoring,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_03_fusion_aggregation as m1803_fusion,
+)
+from glio_proteogen.modules.c18_spatial_proteomics_projection import (
+    m18_06_reviewer_adjudication as m1806_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
+    m19_06_reviewer_adjudication as m1906_adjudication,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
+    M1903AuthorizationError,
+    M1903ReplayError,
+    M1903Service,
+    preflight_m1903_authorization,
+)
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904AuthorizationError,
+    M1904ReplayError,
+    M1904Service,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702Service,
+    preflight_m2702_authorization,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from glio_proteogen.contracts.m05_04.v1 import (
+        _ValidatedRequestCapability as _ValidatedM0504RequestCapability,
+    )
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 protocol_app = typer.Typer(no_args_is_help=True, help="M01-01 protocol operations.")
@@ -459,11 +788,161 @@ formal_state_app = typer.Typer(
     help="M06-01 formal state and feature schema validation.",
 )
 app.add_typer(formal_state_app, name="formal-state")
+m0603_baseline_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-03 provisional deterministic mature baseline estimation.",
+)
+app.add_typer(m0603_baseline_app, name="mature-baseline")
+probabilistic_estimator_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-04 provisional probabilistic and advanced estimation.",
+)
+app.add_typer(probabilistic_estimator_app, name="probabilistic-estimator")
+uncertainty_decomposition_app = typer.Typer(
+    no_args_is_help=True,
+    help="M06-06 provisional protein-abundance uncertainty decomposition.",
+)
+app.add_typer(uncertainty_decomposition_app, name="uncertainty-decomposition")
 proteoform_artifacts_app = typer.Typer(
     no_args_is_help=True,
     help="M04-05 deterministic aggregate proteoform artifact detection.",
 )
 app.add_typer(proteoform_artifacts_app, name="proteoform-artifacts")
+m2702_app = typer.Typer(
+    no_args_is_help=True,
+    help="M27-02 caller-declared complex-activity lineage resolution.",
+)
+app.add_typer(m2702_app, name="m2702")
+m1908_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-08 translation-health monitoring and rollback.",
+)
+app.add_typer(m1908_app, name="m1908-translation-health")
+m1906_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-06 reviewer discrepancy and adjudication queue.",
+)
+app.add_typer(m1906_app, name="m19-06-adjudication")
+m1904_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1904_app, name="m1904-intended-use")
+m1903_app = typer.Typer(
+    no_args_is_help=True,
+    help="M19-03 component-specific fusion and aggregation.",
+)
+app.add_typer(m1903_app, name="m1903-fusion")
+m1808_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1808_app, name="m1808-translation-health")
+m1808_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1808_app, name="m1808-translation-health")
+m1806_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-06 reviewer discrepancy and adjudication queue.",
+)
+app.add_typer(m1806_app, name="m18-06-adjudication")
+m1803_app = typer.Typer(
+    no_args_is_help=True,
+    help="M18-03 component-specific fusion and aggregation.",
+)
+app.add_typer(m1803_app, name="m1803-fusion")
+m1701_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
+)
+app.add_typer(m1701_app, name="m1701-upstream")
+m1704_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-04 bounded intended-use policy adaptation.",
+)
+app.add_typer(m1704_app, name="m1704-intended-use")
+m1708_app = typer.Typer(
+    no_args_is_help=True,
+    help="M17-08 translation health monitoring and rollback.",
+)
+app.add_typer(m1708_app, name="m1708-translation-health")
+reviewer_discrepancy_app = typer.Typer(
+    no_args_is_help=True,
+    help="M16-06 reviewer discrepancy and immutable adjudication queue.",
+)
+app.add_typer(reviewer_discrepancy_app, name="reviewer-discrepancy")
+fusion_aggregation_app = typer.Typer(
+    no_args_is_help=True,
+    help="M16-03 component-specific fusion and aggregation.",
+)
+app.add_typer(fusion_aggregation_app, name="fusion-aggregation")
+mechanism_dossier_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-08 bounded mechanism evidence dossier assembly.",
+)
+app.add_typer(mechanism_dossier_app, name="mechanism-dossier")
+m1502_app = typer.Typer(
+    no_args_is_help=True,
+    help="M15-02 caller-declared context and subtype stratification.",
+)
+app.add_typer(m1502_app, name="context-stratifier")
+m1405_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-05 provisional longitudinal protein-subtype evolution.",
+)
+app.add_typer(m1405_app, name="longitudinal-evolution")
+m1403_app = typer.Typer(
+    no_args_is_help=True,
+    help="M14-03 provisional caller-declared mechanistic feature construction.",
+)
+app.add_typer(m1403_app, name="mechanistic-features")
+m1306_app = typer.Typer(
+    no_args_is_help=True,
+    help="M13-06 bounded variant-peptide perturbation sensitivity.",
+)
+app.add_typer(m1306_app, name="proteotype-sensitivity")
+proteoform_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-06 deterministic proteoform support harmonization and normalization.",
+)
+app.add_typer(proteoform_harmonization_app, name="proteoform-harmonization")
+proteoform_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-07 deterministic proteoform support and abstention routing.",
+)
+app.add_typer(proteoform_support_app, name="proteoform-support")
+proteoform_release_app = typer.Typer(
+    no_args_is_help=True,
+    help="M04-08 proteoform provenance and release packaging.",
+)
+app.add_typer(proteoform_release_app, name="proteoform-release")
+ptm_localization_raw_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-03 deterministic PTM-localization raw-manifest ingestion.",
+)
+app.add_typer(ptm_localization_raw_app, name="ptm-localization-raw")
+ptm_localization_quality_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-04 deterministic aggregate PTM-localization quality metrics.",
+)
+app.add_typer(ptm_localization_quality_app, name="ptm-localization-quality")
+ptm_localization_artifacts_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-05 deterministic aggregate PTM-localization artifact detection.",
+)
+app.add_typer(ptm_localization_artifacts_app, name="ptm-localization-artifacts")
+ptm_localization_harmonization_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-06 deterministic PTM-localization harmonization and normalization.",
+)
+app.add_typer(ptm_localization_harmonization_app, name="ptm-localization-harmonization")
+ptm_localization_support_app = typer.Typer(
+    no_args_is_help=True,
+    help="M05-07 deterministic PTM-localization support and abstention routing.",
+)
+app.add_typer(ptm_localization_support_app, name="ptm-localization-support")
 
 _RESOLUTION_DIGEST_ADAPTER = TypeAdapter(Sha256Digest)
 _IDENTIFICATION_RELEASE_STAGES = (
@@ -569,9 +1048,33 @@ ProteoformRawOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-03 canonical result JSON path."),
 ]
+PtmLocalizationRawSourceArgument = Annotated[
+    str,
+    typer.Argument(help="Unchecked directory containing four locked manifest files."),
+]
+PtmLocalizationRawOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-03 canonical result JSON path."),
+]
+PtmLocalizationHarmonizationOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-06 canonical result JSON path."),
+]
+PtmLocalizationQualityOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M05-04 canonical result JSON path."),
+]
 ProteoformQualityOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M04-04 canonical result JSON path."),
+]
+M0603BaselineOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M06-03 canonical result JSON path."),
+]
+M0606UncertaintyOutputOption = Annotated[
+    str,
+    typer.Option("--output", "-o", help="New M06-06 canonical result JSON path."),
 ]
 ProteoformArtifactOutputOption = Annotated[
     str,
@@ -711,6 +1214,46 @@ class _ProteoformRawFileError(ValueError):
         return cls("proteoform raw output must be a new regular file")
 
 
+class _PtmLocalizationRawFileError(ValueError):
+    """An M05-03 CLI path violates the exact snapshot-once filesystem boundary."""
+
+    @classmethod
+    def source_not_directory(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source directory is unavailable")
+
+    @classmethod
+    def linked_or_reparse_source(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source cannot be a link or reparse point")
+
+    @classmethod
+    def unexpected_entry(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source must contain exactly four locked filenames")
+
+    @classmethod
+    def non_regular_source(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source must contain only regular files")
+
+    @classmethod
+    def source_changed(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source changed during ingestion")
+
+    @classmethod
+    def source_unavailable(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw source is unavailable")
+
+    @classmethod
+    def output_unavailable(cls) -> _PtmLocalizationRawFileError:
+        return cls("PTM-localization raw output must be a new regular file")
+
+
+class _PtmLocalizationHarmonizationFileError(ValueError):
+    """An M05-06 result path cannot be admitted as a new canonical file."""
+
+    @classmethod
+    def output_unavailable(cls) -> _PtmLocalizationHarmonizationFileError:
+        return cls("PTM-localization harmonization output must be a new regular file")
+
+
 class _IdentificationReleaseFileError(ValueError):
     """A CLI path violates the closed M02-08 file or archive boundary."""
 
@@ -842,10 +1385,22 @@ def _load_request[RequestT](
         details = canonical_json_bytes(sanitized_validation_errors(error)).decode("utf-8")
         typer.echo(f"invalid request: {details}", err=True)
         raise typer.Exit(code=2) from error
+    except m1502_module.M1502AuthorizationError:
+        raise
     except (
+        FormalStateAuthorizationError,
+        PtmBaselineAuthorizationError,
+        ProbabilisticEstimatorAuthorizationError,
+        M0606UncertaintyDecompositionAuthorizationError,
         ProteoformArtifactAuthorizationError,
+        ProteoformHarmonizationAuthorizationError,
         ProteoformQualityAuthorizationError,
         ProteoformRawInputAuthorizationError,
+        PtmLocalizationQualityAuthorizationError,
+        PtmLocalizationArtifactAuthorizationError,
+        PtmLocalizationHarmonizationAuthorizationError,
+        ProteoformSupportAuthorizationError,
+        PtmLocalizationRawInputAuthorizationError,
     ):
         raise
     except (TypeError, ValueError):
@@ -864,6 +1419,52 @@ def _service(database: Path) -> M0101Service:
 
 def _identity_service(database: Path) -> M0102Service:
     return M0102Service(M0102EventStore(database))
+
+
+@m2702_app.command("export-schema")
+def export_m2702_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "graph",
+            "node",
+            "edge",
+            "bundle",
+            "finding",
+            "safe-failure",
+        ],
+        typer.Argument(help="M27-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M27-02 contract."""
+
+    typer.echo(json.dumps(_m2702_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m2702_app.command("resolve")
+def resolve_m2702_lineage(request: RequestArgument) -> None:
+    """Resolve caller-declared lineage without inferring complex activity."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ResolveComplexActivityLineageRequest),
+        preflight_m2702_authorization,
+        M2702_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M2702Service().execute(parsed))
+
+
+@m2702_app.command("verify")
+def verify_m2702_lineage(result: RequestArgument) -> None:
+    """Replay and validate one sealed M27-02 result envelope."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ComplexActivityLineageResult),
+        max_bytes=M2702_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(parsed)
 
 
 def _load_release_files(
@@ -1545,6 +2146,133 @@ def _load_proteoform_raw_files(  # noqa: C901, PLR0912, PLR0915 - explicit firew
     return snapshots
 
 
+_PTM_LOCALIZATION_RAW_FILENAMES = {
+    PtmLocalizationRawInputRole.MASS_SPECTROMETRY_PROTEOME: ("mass-spectrometry-proteome.json"),
+    PtmLocalizationRawInputRole.GENOME: "genome.json",
+    PtmLocalizationRawInputRole.TRANSCRIPTOME: "transcriptome.json",
+    PtmLocalizationRawInputRole.PTM_ANNOTATIONS: "ptm-annotations.json",
+}
+
+
+def _load_ptm_localization_raw_files(  # noqa: C901, PLR0912, PLR0915
+    source_directory: Path,
+    request: IngestPtmLocalizationRawInputsRequest,
+) -> dict[PtmLocalizationRawInputRole, bytes]:
+    """Snapshot the four locked M05-03 manifest files exactly once."""
+
+    try:
+        lexical = source_directory.absolute()
+        for component in (lexical, *lexical.parents):
+            if component.exists() and _is_protein_inference_release_reparse(component):
+                raise _PtmLocalizationRawFileError.linked_or_reparse_source()
+        root = source_directory.resolve(strict=True)
+    except _PtmLocalizationRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_not_directory() from error
+    try:
+        root_before = root.stat(follow_symlinks=False)
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_not_directory() from error
+    if not stat.S_ISDIR(root_before.st_mode):
+        raise _PtmLocalizationRawFileError.source_not_directory()
+
+    expected_names = set(_PTM_LOCALIZATION_RAW_FILENAMES.values())
+    try:
+        entries = tuple(root.iterdir())
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_unavailable() from error
+    if {entry.name for entry in entries} != expected_names:
+        raise _PtmLocalizationRawFileError.unexpected_entry()
+
+    artifacts_by_role = {artifact.role: artifact for artifact in request.artifacts}
+    if set(artifacts_by_role) != set(PtmLocalizationRawInputRole):
+        raise _PtmLocalizationRawFileError.unexpected_entry()
+
+    receipts: dict[PtmLocalizationRawInputRole, tuple[Path, os.stat_result]] = {}
+    total_size = 0
+    for role, filename in _PTM_LOCALIZATION_RAW_FILENAMES.items():
+        candidate = root / filename
+        if _is_protein_inference_release_reparse(candidate):
+            raise _PtmLocalizationRawFileError.linked_or_reparse_source()
+        try:
+            before = candidate.stat(follow_symlinks=False)
+            if not stat.S_ISREG(before.st_mode):
+                raise _PtmLocalizationRawFileError.non_regular_source()
+            artifact = artifacts_by_role[role]
+            matching_parser = next(
+                (
+                    parser
+                    for parser in request.policy.approved_parsers
+                    if parser.role is role
+                    and parser.format is artifact.format
+                    and parser.format_version == artifact.format_version
+                    and parser.parser_version == artifact.parser_version
+                ),
+                None,
+            )
+            active_limit = min(
+                request.policy.max_document_bytes,
+                M0503_MAX_DOCUMENT_BYTES,
+                *((matching_parser.max_document_bytes,) if matching_parser is not None else ()),
+            )
+            total_size += before.st_size
+            if (
+                before.st_size != artifact.declared_size_bytes
+                or before.st_size > active_limit
+                or total_size > min(request.policy.max_total_bytes, M0503_MAX_TOTAL_DOCUMENT_BYTES)
+            ):
+                raise _PtmLocalizationRawFileError.source_unavailable()
+            receipts[role] = (candidate, before)
+        except _PtmLocalizationRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _PtmLocalizationRawFileError.source_unavailable() from error
+
+    snapshots: dict[PtmLocalizationRawInputRole, bytes] = {}
+    for role, (candidate, before) in receipts.items():
+        try:
+            with candidate.open("rb") as stream:
+                opened = os.fstat(stream.fileno())
+                if not _same_file_receipt(before, opened) or not stat.S_ISREG(opened.st_mode):
+                    raise _PtmLocalizationRawFileError.source_changed()
+                payload = stream.read(before.st_size + 1)
+                after = os.fstat(stream.fileno())
+            current = candidate.stat(follow_symlinks=False)
+        except _PtmLocalizationRawFileError:
+            raise
+        except (OSError, ValueError) as error:
+            raise _PtmLocalizationRawFileError.source_unavailable() from error
+        if not _same_file_receipt(opened, after) or not _same_file_receipt(after, current):
+            raise _PtmLocalizationRawFileError.source_changed()
+        if len(payload) != before.st_size:
+            raise _PtmLocalizationRawFileError.source_changed()
+        snapshots[role] = payload
+
+    try:
+        root_after = root.stat(follow_symlinks=False)
+        final_entries = tuple(root.iterdir())
+        final_tree_is_closed = {entry.name for entry in final_entries} == expected_names and all(
+            not _is_protein_inference_release_reparse(entry)
+            and stat.S_ISREG(entry.stat(follow_symlinks=False).st_mode)
+            for entry in final_entries
+        )
+        final_members_are_unchanged = all(
+            not _is_protein_inference_release_reparse(candidate)
+            and _same_file_receipt(before, candidate.stat(follow_symlinks=False))
+            for candidate, before in receipts.values()
+        )
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.source_unavailable() from error
+    if (
+        not _same_file_receipt(root_before, root_after)
+        or not final_tree_is_closed
+        or not final_members_are_unchanged
+    ):
+        raise _PtmLocalizationRawFileError.source_changed()
+    return snapshots
+
+
 _WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
 _WINDOWS_FILE_ATTRIBUTE_NORMAL = 0x80
 _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
@@ -1771,6 +2499,229 @@ def _write_proteoform_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
             cleanup_error = cleanup_error or error
         if cleanup_error is not None:
             raise cleanup_error
+
+
+def _write_ptm_localization_harmonization_result(path: Path, payload: bytes) -> None:
+    """Publish one new M05-06 result without leaving a partial output on failure."""
+
+    absolute = path.absolute()
+    descriptor: int | None = None
+    try:
+        if not absolute.name or absolute.name in {".", ".."}:
+            raise _PtmLocalizationHarmonizationFileError.output_unavailable()
+        absolute.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(
+            absolute,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        offset = 0
+        while offset < len(payload):
+            offset += os.write(descriptor, payload[offset:])
+        os.fsync(descriptor)
+    except _PtmLocalizationHarmonizationFileError:
+        raise
+    except (OSError, ValueError) as error:
+        with suppress(OSError):
+            absolute.unlink(missing_ok=True)
+        raise _PtmLocalizationHarmonizationFileError.output_unavailable() from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _write_ptm_localization_raw_result(path: Path, payload: bytes) -> None:
+    """Atomically publish one new M05-03 file through a non-reparse anchor."""
+
+    try:
+        absolute = path.absolute()
+        if not absolute.name or absolute.name in {".", ".."}:
+            raise _PtmLocalizationRawFileError.output_unavailable()
+        if os.name == "nt":
+            _write_ptm_localization_raw_result_windows(absolute, payload)
+        else:
+            _write_ptm_localization_raw_result_posix(absolute, payload)
+    except _PtmLocalizationRawFileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise _PtmLocalizationRawFileError.output_unavailable() from error
+
+
+def _write_ptm_localization_raw_result_posix(  # noqa: C901, PLR0912, PLR0915
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish through openat-style operations rooted in the opened parent inode."""
+
+    if not _PROTEOFORM_RAW_POSIX_DIR_FD_SUPPORTED:
+        _raise_anchored_output_error()
+    parent_descriptor, final_name = _open_proteoform_raw_posix_parent(path)
+    temporary_name = f".m0503-{os.urandom(16).hex()}.tmp"
+    temporary_descriptor: int | None = None
+    written: os.stat_result | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        try:
+            os.stat(final_name, dir_fd=parent_descriptor, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise _PtmLocalizationRawFileError.output_unavailable()
+        flags = (
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | _required_posix_open_flag("O_NOFOLLOW")
+            | _required_posix_open_flag("O_CLOEXEC")
+        )
+        temporary_descriptor = os.open(
+            temporary_name,
+            flags,
+            0o600,
+            dir_fd=parent_descriptor,
+        )
+        opened = os.fstat(temporary_descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            _raise_anchored_output_error()
+        written = opened
+        _write_proteoform_raw_descriptor(temporary_descriptor, payload)
+        written = os.fstat(temporary_descriptor)
+        if not _same_file_identity(opened, written):
+            _raise_anchored_output_error()
+        named_temporary = os.stat(
+            temporary_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, named_temporary):
+            _raise_anchored_output_error()
+        os.link(
+            temporary_name,
+            final_name,
+            src_dir_fd=parent_descriptor,
+            dst_dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _proteoform_raw_posix_parent_is_current(path, parent_descriptor):
+            _raise_anchored_output_error()
+        received = os.stat(
+            final_name,
+            dir_fd=parent_descriptor,
+            follow_symlinks=False,
+        )
+        if not _same_file_receipt(written, received):
+            _raise_anchored_output_error()
+        os.unlink(temporary_name, dir_fd=parent_descriptor)
+        os.fsync(parent_descriptor)
+        committed = True
+    finally:
+        if not committed and written is not None:
+            try:
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    final_name,
+                    written,
+                )
+                _unlink_proteoform_raw_posix_name_if_owned(
+                    parent_descriptor,
+                    temporary_name,
+                    written,
+                )
+                os.fsync(parent_descriptor)
+            except OSError as error:
+                cleanup_error = error
+        if temporary_descriptor is not None:
+            try:
+                os.close(temporary_descriptor)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            os.close(parent_descriptor)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _write_ptm_localization_raw_result_windows(  # pragma: no cover
+    path: Path,
+    payload: bytes,
+) -> None:
+    """Publish by native handle-relative create and rename under one parent handle."""
+
+    parent_handle, final_name = _open_proteoform_raw_windows_parent(path)
+    parent_receipt = _windows_file_receipt(parent_handle, directory=True)
+    temporary_name = f".m0503-{os.urandom(16).hex()}.tmp"
+    output_handle: int | None = None
+    output_receipt: tuple[int, int] | None = None
+    committed = False
+    cleanup_error: OSError | None = None
+    try:
+        output_handle = _windows_nt_create_relative(
+            parent_handle,
+            temporary_name,
+            desired_access=_WINDOWS_OUTPUT_ACCESS,
+            share_access=_WINDOWS_SHARE_READ_DELETE,
+            disposition=_WINDOWS_FILE_CREATE,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        output_receipt = _windows_file_receipt(output_handle, directory=False)
+        _write_proteoform_raw_windows_handle(output_handle, payload)
+        if _windows_file_receipt(output_handle, directory=False) != output_receipt:
+            _raise_anchored_output_error()
+        _windows_rename_ptm_localization_raw_output(
+            output_handle,
+            parent_handle,
+            final_name,
+        )
+        received_parent, received_name = _open_proteoform_raw_windows_parent(path)
+        try:
+            if (
+                received_name != final_name
+                or _windows_file_receipt(received_parent, directory=True) != parent_receipt
+            ):
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_parent)
+        received_output = _windows_nt_create_relative(
+            parent_handle,
+            final_name,
+            desired_access=_WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_SYNCHRONIZE,
+            disposition=_WINDOWS_FILE_OPEN,
+            options=_WINDOWS_FILE_OPTIONS,
+        )
+        try:
+            if _windows_file_receipt(received_output, directory=False) != output_receipt:
+                _raise_anchored_output_error()
+        finally:
+            _windows_close_handle(received_output)
+        committed = True
+    finally:
+        if output_handle is not None and not committed:
+            try:
+                _windows_mark_output_for_deletion(output_handle)
+            except OSError as error:
+                cleanup_error = error
+        if output_handle is not None:
+            try:
+                _windows_close_handle(output_handle)
+            except OSError as error:
+                cleanup_error = cleanup_error or error
+        try:
+            _windows_close_handle(parent_handle)
+        except OSError as error:
+            cleanup_error = cleanup_error or error
+        if cleanup_error is not None:
+            raise cleanup_error
+
+
+def _windows_rename_ptm_localization_raw_output(  # pragma: no cover
+    output_handle: int,
+    parent_handle: int,
+    final_name: str,
+) -> None:
+    _windows_rename_proteoform_raw_output(output_handle, parent_handle, final_name)
 
 
 def _open_proteoform_raw_posix_parent(path: Path) -> tuple[int, str]:
@@ -3261,6 +4212,395 @@ def validate_proteoform_protocol(request: RequestArgument) -> None:
     _emit(M0401Service().execute(parsed))
 
 
+@app.command("m05-01-export-schema")
+def export_ptm_localization_protocol_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "protocol",
+            "profile",
+            "reference-bundle",
+            "reference-cardinality",
+            "controlled-vocabulary",
+            "unit-policy",
+            "metadata-field-policy",
+            "compatibility-policy",
+            "assay-specimen-policy",
+            "variant-peptide-handoff",
+            "receipt",
+        ],
+        typer.Argument(help="M05-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization protocol contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_protocol_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.command("m05-01-validate")
+def validate_ptm_localization_protocol(request: RequestArgument) -> None:
+    """Validate one authorized PTM-localization protocol against its reviewed profile."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EvaluatePtmLocalizationProtocolRequest),
+            max_bytes=M0501_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0501_json_request,
+        )
+        _emit(M0501Service()._execute_validated(parsed))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"invalid M05-01 request: {error}", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@app.command("m05-02-export-schema")
+def export_ptm_localization_lineage_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "approved-configuration",
+            "artifact-claim",
+            "derivation",
+            "graph",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization identity-lineage contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_lineage_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.command("m05-02-reconcile")
+def reconcile_ptm_localization_identity_lineage(request: RequestArgument) -> None:
+    """Reconcile authorized PTM-localization artifact identity and lineage."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ReconcilePtmLocalizationIdentityLineageRequest),
+            max_bytes=M0502_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0502_json_request,
+        )
+        _emit(M0502Service()._execute_validated(parsed))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"invalid M05-02 request: {error}", err=True)
+        raise typer.Exit(code=2) from error
+
+
+@ptm_localization_raw_app.command("export-schema")
+def export_ptm_localization_raw_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "parser-profile",
+            "input-artifact",
+            "proteome-document",
+            "genome-document",
+            "transcriptome-document",
+            "ptm-document",
+            "validated-input",
+            "diagnostic",
+            "receipt",
+        ],
+        typer.Argument(help="M05-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization raw-ingestion contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_raw_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_raw_app.command("ingest")
+def ingest_ptm_localization_raw_inputs_cli(
+    request: RequestArgument,
+    source_directory: PtmLocalizationRawSourceArgument,
+    output: PtmLocalizationRawOutputOption,
+) -> None:
+    """Ingest four locked canonical manifests and publish one new result."""
+
+    try:
+        try:
+            parsed = _load_request(
+                request,
+                TypeAdapter(IngestPtmLocalizationRawInputsRequest),
+                max_bytes=M0503_MAX_CANONICAL_REQUEST_BYTES,
+                json_validator=_validate_m0503_json_request,
+            )
+            source_path = Path(source_directory)
+            output_path = Path(output)
+        except PtmLocalizationRawInputAuthorizationError as error:
+            typer.echo(f"PTM-localization raw ingestion failed: {error}", err=True)
+            raise typer.Exit(code=2) from error
+        except (OSError, TypeError, ValueError) as error:
+            typer.echo("invalid M05-03 request: strict request validation failed", err=True)
+            raise typer.Exit(code=2) from error
+        sources = (
+            _load_ptm_localization_raw_files(source_path, parsed)
+            if parsed.lineage_result.disposition.value == "reconciled"
+            else {}
+        )
+        result = M0503Service()._execute_validated(parsed, sources)
+        _write_ptm_localization_raw_result(
+            output_path,
+            canonical_json_bytes(result.model_dump(mode="json")),
+        )
+    except (
+        PtmLocalizationRawInputAuthorizationError,
+        PtmLocalizationRawInputError,
+        _PtmLocalizationRawFileError,
+    ) as error:
+        typer.echo(f"PTM-localization raw ingestion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    if result.disposition.value != "validated":
+        raise typer.Exit(code=1)
+
+
+@ptm_localization_quality_app.command("export-schema")
+def export_ptm_localization_quality_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "assay-profile",
+            "fact-counts",
+            "fact-states",
+            "role-facts",
+            "fact-ledger",
+            "metric",
+            "assay-quality",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization quality contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_quality_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_quality_app.command("compute")
+def compute_ptm_localization_quality_metrics_cli(
+    request: RequestArgument,
+    output: PtmLocalizationQualityOutputOption,
+) -> None:
+    """Compute reviewed fixed-point PTM-localization quality metrics."""
+
+    adapter = cast(
+        "TypeAdapter[_ValidatedM0504RequestCapability]",
+        TypeAdapter(ComputePtmLocalizationQualityMetricsRequest),
+    )
+    try:
+        capability = _load_request(
+            request,
+            adapter,
+            max_bytes=M0504_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0504_json_request_capability,
+        )
+    except PtmLocalizationQualityAuthorizationError as error:
+        typer.echo(f"PTM-localization quality computation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("invalid M05-04 request: strict request validation failed", err=True)
+        raise typer.Exit(code=2) from error
+    try:
+        result = M0504Service()._execute_validated(capability)
+        _write_ptm_localization_raw_result(
+            Path(output),
+            canonical_json_bytes(result.model_dump(mode="json")),
+        )
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"PTM-localization quality computation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_artifacts_app.command("export-schema")
+def export_ptm_localization_artifact_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "threshold",
+            "profile",
+            "evidence-event",
+            "evidence-ledger",
+            "evidence-ledger-binding",
+            "artifact-posterior",
+            "contamination-flag",
+            "exclusion-mask-entry",
+            "finding",
+            "receipt",
+        ],
+        typer.Argument(help="M05-05 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable PTM-localization artifact contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_artifact_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_artifacts_app.command("detect")
+def detect_ptm_localization_artifacts_cli(request: RequestArgument) -> None:
+    """Detect aggregate PTM-localization artifacts and emit canonical JSON."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(DetectPtmLocalizationArtifactsRequest),
+            max_bytes=M0505_MAX_CANONICAL_REQUEST_BYTES,
+            json_validator=_validate_m0505_json_request,
+        )
+        _emit(M0505Service()._execute_validated(parsed))
+    except PtmLocalizationArtifactAuthorizationError as error:
+        typer.echo(f"PTM-localization artifact detection failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization artifact detection failed: invalid request", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_harmonization_app.command("export-schema")
+def export_ptm_localization_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "artifact-receipt",
+            "support-ledger",
+            "support-observation",
+            "support-invariant",
+            "policy",
+            "profile",
+            "normalization-stage",
+            "level-shift",
+            "stage-transformation",
+            "transformation-manifest",
+            "analysis",
+            "receipt",
+        ],
+        typer.Argument(help="M05-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M05-06 contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_harmonization_app.command("harmonize")
+def harmonize_ptm_localization_analysis_cli(
+    request: RequestArgument,
+    output: PtmLocalizationHarmonizationOutputOption,
+) -> None:
+    """Harmonize one authorized M05-06 request into a new canonical result file."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(HarmonizePtmLocalizationAnalysisRequest),
+            None,
+            M0506_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0506_json_request,
+        )
+        result = M0506Service()._execute_validated(parsed)
+        _write_ptm_localization_harmonization_result(
+            Path(output),
+            canonical_json_bytes(result),
+        )
+    except PtmLocalizationHarmonizationAuthorizationError as error:
+        typer.echo(f"PTM-localization harmonization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization harmonization failed: invalid request or output", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@ptm_localization_support_app.command("export-schema")
+def export_ptm_localization_support_schema(
+    contract: Annotated[
+        Literal["request", "output", "policy", "prerequisites", "fact", "receipt"],
+        typer.Argument(help="M05-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M05-07 support contract."""
+
+    typer.echo(
+        json.dumps(
+            _ptm_localization_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@ptm_localization_support_app.command("route")
+def route_ptm_localization_support_cli(request: RequestArgument) -> None:
+    """Route PTM-localization support facts and emit canonical JSON."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(RoutePtmLocalizationSupportRequest),
+            None,
+            M0507_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0507_json_request,
+        )
+        _emit(M0507Service()._execute_validated(parsed))
+    except PtmLocalizationSupportAuthorizationError as error:
+        typer.echo(f"PTM-localization support routing failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("PTM-localization support routing failed: invalid request", err=True)
+        raise typer.Exit(code=1) from error
+
+
 @proteoform_lineage_app.command("export-schema")
 def export_proteoform_lineage_schema(
     contract: Annotated[
@@ -3453,8 +4793,145 @@ def validate_formal_state_request(request: RequestArgument) -> None:
             M0601_MAX_CANONICAL_REQUEST_BYTES,
         )
         _emit(M0601Service().execute(parsed))
+    except FormalStateAuthorizationError as error:
+        typer.echo(f"formal-state validation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
     except (TypeError, ValueError) as error:
         typer.echo(f"formal-state validation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0603_baseline_app.command("export-schema")
+def export_m0603_baseline_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "configuration",
+            "preprocessing-policy",
+            "tuning-record",
+            "estimate",
+            "diagnostic",
+        ],
+        typer.Argument(help="M06-03 provisional public contract to export."),
+    ],
+) -> None:
+    """Export one provisional M06-03 JSON Schema 2020-12 contract."""
+
+    _emit(_m0603_baseline_contract_schema(contract))
+
+
+@m0603_baseline_app.command("estimate")
+def estimate_m0603_baseline(
+    request: RequestArgument,
+    output: M0603BaselineOutputOption,
+) -> None:
+    """Estimate transparent baseline values and publish one canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinAbundanceBaselineRequest),
+            None,
+            M0603_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0603_json_request,
+        )
+        result = M0603Service()._execute_validated(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except PtmBaselineAuthorizationError as error:
+        typer.echo(f"m06-03 baseline estimation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"m06-03 baseline estimation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@probabilistic_estimator_app.command("export-schema")
+def export_probabilistic_estimator_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "configuration",
+            "prior",
+            "constraint",
+            "posterior",
+            "diagnostic",
+        ],
+        typer.Argument(help="M06-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M06-04 contract."""
+
+    _emit(_probabilistic_estimator_contract_schema(contract))
+
+
+@probabilistic_estimator_app.command("estimate")
+def estimate_probabilistic_abundance(request: RequestArgument) -> None:
+    """Run the strict M06-04 proxy and print a typed estimate or abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinAbundanceProbabilisticRequest),
+            preflight_probabilistic_estimator_authorization,
+            M0604_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M0604Service().estimate(parsed))
+    except ProbabilisticEstimatorAuthorizationError as error:
+        typer.echo(f"probabilistic estimation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"probabilistic estimation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@uncertainty_decomposition_app.command("export-schema")
+def export_m0606_uncertainty_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "component",
+            "decomposition",
+            "sensitivity-envelope",
+            "policy",
+            "finding",
+        ],
+        typer.Argument(help="M06-06 provisional contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M06-06 contract."""
+
+    _emit(_m0606_uncertainty_contract_schema(contract))
+
+
+@uncertainty_decomposition_app.command("decompose")
+def decompose_m0606_uncertainty(
+    request: RequestArgument,
+    output: M0606UncertaintyOutputOption,
+) -> None:
+    """Decompose uncertainty and publish a safe provisional result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(DecomposeProteinAbundanceUncertaintyRequest),
+            None,
+            M0606_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0606_json_request,
+        )
+        result = M0606Service().execute(parsed)
+        _write_proteoform_raw_result(
+            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+        )
+    except M0606UncertaintyDecompositionAuthorizationError as error:
+        typer.echo(f"M06-06 uncertainty decomposition failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M06-06 uncertainty decomposition failed: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
@@ -3499,16 +4976,441 @@ def detect_proteoform_artifacts(
             M0405_MAX_CANONICAL_REQUEST_BYTES,
             _validate_m0405_json_request,
         )
-        result = M0405Service()._execute_validated(parsed)
         _write_proteoform_raw_result(
-            Path(output), canonical_json_bytes(result.model_dump(mode="json"))
+            Path(output), canonical_json_bytes(M0405Service()._execute_validated(parsed))
         )
     except ProteoformArtifactAuthorizationError as error:
-        typer.echo(f"proteoform artifact detection failed: {error}", err=True)
+        typer.echo(f"M04-05 artifact detection failed: {error}", err=True)
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
-        typer.echo(f"proteoform artifact detection failed: {error}", err=True)
+        typer.echo(f"M04-05 artifact detection failed: {error}", err=True)
         raise typer.Exit(code=1) from error
+
+
+@m1808_app.command("export-schema")
+def export_m1808_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M18-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M18-08 contract schema."""
+
+    typer.echo(json.dumps(_m1808_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1808_app.command("monitor")
+def monitor_m1808_translation_health(request: RequestArgument) -> None:
+    """Monitor translation health and emit a bounded state or explicit abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest),
+            m1808_monitoring.preflight_m1808_authorization,
+            M1808_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1808_monitoring.M1808Service().execute(parsed))
+    except m1808_monitoring.M1808AuthorizationError as error:
+        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M18-08 monitoring failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1806_app.command("export-schema")
+def export_m1806_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M18-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M18-06 contract."""
+
+    typer.echo(json.dumps(_m1806_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1806_app.command("adjudicate")
+def adjudicate_m1806_queue(request: RequestArgument) -> None:
+    """Adjudicate one bounded reviewer discrepancy queue with safe abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdjudicateBiomarkerPanelQueueRequest),
+        m1806_adjudication.preflight_m1806_authorization,
+        M1806_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1806_adjudication.M1806Service().adjudicate(parsed))
+
+
+@m1803_app.command("export-schema")
+def export_m1803_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "integrated-evidence",
+            "source-contribution",
+            "disagreement",
+            "aggregation",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M18-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M18-03 contract schema."""
+
+    typer.echo(json.dumps(_m1803_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1803_app.command("fuse")
+def fuse_m1803_evidence(request: RequestArgument) -> None:
+    """Fuse attributable component evidence or emit explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(FuseBiomarkerPanelEvidenceRequest),
+        m1803_fusion.preflight_m1803_authorization,
+        M1803_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1803_fusion.M1803Service().fuse(parsed))
+
+
+@m1701_app.command("export-schema")
+def export_m1701_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "candidate",
+            "compatibility-rule",
+            "compatibility-decision",
+            "compatibility-report",
+            "configuration",
+            "bundle",
+            "finding",
+        ],
+        typer.Argument(help="M17-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-01 contract schema."""
+
+    typer.echo(json.dumps(_m1701_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1701_app.command("resolve")
+def resolve_m1701_upstream(request: RequestArgument) -> None:
+    """Resolve typed upstream compatibility with explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest),
+        m1701_resolver.preflight_m1701_authorization,
+        M1701_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1701_resolver.M1701Service().resolve(parsed))
+
+
+@m1704_app.command("export-schema")
+def export_m1704_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "claim-ceiling",
+            "display-semantics",
+            "registration",
+            "policy-decision",
+            "intended-use-object",
+            "finding",
+        ],
+        typer.Argument(help="M17-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-04 contract schema."""
+
+    typer.echo(json.dumps(_m1704_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1704_app.command("adapt")
+def adapt_m1704_intended_use(request: RequestArgument) -> None:
+    """Apply registered intended-use policy and emit a bounded object or abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdaptVariantPeptideIntendedUseRequest),
+        m1704_adapter.preflight_m1704_authorization,
+        M1704_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1704_adapter.M1704Service().adapt(parsed))
+
+
+@m1708_app.command("export-schema")
+def export_m1708_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M17-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, provisional M17-08 contract schema."""
+
+    typer.echo(json.dumps(_m1708_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1708_app.command("monitor")
+def monitor_m1708_translation_health(request: RequestArgument) -> None:
+    """Monitor translation health and emit a bounded state or explicit abstention."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(MonitorVariantPeptideTranslationHealthRequest),
+        m1708_monitoring.preflight_m1708_authorization,
+        M1708_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1708_monitoring.M1708Service().monitor(parsed))
+
+
+@fusion_aggregation_app.command("export-schema")
+def export_m1603_fusion_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "source-contribution",
+            "disagreement",
+            "propagation",
+            "configuration",
+            "finding",
+            "integrated-evidence",
+        ],
+        typer.Argument(help="M16-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable fusion and aggregation contract."""
+
+    typer.echo(json.dumps(_m1603_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@fusion_aggregation_app.command("fuse")
+def fuse_m1603_evidence(request: RequestArgument) -> None:
+    """Fuse attributable component evidence while preserving disagreement."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(FuseProteinRnaDiscordanceEvidenceRequest),
+            m1603.preflight_m1603_authorization,
+            M1603_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1603.M1603Service().execute(parsed))
+    except m1603.M1603AuthorizationError as error:
+        typer.echo(f"fusion aggregation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"fusion aggregation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@mechanism_dossier_app.command("export-schema")
+def export_m1508_dossier_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "dossier",
+            "link",
+            "counter-evidence",
+            "validation-route",
+            "claim-ceiling",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M15-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable mechanism dossier contract."""
+
+    typer.echo(json.dumps(_m1508_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@mechanism_dossier_app.command("assemble")
+def assemble_m1508_dossier(request: RequestArgument) -> None:
+    """Assemble one bounded caller-declared mechanism evidence dossier."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AssembleComplexActivityMechanismDossierRequest),
+            m1508.preflight_m1508_authorization,
+            M1508_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1508.M1508Service().execute(parsed))
+    except m1508.M1508AuthorizationError as error:
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"mechanism dossier assembly failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_harmonization_app.command("export-schema")
+def export_proteoform_harmonization_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "profile",
+            "stage",
+            "artifact-receipt",
+            "target-receipt",
+            "support-ledger",
+            "observation",
+            "invariant",
+            "analysis",
+            "value",
+            "transformation-manifest",
+            "finding",
+        ],
+        typer.Argument(help="M04-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform harmonization contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_harmonization_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_harmonization_app.command("harmonize")
+def harmonize_proteoform_analysis(request: RequestArgument) -> None:
+    """Harmonize one authorized metadata-only proteoform support ledger."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(HarmonizeProteoformAnalysisRequest),
+            preflight_proteoform_harmonization_authorization,
+            M0406_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0406_json_request,
+        )
+        _emit(M0406Service()._execute_validated(parsed))
+    except ProteoformHarmonizationAuthorizationError as error:
+        typer.echo(f"proteoform harmonization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform harmonization failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_support_app.command("export-schema")
+def export_proteoform_support_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "prerequisites",
+            "quality-receipt",
+            "harmonization-receipt",
+            "fact",
+            "context-receipt",
+            "profile",
+            "policy",
+            "envelope",
+            "remediation",
+            "dimension-assessment",
+            "envelope-assessment",
+            "abstention",
+        ],
+        typer.Argument(help="M04-07 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform support-routing contract."""
+
+    typer.echo(
+        json.dumps(
+            _proteoform_support_contract_schema(contract),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@proteoform_support_app.command("route")
+def route_proteoform_support(request: RequestArgument) -> None:
+    """Route one authorized request to support or a typed safe abstention."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(RouteProteoformSupportRequest),
+            preflight_proteoform_support_authorization,
+            M0407_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0407_json_request,
+        )
+        _emit(M0407Service()._execute_validated(parsed))
+    except ProteoformSupportAuthorizationError as error:
+        typer.echo(f"proteoform support routing failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"proteoform support routing failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@proteoform_release_app.command("export-schema")
+def export_proteoform_release_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "policy",
+            "artifact",
+            "manifest",
+            "verification",
+            "signature",
+            "stage-provenance",
+            "reproduction-evidence",
+        ],
+        typer.Argument(help="M04-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable proteoform release contract."""
+
+    typer.echo(json.dumps(m0408_contract_json_schema(contract), indent=2, sort_keys=True))
 
 
 @protein_inference_release_app.command("build")
@@ -3566,6 +5468,271 @@ def verify_protein_inference_release_archive(
         raise typer.Exit(code=1)
 
 
+@m1908_app.command("export-schema")
+def export_m1908_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "health-report",
+            "telemetry",
+            "support-drift",
+            "workflow-effect",
+            "discrepancy",
+            "rollback-policy",
+            "finding",
+        ],
+        typer.Argument(help="M19-08 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one authority-bound M19-08 contract schema."""
+
+    typer.echo(json.dumps(m1908_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1908_app.command("monitor")
+def monitor_m1908_translation_health(request: RequestArgument) -> None:
+    """Monitor declared translation health and emit a replay-safe result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(MonitorProteotypeTranslationHealthRequest),
+            m1908_monitoring.preflight_m1908_authorization,
+            M1908_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1908_monitoring.M1908Service().monitor(parsed))
+    except m1908_monitoring.M1908AuthorizationError as error:
+        typer.echo(f"M19-08 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-08 translation monitoring failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1906_app.command("export-schema")
+def export_m1906_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M19-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M19-06 contract."""
+
+    typer.echo(json.dumps(_m1906_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1906_app.command("adjudicate")
+def adjudicate_m1906(request: RequestArgument) -> None:
+    """Validate and adjudicate one strict M19-06 request document."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdjudicateProteotypeQueueRequest),
+            m1906_adjudication.preflight_m1906_authorization,
+            M1906_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1906_adjudication.M1906Service().adjudicate(parsed))
+    except m1906_adjudication.M1906AuthorizationError as error:
+        typer.echo(f"M19-06 adjudication authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-06 adjudication failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1906_app.command("verify")
+def verify_m1906(result: RequestArgument) -> None:
+    """Replay-verify a canonical M19-06 result document."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeAdjudicationResult),
+            max_bytes=M1906_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(m1906_adjudication.M1906Service().replay(parsed))
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-06 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1904_app.command("export-schema")
+def export_m1904_schema(
+    contract: Annotated[
+        M1904ContractName,
+        typer.Argument(help="M19-04 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-04 contract schema."""
+
+    typer.echo(json.dumps(m1904_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1904_app.command("adapt")
+def adapt_m1904_intended_use(request: RequestArgument) -> None:
+    """Adapt one strict M19-04 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(AdaptProteotypeIntendedUseRequest),
+            max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1904Service().adapt(parsed))
+    except M1904AuthorizationError as error:
+        typer.echo(f"M19-04 authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-04 adaptation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1904_app.command("verify")
+def verify_m1904_intended_use(result: RequestArgument) -> None:
+    """Verify an M19-04 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntendedUseAdapterResult),
+            max_bytes=M1904_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1904Service().replay(parsed))
+    except M1904ReplayError as error:
+        typer.echo(f"M19-04 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1903_app.command("export-schema")
+def export_m1903_schema(
+    contract: Annotated[
+        M1903ContractName,
+        typer.Argument(help="M19-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict, authority-bound M19-03 contract schema."""
+
+    typer.echo(json.dumps(m1903_contract_json_schema(contract), indent=2, sort_keys=True))
+
+
+@m1903_app.command("fuse")
+def fuse_m1903_evidence(request: RequestArgument) -> None:
+    """Fuse one strict M19-03 request and emit its canonical result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(FuseProteotypeEvidenceRequest),
+            preflight_m1903_authorization,
+            M1903_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1903Service().fuse(parsed))
+    except M1903AuthorizationError as error:
+        typer.echo(f"M19-03 fusion authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M19-03 fusion failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1903_app.command("verify")
+def verify_m1903_evidence(result: RequestArgument) -> None:
+    """Verify an M19-03 result's request and payload digests."""
+
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ProteotypeIntegratedEvidenceResult),
+            max_bytes=M1903_MAX_CANONICAL_REQUEST_BYTES * 2,
+        )
+        _emit(M1903Service().replay(parsed))
+    except M1903ReplayError as error:
+        typer.echo(f"M19-03 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@reviewer_discrepancy_app.command("export-schema")
+def export_m1606_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "record",
+            "queue-entry",
+            "assignment",
+            "audit-event",
+            "configuration",
+            "finding",
+        ],
+        typer.Argument(help="M16-06 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export the strict provisional M16-06 queue schema."""
+
+    typer.echo(json.dumps(_m1606_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@reviewer_discrepancy_app.command("adjudicate")
+def adjudicate_m1606_queue(request: RequestArgument) -> None:
+    """Record an authorized reviewer queue and emit its immutable result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest),
+        preflight_m1606_authorization,
+        M1606_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(M1606Service().adjudicate(parsed))
+
+
+@m1502_app.command("export-schema")
+def export_m1502_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "attribute",
+            "mechanism",
+            "profile",
+            "evaluation",
+            "finding",
+        ],
+        typer.Argument(help="M15-02 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M15-02 contract."""
+
+    typer.echo(json.dumps(_m1502_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1502_app.command("stratify")
+def stratify_m1502(request: RequestArgument) -> None:
+    """Replay caller-declared context and applicable mechanisms safely."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(StratifyContextAndSubtypeRequest),
+            m1502_module.preflight_m1502_authorization,
+            M1502_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1502_module.M1502Service().execute(parsed))
+    except m1502_module.M1502AuthorizationError as error:
+        typer.echo(f"context stratification authorization failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+
+
 @app.command("export-schema")
 def export_schema(
     contract: Annotated[
@@ -3587,6 +5754,124 @@ def export_schema(
     typer.echo(json.dumps(_contract_schema(contract), indent=2, sort_keys=True))
 
 
+@m1405_app.command("export-schema")
+def export_m1405_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "observation",
+            "trajectory-state",
+            "change-point",
+            "configuration",
+            "policy",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-05 contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one strict provisional M14-05 schema."""
+
+    typer.echo(json.dumps(_m1405_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1405_app.command("infer")
+def infer_m1405(
+    request: RequestArgument,
+) -> None:
+    """Replay an ordered M14-05 request into a bounded trajectory result."""
+
+    parsed = _load_request(
+        request,
+        TypeAdapter(ModelProteinSubtypeLongitudinalEvolutionRequest),
+        m1405_module.preflight_m1405_authorization,
+        M1405_MAX_CANONICAL_REQUEST_BYTES,
+    )
+    _emit(m1405_module.M1405Service().execute(parsed))
+
+
+@m1403_app.command("export-schema")
+def export_m1403_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "feature-object",
+            "feature",
+            "lineage",
+            "relation",
+            "configuration",
+            "diagnostic",
+        ],
+        typer.Argument(help="M14-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M14-03 feature contract."""
+
+    typer.echo(json.dumps(_m1403_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1403_app.command("construct")
+def construct_m1403_features(request: RequestArgument) -> None:
+    """Construct caller-declared mechanistic feature metadata and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ConstructProteinSubtypeMechanisticFeaturesRequest),
+            m1403_module.preflight_m1403_authorization,
+            M1403_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(m1403_module.M1403Service().execute(parsed))
+    except m1403_module.M1403AuthorizationError as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M14-03 feature construction failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m1306_app.command("export-schema")
+def export_m1306_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "scenario",
+            "response",
+            "sensitivity-surface",
+            "configuration",
+            "policy",
+            "finding",
+        ],
+        typer.Argument(help="M13-06 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable M13-06 perturbation contract."""
+
+    typer.echo(json.dumps(_m1306_contract_schema(contract), indent=2, sort_keys=True))
+
+
+@m1306_app.command("simulate")
+def simulate_m1306(request: RequestArgument) -> None:
+    """Replay bounded variant-peptide perturbations and emit one sealed result."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(SimulateProteotypePerturbationRequest),
+            preflight_m1306_authorization,
+            M1306_MAX_CANONICAL_REQUEST_BYTES,
+        )
+        _emit(M1306Service().execute(parsed))
+    except M1306AuthorizationError as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo(f"M13-06 perturbation simulation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
 @app.command("serve")
 def serve(
     database: DatabaseOption,
@@ -3596,6 +5881,9 @@ def serve(
     """Run the typed research API."""
 
     uvicorn.run(create_app(database), host=host, port=port)
+
+
+__all__ = ["_validate_m0503_json_request", "strict_json_loads"]
 
 
 if __name__ == "__main__":

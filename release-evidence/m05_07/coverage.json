@@ -1,0 +1,21 @@
+{
+  "branch_coverage_percent": 99.0,
+  "branch_partials": 0,
+  "branches": 94,
+  "covered_branches": 94,
+  "covered_statements": 436,
+  "fail_under_percent": 95.0,
+  "missed_statements": 1,
+  "scope": [
+    "src/glio_proteogen/contracts/m05_07/*",
+    "src/glio_proteogen/modules/c05_ptm_localization/m05_07_unsupported_abstention_router/*",
+    "evals/m05_07/*",
+    "tests/contract/test_m05_07_*.py",
+    "tests/modules/c05_ptm_localization/test_m05_07_*.py",
+    "tests/integration/test_m05_07_interfaces.py",
+    "tests/tooling/test_m05_07_package.py"
+  ],
+  "statements": 437,
+  "tool": "coverage.py branch-enabled",
+  "tests": 59
+}

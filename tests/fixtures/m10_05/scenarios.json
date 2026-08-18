@@ -1,0 +1,18 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-05",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "lines": "3452-3495",
+    "version": "0.1.0-provisional"
+  },
+  "scenarios": [
+    {"id": "supported-hard-and-soft", "hard": "always_true", "soft": "always_true", "outcome": "integrated"},
+    {"id": "supported-soft-conflict", "hard": "always_true", "soft": "always_false", "outcome": "integrated"},
+    {"id": "hard-constraint-violation", "hard": "always_false", "soft": "always_true", "outcome": "abstained"},
+    {"id": "hard-constraint-inequality", "hard": "x < 0", "soft": "always_true", "outcome": "abstained"},
+    {"id": "unknown-hard-expression", "hard": "caller_expression", "soft": "always_true", "outcome": "abstained"},
+    {"id": "unknown-soft-expression", "hard": "always_true", "soft": "caller_expression", "outcome": "abstained"},
+    {"id": "unaccepted-controls", "hard": "always_true", "soft": "always_true", "controls": "unknown", "outcome": "authorization_error"},
+    {"id": "wrong-upstream-media", "hard": "always_true", "soft": "always_true", "mutation": "representation_media", "outcome": "validation_error"}
+  ]
+}

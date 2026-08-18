@@ -1,0 +1,8 @@
+requirement,authority,implementation,evidence,claim_ceiling
+deterministic workflow DAG,9484-9524,contracts/m27_03/v1.py::WorkflowDAG,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py::test_dag_rejects_cycle_and_disconnected_nodes,technical scheduling only
+locked containers and resources,9484-9524,contracts/m27_03/v1.py::WorkflowNode,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py::test_supported_execution_closes_environment_checkpoint_and_package,caller declarations only
+retry and checkpoint policy,9484-9524,contracts/m27_03/v1.py::ExecutionPolicy,modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/engine.py,not execution of a real container
+environment capture,9484-9524,modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/engine.py::_execution,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py,content-addressed declaration only
+safe recovery and abstention,9484-9524,modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/engine.py::_abstain,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py::test_rejected_support_abstains_without_execution_or_negative_claim,no unsupported-to-negative conversion
+canonical replay,9484-9524,contracts/m27_03/canonical.py and engine.py::verify,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py::test_tampered_result_is_rejected_by_replay,no biological truth
+strict interfaces,9484-9524,modules/c27_complex_activity/m27_03_reproducible_pipeline_orchestrator/{api,cli,plugin,service}.py,tests/modules/c27_complex_activity/test_m27_03_orchestrator.py,errors sanitized and no overwrite

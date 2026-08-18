@@ -1,0 +1,7 @@
+requirement_id,requirement,implementation,evidence,gate
+M21-07-R01,"Bind operational evaluation to M21-06 challenge output","EvaluateComplexActivityHumanFactorsRequest exact upstream media validator and retained upstream artifact","tests/contract/test_m21_07_hardening.py; evals/m21_07/run.py",G1
+M21-07-R02,"Cover reviewer comprehension automation bias throughput latency downtime recovery and fallback","OperationalDimension OperationalMetric FallbackScenario and HumanFactorsOperationalReport","src/glio_proteogen/contracts/m21_07/v1.py; tests/contract/test_m21_07_adversarial.py",G1
+M21-07-R03,"Make fallback availability and operational failures explicit","FallbackScenario status closure and typed OperationalFindingCode values","src/glio_proteogen/contracts/m21_07/v1.py; src/glio_proteogen/modules/c21_reference_material/m21_07_human_factors_operational_evaluator/engine.py",G3
+M21-07-R04,"Abstain safely on non-evaluable operational material","ABSTAINED result with no operational report and review-required support decision","tests/runtime/test_m21_07_operational.py; evals/m21_07/run.py",G3
+M21-07-R05,"Expose uncertainty provenance evidence limitations and human review","UncertaintyProfile ProvenanceRecord EvidenceReference Limitation and review flag","engine.py; docs/evidence/M21-07.md",G4
+M21-07-R06,"Provide strict replay-verifiable interfaces","FastAPI Typer service and opaque plugin with canonical digest replay","tests/interface/test_m21_07_interface.py; tests/contract/test_m21_07_adversarial.py",G5

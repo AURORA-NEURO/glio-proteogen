@@ -1,0 +1,21 @@
+{
+  "contract_version": "1.0.0",
+  "invariant_count": 3,
+  "iterations": 25,
+  "maximum_ns": 2148653300,
+  "mean_budget_ns": 2000000000,
+  "mean_ns": 1495182252.0,
+  "module_id": "GLIO-PROTEOGEN-M04-06",
+  "observation_count": 32,
+  "p50_ns": 1393007000,
+  "p95_budget_ns": 3000000000,
+  "p95_ns": 2101471900,
+  "passed": true,
+  "request_digest": "sha256:65e1b2a3a0aaf573f8eb255c49d0e72dbc6928bd4ef9d3c784e7d9abf788d2f8",
+  "result_digest": "sha256:e077d3b7b4aea5a519141ac787f8cea7892ea56f0579cba79595dddbcc0bcf7c",
+  "stage_count": 8,
+  "target_count": 32,
+  "timed_boundary": "harmonize_proteoform_analysis_only",
+  "warmup_count": 1,
+  "workload": "genuine_m0401_through_m0405_installed_max32_fixed_point_support_ledger"
+}

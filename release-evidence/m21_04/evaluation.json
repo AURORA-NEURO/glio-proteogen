@@ -1,0 +1,23 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M21-04",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:7368-7408",
+  "fixture_digest": "sha256:b2c64ee3f0ab2f71bf41c63f5916937df6ee60b2af4d556fab6decf6cf20031c",
+  "case_ids": [
+    "supported_all_dimensions",
+    "domain_narrowed",
+    "not_evaluable_abstention",
+    "no_retained_domain_abstention",
+    "specimen_mismatch",
+    "authorization_gate",
+    "upstream_media_boundary",
+    "replay_tamper_determinism"
+  ],
+  "declared_cases": 8,
+  "executed_cases": 8,
+  "passed_cases": 8,
+  "total_cases": 8,
+  "schema_count": 8,
+  "uncertainty_dimensions": 7,
+  "passed": true
+}

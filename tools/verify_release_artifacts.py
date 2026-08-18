@@ -22,7 +22,8 @@ from dataclasses import dataclass
 from email.parser import BytesParser
 from email.policy import default
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
+from statistics import fmean, median
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
 from zipfile import BadZipFile, ZipFile
@@ -56,6 +57,24 @@ _M0404_BENCHMARK_SHAPE = {
     "evidence_count": 45,
     "limitation_count": 3,
 }
+_M0501_MODULE_ID = "GLIO-PROTEOGEN-M05-01"
+_M0501_CASE_COUNT = 40
+_M0501_GROUP_COUNT = 8
+_M0501_CASES_PER_GROUP = 5
+_M0501_BENCHMARK_ITERATIONS = 25
+_M0501_BENCHMARK_WARMUPS = 1
+_M0501_MEAN_BUDGET_NS = 2_000_000_000
+_M0501_P95_BUDGET_NS = 3_000_000_000
+_M0501_MAX_REQUEST_BYTES = 4 * 1024 * 1024
+_M0501_BENCHMARK_SHAPE = {
+    "reference_bundle_count": 32,
+    "approved_version_count": 16,
+    "vocabulary_count": 16,
+    "vocabulary_term_count": 12,
+    "unit_policy_count": 6,
+    "metadata_field_count": 8,
+    "compatibility_rule_count": 32,
+}
 _M0405_MODULE_ID = "GLIO-PROTEOGEN-M04-05"
 _M0405_OPERATION = "detect_proteoform_artifacts"
 _M0405_CASE_COUNT = 15
@@ -77,7 +96,169 @@ _M0405_BENCHMARK_WORKLOAD = (
     "genuine M04-04 result plus the exact installed maximum aggregate ledger"
 )
 _M0405_TIMED_BOUNDARY = "detect_proteoform_artifacts only"
+_M0406_MODULE_ID = "GLIO-PROTEOGEN-M04-06"
+_M0406_CASE_COUNT = 56
+_M0406_BENCHMARK_ITERATIONS = 25
+_M0406_BENCHMARK_WARMUPS = 1
+_M0406_MEAN_BUDGET_NS = 2_000_000_000
+_M0406_P95_BUDGET_NS = 3_000_000_000
+_M0406_CONTRACT_VERSION = "1.0.0"
+_M0406_BENCHMARK_WORKLOAD = "genuine_m0401_through_m0405_installed_max32_fixed_point_support_ledger"
+_M0406_TIMED_BOUNDARY = "harmonize_proteoform_analysis_only"
+_M0406_BENCHMARK_SHAPE = {
+    "target_count": 32,
+    "observation_count": 32,
+    "stage_count": 8,
+    "invariant_count": 3,
+}
+_M0407_MODULE_ID = "GLIO-PROTEOGEN-M04-07"
+_M0407_CASE_COUNT = 19
+_M0407_BENCHMARK_ITERATIONS = 25
+_M0407_BENCHMARK_WARMUPS = 1
+_M0407_MEAN_BUDGET_NS = 2_000_000_000
+_M0407_P95_BUDGET_NS = 3_000_000_000
+_M0407_CONTRACT_VERSION = "1.0.0"
+_M0407_EVALUATION_PHASE = "locked_executable_corpus"
+_M0407_BENCHMARK_WORKLOAD = "genuine_m0404_and_m0406_prepared_joint_support_envelope"
+_M0407_TIMED_BOUNDARY = "route_proteoform_support_only"
+_M0407_SCENARIO_CHECK_NAMES = frozenset(
+    {
+        "scenario.joint_supported",
+        "scenario.outside_assay",
+        "scenario.outside_specimen",
+        "scenario.outside_disease_class",
+        "scenario.outside_quality",
+        "scenario.outside_completeness",
+        "scenario.outside_platform",
+        "scenario.outside_reference",
+        "scenario.outside_intended_use",
+        "scenario.missing_declared_fact",
+        "scenario.unknown_declared_fact",
+        "scenario.m0404_unreleasable",
+        "scenario.m0406_unreleasable",
+        "scenario.platform_extra_member",
+        "scenario.reference_extra_member",
+        "scenario.cross_envelope_composite",
+        "scenario.canonical_order",
+        "scenario.semantic_reorder",
+        "scenario.consent_denied_hostile_evidence",
+    }
+)
+_M0407_REQUIRED_CHECK_NAMES = _M0407_SCENARIO_CHECK_NAMES | {
+    "corpus.locked_inventory",
+    "corpus.executable_coverage",
+}
+_M0407_BENCHMARK_SHAPE: dict[str, int] = {
+    "envelope_count": 1,
+    "dimension_count": 8,
+    "evidence_count": 18,
+}
+_M0502_MODULE_ID = "GLIO-PROTEOGEN-M05-02"
+_M0502_CASE_COUNT = 70
+_M0502_GROUP_COUNTS = {
+    "identity_and_lineage": 9,
+    "artifact_anomaly_detection": 9,
+    "safe_failure_and_support": 9,
+    "authorization_firewall": 9,
+    "strict_contract": 9,
+    "dag_invariants": 9,
+    "replay_and_privacy": 8,
+    "uncertainty_recovery_interfaces": 8,
+}
+_M0502_BENCHMARK_ITERATIONS = 25
+_M0502_BENCHMARK_WARMUPS = 1
+_M0502_MEAN_BUDGET_NS = 400_000_000
+_M0502_P95_BUDGET_NS = 750_000_000
+_M0502_MAX_REQUEST_BYTES = 4 * 1024 * 1024
+_M0502_BENCHMARK_WORKLOAD = "maximum_reconciled_five_role_identity_lineage_graph"
+_M0502_TIMED_BOUNDARY = "reconcile_ptm_localization_identity_lineage_only"
+_M0502_BENCHMARK_SHAPE = {
+    "physical_entity_kind_count": 7,
+    "artifact_role_count": 5,
+    "artifact_claim_count": 5,
+    "derivation_count": 1,
+    "derivation_source_count": 4,
+    "finding_count": 0,
+}
 _CANONICAL_SHA256 = re.compile(r"sha256:[0-9a-f]{64}\Z")
+_M1904_MODULE_ID = "GLIO-PROTEOGEN-M19-04"
+_M1904_SCENARIO_COUNT = 9
+_M1904_ADVERSARIAL_CASE_COUNT = 8
+_M1904_ADVERSARIAL_COVERAGE_PERCENT = 100.0
+_M1904_BENCHMARK_ITERATIONS = 25
+_M1904_BENCHMARK_WARMUPS = 1
+_M1904_MEAN_BUDGET_NS = 500_000_000
+_M1904_P95_BUDGET_NS = 750_000_000
+_M2604_MODULE_ID = "GLIO-PROTEOGEN-M26-04"
+_M2604_CASE_COUNT = 8
+_M2604_SCHEMA_COUNT = 12
+_M2604_UNCERTAINTY_DIMENSIONS = 7
+_M2604_BENCHMARK_ITERATIONS = 10
+_M2604_MEAN_BUDGET_NS = 500_000_000
+_M2604_P95_BUDGET_NS = 750_000_000
+_M2607_MODULE_ID = "GLIO-PROTEOGEN-M26-07"
+_M2607_CASE_COUNT = 8
+_M2607_SCHEMA_COUNT = 8
+_M2607_BENCHMARK_ITERATIONS = 10
+_M2607_MEAN_BUDGET_NS = 500_000_000
+_M2607_P95_BUDGET_NS = 750_000_000
+_M2607_DOSSIER_SHA256 = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+_M2607_DOSSIER_SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:9300-9340"
+_M0503_MODULE_ID = "GLIO-PROTEOGEN-M05-03"
+_M0503_CASE_COUNT = 72
+_M0503_BENCHMARK_ITERATIONS = 25
+_M0503_BENCHMARK_WARMUPS = 1
+_M0503_MEAN_BUDGET_NS = 500_000_000
+_M0503_P95_BUDGET_NS = 750_000_000
+_M0503_MAX_REQUEST_BYTES = 4 * 1024 * 1024
+_M0503_BENCHMARK_WORKLOAD = "genuine_four_modest_canonical_raw_manifest_documents"
+_M0503_TIMED_BOUNDARY = "ingest_ptm_localization_raw_inputs_only"
+_M0503_BENCHMARK_SHAPE = {
+    "input_artifact_count": 4,
+    "document_count": 4,
+    "validated_input_count": 4,
+    "diagnostic_count": 0,
+    "evidence_count": 20,
+    "limitation_count": 3,
+}
+_M0503_FIXTURE_DIGEST = "sha256:903ba155ed64680d527991d558ebc4ee96e4e11342e7ace6ab309f461222a796"
+_M0503_GROUP_COUNTS = (7, 9, 8, 8, 8, 7, 7, 18)
+_M0503_BENCHMARK_REQUEST_BYTES = 83_113
+_M0503_BENCHMARK_RESULT_BYTES = 109_985
+_M0503_BENCHMARK_REQUEST_DIGEST = (
+    "sha256:55d852052b12e741cafd94a206c57b43d5e4c67601b41673d8bb75d467bd679c"
+)
+_M0503_BENCHMARK_RESULT_DIGEST = (
+    "sha256:6d130299f1e37a82f9fb5f106c02cbce900b23e46c73b069497b68956da9219c"
+)
+_M0504_MODULE_ID = "GLIO-PROTEOGEN-M05-04"
+_M0504_CASE_COUNT = 72
+_M0504_BENCHMARK_ITERATIONS = 25
+_M0504_BENCHMARK_WARMUPS = 1
+_M0504_MEAN_BUDGET_NS = 500_000_000
+_M0504_P95_BUDGET_NS = 750_000_000
+_M0504_MAX_REQUEST_BYTES = 4 * 1024 * 1024
+_M0504_BENCHMARK_WORKLOAD = "genuine_maximum_supported_quality_metadata_shape"
+_M0504_TIMED_BOUNDARY = "compute_ptm_localization_quality_metrics_only"
+_M0504_BENCHMARK_SHAPE = {
+    "role_count": 4,
+    "profile_count": 32,
+    "threshold_count": 256,
+    "fact_count": 4,
+    "metric_count": 32,
+    "evidence_count": 45,
+    "limitation_count": 3,
+}
+_M0504_FIXTURE_DIGEST = "sha256:51937dd64eb9b7458d20ec66c5827f903abc0e02547c8f7d181e9c3c38002889"
+_M0504_GROUP_COUNTS = (8, 9, 9, 9, 8, 8, 8, 13)
+_M0504_BENCHMARK_REQUEST_BYTES = 176_995
+_M0504_BENCHMARK_RESULT_BYTES = 243_460
+_M0504_BENCHMARK_REQUEST_DIGEST = (
+    "sha256:c8001d0d9593f6046a7787ba2fe00ee26f29973d45a34c91d33afad3dfd67410"
+)
+_M0504_BENCHMARK_RESULT_DIGEST = (
+    "sha256:e1e87f3915d450910fe2d3113f5ec94727540e4a29b8f4d595ab300bf1b5f6f0"
+)
 _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("export-schema", "protocol-schema"),
@@ -194,6 +375,34 @@ _CLI_SCHEMA_SMOKE_TESTS = (
     (
         ("proteoform-artifacts", "export-schema", "request"),
         "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-05:1.0.0:request",
+    ),
+    (
+        ("proteoform-harmonization", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-06:1.0.0:request",
+    ),
+    (
+        ("m05-01-export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-01:1.0.0:request",
+    ),
+    (
+        ("proteoform-support", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M04-07:1.0.0:request",
+    ),
+    (
+        ("m05-02-export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-02:1.0.0:request",
+    ),
+    (
+        ("ptm-localization-raw", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-03:1.0.0:request",
+    ),
+    (
+        ("ptm-localization-quality", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-04:1.0.0:request",
+    ),
+    (
+        ("ptm-localization-harmonization", "export-schema", "request"),
+        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M05-06:1.0.0-provisional:request",
     ),
 )
 _FORBIDDEN_RUNTIME_COMPONENTS = frozenset(
@@ -317,6 +526,24 @@ def _require_exact_integer(
         raise ReleaseArtifactError(f"{label} has an unexpected {field}")
 
 
+def _require_positive_integer(document: Mapping[str, object], field: str, label: str) -> int:
+    value = document.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ReleaseArtifactError(f"{label} has an invalid {field}")
+    return value
+
+
+def _require_nonnegative_integer(
+    document: Mapping[str, object],
+    field: str,
+    label: str,
+) -> int:
+    value = document.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ReleaseArtifactError(f"{label} has an invalid {field}")
+    return value
+
+
 def _require_empty_array(document: Mapping[str, object], field: str, label: str) -> None:
     if _sequence(document.get(field), f"{label} {field}"):
         raise ReleaseArtifactError(f"{label} has nonempty {field}")
@@ -425,7 +652,7 @@ def _verify_m0404_benchmark(benchmark_report: Mapping[str, object]) -> None:
         raise ReleaseArtifactError("M04-04 benchmark report has the wrong module identity")
     if benchmark_report.get("passed") is not True:
         raise ReleaseArtifactError("M04-04 benchmark report did not pass")
-    exact_fields = {
+    exact_fields: dict[str, int] = {
         "iterations": _M0404_BENCHMARK_ITERATIONS,
         "warmup_count": _M0404_BENCHMARK_WARMUPS,
         "mean_budget_ns": _M0404_MEAN_BUDGET_NS,
@@ -455,6 +682,76 @@ def verify_m0404_evidence(evaluation: Path, benchmark: Path) -> None:
 
     _verify_m0404_evaluation(_load_json_evidence(evaluation, "M04-04 evaluation report"))
     _verify_m0404_benchmark(_load_json_evidence(benchmark, "M04-04 benchmark report"))
+
+
+def _verify_m0501_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M0501_MODULE_ID:
+        raise ReleaseArtifactError("M05-01 evaluation report has the wrong module identity")
+    if evaluation_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-01 evaluation report has the wrong contract version")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-01 evaluation report did not pass")
+    for field, expected in (
+        ("declared_groups", _M0501_GROUP_COUNT),
+        ("declared_cases", _M0501_CASE_COUNT),
+        ("executed_cases", _M0501_CASE_COUNT),
+        ("passed_cases", _M0501_CASE_COUNT),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M05-01 evaluation report")
+    _require_empty_array(evaluation_report, "failed_cases", "M05-01 evaluation report")
+    counts = _mapping(
+        evaluation_report.get("group_case_counts"),
+        "M05-01 evaluation group counts",
+    )
+    if len(counts) != _M0501_GROUP_COUNT or any(
+        type(value) is not int or value != _M0501_CASES_PER_GROUP for value in counts.values()
+    ):
+        raise ReleaseArtifactError("M05-01 evaluation report lacks exact group closure")
+
+
+def _verify_m0501_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M0501_MODULE_ID:
+        raise ReleaseArtifactError("M05-01 benchmark report has the wrong module identity")
+    if benchmark_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-01 benchmark report has the wrong contract version")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-01 benchmark report did not pass")
+    exact_fields: dict[str, int] = {
+        "iterations": _M0501_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0501_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0501_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0501_P95_BUDGET_NS,
+        **_M0501_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M05-01 benchmark report")
+    request_bytes = _require_positive_integer(
+        benchmark_report, "request_bytes", "M05-01 benchmark report"
+    )
+    _require_positive_integer(benchmark_report, "result_bytes", "M05-01 benchmark report")
+    if request_bytes > _M0501_MAX_REQUEST_BYTES:
+        raise ReleaseArtifactError("M05-01 maximum request exceeds its installed byte cap")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M05-01 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M05-01 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M0501_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M0501_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M05-01 benchmark report exceeds its timing budgets")
+
+
+def verify_m0501_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify exact M05-01 corpus closure, maximum shape, and timing budgets."""
+
+    _verify_m0501_evaluation(_load_json_evidence(evaluation, "M05-01 evaluation report"))
+    _verify_m0501_benchmark(_load_json_evidence(benchmark, "M05-01 benchmark report"))
 
 
 def _verify_m0405_checks(checked: Sequence[Mapping[str, object]]) -> None:
@@ -591,6 +888,818 @@ def verify_m0405_evidence(evaluation: Path, benchmark: Path) -> None:
 
     _verify_m0405_evaluation(_load_json_evidence(evaluation, "M04-05 evaluation report"))
     _verify_m0405_benchmark(_load_json_evidence(benchmark, "M04-05 benchmark report"))
+
+
+def _verify_m1904_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 evaluation report did not pass")
+    _require_exact_integer(
+        evaluation_report,
+        "scenario_count",
+        _M1904_SCENARIO_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_case_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    _require_exact_integer(
+        evaluation_report,
+        "adversarial_passed_count",
+        _M1904_ADVERSARIAL_CASE_COUNT,
+        "M19-04 evaluation report",
+    )
+    if evaluation_report.get("adversarial_coverage_percent") != _M1904_ADVERSARIAL_COVERAGE_PERCENT:
+        raise ReleaseArtifactError("M19-04 adversarial coverage is incomplete")
+    checks = _sequence(evaluation_report.get("checks"), "M19-04 evaluation checks")
+    if not checks or any(
+        _mapping(check, "M19-04 evaluation check").get("passed") is not True for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report contains a failed check")
+    if not any(
+        _mapping(check, "M19-04 evaluation check").get("name") == "corpus.executable_oracles"
+        for check in checks
+    ):
+        raise ReleaseArtifactError("M19-04 evaluation report lacks executable oracle closure")
+
+
+def _verify_m1904_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("module_id") != _M1904_MODULE_ID:
+        raise ReleaseArtifactError("M19-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M19-04 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M1904_BENCHMARK_ITERATIONS),
+        ("warmup_count", _M1904_BENCHMARK_WARMUPS),
+        ("mean_budget_ns", _M1904_MEAN_BUDGET_NS),
+        ("p95_budget_ns", _M1904_P95_BUDGET_NS),
+    ):
+        _require_exact_integer(benchmark_report, field, expected, "M19-04 benchmark report")
+    mean = benchmark_report.get("mean_ns")
+    p95 = benchmark_report.get("p95_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid mean")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M19-04 benchmark report has an invalid p95")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M1904_MEAN_BUDGET_NS
+        or p95 < 0
+        or p95 > _M1904_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M19-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m1904_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M19-04 scenario closure, adversarial coverage, and timing budgets."""
+
+    _verify_m1904_evaluation(_load_json_evidence(evaluation, "M19-04 evaluation report"))
+    _verify_m1904_benchmark(_load_json_evidence(benchmark, "M19-04 benchmark report"))
+
+
+def _verify_m2604_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report did not pass")
+    for field, expected in (
+        ("scenarioCount", _M2604_CASE_COUNT),
+        ("passedCases", _M2604_CASE_COUNT),
+        ("schemaCount", _M2604_SCHEMA_COUNT),
+        ("uncertaintyDimensions", _M2604_UNCERTAINTY_DIMENSIONS),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M26-04 evaluation report")
+    cases = _sequence(evaluation_report.get("cases"), "M26-04 evaluation cases")
+    if len(cases) != _M2604_CASE_COUNT or any(not isinstance(case, str) for case in cases):
+        raise ReleaseArtifactError("M26-04 evaluation report lacks exact scenario closure")
+    if evaluation_report.get("replayTamperRejected") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks tamper rejection")
+    if evaluation_report.get("deterministicRepeat") is not True:
+        raise ReleaseArtifactError("M26-04 evaluation report lacks deterministic replay")
+
+
+def _verify_m2604_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("moduleId") != _M2604_MODULE_ID:
+        raise ReleaseArtifactError("M26-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-04 benchmark report did not pass")
+    _require_exact_integer(
+        benchmark_report, "iterations", _M2604_BENCHMARK_ITERATIONS, "M26-04 benchmark report"
+    )
+    budgets = _mapping(benchmark_report.get("budgetsNs"), "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "mean", _M2604_MEAN_BUDGET_NS, "M26-04 benchmark budgets")
+    _require_exact_integer(budgets, "p95", _M2604_P95_BUDGET_NS, "M26-04 benchmark budgets")
+    samples = _sequence(benchmark_report.get("samplesNs"), "M26-04 benchmark samples")
+    if len(samples) != _M2604_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample < 0 for sample in samples
+    ):
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid samples")
+    mean = benchmark_report.get("meanNs")
+    p95 = benchmark_report.get("p95Ns")
+    if type(mean) is not int or type(p95) is not int:
+        raise ReleaseArtifactError("M26-04 benchmark report has invalid summary values")
+    if mean > _M2604_MEAN_BUDGET_NS or p95 > _M2604_P95_BUDGET_NS:
+        raise ReleaseArtifactError("M26-04 benchmark report exceeds its timing budgets")
+
+
+def verify_m2604_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M26-04 scenario closure and locked gateway timing budgets."""
+
+    _verify_m2604_evaluation(_load_json_evidence(evaluation, "M26-04 evaluation report"))
+    _verify_m2604_benchmark(_load_json_evidence(benchmark, "M26-04 benchmark report"))
+
+
+def _verify_m2607_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 evaluation report has the wrong module identity")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-07 evaluation report did not pass")
+    authority = _mapping(evaluation_report.get("authority"), "M26-07 authority")
+    if (
+        authority.get("dossierSha256") != _M2607_DOSSIER_SHA256
+        or authority.get("slice") != _M2607_DOSSIER_SLICE
+    ):
+        raise ReleaseArtifactError("M26-07 evaluation authority is not locked")
+    for field, expected in (
+        ("scenarioCount", _M2607_CASE_COUNT),
+        ("passedCases", _M2607_CASE_COUNT),
+        ("schemaCount", _M2607_SCHEMA_COUNT),
+        ("uncertaintyDimensions", 7),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M26-07 evaluation report")
+    cases = _sequence(evaluation_report.get("cases"), "M26-07 evaluation cases")
+    if len(cases) != _M2607_CASE_COUNT or len(set(cases)) != _M2607_CASE_COUNT:
+        raise ReleaseArtifactError("M26-07 evaluation report lacks exact scenario closure")
+
+
+def _verify_m2607_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    if benchmark_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 benchmark report has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M26-07 benchmark report did not pass")
+    for field, expected in (
+        ("iterations", _M2607_BENCHMARK_ITERATIONS),
+        ("budgetsNs", {"mean": _M2607_MEAN_BUDGET_NS, "p95": _M2607_P95_BUDGET_NS}),
+    ):
+        if benchmark_report.get(field) != expected:
+            raise ReleaseArtifactError(f"M26-07 benchmark report has an unexpected {field}")
+    samples = _sequence(benchmark_report.get("samplesNs"), "M26-07 benchmark samples")
+    if len(samples) != _M2607_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample < 0 for sample in samples
+    ):
+        raise ReleaseArtifactError("M26-07 benchmark samples are invalid")
+    mean = benchmark_report.get("meanNs")
+    p95 = benchmark_report.get("p95Ns")
+    if (
+        type(mean) is not int
+        or type(p95) is not int
+        or mean < 0
+        or p95 < 0
+        or mean > _M2607_MEAN_BUDGET_NS
+        or p95 > _M2607_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError("M26-07 benchmark report exceeds timing budgets")
+
+
+def _verify_m2607_package(package_report: Mapping[str, object]) -> None:
+    if package_report.get("moduleId") != _M2607_MODULE_ID:
+        raise ReleaseArtifactError("M26-07 package report has the wrong module identity")
+    if package_report.get("contractVersion") != "0.1.0-provisional":
+        raise ReleaseArtifactError("M26-07 package report has the wrong contract version")
+    for label in ("wheel", "sdist"):
+        artifact = _mapping(package_report.get(label), f"M26-07 {label} package")
+        filename = artifact.get("filename")
+        digest = artifact.get("sha256")
+        size = artifact.get("sizeBytes")
+        members = artifact.get("memberCount")
+        if (
+            not isinstance(filename, str)
+            or not filename
+            or not isinstance(digest, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            or type(size) is not int
+            or size <= 0
+            or type(members) is not int
+            or members <= 0
+        ):
+            raise ReleaseArtifactError(f"M26-07 {label} package evidence is incomplete")
+    required_members = _sequence(
+        _mapping(package_report.get("wheel"), "M26-07 wheel package").get("requiredRuntimeMembers"),
+        "M26-07 required runtime members",
+    )
+    if not required_members or any(
+        not isinstance(member, str) or not member for member in required_members
+    ):
+        raise ReleaseArtifactError("M26-07 required runtime member closure is incomplete")
+    if package_report.get("isolatedImportPassed") is not True:
+        raise ReleaseArtifactError("M26-07 isolated import evidence did not pass")
+
+
+def verify_m2607_evidence(evaluation: Path, benchmark: Path, package: Path | None = None) -> None:
+    """Verify M26-07 scenario, benchmark, and optional package evidence."""
+
+    _verify_m2607_evaluation(_load_json_evidence(evaluation, "M26-07 evaluation report"))
+    _verify_m2607_benchmark(_load_json_evidence(benchmark, "M26-07 benchmark report"))
+    if package is not None:
+        _verify_m2607_package(_load_json_evidence(package, "M26-07 package report"))
+
+
+def _verify_m0406_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    label = "M04-06 evaluation report"
+    if evaluation_report.get("module_id") != _M0406_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if evaluation_report.get("phase") != "locked_executable_corpus":
+        raise ReleaseArtifactError(f"{label} has the wrong phase")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(evaluation_report, field, _M0406_CASE_COUNT, label)
+    for field in ("missing_case_ids", "extra_case_ids"):
+        _require_empty_array(evaluation_report, field, label)
+    checks = _sequence(evaluation_report.get("checks"), "M04-06 evaluation checks")
+    checked = tuple(_mapping(check, "M04-06 evaluation check") for check in checks)
+    if any(check.get("passed") is not True for check in checked):
+        raise ReleaseArtifactError(f"{label} contains a failed check")
+    scenario_names = tuple(
+        name
+        for check in checked
+        if isinstance((name := check.get("name")), str) and name.startswith("scenario.")
+    )
+    if len(scenario_names) != _M0406_CASE_COUNT or len(set(scenario_names)) != len(scenario_names):
+        raise ReleaseArtifactError(f"{label} lacks exact scenario closure")
+    names = tuple(check.get("name") for check in checked)
+    for required in ("corpus.locked_inventory", "corpus.executable_coverage"):
+        if names.count(required) != 1:
+            raise ReleaseArtifactError(f"{label} lacks required corpus closure")
+
+
+def _verify_m0406_benchmark_identity(benchmark_report: Mapping[str, object]) -> None:
+    label = "M04-06 benchmark report"
+    if benchmark_report.get("module_id") != _M0406_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field, expected_text in (
+        ("contract_version", _M0406_CONTRACT_VERSION),
+        ("workload", _M0406_BENCHMARK_WORKLOAD),
+        ("timed_boundary", _M0406_TIMED_BOUNDARY),
+    ):
+        if benchmark_report.get(field) != expected_text:
+            raise ReleaseArtifactError(f"{label} has an unexpected {field}")
+    for field in ("request_digest", "result_digest"):
+        value = benchmark_report.get(field)
+        if not isinstance(value, str) or _CANONICAL_SHA256.fullmatch(value) is None:
+            raise ReleaseArtifactError(f"{label} has an invalid {field}")
+    exact_fields = {
+        "iterations": _M0406_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0406_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0406_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0406_P95_BUDGET_NS,
+        **_M0406_BENCHMARK_SHAPE,
+    }
+    for field, expected_integer in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected_integer, label)
+
+
+def _verify_m0406_benchmark_timing(benchmark_report: Mapping[str, object]) -> None:
+    mean = benchmark_report.get("mean_ns")
+    p50 = benchmark_report.get("p50_ns")
+    p95 = benchmark_report.get("p95_ns")
+    maximum = benchmark_report.get("maximum_ns")
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError("M04-06 benchmark report has an invalid mean")
+    if isinstance(p50, bool) or not isinstance(p50, (int, float)):
+        raise ReleaseArtifactError("M04-06 benchmark report has an invalid p50")
+    if isinstance(p95, bool) or not isinstance(p95, int):
+        raise ReleaseArtifactError("M04-06 benchmark report has an invalid p95")
+    if isinstance(maximum, bool) or not isinstance(maximum, int):
+        raise ReleaseArtifactError("M04-06 benchmark report has an invalid maximum")
+    if (
+        not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean < 0
+        or mean > _M0406_MEAN_BUDGET_NS
+        or p50 < 0
+        or p95 < 0
+        or p95 > _M0406_P95_BUDGET_NS
+        or maximum < p95
+        or maximum < p50
+        or maximum < mean
+    ):
+        raise ReleaseArtifactError("M04-06 benchmark report exceeds its timing budgets")
+
+
+def verify_m0406_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M04-06 corpus closure and installed-maximum timing evidence."""
+
+    _verify_m0406_evaluation(_load_json_evidence(evaluation, "M04-06 evaluation report"))
+    benchmark_report = _load_json_evidence(benchmark, "M04-06 benchmark report")
+    _verify_m0406_benchmark_identity(benchmark_report)
+    _verify_m0406_benchmark_timing(benchmark_report)
+
+
+def _verify_m0407_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    label = "M04-07 evaluation report"
+    if evaluation_report.get("module_id") != _M0407_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if evaluation_report.get("phase") != _M0407_EVALUATION_PHASE:
+        raise ReleaseArtifactError(f"{label} is not the locked executable corpus")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(evaluation_report, field, _M0407_CASE_COUNT, label)
+    for field in ("missing_case_ids", "extra_case_ids"):
+        _require_empty_array(evaluation_report, field, label)
+    checks = _sequence(evaluation_report.get("checks"), "M04-07 evaluation checks")
+    check_names: list[str] = []
+    for check in checks:
+        checked = _mapping(check, "M04-07 evaluation check")
+        if checked.get("passed") is not True:
+            raise ReleaseArtifactError(f"{label} contains a failed check")
+        name = checked.get("name")
+        if not isinstance(name, str):
+            raise ReleaseArtifactError(f"{label} has an invalid check name")
+        check_names.append(name)
+    if (
+        len(check_names) != len(_M0407_REQUIRED_CHECK_NAMES)
+        or len(set(check_names)) != len(check_names)
+        or set(check_names) != _M0407_REQUIRED_CHECK_NAMES
+        or {name for name in check_names if name.startswith("scenario.")}
+        != _M0407_SCENARIO_CHECK_NAMES
+    ):
+        raise ReleaseArtifactError(f"{label} lacks exact locked check closure")
+
+
+def _verify_m0407_benchmark(benchmark_report: Mapping[str, object]) -> None:
+    label = "M04-07 benchmark report"
+    if benchmark_report.get("module_id") != _M0407_MODULE_ID:
+        raise ReleaseArtifactError(f"{label} has the wrong module identity")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError(f"{label} did not pass")
+    for field, expected in (
+        ("contract_version", _M0407_CONTRACT_VERSION),
+        ("workload", _M0407_BENCHMARK_WORKLOAD),
+        ("timed_boundary", _M0407_TIMED_BOUNDARY),
+    ):
+        if benchmark_report.get(field) != expected:
+            raise ReleaseArtifactError(f"{label} has an unexpected {field}")
+    for field in ("request_digest", "result_digest"):
+        value = benchmark_report.get(field)
+        if not isinstance(value, str) or _CANONICAL_SHA256.fullmatch(value) is None:
+            raise ReleaseArtifactError(f"{label} has invalid canonical digests")
+    exact_fields: dict[str, int] = {
+        "iterations": _M0407_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0407_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0407_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0407_P95_BUDGET_NS,
+        **_M0407_BENCHMARK_SHAPE,
+    }
+    for field, expected_integer in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected_integer, label)
+    mean = benchmark_report.get("mean_ns")
+    p50 = _require_nonnegative_integer(benchmark_report, "p50_ns", label)
+    p95 = _require_nonnegative_integer(benchmark_report, "p95_ns", label)
+    maximum = _require_nonnegative_integer(benchmark_report, "maximum_ns", label)
+    if isinstance(mean, bool) or not isinstance(mean, (int, float)):
+        raise ReleaseArtifactError(f"{label} has an invalid mean")
+    if (
+        not math.isfinite(mean)
+        or mean < 0
+        or mean > _M0407_MEAN_BUDGET_NS
+        or p95 > _M0407_P95_BUDGET_NS
+        or p50 > p95
+        or maximum < p50
+        or maximum < p95
+        or maximum < mean
+    ):
+        raise ReleaseArtifactError(f"{label} exceeds its timing budgets")
+
+
+def verify_m0407_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M04-07 corpus closure, workload shape, and timing budgets."""
+
+    _verify_m0407_evaluation(_load_json_evidence(evaluation, "M04-07 evaluation report"))
+    _verify_m0407_benchmark(_load_json_evidence(benchmark, "M04-07 benchmark report"))
+
+
+def _verify_m0502_evaluation(evaluation_report: Mapping[str, object]) -> None:
+    if evaluation_report.get("module_id") != _M0502_MODULE_ID:
+        raise ReleaseArtifactError("M05-02 evaluation report has the wrong module identity")
+    if evaluation_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-02 evaluation report has the wrong contract version")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-02 evaluation report did not pass")
+    for field, expected in (
+        ("declared_groups", len(_M0502_GROUP_COUNTS)),
+        ("declared_cases", _M0502_CASE_COUNT),
+        ("executed_cases", _M0502_CASE_COUNT),
+        ("passed_cases", _M0502_CASE_COUNT),
+    ):
+        _require_exact_integer(evaluation_report, field, expected, "M05-02 evaluation report")
+    _require_empty_array(evaluation_report, "failed_cases", "M05-02 evaluation report")
+    counts = _mapping(
+        evaluation_report.get("group_case_counts"),
+        "M05-02 evaluation group counts",
+    )
+    if dict(counts) != _M0502_GROUP_COUNTS:
+        raise ReleaseArtifactError("M05-02 evaluation report lacks exact group closure")
+
+
+def _verify_m0502_benchmark(  # noqa: C901 - explicit locked evidence matrix.
+    benchmark_report: Mapping[str, object],
+) -> None:
+    if benchmark_report.get("module_id") != _M0502_MODULE_ID:
+        raise ReleaseArtifactError("M05-02 benchmark report has the wrong module identity")
+    if benchmark_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-02 benchmark report has the wrong contract version")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-02 benchmark report did not pass")
+    if benchmark_report.get("workload") != _M0502_BENCHMARK_WORKLOAD:
+        raise ReleaseArtifactError("M05-02 benchmark report has the wrong workload")
+    if benchmark_report.get("timed_boundary") != _M0502_TIMED_BOUNDARY:
+        raise ReleaseArtifactError("M05-02 benchmark report has the wrong timed boundary")
+    exact_fields = {
+        "iterations": _M0502_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0502_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0502_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0502_P95_BUDGET_NS,
+        **_M0502_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M05-02 benchmark report")
+    request_bytes = _require_positive_integer(
+        benchmark_report, "request_bytes", "M05-02 benchmark report"
+    )
+    _require_positive_integer(benchmark_report, "result_bytes", "M05-02 benchmark report")
+    if request_bytes > _M0502_MAX_REQUEST_BYTES:
+        raise ReleaseArtifactError("M05-02 benchmark request exceeds its installed byte cap")
+    for field in ("request_digest", "result_digest"):
+        value = benchmark_report.get(field)
+        if not isinstance(value, str) or _CANONICAL_SHA256.fullmatch(value) is None:
+            raise ReleaseArtifactError(f"M05-02 benchmark report has an invalid {field}")
+    mean = benchmark_report.get("mean_ns")
+    p50 = benchmark_report.get("p50_ns")
+    p95 = benchmark_report.get("p95_ns")
+    maximum = benchmark_report.get("maximum_ns")
+    if (
+        isinstance(mean, bool)
+        or not isinstance(mean, (int, float))
+        or isinstance(p50, bool)
+        or not isinstance(p50, (int, float))
+        or isinstance(p95, bool)
+        or not isinstance(p95, int)
+        or isinstance(maximum, bool)
+        or not isinstance(maximum, int)
+        or not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean < 0
+        or mean > _M0502_MEAN_BUDGET_NS
+        or p50 < 0
+        or p95 < 0
+        or p95 > _M0502_P95_BUDGET_NS
+        or maximum < p50
+        or maximum < p95
+        or maximum < mean
+    ):
+        raise ReleaseArtifactError("M05-02 benchmark report exceeds its timing budgets")
+
+
+def verify_m0502_evidence(evaluation: Path, benchmark: Path) -> None:
+    """Verify M05-02 locked-corpus closure and representative timing evidence."""
+
+    _verify_m0502_evaluation(_load_json_evidence(evaluation, "M05-02 evaluation report"))
+    _verify_m0502_benchmark(_load_json_evidence(benchmark, "M05-02 benchmark report"))
+
+
+def _m0503_fixture_case_ids(fixture: Path) -> tuple[str, ...]:
+    try:
+        raw = fixture.read_bytes()
+        payload: object = json.loads(raw)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as error:
+        raise ReleaseArtifactError("M05-03 fixture is not valid UTF-8 JSON") from error
+    digest = f"sha256:{hashlib.sha256(raw).hexdigest()}"
+    if digest != _M0503_FIXTURE_DIGEST:
+        raise ReleaseArtifactError("M05-03 fixture digest does not match the locked corpus")
+    document = _mapping(payload, "M05-03 fixture")
+    if (
+        document.get("module_id") != _M0503_MODULE_ID
+        or document.get("schema_version") != "1.0.0"
+        or document.get("expected_group_count") != len(_M0503_GROUP_COUNTS)
+        or document.get("expected_total_case_count") != _M0503_CASE_COUNT
+        or tuple(_sequence(document.get("expected_case_allocation"), "M05-03 allocation"))
+        != _M0503_GROUP_COUNTS
+    ):
+        raise ReleaseArtifactError("M05-03 fixture has the wrong locked corpus identity")
+    groups = _sequence(document.get("scenario_groups"), "M05-03 scenario groups")
+    if len(groups) != len(_M0503_GROUP_COUNTS):
+        raise ReleaseArtifactError("M05-03 fixture has the wrong group count")
+    case_ids: list[str] = []
+    for index, group_value in enumerate(groups):
+        group = _mapping(group_value, "M05-03 scenario group")
+        cases = _sequence(group.get("case_ids"), "M05-03 group case IDs")
+        expectations = _mapping(group.get("case_expectations"), "M05-03 case expectations")
+        expected_count = _M0503_GROUP_COUNTS[index]
+        if (
+            group.get("expected_case_count") != expected_count
+            or len(cases) != expected_count
+            or any(type(case_id) is not str or not case_id for case_id in cases)
+            or set(cases) != set(expectations)
+        ):
+            raise ReleaseArtifactError("M05-03 fixture group closure is invalid")
+        case_ids.extend(cast("list[str]", cases))
+    if len(case_ids) != _M0503_CASE_COUNT or len(set(case_ids)) != len(case_ids):
+        raise ReleaseArtifactError("M05-03 fixture case identifiers are not exact and unique")
+    return tuple(case_ids)
+
+
+def _verify_m0503_evaluation(
+    evaluation_report: Mapping[str, object],
+    fixture_case_ids: tuple[str, ...],
+) -> None:
+    if evaluation_report.get("module_id") != _M0503_MODULE_ID:
+        raise ReleaseArtifactError("M05-03 evaluation report has the wrong module identity")
+    if evaluation_report.get("phase") != "locked_executable_corpus":
+        raise ReleaseArtifactError("M05-03 evaluation report has the wrong locked phase")
+    if evaluation_report.get("fixture_digest") != _M0503_FIXTURE_DIGEST:
+        raise ReleaseArtifactError("M05-03 evaluation report is not bound to the locked fixture")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-03 evaluation report did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(
+            evaluation_report,
+            field,
+            _M0503_CASE_COUNT,
+            "M05-03 evaluation report",
+        )
+    for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
+        _require_empty_array(evaluation_report, field, "M05-03 evaluation report")
+    checks = _sequence(evaluation_report.get("checks"), "M05-03 evaluation checks")
+    checked = tuple(_mapping(check, "M05-03 evaluation check") for check in checks)
+    if any(
+        set(check) != {"name", "passed", "detail"}
+        or type(check.get("name")) is not str
+        or check.get("passed") is not True
+        or type(check.get("detail")) is not str
+        or not check.get("detail")
+        for check in checked
+    ):
+        raise ReleaseArtifactError("M05-03 evaluation report contains a malformed or failed check")
+    names = tuple(cast("str", check["name"]) for check in checked)
+    expected_names = (
+        "corpus.inventory",
+        *(f"scenario.{case_id}" for case_id in fixture_case_ids),
+        "corpus.executable_coverage",
+    )
+    if names != expected_names or len(set(names)) != len(names):
+        raise ReleaseArtifactError("M05-03 evaluation report lacks exact fixture scenario closure")
+
+
+def _verify_m0503_benchmark(  # noqa: C901 - explicit locked evidence matrix.
+    benchmark_report: Mapping[str, object],
+) -> None:
+    if benchmark_report.get("module_id") != _M0503_MODULE_ID:
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong module identity")
+    if benchmark_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong contract version")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-03 benchmark report did not pass")
+    if benchmark_report.get("workload") != _M0503_BENCHMARK_WORKLOAD:
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong workload")
+    if benchmark_report.get("timed_boundary") != _M0503_TIMED_BOUNDARY:
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong timed boundary")
+    exact_fields = {
+        "iterations": _M0503_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0503_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0503_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0503_P95_BUDGET_NS,
+        **_M0503_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M05-03 benchmark report")
+    _require_exact_integer(
+        benchmark_report,
+        "request_bytes",
+        _M0503_BENCHMARK_REQUEST_BYTES,
+        "M05-03 benchmark report",
+    )
+    _require_exact_integer(
+        benchmark_report,
+        "result_bytes",
+        _M0503_BENCHMARK_RESULT_BYTES,
+        "M05-03 benchmark report",
+    )
+    if benchmark_report.get("request_digest") != _M0503_BENCHMARK_REQUEST_DIGEST:
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong request digest")
+    if benchmark_report.get("result_digest") != _M0503_BENCHMARK_RESULT_DIGEST:
+        raise ReleaseArtifactError("M05-03 benchmark report has the wrong result digest")
+    samples_value = _sequence(benchmark_report.get("samples_ns"), "M05-03 timing samples")
+    if len(samples_value) != _M0503_BENCHMARK_ITERATIONS or any(
+        type(sample) is not int or sample <= 0 for sample in samples_value
+    ):
+        raise ReleaseArtifactError("M05-03 benchmark report has invalid timing samples")
+    samples = tuple(cast("int", sample) for sample in samples_value)
+    ordered = sorted(samples)
+    recomputed_mean = fmean(samples)
+    recomputed_p50 = median(samples)
+    recomputed_p95 = ordered[(95 * len(ordered) - 1) // 100]
+    recomputed_maximum = max(samples)
+    mean = benchmark_report.get("mean_ns")
+    p50 = benchmark_report.get("p50_ns")
+    p95 = benchmark_report.get("p95_ns")
+    maximum = benchmark_report.get("maximum_ns")
+    if (
+        isinstance(mean, bool)
+        or not isinstance(mean, (int, float))
+        or isinstance(p50, bool)
+        or not isinstance(p50, (int, float))
+        or isinstance(p95, bool)
+        or not isinstance(p95, int)
+        or isinstance(maximum, bool)
+        or not isinstance(maximum, int)
+        or not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean != recomputed_mean
+        or p50 != recomputed_p50
+        or p95 != recomputed_p95
+        or maximum != recomputed_maximum
+        or mean > _M0503_MEAN_BUDGET_NS
+        or p95 > _M0503_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError(
+            "M05-03 benchmark report disagrees with its samples or exceeds timing budgets"
+        )
+
+
+def verify_m0503_evidence(evaluation: Path, benchmark: Path, fixture: Path) -> None:
+    """Verify M05-03 exact corpus closure and representative timing evidence."""
+
+    fixture_case_ids = _m0503_fixture_case_ids(fixture)
+    _verify_m0503_evaluation(
+        _load_json_evidence(evaluation, "M05-03 evaluation report"), fixture_case_ids
+    )
+    _verify_m0503_benchmark(_load_json_evidence(benchmark, "M05-03 benchmark report"))
+
+
+def _m0504_fixture_case_ids(fixture: Path) -> tuple[str, ...]:
+    try:
+        raw = fixture.read_bytes()
+        payload: object = json.loads(raw)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as error:
+        raise ReleaseArtifactError("M05-04 fixture is not valid UTF-8 JSON") from error
+    if f"sha256:{hashlib.sha256(raw).hexdigest()}" != _M0504_FIXTURE_DIGEST:
+        raise ReleaseArtifactError("M05-04 fixture digest does not match the locked corpus")
+    document = _mapping(payload, "M05-04 fixture")
+    if (
+        document.get("module_id") != _M0504_MODULE_ID
+        or document.get("schema_version") != "1.0.0"
+        or document.get("expected_group_count") != len(_M0504_GROUP_COUNTS)
+        or document.get("expected_total_case_count") != _M0504_CASE_COUNT
+        or tuple(_sequence(document.get("expected_case_allocation"), "M05-04 allocation"))
+        != _M0504_GROUP_COUNTS
+    ):
+        raise ReleaseArtifactError("M05-04 fixture has the wrong locked corpus identity")
+    groups = _sequence(document.get("scenario_groups"), "M05-04 scenario groups")
+    if len(groups) != len(_M0504_GROUP_COUNTS):
+        raise ReleaseArtifactError("M05-04 fixture has the wrong group count")
+    case_ids: list[str] = []
+    for index, group_value in enumerate(groups):
+        group = _mapping(group_value, "M05-04 scenario group")
+        cases = _sequence(group.get("case_ids"), "M05-04 group case IDs")
+        expectations = _mapping(group.get("case_expectations"), "M05-04 case expectations")
+        expected_count = _M0504_GROUP_COUNTS[index]
+        if (
+            group.get("expected_case_count") != expected_count
+            or len(cases) != expected_count
+            or any(type(case_id) is not str or not case_id for case_id in cases)
+            or set(cases) != set(expectations)
+        ):
+            raise ReleaseArtifactError("M05-04 fixture group closure is invalid")
+        case_ids.extend(cast("list[str]", cases))
+    if len(case_ids) != _M0504_CASE_COUNT or len(set(case_ids)) != len(case_ids):
+        raise ReleaseArtifactError("M05-04 fixture case identifiers are not exact and unique")
+    return tuple(case_ids)
+
+
+def _verify_m0504_evaluation(
+    evaluation_report: Mapping[str, object],
+    fixture_case_ids: tuple[str, ...],
+) -> None:
+    if evaluation_report.get("module_id") != _M0504_MODULE_ID:
+        raise ReleaseArtifactError("M05-04 evaluation report has the wrong module identity")
+    if evaluation_report.get("phase") != "locked_executable_corpus":
+        raise ReleaseArtifactError("M05-04 evaluation report has the wrong locked phase")
+    if evaluation_report.get("fixture_digest") != _M0504_FIXTURE_DIGEST:
+        raise ReleaseArtifactError("M05-04 evaluation report is not bound to the locked fixture")
+    if evaluation_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-04 evaluation report did not pass")
+    for field in ("declared_case_count", "executed_case_count"):
+        _require_exact_integer(
+            evaluation_report, field, _M0504_CASE_COUNT, "M05-04 evaluation report"
+        )
+    for field in ("missing_case_ids", "extra_case_ids", "duplicated_case_ids"):
+        _require_empty_array(evaluation_report, field, "M05-04 evaluation report")
+    checks = tuple(
+        _mapping(check, "M05-04 evaluation check")
+        for check in _sequence(evaluation_report.get("checks"), "M05-04 evaluation checks")
+    )
+    if any(
+        set(check) != {"name", "passed", "detail"}
+        or type(check.get("name")) is not str
+        or check.get("passed") is not True
+        or type(check.get("detail")) is not str
+        or not check.get("detail")
+        for check in checks
+    ):
+        raise ReleaseArtifactError("M05-04 evaluation report contains a malformed or failed check")
+    names = tuple(cast("str", check["name"]) for check in checks)
+    expected_names = (
+        "corpus.inventory",
+        *(f"scenario.{case_id}" for case_id in fixture_case_ids),
+        "corpus.executable_coverage",
+    )
+    if names != expected_names or len(set(names)) != len(names):
+        raise ReleaseArtifactError("M05-04 evaluation report lacks exact fixture scenario closure")
+
+
+def _verify_m0504_benchmark(benchmark_report: Mapping[str, object]) -> None:  # noqa: C901
+    if benchmark_report.get("module_id") != _M0504_MODULE_ID:
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong module identity")
+    if benchmark_report.get("contract_version") != "1.0.0":
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong contract version")
+    if benchmark_report.get("passed") is not True:
+        raise ReleaseArtifactError("M05-04 benchmark report did not pass")
+    if benchmark_report.get("workload") != _M0504_BENCHMARK_WORKLOAD:
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong workload")
+    if benchmark_report.get("timed_boundary") != _M0504_TIMED_BOUNDARY:
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong timed boundary")
+    exact_fields = {
+        "iterations": _M0504_BENCHMARK_ITERATIONS,
+        "warmup_count": _M0504_BENCHMARK_WARMUPS,
+        "mean_budget_ns": _M0504_MEAN_BUDGET_NS,
+        "p95_budget_ns": _M0504_P95_BUDGET_NS,
+        **_M0504_BENCHMARK_SHAPE,
+    }
+    for field, expected in exact_fields.items():
+        _require_exact_integer(benchmark_report, field, expected, "M05-04 benchmark report")
+    for field, expected in (
+        ("request_bytes", _M0504_BENCHMARK_REQUEST_BYTES),
+        ("result_bytes", _M0504_BENCHMARK_RESULT_BYTES),
+    ):
+        _require_exact_integer(benchmark_report, field, expected, "M05-04 benchmark report")
+    if benchmark_report.get("request_digest") != _M0504_BENCHMARK_REQUEST_DIGEST:
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong request digest")
+    if benchmark_report.get("result_digest") != _M0504_BENCHMARK_RESULT_DIGEST:
+        raise ReleaseArtifactError("M05-04 benchmark report has the wrong result digest")
+    values = _sequence(benchmark_report.get("samples_ns"), "M05-04 timing samples")
+    if len(values) != _M0504_BENCHMARK_ITERATIONS or any(
+        type(value) is not int or value <= 0 for value in values
+    ):
+        raise ReleaseArtifactError("M05-04 benchmark report has invalid timing samples")
+    samples = tuple(cast("int", value) for value in values)
+    ordered = sorted(samples)
+    mean = benchmark_report.get("mean_ns")
+    p50 = benchmark_report.get("p50_ns")
+    p95 = benchmark_report.get("p95_ns")
+    maximum = benchmark_report.get("maximum_ns")
+    if (
+        isinstance(mean, bool)
+        or not isinstance(mean, (int, float))
+        or isinstance(p50, bool)
+        or not isinstance(p50, (int, float))
+        or isinstance(p95, bool)
+        or not isinstance(p95, int)
+        or isinstance(maximum, bool)
+        or not isinstance(maximum, int)
+        or not math.isfinite(mean)
+        or not math.isfinite(p50)
+        or mean != fmean(samples)
+        or p50 != median(samples)
+        or p95 != ordered[(95 * len(ordered) - 1) // 100]
+        or maximum != max(samples)
+        or (
+            type(benchmark_report.get("request_bytes")) is not int
+            or cast("int", benchmark_report.get("request_bytes")) > _M0504_MAX_REQUEST_BYTES
+        )
+        or mean > _M0504_MEAN_BUDGET_NS
+        or p95 > _M0504_P95_BUDGET_NS
+    ):
+        raise ReleaseArtifactError(
+            "M05-04 benchmark report disagrees with its samples, shape, or timing budgets"
+        )
+
+
+def verify_m0504_evidence(evaluation: Path, benchmark: Path, fixture: Path) -> None:
+    """Verify M05-04 exact corpus closure and maximum-shape timing evidence."""
+    fixture_case_ids = _m0504_fixture_case_ids(fixture)
+    _verify_m0504_evaluation(
+        _load_json_evidence(evaluation, "M05-04 evaluation report"), fixture_case_ids
+    )
+    _verify_m0504_benchmark(_load_json_evidence(benchmark, "M05-04 benchmark report"))
 
 
 def _verify_reproducible_cyclonedx_header(
@@ -859,10 +1968,58 @@ def _parser() -> argparse.ArgumentParser:
     )
     m0405_evidence.add_argument("evaluation", type=Path)
     m0405_evidence.add_argument("benchmark", type=Path)
+    m0501_evidence = commands.add_parser(
+        "m05-01-evidence", help="verify M05-01 evaluation and benchmark evidence"
+    )
+    m0501_evidence.add_argument("evaluation", type=Path)
+    m0501_evidence.add_argument("benchmark", type=Path)
+    m0407_evidence = commands.add_parser(
+        "m04-07-evidence", help="verify M04-07 evaluation and benchmark evidence"
+    )
+    m0407_evidence.add_argument("evaluation", type=Path)
+    m0407_evidence.add_argument("benchmark", type=Path)
+    m0502_evidence = commands.add_parser(
+        "m05-02-evidence", help="verify M05-02 evaluation and benchmark evidence"
+    )
+    m0502_evidence.add_argument("evaluation", type=Path)
+    m0502_evidence.add_argument("benchmark", type=Path)
+    m1904_evidence = commands.add_parser(
+        "m19-04-evidence", help="verify M19-04 evaluation and benchmark evidence"
+    )
+    m1904_evidence.add_argument("evaluation", type=Path)
+    m1904_evidence.add_argument("benchmark", type=Path)
+    m2604_evidence = commands.add_parser(
+        "m26-04-evidence", help="verify M26-04 evaluation and benchmark evidence"
+    )
+    m2604_evidence.add_argument("evaluation", type=Path)
+    m2604_evidence.add_argument("benchmark", type=Path)
+    m2607_evidence = commands.add_parser(
+        "m26-07-evidence", help="verify M26-07 evaluation and benchmark evidence"
+    )
+    m2607_evidence.add_argument("evaluation", type=Path)
+    m2607_evidence.add_argument("benchmark", type=Path)
+    m2607_evidence.add_argument("package", type=Path)
+    m0406_evidence = commands.add_parser(
+        "m04-06-evidence", help="verify M04-06 evaluation and benchmark evidence"
+    )
+    m0406_evidence.add_argument("evaluation", type=Path)
+    m0406_evidence.add_argument("benchmark", type=Path)
+    m0503_evidence = commands.add_parser(
+        "m05-03-evidence", help="verify M05-03 evaluation and benchmark evidence"
+    )
+    m0503_evidence.add_argument("evaluation", type=Path)
+    m0503_evidence.add_argument("benchmark", type=Path)
+    m0503_evidence.add_argument("fixture", type=Path)
+    m0504_evidence = commands.add_parser(
+        "m05-04-evidence", help="verify M05-04 evaluation and benchmark evidence"
+    )
+    m0504_evidence.add_argument("evaluation", type=Path)
+    m0504_evidence.add_argument("benchmark", type=Path)
+    m0504_evidence.add_argument("fixture", type=Path)
     return parser
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901, PLR0912
     """Run release-artifact verification without exposing artifact contents on failure."""
 
     arguments = _parser().parse_args()
@@ -878,8 +2035,28 @@ def main() -> int:
             verify_m0403_evidence(arguments.evaluation, arguments.benchmark)
         elif arguments.command == "m04-04-evidence":
             verify_m0404_evidence(arguments.evaluation, arguments.benchmark)
-        else:
+        elif arguments.command == "m04-05-evidence":
             verify_m0405_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m05-01-evidence":
+            verify_m0501_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m04-07-evidence":
+            verify_m0407_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m05-02-evidence":
+            verify_m0502_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m19-04-evidence":
+            verify_m1904_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m26-04-evidence":
+            verify_m2604_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m26-07-evidence":
+            verify_m2607_evidence(arguments.evaluation, arguments.benchmark, arguments.package)
+        elif arguments.command == "m04-06-evidence":
+            verify_m0406_evidence(arguments.evaluation, arguments.benchmark)
+        elif arguments.command == "m05-03-evidence":
+            verify_m0503_evidence(arguments.evaluation, arguments.benchmark, arguments.fixture)
+        elif arguments.command == "m05-04-evidence":
+            verify_m0504_evidence(arguments.evaluation, arguments.benchmark, arguments.fixture)
+        else:
+            return 2
     except ReleaseArtifactError as error:
         sys.stderr.write(f"release artifact verification failed: {error}\n")
         return 1

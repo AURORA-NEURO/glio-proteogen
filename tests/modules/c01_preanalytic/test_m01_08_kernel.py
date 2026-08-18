@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import io
+import tarfile
+
 import pytest
 
 from glio_proteogen.modules.c01_preanalytic.m01_08_release_packaging.kernel import (
@@ -32,6 +35,18 @@ def test_duplicate_member_path_rejects() -> None:
 
     with pytest.raises(ValueError, match="unique"):
         build_canonical_ustar(members)
+
+
+def test_duplicate_archive_path_rejects() -> None:
+    target = io.BytesIO()
+    with tarfile.open(fileobj=target, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+        for content in (b"a", b"b"):
+            info = tarfile.TarInfo("same.txt")
+            info.size = len(content)
+            archive.addfile(info, io.BytesIO(content))
+
+    with pytest.raises(ValueError, match="unique"):
+        inspect_canonical_ustar(target.getvalue())
 
 
 def test_invalid_archive_rejects() -> None:

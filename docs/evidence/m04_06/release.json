@@ -1,0 +1,20 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-06",
+  "package": "passed",
+  "evaluator": "passed",
+  "benchmark": "passed",
+  "coverage": "passed",
+  "static": "passed",
+  "focused_tests": 67,
+  "evaluator_cases": "56/56",
+  "coverage_percent": 95.24596940884663,
+  "coverage_scope": [
+    "src/glio_proteogen/contracts/m04_06",
+    "src/glio_proteogen/modules/c04_proteoform_isoform/m04_06_harmonization",
+    "evals/m04_06"
+  ],
+  "benchmark_iterations": 25,
+  "benchmark_mean_ns": 1495182252.0,
+  "benchmark_p95_ns": 2101471900,
+  "passed": true
+}

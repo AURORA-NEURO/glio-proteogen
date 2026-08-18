@@ -1,0 +1,19 @@
+{
+  "scope": "M09-01..M09-08 contracts and runtime/interface paths",
+  "failUnder": 95,
+  "passed": true,
+  "percentCovered": 95.5358789891164,
+  "displayCoveragePercent": 96,
+  "statements": {
+    "covered": 4413,
+    "total": 4551,
+    "missing": 138
+  },
+  "branches": {
+    "covered": 766,
+    "total": 870,
+    "missing": 104,
+    "partial": 88
+  },
+  "dataFile": "external:C:/Temp/m09-integrated.coverage"
+}

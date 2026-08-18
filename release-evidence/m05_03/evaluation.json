@@ -1,0 +1,383 @@
+{
+  "checks": [
+    {
+      "detail": "groups=8;cases=72;allocation=(7, 9, 8, 8, 8, 7, 7, 18)",
+      "name": "corpus.inventory",
+      "passed": true
+    },
+    {
+      "detail": "disposition=validated;inputs=4",
+      "name": "scenario.canonical_four_role_documents_validated",
+      "passed": true
+    },
+    {
+      "detail": "full embedded M05-02 result and receipt replayed",
+      "name": "scenario.exact_m0502_full_result_replay",
+      "passed": true
+    },
+    {
+      "detail": "bound_inputs=4/4",
+      "name": "scenario.exact_m0501_transitive_protocol_bindings",
+      "passed": true
+    },
+    {
+      "detail": "all four roles retain exact upstream claim artifacts",
+      "name": "scenario.exact_role_claim_manifest_bindings",
+      "passed": true
+    },
+    {
+      "detail": "all supplied bytes equal embedded canonical document bytes",
+      "name": "scenario.canonical_document_byte_projection",
+      "passed": true
+    },
+    {
+      "detail": "result_digest=sha256:6d130299f1e37a82f9fb5f106c02cbce900b23e46c73b069497b68956da9219c",
+      "name": "scenario.deterministic_full_result_equality",
+      "passed": true
+    },
+    {
+      "detail": "parent context retained; emission flags false",
+      "name": "scenario.parent_context_preserved_without_emission",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_mapping_mismatch",
+      "name": "scenario.missing_role_mapping_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_mapping_mismatch",
+      "name": "scenario.extra_role_mapping_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_type_invalid",
+      "name": "scenario.bytearray_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_type_invalid",
+      "name": "scenario.bytes_subclass_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_size_mismatch",
+      "name": "scenario.declared_size_mismatch_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_digest_mismatch",
+      "name": "scenario.manifest_digest_mismatch_rejected",
+      "passed": true
+    },
+    {
+      "detail": "declared_record_count=9223372036854775807",
+      "name": "scenario.largest_constructible_document_accepted",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_size_mismatch",
+      "name": "scenario.per_document_8mib_plus_one_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:artifact_size_mismatch",
+      "name": "scenario.aggregate_32mib_plus_one_rejected",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=unit_mismatch",
+      "name": "scenario.proteome_unit_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=unit_mismatch",
+      "name": "scenario.transcript_unit_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=reference_bundle_mismatch",
+      "name": "scenario.reference_bundle_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=assay_specimen_policy_mismatch",
+      "name": "scenario.assay_specimen_policy_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=assay_protocol_mismatch",
+      "name": "scenario.assay_protocol_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=specimen_processing_mismatch",
+      "name": "scenario.specimen_processing_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=unsupported_format_version",
+      "name": "scenario.unsupported_format_version_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:document_type_mismatch",
+      "name": "scenario.role_document_type_mismatch_rejected",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=incomplete_manifest",
+      "name": "scenario.proteome_incomplete_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=incomplete_manifest",
+      "name": "scenario.genome_incomplete_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=incomplete_manifest",
+      "name": "scenario.transcriptome_incomplete_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=incomplete_manifest",
+      "name": "scenario.ptm_annotations_incomplete_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=assay_unsupported",
+      "name": "scenario.assay_unsupported_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;codes=parent_quality_unacceptable",
+      "name": "scenario.parent_quality_rejected_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained;codes=artifact_not_evaluable",
+      "name": "scenario.artifact_not_evaluable_abstains",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined",
+      "name": "scenario.quarantine_precedes_abstention",
+      "passed": true
+    },
+    {
+      "detail": "reconciled upstream permits exact four-role traversal",
+      "name": "scenario.reconciled_upstream_permits_artifact_traversal",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;traversals=0;evidence=12;parsers=32",
+      "name": "scenario.quarantined_upstream_zero_artifact_traversal",
+      "passed": true
+    },
+    {
+      "detail": "disposition=abstained;traversals=0",
+      "name": "scenario.abstained_upstream_zero_artifact_traversal",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.stale_identity_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.stale_quality_result_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.stale_support_receipt_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.stale_intended_use_binding_rejected",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.resigned_m0502_full_result_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "17 closed diagnostic codes map to exact precedence actions",
+      "name": "scenario.diagnostic_code_action_closure",
+      "passed": true
+    },
+    {
+      "detail": "diagnostics=56;unique_code_role=true",
+      "name": "scenario.diagnostics_unique_and_canonically_ordered",
+      "passed": true
+    },
+    {
+      "detail": "all four content references retained without rewrite",
+      "name": "scenario.content_references_preserved_exactly",
+      "passed": true
+    },
+    {
+      "detail": "inputs=4;diagnostics=2",
+      "name": "scenario.duplicate_content_retained_without_deduplication",
+      "passed": true
+    },
+    {
+      "detail": "disposition=quarantined;inputs=4",
+      "name": "scenario.quarantine_preserves_validated_documents",
+      "passed": true
+    },
+    {
+      "detail": "typed abstention with all biological authority false",
+      "name": "scenario.abstention_never_infers_negative",
+      "passed": true
+    },
+    {
+      "detail": "receipt_digest=sha256:f7ac720821f821a52a09a1164ab239fa695920f8851c6fc19eb8eece0db30ad0",
+      "name": "scenario.exact_compact_receipt_projection",
+      "passed": true
+    },
+    {
+      "detail": "evidence=20",
+      "name": "scenario.minimum_20_evidence_entries",
+      "passed": true
+    },
+    {
+      "detail": "parsers=32;evidence=48",
+      "name": "scenario.maximum_48_evidence_entries",
+      "passed": true
+    },
+    {
+      "detail": "not_estimable=7/7",
+      "name": "scenario.all_seven_uncertainty_not_estimable",
+      "passed": true
+    },
+    {
+      "detail": "no raw bytes, rows, spectra, sequences, or measurements",
+      "name": "scenario.result_contains_no_raw_bytes_or_rows",
+      "passed": true
+    },
+    {
+      "detail": "external canary represented only by digest; direct build identifier rejected",
+      "name": "scenario.recursive_canary_absent_from_result",
+      "passed": true
+    },
+    {
+      "detail": "model execution and event persistence authority absent",
+      "name": "scenario.zero_model_event_persistence_authority",
+      "passed": true
+    },
+    {
+      "detail": "limitations=3;authority_false=True",
+      "name": "scenario.exact_three_limitations_and_all_authority_flags_false",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.approved_configuration_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.identity_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.provenance_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.consent_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.quality_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.support_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;governed_traversals=0",
+      "name": "scenario.intended_use_denial_zero_traversal",
+      "passed": true
+    },
+    {
+      "detail": "authorization_rejected;mapping_access=0",
+      "name": "scenario.arbitrary_mapping_rejected_without_access",
+      "passed": true
+    },
+    {
+      "detail": "hostile_dict_rejected=True;exception_fail_closed=True;baseexception_propagated=True",
+      "name": "scenario.dict_subclass_exception_baseexception_firewall",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:document_json_invalid",
+      "name": "scenario.duplicate_json_key_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:document_json_invalid",
+      "name": "scenario.unknown_field_rejected",
+      "passed": true
+    },
+    {
+      "detail": "ingress_rejected:document_json_invalid",
+      "name": "scenario.coercion_rejected",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:json_too_large;bytes=4194305",
+      "name": "scenario.request_4mib_plus_one_rejected",
+      "passed": true
+    },
+    {
+      "detail": "request, mapping, result, evidence, provenance reorder invariant",
+      "name": "scenario.semantic_reorder_full_equality",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected:ValidationError",
+      "name": "scenario.embedded_upstream_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "rejected_regions=6/6",
+      "name": "scenario.result_derived_regions_forgery_rejected",
+      "passed": true
+    },
+    {
+      "detail": "recursive privacy and exact authority ceiling",
+      "name": "scenario.privacy_and_authority_ceiling",
+      "passed": true
+    },
+    {
+      "detail": "filesystem_refusals=5/5",
+      "name": "scenario.cli_symlink_nonregular_toctou_and_existing_output_refused",
+      "passed": true
+    },
+    {
+      "detail": "declared=72;executed=72;allocation=(7, 9, 8, 8, 8, 7, 7, 18);substantive=72",
+      "name": "corpus.executable_coverage",
+      "passed": true
+    }
+  ],
+  "declared_case_count": 72,
+  "duplicated_case_ids": [],
+  "executed_case_count": 72,
+  "extra_case_ids": [],
+  "fixture_digest": "sha256:903ba155ed64680d527991d558ebc4ee96e4e11342e7ace6ab309f461222a796",
+  "missing_case_ids": [],
+  "module_id": "GLIO-PROTEOGEN-M05-03",
+  "passed": true,
+  "phase": "locked_executable_corpus"
+}

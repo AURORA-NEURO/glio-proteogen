@@ -321,6 +321,10 @@ def build_result(
             else ProteoformProtocolConformanceStatus.CONFORMANT
         ),
         "disposition": disposition,
+        "infers_protein": False,
+        "infers_proteoform": False,
+        "infers_isoform": False,
+        "infers_glioma_specific_biology": False,
         "support": expected_support(disposition),
         "uncertainty": expected_uncertainty(),
         "provenance": expected_provenance(active, receipt),

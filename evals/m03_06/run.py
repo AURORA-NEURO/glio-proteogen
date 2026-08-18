@@ -15,6 +15,11 @@ from typing import TYPE_CHECKING, Final, TypedDict, cast
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from evals.m03_04 import run as m0304_evidence
 from evals.m03_05 import run as m0305_evidence
 from evals.m03_05.run import build_scenario as build_m0305_scenario

@@ -1,0 +1,8 @@
+module_id,requirement,implementation,evidence,status
+GLIO-PROTEOGEN-M27-08,seven-control authorization,engine.py::preflight_retirement_authorization,tests/coverage/test_m2708_adversarial.py,pass
+GLIO-PROTEOGEN-M27-08,retirement criteria closure,engine.py::M2708RetirementEngine,tests/runtime/test_m2708_retirement.py,pass
+GLIO-PROTEOGEN-M27-08,dependency migration closure,contracts/m27_08/v1.py::RetirementPackage,tests/coverage/test_m2708_adversarial.py,pass
+GLIO-PROTEOGEN-M27-08,evidence preservation,contracts/m27_08/v1.py::EvidencePreservation,tests/coverage/test_m2708_adversarial.py,pass
+GLIO-PROTEOGEN-M27-08,deterministic replay,contracts/m27_08/canonical.py and engine.py::replay,tests/contract/test_m27_08_retirement.py,pass
+GLIO-PROTEOGEN-M27-08,API/CLI parity,modules/c27_complex_activity/m27_08_retirement/{api,cli}.py,tests/integration/test_m2708_interfaces.py,pass
+GLIO-PROTEOGEN-M27-08,no biology inference,manifest and result boundary,tests/contract/test_m27_08_retirement.py,pass

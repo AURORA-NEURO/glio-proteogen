@@ -31,6 +31,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1456,7 +1457,7 @@ def expected_provenance(
     )
 
 
-class ProteoformProtocolConformanceResult(FrozenModel):
+class ProteoformProtocolConformanceResult(NonInferenceResultModel):
     output_type: Literal["proteoform_protocol_conformance_result"] = (
         "proteoform_protocol_conformance_result"
     )
@@ -1480,6 +1481,10 @@ class ProteoformProtocolConformanceResult(FrozenModel):
     emits_proteotype: Literal[False] = False
     emits_protein_level_subtype: Literal[False] = False
     infers_proteoform_or_isoform: Literal[False] = False
+    infers_protein: Literal[False] = False
+    infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     localizes_modification: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     performs_all_omics_fusion: Literal[False] = False

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "budgets": {"mean_ns": 2000000000, "p95_ns": 3000000000},
+  "runs": {
+    "M06-02": {"iterations": 10, "mean_ns": 1342500.0, "p95_ns": 1441600},
+    "M06-03": {"iterations": 25, "mean_ns": 3423144.0, "p95_ns": 4398200, "mean_budget_ns": 500000000, "p95_budget_ns": 750000000},
+    "M06-05": {"iterations": 10, "mean_ns": 1896880.0, "p95_ns": 2072100},
+    "M06-06": {"iterations": 25, "mean_ns": 3483064, "p95_ns": 3986300, "mean_budget_ns": 500000000, "p95_budget_ns": 750000000},
+    "M06-07": {"iterations": 10, "mean_ns": 7676620.0, "p95_ns": 8319600},
+    "M06-08": {"iterations": 10, "mean_ns": 867410, "p95_ns": 933100}
+  },
+  "all_deterministic": true,
+  "all_within_locked_budgets": true
+}

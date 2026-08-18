@@ -45,6 +45,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1564,7 +1565,7 @@ def _normalized_uncertainty(uncertainty: UncertaintyProfile) -> dict[str, object
     return value
 
 
-class ProteoformIdentityLineageResolution(FrozenModel):
+class ProteoformIdentityLineageResolution(NonInferenceResultModel):
     output_type: Literal["proteoform_identity_lineage_resolution"] = (
         "proteoform_identity_lineage_resolution"
     )
@@ -1593,6 +1594,8 @@ class ProteoformIdentityLineageResolution(FrozenModel):
     infers_consent: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     performs_cn_to_protein_regression: Literal[False] = False
     performs_all_omics_fusion: Literal[False] = False

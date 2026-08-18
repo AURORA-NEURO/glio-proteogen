@@ -1,0 +1,40 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-02",
+  "contractVersion": "0.1.0-provisional",
+  "authority": {
+    "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "slice": "source-manifest.yaml:9011-9054"
+  },
+  "fixtureDigest": "sha256:c9c4c9cbb4963de327f578906ddeccdcc084a28aa64f57a23e79e03d9edc9c28",
+  "scenarioCount": 7,
+  "passed": 7,
+  "scenarios": {
+    "bad_graph_digest": {
+      "findingCodes": ["reproducibility_gap"],
+      "status": "abstained"
+    },
+    "cycle": {
+      "findingCodes": ["broken_link"],
+      "status": "abstained"
+    },
+    "denied_control": {
+      "authorization": "rejected-before-traversal"
+    },
+    "determinism": {
+      "repeatable": true,
+      "resultDigest": "sha256:c1a8c112e17f04112f94d6653cea538fa3ccb422112e3f84ae0122f0664ce7b6"
+    },
+    "plugin_parity": {
+      "parity": true,
+      "resultDigest": "sha256:c1a8c112e17f04112f94d6653cea538fa3ccb422112e3f84ae0122f0664ce7b6"
+    },
+    "supported": {
+      "resultDigest": "sha256:c1a8c112e17f04112f94d6653cea538fa3ccb422112e3f84ae0122f0664ce7b6",
+      "status": "built"
+    },
+    "tamper_replay": {
+      "tamper": "rejected"
+    }
+  },
+  "command": "uv run python -m evals.m26_02.evaluate"
+}

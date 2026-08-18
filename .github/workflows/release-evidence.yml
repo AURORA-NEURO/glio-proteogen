@@ -12,7 +12,9 @@ permissions:
 jobs:
   build-test-and-attest-candidate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # M04-07 focused tests plus its locked evaluator measured over 32 minutes before
+    # the remaining release audit, benchmark, build, SBOM, and attestation steps.
+    timeout-minutes: 120
     permissions:
       artifact-metadata: write
       attestations: write
@@ -69,6 +71,18 @@ jobs:
           uv run python -m evals.m04_03.run --output evidence/m04-03-eval.json
           uv run python -m evals.m04_04.run --output evidence/m04-04-eval.json
           uv run python -m evals.m04_05.run --output evidence/m04-05-eval.json
+          uv run python -m evals.m17_01.run --output evidence/m17-01-eval.json
+          uv run python -m evals.m17_04.run --output evidence/m17-04-eval.json
+          uv run python -m evals.m17_08.run --output evidence/m17-08-eval.json
+          uv run python -m evals.m04_06.run --output evidence/m04-06-eval.json
+          uv run python -m evals.m05_01.run --output evidence/m05-01-eval.json
+          uv run python -m evals.m04_07.run --output evidence/m04-07-eval.json
+          uv run python -m evals.m05_02.run --output evidence/m05-02-eval.json
+          uv run python -m evals.m05_03.run --output evidence/m05-03-eval.json
+          uv run python -m evals.m05_06.run --output evidence/m05-06-eval.json
+          uv run python -m evals.m05_04.run --output evidence/m05-04-eval.json
+          uv run python -m evals.m05_08.run --output evidence/m05-08-eval.json
+          uv run python -m evals.m26_08.run > evidence/m26-08-eval.json
           uv run pytest benchmarks/m01_01_validation.py --benchmark-only --benchmark-json=evidence/m01-01-benchmark.json --no-cov
           uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --benchmark-json=evidence/m01-02-benchmark.json --no-cov
           uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --benchmark-json=evidence/m01-03-benchmark.json --no-cov
@@ -98,12 +112,43 @@ jobs:
           uv run python -m evals.m04_03.benchmark --output evidence/m04-03-benchmark.json
           uv run python -m evals.m04_04.benchmark --output evidence/m04-04-benchmark.json
           uv run python -m evals.m04_05.benchmark --output evidence/m04-05-benchmark.json
+          uv run python -m evals.m17_01.benchmark --output evidence/m17-01-benchmark.json
+          uv run python -m evals.m17_04.benchmark --output evidence/m17-04-benchmark.json
+          uv run python -m evals.m17_08.benchmark --output evidence/m17-08-benchmark.json
+          uv run python -m evals.m04_06.benchmark --output evidence/m04-06-benchmark.json
+          uv run python -m evals.m05_01.benchmark --output evidence/m05-01-benchmark.json
+          uv run python -m evals.m04_07.benchmark --output evidence/m04-07-benchmark.json
+          uv run python -m evals.m05_02.benchmark --output evidence/m05-02-benchmark.json
+          uv run python -m evals.m05_03.benchmark --output evidence/m05-03-benchmark.json
+          uv run python -m evals.m05_06.benchmark --output evidence/m05-06-benchmark.json
+          uv run python -m evals.m05_04.benchmark --output evidence/m05-04-benchmark.json
+          uv run python -m evals.m05_08.benchmark --iterations 10 --output evidence/m05-08-benchmark.json
+          uv run python -m evals.m26_08.benchmark > evidence/m26-08-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-03-evidence \
             evidence/m04-03-eval.json evidence/m04-03-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-04-evidence \
             evidence/m04-04-eval.json evidence/m04-04-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-05-evidence \
             evidence/m04-05-eval.json evidence/m04-05-benchmark.json
+          uv run python tools/verify_release_artifacts.py m04-06-evidence \
+            evidence/m04-06-eval.json evidence/m04-06-benchmark.json
+          uv run python tools/verify_release_artifacts.py m05-01-evidence \
+            evidence/m05-01-eval.json evidence/m05-01-benchmark.json
+          uv run python tools/verify_release_artifacts.py m04-07-evidence \
+            evidence/m04-07-eval.json evidence/m04-07-benchmark.json
+          uv run python tools/verify_release_artifacts.py m05-02-evidence \
+            evidence/m05-02-eval.json evidence/m05-02-benchmark.json
+          uv run python tools/verify_release_artifacts.py m05-03-evidence \
+            evidence/m05-03-eval.json evidence/m05-03-benchmark.json \
+            tests/fixtures/m05_03/scenarios.json
+          uv run python tools/verify_release_artifacts.py m05-04-evidence \
+            evidence/m05-04-eval.json evidence/m05-04-benchmark.json \
+            tests/fixtures/m05_04/scenarios.json
+          uv run python tools/verify_m2608_release.py \
+            evidence/m26-08-eval.json evidence/m26-08-benchmark.json \
+            release-evidence/m26_08/package.json tests/fixtures/m26_08/scenarios.json \
+            --wheel "$(find release-build-one -maxdepth 1 -type f -name '*.whl' -print -quit)" \
+            --sdist "$(find release-build-one -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
       - name: Audit the full locked development environment
         run: |
           uv run pip-audit --local --format json --progress-spinner off --output evidence/full-environment-dependency-audit.json

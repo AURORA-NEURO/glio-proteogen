@@ -59,6 +59,7 @@ from glio_proteogen.kernel.models import (
     Identifier,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -930,7 +931,7 @@ class ProteoformQualityComputationReceipt(FrozenModel):
         return self
 
 
-class ProteoformQualityResult(FrozenModel):
+class ProteoformQualityResult(NonInferenceResultModel):
     output_type: Literal["proteoform_quality_profile"] = "proteoform_quality_profile"
     result_id: Identifier
     result_version: Literal["1.0.0"] = M0404_CONTRACT_VERSION
@@ -958,6 +959,7 @@ class ProteoformQualityResult(FrozenModel):
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
     infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     localizes_modification: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     performs_cn_to_protein_regression: Literal[False] = False

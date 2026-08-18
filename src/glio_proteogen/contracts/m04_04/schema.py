@@ -76,6 +76,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "consentInference": False,
         "proteinInference": False,
         "proteoformInference": False,
+        "isoformInference": False,
+        "gliomaSpecificBiologyInference": False,
         "modificationLocalization": False,
         "copyNumberRegression": False,
         "proteinRnaDiscordanceInference": False,

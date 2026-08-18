@@ -14,6 +14,11 @@ from typing import Any, Final, NoReturn, TypedDict, cast
 
 from pydantic import ValidationError
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from glio_proteogen.contracts.m04_01 import (
     M0401_EVIDENCE_COUNT,
     M0401_LIMITATION_COUNT,

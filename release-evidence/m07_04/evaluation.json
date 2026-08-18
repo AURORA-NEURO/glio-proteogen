@@ -1,0 +1,66 @@
+{
+  "authority_lines": "2328-2368",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "check_count": 11,
+  "checks": [
+    {
+      "detail": "locked mechanism-guided proxy emits typed finite estimates only",
+      "name": "numeric_projection",
+      "passed": true
+    },
+    {
+      "detail": "result verifies and replays exactly",
+      "name": "transitive_replay",
+      "passed": true
+    },
+    {
+      "detail": "changed receipt fails digest closure",
+      "name": "tamper_rejection",
+      "passed": true
+    },
+    {
+      "detail": "categorical dosage is not coerced to a negative or numeric finding",
+      "name": "unsupported_abstention",
+      "passed": true
+    },
+    {
+      "detail": "unfrozen learned family abstains safely",
+      "name": "family_abstention",
+      "passed": true
+    },
+    {
+      "detail": "denied controls fail before execution",
+      "name": "control_fail_closed",
+      "passed": true
+    },
+    {
+      "detail": "duplicate keys fail closed",
+      "name": "strict_duplicate_rejection",
+      "passed": true
+    },
+    {
+      "detail": "wrong upstream media type is rejected",
+      "name": "representation_boundary",
+      "passed": true
+    },
+    {
+      "detail": "plugin parse/execute/verify equals service",
+      "name": "plugin_parity",
+      "passed": true
+    },
+    {
+      "detail": "strict mapping transport is canonical",
+      "name": "mapping_transport",
+      "passed": true
+    },
+    {
+      "detail": "canonical result digest is stable",
+      "name": "digest_stability",
+      "passed": true
+    }
+  ],
+  "contract_version": "0.1.0-provisional",
+  "module_id": "GLIO-PROTEOGEN-M07-04",
+  "passed": true,
+  "result_digest": "sha256:3f315fd03a8bc7ef8006a85dcf0946568d1c7e14c8b00ff389042853756c35b1"
+}

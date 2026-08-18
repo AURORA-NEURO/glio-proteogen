@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M27-04",
+  "version": "0.1.0",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3254395,
+    "members": 1759,
+    "sha256": "0dcd41cee90503733be2bb57624665fff31d4fbc901acce15592b8760dba7fa1"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 3582006,
+    "members": 4029,
+    "sha256": "f41cb8611aae5f21edd3464dbcb6539b6d26c2f1df1e92a1c8a6afb447a09d00"
+  },
+  "build_command": "uv build --python .venv/Scripts/python.exe --out-dir .m2704-build --no-build-logs",
+  "isolated_import": true,
+  "release_verifier": "passed"
+}

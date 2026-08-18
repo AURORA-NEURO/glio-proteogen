@@ -1,1 +1,1 @@
-"""Bounded GLIO-PROTEOGEN module implementations."""
+"""Domain module implementations."""

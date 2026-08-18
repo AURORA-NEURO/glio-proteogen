@@ -18,6 +18,11 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, ValidationError
 from typer.testing import CliRunner
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 import glio_proteogen.modules.c04_proteoform_isoform.m04_04_quality_metrics.engine as m0404_engine
 from evals.m04_03.run import (
     _genuine_scenario as build_m0403_genuine_scenario,

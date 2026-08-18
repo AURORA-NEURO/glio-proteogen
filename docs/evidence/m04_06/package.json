@@ -1,0 +1,23 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M04-06",
+  "build_command": "uv build --wheel --sdist --out-dir <external-output>",
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3408738,
+    "sha256": "sha256:577212b76b21975fbe925223c374415a137b29aaabbda4f13aafa64ee092feb7e",
+    "members": 1828
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 3779948,
+    "sha256": "sha256:b358acedf1a7106adbb8a612b1b6b170e1ca6550be3e6d2b969ceb41f64cc8aa",
+    "members": 4185
+  },
+  "byte_identical_builds": true,
+  "isolated_import": {
+    "package": "glio_proteogen",
+    "entry_point": "HarmonizeProteoformAnalysisRequest",
+    "passed": true
+  },
+  "release_verifier": "passed"
+}

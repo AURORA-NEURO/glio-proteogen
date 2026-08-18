@@ -1,0 +1,13 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M22-01,caller-declared M21-08 media binding,contracts/m22_01/v1.py upstream_result and media closure,contract/runtime/adversarial tests,pass
+GLIO-PROTEOGEN-M22-01,closed references and control partition,contracts/m22_01/v1.py ReferenceTruthPackage,contract/adversarial/evaluator tests,pass
+GLIO-PROTEOGEN-M22-01,challenge-set and adjudication closure,contracts/m22_01/v1.py challenge_set_ids and adjudications,evaluator/adversarial matrix,pass
+GLIO-PROTEOGEN-M22-01,locked package digest,contracts/m22_01/canonical.py and v1.py,replay and lock-tamper tests,pass
+GLIO-PROTEOGEN-M22-01,deterministic result identity and replay,contracts/m22_01/canonical.py and engine.py,replay/request/result tamper tests,pass
+GLIO-PROTEOGEN-M22-01,seven-control fail-closed preflight,modules/.../engine.py,denial and hostile mapping tests,pass
+GLIO-PROTEOGEN-M22-01,support/provenance/uncertainty closure,modules/.../engine.py,runtime/evaluator checks,pass
+GLIO-PROTEOGEN-M22-01,safe abstention for incomplete curation,modules/.../engine.py,pending/rejected/interface tests,pass
+GLIO-PROTEOGEN-M22-01,strict parse-once plugin,modules/.../plugin.py,plugin token/parity tests,pass
+GLIO-PROTEOGEN-M22-01,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface/sanitized-error tests,pass
+GLIO-PROTEOGEN-M22-01,evaluator and locked benchmark,evals/m22_01,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M22-01,provisional authority and prohibited boundaries,docs/modules/M22-01-reference-truth-benchmark-curator.md,owner review and evidence,provisional

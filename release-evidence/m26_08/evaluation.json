@@ -1,0 +1,38 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M26-08",
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:9344-9384",
+  "fixture": "tests/fixtures/m26_08/scenarios.json",
+  "fixture_digest": "sha256:5bb310ee765a351441ba78bab115d9a3bd40c1674639ef48a6c5ca054332bdb2",
+  "case_ids": [
+    "executed_complete",
+    "criterion_abstention",
+    "migration_abstention",
+    "archive_abstention",
+    "active_dependency_abstention",
+    "authorization_gate",
+    "plugin_parity",
+    "replay_tamper",
+    "deterministic_repeat",
+    "schema_authority"
+  ],
+  "declared_cases": 10,
+  "executed_cases": 10,
+  "passed_cases": 10,
+  "total_cases": 10,
+  "schema_count": 10,
+  "uncertainty_dimensions": 7,
+  "checks": [
+    {"name": "executed_complete", "passed": true, "detail": "sha256:5384310a4cceb74948b5d6679212bd6cf5ab8b346094bd9a63f216ba6d58d5ce"},
+    {"name": "criterion_abstention", "passed": true, "detail": "unsatisfied criterion remains visible"},
+    {"name": "migration_abstention", "passed": true, "detail": "blocked migration is not treated as completed"},
+    {"name": "archive_abstention", "passed": true, "detail": "unverified archive remains review-required"},
+    {"name": "active_dependency_abstention", "passed": true, "detail": "active dependency blocks retirement"},
+    {"name": "authorization_gate", "passed": true, "detail": "seven-control preflight"},
+    {"name": "plugin_parity", "passed": true, "detail": "sha256:5384310a4cceb74948b5d6679212bd6cf5ab8b346094bd9a63f216ba6d58d5ce"},
+    {"name": "replay_tamper", "passed": true, "detail": "canonical digest mismatch rejected"},
+    {"name": "deterministic_repeat", "passed": true, "detail": "result.m2608.132dfa3906dad99bb777de891f202572e4ee9b36930f3ac9b75c713ec14dbfe3"},
+    {"name": "schema_authority", "passed": true, "detail": "10"}
+  ],
+  "passed": true
+}

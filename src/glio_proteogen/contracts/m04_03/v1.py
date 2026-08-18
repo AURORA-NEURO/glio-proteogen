@@ -54,6 +54,7 @@ from glio_proteogen.kernel.models import (
     FrozenModel,
     Identifier,
     Limitation,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -802,7 +803,7 @@ def expected_limitations() -> tuple[Limitation, ...]:
     )
 
 
-class ProteoformRawInputValidationResult(FrozenModel):
+class ProteoformRawInputValidationResult(NonInferenceResultModel):
     output_type: Literal["proteoform_raw_input_validation_result"] = (
         "proteoform_raw_input_validation_result"
     )
@@ -832,6 +833,8 @@ class ProteoformRawInputValidationResult(FrozenModel):
     infers_consent: Literal[False] = False
     infers_protein: Literal[False] = False
     infers_proteoform: Literal[False] = False
+    infers_isoform: Literal[False] = False
+    infers_glioma_specific_biology: Literal[False] = False
     infers_kinase_activity: Literal[False] = False
     performs_cn_to_protein_regression: Literal[False] = False
     performs_all_omics_fusion: Literal[False] = False

@@ -140,8 +140,18 @@ recommendations. Missing or unsupported evidence is never converted into a negat
   artifact classes under a version-and-configuration-bound profile, and emits only explicit
   categorical posteriors, triggered contamination flags, and excluded-only mask entries. Its ppm
   fractions are not calibrated probabilities, and missing or unsupported evidence abstains.
+- `GLIO-PROTEOGEN-M04-06` — deterministic proteoform/isoform harmonization and normalization.
+  This stateless module replays the exact full M04-05 result, applies eight reviewed fixed-point
+  technical-factor stages to at most 32 retained support targets, and emits only a harmonized
+analysis object plus an auditable transformation manifest. It preserves missingness, artifact
+actions, support direction, rank, and composition without inferring abundance or biology.
 
-The twenty-eight published module slices and the M04-05 release candidate expose strict JSON Schema
+- `GLIO-PROTEOGEN-M04-07` — deterministic unsupported-case and abstention routing. This
+  stateless module replays exact full M04-04 and M04-06 results and routes one complete reviewed
+  eight-dimension envelope to support or typed abstention with governed remediation. It never
+  combines partial envelopes or emits an apparently valid scientific result for unsupported input.
+
+The published module slices and the M04-07 release candidate expose strict JSON Schema
 2020-12 contracts through HTTP and command-line schema routes, plus typed library and
 module-specific command boundaries. M01-01 and M01-02 additionally provide deterministic
 append-only event-chain verification. The database hash chains are integrity evidence, not
@@ -186,6 +196,7 @@ uv run python -m evals.m04_02.run
 uv run python -m evals.m04_03.run
 uv run python -m evals.m04_04.run
 uv run python -m evals.m04_05.run
+uv run python -m evals.m04_06.run
 uv run pytest benchmarks/m01_01_validation.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_02_identity_lineage.py --benchmark-only --no-cov
 uv run pytest benchmarks/m01_03_ingestion.py --benchmark-only --no-cov
@@ -215,6 +226,7 @@ uv run python -m evals.m04_02.benchmark
 uv run python -m evals.m04_03.benchmark
 uv run python -m evals.m04_04.benchmark
 uv run python -m evals.m04_05.benchmark
+uv run python -m evals.m04_06.benchmark
 uv run python -m tools.scan_secrets
 ```
 
@@ -235,7 +247,8 @@ harmonization, M03-07 protein-inference support and abstention routing, M03-08 l
 directory-backed protein-inference release packaging and verification, and M04-01 stateless
 proteoform/isoform protocol conformance, M04-02 stateless proteoform/isoform identity and lineage
 reconciliation, M04-03 directory-backed raw-manifest ingestion, and M04-04 metadata-only fixed-point
-quality metric computation, plus M04-05 aggregate artifact and contamination detection.
+quality metric computation, M04-05 aggregate artifact and contamination detection, and M04-06
+fixed-point support harmonization and normalization.
 For example:
 
 ```bash
@@ -298,6 +311,10 @@ glio-proteogen proteoform-raw export-schema request
 glio-proteogen proteoform-raw ingest proteoform-raw-request.json proteoform-raw-source --output proteoform-raw-result.json
 glio-proteogen proteoform-quality export-schema request
 glio-proteogen proteoform-quality compute proteoform-quality-request.json --output proteoform-quality-result.json
+glio-proteogen proteoform-harmonization export-schema request
+glio-proteogen proteoform-harmonization harmonize proteoform-harmonization-request.json
+glio-proteogen proteoform-support export-schema request
+glio-proteogen proteoform-support route proteoform-support-request.json
 ```
 
 `glio-proteogen serve` provides the strict byte-validated HTTP operations and all module schema
@@ -414,6 +431,13 @@ states, and emits typed findings without opening any referenced scientific conte
 CLI boundaries are metadata-only and strict. It does not authenticate caller-declared aggregates,
 identify proteins, proteoforms, isoforms, or PTMs, localize modifications, compute protein-RNA
 discordance, execute a model, or make treatment or clinical claims.
+M04-07 is stateless and consumes exact full M04-04 and M04-06 results alongside compact receipts
+rederived solely to prove projection closure. It evaluates assay, specimen, disease class, quality,
+completeness, platform, reference, and intended use against one complete reviewed joint envelope.
+Missing, unknown, outside-domain, unreleasable, extra-member, and cross-envelope inputs emit only a
+typed abstention reason and governed remediation path; partial envelopes are never combined.
+M04-07 does not reinterpret upstream science, emit protein-RNA discordance or any apparently valid
+scientific result for unsupported input, infer identity or biology, or make treatment claims.
 
 All research-facing outputs are research-use-only until their module-specific evidence gate
 is independently satisfied. CI and release workflows assemble reproducible candidate evidence;

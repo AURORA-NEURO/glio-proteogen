@@ -1,0 +1,17 @@
+{
+  "moduleId": "GLIO-PROTEOGEN-M26-08",
+  "scope": [
+    "glio_proteogen.contracts.m26_08",
+    "glio_proteogen.modules.c20_biomarker_panel.m26_08_retirement_archival_knowledge_transfer"
+  ],
+  "tests": 67,
+  "branchEnabled": true,
+  "statements": {"total": 648, "covered": 642, "missing": 6},
+  "branches": {"total": 106, "covered": 101, "missing": 5, "partial": 5},
+  "combinedPercent": 98.54111405835544,
+  "statementPercent": 99.07407407407408,
+  "branchPercent": 95.28301886792454,
+  "failUnder": 95,
+  "passed": true,
+  "command": "coverage run --branch -m pytest tests/contract/test_m2608_contract.py tests/contract/test_m2608_contract_adversarial.py tests/runtime/test_m2608_runtime.py tests/interfaces/test_m2608_interfaces.py tests/evals/test_m2608_evaluator.py tests/adversarial/test_m2608_adversarial.py tests/tooling/test_m2608_release.py -q --no-cov"
+}

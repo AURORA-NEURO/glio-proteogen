@@ -1,0 +1,18 @@
+{
+  "branch_enabled": true,
+  "fail_under": 95.0,
+  "module_id": "GLIO-PROTEOGEN-M27-04",
+  "partial_branches": 18,
+  "covered_branches": 110,
+  "missing_branches": 18,
+  "total_branches": 128,
+  "covered_statements": 668,
+  "missed_statements": 26,
+  "total_statements": 694,
+  "coverage_percent": 95.0,
+  "coverage_percent_exact": 94.64720194647202,
+  "statement_percent_exact": 96.25360230547551,
+  "passed": true,
+  "scope": "contracts/m27_04 and modules/c20_biomarker_panel/m27_04_api_sdk_cli_gateway",
+  "source_command": "python -m coverage run --branch -m pytest <M27-04 focused suite>"
+}
