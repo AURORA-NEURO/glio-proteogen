@@ -51,8 +51,10 @@ from .quantification import (
 from .search import (
     FdrSummary,
     Psm,
+    PsmCompetition,
     SearchParameters,
     search_spectrum,
+    search_spectrum_candidates,
     summarize_target_decoy,
     target_decoy_qvalues,
 )
@@ -81,6 +83,7 @@ __all__ = [
     "ProteinGroupFdrSummary",
     "ProteinGroupQuant",
     "Psm",
+    "PsmCompetition",
     "QuantificationReceipt",
     "ResearchCohortRequest",
     "ResearchCohortResult",
@@ -106,6 +109,7 @@ __all__ = [
     "run_research_cohort",
     "run_research_protein_inference",
     "search_spectrum",
+    "search_spectrum_candidates",
     "summarize_target_decoy",
     "target_decoy_qvalues",
 ]

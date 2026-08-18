@@ -22,6 +22,7 @@ from glio_proteogen.research import (
     PdcStudySnapshot,
     PeptideQuant,
     Psm,
+    PsmCompetition,
     QuantificationReceipt,
     SearchParameters,
     SourceReference,
@@ -37,6 +38,7 @@ from glio_proteogen.research import (
     quantify_protein_groups,
     read_fasta,
     search_spectrum,
+    search_spectrum_candidates,
     summarize_target_decoy,
     target_decoy_qvalues,
 )
@@ -587,6 +589,34 @@ def test_target_decoy_competition_is_per_spectrum_and_decoys_have_no_qvalue() ->
     assert len(scored) == 1
     assert scored[0].decoy is True
     assert scored[0].q_value is None
+
+
+def test_search_preserves_all_target_decoy_contenders_in_competition_receipt() -> None:
+    parameters = SearchParameters(fragment_tolerance_da=1000.0, min_matched_ions=1)
+    candidates = search_spectrum_candidates(
+        "contested",
+        1087.508837466,
+        {"MPEPTIDER": ("P1",), "MPEPTIDEK": ("DECOY_P1",)},
+        (132.0, 229.1, 358.1),
+        (10.0, 20.0, 30.0),
+        parameters=parameters,
+    )
+    assert len(candidates) == 2
+    receipt = PsmCompetition.from_candidates(candidates)
+    assert receipt.candidate_count == 2
+    assert receipt.target_candidates == 1
+    assert receipt.decoy_candidates == 1
+    assert receipt.score_margin is not None
+    assert len(receipt.candidate_digest) == HEX_DIGEST_LENGTH
+    assert receipt.as_dict()["candidate_digest"] == receipt.candidate_digest
+    assert search_spectrum(
+        "contested",
+        1087.508837466,
+        {"MPEPTIDER": ("P1",), "MPEPTIDEK": ("DECOY_P1",)},
+        (132.0, 229.1, 358.1),
+        (10.0, 20.0, 30.0),
+        parameters=parameters,
+    ) == candidates[0]
 
 
 def test_protein_components_are_non_overlapping() -> None:

@@ -20,6 +20,10 @@ C03/C04 computation contract:
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
+- `search_spectrum_candidates` retains every compatible candidate for one spectrum and
+  `PsmCompetition` binds target/decoy/collision counts, score margin, and a canonical digest
+  over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
+  receipt, so a changed lower-scoring contender cannot silently replay as the same result.
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
   target/decoy sequence collisions as conservative abstentions.
 - `summarize_target_decoy` records winner-level target/decoy counts, accepted targets, threshold,

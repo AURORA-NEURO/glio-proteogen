@@ -9,6 +9,8 @@
       "tryptic_digest",
       "b_y_fragment_matching",
       "fragment_and_precursor_mass_error_diagnostics",
+      "candidate_level_target_decoy_competition_receipts",
+      "candidate_score_margin_and_digest_replay_binding",
       "quantification_receipt_with_raw_and_normalized_signals",
       "duplicate_observation_collapse_receipt",
       "zero_signal_missingness_receipt",

@@ -73,6 +73,12 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.psms[0].mean_fragment_error_da == pytest.approx(0.000525466)
     assert result.psms[0].precursor_error_ppm == pytest.approx(0.0)
     assert dict(result.search_diagnostics)["matched_psms"] == 1
+    assert dict(result.search_diagnostics)["candidate_psms"] == 1
+    assert dict(result.search_diagnostics)["contested_spectra"] == 0
+    assert len(result.competition_audit) == 1
+    assert result.competition_audit[0].target_candidates == 1
+    assert result.competition_audit[0].decoy_candidates == 0
+    assert result.as_dict()["competition_audit"]
     assert dict(result.search_diagnostics)["max_fragment_error_da"] == pytest.approx(0.000525466)
     assert result.fdr_summary is not None
     assert result.fdr_summary.target_winners == 1
@@ -115,6 +121,22 @@ def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
         result,
         quantification_receipt=replace(result.quantification_receipt, raw_total_signal=999.0),
     )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, tampered)
+
+
+def test_pipeline_replay_rejects_tampered_competition_receipt() -> None:
+    request = ResearchRunRequest(
+        "competition-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    tampered_receipt = replace(result.competition_audit[0], candidate_digest="0" * 64)
+    tampered = replace(result, competition_audit=(tampered_receipt,))
     with pytest.raises(ValueError, match="digest"):
         replay_research_protein_inference(request, tampered)
 

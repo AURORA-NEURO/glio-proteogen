@@ -337,6 +337,8 @@ def run_evaluator() -> dict[str, object]:
             and result.quantification_receipt is not None
             and result.quantification_receipt.as_dict()
             == expected["expected_quantification_receipt"]
+            and [item.as_dict() for item in result.competition_audit]
+            == expected["expected_competition_audit"]
             and all(
                 observed_diagnostics.get(key) == value
                 for key, value in expected_diagnostics.items()
@@ -375,6 +377,9 @@ def run_evaluator() -> dict[str, object]:
                     item.as_dict() for item in result.protein_group_quantifications
                 ],
                 "search_diagnostics": dict(result.search_diagnostics),
+                "competition_audit": [
+                    item.as_dict() for item in result.competition_audit
+                ],
             }
         )
     return {

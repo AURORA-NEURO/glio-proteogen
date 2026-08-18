@@ -14,26 +14,30 @@ one deterministic, auditable path:
    controls.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold.
-4. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
+4. Retain every precursor-compatible candidate in a per-spectrum competition receipt,
+   including target/decoy/collision counts, winner/runner-up scores, score margin, and a
+   canonical candidate digest. The legacy single-winner projection is derived from this
+   receipt; lower-scoring contenders are never silently discarded from replay evidence.
+5. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. PSMs are accepted only
    at the caller-declared q-value threshold.
-5. Resolve protein-group candidates from **all** scored PSMs, including target, decoy, and
+6. Resolve protein-group candidates from **all** scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Each candidate receives a deterministic
    max-supporting-PSM score and monotone group-level target/decoy q-value. Decoy groups
    are rejected, mixed groups are retained as null-q collision abstentions, and only
    target groups passing this second threshold become reportable groups. This is
    transparent group-FDR evidence, not a calibrated protein probability.
-6. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
+7. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral
    counts remain a separate transparent measure. Every run emits a replay-bound
    quantification receipt containing the arbitrary measurement unit, raw and normalized
    peptide signals, duplicate-observation count, positive/missing counts, raw median,
    normalization target, and scale factor.
-7. Quantify each reportable protein group from the median positive unique-peptide
+8. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
-8. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
+9. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
 ## Multi-sample cohort evidence
 
@@ -110,7 +114,13 @@ cohort ABI still needs owner-approved cohort provenance, replicate/QC thresholds
 normalization units, missingness policy, privacy/consent boundaries, and independent
 validation data.
 
-The result carries replay-bound `FdrSummary` and `ProteinGroupFdrSummary` records. The
+The result carries replay-bound `PsmCompetition`, `FdrSummary`, and
+`ProteinGroupFdrSummary` records. `PsmCompetition` binds the complete candidate-level
+search receipt for each spectrum: target/decoy/collision candidate counts, winner and
+runner-up score, score margin, and a canonical digest over each candidate's peptide,
+accessions, score, matched-ion, and mass-error fields. A changed lower-scoring candidate
+therefore changes the result/evidence digest even when the selected winner remains the same.
+The
 latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
 group threshold, accepted target groups, and the descriptive decoy/target ratio.
 Quantification is downstream of both accepted peptide PSMs and accepted target groups;

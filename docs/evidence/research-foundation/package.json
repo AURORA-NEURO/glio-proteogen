@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "09c0a9c3",
-  "pipeline_commit": "7cca93bf",
+  "base_commit": "b3be44fe",
+  "pipeline_commit": "0520c49a",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -17,6 +17,8 @@
       "bounded_mzml_decode",
       "tryptic_fasta_digest",
       "b_y_fragment_matching",
+      "candidate_level_target_decoy_competition_receipts",
+      "candidate_score_margin_and_digest_replay_binding",
       "target_decoy_q_values",
       "matched_ion_intensity_quantification",
       "label_free_median_normalization",
@@ -53,33 +55,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "f9c44e6edd40dc1c80e74861f42f4bc1edc30efa773d6a5da47b269babdbadc4",
+    "fixture_sha256": "15e07a83591737d82eb033ddc6272ddbdb82c1a83e353cb61397e86370b10fa8",
     "cohort_fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
-    "focused_tests": 187,
+    "focused_tests": 190,
     "coverage": {
-      "statements": 2050,
-      "missed_statements": 69,
-      "branches": 770,
-      "partial_branches": 61,
-      "percent": 95.18,
+      "statements": 2087,
+      "missed_statements": 71,
+      "branches": 772,
+      "partial_branches": 62,
+      "percent": 95.14,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3824274,
+      "bytes": 3825404,
       "members": 1987,
-      "sha256": "7ef87cf620b442a405fdd7063fc0381d1612a34068297e5cd9f7e135bbeb9c53"
+      "sha256": "1ca20732e468ff74fce9b5cd0d5e90e72abc14f4a9706d8fd212c5f5b1c76971"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4421571,
+      "bytes": 4423847,
       "members": 4589,
-      "sha256": "70da3c1f77d0a74c7bda82946b6ee4534b0cd9ac3b117b45d30198f7a888424d"
+      "sha256": "28d9bf1cb8a703936854d8ebb9415e39c1e2ef09feb252e41bc1a72b8c17cb5c"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "7ef87cf620b442a405fdd7063fc0381d1612a34068297e5cd9f7e135bbeb9c53",
-      "sdist": "70da3c1f77d0a74c7bda82946b6ee4534b0cd9ac3b117b45d30198f7a888424d"
+      "wheel": "1ca20732e468ff74fce9b5cd0d5e90e72abc14f4a9706d8fd212c5f5b1c76971",
+      "sdist": "28d9bf1cb8a703936854d8ebb9415e39c1e2ef09feb252e41bc1a72b8c17cb5c"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
