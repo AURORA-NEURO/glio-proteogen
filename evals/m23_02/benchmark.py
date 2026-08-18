@@ -4,14 +4,24 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Any, Final
+
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.modules.c21_reference_material.m23_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2302Service,
 )
 
-from .fixture import build_request
+if __package__ in {None, ""}:
+    from evals.m23_02.fixture import build_request
+else:
+    from .fixture import build_request
 
 ITERATIONS: Final = 10
 MEAN_BUDGET_NS: Final = 500_000_000
