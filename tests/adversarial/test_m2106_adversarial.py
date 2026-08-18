@@ -251,7 +251,7 @@ def _result(
     request: ChallengeComplexActivityRobustnessRequest,
 ) -> ComplexActivityRobustnessChallengeResult:
     surface = _surface(request)
-    payload = {
+    payload: Any = {
         "output_type": "complex_activity_robustness_challenge",
         "result_id": result_identifier(request),
         "result_version": "0.1.0-provisional",
