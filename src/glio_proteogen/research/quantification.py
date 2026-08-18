@@ -272,7 +272,7 @@ def quantify_matched_ions_with_receipt(
                 "zero_signal"
                 if intensity <= 0
                 else "below_loq"
-                if intensity < selected_policy.limit_of_quantification
+                if intensity <= selected_policy.limit_of_quantification
                 else "quantified"
             ),
         )
@@ -347,9 +347,7 @@ def median_normalize(
         return tuple(
             item
             if not item.missing or item.intensity <= 0
-            else PeptideQuant(
-                item.sample_id, item.peptide, 0.0, missing=True, status=item.status
-            )
+            else PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
             for item in values
         )
     observed = [item.intensity for item in values if not item.missing and item.intensity > 0]
@@ -357,9 +355,7 @@ def median_normalize(
         return tuple(
             item
             if not item.missing or item.intensity <= 0
-            else PeptideQuant(
-                item.sample_id, item.peptide, 0.0, missing=True, status=item.status
-            )
+            else PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
             for item in values
         )
     center = median(observed)

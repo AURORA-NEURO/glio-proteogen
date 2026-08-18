@@ -219,7 +219,14 @@ def infer_protein_group_candidates(
         q_value = None if candidate.status != "target" else running
         acceptance = (
             "accepted"
-            if candidate.status == "target" and q_value is not None and q_value <= q_value_threshold
+            if (
+                candidate.status == "target"
+                and candidate.identifiability == "unique_peptide_supported"
+                and q_value is not None
+                and q_value <= q_value_threshold
+            )
+            else "abstained"
+            if candidate.identifiability == "shared_only_ambiguous"
             else "rejected"
             if candidate.status != "collision"
             else "abstained"
@@ -318,6 +325,8 @@ def _validate_group_psm(psm: Psm) -> None:
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
+    if not isfinite(psm.score) or psm.score < 0:
+        raise ValueError("PSM scores must be finite and non-negative")
     derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
     derived_collision = (
         any(accession.startswith("DECOY_") for accession in psm.protein_accessions)

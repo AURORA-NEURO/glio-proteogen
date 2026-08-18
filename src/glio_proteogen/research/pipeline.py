@@ -564,12 +564,20 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     accepted_group_candidates = tuple(
         item for item in group_candidates if item.acceptance == "accepted"
     )
+    visible_group_candidates = tuple(
+        item
+        for item in group_candidates
+        if item.acceptance == "accepted" or item.identifiability == "shared_only_ambiguous"
+    )
     groups = tuple(
         ProteinGroup(item.accessions, item.unique_peptides, item.shared_peptides)
-        for item in accepted_group_candidates
+        for item in visible_group_candidates
     )
     reportable_accession_sets = tuple(
         frozenset(item.accessions) for item in accepted_group_candidates
+    )
+    quantifiable_accession_sets = tuple(
+        frozenset(item.accessions) for item in visible_group_candidates
     )
     reportable_psms = tuple(
         item
@@ -579,13 +587,21 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             for accessions in reportable_accession_sets
         )
     )
+    quantification_psms = tuple(
+        item
+        for item in accepted
+        if any(
+            frozenset(item.protein_accessions) <= accessions
+            for accessions in quantifiable_accession_sets
+        )
+    )
     quantified = quantify_matched_ions_with_receipt(
         request.sample_id,
-        ((item.peptide, item.matched_intensity) for item in reportable_psms),
+        ((item.peptide, item.matched_intensity) for item in quantification_psms),
         policy=request.quantification_policy,
     )
     peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified.values)
-    counts = tuple(sorted(Counter(item.peptide for item in reportable_psms).items()))
+    counts = tuple(sorted(Counter(item.peptide for item in quantification_psms).items()))
     protein_group_quantifications = quantify_protein_groups(
         groups,
         dict(peptide_intensities),
