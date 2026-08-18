@@ -59,6 +59,7 @@ from glio_proteogen.kernel.models import (
     Identifier,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -948,7 +949,7 @@ class PtmLocalizationQualityComputationReceipt(FrozenModel):
         return self
 
 
-class PtmLocalizationQualityResult(FrozenModel):
+class PtmLocalizationQualityResult(NonInferenceResultModel):
     output_type: Literal["ptm_localization_quality_profile"] = "ptm_localization_quality_profile"
     result_id: Identifier
     result_version: Literal["1.0.0"] = M0504_CONTRACT_VERSION

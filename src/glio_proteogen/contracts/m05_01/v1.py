@@ -30,6 +30,7 @@ from glio_proteogen.kernel.models import (
     Identifier,
     Limitation,
     NonEmptyStr,
+    NonInferenceResultModel,
     ProvenanceRecord,
     SemanticVersion,
     Sha256Digest,
@@ -1400,7 +1401,7 @@ def expected_provenance(
     )
 
 
-class PtmLocalizationProtocolConformanceResult(FrozenModel):
+class PtmLocalizationProtocolConformanceResult(NonInferenceResultModel):
     output_type: Literal["ptm_localization_protocol_conformance_result"] = (
         "ptm_localization_protocol_conformance_result"
     )
