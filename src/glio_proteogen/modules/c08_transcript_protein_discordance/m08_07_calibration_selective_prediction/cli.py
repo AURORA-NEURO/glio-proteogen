@@ -15,7 +15,12 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
-from glio_proteogen.contracts.m08_07 import contract_json_schema, contract_json_schemas
+from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.contracts.m08_07 import (
+    M0807_MAX_CANONICAL_REQUEST_BYTES,
+    contract_json_schema,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -39,7 +44,10 @@ def _emit(value: object) -> None:
 
 def _load(path: Path) -> object:
     try:
-        return strict_json_loads(path.read_bytes())
+        return strict_json_loads(
+            read_bounded(path, max_bytes=M0807_MAX_CANONICAL_REQUEST_BYTES),
+            max_bytes=M0807_MAX_CANONICAL_REQUEST_BYTES,
+        )
     except (OSError, StrictJsonError) as error:
         del error
         _fail("input is not a valid bounded JSON document")

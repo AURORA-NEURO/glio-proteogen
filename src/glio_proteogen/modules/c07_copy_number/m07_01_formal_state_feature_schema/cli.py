@@ -18,6 +18,7 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m07_01 import (
     M0701_MAX_CANONICAL_REQUEST_BYTES,
     ValidateCopyNumberStateRequest,
@@ -47,7 +48,7 @@ app = typer.Typer(help="M07-01 formal state and feature schema.")
 
 def _request_from_file(path: Path) -> ValidateCopyNumberStateRequest:
     try:
-        payload = path.read_bytes()
+        payload = read_bounded(path, max_bytes=M0701_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(payload, max_bytes=M0701_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(payload, strict=True)
     except (OSError, StrictJsonError, ValidationError) as error:
