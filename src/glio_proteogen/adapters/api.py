@@ -2952,6 +2952,12 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> LongitudinalRecurrenceContextStratificationResult:
         return m1502_service.execute(request)
 
+    @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
+    def proteoform_artifact_contract_schema(
+        name: M0405ContractName,
+    ) -> dict[str, object]:
+        return _proteoform_artifact_contract_schema(name)
+
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
         response_model=ProteoformQualityResult,
@@ -3275,6 +3281,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteotypePerturbationSensitivityResult:
         return m1306_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M04-05/artifact-detection",
+        response_model=ProteoformArtifactDetectionResult,
+        tags=["M04-05"],
+        openapi_extra=_proteoform_artifact_request_body(),
+    )
+    def detect_proteoform_artifacts(
+        request: Annotated[
+            DetectProteoformArtifactsRequest,
+            Depends(_proteoform_artifact_body),
+        ],
+    ) -> ProteoformArtifactDetectionResult:
+        return proteoform_artifact_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
