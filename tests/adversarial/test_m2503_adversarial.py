@@ -178,9 +178,7 @@ def test_self_rehashed_nested_dossier_mutation_is_rejected() -> None:
     metric = result.dossier.metrics[0].model_copy(
         update={"candidate_value": result.dossier.metrics[0].candidate_value + 1.0}
     )
-    dossier = result.dossier.model_copy(
-        update={"metrics": (metric, *result.dossier.metrics[1:])}
-    )
+    dossier = result.dossier.model_copy(update={"metrics": (metric, *result.dossier.metrics[1:])})
     tampered = _self_rehashed(result, dossier=dossier)
 
     with pytest.raises(M2503ReplayError, match="differs from deterministic"):
@@ -267,9 +265,7 @@ def test_cli_abstention_has_nonzero_exit_and_no_false_success(tmp_path: Path) ->
 
 
 def test_result_abstention_never_contains_dossier() -> None:
-    result = M2503Service().execute(
-        build_request(comparison_status=ValidationStatus.NOT_EVALUABLE)
-    )
+    result = M2503Service().execute(build_request(comparison_status=ValidationStatus.NOT_EVALUABLE))
 
     assert result.status is BenchmarkStatus.ABSTAINED
     assert result.dossier is None

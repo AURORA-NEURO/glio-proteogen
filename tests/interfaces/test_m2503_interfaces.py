@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from evals.m25_03.fixture import build_request, denied_request
 from fastapi.testclient import TestClient
+from typer.testing import CliRunner
+
 from glio_proteogen.contracts.m25_03 import (
     ProteotypeInternalBenchmarkResult,
     result_payload_digest,
 )
-from typer.testing import CliRunner
-
 from glio_proteogen.modules.c21_reference_material.m25_03_internal_benchmark_ablation.api import (
     create_app,
 )
@@ -143,9 +143,7 @@ def test_api_verify_rejects_self_rehashed_nested_mutation() -> None:
         "/v1/modules/M25-03/benchmark",
         json=build_request().model_dump(mode="json"),
     ).json()
-    typed = ProteotypeInternalBenchmarkResult.model_validate_json(
-        json.dumps(result), strict=True
-    )
+    typed = ProteotypeInternalBenchmarkResult.model_validate_json(json.dumps(result), strict=True)
     assert typed.dossier is not None
     metric = typed.dossier.metrics[0].model_copy(
         update={"candidate_value": typed.dossier.metrics[0].candidate_value + 1.0}

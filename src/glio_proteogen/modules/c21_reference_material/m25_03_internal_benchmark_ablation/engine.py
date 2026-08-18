@@ -50,6 +50,7 @@ _AUTHORIZATION_MESSAGE: Final = (
     "M25-03 benchmarking requires accepted configuration, resolved identity, granted consent, "
     "accepted provenance/quality/support/intended-use controls"
 )
+_SEMANTIC_REPLAY_MESSAGE: Final = "M25-03 replay output differs from deterministic regeneration"
 _LIMITATIONS: Final = (
     Limitation(
         code="caller_declared_upstream",
@@ -159,10 +160,10 @@ class M2503BenchmarkEngine:
             raise M2503ReplayError
         try:
             expected = self.generate(replayed.request)
-        except Exception as error:  # noqa: BLE001 - replay must fail closed.
+        except Exception as error:
             raise M2503ReplayError from error
         if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
-            raise M2503ReplayError("M25-03 replay output differs from deterministic regeneration")
+            raise M2503ReplayError(_SEMANTIC_REPLAY_MESSAGE)
         return replayed
 
 
@@ -250,9 +251,7 @@ def _findings(
             BenchmarkFinding(
                 finding_id=f"finding.comparison.{comparison.comparison_id}",
                 code=BenchmarkFindingCode.COMPUTE_MISMATCH,
-                message=(
-                    f"Compute-matched comparison {comparison.comparison_id} is not passing."
-                ),
+                message=(f"Compute-matched comparison {comparison.comparison_id} is not passing."),
                 evidence=evidence,
             )
             for comparison in request.comparisons
