@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m19_06 import (
     M1906_CONTRACT_VERSION,
     M1906_EVIDENCE_CLAIM,
     M1906_MODULE_ID,
+    M1906_PROHIBITED_CLAIM_TERMS,
     AdjudicateProteotypeQueueRequest,
     AdjudicationRecord,
     AdjudicationRecordStatus,
@@ -192,6 +193,33 @@ def _evidence(request: AdjudicateProteotypeQueueRequest) -> tuple[EvidenceRefere
     return tuple(items)
 
 
+def _claim_texts(request: AdjudicateProteotypeQueueRequest) -> tuple[str, ...]:
+    """Collect caller-controlled prose before any review record is emitted."""
+
+    texts: list[str] = [entry.description for entry in request.entries]
+    texts.extend(evidence.claim for evidence in request.configuration.evidence)
+    texts.extend(
+        text
+        for assignment in request.assignments
+        for text in (assignment.reviewer_role, assignment.rationale)
+    )
+    texts.extend(evidence.claim for entry in request.entries for evidence in entry.evidence)
+    texts.extend(
+        evidence.claim for assignment in request.assignments for evidence in assignment.evidence
+    )
+    return tuple(texts)
+
+
+def _contains_prohibited_claim(request: AdjudicateProteotypeQueueRequest) -> bool:
+    """Reject caller prose that would exceed the M19-06 claims ceiling."""
+
+    return any(
+        term.casefold() in text.casefold()
+        for text in _claim_texts(request)
+        for term in M1906_PROHIBITED_CLAIM_TERMS
+    )
+
+
 def _limitations() -> tuple[Limitation, ...]:
     return (
         Limitation(
@@ -214,11 +242,27 @@ def _limitations() -> tuple[Limitation, ...]:
     )
 
 
-def _findings(request: AdjudicateProteotypeQueueRequest) -> tuple[QueueFinding, ...]:
+def _findings(
+    request: AdjudicateProteotypeQueueRequest,
+    *,
+    prohibited_claim_boundary: bool = False,
+) -> tuple[QueueFinding, ...]:
     assignments: dict[str, list[ReviewerAssignment]] = {}
     for item in request.assignments:
         assignments.setdefault(item.discrepancy_id, []).append(item)
     findings: list[QueueFinding] = []
+    if prohibited_claim_boundary:
+        findings.append(
+            QueueFinding(
+                finding_id=f"finding.{request.request_id}.claim_boundary",
+                code=QueueFindingCode.PROHIBITED_CLAIM_BOUNDARY,
+                message=(
+                    "Caller-controlled adjudication text exceeds the M19-06 claims ceiling; "
+                    "no review record is emitted."
+                ),
+                evidence=request.configuration.evidence or request.entries[0].evidence,
+            )
+        )
     for entry in request.entries:
         reviews = assignments.get(entry.discrepancy_id, [])
         if entry.state is QueueEntryState.NOT_EVALUABLE:
@@ -367,13 +411,18 @@ class M1906Engine:
     def adapt(self, candidate: object) -> ProteotypeAdjudicationResult:
         request = self.validate_request(candidate)
         request_digest = canonical_request_digest(request)
-        findings = _findings(request)
+        claim_boundary_blocked = _contains_prohibited_claim(request)
+        findings = _findings(
+            request,
+            prohibited_claim_boundary=claim_boundary_blocked,
+        )
         evidence = _evidence(request)
         blocking = {
             QueueFindingCode.ASSIGNMENT_MISSING,
             QueueFindingCode.HISTORY_INCOMPLETE,
             QueueFindingCode.CRITICAL_UNRESOLVED,
             QueueFindingCode.REVIEW_REQUIRED,
+            QueueFindingCode.PROHIBITED_CLAIM_BOUNDARY,
         }
         resolved = not any(item.code in blocking for item in findings)
         record: AdjudicationRecord | None = None
@@ -402,7 +451,11 @@ class M1906Engine:
                 reason_code="adjudication_review_required",
                 rationale="Unresolved or unsupported discrepancy evidence cannot be promoted.",
             )
-            abstention_reason = "M19-06 abstained because the discrepancy queue is unresolved."
+            abstention_reason = (
+                "M19-06 abstained because caller-controlled text exceeds the claims ceiling."
+                if claim_boundary_blocked
+                else "M19-06 abstained because the discrepancy queue is unresolved."
+            )
         payload: dict[str, Any] = {
             "output_type": "proteotype_adjudication",
             "result_id": f"result.{request.request_id}",
