@@ -57,6 +57,12 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _source_identity(item: ExternalEvidenceObservation) -> tuple[str, int]:
+    """Return the immutable receipt identity used for independence counting."""
+
+    return item.source_sha256.removeprefix("sha256:"), item.source_size
+
+
 @dataclass(frozen=True, slots=True)
 class ExternalEvidenceObservation:
     """One source-bound, caller-declared observation about one opaque claim.
@@ -198,7 +204,7 @@ class ExternalEvidenceAggregate:
 
 def _status(
     observations: tuple[ExternalEvidenceObservation, ...],
-    source_directions: dict[str, set[str]],
+    source_directions: dict[tuple[str, int], set[str]],
     independent_count: int,
     minimum: int,
 ) -> str:
@@ -243,10 +249,20 @@ def aggregate_external_evidence(
     claim_ids = {item.claim_id for item in ordered}
     if len(claim_ids) != 1:
         raise ValueError("all observations must address one claim")
-    source_directions: dict[str, set[str]] = {}
+    source_id_identities: dict[str, set[tuple[str, int]]] = {}
+    source_directions: dict[tuple[str, int], set[str]] = {}
     for item in ordered:
-        source_directions.setdefault(item.source_id, set()).add(item.direction)
-    independent_source_ids = tuple(sorted(source_directions))
+        identity = _source_identity(item)
+        source_id_identities.setdefault(item.source_id, set()).add(identity)
+        source_directions.setdefault(identity, set()).add(item.direction)
+    if any(len(identities) > 1 for identities in source_id_identities.values()):
+        raise ValueError("source IDs must bind one receipt identity")
+    identity_sources: dict[tuple[str, int], set[str]] = {}
+    for item in ordered:
+        identity_sources.setdefault(_source_identity(item), set()).add(item.source_id)
+    independent_source_ids = tuple(
+        sorted(min(source_ids) for source_ids in identity_sources.values())
+    )
     status = _status(
         ordered, source_directions, len(independent_source_ids), minimum_independent_sources
     )
@@ -255,9 +271,14 @@ def aggregate_external_evidence(
     }
     limitations: tuple[str, ...] = (
         "External directions are caller-declared and issuer truth is not authenticated.",
-        "Independent source count is a provenance gate, not statistical power or biological confidence.",
+        "Independent source count is bound to source SHA-256 and byte size; it is a provenance gate, not statistical power or biological confidence.",
         "This research aggregation performs no numerical fusion and emits no clinical or disease claim.",
     )
+    if any(len(source_ids) > 1 for source_ids in identity_sources.values()):
+        limitations = (
+            *limitations,
+            "Multiple source IDs share one receipt identity and count as one independent source.",
+        )
     if status in {
         "abstained_observation",
         "abstained_source_conflict",
