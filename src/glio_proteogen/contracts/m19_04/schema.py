@@ -98,7 +98,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "sourceMutation": False,
         "claimPromotionWithoutReview": False,
         "humanReviewForCriticalDiscrepancy": True,
-        "prohibitedClaimTerms": M1904_PROHIBITED_CLAIM_TERMS,
+        "prohibitedClaimTerms": list(M1904_PROHIBITED_CLAIM_TERMS),
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1904_MAX_CANONICAL_REQUEST_BYTES

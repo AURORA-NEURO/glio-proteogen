@@ -97,3 +97,30 @@ def test_api_rejects_non_json_and_missing_controls(tmp_path: Path) -> None:
     assert media.status_code == HTTP_UNSUPPORTED_MEDIA
     assert missing.status_code in {400, 403, 422}
     assert "traceback" not in missing.text.lower()
+
+
+def test_api_and_cli_abstain_on_prohibited_caller_claim(tmp_path: Path) -> None:
+    request = _request().model_copy(update={"aggregate_values": ("kinase",)})
+    serialized = canonical_json_bytes(request.model_dump(mode="json"))
+    request_path = tmp_path / "prohibited-fusion-request.json"
+    request_path.write_bytes(serialized)
+
+    with TestClient(create_app(tmp_path / "api.sqlite3")) as client:
+        api_response = client.post(
+            "/v1/modules/M19-03/fusion",
+            content=serialized,
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(cli_app, ["m1903-fusion", "fuse", str(request_path)])
+
+    assert api_response.status_code == HTTP_OK, api_response.text
+    assert cli.exit_code == 0, cli.output
+    api_result = ProteotypeIntegratedEvidenceResult.model_validate_json(
+        api_response.content,
+        strict=True,
+    )
+    cli_result = ProteotypeIntegratedEvidenceResult.model_validate_json(cli.stdout, strict=True)
+    assert api_result == cli_result
+    assert api_result.status == "abstained"
+    assert api_result.integrated_evidence is None
+    assert any(finding.code.value == "ownership_unclear" for finding in api_result.findings)

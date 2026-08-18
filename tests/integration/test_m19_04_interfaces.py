@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +23,9 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904Service,
 )
 from tests.runtime.test_m19_04_intended_use import _supported_request
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.integration
 
@@ -132,3 +135,33 @@ def test_api_rejects_non_json_missing_controls_and_tampered_result(tmp_path) -> 
     assert "traceback" not in missing.text.lower()
     assert tampered.status_code == HTTP_UNPROCESSABLE
     assert "traceback" not in tampered.text.lower()
+
+
+def test_api_and_cli_abstain_on_prohibited_registration_claim(tmp_path: Path) -> None:
+    request = _supported_request()
+    registration = request.registration.model_copy(update={"audience": "kinase"})
+    request = request.model_copy(update={"registration": registration})
+    serialized = canonical_json_bytes(request.model_dump(mode="json"))
+    request_path = tmp_path / "prohibited-intended-use-request.json"
+    request_path.write_bytes(serialized)
+
+    with TestClient(create_app(tmp_path / "api.sqlite3")) as client:
+        api_response = client.post(
+            "/v1/modules/M19-04/adapt",
+            content=serialized,
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(cli_app, ["m1904-intended-use", "adapt", str(request_path)])
+
+    assert api_response.status_code == HTTP_OK, api_response.text
+    assert cli.exit_code == 0, cli.output
+    api_result = ProteotypeIntendedUseAdapterResult.model_validate_json(
+        api_response.content,
+        strict=True,
+    )
+    cli_result = ProteotypeIntendedUseAdapterResult.model_validate_json(cli.stdout, strict=True)
+    assert api_result == cli_result
+    assert api_result.status == "abstained"
+    assert api_result.adapted_object is None
+    assert api_result.policy_decision.status == "blocked"
+    assert api_result.policy_decision.reason_code == "audience_unsupported"
