@@ -23,6 +23,7 @@ from glio_proteogen.research import (
     PdcSourceReceipt,
     PdcStudySnapshot,
     PeptideQuant,
+    ProteinGroup,
     Psm,
     PsmCompetition,
     QuantificationReceipt,
@@ -1327,3 +1328,76 @@ def test_protein_group_quantification_is_unique_signal_bound_and_deterministic()
     assert p1.unique_signal_iqr == 20.0
     assert p1.unique_signal_quality == "unique_descriptive_positive_signal"
     assert shared_only.unique_signal_quality == "unique_no_positive_signal"
+    assert p1.evidence_version == "protein-group-quantification-input-1"
+    assert len(p1.evidence_digest) == HEX_DIGEST_LENGTH
+    assert p1.input_intensity_peptides == 2
+    assert p1.input_psm_peptides == 2
+
+
+def test_protein_group_quantification_rejects_overlapping_partition() -> None:
+    overlapping = (
+        ProteinGroup(("P1",), ("UNIQUE_A",), ("SHARED",)),
+        ProteinGroup(("P2",), ("SHARED",), ("UNIQUE_B",)),
+    )
+    with pytest.raises(ValueError, match="disjoint peptide membership"):
+        quantify_protein_groups(
+            overlapping,
+            {"UNIQUE_A": 10.0, "SHARED": 5.0, "UNIQUE_B": 20.0},
+            {"UNIQUE_A": 1, "SHARED": 2, "UNIQUE_B": 1},
+        )
+
+
+@pytest.mark.parametrize("mapping", ["intensity", "psm"])
+def test_protein_group_quantification_rejects_unreferenced_evidence(mapping: str) -> None:
+    groups = (ProteinGroup(("P1",), ("PEPTIDE",), ()),)
+    intensities = {"PEPTIDE": 10.0, "UNDECLARED": 2.0}
+    counts = {"PEPTIDE": 1, "UNDECLARED": 1}
+    with pytest.raises(ValueError, match="unreferenced evidence"):
+        quantify_protein_groups(
+            groups,
+            intensities if mapping == "intensity" else {"PEPTIDE": 10.0},
+            counts if mapping == "psm" else {"PEPTIDE": 1},
+        )
+
+
+def test_protein_group_quantification_receipt_distinguishes_missing_from_zero() -> None:
+    group = (ProteinGroup(("P1",), ("PEPTIDE",), ()),)
+    absent = quantify_protein_groups(group, {}, {})[0]
+    explicit_zero = quantify_protein_groups(group, {"PEPTIDE": 0.0}, {"PEPTIDE": 0})[0]
+    assert absent.status == explicit_zero.status == "missing"
+    assert absent.evidence_digest != explicit_zero.evidence_digest
+
+
+def test_protein_group_quantification_rejects_malformed_partitions() -> None:
+    valid = (ProteinGroup(("P1",), ("PEPTIDE",), ()),)
+    assert quantify_protein_groups((), {}, {}) == ()
+    malformed = (
+        (cast("tuple[ProteinGroup, ...]", ("not-a-group",)), "ProteinGroup"),
+        ((ProteinGroup(("",), ("PEPTIDE",), ()),), "non-empty accession"),
+        ((ProteinGroup(("P1", "P1"), ("PEPTIDE",), ()),), "repeat accessions"),
+        (
+            (ProteinGroup(("P1",), ("A",), ()), ProteinGroup(("P1",), ("B",), ())),
+            "disjoint accession",
+        ),
+        ((ProteinGroup(("P1",), ("",), ()),), "non-empty peptide"),
+        ((ProteinGroup(("P1",), ("A",), ("A",)),), "repeat peptides"),
+        (
+            (ProteinGroup(("P1",), ("A",), ()), ProteinGroup(("P2",), ("A",), ())),
+            "disjoint peptide",
+        ),
+    )
+    for groups, message in malformed:
+        with pytest.raises((TypeError, ValueError), match=message):
+            quantify_protein_groups(groups, {}, {})
+    with pytest.raises(ValueError, match="bounded non-empty"):
+        quantify_protein_groups(valid, {"": 1.0}, {})
+    with pytest.raises(TypeError, match="numeric"):
+        quantify_protein_groups(valid, {"PEPTIDE": True}, {})
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        quantify_protein_groups(valid, {"PEPTIDE": float("nan")}, {})
+    with pytest.raises(ValueError, match="bounded non-empty"):
+        quantify_protein_groups(valid, {}, {"": 1})
+    with pytest.raises(ValueError, match="non-negative integers"):
+        quantify_protein_groups(valid, {}, {"PEPTIDE": -1})
+    with pytest.raises(ValueError, match="non-negative integers"):
+        quantify_protein_groups(valid, {}, {"PEPTIDE": True})

@@ -71,6 +71,14 @@ C03/C04 computation contract:
   missing projection with no imputation. Non-default policy fields, below-LOQ counts, and
   per-peptide status vectors are part of the single-run configuration/receipt digest, so a
   replay cannot silently change units, normalization, or LOQ semantics.
+- Protein-group quantification now validates the input partition before computing any
+  signal: accessions and peptide memberships must be disjoint across groups, and every
+  supplied intensity or PSM-count key must belong to that declared partition. Each
+  emitted group carries a deterministic `protein-group-quantification-input-1` digest
+  over its group membership plus present-versus-missing intensity/count observations.
+  This prevents shared peptides from being double-counted and prevents unreferenced
+  evidence from disappearing silently. It remains matched-ion research signal, not
+  protein abundance, protein identity, proteoform inference, or clinical evidence.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `infer_protein_group_candidates` deterministically reduces duplicate spectrum contenders before

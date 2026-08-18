@@ -7,15 +7,15 @@ units, normalization, or below-LOQ handling without changing the result digest.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from hashlib import sha256
 from math import isfinite
 from statistics import median
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .protein import ProteinGroup
+from .protein import ProteinGroup
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +166,14 @@ class ProteinGroupQuant:
     unique_signal_mad: float | None = None
     unique_signal_iqr: float | None = None
     unique_signal_quality: str = "no_unique_signal"
+    # The digest binds the exact declared group partition and the evidence
+    # mappings used for this group.  Empty defaults preserve compatibility for
+    # manually constructed cohort projections, while pipeline-produced values
+    # always carry the receipt.
+    evidence_digest: str = ""
+    evidence_version: str = ""
+    input_intensity_peptides: int = 0
+    input_psm_peptides: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -182,6 +190,16 @@ class ProteinGroupQuant:
             "unique_signal_mad": self.unique_signal_mad,
             "unique_signal_iqr": self.unique_signal_iqr,
             "unique_signal_quality": self.unique_signal_quality,
+            **(
+                {
+                    "evidence_digest": self.evidence_digest,
+                    "evidence_version": self.evidence_version,
+                    "input_intensity_peptides": self.input_intensity_peptides,
+                    "input_psm_peptides": self.input_psm_peptides,
+                }
+                if self.evidence_digest
+                else {}
+            ),
         }
 
 
@@ -384,6 +402,85 @@ def median_normalize(
     )
 
 
+def _validate_group_partition(groups: tuple[ProteinGroup, ...]) -> set[str]:
+    declared_peptides: set[str] = set()
+    declared_accessions: set[str] = set()
+    for group in groups:
+        if not isinstance(group, ProteinGroup):
+            raise TypeError("groups must contain ProteinGroup values")
+        if not group.accessions or any(
+            not isinstance(accession, str) or not accession for accession in group.accessions
+        ):
+            raise ValueError("protein groups must have non-empty accession values")
+        if len(set(group.accessions)) != len(group.accessions):
+            raise ValueError("protein groups must not repeat accessions")
+        if declared_accessions.intersection(group.accessions):
+            raise ValueError("protein groups must have disjoint accession membership")
+        declared_accessions.update(group.accessions)
+        group_peptides = (*group.unique_peptides, *group.shared_peptides)
+        if any(not isinstance(peptide, str) or not peptide for peptide in group_peptides):
+            raise ValueError("protein groups must have non-empty peptide values")
+        if len(set(group_peptides)) != len(group_peptides):
+            raise ValueError("protein groups must not repeat peptides within a group")
+        if declared_peptides.intersection(group_peptides):
+            raise ValueError("protein groups must have disjoint peptide membership")
+        declared_peptides.update(group_peptides)
+    return declared_peptides
+
+
+def _normalize_group_intensities(
+    peptide_intensities: Mapping[str, float], declared_peptides: set[str]
+) -> dict[str, float]:
+    normalized: dict[str, float] = {}
+    for peptide, intensity in peptide_intensities.items():
+        if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
+            raise ValueError("peptide intensity keys must be bounded non-empty strings")
+        if not isinstance(intensity, (int, float)) or isinstance(intensity, bool):
+            raise TypeError("peptide intensities must be numeric")
+        if not isfinite(float(intensity)) or intensity < 0:
+            raise ValueError("peptide intensities must be finite and non-negative")
+        normalized[peptide] = float(intensity)
+    if set(normalized).difference(declared_peptides):
+        raise ValueError("peptide intensities contain unreferenced evidence")
+    return normalized
+
+
+def _normalize_group_psm_counts(
+    peptide_psm_counts: Mapping[str, int], declared_peptides: set[str]
+) -> dict[str, int]:
+    normalized: dict[str, int] = {}
+    for peptide, count in peptide_psm_counts.items():
+        if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
+            raise ValueError("peptide PSM keys must be bounded non-empty strings")
+        if type(count) is not int or count < 0:
+            raise ValueError("peptide PSM counts must be non-negative integers")
+        normalized[peptide] = count
+    if set(normalized).difference(declared_peptides):
+        raise ValueError("peptide PSM counts contain unreferenced evidence")
+    return normalized
+
+
+def _group_evidence_digest(
+    group: ProteinGroup,
+    normalized_intensities: Mapping[str, float],
+    normalized_counts: Mapping[str, int],
+) -> str:
+    group_peptides = (*group.unique_peptides, *group.shared_peptides)
+    evidence_payload = {
+        "group_accessions": list(group.accessions),
+        "unique_peptides": list(group.unique_peptides),
+        "shared_peptides": list(group.shared_peptides),
+        "intensities": [
+            [peptide, normalized_intensities.get(peptide)] for peptide in group_peptides
+        ],
+        "psm_counts": [[peptide, normalized_counts.get(peptide)] for peptide in group_peptides],
+        "version": "protein-group-quantification-input-1",
+    }
+    return sha256(
+        json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 def quantify_protein_groups(
     groups: Iterable[ProteinGroup],
     peptide_intensities: Mapping[str, float],
@@ -396,24 +493,16 @@ def quantify_protein_groups(
     cannot create an apparently resolved protein value on its own.
     """
 
-    normalized_intensities: dict[str, float] = {}
-    for peptide, intensity in peptide_intensities.items():
-        if not isinstance(peptide, str) or not peptide:
-            raise ValueError("peptide intensity keys must be non-empty strings")
-        if not isinstance(intensity, (int, float)) or isinstance(intensity, bool):
-            raise TypeError("peptide intensities must be numeric")
-        if not isfinite(float(intensity)) or intensity < 0:
-            raise ValueError("peptide intensities must be finite and non-negative")
-        normalized_intensities[peptide] = float(intensity)
-    normalized_counts: dict[str, int] = {}
-    for peptide, count in peptide_psm_counts.items():
-        if not isinstance(peptide, str) or not peptide:
-            raise ValueError("peptide PSM keys must be non-empty strings")
-        if type(count) is not int or count < 0:
-            raise ValueError("peptide PSM counts must be non-negative integers")
-        normalized_counts[peptide] = count
+    materialized_groups = tuple(groups)
+    if not materialized_groups:
+        return ()
+    declared_peptides = _validate_group_partition(materialized_groups)
+    normalized_intensities = _normalize_group_intensities(peptide_intensities, declared_peptides)
+    normalized_counts = _normalize_group_psm_counts(peptide_psm_counts, declared_peptides)
     output: list[ProteinGroupQuant] = []
-    for group in sorted(groups, key=lambda item: item.accessions):
+    for group in sorted(materialized_groups, key=lambda item: item.accessions):
+        group_peptides = (*group.unique_peptides, *group.shared_peptides)
+        evidence_digest = _group_evidence_digest(group, normalized_intensities, normalized_counts)
         unique_signal_values = tuple(
             normalized_intensities.get(peptide, 0.0)
             for peptide in group.unique_peptides
@@ -453,6 +542,12 @@ def quantify_protein_groups(
                 unique_signal_mad=_median_absolute_deviation(unique_signal_values),
                 unique_signal_iqr=_interquartile_range(unique_signal_values),
                 unique_signal_quality=_signal_quality(len(unique_signal_values), unique=True),
+                evidence_digest=evidence_digest,
+                evidence_version="protein-group-quantification-input-1",
+                input_intensity_peptides=sum(
+                    peptide in normalized_intensities for peptide in group_peptides
+                ),
+                input_psm_peptides=sum(peptide in normalized_counts for peptide in group_peptides),
             )
         )
     return tuple(output)
