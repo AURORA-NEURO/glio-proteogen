@@ -218,8 +218,7 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
     if (
         recorded_precursor_policy != observed_precursor_policy
         or observed_precursor_policy.get("passed") is not True
-        or observed_precursor_policy.get("declared")
-        != observed_precursor_policy.get("executed")
+        or observed_precursor_policy.get("declared") != observed_precursor_policy.get("executed")
     ):
         raise VerificationError("research precursor-tolerance policy evidence is not passing")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
