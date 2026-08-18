@@ -28,6 +28,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection impo
     ProteinInferenceArtifactAuthorizationError,
     detect_protein_inference_artifacts,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection.engine import (
+    prepare_artifact_request_candidate,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -220,6 +223,19 @@ def test_library_replay_verifier_accepts_bounded_json_and_mapping_inputs(
     assert service.verify(result.model_dump(mode="json")) == result
     with pytest.raises(ValidationError):
         service.verify([])
+
+
+def test_malformed_shallow_metadata_is_preserved_for_strict_reconstruction() -> None:
+    class ExplosiveReceipt:
+        @property
+        def quality_disposition(self) -> str:
+            raise RuntimeError("hostile metadata accessor")
+
+    candidate = {
+        "quality_receipt": ExplosiveReceipt(),
+        "policy": {},
+    }
+    assert prepare_artifact_request_candidate(candidate) is candidate
 
 
 @pytest.mark.parametrize(("role", "denied_state"), AUTHORIZATION_DENIALS)
