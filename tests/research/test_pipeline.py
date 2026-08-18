@@ -64,7 +64,9 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.search_space_peptides == 1
     assert len(result.psms) == 1
     assert len(result.accepted_psms) == 1
+    assert result.psms[0].matched_intensity == 20.0
     assert result.peptide_spectral_counts == (("MPEPTIDER", 1),)
+    assert result.peptide_intensities == (("MPEPTIDER", 20.0),)
     assert result.protein_groups[0].accessions == ("P1",)
     assert len(result.result_digest) == 64
     assert result.result_digest == run_research_protein_inference(request).result_digest

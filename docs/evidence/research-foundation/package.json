@@ -18,6 +18,7 @@
       "tryptic_fasta_digest",
       "b_y_fragment_matching",
       "target_decoy_q_values",
+      "matched_ion_intensity_quantification",
       "label_free_median_normalization",
       "ambiguity_preserving_protein_groups",
       "content_addressed_evidence_aggregation"
@@ -30,11 +31,11 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "focused_tests": 83,
     "coverage": {
-      "statements": 1108,
-      "missed_statements": 28,
-      "branches": 416,
-      "partial_branches": 25,
-      "percent": 96.25984251968504,
+      "statements": 1130,
+      "missed_statements": 29,
+      "branches": 424,
+      "partial_branches": 26,
+      "percent": 96.2033462033462,
       "fail_under": 95
     },
     "wheel": {
