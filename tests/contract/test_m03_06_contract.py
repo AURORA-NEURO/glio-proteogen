@@ -547,7 +547,7 @@ def test_contract_models_reject_unknown_fields_and_are_frozen(
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         HarmonizeProteinInferenceSupportRequest.model_validate(payload, strict=True)
     with pytest.raises(ValidationError, match="frozen"):
-        canonical_request.policy.max_units = 1
+        canonical_request.policy.max_units = 1  # type: ignore[misc]
 
 
 def test_resigned_result_cannot_substitute_nested_analysis(
