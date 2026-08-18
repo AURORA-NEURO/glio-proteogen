@@ -139,9 +139,16 @@ class M2202SyntheticTruthGenerator:
             raise M2202ReplayError("M22-02 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2202ReplayError("M22-02 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceSyntheticTruthResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ProteinRnaDiscordanceSyntheticTruthResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2202ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2202ReplayError("M22-02 deterministic replay output mismatch")  # noqa: TRY003
+        return replayed
 
 
 def generate_protein_rna_discordance_synthetic_truth(

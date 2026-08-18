@@ -10,7 +10,9 @@ import pytest
 from glio_proteogen.contracts.m22_02 import (
     FixtureKind,
     GenerationStatus,
+    ProteinRnaDiscordanceSyntheticTruthResult,
 )
+from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202AuthorizationError,
@@ -63,6 +65,23 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.verify_replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
 
 
+def test_replay_rejects_recomputed_digest_for_forged_corpus() -> None:
+    service = M2202Service()
+    result = service.generate(_request())
+    assert result.corpus is not None
+    forged_case = result.corpus.cases[0].model_copy(update={"truth_values": ("forged",) * 3})
+    forged_corpus = result.corpus.model_copy(
+        update={"cases": (forged_case, *result.corpus.cases[1:])}
+    )
+    payload = result.model_dump(mode="python")
+    payload["corpus"] = forged_corpus
+    provisional = ProteinRnaDiscordanceSyntheticTruthResult.model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(provisional)
+    forged = ProteinRnaDiscordanceSyntheticTruthResult.model_validate(payload, strict=True)
+    with pytest.raises(M2202ReplayError, match="output mismatch"):
+        service.verify_replay(forged)
+
+
 def test_authorization_fails_closed_before_material_traversal() -> None:
     request = _request()
     support = request.context.references.support.model_copy(
@@ -77,7 +96,7 @@ def test_authorization_fails_closed_before_material_traversal() -> None:
 
 def test_hostile_mapping_fails_closed() -> None:
     class HostileMapping(Mapping[str, object]):
-        def get(self, _field: str) -> object:
+        def get(self, _field: str, _default: object = None) -> object:
             raise RuntimeError("hostile mapping")  # noqa: TRY003
 
         def __getitem__(self, _key: str) -> object:

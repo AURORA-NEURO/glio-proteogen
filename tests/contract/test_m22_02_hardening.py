@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -116,7 +117,7 @@ def test_schema_binds_authority_and_safe_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
     for schema in schemas.values():
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, object]", schema["x-glio-contract"])
         assert metadata["moduleId"] == M2202_MODULE_ID
         assert metadata["dossierSha256"] == M2202_DOSSIER_SHA256
         assert metadata["dossierSlice"] == M2202_DOSSIER_SLICE
