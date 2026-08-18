@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from hashlib import sha256
 from typing import Any, cast
 
 import pytest
@@ -23,9 +24,10 @@ def _observation(
     source_id: str,
     direction: str = "supports",
     *,
-    source_sha256: str = _HASH_A,
+    source_sha256: str | None = None,
     limitation: str = "",
 ) -> ExternalEvidenceObservation:
+    receipt_hash = source_sha256 or sha256(source_id.encode()).hexdigest()
     return ExternalEvidenceObservation(
         evidence_id=evidence_id,
         claim_id="caller-claim-1",
@@ -33,7 +35,7 @@ def _observation(
         study_id="PDC000204",
         source_kind="pdc_cohort",
         direction=direction,
-        source_sha256=source_sha256,
+        source_sha256=receipt_hash,
         source_size=1024,
         method_id="caller-method-v1",
         cohort_size=12,
@@ -97,6 +99,61 @@ def test_insufficient_independence_abstains_even_when_rows_support() -> None:
     assert result.independent_source_ids == ("same-source",)
     assert result.support_count == 2
     assert any("statistical power" in item for item in result.limitations)
+
+
+def test_receipt_identity_prevents_aliases_from_faking_independence() -> None:
+    observations = (
+        _observation("e1", "alias-a", source_sha256=_HASH_A),
+        _observation("e2", "alias-b", source_sha256=_HASH_A),
+        _observation("e3", "independent", source_sha256=_HASH_B),
+    )
+    result = aggregate_external_evidence(observations)
+    assert result.status == "consistent_support"
+    assert result.independent_source_ids == ("alias-a", "independent")
+    assert result.evidence_bundle.quality_summary is not None
+    assert result.evidence_bundle.quality_summary.independent_sources == 2
+    assert any("share one receipt identity" in item for item in result.limitations)
+    ledger_observations = result.evidence_bundle.records[0].payload_jsonable["observations"]
+    assert isinstance(ledger_observations, list)
+    assert len(ledger_observations) == 3
+    assert replay_external_evidence(observations, result).digest == result.digest
+    with pytest.raises(ValueError, match="replay"):
+        replay_external_evidence(
+            (
+                replace(observations[0], source_sha256=_HASH_B),
+                observations[1],
+                observations[2],
+            ),
+            result,
+        )
+    assert (
+        aggregate_external_evidence(observations, minimum_independent_sources=3).status
+        == "abstained_insufficient_independence"
+    )
+
+
+def test_one_source_label_cannot_bind_multiple_receipt_identities() -> None:
+    with pytest.raises(ValueError, match="one receipt identity"):
+        aggregate_external_evidence(
+            (
+                _observation("e1", "source-a", source_sha256=_HASH_A),
+                _observation("e2", "source-a", source_sha256=_HASH_B),
+            )
+        )
+
+
+def test_receipt_alias_direction_conflict_abstains_before_support_summary() -> None:
+    result = aggregate_external_evidence(
+        (
+            _observation("e1", "alias-a", "supports", source_sha256=_HASH_A),
+            _observation("e2", "alias-b", "contradicts", source_sha256=_HASH_A),
+            _observation("e3", "independent", "supports", source_sha256=_HASH_B),
+        )
+    )
+    assert result.status == "abstained_source_conflict"
+    assert result.independent_source_ids == ("alias-a", "independent")
+    assert result.support_count == 2
+    assert result.contradiction_count == 1
 
 
 def test_same_source_direction_conflict_abstains_before_independence_gate() -> None:

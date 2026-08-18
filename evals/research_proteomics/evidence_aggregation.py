@@ -14,7 +14,11 @@ from glio_proteogen.research import (
 
 
 def _observation(
-    evidence_id: str, source_id: str, direction: str = "supports"
+    evidence_id: str,
+    source_id: str,
+    direction: str = "supports",
+    *,
+    source_sha256: str | None = None,
 ) -> ExternalEvidenceObservation:
     return ExternalEvidenceObservation(
         evidence_id=evidence_id,
@@ -23,7 +27,7 @@ def _observation(
         study_id="PDC000204",
         source_kind="pdc_cohort",
         direction=direction,
-        source_sha256=sha256(source_id.encode()).hexdigest(),
+        source_sha256=source_sha256 or sha256(source_id.encode()).hexdigest(),
         source_size=1024,
         method_id="caller-method-v1",
         cohort_size=12,
@@ -49,6 +53,15 @@ def run_evidence_aggregation_evaluator() -> dict[str, object]:
             "insufficient_independence",
             (_observation("e1", "study-a"), _observation("e2", "study-a")),
             "abstained_insufficient_independence",
+        ),
+        (
+            "duplicate_receipt_aliases",
+            (
+                _observation("e1", "study-a", source_sha256="a" * 64),
+                _observation("e2", "study-b", source_sha256="a" * 64),
+                _observation("e3", "study-c", source_sha256="b" * 64),
+            ),
+            "consistent_support",
         ),
         (
             "source_conflict",
