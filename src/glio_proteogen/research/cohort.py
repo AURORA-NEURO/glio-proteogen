@@ -6,7 +6,7 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from hashlib import sha256
-from math import isfinite
+from math import isfinite, log2
 from statistics import median
 from typing import cast
 
@@ -19,6 +19,7 @@ _NORMALIZATION_POLICIES = {"none", "within_label_median_v1"}
 _MIN_LABEL_REPLICATES = 2
 __all__ = [
     "CohortGroupQc",
+    "CohortLabelContrast",
     "CohortLabelGroupEvidence",
     "CohortLabelQc",
     "CohortQcPolicy",
@@ -282,6 +283,116 @@ class CohortLabelGroupEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class CohortLabelContrast:
+    """Descriptive contrast between two caller-declared cohort labels.
+
+    This is an evidence projection over normalized group medians, not a
+    differential-expression test.  Labels are supplied by the caller and are
+    never inferred from values, disease metadata, or protein names.  A ratio
+    and log2 ratio are emitted only when both label medians are positive;
+    missing/non-positive cells remain an explicit abstention rather than an
+    imputed zero.
+    """
+
+    cohort_label_a: str
+    cohort_label_b: str
+    group_accessions: tuple[str, ...]
+    label_a_median: float | None
+    label_b_median: float | None
+    median_difference: float | None
+    median_ratio: float | None
+    log2_median_ratio: float | None
+    label_a_observed_replicates: int
+    label_b_observed_replicates: int
+    label_a_missingness_rate: float
+    label_b_missingness_rate: float
+    label_a_status: str
+    label_b_status: str
+    status: str
+
+    def __post_init__(self) -> None:
+        _label(self.cohort_label_a, "cohort_label_a")
+        _label(self.cohort_label_b, "cohort_label_b")
+        if self.cohort_label_a >= self.cohort_label_b:
+            raise ValueError("contrast labels must be in strict lexical order")
+        if not self.group_accessions or any(
+            not isinstance(accession, str) or not accession for accession in self.group_accessions
+        ):
+            raise ValueError("contrast must declare a non-empty group accession tuple")
+        if (
+            type(self.label_a_observed_replicates) is not int
+            or self.label_a_observed_replicates < 0
+        ):
+            raise ValueError("label_a_observed_replicates must be non-negative")
+        if (
+            type(self.label_b_observed_replicates) is not int
+            or self.label_b_observed_replicates < 0
+        ):
+            raise ValueError("label_b_observed_replicates must be non-negative")
+        for value, field_name in (
+            (self.label_a_missingness_rate, "label_a_missingness_rate"),
+            (self.label_b_missingness_rate, "label_b_missingness_rate"),
+        ):
+            if type(value) not in (int, float) or not isfinite(value) or not 0.0 <= value <= 1.0:
+                raise ValueError(f"{field_name} must be a finite fraction")
+        if self.status not in {"descriptive", "abstained_missing_or_nonpositive"}:
+            raise ValueError("contrast status is not supported")
+        nonnegative = (
+            self.label_a_median,
+            self.label_b_median,
+            self.median_ratio,
+        )
+        if any(value is not None and (not isfinite(value) or value < 0) for value in nonnegative):
+            raise ValueError("contrast median fields must be finite and non-negative")
+        if any(
+            value is not None and not isfinite(value)
+            for value in (self.median_difference, self.log2_median_ratio)
+        ):
+            raise ValueError("contrast derived fields must be finite")
+        if (
+            self.median_difference is not None
+            and self.label_a_median is not None
+            and self.label_b_median is not None
+            and self.median_difference != self.label_a_median - self.label_b_median
+        ):
+            raise ValueError("contrast difference is not derived from label medians")
+        if self.status == "descriptive":
+            if (
+                self.label_a_median is None
+                or self.label_b_median is None
+                or self.label_a_median <= 0
+                or self.label_b_median <= 0
+                or self.median_ratio is None
+                or self.log2_median_ratio is None
+            ):
+                raise ValueError("descriptive contrast requires two positive medians")
+        elif any(
+            value is not None
+            for value in (self.median_difference, self.median_ratio, self.log2_median_ratio)
+        ):
+            raise ValueError("abstained contrast cannot carry a derived effect")
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "cohort_label_a": self.cohort_label_a,
+            "cohort_label_b": self.cohort_label_b,
+            "group_accessions": list(self.group_accessions),
+            "label_a_median": self.label_a_median,
+            "label_a_missingness_rate": self.label_a_missingness_rate,
+            "label_a_observed_replicates": self.label_a_observed_replicates,
+            "label_a_status": self.label_a_status,
+            "label_b_median": self.label_b_median,
+            "label_b_missingness_rate": self.label_b_missingness_rate,
+            "label_b_observed_replicates": self.label_b_observed_replicates,
+            "label_b_status": self.label_b_status,
+            "log2_median_ratio": self.log2_median_ratio,
+            "median_difference": self.median_difference,
+            "median_ratio": self.median_ratio,
+            "status": self.status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ResearchCohortResult:
     """Content-addressed sample-by-group matrix with explicit missing cells."""
 
@@ -300,6 +411,7 @@ class ResearchCohortResult:
     label_group_evidence: tuple[CohortLabelGroupEvidence, ...] = ()
     source_manifest: CohortSourceManifest | None = None
     evidence_bundle: EvidenceBundle | None = None
+    label_contrasts: tuple[CohortLabelContrast, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -318,6 +430,7 @@ class ResearchCohortResult:
             "sample_scales": [item.as_dict() for item in self.sample_scales],
             "label_qc": [item.as_dict() for item in self.label_qc],
             "label_group_evidence": [item.as_dict() for item in self.label_group_evidence],
+            "label_contrasts": [item.as_dict() for item in self.label_contrasts],
             "source_manifest": (
                 self.source_manifest.as_dict() if self.source_manifest is not None else None
             ),
@@ -343,6 +456,7 @@ def _build_evidence_bundle(
     sample_scales: tuple[CohortSampleScale, ...],
     label_qc: tuple[CohortLabelQc, ...],
     label_group_evidence: tuple[CohortLabelGroupEvidence, ...],
+    label_contrasts: tuple[CohortLabelContrast, ...],
     source_manifest: CohortSourceManifest,
     configuration: tuple[tuple[str, object], ...],
 ) -> EvidenceBundle:
@@ -379,6 +493,13 @@ def _build_evidence_bundle(
         completeness=1.0,
         independent_sources=independent_sources,
         basis="source_manifest_bytes_and_receipts",
+    )
+    contrast_quality = EvidenceQuality(
+        status="computed",
+        auditability=1.0,
+        completeness=1.0 if label_contrasts else 0.0,
+        independent_sources=independent_sources,
+        basis="caller_label_descriptive_median_contrasts_no_imputation",
     )
     records = (
         EvidenceRecord.create(
@@ -420,6 +541,16 @@ def _build_evidence_bundle(
             },
             quality=provenance_quality,
         ),
+        EvidenceRecord.create(
+            "cohort.contrast.v1",
+            "glio_proteogen.research.cohort",
+            "descriptive_label_contrast",
+            {
+                "contrasts": [item.as_dict() for item in label_contrasts],
+                "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation",
+            },
+            quality=contrast_quality,
+        ),
     )
     return aggregate_evidence(records)
 
@@ -448,6 +579,7 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
         sample_scales=result.sample_scales,
         label_qc=result.label_qc,
         label_group_evidence=result.label_group_evidence,
+        label_contrasts=result.label_contrasts,
         source_manifest=result.source_manifest,
         configuration=result.configuration,
     )
@@ -523,6 +655,66 @@ def _median_mad(values: tuple[float, ...]) -> tuple[float | None, float | None]:
     center = float(median(values))
     deviations = tuple(abs(value - center) for value in values)
     return center, float(median(deviations)) if deviations else None
+
+
+def _build_label_contrasts(
+    label_group_evidence: tuple[CohortLabelGroupEvidence, ...],
+) -> tuple[CohortLabelContrast, ...]:
+    """Build bounded pairwise label contrasts from normalized label evidence.
+
+    This deliberately compares caller labels lexically and never treats a label
+    as a disease, treatment, or biological class.  The source evidence already
+    contains missingness-aware medians; no raw cell is imputed to zero here.
+    """
+
+    by_key = {(item.cohort_label, item.group_accessions): item for item in label_group_evidence}
+    labels = tuple(sorted({item.cohort_label for item in label_group_evidence}))
+    groups = tuple(sorted({item.group_accessions for item in label_group_evidence}))
+    contrasts: list[CohortLabelContrast] = []
+    for index, label_a in enumerate(labels):
+        for label_b in labels[index + 1 :]:
+            for group in groups:
+                left = by_key[(label_a, group)]
+                right = by_key[(label_b, group)]
+                left_median = left.median_normalized_intensity
+                right_median = right.median_normalized_intensity
+                if (
+                    left_median is not None
+                    and right_median is not None
+                    and isfinite(left_median)
+                    and isfinite(right_median)
+                    and left_median > 0
+                    and right_median > 0
+                ):
+                    difference = left_median - right_median
+                    ratio = left_median / right_median
+                    log_ratio = log2(ratio)
+                    status = "descriptive"
+                else:
+                    difference = None
+                    ratio = None
+                    log_ratio = None
+                    status = "abstained_missing_or_nonpositive"
+                contrasts.append(
+                    CohortLabelContrast(
+                        cohort_label_a=label_a,
+                        cohort_label_b=label_b,
+                        group_accessions=group,
+                        label_a_median=left_median,
+                        label_b_median=right_median,
+                        median_difference=difference,
+                        median_ratio=ratio,
+                        log2_median_ratio=log_ratio,
+                        label_a_observed_replicates=left.observed_replicates,
+                        label_b_observed_replicates=right.observed_replicates,
+                        label_a_missingness_rate=left.missingness_rate,
+                        label_b_missingness_rate=right.missingness_rate,
+                        label_a_status=left.status,
+                        label_b_status=right.status,
+                        status=status,
+                    )
+                )
+    return tuple(contrasts)
 
 
 def _build_label_evidence(  # noqa: PLR0915, PLR0917
@@ -852,6 +1044,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         request.qc_policy,
         source_manifest,
     )
+    label_contrasts = _build_label_contrasts(label_group_evidence)
     scale_by_sample = {item.sample_id: item for item in sample_scales}
     qc = [
         replace(
@@ -886,6 +1079,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
                     "none" if request.normalization_policy == "none" else "within-label-median-v1"
                 ),
                 "cohort_qc_policy": request.qc_policy.as_dict(),
+                "cohort_contrast_version": "caller-label-median-contrast-v1",
                 "cohort_source_manifest_digest": source_manifest.digest,
                 "cohort_source_manifest": source_manifest.as_dict(),
                 "sample_ids": list(sample_ids),
@@ -914,6 +1108,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         sample_scales=sample_scales,
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
+        label_contrasts=label_contrasts,
         source_manifest=source_manifest,
         configuration=configuration,
     )
@@ -928,6 +1123,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         "sample_scales": [item.as_dict() for item in sample_scales],
         "label_qc": [item.as_dict() for item in label_qc],
         "label_group_evidence": [item.as_dict() for item in label_group_evidence],
+        "label_contrasts": [item.as_dict() for item in label_contrasts],
         "source_manifest": source_manifest.as_dict(),
         "child_result_digests": [
             [sample.sample_id, result.result_digest]
@@ -953,6 +1149,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         sample_scales=sample_scales,
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
+        label_contrasts=label_contrasts,
         source_manifest=source_manifest,
         evidence_bundle=evidence_bundle,
     )

@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 
 _EXPECTED_INTENSITY = 20.0
 _EXPECTED_SAMPLE_COUNT = 2
+_EXPECTED_CONTRAST_COUNT = 2
+_EXPECTED_MEDIAN_RATIO = 0.1
 
 
 def _projection(result: ResearchCohortResult) -> dict[str, object]:
@@ -294,7 +296,12 @@ def run_evaluator() -> dict[str, object]:
             and normalized.normalized_matrix[0][1] == (15.0, 15.0, 150.0, 150.0)
             and normalized.normalized_matrix[1][1] == (45.0, 45.0, 450.0, 450.0)
             and {item.cohort_label for item in normalized.label_qc} == {"case", "control"}
-            and all(item.status == "descriptive" for item in normalized.label_group_evidence),
+            and all(item.status == "descriptive" for item in normalized.label_group_evidence)
+            and len(normalized.label_contrasts) == _EXPECTED_CONTRAST_COUNT
+            and all(item.status == "descriptive" for item in normalized.label_contrasts)
+            and all(
+                item.median_ratio == _EXPECTED_MEDIAN_RATIO for item in normalized.label_contrasts
+            ),
             "result_digest": normalized.result_digest,
             "missing_cells": 0,
             "projection": _projection(normalized),

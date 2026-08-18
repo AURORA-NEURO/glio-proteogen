@@ -7,6 +7,7 @@ protein, disease, or clinical claims and is not wired into the M03/M04 execution
 
 from .cohort import (
     CohortGroupQc,
+    CohortLabelContrast,
     CohortLabelGroupEvidence,
     CohortLabelQc,
     CohortQcPolicy,
@@ -87,6 +88,7 @@ from .search_space import (
 
 __all__ = [
     "CohortGroupQc",
+    "CohortLabelContrast",
     "CohortLabelGroupEvidence",
     "CohortLabelQc",
     "CohortQcPolicy",

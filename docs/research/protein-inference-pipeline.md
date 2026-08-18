@@ -126,13 +126,20 @@ cohort ABI still needs owner-approved cohort provenance, replicate/QC thresholds
 normalization units, missingness policy, privacy/consent boundaries, and independent
 validation data.
 
-Each `ResearchCohortResult` now carries a replay-bound `evidence_bundle` with three
+Each `ResearchCohortResult` now carries a replay-bound `evidence_bundle` with four
 content-addressed records: `cohort.matrix.v1` for raw/normalized/null-preserving values,
-`cohort.qc.v1` for sample/group/label QC and replicate statuses, and
-`cohort.provenance.v1` for the complete source manifest and cohort configuration. The
-outer bundle digest covers the ordered record identities and each inner digest covers its
-frozen payload. `aggregate_cohort_evidence` recomputes all three records without rerunning
-the raw-byte computation and rejects a stale or tampered receipt. External metadata
+`cohort.qc.v1` for sample/group/label QC and replicate statuses,
+`cohort.provenance.v1` for the complete source manifest and cohort configuration, and
+`cohort.contrast.v1` for pairwise descriptive label contrasts. A contrast is computed only
+from positive normalized label medians and records median difference, ratio, log2 ratio,
+observed replicate counts, missingness, and the source label QC statuses. Missing or
+non-positive cells produce `abstained_missing_or_nonpositive` with no imputation. Labels
+are compared in canonical lexical order as caller metadata; they are never interpreted as
+case/control, disease, treatment, or biological strata, and no p-value or significance
+claim is emitted. The outer bundle digest covers the ordered record identities and each
+inner digest covers its frozen payload. `aggregate_cohort_evidence` recomputes all four
+records without rerunning the raw-byte computation and rejects a stale or tampered receipt.
+External metadata
 snapshot digests must be identical across a cohort or all be absent; a mixed metadata
 version is rejected rather than silently combining catalog contexts. The receipt remains
 descriptive research evidence and does not authenticate issuer truth or promote caller

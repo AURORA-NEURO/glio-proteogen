@@ -43,6 +43,7 @@ def test_locked_cohort_evaluator_emits_replay_complete_projections() -> None:
             "sample_scales",
             "label_qc",
             "label_group_evidence",
+            "label_contrasts",
         } <= projection.keys()
         receipt = projection["evidence_bundle"]
         assert isinstance(receipt, dict)
@@ -53,6 +54,7 @@ def test_locked_cohort_evaluator_emits_replay_complete_projections() -> None:
             "cohort.matrix.v1",
             "cohort.provenance.v1",
             "cohort.qc.v1",
+            "cohort.contrast.v1",
         }
         configuration = projection["configuration"]
         assert isinstance(configuration, dict)

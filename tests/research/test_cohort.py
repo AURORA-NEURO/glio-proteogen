@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 import pytest
 from evals.research_proteomics.cohort import _pdc_sample
 from evals.research_proteomics.run import build_scenario_request, scenarios
 
 from glio_proteogen.research import (
+    CohortLabelContrast,
     CohortSourceManifest,
     ResearchCohortRequest,
     ResearchCohortSample,
@@ -27,6 +29,52 @@ def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortS
         cohort_label="fixture-cohort",
         replicate_label=replicate,
     )
+
+
+def _valid_contrast() -> CohortLabelContrast:
+    return CohortLabelContrast(
+        cohort_label_a="case",
+        cohort_label_b="control",
+        group_accessions=("P1",),
+        label_a_median=10.0,
+        label_b_median=20.0,
+        median_difference=-10.0,
+        median_ratio=0.5,
+        log2_median_ratio=-1.0,
+        label_a_observed_replicates=2,
+        label_b_observed_replicates=2,
+        label_a_missingness_rate=0.0,
+        label_b_missingness_rate=0.0,
+        label_a_status="descriptive",
+        label_b_status="descriptive",
+        status="descriptive",
+    )
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"cohort_label_a": "control"}, "lexical order"),
+        ({"group_accessions": ()}, "group accession"),
+        ({"label_a_observed_replicates": -1}, "label_a_observed"),
+        ({"label_b_observed_replicates": -1}, "label_b_observed"),
+        ({"label_a_missingness_rate": 2.0}, "finite fraction"),
+        ({"status": "accepted"}, "status"),
+        ({"label_a_median": -1.0}, "median fields"),
+        ({"log2_median_ratio": float("inf")}, "derived fields"),
+        ({"median_difference": 1.0}, "derived from"),
+        ({"label_a_median": None}, "two positive"),
+        (
+            {"status": "abstained_missing_or_nonpositive", "median_difference": -10.0},
+            "abstained contrast",
+        ),
+    ],
+)
+def test_label_contrast_rejects_malformed_or_overstated_receipts(
+    changes: dict[str, Any], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        replace(_valid_contrast(), **changes)
 
 
 def test_cohort_builds_deterministic_matrix_and_replicate_qc() -> None:
@@ -112,10 +160,11 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
     bundle = aggregate_cohort_evidence(result)
     assert bundle.digest == result.evidence_bundle.digest
     assert bundle.quality_summary is not None
-    assert bundle.quality_summary.scored_records == 3
+    assert bundle.quality_summary.scored_records == 4
     assert bundle.quality_summary.independent_sources == 2
     assert bundle.quality_summary.weighted_score is not None
     assert tuple(record.evidence_id for record in bundle.records) == (
+        "cohort.contrast.v1",
         "cohort.matrix.v1",
         "cohort.provenance.v1",
         "cohort.qc.v1",
@@ -127,6 +176,7 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
         "computed_matrix",
         "descriptive_qc",
         "source_provenance",
+        "descriptive_label_contrast",
     }
     assert all(
         isinstance(record, dict)
@@ -134,6 +184,51 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
         and record.get("digest")
         for record in records
     )
+
+
+def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            (
+                replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
+                replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
+            )
+        )
+    )
+    assert len(result.label_contrasts) == 1
+    contrast = result.label_contrasts[0]
+    assert contrast.cohort_label_a == "case"
+    assert contrast.cohort_label_b == "control"
+    assert contrast.status == "descriptive"
+    assert contrast.median_difference == 0.0
+    assert contrast.median_ratio == 1.0
+    assert contrast.log2_median_ratio == 0.0
+    assert dict(result.configuration)["cohort_contrast_version"] == (
+        "caller-label-median-contrast-v1"
+    )
+    tampered = replace(
+        result,
+        label_contrasts=(replace(contrast, median_ratio=2.0),),
+    )
+    with pytest.raises(ValueError, match="not reproducible"):
+        aggregate_cohort_evidence(tampered)
+
+
+def test_cohort_label_contrast_abstains_without_two_positive_medians() -> None:
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            (
+                replace(_sample("target_supported", "present", "r1"), cohort_label="case"),
+                replace(_sample("no_match", "absent", "r1"), cohort_label="control"),
+            )
+        )
+    )
+    assert len(result.label_contrasts) == 1
+    contrast = result.label_contrasts[0]
+    assert contrast.status == "abstained_missing_or_nonpositive"
+    assert contrast.median_difference is None
+    assert contrast.median_ratio is None
+    assert contrast.log2_median_ratio is None
 
 
 def test_cohort_evidence_bundle_rejects_tampered_outer_or_inner_receipt() -> None:
