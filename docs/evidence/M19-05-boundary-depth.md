@@ -34,7 +34,9 @@ consent.
 - Locked evaluator: **7/7** cases passed; fixture SHA-256
   `50bee227561659dcf92d16476338633d610b881d944fbb905f6603288a715bf2`.
 - Scoped branch-enabled coverage: **99.28825622775801%** (472 statements,
-  2 missed; 90 branches, 2 partial).
+  2 missed; 90 branches, 2 partial). The committed `coverage.json` receipt is
+  explicitly filtered to the eight M19-05 contract/runtime files used for this
+  gate; it is not a global repository coverage snapshot.
 - 10-iteration benchmark: mean **2,464,030 ns**, median **2,249,700 ns**, p95
   **2,425,700 ns**, within 2,000,000,000/3,000,000,000 ns budgets.
 - Strict package builds were byte-identical. Wheel: **3,688,910 bytes**, SHA-256
