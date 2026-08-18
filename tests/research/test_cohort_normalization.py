@@ -121,6 +121,20 @@ def test_insufficient_label_overlap_abstains_without_imputation(
     assert result.label_qc[0].status == "abstained_insufficient_overlap"
 
 
+def test_single_replicate_labels_abstain_before_scaling() -> None:
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            (_sample("a", "case", "r1"), _sample("b", "control", "r1")),
+            normalization_policy="within_label_median_v1",
+        )
+    )
+    assert {item.status for item in result.sample_scales} == {"abstained_insufficient_replicates"}
+    assert all(value is None for _, values in result.normalized_matrix for value in values)
+    assert all(
+        item.status == "abstained_insufficient_replicates" for item in result.label_group_evidence
+    )
+
+
 def test_normalization_policy_is_replay_visible_and_permutation_stable() -> None:
     samples = (_sample("a", "case", "r1"), _sample("b", "case", "r2"))
     with pytest.raises(ValueError, match="normalization_policy"):
