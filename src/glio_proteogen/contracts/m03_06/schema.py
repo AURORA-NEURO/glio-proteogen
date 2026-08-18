@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m03_06.v1 import (
     M0306_CONTRACT_VERSION,
     M0306_MAX_CANONICAL_REQUEST_BYTES,
+    M0306_MAX_CANONICAL_RESULT_BYTES,
     M0306_MODULE_ID,
     HarmonizeProteinInferenceSupportRequest,
     ProteinInferenceArtifactHarmonizationReceipt,
@@ -91,6 +92,8 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
     }
     if name == "request":
         metadata["maxRequestBytes"] = M0306_MAX_CANONICAL_REQUEST_BYTES
+    if name == "output":
+        metadata["maxResultBytes"] = M0306_MAX_CANONICAL_RESULT_BYTES
     schema["x-glio-contract"] = metadata
     return schema
 
