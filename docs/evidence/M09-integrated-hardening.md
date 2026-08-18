@@ -1,6 +1,6 @@
 # M09-01..M09-08 integrated hardening evidence
 
-This lane is based on M26 `e4ae745888879fdc9895df49a9d0dcf3d8307187` and keeps every M09 ABI explicitly provisional. It hardens replay and provenance without introducing a learned model, external data fetch, or owner-confirmed endpoint.
+This lane is based on merged M26 `77fb1ce6537161b529c53084fa8e27a9c18f021a` and keeps every M09 ABI explicitly provisional. It hardens replay and provenance without introducing a learned model, external data fetch, or owner-confirmed endpoint.
 
 ## Concrete fixes
 
@@ -11,17 +11,17 @@ This lane is based on M26 `e4ae745888879fdc9895df49a9d0dcf3d8307187` and keeps e
 
 ## Commit chain
 
-`a319a522` canonical hostile-mapping closure; `2a4c2e24` estimator provenance/uncertainty closure; `c547f99e` all-module replay provenance closure; release evidence follows in this commit.
+`42670825` canonical hostile-mapping closure; `b3f3142b` estimator provenance/uncertainty closure; `ff9316f3` all-module replay provenance closure; `c34639c5` initial release evidence; a final base/package refresh follows this commit.
 
 ## Gates
 
 - 247 focused M09 tests passed.
-- Ruff check/format, strict MyPy across 81 M09 source files, and compileall passed.
+- Ruff check/format, strict MyPy across 83 M09 source/evidence files, and compileall passed.
 - Branch-enabled scoped coverage passed at 95.5358789891164% (4,413/4,551 statements; 766/870 branches; 88 partial branches; fail-under 95).
 - All eight evaluator entry points passed, including replay/tamper scenarios and safe abstention/quarantine paths.
 - Ten-iteration benchmarks passed for all eight modules; the highest recorded p95 is 3,692,700 ns for M09-08 against a 3,000,000,000 ns budget.
-- Clean wheel: 3,665,153 bytes, SHA256 `8a1f544a7bf60626954f59c6c3f66701c772f6d84e47c086b74cd44eaebc44fd`, 1,913 members.
-- Clean sdist: 4,205,519 bytes, SHA256 `827b10e14348cb283044ab38f74c165d477e086d8dbee642b2b00de586b52997`, 4,389 members.
+- Clean wheel: 3,665,149 bytes, SHA256 `a594a0c4c0672f6d18489b981857d69fe3a19fe32128601e84a9c7d578fa686b`, 1,913 members.
+- Clean sdist: 4,206,466 bytes, SHA256 `53cf5d86bbb42e988faef229d5b94feb917b156e72b2019488ac371b1f566570`, 4,390 members.
 - Generated-member audit is zero for both artifacts; isolated wheel installation/import passed.
 
 Machine-readable details and a release verifier are in `release-evidence/m09_integrated_hardening/`.
