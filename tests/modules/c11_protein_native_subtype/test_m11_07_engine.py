@@ -33,6 +33,9 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_07_plausibility_adjudicator as m1107,
 )
+from glio_proteogen.modules.c11_protein_native_subtype.m11_07_plausibility_adjudicator import (
+    engine as m1107_engine,
+)
 
 M1107PlausibilityEngine = m1107.M1107PlausibilityEngine
 M1107Plugin = m1107.M1107Plugin
@@ -45,6 +48,16 @@ verify_plausibility_replay = m1107.verify_plausibility_replay
 
 def _digest(seed: int) -> str:
     return f"sha256:{seed:064x}"
+
+
+def test_plain_materialization_rejects_recursive_and_oversized_values() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(TypeError, match="string-keyed"):
+        m1107_engine._plain_value(nested)
+    with pytest.raises(TypeError, match="string-keyed"):
+        m1107_engine._plain_value(["item"] * 4_097)
 
 
 def _artifact(name: str, seed: int, media_type: str = "application/json") -> ArtifactReference:
