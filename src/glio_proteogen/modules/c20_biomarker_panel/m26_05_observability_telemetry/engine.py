@@ -410,7 +410,13 @@ def emit_proteomics_telemetry(request: object) -> ProteomicsTelemetryResult:
 
 
 def verify_telemetry_result(result: ProteomicsTelemetryResult) -> ProteomicsTelemetryResult:
-    """Revalidate canonical request/result digests and stream replay closure."""
+    """Recompute and compare the complete result bound to its request.
+
+    A valid result digest proves only that the supplied payload is internally
+    self-consistent. A caller who forges a nested telemetry value can also
+    recompute that digest, so replay must use the embedded request as its
+    source of truth and compare every deterministic output field.
+    """
 
     try:
         validated = _RESULT_ADAPTER.validate_python(result, strict=True)
@@ -422,6 +428,12 @@ def verify_telemetry_result(result: ProteomicsTelemetryResult) -> ProteomicsTele
         raise M2605ReplayError
     if validated.status is TelemetryStatus.EMITTED and validated.telemetry_stream is None:
         raise M2605ReplayError
+    try:
+        expected = M2605ObservabilityEngine().emit(validated.request)
+    except Exception as error:
+        raise M2605ReplayError from error
+    if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+        raise M2605ReplayError from None
     return validated
 
 
