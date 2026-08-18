@@ -8,12 +8,14 @@ parse-once, strict JSON and canonical model boundary.
 from __future__ import annotations
 
 import json
+from pathlib import Path  # noqa: TC003 - Typer resolves this runtime type.
 from typing import TYPE_CHECKING, Annotated
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m07_08 import (
     M0708_MAX_CANONICAL_REQUEST_BYTES,
     ProteotypeEvidencePublicationResult,
@@ -135,12 +137,17 @@ def export_schema(
 
 @m0708_app.command("validate")
 def validate_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Validate one request while retaining the parse-once boundary."""
 
     try:
-        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        parsed = _strict_json_bytes(read_bounded(path))
         request = _REQUEST_ADAPTER.validate_json(parsed, strict=True)
         typer.echo(canonical_json_bytes(request.model_dump(mode="json")).decode("utf-8"))
     except (StrictJsonError, ValidationError, ValueError) as error:
@@ -150,12 +157,17 @@ def validate_request(
 
 @m0708_app.command("publish")
 def publish_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Execute one request and emit the canonical result envelope."""
 
     try:
-        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        parsed = _strict_json_bytes(read_bounded(path))
         result = M0708Service().execute(_REQUEST_ADAPTER.validate_json(parsed, strict=True))
         typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
     except M0708EvidencePublisherAuthorizationError as error:

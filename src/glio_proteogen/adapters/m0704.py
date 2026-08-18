@@ -8,12 +8,14 @@ sanitized errors, canonical schema export, and service/plugin parity.
 from __future__ import annotations
 
 import json
+from pathlib import Path  # noqa: TC003 - Typer resolves this runtime type.
 from typing import TYPE_CHECKING, Annotated
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m07_04 import (
     M0704_MAX_CANONICAL_REQUEST_BYTES,
     EstimateCopyNumberDosageProbabilisticRequest,
@@ -131,14 +133,19 @@ def export_schema(
     typer.echo(json.dumps(contract_json_schema(name), indent=2, sort_keys=True))
 
 
-def _read_request(path: typer.FileText) -> EstimateCopyNumberDosageProbabilisticRequest:
-    parsed = _strict_json_bytes(path.read().encode("utf-8"))
+def _read_request(path: Path) -> EstimateCopyNumberDosageProbabilisticRequest:
+    parsed = _strict_json_bytes(read_bounded(path))
     return _REQUEST_ADAPTER.validate_json(parsed, strict=True)
 
 
 @m0704_app.command("validate")
 def validate_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Validate one request while preserving the parse-once boundary."""
 
@@ -152,7 +159,12 @@ def validate_request(
 
 @m0704_app.command("estimate")
 def estimate_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON request file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(
+            exists=True, readable=True, dir_okay=False, help="Strict JSON request file."
+        ),
+    ],
 ) -> None:
     """Execute one request and emit its canonical result envelope."""
 
@@ -169,14 +181,15 @@ def estimate_request(
 
 @m0704_app.command("verify")
 def verify_request(
-    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON result file.")],
+    path: Annotated[
+        Path,
+        typer.Argument(exists=True, readable=True, dir_okay=False, help="Strict JSON result file."),
+    ],
 ) -> None:
     """Verify one result digest and replay its request."""
 
     try:
-        parsed = _RESULT_ADAPTER.validate_json(
-            _strict_json_bytes(path.read().encode("utf-8")), strict=True
-        )
+        parsed = _RESULT_ADAPTER.validate_json(_strict_json_bytes(read_bounded(path)), strict=True)
         result = M0704Service().verify(parsed)
         typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
     except ProbabilisticEstimatorReplayError as error:
