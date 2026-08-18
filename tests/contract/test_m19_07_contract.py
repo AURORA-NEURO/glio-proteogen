@@ -3,8 +3,8 @@
 from typing import cast
 
 from glio_proteogen.contracts.m19_07 import (
-    M1907_PROHIBITED_CLAIM_TERMS,
     M1907_OUTPUT_MEDIA_TYPE,
+    M1907_PROHIBITED_CLAIM_TERMS,
     M1907_PROVISIONAL_ABI,
     CompatibilityMode,
     ExportField,
