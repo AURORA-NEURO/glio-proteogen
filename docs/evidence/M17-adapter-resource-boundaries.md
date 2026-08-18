@@ -1,35 +1,39 @@
-# M17 adapter resource boundaries
+# M17 standalone adapter resource boundaries
 
 ## Scope
 
 This record covers the five standalone M17 file adapters present in the
 current tree: M17-02, M17-03, M17-05, M17-06, and M17-07. M17-01, M17-04,
-and M17-08 expose interface paths but have no standalone file-adapter
-modules; no inferred adapters were added. The change is transport-only and
-does not alter contracts, result models, operations, media types, or claims.
+and M17-08 have no standalone file-adapter modules and were not synthesized.
+The change is transport-only: no contract, result model, operation, media
+type, or scientific claim changes.
 
 ## Boundary contract
 
-Every request file is read through the shared `read_bounded` helper with its
-module's `MAX_CANONICAL_REQUEST_BYTES`; every result file uses the matching
+Request files are admitted through the shared `read_bounded` helper with the
+module's `MAX_CANONICAL_REQUEST_BYTES`; result files use the matching
 `MAX_CANONICAL_RESULT_BYTES`. The helper reads one sentinel byte beyond the
-ceiling and fails before strict JSON decoding or model construction. CLI
-verification maps oversized input to an existing sanitized failure path.
+ceiling and raises before strict JSON decoding or model construction. The
+M17-05 and M17-07 path-or-stdin adapters now apply the same request/result
+ceilings to both filesystem and stdin inputs. HTTP verification for M17-03
+uses its explicit result ceiling instead of a request-derived multiplier.
 
-The prior adapters materialized local files with `Path.read_bytes()` before
-checking the declared limit. The bounded path closes that resource boundary
-without inspecting or changing scientific content.
+This closes a concrete resource gap: the prior adapters used unbounded
+`Path.read_bytes()` (and unbounded stdin reads in M17-05/M17-07), allowing
+arbitrarily large local or piped payloads to be materialized before the
+declared limit was checked. Existing CLI/API error paths remain sanitized.
 
 ## Verification
 
-The matrix covers sparse files one byte over every request and result ceiling,
-M17-05/M17-07 CLI result-overflow handling, and an AST guard against direct
-`Path.read_bytes()` calls. Selected M17 interface suites are included:
+The focused matrix covers sparse request/result files one byte over every M17
+ceiling, sanitized CLI result failures for both path adapters, and an AST
+guard preventing direct `Path.read_bytes()` from returning to the five
+affected adapters.
 
-* 13 resource-boundary tests;
-* 16 existing M17-01/02/04/06/08 interface tests;
-* 29 total focused tests passed with coverage disabled;
-* Ruff check/format, strict MyPy, compileall, and `git diff --check` clean.
+* 13 resource-boundary tests passed;
+* 23 existing M17 integration/evaluator tests passed;
+* 36 focused tests passed with coverage disabled;
+* Ruff check/format, strict MyPy, compileall, and `git diff --check` passed.
 
-This is transport-safety evidence only, not evidence of protein, proteoform,
-isoform, glioma, or clinical inference.
+The evidence is limited to file/stream admission safety. It is not evidence
+of protein, proteoform, isoform, glioma, or other biological inference.
