@@ -52,7 +52,9 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
         and evaluation.get("dossier_slice") == SLICE,
         "evaluation": evaluation.get("passed") is True
         and evaluation.get("scenario_count") == SCENARIO_COUNT
-        and evaluation.get("adversarial_passed_count") == evaluation.get("adversarial_case_count"),
+        and evaluation.get("adversarial_passed_count") == evaluation.get("adversarial_case_count")
+        and evaluation.get("replay_recomputes_bound_request") is True
+        and evaluation.get("self_rehashed_tamper_rejected") is True,
         "benchmark": benchmark.get("passed") is True
         and benchmark.get("iterations") == BENCHMARK_ITERATIONS
         and mean_ns <= MEAN_BUDGET_NS

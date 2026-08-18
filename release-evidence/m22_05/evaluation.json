@@ -17,6 +17,18 @@
   "fixture_digest": "sha256:c66f745167859a50326f3a616d4c9a4f86432c1974913e221a462775f16f7489",
   "module_id": "GLIO-PROTEOGEN-M22-05",
   "passed": true,
+  "replay_recomputes_bound_request": true,
+  "self_rehashed_tamper_rejected": true,
+  "replay_mutated_regions": [
+    "report",
+    "findings",
+    "support_decision",
+    "provenance",
+    "evidence",
+    "limitations",
+    "human_review_required",
+    "abstention_reason"
+  ],
   "request_digest": "sha256:2b5421e55481f1732a49c29abb6d7ef3e611a0ea22e91832f45b6311ab6827d4",
   "scenario_count": 9
 }

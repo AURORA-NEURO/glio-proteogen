@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from evals.m22_05.fixture import denied_request, unsupported_request
@@ -14,9 +14,11 @@ from glio_proteogen.contracts.m22_05 import (
     CoverageStatus,
     CoverageSummary,
     EvaluationStatus,
+    ProteinRnaDiscordanceSubgroupEvaluationResult,
     canonical_request_digest,
     normalized_request,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
@@ -42,6 +44,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _HTTP_UNPROCESSABLE = 422
+
+
+def _self_rehashed(
+    result: ProteinRnaDiscordanceSubgroupEvaluationResult,
+    updates: dict[str, Any],
+) -> ProteinRnaDiscordanceSubgroupEvaluationResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
 
 
 def test_canonical_dict_projection_and_identity_are_stable() -> None:
@@ -92,6 +104,77 @@ def test_result_digest_request_and_status_closures_reject_tampering() -> None:
                 rationale="unsupported",
             ),
         )
+
+
+@pytest.mark.parametrize(
+    "region",
+    [
+        "report",
+        "findings",
+        "support",
+        "provenance",
+        "evidence",
+        "limitations",
+        "human_review_required",
+        "abstention_reason",
+    ],
+)
+def test_self_rehashed_output_mutations_are_rejected_by_replay(region: str) -> None:
+    result = M2205Service().evaluate(
+        unsupported_request() if region in {"findings", "abstention_reason"} else _request()
+    )
+    updates: dict[str, Any]
+    if region == "report":
+        assert result.report is not None
+        updates = {"report": result.report.model_copy(update={"report_id": "forged-report"})}
+    elif region == "findings":
+        assert result.findings
+        finding = result.findings[0].model_copy(update={"message": "forged finding"})
+        updates = {"findings": (finding, *result.findings[1:])}
+    elif region == "support":
+        updates = {
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged support rationale"}
+            )
+        }
+    elif region == "provenance":
+        updates = {"provenance": result.provenance.model_copy(update={"actor_id": "forged-actor"})}
+    elif region == "evidence":
+        evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
+        updates = {"evidence": (evidence, *result.evidence[1:])}
+    elif region == "limitations":
+        limitation = result.limitations[0].model_copy(update={"statement": "forged limitation"})
+        updates = {"limitations": (limitation, *result.limitations[1:])}
+    elif region == "human_review_required":
+        updates = {"human_review_required": not result.human_review_required}
+    else:
+        assert result.abstention_reason is not None
+        updates = {"abstention_reason": "forged abstention reason"}
+    forged = _self_rehashed(result, updates)
+    with pytest.raises(ValueError, match="replay verification failed"):
+        M2205Service().replay(forged)
+
+
+def test_self_rehashed_request_mutation_is_rejected_by_replay() -> None:
+    result = M2205Service().evaluate(_request())
+    request = result.request.model_copy(
+        update={
+            "configuration": result.request.configuration.model_copy(update={"safety_floor": 0.61})
+        }
+    )
+    forged = result.model_copy(
+        update={"request": request, "request_digest": canonical_request_digest(request)}
+    )
+    forged = type(forged).model_construct(
+        **{
+            **forged.__dict__,
+            "request": request,
+            "request_digest": canonical_request_digest(request),
+            "result_digest": result_payload_digest(forged),
+        }
+    )
+    with pytest.raises(ValueError, match="identifier"):
+        M2205Service().replay(forged)
 
 
 def test_fastapi_non_object_replay_is_sanitized() -> None:

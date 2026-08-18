@@ -79,6 +79,9 @@ class M2205AuthorizationError(ValueError):
 class M2205ReplayError(ValueError):
     """Raised when an evaluation result fails canonical replay verification."""
 
+    def __init__(self, message: str = "M22-05 replay verification failed") -> None:
+        super().__init__(message)
+
 
 class M2205EquityEngine:
     """Build and replay one deterministic metadata-only subgroup evaluation."""
@@ -157,15 +160,38 @@ class M2205EquityEngine:
         self,
         result: ProteinRnaDiscordanceSubgroupEvaluationResult,
     ) -> ProteinRnaDiscordanceSubgroupEvaluationResult:
-        if result.request_digest != canonical_request_digest(result.request):
+        """Regenerate the result from its bound request before accepting replay.
+
+        A result digest proves only that the supplied envelope is internally
+        consistent.  It does not establish that the envelope was produced by
+        this evaluator: a caller can modify a finding, report, or evidence
+        field and recompute the digest.  Replay therefore validates the
+        envelope, regenerates the deterministic result from its request, and
+        compares the complete canonical JSON projections.
+        """
+
+        try:
+            request_digest = canonical_request_digest(result.request)
+            result_id = result_identifier(result.request)
+            payload_digest = result_payload_digest(result)
+        except Exception as error:
+            raise M2205ReplayError from error
+        if result.request_digest != request_digest:
             raise M2205ReplayError("M22-05 result request digest mismatch")  # noqa: TRY003
-        if result.result_id != result_identifier(result.request):
+        if result.result_id != result_id:
             raise M2205ReplayError("M22-05 result identifier mismatch")  # noqa: TRY003
-        if result.result_digest != result_payload_digest(result):
+        if result.result_digest != payload_digest:
             raise M2205ReplayError("M22-05 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceSubgroupEvaluationResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ProteinRnaDiscordanceSubgroupEvaluationResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2205ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2205ReplayError
+        return replayed
 
 
 def evaluate_protein_rna_discordance_subgroup_equity(

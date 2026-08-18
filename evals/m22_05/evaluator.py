@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from glio_proteogen.contracts.m22_05 import SubgroupDimension
+from glio_proteogen.contracts.m22_05 import SubgroupDimension, result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evaluator import (
     M2205AuthorizationError,
@@ -43,7 +43,15 @@ def run_evaluator() -> dict[str, Any]:
         checks["denied_fail_closed"] = True
     else:
         checks["denied_fail_closed"] = False
-    tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
+    changed = result.support_decision.model_copy(update={"rationale": "forged evaluator rationale"})
+    tampered = result.model_copy(update={"support_decision": changed})
+    tampered = type(tampered).model_construct(
+        **{
+            **tampered.__dict__,
+            "support_decision": changed,
+            "result_digest": result_payload_digest(tampered),
+        }
+    )
     try:
         service.replay(tampered)
     except M2205ReplayError:
