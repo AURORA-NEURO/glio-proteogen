@@ -27,6 +27,7 @@
     "caller_download_required": true
   },
   "verification": {
+    "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "focused_tests": 83,
     "coverage": {
       "statements": 1108,

@@ -123,6 +123,7 @@ jobs:
           uv run python -m evals.m05_06.benchmark --output evidence/m05-06-benchmark.json
           uv run python -m evals.m05_04.benchmark --output evidence/m05-04-benchmark.json
           uv run python -m evals.m05_08.benchmark --iterations 10 --output evidence/m05-08-benchmark.json
+          uv run python -m evals.research_proteomics.run > evidence/research-proteomics-eval.json
           uv run python -m evals.m26_08.benchmark > evidence/m26-08-benchmark.json
           uv run python tools/verify_release_artifacts.py m04-03-evidence \
             evidence/m04-03-eval.json evidence/m04-03-benchmark.json
@@ -198,6 +199,9 @@ jobs:
           cp release-build-one/* evidence/distribution/
           cp "$RUNNER_TEMP/distribution-one.sha256" evidence/distribution-reproducibility.sha256
           wheel="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.whl')"
+          sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz')"
+          uv run python tools/verify_research_pipeline.py \
+            evidence/research-proteomics-eval.json "$wheel" "$sdist"
           echo "RELEASE_WHEEL=$wheel" >> "$GITHUB_ENV"
       - name: Install and test the exact candidate wheel
         run: |
