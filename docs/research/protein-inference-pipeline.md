@@ -27,6 +27,9 @@ The result also carries a replay-bound `FdrSummary`: winner count per spectrum, 
 decoy winner counts, accepted target count, the declared threshold, maximum accepted q-value,
 and the descriptive decoy/target ratio. This is an audit trail for the implemented competition
 rule, not a claim of calibrated error control beyond the supplied target/decoy search space.
+Each PSM also records mean absolute fragment error and precursor ppm error when precursor
+filtering is enabled; aggregate search diagnostics retain the maximum observed errors and the
+declared precursor tolerance so a replay can audit mass-error behavior directly.
 
 The locked evaluator covers seven paths: a target match, decoy rejection, no-match safe path,
 precursor rejection, shared-peptide grouping, a two-spectrum input, and a two-peptide

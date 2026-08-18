@@ -36,6 +36,8 @@ class Psm:
     decoy: bool
     q_value: float | None = None
     matched_intensity: float = 0.0
+    mean_fragment_error_da: float = 0.0
+    precursor_error_ppm: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +159,7 @@ def search_spectrum(
         matched = 0
         intensity_score = 0.0
         matched_intensity = 0.0
+        fragment_errors: list[float] = []
         used_indices: set[int] = set()
         for value in theoretical:
             candidates = [
@@ -170,7 +173,9 @@ def search_spectrum(
                 used_indices.add(index)
                 matched += 1
                 matched_intensity += intensity[index]
-                intensity_score += intensity[index] / (1.0 + abs(observed - value))
+                error = abs(observed - value)
+                fragment_errors.append(error)
+                intensity_score += intensity[index] / (1.0 + error)
         if matched < parameters.min_matched_ions:
             continue
         candidate = Psm(
@@ -181,6 +186,12 @@ def search_spectrum(
             matched_ions=matched,
             decoy=any(accession.startswith("DECOY_") for accession in accessions),
             matched_intensity=matched_intensity,
+            mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
+            precursor_error_ppm=(
+                abs(precursor_mz - theoretical_precursor) / theoretical_precursor * 1_000_000
+                if parameters.require_precursor_mz
+                else None
+            ),
         )
         if best is None or (
             candidate.score,

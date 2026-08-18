@@ -65,6 +65,10 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert len(result.psms) == 1
     assert len(result.accepted_psms) == 1
     assert result.psms[0].matched_intensity == 20.0
+    assert result.psms[0].mean_fragment_error_da == pytest.approx(0.000525466)
+    assert result.psms[0].precursor_error_ppm == pytest.approx(0.0)
+    assert dict(result.search_diagnostics)["matched_psms"] == 1
+    assert dict(result.search_diagnostics)["max_fragment_error_da"] == pytest.approx(0.000525466)
     assert result.fdr_summary is not None
     assert result.fdr_summary.target_winners == 1
     assert result.fdr_summary.decoy_winners == 0

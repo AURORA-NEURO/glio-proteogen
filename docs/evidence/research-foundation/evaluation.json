@@ -19,10 +19,10 @@
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
-    "mean_ns": 283680,
-    "median_ns": 268100,
-    "p95_ns": 321900,
-    "result_digest": "3b9ad9b4dff55ffa33db6945f8fc24b416c9b788d59364d3ecb8f5f7568d3ddd"
+    "mean_ns": 309180,
+    "median_ns": 307600,
+    "p95_ns": 323200,
+    "result_digest": "6c08b877ce08a7cbbabdf018d640bcf664aa3e5e233889eadce2ee0d7d659bfe"
   },
   "coverage": {
     "statements": 1130,

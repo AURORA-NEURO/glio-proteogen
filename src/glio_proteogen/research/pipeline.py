@@ -80,6 +80,7 @@ class ResearchRunResult:
     result_digest: str
     peptide_intensities: tuple[tuple[str, float], ...] = ()
     fdr_summary: FdrSummary | None = None
+    search_diagnostics: tuple[tuple[str, object], ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -99,6 +100,7 @@ class ResearchRunResult:
             "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
             "peptide_intensities": [list(item) for item in self.peptide_intensities],
             "fdr_summary": self.fdr_summary.as_dict() if self.fdr_summary else None,
+            "search_diagnostics": dict(self.search_diagnostics),
             "protein_groups": [_group_dict(item) for item in self.protein_groups],
             "configuration": dict(self.configuration),
             "evidence_records": [
@@ -147,6 +149,8 @@ def _psm_dict(value: Psm) -> dict[str, object]:
         "score": value.score,
         "spectrum_id": value.spectrum_id,
         "matched_intensity": value.matched_intensity,
+        "mean_fragment_error_da": value.mean_fragment_error_da,
+        "precursor_error_ppm": value.precursor_error_ppm,
     }
 
 
@@ -262,6 +266,23 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         ((item.peptide, item.matched_intensity) for item in accepted),
     )
     peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified)
+    fragment_errors = tuple(item.mean_fragment_error_da for item in scored)
+    precursor_errors = tuple(
+        item.precursor_error_ppm for item in scored if item.precursor_error_ppm is not None
+    )
+    search_diagnostics = tuple(
+        sorted(
+            {
+                "matched_psms": len(scored),
+                "mean_fragment_error_da": (
+                    sum(fragment_errors) / len(fragment_errors) if fragment_errors else None
+                ),
+                "max_fragment_error_da": max(fragment_errors) if fragment_errors else None,
+                "max_precursor_error_ppm": max(precursor_errors) if precursor_errors else None,
+                "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
+            }.items()
+        )
+    )
     peptide_to_proteins: dict[str, set[str]] = {}
     for item in accepted:
         peptide_to_proteins.setdefault(item.peptide, set()).update(item.protein_accessions)
@@ -326,6 +347,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                     "quantified_peptides": len(peptide_intensities),
                     "quantification_unit": "median_scaled_matched_ion_intensity",
                     "fdr_summary": fdr_summary.as_dict(),
+                    "search_diagnostics": dict(search_diagnostics),
                 },
             ),
         )
@@ -343,6 +365,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "peptide_spectral_counts": [list(item) for item in counts],
         "peptide_intensities": [list(item) for item in peptide_intensities],
         "fdr_summary": fdr_summary.as_dict(),
+        "search_diagnostics": dict(search_diagnostics),
         "protein_groups": [_group_dict(item) for item in groups],
         "configuration": dict(configuration),
         "evidence_records": [
@@ -376,6 +399,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         result_digest=result_digest,
         peptide_intensities=peptide_intensities,
         fdr_summary=fdr_summary,
+        search_diagnostics=search_diagnostics,
     )
 
 
