@@ -77,6 +77,17 @@ def test_research_evidence_verifier_rejects_non_reproducible_receipt(
         verify(_EVIDENCE, package_evidence=mutated)
 
 
+def test_research_evidence_verifier_rejects_package_fixture_drift(tmp_path: Path) -> None:
+    package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
+    verification = package["verification"]
+    assert isinstance(verification, dict)
+    verification["fixture_sha256"] = "0" * 64
+    mutated = tmp_path / "package.json"
+    mutated.write_text(json.dumps(package), encoding="utf-8")
+    with pytest.raises(VerificationError, match="package fixture digest"):
+        verify(_EVIDENCE, package_evidence=mutated)
+
+
 def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path: Path) -> None:
     artifact = tmp_path / "research.whl"
     with ZipFile(artifact, "w") as archive:

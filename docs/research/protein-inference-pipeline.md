@@ -40,8 +40,10 @@ The locked evaluator covers eight paths: a target match, decoy rejection, target
 collision, no-match safe path, precursor rejection, shared-peptide grouping, a two-spectrum input,
 and a two-peptide quantification run. The fixture binds scenario order, expected PSM/accepted counts,
 target/decoy/collision winner counts, peptide and protein-group quantitative statuses/intensities,
-group membership, shared-peptide expectations, and all claim-boundary flags. The benchmark uses one
-warm-up followed by timed public calls.
+group membership, shared-peptide expectations, exact FASTA/mzML SHA-256 inputs, expected result
+digests, PSM peptide/q-value projections, and mass-error diagnostics. The benchmark uses one warm-up
+followed by timed public calls. The package-replay CI job runs the same verifier against the exact
+wheel and sdist it built, so a metadata-only receipt cannot mask an artifact mismatch.
 
 ## Scientific limits
 

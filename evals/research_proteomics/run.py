@@ -220,6 +220,8 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item.get("expected_decoy_winners", 0),
             item.get("expected_quantified_peptides", 0),
             item.get("expected_collision_winners", 0),
+            item["fasta_sha256"],
+            item["mzml_sha256"],
             tuple(
                 (
                     tuple(entry["group_accessions"]),
@@ -242,6 +244,8 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item.expected_decoy_winners,
             item.expected_quantified_peptides,
             item.expected_collision_winners,
+            sha256(item.fasta).hexdigest(),
+            sha256(item.mzml).hexdigest(),
             item.expected_group_quant,
         )
         for item in locked
@@ -267,9 +271,21 @@ def build_scenario_request(scenario: Scenario) -> ResearchRunRequest:
 def run_evaluator() -> dict[str, object]:
     locked_scenarios = scenarios()
     fixture_digest = _fixture_sha256(locked_scenarios)
+    fixture_path = (
+        Path(__file__).resolve().parents[2]
+        / "tests"
+        / "fixtures"
+        / "research"
+        / "proteomics_scenarios.json"
+    )
+    fixture_records = json.loads(fixture_path.read_text(encoding="utf-8"))["scenarios"]
+    expected_by_id = {record["id"]: record for record in fixture_records}
     outcomes: list[dict[str, object]] = []
     for scenario in locked_scenarios:
         result = run_research_protein_inference(build_scenario_request(scenario))
+        expected = expected_by_id[scenario.scenario_id]
+        observed_diagnostics = dict(result.search_diagnostics)
+        expected_diagnostics = expected["expected_search_diagnostics"]
         passed = (
             len(result.psms) == scenario.expected_psms
             and len(result.accepted_psms) == scenario.expected_accepted
@@ -297,6 +313,18 @@ def run_evaluator() -> dict[str, object]:
                 for item in result.protein_group_quantifications
             )
             == scenario.expected_group_quant
+            and result.fasta_sha256 == expected["fasta_sha256"]
+            and result.mzml_sha256 == expected["mzml_sha256"]
+            and result.result_digest == expected["expected_result_digest"]
+            and tuple(item.peptide for item in result.psms)
+            == tuple(expected["expected_psm_peptides"])
+            and tuple(item.q_value for item in result.psms) == tuple(expected["expected_q_values"])
+            and result.peptide_intensities
+            == tuple((item[0], item[1]) for item in expected["expected_peptide_intensities"])
+            and all(
+                observed_diagnostics.get(key) == value
+                for key, value in expected_diagnostics.items()
+            )
         )
         outcomes.append(
             {
