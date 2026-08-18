@@ -1,4 +1,9 @@
-"""Deterministic label-free peptide quantification and median normalization."""
+"""Deterministic research quantification with explicit scale and LOQ policy.
+
+The values in this module are matched-fragment signal, not calibrated abundance.
+The policy is deliberately closed and replayable: callers cannot silently change
+units, normalization, or below-LOQ handling without changing the result digest.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +24,39 @@ class PeptideQuant:
     peptide: str
     intensity: float
     missing: bool = False
+    status: str = "quantified"
+
+
+@dataclass(frozen=True, slots=True)
+class QuantificationPolicy:
+    """Closed research policy for units, normalization, and below-LOQ handling."""
+
+    measurement_unit: str = "matched_ion_intensity_arbitrary"
+    normalization_method: str = "sample_median_scaled_v1"
+    missingness_policy: str = "zero_or_below_loq_is_missing_no_imputation_v1"
+    limit_of_quantification: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.measurement_unit != "matched_ion_intensity_arbitrary":
+            raise ValueError("only arbitrary matched-ion intensity is supported")
+        if self.normalization_method not in {"none_v1", "sample_median_scaled_v1"}:
+            raise ValueError("normalization_method is not supported")
+        if self.missingness_policy != "zero_or_below_loq_is_missing_no_imputation_v1":
+            raise ValueError("missingness_policy is not supported")
+        if (
+            type(self.limit_of_quantification) not in (int, float)
+            or not isfinite(self.limit_of_quantification)
+            or self.limit_of_quantification < 0
+        ):
+            raise ValueError("limit_of_quantification must be finite and non-negative")
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "limit_of_quantification": float(self.limit_of_quantification),
+            "measurement_unit": self.measurement_unit,
+            "missingness_policy": self.missingness_policy,
+            "normalization_method": self.normalization_method,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,9 +91,14 @@ class QuantificationReceipt:
     raw_robust_cv: float | None = None
     positive_signal_fraction: float = 0.0
     signal_quality: str = "no_positive_signal"
+    limit_of_quantification: float = 0.0
+    below_loq_peptides: int = 0
+    quantifiable_peptides: int = 0
+    raw_peptide_statuses: tuple[tuple[str, str], ...] = ()
+    normalized_peptide_statuses: tuple[tuple[str, str], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "duplicate_observations": self.duplicate_observations,
             "input_observations": self.input_observations,
             "measurement_unit": self.measurement_unit,
@@ -79,6 +122,23 @@ class QuantificationReceipt:
             "unique_peptides": self.unique_peptides,
             "version": self.version,
         }
+        # Historical default receipts remain stable; a non-default LOQ is fully
+        # self-describing and therefore part of the replay projection.
+        if self.limit_of_quantification > 0 or self.below_loq_peptides:
+            payload.update(
+                {
+                    "below_loq_peptides": self.below_loq_peptides,
+                    "limit_of_quantification": self.limit_of_quantification,
+                    "normalized_peptide_statuses": [
+                        list(item) for item in self.normalized_peptide_statuses
+                    ],
+                    "quantifiable_peptides": self.quantifiable_peptides,
+                    "raw_peptide_statuses": [list(item) for item in self.raw_peptide_statuses],
+                }
+            )
+        if self.normalization_method != "sample_median_scaled":
+            payload["normalization_policy"] = self.normalization_method
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,7 +216,10 @@ def _signal_quality(positive_count: int, *, unique: bool = False) -> str:
 
 
 def quantify_matched_ions(
-    sample_id: str, observations: Iterable[tuple[str, float]]
+    sample_id: str,
+    observations: Iterable[tuple[str, float]],
+    *,
+    policy: QuantificationPolicy | None = None,
 ) -> tuple[PeptideQuant, ...]:
     """Aggregate matched-fragment signal and return median-scaled peptide values.
 
@@ -168,13 +231,20 @@ def quantify_matched_ions(
     negative or an imputed positive measurement.
     """
 
-    return quantify_matched_ions_with_receipt(sample_id, observations).values
+    return quantify_matched_ions_with_receipt(sample_id, observations, policy=policy).values
 
 
 def quantify_matched_ions_with_receipt(
-    sample_id: str, observations: Iterable[tuple[str, float]]
+    sample_id: str,
+    observations: Iterable[tuple[str, float]],
+    *,
+    policy: QuantificationPolicy | None = None,
 ) -> PeptideQuantification:
     """Quantify matched-ion signal and return a complete scale/missingness receipt."""
+
+    selected_policy = policy if policy is not None else QuantificationPolicy()
+    if not isinstance(selected_policy, QuantificationPolicy):
+        raise TypeError("policy must be a QuantificationPolicy")
 
     if (
         not isinstance(sample_id, str)
@@ -193,10 +263,22 @@ def quantify_matched_ions_with_receipt(
             raise ValueError("matched-ion intensity must be finite and non-negative")
         totals[peptide] += intensity
     values = tuple(
-        PeptideQuant(sample_id, peptide, intensity, missing=intensity <= 0)
+        PeptideQuant(
+            sample_id,
+            peptide,
+            intensity,
+            missing=(intensity <= selected_policy.limit_of_quantification),
+            status=(
+                "zero_signal"
+                if intensity <= 0
+                else "below_loq"
+                if intensity < selected_policy.limit_of_quantification
+                else "quantified"
+            ),
+        )
         for peptide, intensity in sorted(totals.items())
     )
-    normalized = median_normalize(values)
+    normalized = median_normalize(values, method=selected_policy.normalization_method)
     positive = tuple(item.intensity for item in values if not item.missing and item.intensity > 0)
     raw_median = median(positive) if positive else None
     positive_count = len(positive)
@@ -204,10 +286,26 @@ def quantify_matched_ions_with_receipt(
     positive_iqr = _interquartile_range(positive)
     receipt = QuantificationReceipt(
         sample_id=sample_id,
-        version="matched-ion-median-3",
-        measurement_unit="median_scaled_matched_ion_intensity",
-        normalization_method="sample_median_scaled",
-        missingness_policy="zero_signal_is_missing_no_imputation",
+        version=(
+            "matched-ion-median-3"
+            if selected_policy == QuantificationPolicy()
+            else "matched-ion-median-4"
+        ),
+        measurement_unit=(
+            "median_scaled_matched_ion_intensity"
+            if selected_policy.normalization_method == "sample_median_scaled_v1"
+            else selected_policy.measurement_unit
+        ),
+        normalization_method=(
+            "sample_median_scaled"
+            if selected_policy.normalization_method == "sample_median_scaled_v1"
+            else "none"
+        ),
+        missingness_policy=(
+            "zero_signal_is_missing_no_imputation"
+            if selected_policy.limit_of_quantification == 0
+            else selected_policy.missingness_policy
+        ),
         input_observations=len(observed),
         unique_peptides=len(values),
         observed_peptides=sum(not item.missing for item in values),
@@ -231,14 +329,39 @@ def quantify_matched_ions_with_receipt(
         normalized_peptide_signals=tuple(
             (item.peptide, item.intensity, item.missing) for item in normalized
         ),
+        limit_of_quantification=float(selected_policy.limit_of_quantification),
+        below_loq_peptides=sum(item.status == "below_loq" for item in values),
+        quantifiable_peptides=positive_count,
+        raw_peptide_statuses=tuple((item.peptide, item.status) for item in values),
+        normalized_peptide_statuses=tuple((item.peptide, item.status) for item in normalized),
     )
     return PeptideQuantification(normalized, receipt)
 
 
-def median_normalize(values: tuple[PeptideQuant, ...]) -> tuple[PeptideQuant, ...]:
+def median_normalize(
+    values: tuple[PeptideQuant, ...], *, method: str = "sample_median_scaled_v1"
+) -> tuple[PeptideQuant, ...]:
+    if method not in {"none_v1", "sample_median_scaled_v1"}:
+        raise ValueError("normalization method is not supported")
+    if method == "none_v1":
+        return tuple(
+            item
+            if not item.missing or item.intensity <= 0
+            else PeptideQuant(
+                item.sample_id, item.peptide, 0.0, missing=True, status=item.status
+            )
+            for item in values
+        )
     observed = [item.intensity for item in values if not item.missing and item.intensity > 0]
     if not observed:
-        return values
+        return tuple(
+            item
+            if not item.missing or item.intensity <= 0
+            else PeptideQuant(
+                item.sample_id, item.peptide, 0.0, missing=True, status=item.status
+            )
+            for item in values
+        )
     center = median(observed)
     sample_medians: dict[str, float] = {}
     for sample_id in {item.sample_id for item in values}:
@@ -250,10 +373,16 @@ def median_normalize(values: tuple[PeptideQuant, ...]) -> tuple[PeptideQuant, ..
         if sample:
             sample_medians[sample_id] = median(sample)
     return tuple(
-        item
+        PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
+        if item.missing and item.intensity > 0
+        else item
         if item.missing or item.intensity <= 0 or item.sample_id not in sample_medians
         else PeptideQuant(
-            item.sample_id, item.peptide, item.intensity * center / sample_medians[item.sample_id]
+            item.sample_id,
+            item.peptide,
+            item.intensity * center / sample_medians[item.sample_id],
+            missing=False,
+            status=item.status,
         )
         for item in values
     )
