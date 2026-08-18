@@ -50,6 +50,9 @@ rate, median intensity, and median absolute deviation. Per-sample QC reports spe
 accepted PSMs, quantified/missing groups, target/decoy/collision winners, and precursor
 error diagnostics. Sample order is canonicalized by opaque sample ID, and the complete
 matrix, QC, child digests, source declarations, and configuration are replay-verified.
+The locked release evidence carries these projections per evaluator scenario, and the
+verifier compares the recorded matrix, null cells, QC, source provenance, configuration,
+and child/result digests to a fresh run; counts and a fixture hash alone are insufficient.
 
 This is evidence aggregation, not a differential-expression or cohort inference model:
 there are no p-values, effect-size claims, batch correction, survival endpoints, glioma
