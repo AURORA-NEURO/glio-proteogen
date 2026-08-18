@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING
+from zipfile import ZipFile
 
 import pytest
-from tools.verify_research_pipeline import VerificationError, verify
+from tools.verify_research_pipeline import VerificationError, _verify_package, verify
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -73,3 +75,17 @@ def test_research_evidence_verifier_rejects_non_reproducible_receipt(
     mutated.write_text(json.dumps(package), encoding="utf-8")
     with pytest.raises(VerificationError, match="two reproducible builds"):
         verify(_EVIDENCE, package_evidence=mutated)
+
+
+def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path: Path) -> None:
+    artifact = tmp_path / "research.whl"
+    with ZipFile(artifact, "w") as archive:
+        archive.writestr("glio_proteogen/research/pipeline.py", "")
+        archive.writestr("glio_proteogen/research/search.py", "")
+        archive.writestr("glio_proteogen/research/protein.py", "")
+    digest = sha256(artifact.read_bytes()).hexdigest()
+    receipt = {"filename": artifact.name, "bytes": artifact.stat().st_size, "sha256": digest}
+    _verify_package(artifact, receipt)
+    artifact.write_bytes(artifact.read_bytes() + b"tamper")
+    with pytest.raises(VerificationError, match=r"size|SHA-256"):
+        _verify_package(artifact, receipt)
