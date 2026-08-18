@@ -5,7 +5,7 @@ from __future__ import annotations
 from evals.m24_07.benchmark import run as run_benchmark
 from evals.m24_07.evaluator import run_matrix
 
-_SCENARIO_COUNT = 5
+_SCENARIO_COUNT = 6
 _SMOKE_ITERATIONS = 3
 
 
@@ -19,6 +19,7 @@ def test_locked_evaluator_matrix_passes() -> None:
         if key != "supported_result_digest"
     )
     assert str(report["scenarios"]["supported_result_digest"]).startswith("sha256:")
+    assert report["scenarios"]["semantic_replay_rejected"] is True
 
 
 def test_benchmark_wrapper_is_bounded_and_repeatable() -> None:
