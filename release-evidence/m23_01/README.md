@@ -11,9 +11,9 @@ isolated-install directories are intentionally not committed.
 
 The current-base release artifacts were produced twice with
 `SOURCE_DATE_EPOCH=315532800` and were byte-identical. The wheel is
-`3,700,571` bytes with SHA-256
-`a00bfeb687a60d0a4f86251051a30134fb1fd7d9c6ad2a4dfd3db57ab05f02c7` and
-`1,929` archive members. The source distribution is `4,246,925` bytes with
-SHA-256 `385b55705abc27a4cc5f508f6115ad630e29ed2710930b29a1b54e618487d019`.
+`3,702,048` bytes with SHA-256
+`0b7e5557602a8771bab8660f406893ed01af945509d9035dc0bba314b4aad339` and
+`1,929` archive members. The source distribution is `4,248,155` bytes with
+SHA-256 `0cf976ea3cb8362a1915fa02c1522a1b655c61be53559dcdea90bd506d34f920`.
 The wheel was installed into an isolated Python 3.12 environment and the
 M23-01 contract import check passed.
