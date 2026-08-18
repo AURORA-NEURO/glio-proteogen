@@ -9,6 +9,7 @@ from typing import Annotated, cast
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m10_07 import (
     M1007_MAX_CANONICAL_REQUEST_BYTES,
     M1007_MAX_CANONICAL_RESULT_BYTES,
@@ -36,7 +37,10 @@ def _error(message: str) -> M1007CliError:
 
 def _read_object(path: Path) -> dict[str, object]:
     try:
-        payload = strict_json_loads(path.read_bytes(), max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
+        payload = strict_json_loads(
+            read_bounded(path, M1007_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES,
+        )
     except (OSError, StrictJsonError, ValueError) as error:
         raise _error("input must be a valid strict JSON object") from error  # noqa: TRY003
     if not isinstance(payload, dict):
@@ -53,7 +57,7 @@ def _write_new(path: Path, data: bytes) -> None:
 
 def _read_request(path: Path) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M1007_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M1007_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -129,7 +133,10 @@ def verify(
 
     result = _read_object(result_path)
     try:
-        replay = _SERVICE.verify(result, canonical_path.read_bytes())
+        replay = _SERVICE.verify(
+            result,
+            read_bounded(canonical_path, M1007_MAX_CANONICAL_RESULT_BYTES),
+        )
     except (OSError, TypeError, ValueError, ValidationError, StrictJsonError) as error:
         raise _error("replay input is invalid") from error  # noqa: TRY003
     typer.echo(
