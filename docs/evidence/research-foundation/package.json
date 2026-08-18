@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "a92e1e80",
+  "base_commit": "91574398",
   "pipeline_commit": "9f4598db",
   "source_fixture": {
     "study": "PDC000204",
