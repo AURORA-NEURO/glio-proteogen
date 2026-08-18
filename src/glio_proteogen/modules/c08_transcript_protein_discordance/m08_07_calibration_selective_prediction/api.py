@@ -10,6 +10,8 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m08_07 import (
     M0807_CONTRACT_VERSION,
+    M0807_MAX_CANONICAL_REQUEST_BYTES,
+    M0807_MAX_CANONICAL_RESULT_BYTES,
     contract_json_schemas,
 )
 from glio_proteogen.kernel.strict_json import (
@@ -47,7 +49,7 @@ def create_app(service: M0807Service | None = None) -> FastAPI:
     async def calibrate(request: Request) -> JSONResponse:
         try:
             raw = await request.body()
-            decoded = strict_json_loads(raw)
+            decoded = strict_json_loads(raw, max_bytes=M0807_MAX_CANONICAL_REQUEST_BYTES)
         except StrictJsonError as error:
             return JSONResponse(
                 status_code=400,
@@ -71,7 +73,9 @@ def create_app(service: M0807Service | None = None) -> FastAPI:
     @application.post("/m08-07/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
-            decoded = strict_json_loads(await request.body())
+            decoded = strict_json_loads(
+                await request.body(), max_bytes=M0807_MAX_CANONICAL_RESULT_BYTES
+            )
             if not isinstance(decoded, dict):
                 return _error(400, "invalid_document", "verification input must be an object")
             result = decoded.get("result")
