@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m20_01 import (
     M2001_MAX_CANONICAL_REQUEST_BYTES,
     M2001_MAX_CANONICAL_RESULT_BYTES,
@@ -101,12 +102,22 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> ResolveProteinSubtypeUpstreamContractsRequest:
     try:
-        raw = path.read_bytes()
+        raw = read_bounded(path, M2001_MAX_CANONICAL_REQUEST_BYTES)
         decoded = strict_json_loads(raw, max_bytes=M2001_MAX_CANONICAL_REQUEST_BYTES)
         m2001.preflight_m2001_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-    except (OSError, StrictJsonError, ValidationError, m2001.M2001AuthorizationError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        m2001.M2001AuthorizationError,
+    ) as error:
         raise typer.BadParameter("invalid M20-01 request") from error  # noqa: TRY003
+
+
+def _read_result(path: Path) -> bytes:
+    return read_bounded(path, M2001_MAX_CANONICAL_RESULT_BYTES)
 
 
 @m2001_app.command("export-schema")
@@ -145,11 +156,17 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        raw = result_path.read_bytes()
+        raw = _read_result(result_path)
         strict_json_loads(raw, max_bytes=M2001_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.replay(result)
-    except (OSError, StrictJsonError, ValidationError, m2001.M2001ReplayError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        m2001.M2001ReplayError,
+    ) as error:
         typer.echo("verification failed: M20-01 result is invalid", err=True)
         raise typer.Exit(code=1) from error
     typer.echo(canonical_json_bytes(verified).decode("utf-8"))
