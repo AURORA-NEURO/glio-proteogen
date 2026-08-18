@@ -58,6 +58,36 @@ M1908_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-08 telemetry, support drift, workflow, discrepancy, "
     "suspension and rollback material; issuer authority is not authenticated."
 )
+# Caller-controlled text is metadata only.  These terms are deliberately
+# narrow: ordinary protein/mutation terminology is allowed, while text that
+# asks this operational monitor to make a biological, clinical, identity,
+# treatment, or prohibited modality claim is outside its claims ceiling.
+M1908_PROHIBITED_CLAIM_TERMS: Final = (
+    "all-omics",
+    "multi-omics",
+    "multiomics",
+    "kinase activity",
+    "kinophos",
+    "treatment recommendation",
+    "therapy recommendation",
+    "identity inference",
+    "infer identity",
+    "consent inference",
+    "infer consent",
+    "mutation inference",
+    "infer mutation",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "glioma-specific",
+    "glioma specific biology",
+    "clinical decision",
+    "clinical claim",
+    "clinical inference",
+    "biological claim",
+    "negative finding",
+    "relabel",
+)
 
 
 class ObservationStatus(StrEnum):
@@ -95,6 +125,7 @@ class TranslationFindingCode(StrEnum):
     DISCREPANCY_UNRESOLVED = "discrepancy_unresolved"
     ROLLBACK_REQUIRED = "rollback_required"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
+    PROHIBITED_CLAIM_BOUNDARY = "prohibited_claim_boundary"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
 
 
@@ -350,6 +381,7 @@ __all__ = [
     "M1908_OUTPUT_MEDIA_TYPE",
     "M1908_OWNER",
     "M1908_PARENT",
+    "M1908_PROHIBITED_CLAIM_TERMS",
     "M1908_PROVISIONAL_ABI",
     "M1908_SAFETY_CLASS",
     "DiscrepancyObservation",
