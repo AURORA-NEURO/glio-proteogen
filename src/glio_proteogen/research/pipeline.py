@@ -19,6 +19,7 @@ from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
 from .protein import ProteinGroup, infer_protein_groups
+from .quantification import quantify_matched_ions
 from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
 
 _PIPELINE_VERSION = "research-pipeline-1"
@@ -70,6 +71,7 @@ class ResearchRunResult:
     configuration: tuple[tuple[str, object], ...]
     missing_precursor_ms2: int
     result_digest: str
+    peptide_intensities: tuple[tuple[str, float], ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -87,6 +89,7 @@ class ResearchRunResult:
             "psms": [_psm_dict(item) for item in self.psms],
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
             "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
+            "peptide_intensities": [list(item) for item in self.peptide_intensities],
             "protein_groups": [_group_dict(item) for item in self.protein_groups],
             "configuration": dict(self.configuration),
             "evidence_records": [
@@ -134,6 +137,7 @@ def _psm_dict(value: Psm) -> dict[str, object]:
         "q_value": value.q_value,
         "score": value.score,
         "spectrum_id": value.spectrum_id,
+        "matched_intensity": value.matched_intensity,
     }
 
 
@@ -240,6 +244,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         for item in scored
         if not item.decoy and item.q_value is not None and item.q_value <= request.q_value_threshold
     )
+    quantified = quantify_matched_ions(
+        request.sample_id,
+        ((item.peptide, item.matched_intensity) for item in accepted),
+    )
+    peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified)
     peptide_to_proteins: dict[str, set[str]] = {}
     for item in accepted:
         peptide_to_proteins.setdefault(item.peptide, set()).update(item.protein_accessions)
@@ -265,6 +274,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_spectra": request.max_spectra,
                 "q_value_threshold": request.q_value_threshold,
                 "max_bytes": request.max_bytes,
+                "quantification_version": "matched-ion-median-1",
+                "quantification_unit": "median_scaled_matched_ion_intensity",
                 "require_precursor_mz": True,
                 "precursor_charge_source": "mzml_selected_ion",
             }.items()
@@ -299,6 +310,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                     "decoy_psms": sum(item.decoy for item in scored),
                     "groups": len(groups),
                     "missing_precursor_ms2": missing_precursor_count,
+                    "quantified_peptides": len(peptide_intensities),
+                    "quantification_unit": "median_scaled_matched_ion_intensity",
                 },
             ),
         )
@@ -314,6 +327,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "psms": [_psm_dict(item) for item in scored],
         "accepted_psms": [_psm_dict(item) for item in accepted],
         "peptide_spectral_counts": [list(item) for item in counts],
+        "peptide_intensities": [list(item) for item in peptide_intensities],
         "protein_groups": [_group_dict(item) for item in groups],
         "configuration": dict(configuration),
         "evidence_records": [
@@ -345,6 +359,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         configuration=configuration,
         missing_precursor_ms2=missing_precursor_count,
         result_digest=result_digest,
+        peptide_intensities=peptide_intensities,
     )
 
 
