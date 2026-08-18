@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m19_08 import (
     M1908_CONTRACT_VERSION,
     M1908_EVIDENCE_CLAIM,
     M1908_MODULE_ID,
+    M1908_PROHIBITED_CLAIM_TERMS,
     MonitorProteotypeTranslationHealthRequest,
     MonitorStatus,
     ObservationStatus,
@@ -231,6 +232,42 @@ def _provenance(
     )
 
 
+def _claim_texts(request: MonitorProteotypeTranslationHealthRequest) -> tuple[str, ...]:
+    """Collect caller-controlled claim surfaces without traversing artifacts."""
+
+    values: list[str] = [
+        request.support_decision.rationale,
+        request.rollback_policy.suspension_reason,
+    ]
+    values.extend(evidence.claim for evidence in request.rollback_policy.evidence)
+    for item in request.telemetry:
+        values.append(item.metric_name)
+        values.extend(evidence.claim for evidence in item.evidence)
+    for support_item in request.support_drift:
+        values.extend(
+            (
+                support_item.support_dimension,
+                support_item.baseline_status,
+                support_item.current_status,
+            )
+        )
+        values.extend(evidence.claim for evidence in support_item.evidence)
+    for workflow_item in request.workflow_effects:
+        values.extend((workflow_item.workflow, workflow_item.effect_description))
+        values.extend(evidence.claim for evidence in workflow_item.evidence)
+    for discrepancy_item in request.discrepancies:
+        values.append(discrepancy_item.description)
+        values.extend(evidence.claim for evidence in discrepancy_item.evidence)
+    return tuple(values)
+
+
+def _contains_prohibited_claim(request: MonitorProteotypeTranslationHealthRequest) -> bool:
+    """Return whether caller text exceeds the operational M19-08 claims ceiling."""
+
+    texts = tuple(value.casefold() for value in _claim_texts(request))
+    return any(term in text for text in texts for term in M1908_PROHIBITED_CLAIM_TERMS)
+
+
 def _classify(
     request: MonitorProteotypeTranslationHealthRequest,
 ) -> tuple[
@@ -314,6 +351,9 @@ def _findings(
         TranslationFindingCode.DISCREPANCY_UNRESOLVED: "An unresolved discrepancy remains.",
         TranslationFindingCode.ROLLBACK_REQUIRED: "The rollback threshold was reached.",
         TranslationFindingCode.UPSTREAM_UNSUPPORTED: "Upstream support is not evaluable.",
+        TranslationFindingCode.PROHIBITED_CLAIM_BOUNDARY: (
+            "Caller-controlled monitoring text exceeds the M19-08 claims ceiling."
+        ),
         TranslationFindingCode.PROVISIONAL_ABI_PENDING_REVIEW: (
             "The provisional ABI requires governed owner review."
         ),
@@ -379,7 +419,15 @@ class M1908TranslationMonitoringEngine:
         validated = self.validate_request(request)
         request_digest = canonical_request_digest(validated)
         evidence = _evidence(validated)
-        status, health, rollback, codes = _classify(validated)
+        if _contains_prohibited_claim(validated):
+            status = MonitorStatus.ABSTAINED
+            health = TranslationHealthState.NOT_EVALUABLE
+            rollback = RollbackDecision.REVIEW_REQUIRED
+            codes: tuple[TranslationFindingCode, ...] = (
+                TranslationFindingCode.PROHIBITED_CLAIM_BOUNDARY,
+            )
+        else:
+            status, health, rollback, codes = _classify(validated)
         report = (
             TranslationHealthReport(
                 report_id=f"report.{request_digest.removeprefix('sha256:')}",
@@ -408,7 +456,13 @@ class M1908TranslationMonitoringEngine:
             "health_report": report,
             "findings": _findings(request_digest, codes, evidence),
             "abstention_reason": (
-                "Translation-health inputs are not safely supported." if abstained else None
+                (
+                    "M19-08 abstained because caller-controlled text exceeds the claims ceiling."
+                    if TranslationFindingCode.PROHIBITED_CLAIM_BOUNDARY in codes
+                    else "Translation-health inputs are not safely supported."
+                )
+                if abstained
+                else None
             ),
             "parent_target": "proteotype",
             "emits_parent": False,
