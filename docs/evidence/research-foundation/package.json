@@ -70,20 +70,20 @@
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3825404,
+      "bytes": 3826829,
       "members": 1987,
-      "sha256": "1ca20732e468ff74fce9b5cd0d5e90e72abc14f4a9706d8fd212c5f5b1c76971"
+      "sha256": "756c20f9df2287cbc1220e727a8a71530399a7f56f5865e3b02ffe4348ff3d8c"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4423847,
-      "members": 4589,
-      "sha256": "28d9bf1cb8a703936854d8ebb9415e39c1e2ef09feb252e41bc1a72b8c17cb5c"
+      "bytes": 4426986,
+      "members": 4590,
+      "sha256": "ffa1934ea2b1f36efa31648d2aaf774024790609425500d6ca363eb4037fdb96"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "1ca20732e468ff74fce9b5cd0d5e90e72abc14f4a9706d8fd212c5f5b1c76971",
-      "sdist": "28d9bf1cb8a703936854d8ebb9415e39c1e2ef09feb252e41bc1a72b8c17cb5c"
+      "wheel": "756c20f9df2287cbc1220e727a8a71530399a7f56f5865e3b02ffe4348ff3d8c",
+      "sdist": "ffa1934ea2b1f36efa31648d2aaf774024790609425500d6ca363eb4037fdb96"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

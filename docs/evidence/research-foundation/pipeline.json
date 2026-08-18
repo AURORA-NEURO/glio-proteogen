@@ -3,7 +3,10 @@
   "status": "research_only_not_production_abi",
   "fixture": "tests/fixtures/research/proteomics_scenarios.json",
   "computation": {
-    "input": ["caller_owned_mzml_bytes", "caller_owned_fasta_bytes"],
+    "input": [
+      "caller_owned_mzml_bytes",
+      "caller_owned_fasta_bytes"
+    ],
     "stages": [
       "bounded_mzml_decode",
       "tryptic_digest",
@@ -35,7 +38,9 @@
       "unknown_independence_safe_abstention",
       "source_identity_bound_replay",
       "cohort_configuration_compatibility_and_child_replay",
-      "content_addressed_replay"
+      "content_addressed_replay",
+      "replay_bound_cohort_evidence_bundle_matrix_qc_provenance",
+      "uniform_external_metadata_snapshot_gate"
     ],
     "claims": {
       "clinical": false,
