@@ -11,6 +11,7 @@ from glio_proteogen.research import (
     QuantificationPolicy,
     infer_protein_group_candidates,
     quantify_matched_ions_with_receipt,
+    summarize_target_decoy,
     target_decoy_qvalues,
 )
 
@@ -29,6 +30,16 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
     target_low = Psm("scan=2", "PEPTIDEK", ("P2",), 4.0, 3, decoy=False)
     decoy = Psm("scan=3", "PEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
     scored = target_decoy_qvalues((decoy, target_low, target_high))
+    collision = Psm(
+        "scan=collision",
+        "PEPTIDER",
+        ("P1", "DECOY_P1"),
+        6.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    collision_summary = summarize_target_decoy((collision, target_high), q_value_threshold=0.01)
     target_q_values = tuple(
         item.q_value for item in scored if not item.decoy and not item.target_decoy_collision
     )
@@ -47,6 +58,9 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
         (Psm("shared", "SHARED", ("P1", "P2"), 5.0, 3, decoy=False),),
         q_value_threshold=0.01,
     )
+    collision_groups, collision_group_summary = infer_protein_group_candidates(
+        (collision, target_low), q_value_threshold=0.01
+    )
     scenario = scenarios()[0]
     request = build_scenario_request(scenario)
     source_sha256 = {
@@ -62,6 +76,14 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
             if left is not None and right is not None
         ),
         "forged_decoy_flag_rejected": forged_flag_rejected,
+        "collision_counts_as_peptide_fdr_decoy": (
+            collision_summary.decoy_to_target_ratio == 1.0
+            and collision_summary.accepted_targets == 0
+        ),
+        "collision_counts_as_group_fdr_decoy": (
+            collision_group_summary.decoy_to_target_ratio == 1.0
+            and next(item for item in collision_groups if item.status == "target").q_value == 1.0
+        ),
         "exact_loq_is_missing": (
             quantification.receipt.below_loq_peptides == _EXPECTED_BELOW_LOQ
             and quantification.receipt.missing_peptides == _EXPECTED_MISSING

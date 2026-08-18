@@ -32,7 +32,7 @@
         "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
         "input_psms": 1,
         "max_accepted_q_value": 0.0,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -51,7 +51,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74",
+      "expected_result_digest": "a7de26400afe77cea8d0225f66c77897abe4df28c87e0223aedd18e2c8a18539",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -137,7 +137,7 @@
         "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -156,7 +156,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "ad4c53e0cbbf7a8cd42d9f5eb1582f7003ae62e659641712c93f745b24263fea",
+      "expected_result_digest": "2f2610f6f216b4266f751c980e830bf6b68a3a2ea0fa82a9421e529720afe66a",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -226,7 +226,7 @@
         "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -246,7 +246,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "65b88a68d990fccaede174529f0ff399be6cc31f8f29d90cb5283347d0c22a10",
+      "expected_result_digest": "44123496175ca652bc225ff3952ff88f48522e299b0ad5e0cf568a76d70eb341",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -315,7 +315,7 @@
         "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "input_psms": 0,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -325,7 +325,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "e59c57d53c6d379ea20759f8805d2595c6e74b6c358a4c83d9a04b85a4af1445",
+      "expected_result_digest": "401826deab1527d3d995f9bf6487d5139b522d9f09a25b00e9d451e113631d22",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -378,7 +378,7 @@
         "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "input_psms": 0,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -388,7 +388,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "3e4b18375714335430a2468c8eade492c42e8f848b374d95d4722706646b68e5",
+      "expected_result_digest": "6a2e9a401a9c0694466c384c28447da65c699fca1a12eb40f6348e244c869b11",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -460,7 +460,7 @@
         "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 1,
@@ -480,7 +480,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "65424d1675e4ceab8cccaddce99e30a98e4e0f856e8c721dafae1af83add2fbe",
+      "expected_result_digest": "9d9fc035b115b1192210e2834868168923f5c495f9241699d88de1d2671bfea9",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -580,7 +580,7 @@
         "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
         "input_psms": 1,
         "max_accepted_q_value": 0.0,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -599,7 +599,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "fecc73225a0819fcb4032cb782b94b3a198fb42ad0cd50ab8fc0df0683669883",
+      "expected_result_digest": "e25a084ef851fcc06b23a470235eee827a865af7cda384d4d557397ff9c7d05f",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -709,7 +709,7 @@
         "competition_digest": "3a9b730fb6ff051603f7cfa05a6aed7a27e7ad0c683c21e6c1d88f0d3f84a0a4",
         "input_psms": 2,
         "max_accepted_q_value": 0.0,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         "q_value_threshold": 0.01,
         "target_candidates": 2,
         "shared_only_candidates": 0,
@@ -736,7 +736,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "0ff8cd569e40af276efc9e8b379f8fbf388f8b5d1f397a274f82900b45850501",
+      "expected_result_digest": "ad48670d743562889e003587599b2912b28ea82507d0719fbffa24d19e08be43",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
