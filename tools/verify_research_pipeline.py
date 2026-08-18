@@ -43,6 +43,7 @@ _EXPECTED_COHORT_SCENARIOS = (
     "unknown_independence_abstention",
     "incompatible_search_space",
     "pdc_provenance_replay",
+    "pdc_manifest_receipt_identity",
 )
 _RESEARCH_MEMBERS = (
     "glio_proteogen/research/pipeline.py",
