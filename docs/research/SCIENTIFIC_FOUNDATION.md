@@ -22,6 +22,9 @@ C03/C04 computation contract:
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
+- `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
+  research run: fragment matching, target/decoy q-values, spectral-count quantification,
+  ambiguity-preserving protein groups, and deterministic replay.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or
@@ -42,3 +45,7 @@ needs owner confirmation of:
 
 The research implementation is deliberately useful before that handoff without pretending that a
 caller-declared proxy is a scientific result.
+
+The composed workflow and its exact limitations are recorded in
+`docs/research/protein-inference-pipeline.md`. It remains research-only and is not imported by
+M03/M04 routes.

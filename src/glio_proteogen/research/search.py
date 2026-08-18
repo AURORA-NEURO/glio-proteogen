@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from math import hypot
+from math import hypot, isfinite
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,6 +12,18 @@ class SearchParameters:
     precursor_tolerance_ppm: int = 20
     fragment_tolerance_da: float = 0.02
     min_matched_ions: int = 2
+    precursor_charge: int = 1
+    require_precursor_mz: bool = False
+
+    def __post_init__(self) -> None:
+        if self.precursor_tolerance_ppm < 0:
+            raise ValueError("precursor_tolerance_ppm must be non-negative")
+        if not isfinite(self.fragment_tolerance_da) or self.fragment_tolerance_da <= 0:
+            raise ValueError("fragment_tolerance_da must be finite and positive")
+        if self.min_matched_ions < 1:
+            raise ValueError("min_matched_ions must be positive")
+        if self.precursor_charge < 1:
+            raise ValueError("precursor_charge must be positive")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +60,7 @@ _MASS = {
     "V": 99.068414,
 }
 _PROTON = 1.007276466
+_WATER = 18.010565
 _DEFAULT_PARAMETERS = SearchParameters()
 
 
@@ -65,6 +78,11 @@ def _fragments(peptide: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
     return tuple(b), tuple(y)
 
 
+def _precursor_mz(peptide: str, charge: int) -> float:
+    neutral_mass = _WATER + sum(_MASS[residue] for residue in peptide)
+    return (neutral_mass + (charge * _PROTON)) / charge
+
+
 def search_spectrum(
     spectrum_id: str,
     precursor_mz: float,
@@ -74,28 +92,49 @@ def search_spectrum(
     *,
     parameters: SearchParameters = _DEFAULT_PARAMETERS,
 ) -> Psm | None:
-    """Return the highest-scoring candidate; precursor indexing is caller-owned."""
-    _ = precursor_mz
+    """Return the best precursor-compatible candidate or abstain safely.
+
+    A missing or non-finite precursor is not silently treated as a match.  This
+    research primitive supports one precursor charge at a time; callers that
+    cannot provide that metadata must abstain or run a separately declared
+    open-search workflow.
+    """
+    if parameters.require_precursor_mz and (not isfinite(precursor_mz) or precursor_mz <= 0):
+        return None
     mz = tuple(observed_mz)
     intensity = tuple(observed_intensity)
     if len(mz) != len(intensity):
         raise ValueError("observed m/z and intensity lengths differ")
+    if any(not isfinite(value) or value < 0 for value in mz):
+        return None
+    if any(not isfinite(value) or value < 0 for value in intensity):
+        return None
     norm = hypot(*intensity) if intensity else 0.0
     best: Psm | None = None
     for peptide, accessions in peptide_map.items():
         if not peptide or any(residue not in _MASS for residue in peptide):
             continue
+        if parameters.require_precursor_mz:
+            theoretical_precursor = _precursor_mz(peptide, parameters.precursor_charge)
+            ppm_error = (
+                abs(precursor_mz - theoretical_precursor) / theoretical_precursor * 1_000_000
+            )
+            if ppm_error > parameters.precursor_tolerance_ppm:
+                continue
         theoretical = _fragments(peptide)[0] + _fragments(peptide)[1]
         matched = 0
         intensity_score = 0.0
+        used_indices: set[int] = set()
         for value in theoretical:
             candidates = [
                 (index, observed)
                 for index, observed in enumerate(mz)
-                if abs(observed - value) <= parameters.fragment_tolerance_da
+                if index not in used_indices
+                and abs(observed - value) <= parameters.fragment_tolerance_da
             ]
             if candidates:
                 index, observed = min(candidates, key=lambda item: abs(item[1] - value))
+                used_indices.add(index)
                 matched += 1
                 intensity_score += intensity[index] / (1.0 + abs(observed - value))
         if matched < parameters.min_matched_ions:
@@ -108,13 +147,42 @@ def search_spectrum(
             matched_ions=matched,
             decoy=any(accession.startswith("DECOY_") for accession in accessions),
         )
-        if best is None or candidate.score > best.score:
+        if best is None or (
+            candidate.score,
+            not candidate.decoy,
+            candidate.peptide,
+            candidate.protein_accessions,
+        ) > (
+            best.score,
+            not best.decoy,
+            best.peptide,
+            best.protein_accessions,
+        ):
             best = candidate
     return best
 
 
 def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
-    ordered = sorted(psms, key=lambda value: (-value.score, value.spectrum_id, value.peptide))
+    winners: dict[str, Psm] = {}
+    for psm in psms:
+        if not isfinite(psm.score) or psm.score < 0:
+            raise ValueError("PSM scores must be finite and non-negative")
+        current = winners.get(psm.spectrum_id)
+        if current is None or (
+            psm.score,
+            not psm.decoy,
+            psm.peptide,
+            psm.protein_accessions,
+        ) > (
+            current.score,
+            not current.decoy,
+            current.peptide,
+            current.protein_accessions,
+        ):
+            winners[psm.spectrum_id] = psm
+    ordered = sorted(
+        winners.values(), key=lambda value: (-value.score, value.spectrum_id, value.peptide)
+    )
     decoys = 0
     targets = 0
     raw: list[tuple[Psm, float]] = []
@@ -126,5 +194,5 @@ def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
     output: list[Psm] = []
     for psm, value in reversed(raw):
         running = min(running, value)
-        output.append(replace(psm, q_value=running))
+        output.append(replace(psm, q_value=None if psm.decoy else running))
     return tuple(reversed(output))

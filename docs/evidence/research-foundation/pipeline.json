@@ -1,0 +1,36 @@
+{
+  "lane": "research-protein-inference-pipeline",
+  "status": "research_only_not_production_abi",
+  "fixture": "tests/fixtures/research/proteomics_scenarios.json",
+  "computation": {
+    "input": ["caller_owned_mzml_bytes", "caller_owned_fasta_bytes"],
+    "stages": [
+      "bounded_mzml_decode",
+      "tryptic_digest",
+      "b_y_fragment_matching",
+      "target_decoy_q_values",
+      "spectral_count_quantification",
+      "ambiguity_preserving_protein_groups",
+      "content_addressed_replay"
+    ],
+    "claims": {
+      "clinical": false,
+      "glioma": false,
+      "mechanism": false,
+      "production_abi": false
+    }
+  },
+  "validation": {
+    "scenarios": 6,
+    "expected_paths": [
+      "target_supported",
+      "decoy_rejected",
+      "no_match",
+      "precursor_rejected",
+      "shared_peptide_group",
+      "multi_spectrum"
+    ],
+    "replay": "full_result_projection_and_digest",
+    "raw_cohort_bytes_bundled": false
+  }
+}

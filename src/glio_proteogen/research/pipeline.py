@@ -1,0 +1,366 @@
+"""Executable research-only mzML-to-protein-group computation pipeline.
+
+The pipeline is intentionally separate from governed module contracts. It runs a
+small, deterministic spectral-count workflow over caller-supplied bytes and
+returns content-addressed evidence plus explicit research limitations. It does
+not publish a production protein-inference result or clinical claim.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from collections import Counter
+from dataclasses import dataclass
+from hashlib import sha256
+from typing import BinaryIO
+
+from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
+from .fasta import digest_trypsin, read_fasta
+from .mzml import parse_mzml
+from .protein import ProteinGroup, infer_protein_groups
+from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
+
+_PIPELINE_VERSION = "research-pipeline-1"
+_MZML_PARSER_VERSION = "mzml-parser-1"
+_SEARCH_VERSION = "fragment-search-1"
+_DIGESTION_VERSION = "trypsin-digest-1"
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchRunRequest:
+    """Caller-owned bytes and deterministic controls for one research run."""
+
+    sample_id: str
+    mzml_source: bytes | bytearray | BinaryIO
+    fasta_source: bytes | str | BinaryIO
+    fragment_tolerance_da: float = 0.02
+    min_matched_ions: int = 2
+    missed_cleavages: int = 0
+    min_peptide_length: int = 7
+    max_peptide_length: int = 40
+    max_spectra: int = 100_000
+    q_value_threshold: float = 0.01
+    max_bytes: int = 256 * 1024 * 1024
+
+    def __post_init__(self) -> None:
+        # Snapshot streams at the boundary so a replay is byte-stable even when the
+        # caller supplied a one-shot BinaryIO object.
+        if type(self.max_bytes) is not int or not 0 < self.max_bytes <= 512 * 1024 * 1024:
+            raise ValueError("max_bytes is outside the research limit")
+        object.__setattr__(self, "mzml_source", _read_bytes(self.mzml_source, self.max_bytes))
+        object.__setattr__(self, "fasta_source", _read_bytes(self.fasta_source, self.max_bytes))
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchRunResult:
+    """Content-addressed output of the research pipeline."""
+
+    sample_id: str
+    mzml_sha256: str
+    fasta_sha256: str
+    spectra_seen: int
+    ms2_spectra_seen: int
+    search_space_peptides: int
+    psms: tuple[Psm, ...]
+    accepted_psms: tuple[Psm, ...]
+    peptide_spectral_counts: tuple[tuple[str, int], ...]
+    protein_groups: tuple[ProteinGroup, ...]
+    evidence: EvidenceBundle
+    configuration: tuple[tuple[str, object], ...]
+    missing_precursor_ms2: int
+    result_digest: str
+
+    @property
+    def limitations(self) -> tuple[str, ...]:
+        return self.evidence.limitations
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "sample_id": self.sample_id,
+            "mzml_sha256": self.mzml_sha256,
+            "fasta_sha256": self.fasta_sha256,
+            "spectra_seen": self.spectra_seen,
+            "ms2_spectra_seen": self.ms2_spectra_seen,
+            "search_space_peptides": self.search_space_peptides,
+            "missing_precursor_ms2": self.missing_precursor_ms2,
+            "psms": [_psm_dict(item) for item in self.psms],
+            "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
+            "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
+            "protein_groups": [_group_dict(item) for item in self.protein_groups],
+            "configuration": dict(self.configuration),
+            "evidence_records": [
+                {
+                    "id": record.evidence_id,
+                    "source": record.source,
+                    "kind": record.kind,
+                    "payload": record.payload_jsonable,
+                    "digest": record.digest,
+                }
+                for record in self.evidence.records
+            ],
+            "limitations": list(self.evidence.limitations),
+            "evidence_digest": self.evidence.digest,
+            "result_digest": self.result_digest,
+        }
+
+
+def _read_bytes(source: bytes | bytearray | str | BinaryIO, max_bytes: int) -> bytes:
+    if isinstance(source, bytes):
+        if len(source) > max_bytes:
+            raise ValueError("research input exceeds the byte limit")
+        return source
+    if isinstance(source, bytearray):
+        if len(source) > max_bytes:
+            raise ValueError("research input exceeds the byte limit")
+        return bytes(source)
+    if isinstance(source, str):
+        value = source.encode("utf-8")
+        if len(value) > max_bytes:
+            raise ValueError("research input exceeds the byte limit")
+        return value
+    value = source.read(max_bytes + 1)
+    if len(value) > max_bytes:
+        raise ValueError("research input exceeds the byte limit")
+    return bytes(value)
+
+
+def _psm_dict(value: Psm) -> dict[str, object]:
+    return {
+        "decoy": value.decoy,
+        "matched_ions": value.matched_ions,
+        "peptide": value.peptide,
+        "protein_accessions": list(value.protein_accessions),
+        "q_value": value.q_value,
+        "score": value.score,
+        "spectrum_id": value.spectrum_id,
+    }
+
+
+def _group_dict(value: ProteinGroup) -> dict[str, object]:
+    return {
+        "accessions": list(value.accessions),
+        "shared_peptides": list(value.shared_peptides),
+        "unique_peptides": list(value.unique_peptides),
+    }
+
+
+def _result_digest(payload: dict[str, object]) -> str:
+    return sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _validate_request(request: ResearchRunRequest) -> None:
+    if (
+        not isinstance(request.sample_id, str)
+        or not request.sample_id
+        or len(request.sample_id) > 128
+        or request.sample_id != request.sample_id.strip()
+        or any(character.isspace() or ord(character) < 32 for character in request.sample_id)
+    ):
+        raise ValueError("sample_id must be a bounded opaque identifier")
+    if (
+        type(request.fragment_tolerance_da) not in (int, float)
+        or not math.isfinite(request.fragment_tolerance_da)
+        or request.fragment_tolerance_da <= 0
+    ):
+        raise ValueError("fragment_tolerance_da must be finite and positive")
+    if request.fragment_tolerance_da > 5:
+        raise ValueError("fragment_tolerance_da exceeds the research limit")
+    if type(request.min_matched_ions) is not int or request.min_matched_ions < 1:
+        raise ValueError("min_matched_ions must be positive")
+    if request.min_matched_ions > 100:
+        raise ValueError("min_matched_ions exceeds the research limit")
+    if type(request.missed_cleavages) is not int or not 0 <= request.missed_cleavages <= 4:
+        raise ValueError("missed_cleavages is outside the research limit")
+    if (
+        type(request.min_peptide_length) is not int
+        or type(request.max_peptide_length) is not int
+        or not 1 <= request.min_peptide_length <= request.max_peptide_length <= 100
+    ):
+        raise ValueError("peptide length bounds are invalid")
+    if type(request.max_spectra) is not int or not 0 < request.max_spectra <= 1_000_000:
+        raise ValueError("max_spectra is outside the research limit")
+    if (
+        type(request.q_value_threshold) not in (int, float)
+        or not 0 <= request.q_value_threshold <= 1
+        or not math.isfinite(request.q_value_threshold)
+    ):
+        raise ValueError("q_value_threshold must be finite and between zero and one")
+
+
+def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunResult:
+    """Execute transparent spectrum search, FDR, spectral counting, and grouping."""
+    _validate_request(request)
+    mzml_bytes = _read_bytes(request.mzml_source, request.max_bytes)
+    fasta_bytes = _read_bytes(request.fasta_source, request.max_bytes)
+    spectra = parse_mzml(mzml_bytes, max_bytes=request.max_bytes, max_spectra=request.max_spectra)
+    entries = read_fasta(fasta_bytes)
+    peptide_map = digest_trypsin(
+        entries,
+        missed_cleavages=request.missed_cleavages,
+        min_length=request.min_peptide_length,
+        max_length=request.max_peptide_length,
+    )
+    parameters = SearchParameters(
+        fragment_tolerance_da=request.fragment_tolerance_da,
+        min_matched_ions=request.min_matched_ions,
+        require_precursor_mz=True,
+    )
+    psms: list[Psm] = []
+    ms2_count = 0
+    missing_precursor_count = 0
+    for spectrum in spectra:
+        if spectrum.ms_level != 2:
+            continue
+        ms2_count += 1
+        if spectrum.precursor_mz is None or spectrum.precursor_charge is None:
+            missing_precursor_count += 1
+            continue
+        psm = search_spectrum(
+            spectrum.spectrum_id,
+            spectrum.precursor_mz,
+            peptide_map,
+            spectrum.mz,
+            spectrum.intensity,
+            parameters=SearchParameters(
+                precursor_tolerance_ppm=parameters.precursor_tolerance_ppm,
+                fragment_tolerance_da=parameters.fragment_tolerance_da,
+                min_matched_ions=parameters.min_matched_ions,
+                precursor_charge=spectrum.precursor_charge,
+                require_precursor_mz=True,
+            ),
+        )
+        if psm is not None:
+            psms.append(psm)
+    scored = target_decoy_qvalues(tuple(psms))
+    accepted = tuple(
+        item
+        for item in scored
+        if not item.decoy and item.q_value is not None and item.q_value <= request.q_value_threshold
+    )
+    peptide_to_proteins: dict[str, set[str]] = {}
+    for item in accepted:
+        peptide_to_proteins.setdefault(item.peptide, set()).update(item.protein_accessions)
+    groups = infer_protein_groups(
+        {peptide: tuple(sorted(proteins)) for peptide, proteins in peptide_to_proteins.items()}
+    )
+    counts = tuple(sorted(Counter(item.peptide for item in accepted).items()))
+    mzml_digest = sha256(mzml_bytes).hexdigest()
+    fasta_digest = sha256(fasta_bytes).hexdigest()
+    configuration = tuple(
+        sorted(
+            {
+                "pipeline_version": _PIPELINE_VERSION,
+                "mzml_parser_version": _MZML_PARSER_VERSION,
+                "search_version": _SEARCH_VERSION,
+                "digestion_version": _DIGESTION_VERSION,
+                "fragment_tolerance_da": request.fragment_tolerance_da,
+                "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
+                "min_matched_ions": request.min_matched_ions,
+                "missed_cleavages": request.missed_cleavages,
+                "min_peptide_length": request.min_peptide_length,
+                "max_peptide_length": request.max_peptide_length,
+                "max_spectra": request.max_spectra,
+                "q_value_threshold": request.q_value_threshold,
+                "max_bytes": request.max_bytes,
+                "require_precursor_mz": True,
+                "precursor_charge_source": "mzml_selected_ion",
+            }.items()
+        )
+    )
+    evidence = aggregate_evidence(
+        (
+            EvidenceRecord.create(
+                "input:fasta",
+                f"sha256:{fasta_digest}",
+                "search_space",
+                {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
+            ),
+            EvidenceRecord.create(
+                "input:mzml",
+                f"sha256:{mzml_digest}",
+                "spectra",
+                {"bytes": len(mzml_bytes), "spectra": len(spectra), "ms2": ms2_count},
+            ),
+            EvidenceRecord.create(
+                "run:configuration",
+                "research:pipeline",
+                "configuration",
+                dict(configuration),
+            ),
+            EvidenceRecord.create(
+                "computed:protein-groups",
+                "research:pipeline",
+                "protein_groups",
+                {
+                    "accepted_psms": len(accepted),
+                    "decoy_psms": sum(item.decoy for item in scored),
+                    "groups": len(groups),
+                    "missing_precursor_ms2": missing_precursor_count,
+                },
+            ),
+        )
+    )
+    result_payload = {
+        "sample_id": request.sample_id,
+        "mzml_sha256": mzml_digest,
+        "fasta_sha256": fasta_digest,
+        "spectra_seen": len(spectra),
+        "ms2_spectra_seen": ms2_count,
+        "search_space_peptides": len(peptide_map),
+        "missing_precursor_ms2": missing_precursor_count,
+        "psms": [_psm_dict(item) for item in scored],
+        "accepted_psms": [_psm_dict(item) for item in accepted],
+        "peptide_spectral_counts": [list(item) for item in counts],
+        "protein_groups": [_group_dict(item) for item in groups],
+        "configuration": dict(configuration),
+        "evidence_records": [
+            {
+                "id": record.evidence_id,
+                "source": record.source,
+                "kind": record.kind,
+                "payload": record.payload_jsonable,
+                "digest": record.digest,
+            }
+            for record in evidence.records
+        ],
+        "limitations": list(evidence.limitations),
+        "evidence_digest": evidence.digest,
+    }
+    result_digest = _result_digest(result_payload)
+    return ResearchRunResult(
+        sample_id=request.sample_id,
+        mzml_sha256=mzml_digest,
+        fasta_sha256=fasta_digest,
+        spectra_seen=len(spectra),
+        ms2_spectra_seen=ms2_count,
+        search_space_peptides=len(peptide_map),
+        psms=scored,
+        accepted_psms=accepted,
+        peptide_spectral_counts=counts,
+        protein_groups=groups,
+        evidence=evidence,
+        configuration=configuration,
+        missing_precursor_ms2=missing_precursor_count,
+        result_digest=result_digest,
+    )
+
+
+def replay_research_protein_inference(
+    request: ResearchRunRequest, expected: ResearchRunResult
+) -> ResearchRunResult:
+    """Re-run a research result and reject any changed or tampered projection."""
+    expected_projection = expected.as_dict()
+    expected_digest = expected_projection.pop("result_digest")
+    if (
+        expected_digest != expected.result_digest
+        or _result_digest(expected_projection) != expected_digest
+    ):
+        raise ValueError("expected research result digest is invalid")
+    aggregate_evidence(expected.evidence.records)
+    observed = run_research_protein_inference(request)
+    if observed.as_dict() != {**expected_projection, "result_digest": expected_digest}:
+        raise ValueError("research result replay or digest verification failed")
+    return observed

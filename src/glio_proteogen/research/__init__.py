@@ -9,6 +9,12 @@ from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
 from .pdc import PdcClient, PdcFile, PdcStudySnapshot
+from .pipeline import (
+    ResearchRunRequest,
+    ResearchRunResult,
+    replay_research_protein_inference,
+    run_research_protein_inference,
+)
 from .protein import ProteinGroup, infer_protein_groups
 from .quantification import PeptideQuant, median_normalize
 from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
@@ -23,6 +29,8 @@ __all__ = [
     "PeptideQuant",
     "ProteinGroup",
     "Psm",
+    "ResearchRunRequest",
+    "ResearchRunResult",
     "SearchParameters",
     "Spectrum",
     "aggregate_evidence",
@@ -31,6 +39,8 @@ __all__ = [
     "median_normalize",
     "parse_mzml",
     "read_fasta",
+    "replay_research_protein_inference",
+    "run_research_protein_inference",
     "search_spectrum",
     "target_decoy_qvalues",
 ]
