@@ -128,13 +128,24 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
     decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
     summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
-    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-1"
+    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-2"
     assert summary.spectrum_winners == 2
     assert summary.target_winners == 1
     assert summary.decoy_winners == 1
     assert summary.accepted_targets == 1
     assert summary.max_accepted_q_value == 0.0
     assert summary.decoy_to_target_ratio == 1.0
+    collision = Psm(
+        "scan=3",
+        "MPEPTIDER",
+        ("P1", "DECOY_P1"),
+        5.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    collision_summary = summarize_target_decoy((collision, target), q_value_threshold=0.01)
+    assert collision_summary.decoy_to_target_ratio == 1.0
     with pytest.raises(ValueError, match="between zero and one"):
         summarize_target_decoy((target,), q_value_threshold=1.1)
 
@@ -786,6 +797,29 @@ def test_protein_group_fdr_abstains_mixed_collision_and_allows_decoy_only_reject
     )
     assert decoy_summary.decoy_candidates == 1
     assert decoy_candidates[0].acceptance == "rejected"
+
+
+def test_collision_evidence_counts_toward_group_fdr_without_becoming_reportable() -> None:
+    collision = Psm(
+        "collision-high",
+        "PEPTIDER",
+        ("P1", "DECOY_P1"),
+        5.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    target = Psm("target-low", "PEPTIDEK", ("P2",), 4.0, 3, decoy=False)
+
+    candidates, summary = infer_protein_group_candidates(
+        (collision, target), q_value_threshold=0.01
+    )
+
+    target_candidate = next(item for item in candidates if item.status == "target")
+    assert target_candidate.q_value == 1.0
+    assert target_candidate.acceptance == "rejected"
+    assert summary.collision_candidates == 1
+    assert summary.decoy_to_target_ratio == 1.0
 
 
 def test_protein_group_fdr_collapses_duplicate_spectrum_contenders_and_binds_them() -> None:

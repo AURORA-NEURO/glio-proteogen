@@ -1,17 +1,17 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "c97c60855b4a68dbe86026b43592cee71ca3176cbf59f0aa8e6fc720dde2a7fe",
+  "fixture_sha256": "a59e5c155af366994236b022d5a4300195ddaf9538058c1257a4369d53712380",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "c97c60855b4a68dbe86026b43592cee71ca3176cbf59f0aa8e6fc720dde2a7fe",
+    "fixture_sha256": "a59e5c155af366994236b022d5a4300195ddaf9538058c1257a4369d53712380",
     "outcomes": [
       {
         "scenario_id": "target_supported",
         "passed": true,
-        "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74",
+        "result_digest": "a7de26400afe77cea8d0225f66c77897abe4df28c87e0223aedd18e2c8a18539",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -25,7 +25,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": 0.0,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 1,
           "target_winners": 1
@@ -40,7 +40,7 @@
           "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
           "input_psms": 1,
           "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 1,
           "shared_only_candidates": 0,
@@ -143,7 +143,7 @@
       {
         "scenario_id": "decoy_rejected",
         "passed": true,
-        "result_digest": "ad4c53e0cbbf7a8cd42d9f5eb1582f7003ae62e659641712c93f745b24263fea",
+        "result_digest": "2f2610f6f216b4266f751c980e830bf6b68a3a2ea0fa82a9421e529720afe66a",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -153,7 +153,7 @@
           "decoy_winners": 1,
           "collision_winners": 0,
           "max_accepted_q_value": null,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 1,
           "target_winners": 0
@@ -168,7 +168,7 @@
           "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
           "input_psms": 1,
           "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 0,
           "shared_only_candidates": 0,
@@ -239,7 +239,7 @@
       {
         "scenario_id": "target_decoy_collision",
         "passed": true,
-        "result_digest": "65b88a68d990fccaede174529f0ff399be6cc31f8f29d90cb5283347d0c22a10",
+        "result_digest": "44123496175ca652bc225ff3952ff88f48522e299b0ad5e0cf568a76d70eb341",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -249,7 +249,7 @@
           "decoy_winners": 0,
           "collision_winners": 1,
           "max_accepted_q_value": null,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 1,
           "target_winners": 0
@@ -264,7 +264,7 @@
           "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
           "input_psms": 1,
           "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 0,
           "shared_only_candidates": 0,
@@ -336,7 +336,7 @@
       {
         "scenario_id": "no_match",
         "passed": true,
-        "result_digest": "e59c57d53c6d379ea20759f8805d2595c6e74b6c358a4c83d9a04b85a4af1445",
+        "result_digest": "401826deab1527d3d995f9bf6487d5139b522d9f09a25b00e9d451e113631d22",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -346,7 +346,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": null,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 0,
           "target_winners": 0
@@ -361,7 +361,7 @@
           "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
           "input_psms": 0,
           "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 0,
           "shared_only_candidates": 0,
@@ -411,7 +411,7 @@
       {
         "scenario_id": "precursor_rejected",
         "passed": true,
-        "result_digest": "3e4b18375714335430a2468c8eade492c42e8f848b374d95d4722706646b68e5",
+        "result_digest": "6a2e9a401a9c0694466c384c28447da65c699fca1a12eb40f6348e244c869b11",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -421,7 +421,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": null,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 0,
           "target_winners": 0
@@ -436,7 +436,7 @@
           "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
           "input_psms": 0,
           "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 0,
           "shared_only_candidates": 0,
@@ -486,7 +486,7 @@
       {
         "scenario_id": "shared_peptide_group",
         "passed": true,
-        "result_digest": "65424d1675e4ceab8cccaddce99e30a98e4e0f856e8c721dafae1af83add2fbe",
+        "result_digest": "9d9fc035b115b1192210e2834868168923f5c495f9241699d88de1d2671bfea9",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -501,7 +501,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": 0.0,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 1,
           "target_winners": 1
@@ -516,7 +516,7 @@
           "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
           "input_psms": 1,
           "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 1,
           "shared_only_candidates": 1,
@@ -621,7 +621,7 @@
       {
         "scenario_id": "multi_spectrum",
         "passed": true,
-        "result_digest": "fecc73225a0819fcb4032cb782b94b3a198fb42ad0cd50ab8fc0df0683669883",
+        "result_digest": "e25a084ef851fcc06b23a470235eee827a865af7cda384d4d557397ff9c7d05f",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -635,7 +635,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": 0.0,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 1,
           "target_winners": 1
@@ -650,7 +650,7 @@
           "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
           "input_psms": 1,
           "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 1,
           "shared_only_candidates": 0,
@@ -753,7 +753,7 @@
       {
         "scenario_id": "multi_peptide_quantification",
         "passed": true,
-        "result_digest": "0ff8cd569e40af276efc9e8b379f8fbf388f8b5d1f397a274f82900b45850501",
+        "result_digest": "ad48670d743562889e003587599b2912b28ea82507d0719fbffa24d19e08be43",
         "psms": 2,
         "accepted_psms": 2,
         "groups": [
@@ -770,7 +770,7 @@
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": 0.0,
-          "method": "winner-per-spectrum-target-decoy-collision-abstain-1",
+          "method": "winner-per-spectrum-target-decoy-collision-abstain-2",
           "q_value_threshold": 0.01,
           "spectrum_winners": 2,
           "target_winners": 2
@@ -785,7 +785,7 @@
           "competition_digest": "3a9b730fb6ff051603f7cfa05a6aed7a27e7ad0c683c21e6c1d88f0d3f84a0a4",
           "input_psms": 2,
           "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-3",
           "q_value_threshold": 0.01,
           "target_candidates": 2,
           "shared_only_candidates": 0,
@@ -944,23 +944,23 @@
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "4c7e21434a89ee9879c209d2ba1f9ec674d7995d0cb408738388b2afa063f708",
+        "result_digest": "152c4aadb07836f81fb62c1255d0e9390632a84ca069b9704d4bd43bbe143440",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "rep-a",
-              "f6a4c1072247cf32904b5055e17c1f56eef81b5b7b5ae39e0c5c61d411aec927"
+              "12b56a2b1ccd8572d99a20af8da22a769210df599a868b9496d7f0fe59d979b8"
             ],
             [
               "rep-b",
-              "e21c9665f19815811f8fe4e9c20f20dbe5b9f8fbf34abe9cf5d8712c34bc8a35"
+              "6fc4f3268dc8f7da8caf3526aaa1c52a0ddbec44ab5b08f705a23aeb94356759"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "f6a4c1072247cf32904b5055e17c1f56eef81b5b7b5ae39e0c5c61d411aec927",
-              "e21c9665f19815811f8fe4e9c20f20dbe5b9f8fbf34abe9cf5d8712c34bc8a35"
+              "12b56a2b1ccd8572d99a20af8da22a769210df599a868b9496d7f0fe59d979b8",
+              "6fc4f3268dc8f7da8caf3526aaa1c52a0ddbec44ab5b08f705a23aeb94356759"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
@@ -1089,7 +1089,7 @@
               ]
             ]
           ],
-          "result_digest": "4c7e21434a89ee9879c209d2ba1f9ec674d7995d0cb408738388b2afa063f708",
+          "result_digest": "152c4aadb07836f81fb62c1255d0e9390632a84ca069b9704d4bd43bbe143440",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -1217,7 +1217,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "47fd3b89f5057e94164f994562ef3be2759fe5d6d692a6fff79a14c621b6ea5c",
+            "digest": "6d5593e3b007ea35cf62a513018ef825e29f3011508cb1d65f9a0005b82c4d0a",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1308,14 +1308,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "aad9349a25f6e900909554caecf9eee543f217f46b68365f22701e01551d0414",
+                "digest": "9fe2bb87fc381c5c3e9e47470e8132ec5f218518e6192b36c37e62613925a4f8",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "f6a4c1072247cf32904b5055e17c1f56eef81b5b7b5ae39e0c5c61d411aec927",
-                      "e21c9665f19815811f8fe4e9c20f20dbe5b9f8fbf34abe9cf5d8712c34bc8a35"
+                      "12b56a2b1ccd8572d99a20af8da22a769210df599a868b9496d7f0fe59d979b8",
+                      "6fc4f3268dc8f7da8caf3526aaa1c52a0ddbec44ab5b08f705a23aeb94356759"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
@@ -1560,23 +1560,23 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "076610c99b107824fac1328ea11ede4e13aae4a98c209ab5a525f08fecc3447f",
+        "result_digest": "dce01c629de40780b63196150394e9d70048b0960e82764429ca9f939b26a44e",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "qc-absent",
-              "17022df5bc2c7e63c690a8e0055ac66c2d5ce08c391e18621f90403fa92036b1"
+              "c07e759aec17a8741cfe58c917e35d1d87bcb8d9385c666b5137f011988af891"
             ],
             [
               "qc-present",
-              "d326b6d0ed5ed972ee3860ec472fcfb2913adc442d7a0f4ecee376371c0bd1ad"
+              "da189878ce249bc6bfec2ec32c91533069f10aad004a2e29f2582d9bef7e36b3"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "17022df5bc2c7e63c690a8e0055ac66c2d5ce08c391e18621f90403fa92036b1",
-              "d326b6d0ed5ed972ee3860ec472fcfb2913adc442d7a0f4ecee376371c0bd1ad"
+              "c07e759aec17a8741cfe58c917e35d1d87bcb8d9385c666b5137f011988af891",
+              "da189878ce249bc6bfec2ec32c91533069f10aad004a2e29f2582d9bef7e36b3"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
@@ -1705,7 +1705,7 @@
               ]
             ]
           ],
-          "result_digest": "076610c99b107824fac1328ea11ede4e13aae4a98c209ab5a525f08fecc3447f",
+          "result_digest": "dce01c629de40780b63196150394e9d70048b0960e82764429ca9f939b26a44e",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1833,7 +1833,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "308c135b53c966eebdec32fbe89926190fad4cfecf9ccf22f2b0eb90bfaa466f",
+            "digest": "c089247059cc88e8c094b6fbf55f35bb984ad00f2374e81d9a4bdf98fb2d49bd",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1924,14 +1924,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "f6b338ab2daa5a2d53337cf11ec0f206c03cd922622a90ecab8440a522b18407",
+                "digest": "e5ca30dc964cb88f065129f98eec44ff4061ac2c9cdf5d6204b3905710d9947e",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "17022df5bc2c7e63c690a8e0055ac66c2d5ce08c391e18621f90403fa92036b1",
-                      "d326b6d0ed5ed972ee3860ec472fcfb2913adc442d7a0f4ecee376371c0bd1ad"
+                      "c07e759aec17a8741cfe58c917e35d1d87bcb8d9385c666b5137f011988af891",
+                      "da189878ce249bc6bfec2ec32c91533069f10aad004a2e29f2582d9bef7e36b3"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
@@ -2176,23 +2176,23 @@
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "0aa04c0a1db55c3509b1e766ce0d124a21c893cd28f5baa7099ac6236d8f6cc7",
+        "result_digest": "20857d715b652cb153086269e0dcc7eb780b1fea971f979f875dcf383b1eda37",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "absent",
-              "4d0e49d2199b700663284ed4c19d00b31c649eef48d08ccaf26d367d7020e8bc"
+              "4663b59f69e183953a35a83e332c287561e860e49d20bd6cce21b9343ea8a9ed"
             ],
             [
               "present",
-              "ddf8944cf97094ce532c9b882e4372819abc32cb290ed16e8cf5ba14f560f327"
+              "aeff8f0ac668a39463427416e1dc5ffb87a2c2709ef208068984df678fdd9602"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "4d0e49d2199b700663284ed4c19d00b31c649eef48d08ccaf26d367d7020e8bc",
-              "ddf8944cf97094ce532c9b882e4372819abc32cb290ed16e8cf5ba14f560f327"
+              "4663b59f69e183953a35a83e332c287561e860e49d20bd6cce21b9343ea8a9ed",
+              "aeff8f0ac668a39463427416e1dc5ffb87a2c2709ef208068984df678fdd9602"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
@@ -2321,7 +2321,7 @@
               ]
             ]
           ],
-          "result_digest": "0aa04c0a1db55c3509b1e766ce0d124a21c893cd28f5baa7099ac6236d8f6cc7",
+          "result_digest": "20857d715b652cb153086269e0dcc7eb780b1fea971f979f875dcf383b1eda37",
           "sample_ids": [
             "absent",
             "present"
@@ -2449,7 +2449,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "5dccb3c308f945800ad7305e080a353e408d5b34b32be6e439c075675924f5cc",
+            "digest": "20443757973f2f445ac4d1e42f33a7fd020bc547297388ca48d520999cec169f",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -2540,14 +2540,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "9133abfa7032879ac67f430dd62ee8a6d659e11440c30c54d5a34f6e0c2f7025",
+                "digest": "e45295b1e9ccd2430f877c26ea0dedc6096038a5587b491c72b9cc782b0e7ba2",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "4d0e49d2199b700663284ed4c19d00b31c649eef48d08ccaf26d367d7020e8bc",
-                      "ddf8944cf97094ce532c9b882e4372819abc32cb290ed16e8cf5ba14f560f327"
+                      "4663b59f69e183953a35a83e332c287561e860e49d20bd6cce21b9343ea8a9ed",
+                      "aeff8f0ac668a39463427416e1dc5ffb87a2c2709ef208068984df678fdd9602"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
@@ -2792,33 +2792,33 @@
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "426b7a82585e08689aaf08a800c4891ec47ba6a85b0e2bf4d4e62a39b9225982",
+        "result_digest": "be900aa25a155d0959a06f4346da7355d017882fd62b32b821036ea95b7539c1",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "case-a",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
             ],
             [
               "case-b",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
             ],
             [
               "control-a",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
             ],
             [
               "control-b",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-              "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+              "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
@@ -3053,7 +3053,7 @@
               ]
             ]
           ],
-          "result_digest": "426b7a82585e08689aaf08a800c4891ec47ba6a85b0e2bf4d4e62a39b9225982",
+          "result_digest": "be900aa25a155d0959a06f4346da7355d017882fd62b32b821036ea95b7539c1",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -3357,7 +3357,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "03146e1d1bd45be679df8854f7b8b60fc3bb6f4664321f0d4de6be8270926db7",
+            "digest": "9ee288b177c07db3bce3ec01d545ca897039268c2eb8c3ccaba1317ab33be0a5",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -3531,16 +3531,16 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "f2e3c6f43efef04ea328e91124ac58e360cdbbb0521ecc5abb7c3acff40551a5",
+                "digest": "02c7cde788726e351d801c7af4eaff7819594291465d13e060655df8f5d61509",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-                      "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-                      "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
-                      "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
+                      "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+                      "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+                      "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a",
+                      "a9e62232eb7ccbdc2a7b655911f9bdd4d69fd2b726bf3487c164eed54a8a8c8a"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
@@ -3991,23 +3991,23 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "012cdf115722804816b8e0a6fc90be460e6359aa6d9d0bf43328c6fac6797d6d",
+        "result_digest": "61cdd8ab7a3b43425c4fb21abbb1db038d769c473516801bc0f02d41657147af",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0"
+              "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb"
             ],
             [
               "duplicate-b",
-              "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+              "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
-              "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+              "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb",
+              "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
@@ -4136,7 +4136,7 @@
               ]
             ]
           ],
-          "result_digest": "012cdf115722804816b8e0a6fc90be460e6359aa6d9d0bf43328c6fac6797d6d",
+          "result_digest": "61cdd8ab7a3b43425c4fb21abbb1db038d769c473516801bc0f02d41657147af",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -4264,7 +4264,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "6b2f4e0dded0261d2c574ff86c09ffed7d4f3b55f7df8b682bb2721503300e34",
+            "digest": "13b14f8b4484e54aba997be9a86a72dcc8ebc73ea9e89ffd5a3f00e10905a269",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -4355,14 +4355,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "374e7c9d2c9f0680764f82c8074de830b2d8608823743802986db1ea4dcdb46c",
+                "digest": "41e66337ea764f497b0ccbd54557c1eddcd4fd6e452b335ef66dd435e2144337",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
-                      "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+                      "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb",
+                      "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
@@ -4607,23 +4607,23 @@
       {
         "id": "unknown_independence_abstention",
         "passed": true,
-        "result_digest": "cf56f002412608a4c96aae8b0f0ff28701d30238a0dd1b4b183184198169dbbe",
+        "result_digest": "9369412cad6aa5600acfbbded2a24921f20519b060c7c928ec04122d74ed731f",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0"
+              "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb"
             ],
             [
               "duplicate-b",
-              "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+              "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
-              "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+              "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb",
+              "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
@@ -4752,7 +4752,7 @@
               ]
             ]
           ],
-          "result_digest": "cf56f002412608a4c96aae8b0f0ff28701d30238a0dd1b4b183184198169dbbe",
+          "result_digest": "9369412cad6aa5600acfbbded2a24921f20519b060c7c928ec04122d74ed731f",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -4880,7 +4880,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "fa04e78335c2350c40ade4646b11888fb3a6137bea750a951b83eb158fde3426",
+            "digest": "6c707e535a5efd9c8de17485066bee5eb5612c33761a73eb54bda1a75812f69b",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -4971,14 +4971,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "2ff41a4a0c824eddb3296104ea147aecd43bd82ea67e3c785cee175e7fed1e88",
+                "digest": "eb1dd2e8da3ae2e153d662fe5347fe482f4cb010f3fc502ab045ac650cc87213",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
-                      "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
+                      "4431b716ca3b8cbb8388c6571e6888d2544fadec6dbde512b78aa1ca6aa05edb",
+                      "14b6fcdbacf6c77109a80ab55a01ebc7e297ec3a39baa59d8966e1bbf059b7be"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
@@ -5230,23 +5230,23 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "86b0210a6ccf1f2335996ed410a7607d71d5f5b0bfef8844216c60a6a5b4d3e8",
+        "result_digest": "d13c8d9c6113256a2b29a52cb119252729a95041775c45e7358d6d0ec0a39bf5",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "pdc-a",
-              "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769"
+              "e06797f780217359124fbca0071949a2adcca90adbcf6fa5c84784601a7387ac"
             ],
             [
               "pdc-b",
-              "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
+              "80562f3d41fd40c4aae693b014ec05d8b20d8ac0b286ee6af5295c1c68a16fe5"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
-              "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
+              "e06797f780217359124fbca0071949a2adcca90adbcf6fa5c84784601a7387ac",
+              "80562f3d41fd40c4aae693b014ec05d8b20d8ac0b286ee6af5295c1c68a16fe5"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
@@ -5499,7 +5499,7 @@
               ]
             ]
           ],
-          "result_digest": "86b0210a6ccf1f2335996ed410a7607d71d5f5b0bfef8844216c60a6a5b4d3e8",
+          "result_digest": "d13c8d9c6113256a2b29a52cb119252729a95041775c45e7358d6d0ec0a39bf5",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -5627,7 +5627,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "4303d4b88437bf85ec704d61b132cebf6d3c373b5503156a0f4c4fde40fd5d46",
+            "digest": "0dc1291da38e9385f46d6bf2fac4144ecf8049ea4cbee3fbb93fcaaa4a1aeaa8",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -5718,14 +5718,14 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "c2112ccf57443c8ac52ddbd7b3f78f227978226b9039245f9af1237d2bb40d90",
+                "digest": "7ed2bd0b327a9722e5e0ea83e3f9bc73cc41a22b27522df22df0649cfe015de2",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
-                      "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
+                      "e06797f780217359124fbca0071949a2adcca90adbcf6fa5c84784601a7387ac",
+                      "80562f3d41fd40c4aae693b014ec05d8b20d8ac0b286ee6af5295c1c68a16fe5"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
@@ -6104,21 +6104,21 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      638900,
-      795400,
-      791100,
-      670900,
-      643700,
-      705500,
-      610700,
-      733800,
-      711700,
-      664600
+      632000,
+      883200,
+      608600,
+      614100,
+      593900,
+      875500,
+      598600,
+      902200,
+      655500,
+      777500
     ],
-    "mean_ns": 696630.0,
-    "median_ns": 705500,
-    "p95_ns": 795400,
-    "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
+    "mean_ns": 714110.0,
+    "median_ns": 655500,
+    "p95_ns": 902200,
+    "result_digest": "a7de26400afe77cea8d0225f66c77897abe4df28c87e0223aedd18e2c8a18539"
   },
   "coverage": {
     "statements": 2184,
@@ -6143,8 +6143,8 @@
       "broad_replay_passes": true,
       "changed_policy_replay_rejected": true
     },
-    "narrow_result_digest": "c76879544f22db21351ec8ff13303f662408f4f4765937e0566e46de40363baf",
-    "broad_result_digest": "4535a97f6a8f3a2e1f7601f1eb64a4e9112ab85e7191819b5c862ba2e10d748e"
+    "narrow_result_digest": "22095b22cd4ecf2b4a186e22b41a40726df30e660705f378eed34eede3f2ee59",
+    "broad_result_digest": "e0126b60d1bcd10c0b4c707238d78e78f288e37c30529bdb0cd3a0e212b31128"
   },
   "mzidentml_provenance_evaluation": {
     "evaluator": "mzidentml-structural-provenance-v1",
@@ -6163,20 +6163,22 @@
       "changed_receipt_rejected": true,
       "digest_changes_with_receipt": true
     },
-    "baseline_result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74",
-    "bound_result_digest": "75882fae29bca3dc39401e7268c8ad68ab436f877fdaec3591d80008d07909ac",
+    "baseline_result_digest": "a7de26400afe77cea8d0225f66c77897abe4df28c87e0223aedd18e2c8a18539",
+    "bound_result_digest": "0d0bc0efe9a41bd4a6a1026af460fbcfa330a31e21db77e4279cd6a7059813fe",
     "mzidentml_sha256": "sha256:c77bda79fc6c3adb95cdc311a05e1546eb0de20f0f676f453ff10b4fdc9137c9"
   },
   "fdr_quant_group_invariants_evaluation": {
     "evaluator": "fdr-quantification-group-invariants-v1",
     "passed": true,
-    "declared": 8,
-    "executed": 8,
+    "declared": 10,
+    "executed": 10,
     "checks": {
       "target_decoy_winner_count": true,
       "decoys_have_no_q_value": true,
       "target_q_values_monotone": true,
       "forged_decoy_flag_rejected": true,
+      "collision_counts_as_peptide_fdr_decoy": true,
+      "collision_counts_as_group_fdr_decoy": true,
       "exact_loq_is_missing": true,
       "no_imputation_at_loq": true,
       "shared_only_group_abstains": true,
