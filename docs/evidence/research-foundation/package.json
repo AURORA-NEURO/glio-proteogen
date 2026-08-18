@@ -29,7 +29,7 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "focused_tests": 93,
+    "focused_tests": 94,
     "coverage": {
       "statements": 1153,
       "missed_statements": 29,
@@ -45,8 +45,8 @@
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4377873,
-      "sha256": "8a917d1b01fb798b4dad2955c8f052cd67c1ca19d1b74676fec7ae20c1665429"
+      "bytes": 4378089,
+      "sha256": "e9c18b8591584fce4580b334d89df89ad20cd7096cfb8b3218d6b8ed9871ea04"
     },
     "reproducible_builds": 2,
     "isolated_import": true,
