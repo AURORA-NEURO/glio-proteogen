@@ -3,6 +3,7 @@
 from typing import cast
 
 from glio_proteogen.contracts.m19_07 import (
+    M1907_PROHIBITED_CLAIM_TERMS,
     M1907_OUTPUT_MEDIA_TYPE,
     M1907_PROVISIONAL_ABI,
     CompatibilityMode,
@@ -34,6 +35,9 @@ def test_provisional_schemas_preserve_typed_export_boundaries() -> None:
         ):
             assert metadata[key] is True
         assert metadata["unsupportedToNegative"] is False
+        assert tuple(cast("list[str]", metadata["prohibitedClaimTerms"])) == (
+            M1907_PROHIBITED_CLAIM_TERMS
+        )
         assert cast("str", metadata["upstreamInputMediaType"]).endswith("m19-06+json")
         assert metadata["parentTarget"] == "proteotype"
     output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
