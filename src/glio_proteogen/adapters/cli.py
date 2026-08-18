@@ -4778,6 +4778,8 @@ def monitor_m1808_translation_health(request: RequestArgument) -> None:
 def export_m1806_schema(
     contract: Annotated[
         Literal[
+            "request",
+            "output",
             "record",
             "queue-entry",
             "assignment",
@@ -4948,6 +4950,8 @@ def monitor_m1708_translation_health(request: RequestArgument) -> None:
 def export_m1603_fusion_schema(
     contract: Annotated[
         Literal[
+            "request",
+            "output",
             "source-contribution",
             "disagreement",
             "propagation",
@@ -5576,6 +5580,8 @@ def construct_m1403_features(request: RequestArgument) -> None:
 def export_m1306_schema(
     contract: Annotated[
         Literal[
+            "request",
+            "output",
             "scenario",
             "response",
             "sensitivity-surface",
