@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m26_05 import (
     M2605_M2604_INPUT_MEDIA_TYPE,
+    ProteomicsTelemetryResult,
     TelemetryMetricKind,
 )
 from glio_proteogen.contracts.m26_05.canonical import result_payload_digest
@@ -121,9 +122,11 @@ def test_api_verify_rejects_tamper_and_unknown_result_envelope() -> None:
     assert unknown.status_code == _UNPROCESSABLE
 
 
-def _self_rehashed_result(result: object, updates: dict[str, object]) -> object:
-    forged = result.model_copy(update=updates)  # type: ignore[union-attr]
-    return type(forged).model_construct(  # type: ignore[union-attr]
+def _self_rehashed_result(
+    result: ProteomicsTelemetryResult, updates: dict[str, object]
+) -> ProteomicsTelemetryResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
         **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
     )
 
@@ -141,7 +144,7 @@ def test_self_rehashed_telemetry_mutation_is_rejected_by_all_replay_seams() -> N
         },
     )
     with pytest.raises(M2605ReplayError):
-        verify_telemetry_result(forged)  # type: ignore[arg-type]
+        verify_telemetry_result(forged)
     with pytest.raises(M2605ReplayError):
         M2605ObservabilityService.verify(forged)
     with pytest.raises(M2605ReplayError):
