@@ -1,0 +1,15 @@
+{
+  "fixture_id": "pdc000204-metadata-v1",
+  "study_id": "PDC000204",
+  "endpoint": "https://pdc.cancer.gov/graphql",
+  "query": "{ study(pdc_study_id: \"PDC000204\") { study_id pdc_study_id study_submitter_id project_id study_name study_description program_name project_name disease_type primary_site analytical_fraction experiment_type cases_count aliquots_count } }",
+  "query_sha256": "sha256:f46083cdecd99b08afb71e75a5df313bf58f79510dd58a0698b4f3279b613b37",
+  "response_sha256": "sha256:ed3fcc96a94e3d14733ce75ca04adc992560aa3ec5f00168c8b77829857b0918",
+  "fixture_canonical_json_sha256": "sha256:ed3fcc96a94e3d14733ce75ca04adc992560aa3ec5f00168c8b77829857b0918",
+  "fixture_file_bytes": 2158,
+  "fixture_file_sha256": "sha256:92857eea5d705a4703c81203b3ec37f40c765c3eb1a061c7a1858c0c8e2a053a",
+  "retrieved_at": "2026-08-17T00:00:00Z",
+  "media_type": "application/json",
+  "license_or_terms": "Public PDC GraphQL metadata response; verify current API terms at https://pdc.cancer.gov/pdc-docs/api-documentation",
+  "scope": "metadata only; no raw cohort bytes are included"
+}
