@@ -13,7 +13,7 @@ from glio_proteogen.contracts.m15_06 import (
     contract_json_schemas,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.kernel.models import ArtifactReference
+from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
 _SCHEMA_COUNT = 7
 
@@ -24,6 +24,14 @@ def _artifact(label: str) -> ArtifactReference:
         version="1.0.0",
         digest=sha256_digest({"m1506": label}),
         media_type="application/json",
+    )
+
+
+def _evidence(label: str) -> EvidenceReference:
+    return EvidenceReference(
+        reference=_artifact(label),
+        role="evidence",
+        claim="Caller-declared evidence for the bounded sensitivity response.",
     )
 
 
@@ -56,6 +64,7 @@ def test_m1506_perturbation_and_bounded_response_invariants() -> None:
         perturbed_value="0.75",
         rationale="Stress the prior while preserving the declared target.",
         alternative_prior=_artifact("prior"),
+        evidence=(_evidence("prior-support"),),
     )
     assert perturbation.baseline_value != perturbation.perturbed_value
 
@@ -66,6 +75,7 @@ def test_m1506_perturbation_and_bounded_response_invariants() -> None:
         lower_bound=0.25,
         upper_bound=0.75,
         assumptions=("The perturbation remains within the supported envelope.",),
+        evidence=(_evidence("response"),),
     )
     assert response.lower_bound <= response.response_value <= response.upper_bound
 
