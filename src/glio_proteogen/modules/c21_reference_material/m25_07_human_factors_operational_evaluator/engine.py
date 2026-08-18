@@ -143,6 +143,7 @@ class M2507HumanFactorsEngine:
             replayed = ProteotypeHumanFactorsResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
+            expected = self.generate(replayed.request)
         except Exception as error:
             raise M2507ReplayError from error
         if replayed.request_digest != canonical_request_digest(replayed.request):
@@ -151,6 +152,8 @@ class M2507HumanFactorsEngine:
             raise M2507ReplayError
         if replayed.result_digest != result_payload_digest(replayed):
             raise M2507ReplayError
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2507ReplayError("M25-07 deterministic replay output mismatch")  # noqa: TRY003
         return replayed
 
 
