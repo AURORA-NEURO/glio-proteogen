@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m25_08 import (
     M2508_MAX_CANONICAL_REQUEST_BYTES,
@@ -17,7 +17,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2508Engine, preflight_m2508_authorization
+from .engine import M2508Engine, M2508ReplayError, preflight_m2508_authorization
 from .service import M2508Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeEvidenceGateRequest)
@@ -78,11 +78,14 @@ class M2508Plugin:
         *,
         replay: bool = True,
     ) -> ProteotypeEvidenceGateResult:
-        if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result, max_bytes=M2508_MAX_CANONICAL_RESULT_BYTES)
-            typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-        else:
-            typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+        try:
+            if isinstance(result, (bytes, bytearray, str)):
+                decoded = strict_json_loads(result, max_bytes=M2508_MAX_CANONICAL_RESULT_BYTES)
+                typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+            else:
+                typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except (TypeError, ValueError, ValidationError) as error:
+            raise M2508ReplayError from error
         return self._service.verify(typed, replay=replay)
 
 

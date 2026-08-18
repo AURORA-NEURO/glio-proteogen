@@ -10,6 +10,7 @@ from evals.m25_08.fixture import build_request, denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m25_08 import result_payload_digest
 from glio_proteogen.modules.c21_reference_material.m25_08_evidence_gate_release_adjudicator import (
     api as m2508_api,
 )
@@ -84,7 +85,8 @@ def test_fastapi_verify_rejects_tampered_digest() -> None:
     result = client.post(
         "/v1/modules/M25-08/adjudicate", json=build_request().model_dump(mode="json")
     ).json()
-    result["result_digest"] = "sha256:" + ("f" * 64)
+    result["support_decision"]["rationale"] = "Forged release approval."
+    result["result_digest"] = result_payload_digest(result)
     tampered = client.post("/v1/modules/M25-08/verify", json={"result": result})
     assert tampered.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
@@ -159,3 +161,22 @@ def test_typer_invalid_result_is_sanitized(tmp_path: Path) -> None:
     response = CliRunner().invoke(m2508_cli.app, ["verify", str(invalid)])
     assert response.exit_code != 0
     assert "secret_result" not in response.output
+
+
+def test_typer_verify_rejects_self_rehashed_release_mutation(tmp_path: Path) -> None:
+    result_path = tmp_path / "result.json"
+    result_path.write_text(build_request().model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    adjudicated = tmp_path / "adjudicated.json"
+    request = tmp_path / "request.json"
+    request.write_text(build_request().model_dump_json(), encoding="utf-8")
+    emitted = runner.invoke(
+        m2508_cli.app, ["adjudicate", str(request), "--output", str(adjudicated)]
+    )
+    assert emitted.exit_code == 0
+    payload = json.loads(adjudicated.read_text(encoding="utf-8"))
+    payload["support_decision"]["rationale"] = "Forged release approval."
+    payload["result_digest"] = result_payload_digest(payload)
+    result_path.write_text(json.dumps(payload), encoding="utf-8")
+    verified = runner.invoke(m2508_cli.app, ["verify", str(result_path)])
+    assert verified.exit_code != 0

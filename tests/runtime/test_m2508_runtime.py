@@ -7,7 +7,12 @@ from typing import Any, cast
 import pytest
 from evals.m25_08.fixture import build_request, denied_request
 
-from glio_proteogen.contracts.m25_08 import ApprovalDecision, GateRunStatus, RiskSeverity
+from glio_proteogen.contracts.m25_08 import (
+    ApprovalDecision,
+    GateRunStatus,
+    RiskSeverity,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m25_08_evidence_gate_release_adjudicator import (
@@ -139,6 +144,20 @@ def test_replay_rejects_payload_and_request_tampering() -> None:
         engine.verify(
             result.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False
         )
+    forged = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
+    forged = type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    with pytest.raises(M2508ReplayError, match="replay"):
+        engine.verify(forged)
+    with pytest.raises(M2508ReplayError, match="cannot be disabled"):
+        engine.verify(result, replay=False)
 
 
 def test_public_function_and_invalid_result_are_closed() -> None:

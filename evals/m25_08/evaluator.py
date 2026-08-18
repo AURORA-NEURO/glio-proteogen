@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from evals.m25_08.fixture import build_request, denied_request
-from glio_proteogen.contracts.m25_08 import ApprovalDecision, GateRunStatus
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.contracts.m25_08 import ApprovalDecision, GateRunStatus, result_payload_digest
 from glio_proteogen.modules.c21_reference_material import (
     m25_08_evidence_gate_release_adjudicator as m2508,
 )
@@ -141,12 +140,30 @@ def run_scenarios() -> tuple[ScenarioResult, ...]:
 
 def _tamper() -> ScenarioResult:
     result = _ENGINE.evaluate(build_request())
-    tampered = result.model_copy(update={"result_digest": sha256_digest("tampered")})
+    tampered = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
+    tampered = type(tampered).model_construct(
+        **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
+    )
     try:
         _ENGINE.verify(tampered)
     except m2508.M2508ReplayError:
+        try:
+            _ENGINE.verify(result, replay=False)
+        except m2508.M2508ReplayError:
+            bypass_closed = True
+        else:
+            bypass_closed = False
         return ScenarioResult(
-            "tamper_replay", passed=True, status="rejected", detail="result digest tamper detected"
+            "tamper_replay",
+            passed=bypass_closed,
+            status="rejected",
+            detail="self-rehashed semantic mutation rejected by full replay",
         )
     return ScenarioResult(
         "tamper_replay", passed=False, status="accepted", detail="tamper was accepted"
