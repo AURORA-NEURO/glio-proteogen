@@ -25,11 +25,13 @@ if __package__ in {None, ""}:
 from glio_proteogen.contracts.m06_08 import (
     M0608_M0607_RESULT_MEDIA_TYPE,
     EvidencePublicationStatus,
+    ProteinAbundanceEvidencePublicationResult,
     PublisherAssumption,
     PublisherCounterEvidence,
     PublishProteinAbundanceEvidenceRequest,
     ReconstructionStep,
 )
+from glio_proteogen.contracts.m06_08.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -154,6 +156,25 @@ def _check(name: str, *, passed: bool, detail: str) -> dict[str, object]:
     return {"id": name, "passed": passed, "detail": detail}
 
 
+def _check_self_rehashed_receipt(
+    service: M0608Service,
+    result: ProteinAbundanceEvidencePublicationResult,
+) -> dict[str, object]:
+    candidate = result.model_copy(update={"abstention_reason": "forged replay"})
+    candidate = candidate.model_copy(update={"result_digest": result_payload_digest(candidate)})
+    try:
+        service.verify(candidate, replay=False)
+    except M0608ReplayVerificationError:
+        rejected = True
+    else:
+        rejected = False
+    return _check(
+        "self_rehashed_receipt_rejected_even_when_replay_disabled",
+        passed=rejected,
+        detail="the compatibility replay flag cannot downgrade to digest-only verification",
+    )
+
+
 def evaluate() -> dict[str, object]:
     service = M0608Service()
     request = build_request()
@@ -195,6 +216,7 @@ def evaluate() -> dict[str, object]:
             detail="changed abstention text cannot pass replay",
         )
     )
+    checks.append(_check_self_rehashed_receipt(service, result))
     try:
         service.execute(build_request(accepted_controls=False))
     except M0608EvidencePublisherAuthorizationError:

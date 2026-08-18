@@ -2,11 +2,12 @@
   "module_id": "GLIO-PROTEOGEN-M06-08",
   "evaluator_version": "0.1.0-provisional",
   "passed": true,
-  "check_count": 7,
+  "check_count": 8,
   "checks": [
     "safe_abstention_has_required_evidence_closure",
     "transitive_replay_is_byte_stable",
     "tampered_receipt_rejected",
+    "self_rehashed_receipt_rejected_even_when_replay_disabled",
     "unresolved_controls_fail_closed",
     "wrong_upstream_media_rejected",
     "duplicate_json_keys_rejected",

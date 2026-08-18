@@ -174,4 +174,29 @@ def publish_request(
         raise typer.Exit(code=2) from error
 
 
-__all__ = ["create_m0608_app", "export_schema", "m0608_app", "publish_request", "validate_request"]
+@m0608_app.command("verify")
+def verify_result(
+    path: Annotated[typer.FileText, typer.Argument(help="Strict JSON result file.")],
+) -> None:
+    """Verify a result using mandatory deterministic request reconstruction."""
+
+    try:
+        parsed = _strict_json_bytes(path.read().encode("utf-8"))
+        result = M0608Service().verify(_RESULT_ADAPTER.validate_json(parsed, strict=True))
+        typer.echo(canonical_json_bytes(result.model_dump(mode="json")).decode("utf-8"))
+    except M0608ReplayVerificationError as error:
+        typer.echo(json.dumps({"detail": "result replay verification failed"}), err=True)
+        raise typer.Exit(code=3) from error
+    except (ValidationError, ValueError) as error:
+        typer.echo(json.dumps({"detail": str(error)}), err=True)
+        raise typer.Exit(code=2) from error
+
+
+__all__ = [
+    "create_m0608_app",
+    "export_schema",
+    "m0608_app",
+    "publish_request",
+    "validate_request",
+    "verify_result",
+]

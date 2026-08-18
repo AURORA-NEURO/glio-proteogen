@@ -13,7 +13,7 @@ AUTHORITY_SHA: Final = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1
 AUTHORITY_LINES: Final = "2144-2184"
 MEAN_BUDGET_NS: Final = 2_000_000_000
 P95_BUDGET_NS: Final = 3_000_000_000
-CHECK_COUNT: Final = 7
+CHECK_COUNT: Final = 8
 
 
 class M0608EvidenceError(ValueError):

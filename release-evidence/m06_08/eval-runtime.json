@@ -1,5 +1,5 @@
 {
-  "check_count": 7,
+  "check_count": 8,
   "checks": [
     {
       "detail": "abstention carries evidence, typed support status, limitations, uncertainty, and review",
@@ -14,6 +14,11 @@
     {
       "detail": "changed abstention text cannot pass replay",
       "id": "tampered_receipt_rejected",
+      "passed": true
+    },
+    {
+      "detail": "the compatibility replay flag cannot downgrade to digest-only verification",
+      "id": "self_rehashed_receipt_rejected_even_when_replay_disabled",
       "passed": true
     },
     {
