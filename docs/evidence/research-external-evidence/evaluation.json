@@ -1,0 +1,53 @@
+{
+  "lane": "research-external-evidence-aggregation",
+  "status": "research_only_not_production_abi",
+  "evaluator": {
+    "evaluator_version": "research-external-evidence-v1",
+    "claim_boundary": "caller-declared descriptive evidence only; no numerical fusion",
+    "declared": 5,
+    "executed": 5,
+    "passed": true,
+    "outcomes": [
+      {
+        "scenario_id": "consistent_support",
+        "status": "consistent_support",
+        "expected_status": "consistent_support",
+        "digest_stable": true,
+        "passed": true
+      },
+      {
+        "scenario_id": "mixed_direction",
+        "status": "mixed_direction",
+        "expected_status": "mixed_direction",
+        "digest_stable": true,
+        "passed": true
+      },
+      {
+        "scenario_id": "insufficient_independence",
+        "status": "abstained_insufficient_independence",
+        "expected_status": "abstained_insufficient_independence",
+        "digest_stable": true,
+        "passed": true
+      },
+      {
+        "scenario_id": "source_conflict",
+        "status": "abstained_source_conflict",
+        "expected_status": "abstained_source_conflict",
+        "digest_stable": true,
+        "passed": true
+      },
+      {
+        "scenario_id": "observation_abstention",
+        "status": "abstained_observation",
+        "expected_status": "abstained_observation",
+        "digest_stable": true,
+        "passed": true
+      }
+    ]
+  },
+  "limitations": [
+    "Caller-declared directions are not issuer-authenticated.",
+    "Independent-source count is an auditability gate, not statistical power.",
+    "No numerical fusion, clinical, disease, mechanistic, protein, proteoform, or isoform claim is emitted."
+  ]
+}
