@@ -145,7 +145,7 @@ class M2502SyntheticTruthGenerator:
             )
             expected = self.generate(replayed.request)
         except Exception as error:
-            raise M2502ReplayError("M25-02 deterministic replay could not execute") from error
+            raise M2502ReplayError from error
         if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
             raise M2502ReplayError("M25-02 deterministic replay output mismatch")  # noqa: TRY003
         return replayed
