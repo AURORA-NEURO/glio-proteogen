@@ -750,6 +750,37 @@ def test_typer_schema_present_verify_no_overwrite_and_safe_errors(tmp_path: Path
     assert "Traceback" not in missing.output
 
 
+def test_api_and_cli_abstain_on_prohibited_workspace_claim(tmp_path: Path) -> None:
+    request = build_request()
+    item = request.review_items[0].model_copy(update={"title": "KINASE activity claim"})
+    request = request.model_copy(update={"review_items": (item, *request.review_items[1:])})
+    payload = canonical_json_bytes(request)
+    request_path = tmp_path / "prohibited.json"
+    request_path.write_bytes(payload)
+
+    with TestClient(create_app()) as client:
+        api_response = client.post("/v1/modules/M19-05/present", content=payload)
+    cli_response = CliRunner().invoke(cli, ["present", str(request_path)])
+
+    assert api_response.status_code == _HTTP_OK, api_response.text
+    assert cli_response.exit_code == 0, cli_response.output
+    api_result = ProteotypeHumanReviewWorkspaceResult.model_validate_json(
+        api_response.content,
+        strict=True,
+    )
+    cli_result = ProteotypeHumanReviewWorkspaceResult.model_validate_json(
+        cli_response.stdout,
+        strict=True,
+    )
+    assert api_result == cli_result
+    assert api_result.status is WorkspaceStatus.ABSTAINED
+    assert api_result.workspace is None
+    assert any(
+        finding.code is WorkflowFindingCode.PROHIBITED_CLAIM_BOUNDARY
+        for finding in api_result.findings
+    )
+
+
 def test_locked_evaluator_and_benchmark_wrappers_pass() -> None:
     evaluation = run_evaluator()
     assert evaluation["passed"] is True
