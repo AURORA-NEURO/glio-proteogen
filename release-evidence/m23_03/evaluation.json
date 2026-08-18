@@ -11,14 +11,16 @@
     "not_evaluable_abstention": true,
     "parent_boundary": true,
     "replay_verified": true,
+    "semantic_tamper_rejected": true,
     "simple_and_mature": true,
     "tamper_rejected": true
   },
   "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8044-8084",
   "fixture_digest": "sha256:1f91f42aacd7b4d8a58eeb44fb97b889639f91d2064e84a2acfdfad6a59f25ab",
+  "fixture_result_digest": "sha256:b83b0d7d800d23c2978e3d08273a699888367966bcaa42b15f905dc3c480475e",
   "module_id": "GLIO-PROTEOGEN-M23-03",
   "passed": true,
   "request_digest": "sha256:1f91f42aacd7b4d8a58eeb44fb97b889639f91d2064e84a2acfdfad6a59f25ab",
-  "scenario_count": 11
+  "scenario_count": 12
 }
