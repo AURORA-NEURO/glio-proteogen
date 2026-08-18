@@ -152,6 +152,13 @@ Each PSM also records mean absolute fragment error and precursor ppm error when 
 filtering is enabled; aggregate search diagnostics retain the maximum observed errors and
 the declared precursor tolerance so a replay can audit mass-error behavior directly.
 
+Every single-run result also carries the complete `EvidenceBundle` projection, including
+each record's quality metadata, the derived quality summary, limitations, and outer digest.
+`verify_evidence_bundle` recomputes inner payload digests, the ordered outer digest, and all
+derived quality fields before replay. This keeps a forged completeness/auditability summary
+or altered limitation projection from remaining invisible merely because the underlying raw
+records are unchanged.
+
 The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy
 sequence collision, no-match safe path, precursor rejection, shared-peptide grouping,
 a two-spectrum input, and a two-peptide quantification run. Unit coverage additionally

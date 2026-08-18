@@ -284,3 +284,22 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
         ),
         quality_summary=summary,
     )
+
+
+def verify_evidence_bundle(bundle: EvidenceBundle) -> EvidenceBundle:
+    """Recompute every inner and outer receipt in an archived evidence bundle.
+
+    ``EvidenceRecord`` payloads are immutable, but the outer bundle also carries
+    derived quality metadata and limitations.  Replaying only the records would
+    leave those projections outside the verification boundary.  Recompute the
+    canonical bundle and compare its complete JSON projection so a forged quality
+    summary, limitations tuple, record ordering, or outer digest cannot be treated
+    as valid research evidence.
+    """
+
+    if not isinstance(bundle, EvidenceBundle):
+        raise TypeError("bundle must be an EvidenceBundle")
+    observed = aggregate_evidence(bundle.records)
+    if observed.as_dict() != bundle.as_dict():
+        raise ValueError("evidence bundle digest or derived metadata is invalid")
+    return observed

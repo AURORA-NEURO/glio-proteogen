@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 from hashlib import md5, sha256
 from typing import BinaryIO
 
-from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
+from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify_evidence_bundle
 from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
 from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
@@ -264,10 +264,12 @@ class ResearchRunResult:
                     "source": record.source,
                     "kind": record.kind,
                     "payload": record.payload_jsonable,
+                    "quality": record.quality.as_dict() if record.quality is not None else None,
                     "digest": record.digest,
                 }
                 for record in self.evidence.records
             ],
+            "evidence_bundle": self.evidence.as_dict(),
             "limitations": list(self.evidence.limitations),
             "evidence_digest": self.evidence.digest,
             "result_digest": self.result_digest,
@@ -463,9 +465,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "candidate_competition_digest": competition_digest,
                 "candidate_psms": len(candidate_psms),
                 "competition_spectra": len(competition_audit),
-                "contested_spectra": sum(
-                    item.candidate_count > 1 for item in competition_audit
-                ),
+                "contested_spectra": sum(item.candidate_count > 1 for item in competition_audit),
                 "matched_psms": len(scored),
                 "mean_fragment_error_da": (
                     sum(fragment_errors) / len(fragment_errors) if fragment_errors else None
@@ -652,10 +652,12 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "source": record.source,
                 "kind": record.kind,
                 "payload": record.payload_jsonable,
+                "quality": record.quality.as_dict() if record.quality is not None else None,
                 "digest": record.digest,
             }
             for record in evidence.records
         ],
+        "evidence_bundle": evidence.as_dict(),
         "limitations": list(evidence.limitations),
         "evidence_digest": evidence.digest,
     }
@@ -697,7 +699,7 @@ def replay_research_protein_inference(
         or _result_digest(expected_projection) != expected_digest
     ):
         raise ValueError("expected research result digest is invalid")
-    aggregate_evidence(expected.evidence.records)
+    verify_evidence_bundle(expected.evidence)
     observed = run_research_protein_inference(request)
     if observed.as_dict() != {**expected_projection, "result_digest": expected_digest}:
         raise ValueError("research result replay or digest verification failed")

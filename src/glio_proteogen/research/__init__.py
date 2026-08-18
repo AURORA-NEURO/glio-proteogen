@@ -26,6 +26,7 @@ from .evidence import (
     EvidenceQualitySummary,
     EvidenceRecord,
     aggregate_evidence,
+    verify_evidence_bundle,
 )
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
@@ -122,4 +123,5 @@ __all__ = [
     "search_spectrum_candidates",
     "summarize_target_decoy",
     "target_decoy_qvalues",
+    "verify_evidence_bundle",
 ]

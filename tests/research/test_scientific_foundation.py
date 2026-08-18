@@ -42,6 +42,7 @@ from glio_proteogen.research import (
     search_spectrum_candidates,
     summarize_target_decoy,
     target_decoy_qvalues,
+    verify_evidence_bundle,
 )
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "research" / "pdc000204_snapshot.json"
@@ -242,6 +243,7 @@ def test_evidence_quality_is_explicit_weighted_and_replay_bound() -> None:
     projection = bundle.as_dict()
     assert projection["records"][0]["quality"] == quality.as_dict()  # type: ignore[index]
     assert projection["quality_summary"]["weighted_completeness"] == pytest.approx(0.75)  # type: ignore[index]
+    assert verify_evidence_bundle(bundle).as_dict() == bundle.as_dict()
     with pytest.raises(ValueError, match="digest"):
         aggregate_evidence(
             (
