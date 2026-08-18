@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - pytest resolves the runtime annotation.
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m10_07 import (
+    M1007_MAX_CANONICAL_RESULT_BYTES,
     CalibrateProteinRnaDiscordanceSelectivePredictionVerification,
     CalibrationReplayReason,
     ProteinRnaDiscordanceSelectivePredictionResult,
@@ -46,7 +48,12 @@ _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
 
 
-def _invalid_result_payload(result: object) -> dict[str, object]:
+class _HostileDict(dict[str, object]):
+    def items(self) -> Any:
+        raise AssertionError
+
+
+def _invalid_result_payload(result: object) -> dict[str, Any]:
     assert isinstance(result, ProteinRnaDiscordanceSelectivePredictionResult)
     return result.model_dump(mode="json")
 
@@ -184,6 +191,55 @@ def test_runtime_edges_wrapper_limits_and_replay_reasons(monkeypatch) -> None:
     assert result_payload_digest(built.result) == built.result.result_digest
 
 
+def test_canonical_and_replay_reject_hostile_mapping_without_traversal() -> None:
+    hostile = _HostileDict({"request_id": "request.m10-07"})
+    with pytest.raises(TypeError, match="exact dicts"):
+        canonical_request_digest(hostile)
+    with pytest.raises(TypeError, match="built-in containers"):
+        canonical_request_digest({"nested": hostile})
+
+    built = M1007CalibrationEngine().execute(_request())
+    payload = built.result.model_dump(mode="json")
+    payload["request"] = _HostileDict(payload["request"])
+    replay = M1007CalibrationEngine.verify(payload, built.canonical_bytes)
+    assert replay.verified is False
+    assert replay.reason == "result replay input is invalid"
+
+
+def test_result_validator_binds_identifier_evidence_uncertainty_and_provenance() -> None:
+    built = M1007CalibrationEngine().execute(_request())
+    payload = built.result.model_dump(mode="json")
+
+    wrong_identifier = dict(payload)
+    wrong_identifier["result_id"] = "result." + ("b" * 64)
+    _reject(wrong_identifier, "identifier does not bind")
+
+    wrong_evidence = dict(payload)
+    wrong_evidence["evidence"] = [*payload["evidence"]]
+    wrong_evidence["evidence"][0] = {
+        **wrong_evidence["evidence"][0],
+        "claim": "forged caller evidence",
+    }
+    _reject(wrong_evidence, "evidence does not bind")
+
+    wrong_uncertainty = dict(payload)
+    wrong_uncertainty["uncertainty"] = {
+        **payload["uncertainty"],
+        "measurement": {
+            **payload["uncertainty"]["measurement"],
+            "probability": 0.99,
+        },
+    }
+    _reject(wrong_uncertainty, "uncertainty does not match")
+
+    wrong_provenance = dict(payload)
+    wrong_provenance["provenance"] = {
+        **payload["provenance"],
+        "actor_id": "actor.forged",
+    }
+    _reject(wrong_provenance, "provenance does not bind")
+
+
 def test_plugin_descriptor_typed_and_forged_tokens_fail_closed() -> None:
     request = _request()
     plugin = M1007Plugin(M1007Service())
@@ -215,6 +271,13 @@ def test_api_and_cli_reject_transport_edges_and_abstention(tmp_path: Path) -> No
         )
         assert (
             client.post("/v1/modules/M10-07/verify", content=b"{").status_code
+            == _HTTP_UNPROCESSABLE
+        )
+        assert (
+            client.post(
+                "/v1/modules/M10-07/verify",
+                content=b"{" + b"a" * (M1007_MAX_CANONICAL_RESULT_BYTES + 1),
+            ).status_code
             == _HTTP_UNPROCESSABLE
         )
         denied = _request().model_copy(

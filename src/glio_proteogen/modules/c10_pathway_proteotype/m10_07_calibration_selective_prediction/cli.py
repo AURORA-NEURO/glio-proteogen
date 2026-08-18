@@ -10,6 +10,8 @@ import typer
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m10_07 import (
+    M1007_MAX_CANONICAL_REQUEST_BYTES,
+    M1007_MAX_CANONICAL_RESULT_BYTES,
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     contract_json_schema,
 )
@@ -34,7 +36,7 @@ def _error(message: str) -> M1007CliError:
 
 def _read_object(path: Path) -> dict[str, object]:
     try:
-        payload = strict_json_loads(path.read_bytes())
+        payload = strict_json_loads(path.read_bytes(), max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
     except (OSError, StrictJsonError, ValueError) as error:
         raise _error("input must be a valid strict JSON object") from error  # noqa: TRY003
     if not isinstance(payload, dict):
@@ -52,7 +54,7 @@ def _write_new(path: Path, data: bytes) -> None:
 def _read_request(path: Path) -> CalibrateProteinRnaDiscordanceSelectivePredictionRequest:
     try:
         data = path.read_bytes()
-        strict_json_loads(data)
+        strict_json_loads(data, max_bytes=M1007_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise _error("input must satisfy the strict M10-07 request contract") from error  # noqa: TRY003
