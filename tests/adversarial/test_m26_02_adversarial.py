@@ -19,10 +19,12 @@ from glio_proteogen.contracts.m26_02 import (
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
     LineageRelation,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service import (
     LineageAuthorizationError,
+    LineageReplayError,
     M2602LineagePlugin,
     M2602LineageService,
 )
@@ -108,6 +110,19 @@ def test_replay_rejects_graph_tampering() -> None:
     tampered = result.model_copy(update={"lineage_graph": tampered_graph})
     with pytest.raises(ValidationError):
         service.verify(tampered)
+
+
+def test_replay_rejects_self_rehashed_provenance_mutation() -> None:
+    service = M2602LineageService()
+    result = service.execute(_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={"activity_id": "forged"})}
+    )
+    forged = type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    with pytest.raises(LineageReplayError):
+        service.verify(forged)
 
 
 def test_abstention_never_writes_cli_output(tmp_path: Path) -> None:

@@ -177,11 +177,13 @@ def _member(candidate: object, name: str) -> object:
 
 
 def verify_lineage_result(result: ProteinSubtypeLineageResult) -> ProteinSubtypeLineageResult:
-    """Revalidate canonical result bytes, graph/bundle binding, and tamper closure."""
+    """Regenerate and compare the complete deterministic result for replay."""
 
     validated = _RESULT_ADAPTER.validate_python(result, strict=True)
     expected_request = canonical_request_digest(validated.request)
     if validated.request_digest != expected_request:
+        raise LineageReplayError
+    if validated.result_digest != result_payload_digest(validated):
         raise LineageReplayError
     if validated.status is LineageStatus.BUILT:
         if validated.lineage_graph is None or validated.reproducibility_bundle is None:
@@ -190,6 +192,12 @@ def verify_lineage_result(result: ProteinSubtypeLineageResult) -> ProteinSubtype
             raise LineageReplayError
         if graph_payload_digest(validated.lineage_graph) != validated.lineage_graph.graph_digest:
             raise LineageReplayError
+    try:
+        expected = M2602LineageEngine().build(validated.request)
+    except Exception as error:
+        raise LineageReplayError from error
+    if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+        raise LineageReplayError
     return validated
 
 
