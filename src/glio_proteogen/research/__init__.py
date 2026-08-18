@@ -21,7 +21,14 @@ from .cohort import (
 )
 from .cohort_provenance import CohortSourceBinding, CohortSourceManifest
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
-from .fasta import FastaEntry, digest_trypsin, read_fasta
+from .fasta import (
+    FastaEntry,
+    SearchSpace,
+    SearchSpaceReceipt,
+    build_search_space,
+    digest_trypsin,
+    read_fasta,
+)
 from .mzml import Spectrum, parse_mzml
 from .pdc import PdcClient, PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .pipeline import (
@@ -92,11 +99,14 @@ __all__ = [
     "ResearchRunRequest",
     "ResearchRunResult",
     "SearchParameters",
+    "SearchSpace",
+    "SearchSpaceReceipt",
     "SourceReference",
     "Spectrum",
     "aggregate_cohort_evidence",
     "aggregate_evidence",
     "bind_pdc_mzml_source",
+    "build_search_space",
     "digest_trypsin",
     "infer_protein_group_candidates",
     "infer_protein_groups",

@@ -18,6 +18,7 @@ import pytest
 
 from glio_proteogen.research import (
     EvidenceRecord,
+    FastaEntry,
     PdcSourceReceipt,
     PdcStudySnapshot,
     PeptideQuant,
@@ -27,6 +28,7 @@ from glio_proteogen.research import (
     SearchParameters,
     SourceReference,
     aggregate_evidence,
+    build_search_space,
     digest_trypsin,
     infer_protein_group_candidates,
     infer_protein_groups,
@@ -120,6 +122,69 @@ def test_digest_search_target_decoy_and_protein_ambiguity() -> None:
     groups = infer_protein_groups({"MPEPTIDER": ("P1",), "MPEPTIDE": ("P1", "P2")})
     assert groups[0].accessions == ("P1", "P2")
     assert groups[0].shared_peptides == ("MPEPTIDE",)
+
+
+def test_reverse_search_space_binds_target_decoy_construction() -> None:
+    entries = (FastaEntry("P1", "MPEPTIDER"),)
+    first = build_search_space(entries, decoy_strategy="reverse_protein", min_length=7)
+    second = build_search_space(entries, decoy_strategy="reverse_protein", min_length=7)
+    assert first.peptide_map == second.peptide_map
+    assert first.receipt.digest == second.receipt.digest
+    assert first.receipt.target_entries == 1
+    assert first.receipt.declared_decoy_entries == 0
+    assert first.receipt.generated_decoy_entries == 1
+    assert first.receipt.target_peptides == 1
+    assert first.receipt.decoy_peptides == 1
+    assert first.receipt.peptide_count == 2
+    assert first.receipt.as_dict()["decoy_strategy"] == "reverse_protein"
+    assert first.as_map()["MPEPTIDER"] == ("P1",)
+    assert first.as_map()["EDITPEPM"] == ("DECOY_P1",)
+
+
+def test_search_space_preserves_declared_decoys_and_records_collision() -> None:
+    declared = build_search_space(
+        (FastaEntry("P1", "AAAAAAA"), FastaEntry("DECOY_P1", "AAAAAAA")),
+        decoy_strategy="caller_declared",
+        min_length=7,
+    )
+    assert declared.receipt.generated_decoy_entries == 0
+    assert declared.receipt.declared_decoy_entries == 1
+    assert declared.receipt.collision_peptides == 1
+    assert declared.as_map()["AAAAAAA"] == ("DECOY_P1", "P1")
+    with pytest.raises(ValueError, match="duplicate accessions"):
+        read_fasta(b">P1\nAAAAAAA\n>P1\nAAAAAAA\n")
+
+
+def test_search_space_rejects_unbounded_or_ambiguous_decoy_controls() -> None:
+    target = FastaEntry("P1", "MPEPTIDER")
+    with pytest.raises(ValueError, match="unsupported decoy_strategy"):
+        build_search_space((target,), decoy_strategy="shuffle")
+    with pytest.raises(ValueError, match="decoy_prefix"):
+        build_search_space((target,), decoy_prefix="bad prefix")
+    with pytest.raises(ValueError, match="at least one"):
+        build_search_space(())
+    with pytest.raises(ValueError, match="non-empty"):
+        build_search_space((FastaEntry("", "MPEPTIDER"),))
+    with pytest.raises(ValueError, match="unique"):
+        build_search_space((target, target))
+    with pytest.raises(ValueError, match="collides"):
+        build_search_space(
+            (target, FastaEntry("DECOY_P1", "MPEPTIDER")),
+            decoy_strategy="reverse_protein",
+        )
+
+
+def test_search_space_handles_decoy_only_and_custom_prefix_inputs() -> None:
+    decoy = build_search_space(
+        (FastaEntry("REV_P1", "MPEPTIDER"),),
+        decoy_prefix="REV_",
+        decoy_strategy="caller_declared",
+    )
+    assert decoy.receipt.target_entries == 0
+    assert decoy.receipt.declared_decoy_entries == 1
+    assert decoy.receipt.target_peptides == 0
+    assert decoy.receipt.decoy_peptides == 1
+    assert decoy.receipt.peptide_count == 1
 
 
 def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:

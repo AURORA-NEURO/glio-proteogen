@@ -16,7 +16,7 @@ from hashlib import md5, sha256
 from typing import BinaryIO
 
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
-from .fasta import digest_trypsin, read_fasta
+from .fasta import SearchSpaceReceipt, build_search_space, read_fasta
 from .mzml import parse_mzml
 from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .protein import (
@@ -62,6 +62,8 @@ class ResearchRunRequest:
     max_peptide_length: int = 40
     max_spectra: int = 100_000
     q_value_threshold: float = 0.01
+    decoy_strategy: str = "caller_declared"
+    decoy_prefix: str = "DECOY_"
     max_bytes: int = 256 * 1024 * 1024
     external_source_reference: SourceReference | None = None
     external_pdc_file: PdcFile | None = None
@@ -221,6 +223,7 @@ class ResearchRunResult:
     protein_group_fdr_summary: ProteinGroupFdrSummary | None = None
     quantification_receipt: QuantificationReceipt | None = None
     competition_audit: tuple[PsmCompetition, ...] = ()
+    search_space_receipt: SearchSpaceReceipt | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -234,6 +237,11 @@ class ResearchRunResult:
             "spectra_seen": self.spectra_seen,
             "ms2_spectra_seen": self.ms2_spectra_seen,
             "search_space_peptides": self.search_space_peptides,
+            "search_space_receipt": (
+                self.search_space_receipt.as_dict()
+                if self.search_space_receipt is not None
+                else None
+            ),
             "missing_precursor_ms2": self.missing_precursor_ms2,
             "psms": [_psm_dict(item) for item in self.psms],
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
@@ -375,6 +383,14 @@ def _validate_request(request: ResearchRunRequest) -> None:
         or not math.isfinite(request.q_value_threshold)
     ):
         raise ValueError("q_value_threshold must be finite and between zero and one")
+    if request.decoy_strategy not in {"caller_declared", "reverse_protein"}:
+        raise ValueError("unsupported decoy_strategy")
+    if (
+        not isinstance(request.decoy_prefix, str)
+        or not 1 <= len(request.decoy_prefix) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in request.decoy_prefix)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
 
 
 def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunResult:  # noqa: PLR0915
@@ -392,12 +408,15 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             raise ValueError("external source reference does not match mzML input bytes")
     spectra = parse_mzml(mzml_bytes, max_bytes=request.max_bytes, max_spectra=request.max_spectra)
     entries = read_fasta(fasta_bytes)
-    peptide_map = digest_trypsin(
+    search_space = build_search_space(
         entries,
+        decoy_strategy=request.decoy_strategy,
+        decoy_prefix=request.decoy_prefix,
         missed_cleavages=request.missed_cleavages,
         min_length=request.min_peptide_length,
         max_length=request.max_peptide_length,
     )
+    peptide_map = search_space.as_map()
     parameters = SearchParameters(
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
@@ -463,9 +482,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "candidate_competition_digest": competition_digest,
                 "candidate_psms": len(candidate_psms),
                 "competition_spectra": len(competition_audit),
-                "contested_spectra": sum(
-                    item.candidate_count > 1 for item in competition_audit
-                ),
+                "contested_spectra": sum(item.candidate_count > 1 for item in competition_audit),
                 "matched_psms": len(scored),
                 "mean_fragment_error_da": (
                     sum(fragment_errors) / len(fragment_errors) if fragment_errors else None
@@ -525,6 +542,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_peptide_length": request.max_peptide_length,
                 "max_spectra": request.max_spectra,
                 "q_value_threshold": request.q_value_threshold,
+                "decoy_strategy": request.decoy_strategy,
+                "decoy_prefix": request.decoy_prefix,
+                "search_space_receipt": search_space.receipt.as_dict(),
                 "max_bytes": request.max_bytes,
                 "quantification_version": "matched-ion-median-1",
                 "quantification_unit": "median_scaled_matched_ion_intensity",
@@ -558,7 +578,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             "input:fasta",
             f"sha256:{fasta_digest}",
             "search_space",
-            {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
+            {
+                "bytes": len(fasta_bytes),
+                "peptides": len(peptide_map),
+                "search_space_receipt": search_space.receipt.as_dict(),
+            },
         ),
         EvidenceRecord.create(
             "input:mzml",
@@ -631,6 +655,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "spectra_seen": len(spectra),
         "ms2_spectra_seen": ms2_count,
         "search_space_peptides": len(peptide_map),
+        "search_space_receipt": search_space.receipt.as_dict(),
         "missing_precursor_ms2": missing_precursor_count,
         "psms": [_psm_dict(item) for item in scored],
         "accepted_psms": [_psm_dict(item) for item in accepted],
@@ -666,6 +691,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         spectra_seen=len(spectra),
         ms2_spectra_seen=ms2_count,
         search_space_peptides=len(peptide_map),
+        search_space_receipt=search_space.receipt,
         psms=scored,
         accepted_psms=accepted,
         peptide_spectral_counts=counts,
