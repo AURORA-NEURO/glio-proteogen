@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m10_08 import (
     M1008_MAX_CANONICAL_REQUEST_BYTES,
     M1008_MAX_CANONICAL_RESULT_BYTES,
@@ -196,14 +197,14 @@ def verify_cli(
 
 
 def _load_request_path(path: str) -> PublishProteinRnaEvidenceRequest:
-    serialized = _read_path(path)
+    serialized = _read_path(path, max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES)
     decoded = strict_json_loads(serialized, max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES)
     m1008_runtime.preflight_m1008_authorization(decoded)
     return PublishProteinRnaEvidenceRequest.model_validate_json(serialized, strict=True)
 
 
 def _load_result_path(path: str) -> ProteinRnaEvidencePublicationResult:
-    serialized = _read_path(path)
+    serialized = _read_path(path, max_bytes=M1008_MAX_CANONICAL_RESULT_BYTES)
     decoded = strict_json_loads(serialized, max_bytes=M1008_MAX_CANONICAL_RESULT_BYTES)
     try:
         return ProteinRnaEvidencePublicationResult.model_validate_json(serialized, strict=True)
@@ -222,8 +223,13 @@ class _ResultReplayError(ValueError):
         super().__init__("result replay verification failed")
 
 
-def _read_path(path: str) -> bytes:
-    return sys.stdin.buffer.read() if path == "-" else Path(path).read_bytes()
+def _read_path(path: str, *, max_bytes: int) -> bytes:
+    if path != "-":
+        return read_bounded(Path(path), max_bytes=max_bytes)
+    serialized = sys.stdin.buffer.read(max_bytes + 1)
+    if len(serialized) > max_bytes:
+        raise RequestBodyTooLargeError
+    return serialized
 
 
 def _cli_error(error: Exception) -> None:
