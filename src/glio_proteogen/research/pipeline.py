@@ -35,15 +35,16 @@ from .quantification import (
 from .search import (
     FdrSummary,
     Psm,
+    PsmCompetition,
     SearchParameters,
-    search_spectrum,
+    search_spectrum_candidates,
     summarize_target_decoy,
     target_decoy_qvalues,
 )
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
-_SEARCH_VERSION = "fragment-search-1"
+_SEARCH_VERSION = "fragment-search-2-candidate-audit"
 _DIGESTION_VERSION = "trypsin-digest-1"
 
 
@@ -219,6 +220,7 @@ class ResearchRunResult:
     protein_group_candidates: tuple[ProteinGroupCandidate, ...] = ()
     protein_group_fdr_summary: ProteinGroupFdrSummary | None = None
     quantification_receipt: QuantificationReceipt | None = None
+    competition_audit: tuple[PsmCompetition, ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -243,6 +245,7 @@ class ResearchRunResult:
                 else None
             ),
             "fdr_summary": self.fdr_summary.as_dict() if self.fdr_summary else None,
+            "competition_audit": [item.as_dict() for item in self.competition_audit],
             "search_diagnostics": dict(self.search_diagnostics),
             "protein_group_quantifications": [
                 item.as_dict() for item in self.protein_group_quantifications
@@ -400,7 +403,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         min_matched_ions=request.min_matched_ions,
         require_precursor_mz=True,
     )
-    psms: list[Psm] = []
+    candidate_psms: list[Psm] = []
+    competition_audit: list[PsmCompetition] = []
     ms2_count = 0
     missing_precursor_count = 0
     for spectrum in spectra:
@@ -410,7 +414,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         if spectrum.precursor_mz is None or spectrum.precursor_charge is None:
             missing_precursor_count += 1
             continue
-        psm = search_spectrum(
+        candidates = search_spectrum_candidates(
             spectrum.spectrum_id,
             spectrum.precursor_mz,
             peptide_map,
@@ -424,9 +428,10 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 require_precursor_mz=True,
             ),
         )
-        if psm is not None:
-            psms.append(psm)
-    scored = target_decoy_qvalues(tuple(psms))
+        if candidates:
+            candidate_psms.extend(candidates)
+            competition_audit.append(PsmCompetition.from_candidates(candidates))
+    scored = target_decoy_qvalues(tuple(candidate_psms))
     fdr_summary = summarize_target_decoy(
         scored,
         q_value_threshold=request.q_value_threshold,
@@ -445,9 +450,22 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     precursor_errors = tuple(
         item.precursor_error_ppm for item in scored if item.precursor_error_ppm is not None
     )
+    competition_digest = sha256(
+        json.dumps(
+            [item.as_dict() for item in competition_audit],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
     search_diagnostics = tuple(
         sorted(
             {
+                "candidate_competition_digest": competition_digest,
+                "candidate_psms": len(candidate_psms),
+                "competition_spectra": len(competition_audit),
+                "contested_spectra": sum(
+                    item.candidate_count > 1 for item in competition_audit
+                ),
                 "matched_psms": len(scored),
                 "mean_fragment_error_da": (
                     sum(fragment_errors) / len(fragment_errors) if fragment_errors else None
@@ -575,6 +593,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                     item.as_dict() for item in protein_group_quantifications
                 ],
                 "quantification_receipt": quantified.receipt.as_dict(),
+                "competition_audit": [item.as_dict() for item in competition_audit],
             },
         ),
     ]
@@ -621,6 +640,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "fdr_summary": fdr_summary.as_dict(),
         "protein_group_fdr_summary": protein_group_fdr_summary.as_dict(),
         "protein_group_candidates": [item.as_dict() for item in group_candidates],
+        "competition_audit": [item.as_dict() for item in competition_audit],
         "search_diagnostics": dict(search_diagnostics),
         "protein_group_quantifications": [item.as_dict() for item in protein_group_quantifications],
         "protein_groups": [_group_dict(item) for item in groups],
@@ -661,6 +681,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         protein_group_candidates=group_candidates,
         protein_group_fdr_summary=protein_group_fdr_summary,
         quantification_receipt=quantified.receipt,
+        competition_audit=tuple(competition_audit),
     )
 
 

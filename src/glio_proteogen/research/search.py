@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
+from hashlib import sha256
 from math import hypot, isfinite
 
 
@@ -39,6 +41,68 @@ class Psm:
     mean_fragment_error_da: float = 0.0
     precursor_error_ppm: float | None = None
     target_decoy_collision: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class PsmCompetition:
+    """Immutable audit receipt for every candidate considered for one spectrum.
+
+    The selected winner is not sufficient evidence for a target/decoy search:
+    a changed lower-scoring contender can indicate a different search space even
+    when the final PSM is unchanged.  This receipt binds candidate cardinality,
+    class counts, score margin, and a canonical candidate digest without making
+    the research result claim a calibrated posterior probability.
+    """
+
+    spectrum_id: str
+    candidate_count: int
+    target_candidates: int
+    decoy_candidates: int
+    collision_candidates: int
+    winner_score: float
+    runner_up_score: float | None
+    score_margin: float | None
+    candidate_digest: str
+
+    @classmethod
+    def from_candidates(cls, candidates: Iterable[Psm]) -> PsmCompetition:
+        ordered = tuple(sorted(candidates, key=_competition_sort_key, reverse=True))
+        if not ordered:
+            raise ValueError("competition receipt requires at least one candidate")
+        spectrum_id = ordered[0].spectrum_id
+        if any(item.spectrum_id != spectrum_id for item in ordered):
+            raise ValueError("competition candidates must share a spectrum_id")
+        payload = [_candidate_payload(item) for item in ordered]
+        digest = sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        runner_up = ordered[1].score if len(ordered) > 1 else None
+        return cls(
+            spectrum_id=spectrum_id,
+            candidate_count=len(ordered),
+            target_candidates=sum(
+                not item.decoy and not item.target_decoy_collision for item in ordered
+            ),
+            decoy_candidates=sum(item.decoy for item in ordered),
+            collision_candidates=sum(item.target_decoy_collision for item in ordered),
+            winner_score=ordered[0].score,
+            runner_up_score=runner_up,
+            score_margin=ordered[0].score - runner_up if runner_up is not None else None,
+            candidate_digest=digest,
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "candidate_count": self.candidate_count,
+            "candidate_digest": self.candidate_digest,
+            "collision_candidates": self.collision_candidates,
+            "decoy_candidates": self.decoy_candidates,
+            "runner_up_score": self.runner_up_score,
+            "score_margin": self.score_margin,
+            "spectrum_id": self.spectrum_id,
+            "target_candidates": self.target_candidates,
+            "winner_score": self.winner_score,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +184,26 @@ def _precursor_mz(peptide: str, charge: int) -> float:
     return (neutral_mass + (charge * _PROTON)) / charge
 
 
-def search_spectrum(
+def _competition_sort_key(value: Psm) -> tuple[float, bool, str, tuple[str, ...]]:
+    return (value.score, not value.decoy, value.peptide, value.protein_accessions)
+
+
+def _candidate_payload(value: Psm) -> dict[str, object]:
+    return {
+        "decoy": value.decoy,
+        "matched_intensity": value.matched_intensity,
+        "matched_ions": value.matched_ions,
+        "mean_fragment_error_da": value.mean_fragment_error_da,
+        "peptide": value.peptide,
+        "precursor_error_ppm": value.precursor_error_ppm,
+        "protein_accessions": list(value.protein_accessions),
+        "score": value.score,
+        "spectrum_id": value.spectrum_id,
+        "target_decoy_collision": value.target_decoy_collision,
+    }
+
+
+def search_spectrum_candidates(
     spectrum_id: str,
     precursor_mz: float,
     peptide_map: dict[str, tuple[str, ...]],
@@ -128,26 +211,27 @@ def search_spectrum(
     observed_intensity: Iterable[float],
     *,
     parameters: SearchParameters = _DEFAULT_PARAMETERS,
-) -> Psm | None:
-    """Return the best precursor-compatible candidate or abstain safely.
+) -> tuple[Psm, ...]:
+    """Return all deterministic precursor-compatible candidates.
 
     A missing or non-finite precursor is not silently treated as a match.  This
     research primitive supports one precursor charge at a time; callers that
     cannot provide that metadata must abstain or run a separately declared
-    open-search workflow.
+    open-search workflow.  Candidates are returned in the same total order used
+    by target/decoy competition so the caller can retain an auditable receipt.
     """
     if parameters.require_precursor_mz and (not isfinite(precursor_mz) or precursor_mz <= 0):
-        return None
+        return ()
     mz = tuple(observed_mz)
     intensity = tuple(observed_intensity)
     if len(mz) != len(intensity):
         raise ValueError("observed m/z and intensity lengths differ")
     if any(not isfinite(value) or value < 0 for value in mz):
-        return None
+        return ()
     if any(not isfinite(value) or value < 0 for value in intensity):
-        return None
+        return ()
     norm = hypot(*intensity) if intensity else 0.0
-    best: Psm | None = None
+    all_candidates: list[Psm] = []
     for peptide, accessions in peptide_map.items():
         if not peptide or any(residue not in _MASS for residue in peptide):
             continue
@@ -165,14 +249,14 @@ def search_spectrum(
         fragment_errors: list[float] = []
         used_indices: set[int] = set()
         for value in theoretical:
-            candidates = [
+            peak_candidates = [
                 (index, observed)
                 for index, observed in enumerate(mz)
                 if index not in used_indices
                 and abs(observed - value) <= parameters.fragment_tolerance_da
             ]
-            if candidates:
-                index, observed = min(candidates, key=lambda item: abs(item[1] - value))
+            if peak_candidates:
+                index, observed = min(peak_candidates, key=lambda item: abs(item[1] - value))
                 used_indices.add(index)
                 matched += 1
                 matched_intensity += intensity[index]
@@ -200,19 +284,30 @@ def search_spectrum(
                 and not all(accession.startswith("DECOY_") for accession in accessions)
             ),
         )
-        if best is None or (
-            candidate.score,
-            not candidate.decoy,
-            candidate.peptide,
-            candidate.protein_accessions,
-        ) > (
-            best.score,
-            not best.decoy,
-            best.peptide,
-            best.protein_accessions,
-        ):
-            best = candidate
-    return best
+        all_candidates.append(candidate)
+    return tuple(sorted(all_candidates, key=_competition_sort_key, reverse=True))
+
+
+def search_spectrum(
+    spectrum_id: str,
+    precursor_mz: float,
+    peptide_map: dict[str, tuple[str, ...]],
+    observed_mz: Iterable[float],
+    observed_intensity: Iterable[float],
+    *,
+    parameters: SearchParameters = _DEFAULT_PARAMETERS,
+) -> Psm | None:
+    """Return the best candidate while preserving the legacy single-PSM API."""
+
+    candidates = search_spectrum_candidates(
+        spectrum_id,
+        precursor_mz,
+        peptide_map,
+        observed_mz,
+        observed_intensity,
+        parameters=parameters,
+    )
+    return candidates[0] if candidates else None
 
 
 def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
