@@ -428,6 +428,10 @@ def test_target_tie_prefers_target_winner() -> None:
     assert len(scored) == 1
     assert scored[0].decoy is False
     assert scored[0].q_value == 0.0
+    lower = replace(target, score=0.5)
+    assert len(target_decoy_qvalues((target, lower))) == 1
+    with pytest.raises(ValueError):
+        target_decoy_qvalues((replace(target, score=math.nan),))
 
 
 def test_search_requires_precursor_and_matches_each_peak_once() -> None:
