@@ -8,6 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m20_06 import (
+    M2006_MAX_CANONICAL_REQUEST_BYTES,
+    M2006_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
@@ -124,3 +128,21 @@ def test_typer_export_validate_adjudicate_verify_and_no_overwrite(tmp_path: Any)
     denied_path.write_bytes(canonical_json_bytes(_denied_request()))
     assert runner.invoke(cli_app, ["validate", str(denied_path)]).exit_code != 0
     assert runner.invoke(cli_app, ["adjudicate", str(denied_path)]).exit_code != 0
+
+
+def test_typer_rejects_oversized_request_and_result_before_parse(tmp_path: Any) -> None:
+    request_path = tmp_path / "oversized-request.json"
+    result_path = tmp_path / "oversized-result.json"
+    for path, limit in (
+        (request_path, M2006_MAX_CANONICAL_REQUEST_BYTES),
+        (result_path, M2006_MAX_CANONICAL_RESULT_BYTES),
+    ):
+        with path.open("wb") as stream:
+            stream.seek(limit)
+            stream.write(b"{}")
+    runner = CliRunner()
+    request_failure = runner.invoke(cli_app, ["validate", str(request_path)])
+    result_failure = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert request_failure.exit_code != 0
+    assert result_failure.exit_code != 0
+    assert "Traceback" not in request_failure.output + result_failure.output
