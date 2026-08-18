@@ -716,3 +716,6 @@ jobs:
             "$GITHUB_WORKSPACE/tools/verify_research_pipeline.py" \
             docs/evidence/research-foundation/evaluation.json \
             "$wheel" "$sdist"
+          "$runtime_python" -I \
+            "$GITHUB_WORKSPACE/tools/verify_research_public_proteomics.py" \
+            "$wheel" "$sdist"
