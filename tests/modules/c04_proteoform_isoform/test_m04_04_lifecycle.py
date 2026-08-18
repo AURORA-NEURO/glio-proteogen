@@ -505,6 +505,24 @@ def test_recursive_materialization_rejects_nonstring_keys_in_dicts_and_models(
         m0404_engine._plain_value(forged_context)
 
 
+def test_plain_materialization_bounds_hostile_depth_and_container_size(
+    canonical_request: ComputeProteoformQualityMetricsRequest,
+) -> None:
+    payload = canonical_request.model_dump(mode="python", exclude_none=False)
+    raw = cast("dict[str, object]", payload["raw_input_result"])
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    raw["request"] = nested
+    with pytest.raises(TypeError, match="exact string keys"):
+        compute_proteoform_quality_metrics(payload)
+
+    with pytest.raises(TypeError, match="exact string keys"):
+        m0404_engine._plain_value({str(index): index for index in range(513)})
+    with pytest.raises(TypeError, match="exact string keys"):
+        m0404_engine._plain_value(["item"] * 250_001)
+
+
 def test_preflight_sanitizes_exception_but_propagates_baseexception(
     canonical_request: ComputeProteoformQualityMetricsRequest,
     monkeypatch: pytest.MonkeyPatch,

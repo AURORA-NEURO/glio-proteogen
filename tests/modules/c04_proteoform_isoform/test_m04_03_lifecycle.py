@@ -359,6 +359,23 @@ def test_strict_plain_materialization_rejects_non_string_keys(scenario: Scenario
         M0403Service.validate_request(payload)
 
 
+def test_plain_materialization_bounds_hostile_depth_and_container_size(
+    scenario: Scenario,
+) -> None:
+    payload = scenario.request.model_dump(mode="python", exclude_none=False)
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    payload["policy"] = nested
+    with pytest.raises(TypeError, match="exact string keys"):
+        M0403Service.validate_request(payload)
+
+    with pytest.raises(TypeError, match="exact string keys"):
+        m0403_engine._plain_value({str(index): index for index in range(513)})
+    with pytest.raises(TypeError, match="exact string keys"):
+        m0403_engine._plain_value(["item"] * 250_001)
+
+
 def test_exception_fails_closed_but_baseexception_propagates(
     scenario: Scenario,
     monkeypatch: pytest.MonkeyPatch,
