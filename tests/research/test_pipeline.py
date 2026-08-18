@@ -13,6 +13,7 @@ import pytest
 from glio_proteogen.research import (
     EvidenceRecord,
     PdcFile,
+    PdcStudySnapshot,
     ResearchRunRequest,
     SourceReference,
     aggregate_evidence,
@@ -294,6 +295,114 @@ def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
             request,
             replace(pdc_file, md5="0" * 32),
             source_reference,
+        )
+
+
+def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() -> None:
+    payload = _mzml()
+    pdc_file = PdcFile(
+        study_id="PDC000204",
+        file_name="catalog.mzML",
+        file_type="processed_mzML",
+        data_category="Proteome",
+        file_format="mzML",
+        file_size=len(payload),
+        md5=md5(payload, usedforsecurity=False).hexdigest(),
+        location="https://pdc.cancer.gov/files/catalog.mzML",
+    )
+    source = SourceReference(
+        source_id="pdc:catalog",
+        locator=pdc_file.location,
+        media_type="application/mzml",
+        sha256="sha256:" + sha256(payload).hexdigest(),
+        byte_length=len(payload),
+        retrieved_at="2026-08-18T00:00:00Z",
+        license_or_terms="public metadata-bound research fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        study_id="PDC000204",
+        counts=(("Proteome", "processed_mzML", 1),),
+        files=(pdc_file,),
+        source_url="https://pdc.cancer.gov/pdc/study/PDC000204",
+        response_sha256="b" * 64,
+    )
+    request = ResearchRunRequest(
+        "catalog-bound",
+        payload,
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    bound = bind_pdc_mzml_source(request, pdc_file, source, pdc_snapshot=snapshot)
+    assert bound.external_pdc_receipt is not None
+    receipt = bound.external_pdc_receipt
+    assert receipt.response_sha256 == "b" * 64
+    assert receipt.digest == bound.external_pdc_receipt.digest
+    result = run_research_protein_inference(bound)
+    configuration = dict(result.configuration)
+    assert configuration["external_pdc_receipt"] == receipt.as_dict()
+    with pytest.raises(ValueError, match="absent"):
+        bind_pdc_mzml_source(
+            request,
+            replace(pdc_file, file_name="not-in-catalog.mzML"),
+            source,
+            pdc_snapshot=snapshot,
+        )
+    with pytest.raises(ValueError, match="response hash"):
+        bind_pdc_mzml_source(
+            request,
+            pdc_file,
+            source,
+            pdc_snapshot=replace(snapshot, response_sha256="c" * 64),
+            pdc_response_sha256="d" * 64,
+        )
+
+
+def test_pipeline_rejects_receipt_field_replacement_and_malformed_response_hash() -> None:
+    payload = _mzml()
+    pdc_file = PdcFile(
+        "PDC000204",
+        "catalog.mzML",
+        "processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "https://pdc.cancer.gov/files/catalog.mzML",
+    )
+    source = SourceReference(
+        "pdc:catalog",
+        pdc_file.location,
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "processed", 1),),
+        (pdc_file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "b" * 64,
+    )
+    base = ResearchRunRequest("receipt-fields", payload, b">P1\nMPEPTIDER\n")
+    bound = bind_pdc_mzml_source(base, pdc_file, source, pdc_snapshot=snapshot)
+    with pytest.raises(ValueError, match="does not match"):
+        replace(bound, external_pdc_file=replace(pdc_file, file_name="other.mzML"))
+    with pytest.raises(ValueError, match="reference"):
+        replace(bound, external_source_reference=replace(source, source_id="pdc:other"))
+    with pytest.raises(ValueError, match="response"):
+        replace(bound, external_pdc_response_sha256="c" * 64)
+    with pytest.raises(TypeError, match="PdcSourceReceipt"):
+        replace(bound, external_pdc_receipt=object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="64-character"):
+        ResearchRunRequest(
+            "bad-response",
+            payload,
+            b">P1\nMPEPTIDER\n",
+            external_pdc_response_sha256="z" * 64,
         )
 
 

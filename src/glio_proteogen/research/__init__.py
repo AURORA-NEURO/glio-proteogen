@@ -17,7 +17,7 @@ from .cohort import (
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
-from .pdc import PdcClient, PdcFile, PdcStudySnapshot
+from .pdc import PdcClient, PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .pipeline import (
     ResearchRunRequest,
     ResearchRunResult,
@@ -58,6 +58,7 @@ __all__ = [
     "FdrSummary",
     "PdcClient",
     "PdcFile",
+    "PdcSourceReceipt",
     "PdcStudySnapshot",
     "PeptideQuant",
     "ProteinGroup",

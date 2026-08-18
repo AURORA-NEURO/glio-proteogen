@@ -18,7 +18,7 @@ from typing import BinaryIO
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
-from .pdc import PdcFile
+from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .protein import (
     ProteinGroup,
     ProteinGroupCandidate,
@@ -60,6 +60,7 @@ class ResearchRunRequest:
     external_source_reference: SourceReference | None = None
     external_pdc_file: PdcFile | None = None
     external_pdc_response_sha256: str | None = None
+    external_pdc_receipt: PdcSourceReceipt | None = None
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -70,6 +71,18 @@ class ResearchRunRequest:
         object.__setattr__(self, "fasta_source", _read_bytes(self.fasta_source, self.max_bytes))
         if self.external_pdc_file is not None and not isinstance(self.external_pdc_file, PdcFile):
             raise TypeError("external_pdc_file must be a PdcFile")
+        if self.external_pdc_receipt is not None:
+            if not isinstance(self.external_pdc_receipt, PdcSourceReceipt):
+                raise TypeError("external_pdc_receipt must be a PdcSourceReceipt")
+            if self.external_pdc_file != self.external_pdc_receipt.file:
+                raise ValueError("external PDC file does not match its source receipt")
+            if self.external_source_reference != self.external_pdc_receipt.source_reference:
+                raise ValueError("external source reference does not match its PDC receipt")
+            if self.external_pdc_response_sha256 not in {
+                None,
+                self.external_pdc_receipt.response_sha256,
+            }:
+                raise ValueError("external response hash does not match its PDC receipt")
         if self.external_pdc_response_sha256 is not None and (
             type(self.external_pdc_response_sha256) is not str
             or len(self.external_pdc_response_sha256) != 64
@@ -87,6 +100,7 @@ def bind_pdc_mzml_source(
     source_reference: SourceReference,
     *,
     pdc_response_sha256: str | None = None,
+    pdc_snapshot: PdcStudySnapshot | None = None,
 ) -> ResearchRunRequest:
     """Bind caller-downloaded PDC mzML bytes to immutable provenance metadata.
 
@@ -100,6 +114,8 @@ def bind_pdc_mzml_source(
         raise TypeError("pdc_file must be a PdcFile declaration")
     if not isinstance(source_reference, SourceReference):
         raise TypeError("source_reference must be a SourceReference")
+    if pdc_snapshot is not None and not isinstance(pdc_snapshot, PdcStudySnapshot):
+        raise TypeError("pdc_snapshot must be a PdcStudySnapshot")
     if pdc_file.file_format is None or pdc_file.file_format.lower() not in {"mzml", "mzml.gz"}:
         raise ValueError("PDC source must declare mzML format")
     if source_reference.locator != pdc_file.location:
@@ -115,12 +131,26 @@ def bind_pdc_mzml_source(
         raise ValueError("downloaded PDC mzML MD5 differs from its declaration")
     if source_reference.byte_length != len(snapshot) or source_reference.sha256 != observed_sha:
         raise ValueError("PDC source reference does not match downloaded bytes")
+    receipt: PdcSourceReceipt | None = None
+    if pdc_snapshot is not None:
+        if pdc_response_sha256 not in {None, pdc_snapshot.response_sha256}:
+            raise ValueError("PDC response hash does not match the captured snapshot")
+        receipt = PdcSourceReceipt(
+            snapshot=pdc_snapshot,
+            file=pdc_file,
+            source_reference=source_reference,
+            observed_sha256=observed_sha,
+            observed_md5=md5(snapshot, usedforsecurity=False).hexdigest(),
+            observed_size=len(snapshot),
+        )
+        pdc_response_sha256 = pdc_snapshot.response_sha256
     return replace(
         request,
         mzml_source=snapshot,
         external_source_reference=source_reference,
         external_pdc_file=pdc_file,
         external_pdc_response_sha256=pdc_response_sha256,
+        external_pdc_receipt=receipt,
     )
 
 
@@ -450,6 +480,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                     else None
                 ),
                 "external_pdc_response_sha256": request.external_pdc_response_sha256,
+                "external_pdc_receipt": (
+                    request.external_pdc_receipt.as_dict()
+                    if request.external_pdc_receipt is not None
+                    else None
+                ),
             }.items()
         )
     )
@@ -513,6 +548,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 {
                     **_pdc_file_dict(request.external_pdc_file),
                     "response_sha256": request.external_pdc_response_sha256,
+                    "receipt": (
+                        request.external_pdc_receipt.as_dict()
+                        if request.external_pdc_receipt is not None
+                        else None
+                    ),
                 },
             )
         )

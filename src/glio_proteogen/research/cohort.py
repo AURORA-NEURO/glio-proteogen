@@ -48,12 +48,20 @@ class ResearchCohortRequest:
     """Caller-declared, configuration-compatible set of research runs."""
 
     samples: tuple[ResearchCohortSample, ...]
+    provenance_policy: str = "homogeneous"
 
     def __post_init__(self) -> None:
         if type(self.samples) is not tuple or any(
             not isinstance(sample, ResearchCohortSample) for sample in self.samples
         ):
             raise TypeError("samples must be a tuple of ResearchCohortSample values")
+        if self.provenance_policy not in {
+            "homogeneous",
+            "local_only",
+            "external_same_study",
+            "mixed_declared",
+        }:
+            raise ValueError("provenance_policy is not supported")
         if not 2 <= len(self.samples) <= MAX_COHORT_SAMPLES:
             raise ValueError("cohort sample count is outside the bounded range")
         sample_ids = tuple(sample.sample_id for sample in self.samples)
@@ -161,6 +169,8 @@ def _compatible_configuration(results: tuple[ResearchRunResult, ...]) -> None:
             "external_source_sha256",
             "external_pdc_file",
             "external_pdc_response_sha256",
+            "external_pdc_receipt",
+            "cohort_provenance_policy",
         }
     }
     for result in results[1:]:
@@ -174,6 +184,8 @@ def _compatible_configuration(results: tuple[ResearchRunResult, ...]) -> None:
                 "external_source_sha256",
                 "external_pdc_file",
                 "external_pdc_response_sha256",
+                "external_pdc_receipt",
+                "cohort_provenance_policy",
             }
         }
         if comparable != baseline or result.fasta_sha256 != results[0].fasta_sha256:
@@ -187,9 +199,43 @@ def _source_provenance(result: ResearchRunResult) -> dict[str, object]:
         "external_source_sha256": configuration.get("external_source_sha256"),
         "external_pdc_file": configuration.get("external_pdc_file"),
         "external_pdc_response_sha256": configuration.get("external_pdc_response_sha256"),
+        "external_pdc_receipt": configuration.get("external_pdc_receipt"),
         "mzml_sha256": result.mzml_sha256,
         "fasta_sha256": result.fasta_sha256,
     }
+
+
+def _validate_provenance_policy(
+    request: ResearchCohortRequest, samples: tuple[ResearchCohortSample, ...]
+) -> None:
+    receipts = tuple(sample.request.external_pdc_receipt for sample in samples)
+    declared_external = tuple(
+        sample.request.external_pdc_file is not None or receipt is not None
+        for sample, receipt in zip(samples, receipts, strict=True)
+    )
+    bound = tuple(receipt is not None for receipt in receipts)
+    policy = request.provenance_policy
+    if policy == "local_only" and any(declared_external):
+        raise ValueError("local_only cohorts cannot contain external PDC declarations")
+    if policy == "external_same_study":
+        if not all(declared_external) or not all(bound):
+            raise ValueError("external_same_study requires a receipt for every sample")
+        studies = {receipt.file.study_id for receipt in receipts if receipt is not None}
+        responses = {receipt.response_sha256 for receipt in receipts if receipt is not None}
+        if len(studies) != 1 or len(responses) != 1:
+            raise ValueError("external_same_study requires one study and one catalog response")
+    elif policy == "homogeneous":
+        if any(declared_external) and not all(declared_external):
+            raise ValueError("homogeneous cohorts cannot mix local and catalog-attested samples")
+        if all(declared_external) and not all(bound):
+            raise ValueError("homogeneous external cohorts require catalog receipts")
+        if all(bound) and receipts:
+            studies = {receipt.file.study_id for receipt in receipts if receipt is not None}
+            responses = {receipt.response_sha256 for receipt in receipts if receipt is not None}
+            if len(studies) != 1 or len(responses) != 1:
+                raise ValueError(
+                    "homogeneous PDC cohorts require one study and one catalog response"
+                )
 
 
 def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
@@ -197,6 +243,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
 
     ordered_samples = tuple(sorted(request.samples, key=lambda item: item.sample_id))
     child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
+    _validate_provenance_policy(request, ordered_samples)
     _compatible_configuration(child)
     sample_ids = tuple(item.sample_id for item in ordered_samples)
     groups = tuple(
@@ -256,6 +303,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         sorted(
             {
                 "cohort_version": "research-cohort-1",
+                "cohort_provenance_policy": request.provenance_policy,
                 "sample_ids": list(sample_ids),
                 "fasta_sha256": child[0].fasta_sha256,
                 "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",

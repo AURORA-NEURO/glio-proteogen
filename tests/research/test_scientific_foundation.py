@@ -10,7 +10,7 @@ import math
 import struct
 import zlib
 from dataclasses import replace
-from hashlib import md5
+from hashlib import md5, sha256
 from pathlib import Path
 from typing import BinaryIO, Self, cast
 
@@ -18,9 +18,12 @@ import pytest
 
 from glio_proteogen.research import (
     EvidenceRecord,
+    PdcSourceReceipt,
+    PdcStudySnapshot,
     PeptideQuant,
     Psm,
     SearchParameters,
+    SourceReference,
     aggregate_evidence,
     digest_trypsin,
     infer_protein_group_candidates,
@@ -757,6 +760,166 @@ def test_pdc_signed_download_rejects_missing_or_bad_digest(
     )
     with pytest.raises(pdc.PdcError):
         pdc.PdcClient().download_file(missing, io.BytesIO())
+
+
+def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"catalog-attested-bytes"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "fixture.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "https://pdc.cancer.gov/files/fixture.mzML",
+        "https://pdc.cancer.gov/download/fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:PDC000204:fixture",
+        file.location,
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "public metadata-bound research fixture",
+    )
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    destination = io.BytesIO()
+    receipt = pdc.PdcClient().download_file_with_receipt(file, snapshot, reference, destination)
+    assert isinstance(receipt, PdcSourceReceipt)
+    assert receipt.response_sha256 == "a" * 64
+    assert receipt.observed_size == len(payload)
+    assert receipt.as_dict()["file"] == {
+        **pdc._file_dict(file),
+    }
+    with pytest.raises(pdc.PdcError, match="absent"):
+        pdc.PdcClient().download_file_with_receipt(
+            replace(file, file_name="not-listed.mzML"), snapshot, reference, io.BytesIO()
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("snapshot", object(), "PdcStudySnapshot"),
+        ("file", object(), "PdcFile"),
+        ("source_reference", object(), "SourceReference"),
+        ("observed_sha256", "x", "SHA-256"),
+        ("observed_md5", "x", "MD5"),
+        ("observed_size", -1, "size"),
+        ("observed_size", True, "size"),
+    ],
+)
+def test_pdc_receipt_rejects_malformed_identity_fields(
+    field: str, value: object, message: str
+) -> None:
+    payload = b"receipt"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "x.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "locator",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:x",
+        "locator",
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    values: dict[str, object] = {
+        "snapshot": snapshot,
+        "file": file,
+        "source_reference": reference,
+        "observed_sha256": "sha256:" + sha256(payload).hexdigest(),
+        "observed_md5": md5(payload, usedforsecurity=False).hexdigest(),
+        "observed_size": len(payload),
+    }
+    values[field] = value
+    with pytest.raises((TypeError, ValueError), match=message):
+        PdcSourceReceipt(**values)  # type: ignore[arg-type]
+
+
+def test_pdc_receipt_rejects_catalog_and_source_mismatches() -> None:
+    payload = b"receipt-mismatch"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "x.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "locator",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:x",
+        "locator",
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    valid = {
+        "snapshot": snapshot,
+        "file": file,
+        "source_reference": reference,
+        "observed_sha256": "sha256:" + sha256(payload).hexdigest(),
+        "observed_md5": md5(payload, usedforsecurity=False).hexdigest(),
+        "observed_size": len(payload),
+    }
+    cases = [
+        (replace(snapshot, study_id="PDC000205"), "study"),
+        (replace(snapshot, response_sha256="z" * 64), "SHA-256"),
+        (replace(file, file_format="FASTA"), "mzML"),
+        (replace(file, location="other"), "locator"),
+        (replace(reference, sha256="sha256:" + "b" * 64), "observed bytes"),
+        (replace(reference, byte_length=len(payload) + 1), "size"),
+        (replace(file, file_size=len(payload) + 1), "size"),
+        (replace(file, md5="0" * 32), "MD5"),
+    ]
+    for value, message in cases:
+        changed = dict(valid)
+        if isinstance(value, PdcStudySnapshot):
+            changed["snapshot"] = value
+        elif isinstance(value, pdc.PdcFile):
+            changed["file"] = value
+            changed["snapshot"] = replace(snapshot, files=(value,))
+        else:
+            changed["source_reference"] = value
+        with pytest.raises(ValueError, match=message):
+            PdcSourceReceipt(**changed)  # type: ignore[arg-type]
 
 
 def test_pdc_private_file_size_and_required_fields() -> None:
