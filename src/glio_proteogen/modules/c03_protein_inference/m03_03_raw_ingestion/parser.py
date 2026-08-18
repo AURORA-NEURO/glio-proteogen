@@ -51,6 +51,8 @@ _SEMVER_PART_COUNT: Final = 3
 _KEY_VALUE_PART_COUNT: Final = 2
 
 _IDENTIFIER: Final = re.compile(r"^[a-zA-Z][a-zA-Z0-9._:-]{0,127}$")
+_MZIDENT_ID: Final = re.compile(r"^[A-Za-z_][A-Za-z0-9._-]{0,127}$")
+_FASTA_IDENTIFIER: Final = re.compile(r"^[^\s\x00-\x1f\x7f>]{1,255}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,6 +287,8 @@ def _parse_shared_profile(
         failure = _ParseFailure()
         failure.code = ProteinInferenceDiagnosticCode.ROLE_FORMAT_MISMATCH
         raise failure
+    if raw_format is RawFormat.FASTA:
+        _validate_fasta_identifiers(payload)
     metadata: dict[str, object] = {}
     references = 0
     if raw_format is RawFormat.MZIDENTML:
@@ -309,8 +313,24 @@ def _local(tag: object) -> str:
     return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
 
 
-def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, object]]:
-    root = _xml_root(payload)
+def _validate_mzidentml_shape(root: Element) -> None:
+    if _local(root.tag) != "MzIdentML":
+        raise _ParseFailure
+    if root.attrib.get("version") not in {"1.2", "1.2.0", "1.3", "1.3.0"}:
+        raise _UnsupportedVersion
+    data_collections = [element for element in root if _local(element.tag) == "DataCollection"]
+    if len(data_collections) != 1:
+        raise _ParseFailure
+    data_collection = data_collections[0]
+    if sum(_local(element.tag) == "Inputs" for element in data_collection) != 1:
+        raise _ParseFailure
+    if sum(_local(element.tag) == "AnalysisData" for element in data_collection) != 1:
+        raise _ParseFailure
+
+
+def _mzidentml_index(
+    root: Element,
+) -> tuple[dict[str, set[str]], list[tuple[str, str]]]:
     by_kind: dict[str, set[str]] = {
         kind: set()
         for kind in (
@@ -321,6 +341,7 @@ def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, objec
             "ProteinDetectionHypothesis",
         )
     }
+    identifiers: set[str] = set()
     references: list[tuple[str, str]] = []
     reference_fields = {
         "searchDatabase_ref": "SearchDatabase",
@@ -332,16 +353,30 @@ def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, objec
     for element in root.iter():
         name = _local(element.tag)
         identifier = element.attrib.get("id")
-        if name in by_kind and identifier:
-            by_kind[name].add(identifier)
+        if identifier is not None:
+            if not _MZIDENT_ID.fullmatch(identifier) or identifier in identifiers:
+                raise _ParseFailure
+            identifiers.add(identifier)
+            if name in by_kind:
+                by_kind[name].add(identifier)
         for attribute, target in reference_fields.items():
             value = element.attrib.get(attribute)
             if value:
                 references.append((target, value))
+    return by_kind, references
+
+
+def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, object]]:
+    root = _xml_root(payload)
+    _validate_mzidentml_shape(root)
+    by_kind, references = _mzidentml_index(root)
     if any(value not in by_kind[kind] for kind, value in references):
         raise _DanglingReference
     databases = [element for element in root.iter() if _local(element.tag) == "SearchDatabase"]
-    if len(databases) != 1:
+    spectra_data = [element for element in root.iter() if _local(element.tag) == "SpectraData"]
+    if len(databases) != 1 or len(spectra_data) == 0:
+        raise _ParseFailure
+    if any(element.attrib.get("id") is None for element in (*databases, *spectra_data)):
         raise _ParseFailure
     build_id = databases[0].attrib.get("databaseName")
     build_version = databases[0].attrib.get("version")
@@ -350,6 +385,27 @@ def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, objec
         "build_version": build_version,
     }
     return len(references), metadata
+
+
+def _validate_fasta_identifiers(payload: bytes) -> None:
+    """Reject ambiguous sequence keys while retaining only structural metadata."""
+
+    try:
+        lines = payload.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        raise _ParseFailure from None
+    identifiers: set[str] = set()
+    for line in lines:
+        if not line.startswith(">"):
+            continue
+        identifier = line[1:].split(maxsplit=1)[0] if line[1:].strip() else ""
+        if (
+            not identifier
+            or not _FASTA_IDENTIFIER.fullmatch(identifier)
+            or identifier in identifiers
+        ):
+            raise _ParseFailure
+        identifiers.add(identifier)
 
 
 def _assembly_metadata(payload: bytes, raw_format: RawFormat) -> dict[str, object]:

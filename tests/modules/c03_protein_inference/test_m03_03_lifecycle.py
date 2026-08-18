@@ -8,7 +8,7 @@ from collections.abc import Iterator, Mapping
 from io import BytesIO
 
 import pytest
-from evals.m03_03.run import build_scenario
+from evals.m03_03.run import ScenarioOptions, build_scenario
 
 from glio_proteogen.contracts.m03_03 import (
     IngestProteinInferenceRawInputsRequest,
@@ -222,6 +222,47 @@ def test_checksum_failure_is_rejected_and_content_free() -> None:
     codes = {item.code for item in result.diagnostics}
     assert ProteinInferenceDiagnosticCode.DECLARED_SIZE_MISMATCH in codes
     assert "<mzML" not in result.model_dump_json()
+
+
+def test_mzidentml_duplicate_xml_ids_are_quarantined() -> None:
+    payload = (
+        b'<?xml version="1.0"?>'
+        b'<MzIdentML xmlns="http://psidev.info/psi/pi/mzIdentML/1.3" version="1.3.0">'
+        b"<DataCollection><Inputs>"
+        b'<SearchDatabase id="database-1" databaseName="build.synthetic.targets-decoys-v1" '
+        b'version="2026.1.0"/><SpectraData id="spectra-1"/>'
+        b'<SpectraData id="spectra-1"/>'
+        b"</Inputs><AnalysisData>"
+        b'<SpectrumIdentificationList id="list-1"><SpectrumIdentificationResult '
+        b'id="result-1" spectraData_ref="spectra-1"/></SpectrumIdentificationList>'
+        b"</AnalysisData></DataCollection></MzIdentML>"
+    )
+    scenario = build_scenario(
+        options=ScenarioOptions(raw_overrides={ProteinInferenceRawRole.PEPTIDE_EVIDENCE: payload})
+    )
+
+    result = ingest_protein_inference_raw_inputs(scenario.request, scenario.sources)
+
+    assert result.disposition is ProteinInferenceAdmissionDisposition.QUARANTINED
+    assert ProteinInferenceDiagnosticCode.MALFORMED_CONTENT in {
+        item.code for item in result.diagnostics
+    }
+
+
+def test_fasta_duplicate_sequence_identifiers_are_quarantined() -> None:
+    payload = b">duplicate first\nMPEPTIDEK\n>duplicate second\nKEDITPEPM\n"
+    scenario = build_scenario(
+        options=ScenarioOptions(
+            raw_overrides={ProteinInferenceRawRole.CANONICAL_SEQUENCES: payload}
+        )
+    )
+
+    result = ingest_protein_inference_raw_inputs(scenario.request, scenario.sources)
+
+    assert result.disposition is ProteinInferenceAdmissionDisposition.QUARANTINED
+    assert ProteinInferenceDiagnosticCode.MALFORMED_CONTENT in {
+        item.code for item in result.diagnostics
+    }
 
 
 def test_concatenated_or_trailing_gzip_is_rejected() -> None:
