@@ -18,6 +18,7 @@ from .cohort import (
     replay_research_cohort,
     run_research_cohort,
 )
+from .cohort_provenance import CohortSourceBinding, CohortSourceManifest
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
@@ -60,6 +61,8 @@ __all__ = [
     "CohortQcPolicy",
     "CohortSampleQc",
     "CohortSampleScale",
+    "CohortSourceBinding",
+    "CohortSourceManifest",
     "EvidenceBundle",
     "EvidenceRecord",
     "FastaEntry",

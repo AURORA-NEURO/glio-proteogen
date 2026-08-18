@@ -60,6 +60,25 @@ The locked release evidence carries these projections per evaluator scenario, an
 verifier compares the recorded matrix, null cells, QC, source provenance, configuration,
 and child/result digests to a fresh run; counts and a fixture hash alone are insufficient.
 
+### Independence-aware source manifest
+
+Each cohort can carry a frozen `CohortSourceManifest` with one binding per sample. A
+binding records the opaque sample identifier, source kind and identifier, exact mzML
+SHA-256 and byte size, caller-declared replicate kind (`biological`, `technical`, or
+`unknown`), and any available acquisition/aliquot, PDC study/file/locator, catalog
+response, receipt, or metadata-snapshot digests. The full manifest is canonicalized and
+bound into the cohort configuration, result digest, and replay evidence; changing a file,
+catalog response, source identity, or replicate declaration therefore cannot replay as the
+same cohort.
+
+Two biological samples may not claim the same source identity. Technical duplicate files
+are retained in the matrix and remain auditable, but count neither toward independent
+replicate gates nor within-label normalization support. Unknown independence is safe data
+for audit but abstains from support-dependent normalization and claims. When no manifest
+is supplied, the research lane creates explicit `unknown` bindings rather than inferring
+independence from sample names. This is a provenance and QC boundary, not a biological
+replicate classifier.
+
 The cohort request also accepts an explicit `normalization_policy`. `none` preserves the
 raw matrix and records identity scale receipts. The opt-in `within_label_median_v1` policy
 uses only positive protein-group values shared by every replicate in each caller-declared
