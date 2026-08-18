@@ -8,6 +8,8 @@ Evidence includes:
 - bounded mzML binary-array decoding;
 - tryptic digestion and explicit FASTA search-space construction;
 - fragment matching, target/decoy q-value calculation, and shared-peptide protein grouping;
+- deterministic group-level target/decoy FDR with duplicate-spectrum contender reduction,
+  accession/flag consistency checks, contender digests, and explicit shared-only ambiguity;
 - deterministic peptide-intensity median normalization with missingness preservation;
 - order-stable content-addressed aggregation of external-cohort and computed evidence.
 
