@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m23_08 import (
     RequirementCategory,
     RiskSeverity,
     SignedReleaseRecord,
+    VariantPeptideEvidenceGateResult,
     canonical_request_digest,
     result_identifier,
     result_payload_digest,
@@ -48,6 +49,16 @@ from tests.contract.test_m2308_deep import _evidence, _request
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def _self_rehashed(
+    result: VariantPeptideEvidenceGateResult,
+    **updates: Any,
+) -> VariantPeptideEvidenceGateResult:
+    """Forge a valid-looking result whose digest covers attacker changes."""
+
+    forged = result.model_copy(update=updates)
+    return forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
 
 def test_plugin_rejects_duplicate_json_keys_before_contract_parse() -> None:
@@ -178,6 +189,45 @@ def test_plugin_descriptor_and_replay_boundary() -> None:
         "m2308.request.1"
     )
     assert plugin.replay(result) == result
+
+
+def test_replay_rejects_self_rehashed_release_record_mutation() -> None:
+    service = M2308Service()
+    result = service.adjudicate(_request())
+    assert result.release_record is not None
+    release_record = result.release_record.model_copy(
+        update={"signature_digest": "sha256:" + "f" * 64}
+    )
+    tampered = _self_rehashed(result, release_record=release_record)
+
+    with pytest.raises(M2308ReplayError):
+        service.replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_finding_and_evidence_mutations() -> None:
+    service = M2308Service()
+    result = service.adjudicate(_request())
+    finding = result.findings[0].model_copy(update={"message": "forged gate message"})
+    finding_tampered = _self_rehashed(result, findings=(finding, *result.findings[1:]))
+    evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
+    evidence_tampered = _self_rehashed(result, evidence=(evidence, *result.evidence[1:]))
+
+    with pytest.raises(M2308ReplayError):
+        service.replay(finding_tampered)
+    with pytest.raises(M2308ReplayError):
+        service.replay(evidence_tampered)
+
+
+def test_plugin_rejects_self_rehashed_provenance_mutation() -> None:
+    service = M2308Service()
+    result = service.adjudicate(_request())
+    tampered = _self_rehashed(
+        result,
+        provenance=result.provenance.model_copy(update={"activity_id": "forged-activity"}),
+    )
+
+    with pytest.raises(M2308ReplayError):
+        M2308Plugin(service).replay(tampered)
 
 
 def test_cli_schema_output_and_read_validation_errors(tmp_path: Path) -> None:

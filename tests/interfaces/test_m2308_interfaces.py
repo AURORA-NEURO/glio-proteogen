@@ -9,6 +9,10 @@ from typing import TYPE_CHECKING
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m23_08 import (
+    VariantPeptideEvidenceGateResult,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material.m23_08_evidence_gate_release_adjudicator import (
     api as m2308_api,
 )
@@ -67,6 +71,31 @@ def test_fastapi_rejects_malformed_json_and_sanitizes_contract_details() -> None
     assert "request JSON must be an object" in malformed.text
 
 
+def test_fastapi_verify_rejects_self_rehashed_release_mutation() -> None:
+    request = _request()
+    client = TestClient(m2308_api.create_app())
+    generated = client.post(
+        "/v1/modules/M23-08/adjudicate",
+        content=request.model_dump_json(),
+        headers={"content-type": "application/json"},
+    )
+    typed = VariantPeptideEvidenceGateResult.model_validate_json(generated.text, strict=True)
+    assert typed.release_record is not None
+    release_record = typed.release_record.model_copy(
+        update={"signature_digest": "sha256:" + "f" * 64}
+    )
+    tampered = typed.model_copy(update={"release_record": release_record})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    response = client.post(
+        "/v1/modules/M23-08/verify",
+        json={"result": tampered.model_dump(mode="json")},
+    )
+
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "replay envelope" in response.text
+
+
 def test_typer_round_trip_no_overwrite_and_schema_validation(tmp_path: Path) -> None:
     request = _request()
     request_path = tmp_path / "request.json"
@@ -96,6 +125,32 @@ def test_typer_round_trip_no_overwrite_and_schema_validation(tmp_path: Path) -> 
     )
     assert overwrite.exit_code != 0
     assert "refusing to overwrite" in overwrite.output
+
+
+def test_typer_verify_rejects_self_rehashed_release_mutation(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_text(_request().model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    adjudicated = runner.invoke(
+        m2308_cli.app, ["adjudicate", str(request_path), "--output", str(result_path)]
+    )
+    assert adjudicated.exit_code == 0
+    typed = VariantPeptideEvidenceGateResult.model_validate_json(
+        result_path.read_bytes(), strict=True
+    )
+    assert typed.release_record is not None
+    release_record = typed.release_record.model_copy(
+        update={"signature_digest": "sha256:" + "f" * 64}
+    )
+    tampered = typed.model_copy(update={"release_record": release_record})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    result_path.write_bytes(tampered.model_dump_json().encode("utf-8"))
+
+    verified = runner.invoke(m2308_cli.app, ["verify", str(result_path)])
+
+    assert verified.exit_code != 0
+    assert "result replay is invalid" in verified.output
 
 
 def test_typer_sanitizes_unknown_schema_and_invalid_request(tmp_path: Path) -> None:
