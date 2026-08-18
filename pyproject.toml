@@ -142,6 +142,7 @@ select = [
 "src/glio_proteogen/kernel/models.py" = ["TC003", "TRY003"]
 "src/glio_proteogen/kernel/plugin.py" = ["PLC0105", "UP046"]
 "src/glio_proteogen/research/**/*.py" = ["C901", "E501", "PLR0912", "PLR0913", "PLR2004", "TC003", "TRY003", "UP035"]
+"tests/research/**/*.py" = ["ARG005", "PT011", "PT018", "PLR2004"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

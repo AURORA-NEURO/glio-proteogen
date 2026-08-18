@@ -34,9 +34,10 @@ def read_fasta(source: bytes | str | BinaryIO) -> tuple[FastaEntry, ...]:
                 if not residues:
                     raise ValueError("FASTA entry has no residues")
                 entries.append(FastaEntry(accession, "".join(residues)))
-            accession = line[1:].split(None, 1)[0]
-            if not accession:
+            header = line[1:].split(None, 1)
+            if not header or not header[0]:
                 raise ValueError("FASTA header has no accession")
+            accession = header[0]
             residues = []
         elif accession is None or any(char not in alphabet for char in line):
             raise ValueError("invalid FASTA sequence")
