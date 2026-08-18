@@ -7,7 +7,7 @@ provisional M23-03 lane. `evaluation.json`, `benchmark.json`, and
 Generated coverage, build, and installation directories are not committed.
 
 Two builds with `SOURCE_DATE_EPOCH=315532800` were byte-identical. The wheel
-is `3,730,449` bytes with `1,945` members and SHA-256
-`8c04fcfeb725718290dc1f2658fa97ca97f3aef60a50b84571ce42a948a3fb9a`. The
-sdist is `4,284,391` bytes with SHA-256
-`202a52874116baedb7c8ce533d0359a0ce5686c473e57f9b1af1759a108fec97`.
+is `3,857,065` bytes with `1,990` members and SHA-256
+`bb894bfcaa4f22677ad54ac55dddafc4ed119ed6d70e851598dc9dcd348c65bf`. The
+sdist is `4,508,639` bytes with `4,624` members and SHA-256
+`318b402ef6c803f0251c235fd26b7a15dcf85efb09c3b04e3af016bed864285e`.
