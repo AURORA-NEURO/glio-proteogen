@@ -49,7 +49,7 @@ class ValidatedM0608Request:
     _seal: object
 
 
-_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0608Request, tuple[object, str]]] = (
+_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0608Request, tuple[object, object, str]]] = (
     WeakKeyDictionary()
 )
 
@@ -88,7 +88,7 @@ class M0608Plugin(
         else:
             typed = self._service.validate_request(_prepare(candidate))
         token = ValidatedM0608Request(request=typed, _seal=_TOKEN_SEAL)
-        _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
+        _ISSUED_TOKENS[token] = (self, typed, canonical_request_digest(typed))
         return token
 
     def run(self, request: ValidatedM0608Request) -> ProteinAbundanceEvidencePublicationResult:
@@ -97,8 +97,9 @@ class M0608Plugin(
             type(request) is not ValidatedM0608Request
             or request._seal is not _TOKEN_SEAL
             or snapshot is None
-            or snapshot[0] is not request.request
-            or snapshot[1] != canonical_request_digest(request.request)
+            or snapshot[0] is not self
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_request_digest(request.request)
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)
