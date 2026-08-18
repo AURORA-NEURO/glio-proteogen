@@ -41,8 +41,16 @@ def test_fastapi_rejects_malformed_non_object_and_bad_result_envelopes() -> None
 
 def test_fastapi_tampered_result_is_rejected() -> None:
     client = TestClient(create_app())
-    result = M2108Engine().evaluate(_request()).model_dump(mode="json")
-    result["result_digest"] = "sha256:" + "f" * 64
+    result_model = M2108Engine().evaluate(_request())
+    result_model = result_model.model_copy(
+        update={
+            "support_decision": result_model.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
+    result = result_model.model_dump(mode="json")
+    result["result_digest"] = result_payload_digest(result_model)
     response = client.post("/v1/modules/M21-08/verify", json=result)
     assert response.status_code == 422
 
@@ -77,7 +85,8 @@ def test_typer_rejects_unknown_malformed_abstained_and_tampered(tmp_path: Path) 
     assert emitted.exit_code == 1
 
     tampered = json.loads(result_path.read_text(encoding="utf-8"))
-    tampered["result_digest"] = "sha256:" + "f" * 64
+    tampered["support_decision"]["rationale"] = "Forged release approval."
+    tampered["result_digest"] = result_payload_digest(tampered)
     result_path.write_text(json.dumps(tampered), encoding="utf-8")
     assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
 
@@ -92,9 +101,17 @@ def test_plugin_and_engine_reject_malformed_inputs_and_false_replay() -> None:
     with pytest.raises(M2108ReplayError):
         engine.verify(object())
     result = engine.evaluate(_request())
-    tampered = result.model_copy(update={"abstention_reason": "changed"})
+    tampered = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
     with pytest.raises(M2108ReplayError):
         engine.verify(tampered, replay=False)
+    with pytest.raises(M2108ReplayError):
+        plugin.verify(tampered)
 
 
 def test_engine_preflight_handles_property_failure() -> None:
