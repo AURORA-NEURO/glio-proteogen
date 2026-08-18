@@ -238,6 +238,9 @@ def test_upstream_boundary_and_tampered_replay_reject() -> None:
     changed = changed.model_copy(update={"result_digest": result_payload_digest(changed)})
     with pytest.raises(m1603.M1603ReplayVerificationError):
         m1603.M1603Service().verify(changed)
+    forged = result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+    with pytest.raises(m1603.M1603ReplayVerificationError):
+        m1603.M1603Service().verify(forged, replay=False)
 
 
 def test_mapping_plugin_and_descriptor_paths() -> None:

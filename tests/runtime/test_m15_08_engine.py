@@ -187,6 +187,13 @@ def test_replay_mismatch_is_distinguished_from_digest_tamper() -> None:
         m1508.M1508Service().verify(changed)
 
 
+def test_digest_tamper_is_rejected_when_deterministic_replay_is_disabled() -> None:
+    result = m1508.M1508Service().execute(_request())
+    forged = result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
+    with pytest.raises(m1508.M1508ReplayVerificationError):
+        m1508.M1508Service().verify(forged, replay=False)
+
+
 def test_mapping_service_and_plugin_paths() -> None:
     request = _request()
     service = m1508.M1508Service()
