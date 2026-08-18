@@ -9,8 +9,10 @@ from evals.research_proteomics.cohort import _pdc_sample
 from evals.research_proteomics.run import build_scenario_request, scenarios
 
 from glio_proteogen.research import (
+    CohortSourceManifest,
     ResearchCohortRequest,
     ResearchCohortSample,
+    aggregate_cohort_evidence,
     replay_research_cohort,
     run_research_cohort,
 )
@@ -101,6 +103,75 @@ def test_cohort_order_permutation_and_replay_are_digest_bound() -> None:
         replay_research_cohort(first_request, altered)
 
 
+def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
+    request = ResearchCohortRequest(
+        (_sample("target_supported", "a", "r1"), _sample("no_match", "b", "r2"))
+    )
+    result = run_research_cohort(request)
+    assert result.evidence_bundle is not None
+    bundle = aggregate_cohort_evidence(result)
+    assert bundle.digest == result.evidence_bundle.digest
+    assert tuple(record.evidence_id for record in bundle.records) == (
+        "cohort.matrix.v1",
+        "cohort.provenance.v1",
+        "cohort.qc.v1",
+    )
+    projection = bundle.as_dict()
+    records = projection["records"]
+    assert isinstance(records, list)
+    assert {record["kind"] for record in records if isinstance(record, dict)} == {
+        "computed_matrix",
+        "descriptive_qc",
+        "source_provenance",
+    }
+    assert all(
+        isinstance(record, dict)
+        and isinstance(record.get("payload"), dict)
+        and record.get("digest")
+        for record in records
+    )
+
+
+def test_cohort_evidence_bundle_rejects_tampered_outer_or_inner_receipt() -> None:
+    request = ResearchCohortRequest(
+        (_sample("target_supported", "a", "r1"), _sample("target_supported", "b", "r2"))
+    )
+    result = run_research_cohort(request)
+    assert result.evidence_bundle is not None
+    tampered_outer = replace(
+        result,
+        evidence_bundle=replace(result.evidence_bundle, digest="0" * 64),
+    )
+    with pytest.raises(ValueError, match="not reproducible"):
+        aggregate_cohort_evidence(tampered_outer)
+    tampered_record = replace(
+        result.evidence_bundle.records[0],
+        digest="f" * 64,
+    )
+    tampered_inner = replace(
+        result,
+        evidence_bundle=replace(
+            result.evidence_bundle,
+            records=(tampered_record, *result.evidence_bundle.records[1:]),
+        ),
+    )
+    with pytest.raises(ValueError, match="not reproducible"):
+        aggregate_cohort_evidence(tampered_inner)
+
+
+def test_cohort_evidence_bundle_requires_complete_result_shape() -> None:
+    request = ResearchCohortRequest(
+        (_sample("target_supported", "a", "r1"), _sample("target_supported", "b", "r2"))
+    )
+    result = run_research_cohort(request)
+    with pytest.raises(TypeError, match="ResearchCohortResult"):
+        aggregate_cohort_evidence(object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="source manifest"):
+        aggregate_cohort_evidence(replace(result, source_manifest=None))
+    with pytest.raises(ValueError, match="evidence bundle"):
+        aggregate_cohort_evidence(replace(result, evidence_bundle=None))
+
+
 def test_cohort_boundary_types_and_bounded_cardinality() -> None:
     valid = _sample("target_supported", "valid", "r1")
     with pytest.raises(ValueError, match="opaque"):
@@ -111,6 +182,11 @@ def test_cohort_boundary_types_and_bounded_cardinality() -> None:
         ResearchCohortSample("valid", object(), "fixture-cohort", "r2")  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="tuple"):
         ResearchCohortRequest([valid, _sample("target_supported", "second", "r2")])  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="CohortSourceManifest"):
+        ResearchCohortRequest(
+            (valid, _sample("target_supported", "second", "r2")),
+            source_manifest=object(),  # type: ignore[arg-type]
+        )
     with pytest.raises(ValueError, match="sample count"):
         ResearchCohortRequest((valid,))
     too_many = tuple(
@@ -160,6 +236,29 @@ def test_cohort_provenance_policy_rejects_different_catalog_response() -> None:
     with pytest.raises(ValueError, match="one study and one catalog response"):
         run_research_cohort(
             ResearchCohortRequest((first, altered), provenance_policy="external_same_study")
+        )
+
+
+def test_cohort_provenance_rejects_mixed_metadata_snapshot_digests() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    first = _pdc_sample(target, "pdc-a", "r1")
+    second = _pdc_sample(target, "pdc-b", "r2")
+    manifest = CohortSourceManifest.from_requests(
+        (first.request, second.request),
+        replicate_kinds={"pdc-a": "biological", "pdc-b": "biological"},
+    )
+    altered = replace(
+        manifest.bindings[1],
+        metadata_snapshot_digest="f" * 64,
+    )
+    mixed_manifest = CohortSourceManifest((manifest.bindings[0], altered))
+    with pytest.raises(ValueError, match="metadata snapshot"):
+        run_research_cohort(
+            ResearchCohortRequest(
+                (first, second),
+                provenance_policy="external_same_study",
+                source_manifest=mixed_manifest,
+            )
         )
 
 

@@ -11,6 +11,7 @@ from statistics import median
 from typing import cast
 
 from .cohort_provenance import CohortSourceManifest
+from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .pipeline import ResearchRunRequest, ResearchRunResult, run_research_protein_inference
 
 MAX_COHORT_SAMPLES = 32
@@ -26,6 +27,7 @@ __all__ = [
     "ResearchCohortRequest",
     "ResearchCohortResult",
     "ResearchCohortSample",
+    "aggregate_cohort_evidence",
     "replay_research_cohort",
     "run_research_cohort",
 ]
@@ -297,6 +299,7 @@ class ResearchCohortResult:
     label_qc: tuple[CohortLabelQc, ...] = ()
     label_group_evidence: tuple[CohortLabelGroupEvidence, ...] = ()
     source_manifest: CohortSourceManifest | None = None
+    evidence_bundle: EvidenceBundle | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -318,11 +321,113 @@ class ResearchCohortResult:
             "source_manifest": (
                 self.source_manifest.as_dict() if self.source_manifest is not None else None
             ),
+            "evidence_bundle": (
+                self.evidence_bundle.as_dict() if self.evidence_bundle is not None else None
+            ),
         }
 
 
 def _digest(payload: dict[str, object]) -> str:
     return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _build_evidence_bundle(
+    *,
+    sample_ids: tuple[str, ...],
+    group_accessions: tuple[tuple[str, ...], ...],
+    matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+    raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+    normalized_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+    sample_qc: tuple[CohortSampleQc, ...],
+    group_qc: tuple[CohortGroupQc, ...],
+    sample_scales: tuple[CohortSampleScale, ...],
+    label_qc: tuple[CohortLabelQc, ...],
+    label_group_evidence: tuple[CohortLabelGroupEvidence, ...],
+    source_manifest: CohortSourceManifest,
+    configuration: tuple[tuple[str, object], ...],
+) -> EvidenceBundle:
+    """Create independently verifiable matrix, QC, and provenance receipts.
+
+    The cohort result already contains these projections, but previously they
+    had no inner evidence identities.  Splitting the receipt by scientific
+    responsibility makes it possible to archive or verify matrix values, QC
+    decisions, and external-source provenance independently while retaining one
+    deterministic outer digest.  This is descriptive research evidence only.
+    """
+
+    records = (
+        EvidenceRecord.create(
+            "cohort.matrix.v1",
+            "glio_proteogen.research.cohort",
+            "computed_matrix",
+            {
+                "group_accessions": [list(item) for item in group_accessions],
+                "matrix": [[list(group), list(values)] for group, values in matrix],
+                "normalized_matrix": [
+                    [list(group), list(values)] for group, values in normalized_matrix
+                ],
+                "raw_matrix": [[list(group), list(values)] for group, values in raw_matrix],
+                "sample_ids": list(sample_ids),
+            },
+        ),
+        EvidenceRecord.create(
+            "cohort.qc.v1",
+            "glio_proteogen.research.cohort",
+            "descriptive_qc",
+            {
+                "group_qc": [item.as_dict() for item in group_qc],
+                "label_group_evidence": [item.as_dict() for item in label_group_evidence],
+                "label_qc": [item.as_dict() for item in label_qc],
+                "sample_qc": [item.as_dict() for item in sample_qc],
+                "sample_scales": [item.as_dict() for item in sample_scales],
+            },
+        ),
+        EvidenceRecord.create(
+            "cohort.provenance.v1",
+            "glio_proteogen.research.cohort",
+            "source_provenance",
+            {
+                "configuration": dict(configuration),
+                "source_manifest": source_manifest.as_dict(),
+                "source_manifest_digest": source_manifest.digest,
+            },
+        ),
+    )
+    return aggregate_evidence(records)
+
+
+def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
+    """Recompute and verify the inner evidence receipt for a cohort result.
+
+    This helper is intentionally separate from replay: it verifies the three
+    evidence domains without executing mzML parsing again.  A forged result,
+    stale evidence payload, or changed source manifest therefore fails before a
+    consumer treats the projection as an auditable cohort receipt.
+    """
+
+    if not isinstance(result, ResearchCohortResult):
+        raise TypeError("result must be a ResearchCohortResult")
+    if result.source_manifest is None:
+        raise ValueError("cohort result has no source manifest")
+    observed = _build_evidence_bundle(
+        sample_ids=result.sample_ids,
+        group_accessions=result.group_accessions,
+        matrix=result.matrix,
+        raw_matrix=result.raw_matrix,
+        normalized_matrix=result.normalized_matrix,
+        sample_qc=result.sample_qc,
+        group_qc=result.group_qc,
+        sample_scales=result.sample_scales,
+        label_qc=result.label_qc,
+        label_group_evidence=result.label_group_evidence,
+        source_manifest=result.source_manifest,
+        configuration=result.configuration,
+    )
+    if result.evidence_bundle is None:
+        raise ValueError("cohort result has no evidence bundle")
+    if observed.as_dict() != result.evidence_bundle.as_dict():
+        raise ValueError("cohort evidence bundle is not reproducible")
+    return observed
 
 
 def _compatible_configuration(results: tuple[ResearchRunResult, ...]) -> None:
@@ -606,6 +711,19 @@ def _validate_provenance_policy(
     )
     bound = tuple(receipt is not None for receipt in receipts)
     policy = request.provenance_policy
+
+    def validate_metadata_snapshots() -> None:
+        """Reject cohorts that silently combine metadata snapshot versions."""
+
+        if request.source_manifest is None:
+            return
+        digests = {
+            request.source_manifest.for_sample(sample.sample_id).metadata_snapshot_digest
+            for sample in samples
+        }
+        if len(digests) > 1:
+            raise ValueError("cohort metadata snapshot digests must be identical or all absent")
+
     if policy == "local_only" and any(declared_external):
         raise ValueError("local_only cohorts cannot contain external PDC declarations")
     if policy == "external_same_study":
@@ -627,6 +745,7 @@ def _validate_provenance_policy(
                 raise ValueError(
                     "homogeneous PDC cohorts require one study and one catalog response"
                 )
+    validate_metadata_snapshots()
 
 
 def _source_manifest(
@@ -756,6 +875,20 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
             }.items()
         )
     )
+    evidence_bundle = _build_evidence_bundle(
+        sample_ids=sample_ids,
+        group_accessions=groups,
+        matrix=matrix,
+        raw_matrix=matrix,
+        normalized_matrix=normalized_matrix,
+        sample_qc=tuple(qc),
+        group_qc=tuple(group_qc),
+        sample_scales=sample_scales,
+        label_qc=label_qc,
+        label_group_evidence=label_group_evidence,
+        source_manifest=source_manifest,
+        configuration=configuration,
+    )
     payload = {
         "sample_ids": list(sample_ids),
         "group_accessions": [list(group) for group in groups],
@@ -773,6 +906,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
             for sample, result in zip(ordered_samples, child, strict=True)
         ],
         "configuration": dict(configuration),
+        "evidence_bundle": evidence_bundle.as_dict(),
     }
     return ResearchCohortResult(
         sample_ids=sample_ids,
@@ -792,6 +926,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
         source_manifest=source_manifest,
+        evidence_bundle=evidence_bundle,
     )
 
 

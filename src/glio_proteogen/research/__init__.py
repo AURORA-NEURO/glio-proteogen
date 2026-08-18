@@ -15,6 +15,7 @@ from .cohort import (
     ResearchCohortRequest,
     ResearchCohortResult,
     ResearchCohortSample,
+    aggregate_cohort_evidence,
     replay_research_cohort,
     run_research_cohort,
 )
@@ -93,6 +94,7 @@ __all__ = [
     "SearchParameters",
     "SourceReference",
     "Spectrum",
+    "aggregate_cohort_evidence",
     "aggregate_evidence",
     "bind_pdc_mzml_source",
     "digest_trypsin",
