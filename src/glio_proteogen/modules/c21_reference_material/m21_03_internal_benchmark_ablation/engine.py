@@ -41,6 +41,7 @@ _AUTHORIZATION_MESSAGE: Final = (
     "M21-03 benchmarking requires accepted configuration, resolved identity, granted consent, "
     "accepted provenance/quality/support/intended-use controls"
 )
+_SEMANTIC_REPLAY_MESSAGE: Final = "M21-03 replay output differs from deterministic regeneration"
 _LIMITATIONS: Final = (
     Limitation(
         code="caller_declared_upstream",
@@ -131,15 +132,29 @@ class M2103Engine:
         self,
         result: ComplexActivityInternalBenchmarkResult,
     ) -> ComplexActivityInternalBenchmarkResult:
+        # Preserve precise direct closure errors before parsing the full
+        # envelope, then perform semantic regeneration below. A valid payload
+        # digest alone does not prove this engine produced nested dossier or
+        # provenance content.
         if result.request_digest != canonical_request_digest(result.request):
             raise M2103ReplayError("M21-03 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2103ReplayError("M21-03 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2103ReplayError("M21-03 result payload digest mismatch")  # noqa: TRY003
-        return ComplexActivityInternalBenchmarkResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ComplexActivityInternalBenchmarkResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise M2103ReplayError from error
+        try:
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2103ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2103ReplayError(_SEMANTIC_REPLAY_MESSAGE)
+        return replayed
 
 
 def run_complex_activity_internal_benchmark(
