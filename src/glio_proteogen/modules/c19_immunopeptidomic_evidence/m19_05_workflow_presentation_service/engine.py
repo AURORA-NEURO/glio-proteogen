@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m19_05 import (
     M1905_EVIDENCE_CLAIM,
     M1905_MAX_EVIDENCE,
     M1905_MODULE_ID,
+    M1905_PROHIBITED_CLAIM_TERMS,
     HumanReviewWorkspace,
     PresentProteotypeHumanReviewWorkspaceRequest,
     ProteotypeHumanReviewWorkspaceResult,
@@ -54,6 +55,7 @@ _CONTROL_STATES: Final = {
     "support": UpstreamDecisionState.ACCEPTED.value,
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
+_FORBIDDEN_CLAIM_TERMS: Final = frozenset(M1905_PROHIBITED_CLAIM_TERMS)
 
 
 class M1905AuthorizationError(PermissionError):
@@ -129,6 +131,28 @@ def _evidence(
         )
         for artifact in tuple(unique.values())[:M1905_MAX_EVIDENCE]
     )
+
+
+def _claim_texts(
+    request: PresentProteotypeHumanReviewWorkspaceRequest,
+) -> tuple[str, ...]:
+    """Collect caller-controlled presentation text without traversing artifacts."""
+
+    values: list[str] = [
+        request.policy.configuration.method,
+        *(evidence.claim for evidence in request.policy.configuration.evidence),
+    ]
+    for item in request.review_items:
+        values.extend((item.title, item.evidence_summary, item.uncertainty_summary))
+        values.extend(evidence.claim for evidence in item.evidence)
+        if item.next_action is not None:
+            values.extend((item.next_action.label, item.next_action.rationale))
+    return tuple(value.casefold() for value in values)
+
+
+def _contains_prohibited_claim(request: PresentProteotypeHumanReviewWorkspaceRequest) -> bool:
+    texts = _claim_texts(request)
+    return any(term in text for term in _FORBIDDEN_CLAIM_TERMS for text in texts)
 
 
 def _control_decisions(
@@ -223,8 +247,18 @@ def _findings(
     evidence: tuple[EvidenceReference, ...],
     *,
     abstained: bool,
+    claim_boundary_blocked: bool,
 ) -> tuple[WorkflowFinding, ...]:
     findings: list[WorkflowFinding] = []
+    if claim_boundary_blocked:
+        findings.append(
+            WorkflowFinding(
+                finding_id=f"finding.{request.request_id}.claim-boundary",
+                code=WorkflowFindingCode.PROHIBITED_CLAIM_BOUNDARY,
+                message=("Caller-controlled presentation text exceeds the M19-05 claims ceiling."),
+                evidence=evidence[:1],
+            )
+        )
     if any(
         item.status in {ReviewItemStatus.CONFLICTED, ReviewItemStatus.UNRESOLVED}
         for item in request.review_items
@@ -323,7 +357,10 @@ class M1905Engine:
         request = self.validate_request(candidate)
         request_digest = canonical_request_digest(request)
         evidence = _evidence(request)
-        abstained = any(item.status is ReviewItemStatus.ABSTAINED for item in request.review_items)
+        claim_boundary_blocked = _contains_prohibited_claim(request)
+        abstained = claim_boundary_blocked or any(
+            item.status is ReviewItemStatus.ABSTAINED for item in request.review_items
+        )
         workspace = None
         if not abstained:
             workspace = HumanReviewWorkspace(
@@ -360,11 +397,20 @@ class M1905Engine:
             "request": request,
             "status": WorkspaceStatus.ABSTAINED if workspace is None else WorkspaceStatus.PRESENTED,
             "workspace": workspace,
-            "findings": _findings(request, evidence, abstained=workspace is None),
+            "findings": _findings(
+                request,
+                evidence,
+                abstained=workspace is None,
+                claim_boundary_blocked=claim_boundary_blocked,
+            ),
             "abstention_reason": (
-                "An abstained review item prevents safe workspace presentation."
-                if workspace is None
-                else None
+                "A prohibited caller claim exceeds the M19-05 claims ceiling."
+                if claim_boundary_blocked
+                else (
+                    "An abstained review item prevents safe workspace presentation."
+                    if workspace is None
+                    else None
+                )
             ),
             "parent_target": "proteotype",
             "emits_parent": False,
