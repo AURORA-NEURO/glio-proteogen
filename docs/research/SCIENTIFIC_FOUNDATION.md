@@ -41,7 +41,8 @@ C03/C04 computation contract:
   over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
   receipt, so a changed lower-scoring contender cannot silently replay as the same result.
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
-  target/decoy sequence collisions as conservative abstentions.
+  target/decoy sequence collisions as conservative abstentions. Collision winners remain
+  in the descriptive FDR numerator rather than being silently removed from error evidence.
 - The composed pipeline requires a selected-ion precursor m/z and charge for MS2
   matching and applies a caller-declared integer precursor tolerance bounded to
   0–500 ppm. The tolerance is applied before candidate competition and is bound into
@@ -76,6 +77,8 @@ C03/C04 computation contract:
   group scoring, validates that target/decoy flags agree with accession labels, and binds a
   canonical digest of every contender. It retains target/decoy/collision evidence, computes
   monotone max-PSM-score group q-values, rejects decoy groups, abstains on mixed collisions, and
+  counts collision groups conservatively in the group-FDR numerator while keeping them
+  non-reportable,
   exposes unique-peptide versus shared-only identifiability before quantification. The summary
   records input-versus-unique spectra and shared-peptide counts, so a changed lower-scoring
   contender cannot replay as the same group result. A target group supported only by shared

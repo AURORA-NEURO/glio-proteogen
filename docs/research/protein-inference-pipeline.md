@@ -30,14 +30,17 @@ one deterministic, auditable path:
    receipt; lower-scoring contenders are never silently discarded from replay evidence.
 6. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
    peptide maps to both target and decoy accessions is recorded as a collision and
-   conservatively abstained rather than promoted to either side. PSMs are accepted only
-   at the caller-declared q-value threshold.
+   conservatively abstained rather than promoted to either side. Collision winners remain
+   conservative decoy evidence in the descriptive FDR numerator, so an abstained collision
+   cannot disappear from the error estimate. PSMs are accepted only at the caller-declared
+   q-value threshold.
 7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in
    the group summary. Each candidate receives a deterministic max-supporting-PSM score and
    monotone group-level target/decoy q-value. Decoy groups are rejected, mixed groups are retained
-   as null-q collision abstentions, and shared-only groups are marked ambiguous before
+   as null-q collision abstentions. Collision groups still count in the group-FDR numerator,
+   while shared-only groups are marked ambiguous before
    quantification. Only target groups passing this second threshold become reportable groups.
    This is transparent group-FDR evidence, not a calibrated protein probability.
 8. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
@@ -156,7 +159,8 @@ latter binds candidate/target/decoy/collision counts, the max-PSM-score group me
 group threshold, accepted target groups, descriptive decoy/target ratio, input versus unique
 spectra, duplicate-contender count, a digest of every group contender, and shared-only/ambiguous
 group counts. Accession-derived target/decoy labels are checked against each PSM's declared flags
-before group scoring.
+before group scoring. Both peptide- and group-level descriptive decoy/target ratios count
+collision evidence conservatively, even though collision records remain non-reportable.
 Quantification is downstream of both accepted peptide PSMs and accepted target groups;
 a peptide that passes spectrum-level FDR but belongs only to a rejected or abstained
 group cannot create a reported group intensity. The spectrum-level summary records
