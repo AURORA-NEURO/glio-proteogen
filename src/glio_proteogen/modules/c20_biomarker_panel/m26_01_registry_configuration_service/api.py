@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_01 import (
     M2601_MAX_CANONICAL_REQUEST_BYTES,
+    M2601_MAX_CANONICAL_RESULT_BYTES,
     ProteinSubtypeRegistryResult,
     RegisterProteinSubtypeRegistryRequest,
     contract_json_schema,
@@ -40,13 +41,19 @@ def _parse_request(body: bytes) -> RegisterProteinSubtypeRegistryRequest:
         raise _invalid_request(error) from error
 
 
-def _parse_object(body: bytes) -> dict[str, Any]:
+def _parse_object(
+    body: bytes,
+    *,
+    max_bytes: int = M2601_MAX_CANONICAL_REQUEST_BYTES,
+    invalid_detail: str = "request JSON is invalid",
+    object_detail: str = "request JSON must be an object",
+) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
+        value = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
-        raise HTTPException(status_code=422, detail="request JSON is invalid") from error
+        raise HTTPException(status_code=422, detail=invalid_detail) from error
     if not isinstance(value, dict):
-        raise HTTPException(status_code=422, detail="request JSON must be an object")
+        raise HTTPException(status_code=422, detail=object_detail)
     return cast("dict[str, Any]", value)
 
 
@@ -86,7 +93,12 @@ def create_app(service: M2601Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-01/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await request.body(),
+            max_bytes=M2601_MAX_CANONICAL_RESULT_BYTES,
+            invalid_detail="replay envelope JSON is invalid",
+            object_detail="replay envelope JSON must be an object",
+        )
         candidate = envelope.get("result", envelope)
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
