@@ -19,6 +19,7 @@ if __package__ in {None, ""}:
 from tests.contract.test_m19_07_deep import _field, _request
 
 from glio_proteogen.contracts.m19_07 import (
+    ExportFindingCode,
     ExportProteotypeDownstreamContractRequest,
     ExportStatus,
 )
@@ -65,11 +66,19 @@ def _request_for(name: str) -> ExportProteotypeDownstreamContractRequest:  # noq
     if name == "unsupported_field":
         return request.model_copy(update={"fields": (_field("unsupported"),)})
     if name == "prohibited_field":
+        field = _field("prohibited")
         return request.model_copy(
             update={
                 "fields": (
-                    _field("prohibited").model_copy(
-                        update={"documentation": "Export kinase activity for treatment."}
+                    field.model_copy(
+                        update={
+                            "documentation": "Documented export field.",
+                            "evidence": (
+                                field.evidence[0].model_copy(
+                                    update={"claim": "Caller claims kinase activity for treatment."}
+                                ),
+                            ),
+                        }
                     ),
                 )
             }
@@ -108,7 +117,7 @@ def _request_for(name: str) -> ExportProteotypeDownstreamContractRequest:  # noq
     raise ValueError(f"unknown M19-07 evaluator scenario: {name}")  # noqa: TRY003
 
 
-def evaluate() -> EvaluationReport:  # noqa: C901
+def evaluate() -> EvaluationReport:  # noqa: C901, PLR0915
     metadata = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
     names = tuple(metadata["scenario_names"])
     checks: list[EvalCheck] = [
@@ -175,6 +184,16 @@ def evaluate() -> EvaluationReport:  # noqa: C901
             and blocked.contract is None
             and blocked.support_decision.status is SupportStatus.UNSUPPORTED,
             "prohibited responsibilities are withheld rather than relabeled",
+        )
+    )
+    checks.append(
+        EvalCheck(
+            "boundary.prohibited_claim_finding",
+            any(
+                finding.code is ExportFindingCode.PROHIBITED_CLAIM_BOUNDARY
+                for finding in blocked.findings
+            ),
+            "caller-controlled claims produce a typed boundary finding",
         )
     )
     tampered = supported.model_copy(update={"human_review_required": False})

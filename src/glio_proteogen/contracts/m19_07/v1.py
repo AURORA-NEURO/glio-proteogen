@@ -55,6 +55,26 @@ M1907_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-07 field, consent, support, ownership, compatibility "
     "and signature material; issuer authority is not authenticated."
 )
+M1907_PROHIBITED_CLAIM_TERMS: Final = (
+    "all-omics",
+    "multi-omics",
+    "multiomics",
+    "kinase activity",
+    "kinophos",
+    "treatment recommendation",
+    "therapy recommendation",
+    "identity inference",
+    "infer identity",
+    "consent inference",
+    "infer consent",
+    "mutation inference",
+    "infer mutation",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "glioma-specific",
+    "glioma specific biology",
+)
 
 
 class ExportStatus(StrEnum):
@@ -85,6 +105,7 @@ class ExportFindingCode(StrEnum):
     SIGNATURE_MISSING = "signature_missing"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
+    PROHIBITED_CLAIM_BOUNDARY = "prohibited_claim_boundary"
 
 
 class ExportField(FrozenModel):
@@ -340,6 +361,7 @@ __all__ = [
     "M1907_OUTPUT_MEDIA_TYPE",
     "M1907_OWNER",
     "M1907_PARENT",
+    "M1907_PROHIBITED_CLAIM_TERMS",
     "M1907_PROVISIONAL_ABI",
     "M1907_SAFETY_CLASS",
     "CompatibilityMode",

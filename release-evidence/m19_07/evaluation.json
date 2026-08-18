@@ -29,6 +29,11 @@
       "passed": true
     },
     {
+      "detail": "caller-controlled claims produce a typed boundary finding",
+      "name": "boundary.prohibited_claim_finding",
+      "passed": true
+    },
+    {
       "detail": "payload digest is bound",
       "name": "replay.tamper_denied",
       "passed": true

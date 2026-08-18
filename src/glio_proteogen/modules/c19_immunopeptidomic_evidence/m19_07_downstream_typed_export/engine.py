@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m19_07 import (
     M1907_CONTRACT_VERSION,
     M1907_EVIDENCE_CLAIM,
     M1907_MODULE_ID,
+    M1907_PROHIBITED_CLAIM_TERMS,
     DownstreamContractObject,
     ExportFinding,
     ExportFindingCode,
@@ -75,17 +76,14 @@ _ABSTENTION_TERMS: Final = frozenset(
         "review required",
     }
 )
-_PROHIBITED_TERMS: Final = frozenset(
+_PROHIBITED_TERMS: Final = frozenset(M1907_PROHIBITED_CLAIM_TERMS) | frozenset(
     {
         "kinase",
         "treatment",
         "therapy",
-        "all-omics",
         "all_omics",
         "all omics",
-        "identity inference",
         "identity_inference",
-        "consent inference",
         "consent_inference",
         "relabel",
         "erase disagreement",
@@ -170,8 +168,19 @@ def _declared_text(request: ExportProteotypeDownstreamContractRequest) -> str:
         *(field.field_name for field in request.fields),
         *(field.documentation for field in request.fields),
         *(artifact.artifact_id for artifact in request.source_artifacts),
+        *_claim_texts(request),
     ]
     return " ".join(values).casefold()
+
+
+def _claim_texts(request: ExportProteotypeDownstreamContractRequest) -> tuple[str, ...]:
+    """Collect caller-controlled prose before any export contract is emitted."""
+
+    texts: list[str] = [request.support_decision.rationale]
+    texts.extend(field.documentation for field in request.fields)
+    texts.extend(evidence.claim for evidence in request.configuration.evidence)
+    texts.extend(evidence.claim for field in request.fields for evidence in field.evidence)
+    return tuple(texts)
 
 
 def _uncertainty(*, exported: bool) -> UncertaintyProfile:
@@ -343,8 +352,11 @@ class M1907Engine:
             findings.append(
                 _finding(
                     "finding.prohibited-boundary",
-                    ExportFindingCode.COMPATIBILITY_MISMATCH,
-                    "A prohibited responsibility is outside the M19-07 export boundary.",
+                    ExportFindingCode.PROHIBITED_CLAIM_BOUNDARY,
+                    (
+                        "Caller-controlled export text exceeds the M19-07 claims ceiling; "
+                        "no downstream contract is emitted."
+                    ),
                     evidence,
                 )
             )
