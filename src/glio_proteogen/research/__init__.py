@@ -12,11 +12,19 @@ from .pdc import PdcClient, PdcFile, PdcStudySnapshot
 from .pipeline import (
     ResearchRunRequest,
     ResearchRunResult,
+    bind_pdc_mzml_source,
     replay_research_protein_inference,
     run_research_protein_inference,
 )
 from .protein import ProteinGroup, infer_protein_groups
-from .quantification import PeptideQuant, median_normalize, quantify_matched_ions
+from .public_proteomics.provenance import SourceReference
+from .quantification import (
+    PeptideQuant,
+    ProteinGroupQuant,
+    median_normalize,
+    quantify_matched_ions,
+    quantify_protein_groups,
+)
 from .search import (
     FdrSummary,
     Psm,
@@ -36,17 +44,21 @@ __all__ = [
     "PdcStudySnapshot",
     "PeptideQuant",
     "ProteinGroup",
+    "ProteinGroupQuant",
     "Psm",
     "ResearchRunRequest",
     "ResearchRunResult",
     "SearchParameters",
+    "SourceReference",
     "Spectrum",
     "aggregate_evidence",
+    "bind_pdc_mzml_source",
     "digest_trypsin",
     "infer_protein_groups",
     "median_normalize",
     "parse_mzml",
     "quantify_matched_ions",
+    "quantify_protein_groups",
     "read_fasta",
     "replay_research_protein_inference",
     "run_research_protein_inference",

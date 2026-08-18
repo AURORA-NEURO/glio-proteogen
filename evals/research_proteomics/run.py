@@ -26,6 +26,8 @@ class Scenario:
     expected_target_winners: int = 0
     expected_decoy_winners: int = 0
     expected_quantified_peptides: int = 0
+    expected_collision_winners: int = 0
+    expected_group_quant: tuple[tuple[tuple[str, ...], str, float | None], ...] = ()
 
 
 def _array(values: tuple[float, ...], accession: str) -> str:
@@ -112,6 +114,7 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             0,
             1,
+            expected_group_quant=((("P1",), "quantified", 20.0),),
         ),
         Scenario(
             "decoy_rejected",
@@ -124,6 +127,19 @@ def scenarios() -> tuple[Scenario, ...]:
             0,
             1,
             0,
+        ),
+        Scenario(
+            "target_decoy_collision",
+            b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n",
+            _mzml(matched=True),
+            1,
+            0,
+            (),
+            (),
+            0,
+            0,
+            0,
+            expected_collision_winners=1,
         ),
         Scenario("no_match", b">P1\nMPEPTIDER\n", _mzml(matched=False), 0, 0, (), (), 0, 0, 0),
         Scenario(
@@ -149,6 +165,7 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             0,
             1,
+            expected_group_quant=((("P1", "P2"), "non_quantifiable_shared_only", None),),
         ),
         Scenario(
             "multi_spectrum",
@@ -161,6 +178,7 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             0,
             1,
+            expected_group_quant=((("P1",), "quantified", 20.0),),
         ),
         Scenario(
             "multi_peptide_quantification",
@@ -173,6 +191,10 @@ def scenarios() -> tuple[Scenario, ...]:
             2,
             0,
             2,
+            expected_group_quant=(
+                (("P1",), "quantified", 60.0),
+                (("P2",), "quantified", 45.0),
+            ),
         ),
     )
 
@@ -197,6 +219,15 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item.get("expected_target_winners", 0),
             item.get("expected_decoy_winners", 0),
             item.get("expected_quantified_peptides", 0),
+            item.get("expected_collision_winners", 0),
+            tuple(
+                (
+                    tuple(entry["group_accessions"]),
+                    entry["status"],
+                    entry.get("primary_intensity"),
+                )
+                for entry in item.get("expected_group_quant", [])
+            ),
         )
         for item in fixture["scenarios"]
     )
@@ -210,10 +241,12 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
             item.expected_target_winners,
             item.expected_decoy_winners,
             item.expected_quantified_peptides,
+            item.expected_collision_winners,
+            item.expected_group_quant,
         )
         for item in locked
     )
-    if declared != observed or fixture["fixture_version"] != "research-proteomics-1":
+    if declared != observed or fixture["fixture_version"] != "research-proteomics-2":
         raise ValueError
     if any(bool(value) for value in fixture["claims"].values()):
         raise ValueError
@@ -252,8 +285,18 @@ def run_evaluator() -> dict[str, object]:
             and result.fdr_summary is not None
             and result.fdr_summary.target_winners == scenario.expected_target_winners
             and result.fdr_summary.decoy_winners == scenario.expected_decoy_winners
+            and result.fdr_summary.collision_winners == scenario.expected_collision_winners
             and result.fdr_summary.accepted_targets == scenario.expected_accepted
             and len(result.peptide_intensities) == scenario.expected_quantified_peptides
+            and tuple(
+                (
+                    item.group_accessions,
+                    item.status,
+                    item.primary_intensity,
+                )
+                for item in result.protein_group_quantifications
+            )
+            == scenario.expected_group_quant
         )
         outcomes.append(
             {
@@ -265,6 +308,9 @@ def run_evaluator() -> dict[str, object]:
                 "groups": [list(group.accessions) for group in result.protein_groups],
                 "fdr_summary": result.fdr_summary.as_dict() if result.fdr_summary else None,
                 "quantified_peptides": len(result.peptide_intensities),
+                "protein_group_quantifications": [
+                    item.as_dict() for item in result.protein_group_quantifications
+                ],
                 "search_diagnostics": dict(result.search_diagnostics),
             }
         )

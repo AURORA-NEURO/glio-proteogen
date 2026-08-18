@@ -15,6 +15,7 @@
       "matched_ion_intensity_quantification",
       "median_scaled_missingness_preserving_normalization",
       "ambiguity_preserving_protein_groups",
+      "ambiguity_aware_protein_group_quantification",
       "content_addressed_replay"
     ],
     "claims": {
@@ -25,10 +26,11 @@
     }
   },
   "validation": {
-    "scenarios": 7,
+    "scenarios": 8,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",
+      "target_decoy_collision",
       "no_match",
       "precursor_rejected",
       "shared_peptide_group",

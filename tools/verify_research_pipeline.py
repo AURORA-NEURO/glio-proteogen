@@ -2,7 +2,7 @@
 """Verify the locked, research-only proteomics evaluator and package surface.
 
 This verifier deliberately checks computation identity and package reachability,
-not scientific validity.  It reruns the seven locked scenarios, binds the fixture
+not scientific validity.  It reruns the eight locked scenarios, binds the fixture
 digest and scenario IDs, and optionally checks that built distributions contain
 the research pipeline without requiring or implying a governed ABI.
 """
@@ -22,6 +22,7 @@ _EVIDENCE = _ROOT / "docs" / "evidence" / "research-foundation"
 _EXPECTED_SCENARIOS = (
     "target_supported",
     "decoy_rejected",
+    "target_decoy_collision",
     "no_match",
     "precursor_rejected",
     "shared_peptide_group",

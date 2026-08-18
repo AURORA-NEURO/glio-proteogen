@@ -38,6 +38,7 @@ class Psm:
     matched_intensity: float = 0.0
     mean_fragment_error_da: float = 0.0
     precursor_error_ppm: float | None = None
+    target_decoy_collision: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +54,7 @@ class FdrSummary:
     spectrum_winners: int
     target_winners: int
     decoy_winners: int
+    collision_winners: int
     accepted_targets: int
     q_value_threshold: float
     max_accepted_q_value: float | None
@@ -63,6 +65,7 @@ class FdrSummary:
             "accepted_targets": self.accepted_targets,
             "decoy_to_target_ratio": self.decoy_to_target_ratio,
             "decoy_winners": self.decoy_winners,
+            "collision_winners": self.collision_winners,
             "max_accepted_q_value": self.max_accepted_q_value,
             "method": self.method,
             "q_value_threshold": self.q_value_threshold,
@@ -184,13 +187,17 @@ def search_spectrum(
             protein_accessions=tuple(accessions),
             score=matched + (intensity_score / norm if norm else 0.0),
             matched_ions=matched,
-            decoy=any(accession.startswith("DECOY_") for accession in accessions),
+            decoy=all(accession.startswith("DECOY_") for accession in accessions),
             matched_intensity=matched_intensity,
             mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
             precursor_error_ppm=(
                 abs(precursor_mz - theoretical_precursor) / theoretical_precursor * 1_000_000
                 if parameters.require_precursor_mz
                 else None
+            ),
+            target_decoy_collision=(
+                any(accession.startswith("DECOY_") for accession in accessions)
+                and not all(accession.startswith("DECOY_") for accession in accessions)
             ),
         )
         if best is None or (
@@ -233,14 +240,19 @@ def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
     targets = 0
     raw: list[tuple[Psm, float]] = []
     for psm in ordered:
-        decoys += int(psm.decoy)
-        targets += int(not psm.decoy)
+        decoys += int(psm.decoy or psm.target_decoy_collision)
+        targets += int(not psm.decoy and not psm.target_decoy_collision)
         raw.append((psm, decoys / max(targets, 1)))
     running = 1.0
     output: list[Psm] = []
     for psm, value in reversed(raw):
         running = min(running, value)
-        output.append(replace(psm, q_value=None if psm.decoy else running))
+        output.append(
+            replace(
+                psm,
+                q_value=None if psm.decoy or psm.target_decoy_collision else running,
+            )
+        )
     return tuple(reversed(output))
 
 
@@ -250,19 +262,26 @@ def summarize_target_decoy(psms: Iterable[Psm], *, q_value_threshold: float) -> 
     if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
     scored = target_decoy_qvalues(psms)
-    target_winners = sum(not item.decoy for item in scored)
+    target_winners = sum(not item.decoy and not item.target_decoy_collision for item in scored)
     decoy_winners = sum(item.decoy for item in scored)
+    collision_winners = sum(item.target_decoy_collision for item in scored)
     accepted = tuple(
         item
         for item in scored
-        if not item.decoy and item.q_value is not None and item.q_value <= q_value_threshold
+        if (
+            not item.decoy
+            and not item.target_decoy_collision
+            and item.q_value is not None
+            and item.q_value <= q_value_threshold
+        )
     )
     accepted_q_values = tuple(item.q_value for item in accepted if item.q_value is not None)
     return FdrSummary(
-        method="winner-per-spectrum-monotone-target-decoy-1",
+        method="winner-per-spectrum-target-decoy-collision-abstain-1",
         spectrum_winners=len(scored),
         target_winners=target_winners,
         decoy_winners=decoy_winners,
+        collision_winners=collision_winners,
         accepted_targets=len(accepted),
         q_value_threshold=q_value_threshold,
         max_accepted_q_value=max(accepted_q_values) if accepted_q_values else None,

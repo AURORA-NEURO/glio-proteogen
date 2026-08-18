@@ -1,5 +1,5 @@
 {
-    "fixture_version": "research-proteomics-1",
+    "fixture_version": "research-proteomics-2",
     "scenarios": [
         {
             "id": "target_supported",
@@ -8,7 +8,8 @@
             "expected_groups": [["P1"]],
             "expected_target_winners": 1,
             "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1
+            "expected_quantified_peptides": 1,
+            "expected_group_quant": [{"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 20.0}]
         },
         {
             "id": "decoy_rejected",
@@ -16,6 +17,15 @@
             "expected_accepted": 0,
             "expected_target_winners": 0,
             "expected_decoy_winners": 1,
+            "expected_quantified_peptides": 0
+        },
+        {
+            "id": "target_decoy_collision",
+            "expected_psms": 1,
+            "expected_accepted": 0,
+            "expected_target_winners": 0,
+            "expected_decoy_winners": 0,
+            "expected_collision_winners": 1,
             "expected_quantified_peptides": 0
         },
         {
@@ -42,7 +52,8 @@
             "expected_shared": ["MPEPTIDER"],
             "expected_target_winners": 1,
             "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1
+            "expected_quantified_peptides": 1,
+            "expected_group_quant": [{"group_accessions": ["P1", "P2"], "status": "non_quantifiable_shared_only", "primary_intensity": null}]
         },
         {
             "id": "multi_spectrum",
@@ -51,7 +62,8 @@
             "expected_groups": [["P1"]],
             "expected_target_winners": 1,
             "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1
+            "expected_quantified_peptides": 1,
+            "expected_group_quant": [{"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 20.0}]
         },
         {
             "id": "multi_peptide_quantification",
@@ -60,7 +72,11 @@
             "expected_groups": [["P1"], ["P2"]],
             "expected_target_winners": 2,
             "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 2
+            "expected_quantified_peptides": 2,
+            "expected_group_quant": [
+                {"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 60.0},
+                {"group_accessions": ["P2"], "status": "quantified", "primary_intensity": 45.0}
+            ]
         }
     ],
     "claims": {"production_abi": false, "clinical": false, "glioma": false, "mechanism": false}

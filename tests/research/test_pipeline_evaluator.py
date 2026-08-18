@@ -11,7 +11,7 @@ from evals.research_proteomics.run import run_benchmark, run_evaluator
 def test_locked_research_pipeline_evaluator() -> None:
     report = run_evaluator()
     assert report["passed"] is True
-    assert cast("int", report["declared"]) == cast("int", report["executed"]) == 7
+    assert cast("int", report["declared"]) == cast("int", report["executed"]) == 8
     assert len(cast("str", report["fixture_sha256"])) == 64
 
 
