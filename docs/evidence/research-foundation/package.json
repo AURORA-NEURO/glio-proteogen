@@ -47,7 +47,9 @@
       "biological_duplicate_source_rejection",
       "technical_duplicate_retention_without_independent_support",
       "unknown_independence_safe_abstention",
-      "source_identity_bound_replay"
+      "source_identity_bound_replay",
+      "replay_bound_cohort_evidence_bundle_matrix_qc_provenance",
+      "uniform_external_metadata_snapshot_gate"
     ],
     "clinical_or_mechanistic_claims": false,
     "production_module_wiring": false,
@@ -57,13 +59,13 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "15e07a83591737d82eb033ddc6272ddbdb82c1a83e353cb61397e86370b10fa8",
     "cohort_fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
-    "focused_tests": 190,
+    "focused_tests": 194,
     "coverage": {
-      "statements": 2087,
-      "missed_statements": 71,
-      "branches": 772,
-      "partial_branches": 62,
-      "percent": 95.14,
+      "statements": 2113,
+      "missed_statements": 70,
+      "branches": 784,
+      "partial_branches": 61,
+      "percent": 95.27096996893339,
       "fail_under": 95
     },
     "wheel": {
