@@ -1,0 +1,34 @@
+{
+  "study_id": "PDC000204",
+  "source_url": "https://pdc.cancer.gov/pdc/study/PDC000204",
+  "api_url": "https://pdc.cancer.gov/graphql",
+  "retrieved_utc": "2026-08-17T00:00:00Z",
+  "counts": [
+    {"data_category": "Other Metadata", "file_type": "Document", "files_count": 9},
+    {"data_category": "Peptide Spectral Matches", "file_type": "Open Standard", "files_count": 264},
+    {"data_category": "Peptide Spectral Matches", "file_type": "Text", "files_count": 264},
+    {"data_category": "Processed Mass Spectra", "file_type": "Open Standard", "files_count": 264},
+    {"data_category": "Protein Assembly", "file_type": "Text", "files_count": 5},
+    {"data_category": "Quality Metrics", "file_type": "Text", "files_count": 1},
+    {"data_category": "Quality Metrics", "file_type": "Web", "files_count": 1},
+    {"data_category": "Raw Mass Spectra", "file_type": "Proprietary", "files_count": 264},
+    {"data_category": "Publication Supplementary Material", "file_type": "Archive", "files_count": 10}
+  ],
+  "representative_files": [
+    {
+      "pdc_study_id": "PDC000204",
+      "file_name": "11CPTAC_GBM_W_PNNL_20190501_B3S3_f10.mzML.gz",
+      "file_type": "Open Standard",
+      "md5sum": "875118803dfbe54d21c627ce83dda444",
+      "file_location": "studies/204/mzml/11CPTAC_GBM_W_PNNL_20190501_B3S3_f10.mzML.gz",
+      "file_size": "193963708",
+      "data_category": "Processed Mass Spectra",
+      "file_format": "mzML"
+    }
+  ],
+  "limitations": [
+    "This checked-in record is public study/file metadata, not a redistributed patient record or raw spectrum file.",
+    "The 193,963,708-byte representative mzML is fetched only by an explicit caller action.",
+    "The research foundation does not authenticate issuer truth or emit clinical claims."
+  ]
+}

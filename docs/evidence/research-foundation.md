@@ -1,0 +1,17 @@
+# Research foundation evidence
+
+The research-only foundation is covered by `tests/research/test_scientific_foundation.py`.
+
+Evidence includes:
+
+- a captured public PDC GraphQL response shape for PDC000204 (CPTAC GBM Discovery Study);
+- bounded mzML binary-array decoding;
+- tryptic digestion and explicit FASTA search-space construction;
+- fragment matching, target/decoy q-value calculation, and shared-peptide protein grouping;
+- deterministic peptide-intensity median normalization with missingness preservation;
+- order-stable content-addressed aggregation of external-cohort and computed evidence.
+
+The PDC record is metadata provenance, not a claim about patient-level biology. The foundation is
+not a production GLIO-PROTEOGEN module and does not alter M03/M04's frozen non-inference boundary.
+No external raw file is bundled in the repository. Fetching a public file is an explicit caller
+operation, bounded by the caller and recorded by its source metadata and digest.
