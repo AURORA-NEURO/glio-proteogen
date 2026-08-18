@@ -9,8 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m22_08 import (
     M2208_MAX_CANONICAL_REQUEST_BYTES,
+    M2208_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateProteinRnaDiscordanceEvidenceGateRequest,
     ProteinRnaDiscordanceEvidenceGateResult,
     contract_json_schema,
@@ -45,7 +47,7 @@ class M2208CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> AdjudicateProteinRnaDiscordanceEvidenceGateRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2208_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2208_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -56,7 +58,9 @@ def _read_request(path: Path) -> AdjudicateProteinRnaDiscordanceEvidenceGateRequ
 
 def _read_result(path: Path) -> ProteinRnaDiscordanceEvidenceGateResult:
     try:
-        return _RESULT_ADAPTER.validate_json(path.read_bytes(), strict=True)
+        return _RESULT_ADAPTER.validate_json(
+            read_bounded(path, M2208_MAX_CANONICAL_RESULT_BYTES), strict=True
+        )
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2208CliError("input must be a valid M22-08 result") from error  # noqa: TRY003
 

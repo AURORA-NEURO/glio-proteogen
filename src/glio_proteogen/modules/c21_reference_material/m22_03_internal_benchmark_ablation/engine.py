@@ -131,13 +131,18 @@ class M2203BenchmarkEngine:
         self,
         result: ProteinRnaDiscordanceInternalBenchmarkResult,
     ) -> ProteinRnaDiscordanceInternalBenchmarkResult:
+        tamper_message = _classify_replay_tamper(result)
+        if tamper_message is not None:
+            raise M2203ReplayError(tamper_message)
         try:
             replayed = ProteinRnaDiscordanceInternalBenchmarkResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
             expected = self.generate(replayed.request)
-        except Exception as error:
-            raise M2203ReplayError from error
+        except Exception:  # noqa: BLE001 - sanitize validation details at this boundary.
+            raise M2203ReplayError(  # noqa: TRY003
+                "M22-03 replay result validation failed"
+            ) from None
         if replayed.request_digest != canonical_request_digest(replayed.request):
             raise M2203ReplayError("M22-03 result request digest mismatch")  # noqa: TRY003
         if replayed.result_id != result_identifier(replayed.request):
@@ -147,6 +152,24 @@ class M2203BenchmarkEngine:
         if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
             raise M2203ReplayError("M22-03 deterministic replay output mismatch")  # noqa: TRY003
         return replayed
+
+
+def _classify_replay_tamper(
+    result: ProteinRnaDiscordanceInternalBenchmarkResult,
+) -> str | None:
+    """Classify typed-but-unvalidated model copies without leaking Pydantic details."""
+
+    try:
+        request_digest = canonical_request_digest(result.request)
+        if result.request_digest != request_digest:
+            return "M22-03 result request digest mismatch"
+        if result.result_id != result_identifier(result.request):
+            return "M22-03 result identifier mismatch"
+        if result.result_digest != result_payload_digest(result):
+            return "M22-03 result payload digest mismatch"
+    except Exception:  # noqa: BLE001 - hostile model copies fail closed below.
+        return None
+    return None
 
 
 def run_protein_rna_discordance_internal_benchmark(
