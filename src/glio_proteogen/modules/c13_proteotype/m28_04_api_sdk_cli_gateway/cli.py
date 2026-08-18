@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m28_04 import (
     M2804_MAX_CANONICAL_REQUEST_BYTES,
+    M2804_MAX_CANONICAL_RESULT_BYTES,
     ProteinRnaDiscordanceAccessSurfaceResult,
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
     contract_json_schema,
@@ -47,9 +48,23 @@ class M2804CliError(typer.BadParameter):
     """Sanitized M28-04 command-line validation error."""
 
 
+def _read_bounded(path: Path, *, max_bytes: int) -> bytes:
+    """Read a CLI JSON file without bypassing its canonical byte ceiling."""
+
+    try:
+        if path.stat().st_size > max_bytes:
+            raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
+        data = path.read_bytes()
+    except OSError as error:
+        raise ValueError("input cannot be read") from error  # noqa: TRY003
+    if len(data) > max_bytes:
+        raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
+    return data
+
+
 def _read_request(path: Path) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
     try:
-        data = path.read_bytes()
+        data = _read_bounded(path, max_bytes=M2804_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2804_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -58,8 +73,8 @@ def _read_request(path: Path) -> PublishProteinRnaDiscordanceAccessSurfaceReques
 
 def _read_result(path: Path) -> ProteinRnaDiscordanceAccessSurfaceResult:
     try:
-        data = path.read_bytes()
-        strict_json_loads(data)
+        data = _read_bounded(path, max_bytes=M2804_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2804_MAX_CANONICAL_RESULT_BYTES)
         return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2804CliError("input must be a valid M28-04 result") from error  # noqa: TRY003
