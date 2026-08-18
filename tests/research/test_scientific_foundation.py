@@ -1366,3 +1366,38 @@ def test_protein_group_quantification_receipt_distinguishes_missing_from_zero() 
     explicit_zero = quantify_protein_groups(group, {"PEPTIDE": 0.0}, {"PEPTIDE": 0})[0]
     assert absent.status == explicit_zero.status == "missing"
     assert absent.evidence_digest != explicit_zero.evidence_digest
+
+
+def test_protein_group_quantification_rejects_malformed_partitions() -> None:
+    valid = (ProteinGroup(("P1",), ("PEPTIDE",), ()),)
+    assert quantify_protein_groups((), {}, {}) == ()
+    malformed = (
+        (cast("tuple[ProteinGroup, ...]", ("not-a-group",)), "ProteinGroup"),
+        ((ProteinGroup(("",), ("PEPTIDE",), ()),), "non-empty accession"),
+        ((ProteinGroup(("P1", "P1"), ("PEPTIDE",), ()),), "repeat accessions"),
+        (
+            (ProteinGroup(("P1",), ("A",), ()), ProteinGroup(("P1",), ("B",), ())),
+            "disjoint accession",
+        ),
+        ((ProteinGroup(("P1",), ("",), ()),), "non-empty peptide"),
+        ((ProteinGroup(("P1",), ("A",), ("A",)),), "repeat peptides"),
+        (
+            (ProteinGroup(("P1",), ("A",), ()), ProteinGroup(("P2",), ("A",), ())),
+            "disjoint peptide",
+        ),
+    )
+    for groups, message in malformed:
+        with pytest.raises((TypeError, ValueError), match=message):
+            quantify_protein_groups(groups, {}, {})
+    with pytest.raises(ValueError, match="bounded non-empty"):
+        quantify_protein_groups(valid, {"": 1.0}, {})
+    with pytest.raises(TypeError, match="numeric"):
+        quantify_protein_groups(valid, {"PEPTIDE": True}, {})
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        quantify_protein_groups(valid, {"PEPTIDE": float("nan")}, {})
+    with pytest.raises(ValueError, match="bounded non-empty"):
+        quantify_protein_groups(valid, {}, {"": 1})
+    with pytest.raises(ValueError, match="non-negative integers"):
+        quantify_protein_groups(valid, {}, {"PEPTIDE": -1})
+    with pytest.raises(ValueError, match="non-negative integers"):
+        quantify_protein_groups(valid, {}, {"PEPTIDE": True})
