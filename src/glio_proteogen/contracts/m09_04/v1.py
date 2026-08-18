@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m09_04.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ControlDecisionRecord,
@@ -266,6 +267,12 @@ class EstimateComplexActivityProbabilisticResult(FrozenModel):
     def result_is_closed(self) -> EstimateComplexActivityProbabilisticResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.provenance != expected_provenance(
+            self.request,
+            self.request_digest,
+            sha256_digest(self.request.configuration),
+        ):
+            raise ValueError("result provenance does not bind the exact request controls")
         diagnostic_ids = tuple(item.diagnostic_id for item in self.diagnostics)
         if len(diagnostic_ids) != len(set(diagnostic_ids)):
             raise ValueError("optimization diagnostic ids must be unique")
@@ -377,7 +384,15 @@ def expected_provenance(
         module_id=M0904_MODULE_ID,
         module_version=M0904_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request_digest, request.baseline_result.digest),
+        input_digests=tuple(
+            sorted(
+                {
+                    request_digest,
+                    request.baseline_result.digest,
+                    *(item.digest for item in request.source_artifacts),
+                }
+            )
+        ),
         configuration_digest=configuration_digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,

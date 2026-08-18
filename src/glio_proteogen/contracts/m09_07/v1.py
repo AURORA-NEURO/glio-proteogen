@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m09_07.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ControlDecisionRecord,
@@ -283,6 +284,14 @@ class ComplexActivitySelectivePredictionResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivitySelectivePredictionResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.uncertainty != expected_uncertainty():
+            raise ValueError("result uncertainty does not match the safe provisional profile")
+        if self.provenance != expected_provenance(
+            self.request,
+            self.request_digest,
+            sha256_digest(self.request.configuration),
+        ):
+            raise ValueError("result provenance does not bind the exact request controls")
         failed = {
             CalibrationDiagnosticStatus.FAIL,
             CalibrationDiagnosticStatus.NOT_EVALUABLE,
