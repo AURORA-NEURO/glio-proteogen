@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import math
 from collections import Counter
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from hashlib import md5, sha256
 from typing import BinaryIO
 
@@ -29,6 +29,7 @@ from .protein import (
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     ProteinGroupQuant,
+    QuantificationPolicy,
     QuantificationReceipt,
     quantify_matched_ions_with_receipt,
     quantify_protein_groups,
@@ -76,6 +77,7 @@ class ResearchRunRequest:
     external_pdc_file: PdcFile | None = None
     external_pdc_response_sha256: str | None = None
     external_pdc_receipt: PdcSourceReceipt | None = None
+    quantification_policy: QuantificationPolicy = field(default_factory=QuantificationPolicy)
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -91,6 +93,8 @@ class ResearchRunRequest:
             "variable_modifications",
             normalize_modification_rules(self.variable_modifications),
         )
+        if not isinstance(self.quantification_policy, QuantificationPolicy):
+            raise TypeError("quantification_policy must be a QuantificationPolicy")
         if (
             type(self.max_variable_modifications) is not int
             or not 0 <= self.max_variable_modifications <= 3
@@ -550,6 +554,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     quantified = quantify_matched_ions_with_receipt(
         request.sample_id,
         ((item.peptide, item.matched_intensity) for item in reportable_psms),
+        policy=request.quantification_policy,
     )
     peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified.values)
     counts = tuple(sorted(Counter(item.peptide for item in reportable_psms).items()))
@@ -615,6 +620,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_variable_modifications": request.max_variable_modifications,
             }
         )
+    if request.quantification_policy != QuantificationPolicy():
+        configuration_payload["quantification_policy"] = request.quantification_policy.as_dict()
     configuration = tuple(sorted(configuration_payload.items()))
     evidence_records = [
         EvidenceRecord.create(

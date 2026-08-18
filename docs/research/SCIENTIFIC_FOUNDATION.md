@@ -47,6 +47,13 @@ C03/C04 computation contract:
   fabricated dispersion. This prevents a normalized research signal from being mistaken for
   calibrated abundance while retaining enough computation detail to audit support and
   heterogeneity.
+- The research-only `QuantificationPolicy` closes the remaining scale ambiguity. It permits
+  only arbitrary matched-ion intensity, explicitly selects either no normalization or
+  sample-median scaling, and accepts a finite caller-declared limit of quantification (LOQ).
+  A zero or below-LOQ signal is retained in the raw receipt but becomes a null-equivalent
+  missing projection with no imputation. Non-default policy fields, below-LOQ counts, and
+  per-peptide status vectors are part of the single-run configuration/receipt digest, so a
+  replay cannot silently change units, normalization, or LOQ semantics.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `infer_protein_group_candidates` deterministically reduces duplicate spectrum contenders before
