@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
@@ -15,14 +16,16 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from glio_proteogen.contracts.m04_03 import (
         IngestProteoformRawInputsRequest,
         ProteoformRawInputValidationResult,
     )
 
 _AUTHORIZATION_MESSAGE: Final = "proteoform raw-input ingestion requires accepted upstream controls"
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 250_000
+_MAX_PLAIN_NODES: Final = 250_000
 
 
 def _contracts() -> Any:  # noqa: ANN401 - shared private module accessor.
@@ -464,24 +467,65 @@ def _state_text(candidate: object) -> object:
     return None
 
 
-def _plain_value(candidate: object) -> object:
+def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
     candidate_mro = type.__getattribute__(type(candidate), "__mro__")
     if BaseModel in candidate_mro:
         storage = cast("dict[object, object]", object.__getattribute__(candidate, "__dict__"))
         if type(storage) is not dict or any(type(key) is not str for key in dict.keys(storage)):
             raise _InvalidPlainValueError
-        return {key: _plain_value(dict.__getitem__(storage, key)) for key in dict.keys(storage)}
+        if dict.__len__(storage) > _MAX_PLAIN_DICT_ITEMS:
+            raise _InvalidPlainValueError
+        return {
+            key: _plain_value(
+                dict.__getitem__(storage, key),
+                _depth=_depth + 1,
+                _budget=budget,
+            )
+            for key in dict.keys(storage)
+        }
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
-        if any(type(key) is not str for key in dict.keys(mapping)):
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS or any(
+            type(key) is not str for key in dict.keys(mapping)
+        ):
             raise _InvalidPlainValueError
-        return {key: _plain_value(dict.__getitem__(mapping, key)) for key in dict.keys(mapping)}
+        return {
+            key: _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+            )
+            for key in dict.keys(mapping)
+        }
     if list in candidate_mro:
         list_values = cast("list[object]", candidate)
-        return [_plain_value(item) for item in list.__iter__(list_values)]
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in list.__iter__(list_values)
+        ]
     if tuple in candidate_mro:
         tuple_values = cast("tuple[object, ...]", candidate)
-        return tuple(_plain_value(item) for item in tuple.__iter__(tuple_values))
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro:
+        raise _InvalidPlainValueError
     return candidate
 
 
