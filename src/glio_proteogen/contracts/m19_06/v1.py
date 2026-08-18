@@ -60,6 +60,26 @@ M1906_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-06 discrepancy, review, escalation and audit material; "
     "issuer authority is not authenticated."
 )
+M1906_PROHIBITED_CLAIM_TERMS: Final = (
+    "all-omics",
+    "multi-omics",
+    "multiomics",
+    "kinase activity",
+    "kinophos",
+    "treatment recommendation",
+    "therapy recommendation",
+    "identity inference",
+    "infer identity",
+    "consent inference",
+    "infer consent",
+    "mutation inference",
+    "infer mutation",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "glioma-specific",
+    "glioma specific biology",
+)
 
 
 class DiscrepancyReasonCode(StrEnum):
@@ -121,6 +141,7 @@ class QueueFindingCode(StrEnum):
     HISTORY_INCOMPLETE = "history_incomplete"
     UPSTREAM_UNSUPPORTED = "upstream_unsupported"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
+    PROHIBITED_CLAIM_BOUNDARY = "prohibited_claim_boundary"
 
 
 class DiscrepancyQueueEntry(FrozenModel):
@@ -405,6 +426,7 @@ __all__ = [
     "M1906_OUTPUT_MEDIA_TYPE",
     "M1906_OWNER",
     "M1906_PARENT",
+    "M1906_PROHIBITED_CLAIM_TERMS",
     "M1906_PROVISIONAL_ABI",
     "M1906_SAFETY_CLASS",
     "AdjudicateProteotypeQueueRequest",

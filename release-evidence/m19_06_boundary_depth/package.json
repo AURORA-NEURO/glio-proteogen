@@ -1,0 +1,34 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-06",
+  "base_commit": "33a4947",
+  "build_a": {
+    "wheel_sha256": "90fa64d73eeaae0d7ffa9a8ebab32f82310c78ef4a75fa3fb10f036539176545",
+    "sdist_sha256": "7a332809ef1eeb19771d8f3052fc5dae684d4d066e40478418433e72d39d5dec"
+  },
+  "build_b": {
+    "wheel_sha256": "90fa64d73eeaae0d7ffa9a8ebab32f82310c78ef4a75fa3fb10f036539176545",
+    "sdist_sha256": "7a332809ef1eeb19771d8f3052fc5dae684d4d066e40478418433e72d39d5dec"
+  },
+  "reproducible": true,
+  "isolated_import": {
+    "passed": true,
+    "module_version": "0.1.0",
+    "prohibited_term_count": 18
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3702679,
+    "size_bytes": 3702679,
+    "members": 1929,
+    "member_count": 1929,
+    "sha256": "90fa64d73eeaae0d7ffa9a8ebab32f82310c78ef4a75fa3fb10f036539176545"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 4250961,
+    "size_bytes": 4250961,
+    "member_count": 4432,
+    "members": 4432,
+    "sha256": "7a332809ef1eeb19771d8f3052fc5dae684d4d066e40478418433e72d39d5dec"
+  }
+}
