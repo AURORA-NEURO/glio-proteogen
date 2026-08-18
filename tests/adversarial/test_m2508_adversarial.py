@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m25_08 import (
     GateFindingCode,
     RiskSeverity,
     SignedReleaseRecord,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
@@ -219,6 +220,23 @@ def test_result_digest_cannot_be_repaired_after_request_mutation() -> None:
     tampered = result.model_copy(update={"request": changed_request})
     with pytest.raises(M2508ReplayError):
         M2508Engine().verify(tampered, replay=False)
+
+
+def test_self_rehashed_release_evidence_mutation_is_rejected() -> None:
+    result = M2508Engine().evaluate(build_request())
+    forged = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
+    forged = type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    assert forged.result_digest == result_payload_digest(forged)
+    with pytest.raises(M2508ReplayError, match="replay"):
+        M2508Engine().verify(forged)
 
 
 def test_request_context_identity_binding_is_required() -> None:
