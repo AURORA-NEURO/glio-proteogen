@@ -422,3 +422,90 @@ def test_runtime_entrypoints_and_replay_request_mismatch_are_covered() -> None:
     tampered = result.model_copy(update={"request": changed_request})
     with pytest.raises(ValueError, match="request digest"):
         M1903Engine().replay(tampered)
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "configuration_method",
+        "configuration_evidence",
+        "aggregate_value",
+        "owner",
+        "claim",
+        "uncertainty_note",
+        "contribution_evidence",
+        "disagreement_description",
+        "disagreement_resolution",
+        "disagreement_evidence",
+    ],
+)
+def test_every_caller_claim_surface_abstains_on_prohibited_scope(surface: str) -> None:
+    request = _request()
+    if surface == "configuration_method":
+        candidate = request.model_copy(
+            update={
+                "configuration": request.configuration.model_copy(
+                    update={"method": "glioma specific biology aggregation"}
+                )
+            }
+        )
+    elif surface == "configuration_evidence":
+        evidence = _evidence(_artifact("configuration-claim")).model_copy(
+            update={"claim": "isoform evidence"}
+        )
+        candidate = request.model_copy(
+            update={
+                "configuration": request.configuration.model_copy(update={"evidence": (evidence,)})
+            }
+        )
+    elif surface == "aggregate_value":
+        candidate = request.model_copy(
+            update={"aggregate_values": ("protein inference result", "source_count=2")}
+        )
+    elif surface in {"owner", "claim", "uncertainty_note", "contribution_evidence"}:
+        contribution = request.contributions[0]
+        update: dict[str, object]
+        if surface == "owner":
+            update = {"owner": "proteoform authority"}
+        elif surface == "claim":
+            update = {"claim": "protein inference claim"}
+        elif surface == "uncertainty_note":
+            update = {"uncertainty_note": "identity inference uncertainty"}
+        else:
+            evidence = contribution.evidence[0].model_copy(update={"claim": "isoform evidence"})
+            update = {"evidence": (evidence,)}
+        candidate = request.model_copy(
+            update={
+                "contributions": (contribution.model_copy(update=update), request.contributions[1])
+            }
+        )
+    else:
+        status = (
+            DisagreementStatus.RESOLVED
+            if surface == "disagreement_resolution"
+            else DisagreementStatus.OPEN
+        )
+        disagreement = DisagreementRecord(
+            disagreement_id=f"disagreement.m1903.{surface}",
+            source_ids=("source.m1903.proteome", "source.m1903.genome"),
+            description=(
+                "glioma specific biology disagreement"
+                if surface == "disagreement_description"
+                else "Open review disagreement."
+            ),
+            status=status,
+            resolution="protein inference resolution"
+            if surface == "disagreement_resolution"
+            else None,
+            evidence=(
+                _evidence(_artifact(f"{surface}-evidence")).model_copy(
+                    update={"claim": "proteoform evidence"}
+                ),
+            ),
+        )
+        candidate = request.model_copy(update={"disagreements": (disagreement,)})
+
+    result = M1903Engine().adapt(candidate)
+    assert result.status is FusionStatus.ABSTAINED
+    assert result.integrated_evidence is None
+    assert any(item.code is FusionFindingCode.OWNERSHIP_UNCLEAR for item in result.findings)
