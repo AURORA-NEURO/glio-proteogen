@@ -80,6 +80,9 @@ class M2208AuthorizationError(ValueError):
 class M2208ReplayError(ValueError):
     """Raised when a gate result fails canonical replay verification."""
 
+    def __init__(self, message: str = "M22-08 replay verification failed") -> None:
+        super().__init__(message)
+
 
 class M2208EvidenceGateEngine:
     """Build and replay one deterministic metadata-only evidence gate decision."""
@@ -124,15 +127,29 @@ class M2208EvidenceGateEngine:
         self,
         result: ProteinRnaDiscordanceEvidenceGateResult,
     ) -> ProteinRnaDiscordanceEvidenceGateResult:
+        """Regenerate and compare the complete canonical gate result.
+
+        Digest checks preserve stable identity failures, but a caller could otherwise
+        mutate a release record or evidence tuple and self-rehash ``result_digest``.
+        Regeneration from the validated request makes replay verify the adjudication
+        semantics rather than only the submitted envelope.
+        """
         if result.request_digest != canonical_request_digest(result.request):
             raise M2208ReplayError("M22-08 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request_digest):
             raise M2208ReplayError("M22-08 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2208ReplayError("M22-08 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceEvidenceGateResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            canonical_result = ProteinRnaDiscordanceEvidenceGateResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            regenerated = self.adjudicate(canonical_result.request)
+        except Exception as error:
+            raise M2208ReplayError from error
+        if canonical_json_bytes(canonical_result) != canonical_json_bytes(regenerated):
+            raise M2208ReplayError
+        return canonical_result
 
 
 def adjudicate_protein_rna_discordance_evidence_gate(

@@ -30,11 +30,13 @@ from glio_proteogen.contracts.m22_08 import (
     GateDecision,
     GateRequirement,
     PostReleaseObligation,
+    ProteinRnaDiscordanceEvidenceGateResult,
     RequirementCategory,
     ResidualRisk,
     RiskSeverity,
     canonical_request_digest,
     contract_json_schemas,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -75,6 +77,25 @@ class EvalCheck:
     name: str
     passed: bool
     detail: str
+
+
+def _semantic_replay_rejected(
+    engine: M2208EvidenceGateEngine,
+    passed: ProteinRnaDiscordanceEvidenceGateResult,
+) -> bool:
+    if passed.release_record is None:
+        return False
+    semantic_tampered = passed.model_copy(
+        update={"release_record": passed.release_record.model_copy(update={"version": "0.1.1"})}
+    )
+    semantic_tampered = semantic_tampered.model_copy(
+        update={"result_digest": result_payload_digest(semantic_tampered)}
+    )
+    try:
+        engine.replay(semantic_tampered)
+    except ValueError:
+        return True
+    return False
 
 
 def _digest(label: str) -> str:
@@ -321,11 +342,12 @@ def run_evaluator() -> dict[str, object]:
         tamper_rejected = True
     else:
         tamper_rejected = False
+    semantic_tamper_rejected = _semantic_replay_rejected(engine, passed)
     repeat = engine.adjudicate(build_scenario_request())
     checks.append(
         EvalCheck(
             "replay_tamper_determinism",
-            replay == passed and tamper_rejected and repeat == passed,
+            replay == passed and tamper_rejected and semantic_tamper_rejected and repeat == passed,
             passed.result_digest,
         )
     )

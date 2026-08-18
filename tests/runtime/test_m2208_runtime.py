@@ -9,6 +9,8 @@ from glio_proteogen.contracts.m22_08 import (
     BenchmarkOutcome,
     GateDecision,
     GateFindingCode,
+    canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError
@@ -117,6 +119,47 @@ def test_replay_rejects_tampered_digest_and_identifier() -> None:
     tampered_id = result.model_copy(update={"result_id": "adjudication.m2208." + "0" * 64})
     with pytest.raises(M2208ReplayError, match="identifier"):
         M2208EvidenceGateEngine().replay(tampered_id)
+
+
+@pytest.mark.parametrize("mutation", ["release_record", "evidence"])
+def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
+    engine = M2208EvidenceGateEngine()
+    result = engine.adjudicate(_request())
+    release_record = result.release_record
+    assert release_record is not None
+    if mutation == "release_record":
+        forged = result.model_copy(
+            update={"release_record": release_record.model_copy(update={"version": "0.1.1"})}
+        )
+    else:
+        forged = result.model_copy(
+            update={
+                "evidence": (
+                    result.evidence[0].model_copy(update={"claim": "forged gate evidence claim"}),
+                )
+            }
+        )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2208ReplayError, match="replay verification"):
+        engine.replay(forged)
+
+
+def test_replay_fails_closed_for_self_rehashed_invalid_record() -> None:
+    engine = M2208EvidenceGateEngine()
+    result = engine.adjudicate(_request())
+    assert result.release_record is not None
+    forged = result.model_copy(
+        update={"release_record": result.release_record.model_copy(update={"decision": "invalid"})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2208ReplayError, match="replay verification"):
+        engine.replay(forged)
+
+
+def test_canonical_request_digest_accepts_mapping_input() -> None:
+    request = _request()
+    digest = canonical_request_digest(request.model_dump(mode="python"))
+    assert digest.startswith("sha256:")
 
 
 def test_service_rejects_malformed_json_and_oversized_payload() -> None:
