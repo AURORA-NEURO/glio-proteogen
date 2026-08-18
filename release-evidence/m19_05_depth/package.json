@@ -2,11 +2,11 @@
   "base_commit": "87bea75c",
   "build_a": {
     "wheel_sha256": "e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef",
-    "sdist_sha256": "7188cfff8c05dbcceaff13b1197b90dd11aefbd0e74c35a100d725e1f003458d"
+    "sdist_sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
   },
   "build_b": {
     "wheel_sha256": "e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef",
-    "sdist_sha256": "7188cfff8c05dbcceaff13b1197b90dd11aefbd0e74c35a100d725e1f003458d"
+    "sdist_sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
   },
   "reproducible": true,
   "isolated_import": {
@@ -22,6 +22,6 @@
   "sdist": {
     "bytes": 4215408,
     "members": 4392,
-    "sha256": "7188cfff8c05dbcceaff13b1197b90dd11aefbd0e74c35a100d725e1f003458d"
+    "sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
   }
 }

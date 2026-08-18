@@ -35,12 +35,12 @@ consent.
   `50bee227561659dcf92d16476338633d610b881d944fbb905f6603288a715bf2`.
 - Scoped branch-enabled coverage: **99.28825622775801%** (472 statements,
   2 missed; 90 branches, 2 partial).
-- 10-iteration benchmark: mean **2,443,740 ns**, median **2,255,750 ns**, p95
-  **2,702,900 ns**, within 2,000,000,000/3,000,000,000 ns budgets.
+- 10-iteration benchmark: mean **2,464,030 ns**, median **2,249,700 ns**, p95
+  **2,425,700 ns**, within 2,000,000,000/3,000,000,000 ns budgets.
 - Strict package builds were byte-identical. Wheel: **3,670,900 bytes**, SHA-256
   `e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef`.
   Sdist: **4,215,408 bytes**, SHA-256
-  `7188cfff8c05dbcceaff13b1197b90dd11aefbd0e74c35a100d725e1f003458d`.
+  `66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f`.
   Isolated wheel import passed.
 
 ## Python LOC
