@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from typing import Iterable
@@ -13,6 +14,8 @@ from .modifications import expand_peptide, normalize_modification_rules
 _DECOY_PREFIX = "DECOY_"
 _BASE_VERSION = "search-space-receipt-1"
 _MODIFICATION_VERSION = "search-space-receipt-2-modifications"
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_PAIR_STATUSES = frozenset({"cleavage_compatible", "cleavage_mismatch"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,11 +289,112 @@ def build_search_space_receipt(
     )
 
 
+def _validate_nonnegative_int(value: object, field: str) -> None:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"search-space {field} is invalid")
+
+
+def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: PLR0915
+    if receipt.version not in {_BASE_VERSION, _MODIFICATION_VERSION}:
+        raise ValueError("search-space receipt version is unsupported")
+    for value, field in (
+        (receipt.source_sha256, "source SHA-256"),
+        (receipt.pairing_digest, "pairing digest"),
+        (receipt.search_space_digest, "search-space digest"),
+    ):
+        if type(value) is not str or _SHA256.fullmatch(value) is None:
+            raise ValueError(f"search-space {field} is not a lowercase SHA-256")
+    if receipt.digestion_enzyme != "trypsin":
+        raise ValueError("search-space digestion enzyme is unsupported")
+    if (
+        type(receipt.missed_cleavages) is not int
+        or not 0 <= receipt.missed_cleavages <= 4
+        or type(receipt.min_peptide_length) is not int
+        or type(receipt.max_peptide_length) is not int
+        or not 1 <= receipt.min_peptide_length <= receipt.max_peptide_length <= 100
+        or len(receipt.decoy_prefix) < 2
+        or any(character.isspace() for character in receipt.decoy_prefix)
+    ):
+        raise ValueError("search-space digestion controls are invalid")
+    if type(receipt.pairs) is not tuple:
+        raise ValueError("search-space pairs must be a tuple")
+    if any(not isinstance(item, DecoyPair) for item in receipt.pairs):
+        raise TypeError("search-space pairs must contain DecoyPair values")
+    if tuple(item.target_accession for item in receipt.pairs) != tuple(
+        sorted(item.target_accession for item in receipt.pairs)
+    ):
+        raise ValueError("search-space pairs are not canonically ordered")
+    targets: set[str] = set()
+    decoys: set[str] = set()
+    compatible_count = 0
+    for pair in receipt.pairs:
+        if not isinstance(pair, DecoyPair):
+            raise TypeError("search-space pairs must contain DecoyPair values")
+        if (
+            type(pair.target_accession) is not str
+            or not pair.target_accession
+            or pair.target_accession.startswith(receipt.decoy_prefix)
+            or pair.decoy_accession != f"{receipt.decoy_prefix}{pair.target_accession}"
+            or pair.target_accession in targets
+            or pair.decoy_accession in decoys
+        ):
+            raise ValueError("search-space pair target/decoy identity is invalid")
+        _validate_nonnegative_int(pair.target_peptides, "target peptide count")
+        _validate_nonnegative_int(pair.decoy_peptides, "decoy peptide count")
+        _validate_nonnegative_int(pair.target_residue_count, "target residue count")
+        _validate_nonnegative_int(pair.decoy_residue_count, "decoy residue count")
+        if pair.status not in _PAIR_STATUSES:
+            raise ValueError("search-space pair status is unsupported")
+        compatible = pair.target_peptides == pair.decoy_peptides and pair.target_peptides > 0
+        if (pair.status == "cleavage_compatible") != compatible:
+            raise ValueError("search-space pair status is inconsistent")
+        compatible_count += pair.status == "cleavage_compatible"
+        targets.add(pair.target_accession)
+        decoys.add(pair.decoy_accession)
+    if receipt.paired_proteins != len(receipt.pairs):
+        raise ValueError("search-space pair count is inconsistent")
+    if receipt.cleavage_compatible_pairs != compatible_count:
+        raise ValueError("search-space compatibility count is inconsistent")
+    _validate_nonnegative_int(receipt.target_proteins, "target protein count")
+    _validate_nonnegative_int(receipt.decoy_proteins, "decoy protein count")
+    _validate_nonnegative_int(receipt.unmatched_target_proteins, "unmatched target count")
+    _validate_nonnegative_int(receipt.unmatched_decoy_proteins, "unmatched decoy count")
+    _validate_nonnegative_int(receipt.target_peptides, "target peptide count")
+    _validate_nonnegative_int(receipt.decoy_peptides, "decoy peptide count")
+    _validate_nonnegative_int(receipt.target_decoy_overlap_peptides, "target/decoy overlap count")
+    _validate_nonnegative_int(receipt.paired_proteins, "paired protein count")
+    _validate_nonnegative_int(receipt.cleavage_compatible_pairs, "compatible pair count")
+    _validate_nonnegative_int(receipt.modified_target_peptides, "modified target peptide count")
+    _validate_nonnegative_int(receipt.modified_decoy_peptides, "modified decoy peptide count")
+    if (
+        receipt.target_proteins != receipt.paired_proteins + receipt.unmatched_target_proteins
+        or receipt.decoy_proteins != receipt.paired_proteins + receipt.unmatched_decoy_proteins
+    ):
+        raise ValueError("search-space unmatched protein counts are inconsistent")
+    if receipt.target_decoy_overlap_peptides > min(receipt.target_peptides, receipt.decoy_peptides):
+        raise ValueError("search-space overlap count is inconsistent")
+    if receipt.modification_rules:
+        try:
+            normalized_rules = normalize_modification_rules(receipt.modification_rules)
+        except (TypeError, ValueError) as error:
+            raise ValueError("search-space modification rules are invalid") from error
+        if normalized_rules != receipt.modification_rules:
+            raise ValueError("search-space modification rules are not canonical")
+        if receipt.version != _MODIFICATION_VERSION or (
+            type(receipt.max_variable_modifications) is not int
+            or not 1 <= receipt.max_variable_modifications <= 3
+        ):
+            raise ValueError("search-space modification controls are inconsistent")
+    elif receipt.version != _BASE_VERSION or receipt.max_variable_modifications != 0:
+        raise ValueError("search-space modification controls are inconsistent")
+
+
 def verify_search_space_receipt(receipt: SearchSpaceReceipt) -> SearchSpaceReceipt:
     """Reject forged or internally inconsistent search-space receipts."""
 
     if not isinstance(receipt, SearchSpaceReceipt):
         raise TypeError("receipt must be a SearchSpaceReceipt")
+    _validate_receipt_structure(receipt)
     payload = receipt.as_dict()
     if _digest(payload["pairs"]) != receipt.pairing_digest:
         raise ValueError("search-space pairing digest is invalid")
@@ -298,8 +402,4 @@ def verify_search_space_receipt(receipt: SearchSpaceReceipt) -> SearchSpaceRecei
     expected.pop("search_space_digest")
     if _digest(expected) != receipt.search_space_digest:
         raise ValueError("search-space digest is invalid")
-    if receipt.paired_proteins != len(receipt.pairs):
-        raise ValueError("search-space pair count is inconsistent")
-    if receipt.cleavage_compatible_pairs > receipt.paired_proteins:
-        raise ValueError("search-space compatibility count is inconsistent")
     return receipt
