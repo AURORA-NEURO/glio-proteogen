@@ -12,7 +12,7 @@ if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from glio_proteogen.contracts.m23_03 import BenchmarkStatus
+from glio_proteogen.contracts.m23_03 import BenchmarkStatus, result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
     M2303AuthorizationError,
@@ -69,6 +69,21 @@ def run_evaluator() -> dict[str, Any]:
         checks["tamper_rejected"] = True
     else:
         checks["tamper_rejected"] = False
+    if result.dossier is None:
+        checks["semantic_tamper_rejected"] = False
+    else:
+        forged = result.model_copy(
+            update={
+                "dossier": result.dossier.model_copy(update={"version": "0.1.1"}),
+            }
+        )
+        forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+        try:
+            service.replay(forged)
+        except M2303ReplayError:
+            checks["semantic_tamper_rejected"] = True
+        else:
+            checks["semantic_tamper_rejected"] = False
     return {
         "module": "M23-03",
         "checks": checks,
