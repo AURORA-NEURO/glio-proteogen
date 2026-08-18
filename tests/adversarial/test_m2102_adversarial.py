@@ -13,9 +13,11 @@ from glio_proteogen.contracts.m21_02 import (
     GenerateComplexActivitySyntheticTruthRequest,
     GenerationStatus,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.contracts.m21_02.canonical import result_payload_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2102AuthorizationError,
+    M2102ReplayError,
     M2102Service,
     preflight_m2102_authorization,
 )
@@ -84,3 +86,22 @@ def test_abstention_closure_rejects_unsafe_generated_shape() -> None:
         )
     with pytest.raises(M2102AuthorizationError):
         M2102Service().generate(denied_request())
+
+
+def test_replay_rejects_self_rehashed_corpus_mutation() -> None:
+    service = M2102Service()
+    result = service.generate(build_request())
+    assert result.corpus is not None
+    mutated_case = result.corpus.cases[0].model_copy(update={"truth_values": ("tampered-value",)})
+    mutated_corpus = result.corpus.model_copy(
+        update={"cases": (mutated_case, *result.corpus.cases[1:])}
+    )
+    forged = result.model_copy(update={"corpus": mutated_corpus})
+    forged = ComplexActivitySyntheticTruthResult.model_validate_json(
+        canonical_json_bytes(
+            forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+        ),
+        strict=True,
+    )
+    with pytest.raises(M2102ReplayError, match="deterministic replay"):
+        service.replay(forged)
