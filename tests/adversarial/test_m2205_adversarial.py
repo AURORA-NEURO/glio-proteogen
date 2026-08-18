@@ -123,6 +123,7 @@ def test_self_rehashed_output_mutations_are_rejected_by_replay(region: str) -> N
     result = M2205Service().evaluate(
         unsupported_request() if region in {"findings", "abstention_reason"} else _request()
     )
+    updates: dict[str, Any]
     if region == "report":
         assert result.report is not None
         updates = {"report": result.report.model_copy(update={"report_id": "forged-report"})}
