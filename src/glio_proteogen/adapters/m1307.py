@@ -11,8 +11,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m13_07 import (
     M1307_MAX_CANONICAL_REQUEST_BYTES,
+    M1307_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateProteotypePlausibilityRequest,
     ProteotypePlausibilityAdjudicationResult,
     contract_json_schema,
@@ -127,14 +129,13 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path) -> bytes:
+def _read_json(path: Path, max_bytes: int) -> bytes:
     try:
-        body = path.read_bytes()
+        return read_bounded(path, max_bytes)
     except OSError as error:
         raise _CliParameterError("read") from error
-    if len(body) > M1307_MAX_CANONICAL_REQUEST_BYTES:
-        raise _CliParameterError("large")
-    return body
+    except ValueError as error:
+        raise _CliParameterError("large") from error
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -172,7 +173,7 @@ def cli_adjudicate(
 ) -> None:
     """Adjudicate one strict M13-07 JSON request."""
 
-    body = _read_json(input_path)
+    body = _read_json(input_path, M1307_MAX_CANONICAL_REQUEST_BYTES)
     try:
         result = _plugin.run(_plugin.validate(body))
     except (PlausibilityAuthorizationError, ValidationError, ValueError, TypeError) as error:
@@ -191,8 +192,8 @@ def cli_verify(
 ) -> None:
     """Verify deterministic replay of a request and result pair."""
 
-    request_body = _read_json(request_path)
-    result_body = _read_json(result_path)
+    request_body = _read_json(request_path, M1307_MAX_CANONICAL_REQUEST_BYTES)
+    result_body = _read_json(result_path, M1307_MAX_CANONICAL_RESULT_BYTES)
     try:
         request = _plugin.validate(request_body).request
         result = ProteotypePlausibilityAdjudicationResult.model_validate_json(result_body)

@@ -11,8 +11,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m13_03 import (
     M1303_MAX_CANONICAL_REQUEST_BYTES,
+    M1303_MAX_CANONICAL_RESULT_BYTES,
     ProteotypeMechanisticFeatureResult,
     contract_json_schema,
 )
@@ -129,8 +131,8 @@ async def verify_result(request: Request) -> JSONResponse:
 m1303_app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 
-def _load_bytes(path: Path) -> bytes:
-    return path.read_bytes()
+def _load_bytes(path: Path, max_bytes: int) -> bytes:
+    return read_bounded(path, max_bytes)
 
 
 def _write_new(path: Path, payload: bytes) -> None:
@@ -155,7 +157,7 @@ def construct_command(
     input_path: Annotated[Path, typer.Argument(help="strict JSON request path")],
     output: Annotated[Path, typer.Option("--output", "-o", help="new JSON output path")],
 ) -> None:
-    payload = _load_bytes(input_path)
+    payload = _load_bytes(input_path, M1303_MAX_CANONICAL_REQUEST_BYTES)
     try:
         decoded = strict_json_loads(payload, max_bytes=M1303_MAX_CANONICAL_REQUEST_BYTES)
         request_model = validate_json_request(decoded, payload)
@@ -175,9 +177,9 @@ def construct_command(
 def verify_command(
     input_path: Annotated[Path, typer.Argument(help="strict JSON result path")],
 ) -> None:
-    payload = _load_bytes(input_path)
+    payload = _load_bytes(input_path, M1303_MAX_CANONICAL_RESULT_BYTES)
     try:
-        strict_json_loads(payload, max_bytes=M1303_MAX_CANONICAL_REQUEST_BYTES)
+        strict_json_loads(payload, max_bytes=M1303_MAX_CANONICAL_RESULT_BYTES)
         result = ProteotypeMechanisticFeatureResult.model_validate_json(payload)
         verified = verify_mechanistic_feature_replay(result)
     except (StrictJsonError, ValidationError, ValueError) as error:

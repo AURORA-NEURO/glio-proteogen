@@ -12,9 +12,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m13_02 import (
     M1302_MAX_CANONICAL_REQUEST_BYTES,
+    M1302_MAX_CANONICAL_RESULT_BYTES,
     contract_json_schema,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -117,10 +122,13 @@ async def verify_context(request: Request) -> JSONResponse:
 m1302_app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 
-def _read_input(path: Path) -> bytes:
+def _read_input(path: Path, max_bytes: int) -> bytes:
     if str(path) == "-":
-        return sys.stdin.buffer.read()
-    return path.read_bytes()
+        payload = sys.stdin.buffer.read(max_bytes + 1)
+        if len(payload) > max_bytes:
+            raise RequestBodyTooLargeError
+        return payload
+    return read_bounded(path, max_bytes)
 
 
 def _write_json(value: object, output: Path | None) -> None:
@@ -166,7 +174,8 @@ def cli_stratify(
 ) -> None:
     try:
         decoded = strict_json_loads(
-            _read_input(input_path), max_bytes=M1302_MAX_CANONICAL_REQUEST_BYTES
+            _read_input(input_path, M1302_MAX_CANONICAL_REQUEST_BYTES),
+            max_bytes=M1302_MAX_CANONICAL_REQUEST_BYTES,
         )
         if not isinstance(decoded, dict):
             raise typer.BadParameter(  # noqa: TRY003 - Typer renders this user-facing diagnostic.
@@ -174,6 +183,9 @@ def cli_stratify(
             )
         token = _plugin.validate(decoded)
         result = _plugin.run(token)
+    except RequestBodyTooLargeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
     except StrictJsonError as exc:
         typer.echo(json.dumps(strict_json_error_detail(exc), sort_keys=True), err=True)
         raise typer.Exit(2) from exc
@@ -191,7 +203,13 @@ def cli_verify(
     input_path: Annotated[Path, typer.Argument(help="result JSON path, or '-' for stdin")],
 ) -> None:
     try:
-        decoded = strict_json_loads(_read_input(input_path), max_bytes=8 * 1024 * 1024)
+        decoded = strict_json_loads(
+            _read_input(input_path, M1302_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M1302_MAX_CANONICAL_RESULT_BYTES,
+        )
+    except RequestBodyTooLargeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
     except StrictJsonError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(2) from exc
