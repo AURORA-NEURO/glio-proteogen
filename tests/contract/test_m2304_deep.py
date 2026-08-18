@@ -334,9 +334,9 @@ def test_request_context_and_dimension_closure_reject_substitution() -> None:
         )
     with pytest.raises(ValidationError, match="unique"):
         TransportConfiguration.model_validate(
-            _configuration().model_copy(
-                update={"required_dimensions": (_DIMENSIONS[0], _DIMENSIONS[0])}
-            ).model_dump()
+            _configuration()
+            .model_copy(update={"required_dimensions": (_DIMENSIONS[0], _DIMENSIONS[0])})
+            .model_dump()
         )
 
 

@@ -32,7 +32,7 @@ def test_cli_exports_all_contract_schema(tmp_path: Path) -> None:
     target = tmp_path / "request.json"
     result = runner.invoke(cli_app, ["export-schema", "request", "--output", str(target)])
     assert result.exit_code == 0
-    assert json.loads(target.read_text()) ["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M23-04"
+    assert json.loads(target.read_text())["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M23-04"
 
 
 def test_cli_refuses_schema_overwrite(tmp_path: Path) -> None:

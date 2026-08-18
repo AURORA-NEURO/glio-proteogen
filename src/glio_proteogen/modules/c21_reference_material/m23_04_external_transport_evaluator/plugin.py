@@ -76,9 +76,7 @@ class M2304Plugin:
         _TOKENS[token] = self._seal
         return token
 
-    def validate_request(
-        self, request: object
-    ) -> EvaluateVariantPeptideExternalTransportRequest:
+    def validate_request(self, request: object) -> EvaluateVariantPeptideExternalTransportRequest:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def run(self, token: ValidatedM2304Request) -> VariantPeptideExternalTransportResult:

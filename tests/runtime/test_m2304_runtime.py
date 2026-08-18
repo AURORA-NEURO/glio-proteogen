@@ -70,9 +70,7 @@ def test_not_evaluable_dimension_abstains_without_report() -> None:
 def test_all_narrowed_dimensions_abstain_without_negative_output() -> None:
     request = _request()
     evaluations = tuple(
-        item.model_copy(
-            update={"status": TransportStatus.DOMAIN_NARROWED, "metric_value": 0.5}
-        )
+        item.model_copy(update={"status": TransportStatus.DOMAIN_NARROWED, "metric_value": 0.5})
         for item in request.evaluations
     )
     result = M2304Engine().evaluate(request.model_copy(update={"evaluations": evaluations}))

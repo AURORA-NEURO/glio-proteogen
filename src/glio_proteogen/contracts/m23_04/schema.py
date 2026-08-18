@@ -28,9 +28,7 @@ from glio_proteogen.contracts.m23_04.v1 import (
     VariantPeptideExternalTransportResult,
 )
 
-SCHEMA_ID_PREFIX: Final = (
-    "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M23-04:0.1.0-provisional"
-)
+SCHEMA_ID_PREFIX: Final = "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M23-04:0.1.0-provisional"
 CONTRACT_VERSION: Final = M2304_CONTRACT_VERSION
 ContractName = Literal[
     "request",

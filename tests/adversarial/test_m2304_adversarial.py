@@ -237,11 +237,7 @@ def test_result_id_and_request_digest_tampering_is_rejected() -> None:
     engine = M2304Engine()
     result = engine.evaluate(_request())
     for field in ("result_id", "request_digest", "result_digest"):
-        value = (
-            "sha256:" + ("f" * 64)
-            if field != "result_id"
-            else "transport.m2304.forged"
-        )
+        value = "sha256:" + ("f" * 64) if field != "result_id" else "transport.m2304.forged"
         with pytest.raises((ValueError, M2304ReplayError)):
             engine.replay(result.model_copy(update={field: value}))
 

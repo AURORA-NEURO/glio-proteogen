@@ -230,8 +230,7 @@ def _findings(
             )
         )
     if any(
-        item.dimension.value == "specimen"
-        and item.status is TransportStatus.DOMAIN_NARROWED
+        item.dimension.value == "specimen" and item.status is TransportStatus.DOMAIN_NARROWED
         for item in request.evaluations
     ):
         findings.append(
@@ -381,9 +380,7 @@ class M2304Engine:
             "support_decision": SupportDecision(
                 status=SupportStatus.REVIEW_REQUIRED if abstained else SupportStatus.SUPPORTED,
                 reason_code=(
-                    "m2304_transport_abstained"
-                    if abstained
-                    else "m2304_transport_evaluated"
+                    "m2304_transport_abstained" if abstained else "m2304_transport_evaluated"
                 ),
                 rationale=(
                     "At least one transport dimension is not evaluable; review is required."
