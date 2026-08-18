@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from glio_proteogen.contracts.m06_06 import DecomposeProteinAbundanceUncertaintyRequest
+    from glio_proteogen.contracts.m06_08 import PublishProteinAbundanceEvidenceRequest
 
 from glio_proteogen.modules.c06_estimation.m06_03_mature_baseline_estimator import (
     M0603Plugin,
@@ -65,8 +68,8 @@ from glio_proteogen.modules.c06_protein_abundance.m06_08_evidence_explanation_pu
 from tests.contract.test_m06_01_hardening import _request as m0601_request
 from tests.contract.test_m06_04_hardening import _request as m0604_request
 from tests.integration.test_m06_03_runtime import _request as m0603_request
-from tests.modules.c06_protein_abundance.test_m06_02_representation_constructor import (
-    _request as m0602_request,
+from tests.modules.c06_protein_abundance import (
+    test_m06_02_representation_constructor as m0602_tests,
 )
 from tests.modules.c06_protein_abundance.test_m06_05_constraint_integrator import (
     _request as m0605_request,
@@ -83,7 +86,8 @@ def _m0601() -> tuple[Any, Any]:
 
 def _m0602() -> tuple[Any, Any]:
     plugin = M0602Plugin()
-    return plugin, plugin.validate(m0602_module.RepresentationSubmission(m0602_request()))
+    request_factory = cast("Callable[[], Any]", m0602_tests._request)
+    return plugin, plugin.validate(m0602_module.RepresentationSubmission(request_factory()))
 
 
 def _m0603() -> tuple[Any, Any]:
@@ -142,12 +146,16 @@ def test_existing_sealed_m0603_token_is_not_cross_instance_reusable() -> None:
 def test_existing_sealed_m0606_and_m0608_tokens_remain_strict_types() -> None:
     # Their full valid fixtures are covered in the module suites; these checks
     # ensure forged dataclass instances cannot cross the strict type boundary.
-    forged_06 = ValidatedM0606Request(request=object(), _seal=object())
-    forged_08 = m0608_module.ValidatedM0608Request(request=object(), _seal=object())
+    forged_06 = ValidatedM0606Request(
+        request=cast("DecomposeProteinAbundanceUncertaintyRequest", object()), _seal=object()
+    )
+    forged_08 = m0608_module.ValidatedM0608Request(
+        request=cast("PublishProteinAbundanceEvidenceRequest", object()), _seal=object()
+    )
     plugin_06 = M0606Plugin(M0606Service())
     plugin_08 = M0608Plugin(M0608Service())
 
     with pytest.raises(TypeError, match="validated request token"):
-        plugin_06.run(forged_06)  # type: ignore[arg-type]
+        plugin_06.run(forged_06)
     with pytest.raises(TypeError, match="validated request token"):
-        plugin_08.run(forged_08)  # type: ignore[arg-type]
+        plugin_08.run(forged_08)
