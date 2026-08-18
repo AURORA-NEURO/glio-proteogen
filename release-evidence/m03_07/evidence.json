@@ -1,0 +1,73 @@
+{
+  "module": "GLIO-PROTEOGEN-M03-07",
+  "scope": "bounded support-routing result replay verification",
+  "contract_version": "1.0.0",
+  "claims_ceiling": "deterministic synthetic joint-envelope support and abstention routing only; no protein, proteoform, isoform, activity, biology, abundance, probability, or clinical inference",
+  "python_loc_delta": {
+    "files": 7,
+    "added": 211,
+    "deleted": 3,
+    "net": 208,
+    "note": "service verifier, strict API/CLI replay surfaces, result-cap schema metadata, adversarial interface test, and locked evaluator case"
+  },
+  "tests": {
+    "focused_contract_module_interface": 84,
+    "evaluator_declared_cases": 20,
+    "evaluator_executed_cases": 20,
+    "evaluator_passed": true,
+    "passed": true
+  },
+  "coverage": {
+    "branch_enabled": true,
+    "scope": "contracts/m03_07/canonical.py, contracts/m03_07/schema.py, modules/c03_protein_inference/m03_07_support_router",
+    "statements": 254,
+    "missed_statements": 4,
+    "branches": 14,
+    "partial_branches": 0,
+    "percent": 98.51,
+    "fail_under": 95
+  },
+  "static": {
+    "ruff_check": "clean",
+    "ruff_format": "clean",
+    "mypy_strict": "clean on 10 source/test/eval files",
+    "compileall": "clean"
+  },
+  "replay": {
+    "service": true,
+    "api": "POST /v1/modules/M03-07/support-route/verify",
+    "cli": "protein-inference-support verify RESULT",
+    "result_byte_limit": 4194304,
+    "duplicate_key_rejection": true,
+    "forged_digest_rejection": true,
+    "upstream_payload_reopened": false
+  },
+  "benchmark": {
+    "iterations": 10,
+    "mean_ns": 1272525590.0,
+    "p50_ns": 1254868500.0,
+    "p95_ns": 1480486000,
+    "mean_budget_ns": 2000000000,
+    "p95_budget_ns": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "python": "3.12.13",
+    "source_date_epoch": 315532800,
+    "reproducible_two_builds": true,
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3841950,
+      "members": 1989,
+      "sha256": "e80d81a53dcfbbeee21c84ae7b35d782dd888edfd174bbeded20b2af87b89525"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4462007,
+      "members": 4610,
+      "sha256": "e0eff688df8422cb9925d9eb65794a1a8096f4d5fabc716a6c65699cbae6ff82"
+    },
+    "isolated_import": true,
+    "release_verifier": true
+  }
+}

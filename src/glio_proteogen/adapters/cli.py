@@ -167,6 +167,7 @@ from glio_proteogen.contracts.m03_06 import (
 )
 from glio_proteogen.contracts.m03_07 import (
     M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     ProteinInferenceSupportRouteResult,
     RouteProteinInferenceSupportRequest,
 )
@@ -4180,6 +4181,18 @@ def route_protein_inference_support(request: RequestArgument) -> None:
         M0307_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0307Service().execute(parsed))
+
+
+@protein_inference_support_app.command("verify")
+def verify_protein_inference_support(result: RequestArgument) -> None:
+    """Replay-verify one canonical metadata-only support-routing result."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteinInferenceSupportRouteResult),
+        max_bytes=M0307_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(M0307Service().verify(parsed))
 
 
 @protein_inference_release_app.command("export-schema")

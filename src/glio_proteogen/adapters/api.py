@@ -230,6 +230,7 @@ from glio_proteogen.contracts.m03_07.schema import (
 )
 from glio_proteogen.contracts.m03_07.v1 import (
     M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     ProteinInferenceSupportRouteResult,
     RouteProteinInferenceSupportRequest,
 )
@@ -974,6 +975,7 @@ _M0305_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceArtifactDetectionResu
 _M0306_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _M0306_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceHarmonizationResult)
 _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
+_M0307_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceSupportRouteResult)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
@@ -1532,6 +1534,15 @@ def _protein_inference_support_request_body() -> dict[str, object]:
     }
 
 
+def _protein_inference_support_result_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0307_contract_json_schema("output")}},
+        }
+    }
+
+
 def _proteoform_protocol_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -2023,6 +2034,16 @@ async def _protein_inference_support_body(
         _M0307_SUPPORT_ADAPTER,
         preflight_protein_inference_support_authorization,
         M0307_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _protein_inference_support_result_body_parser(
+    request: Request,
+) -> ProteinInferenceSupportRouteResult:
+    return await _strict_json_body(
+        request,
+        _M0307_RESULT_ADAPTER,
+        max_bytes=M0307_MAX_CANONICAL_RESULT_BYTES,
     )
 
 
@@ -3476,6 +3497,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinInferenceSupportRouteResult:
         return protein_inference_support_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M03-07/support-route/verify",
+        response_model=ProteinInferenceSupportRouteResult,
+        tags=["M03-07"],
+        openapi_extra=_protein_inference_support_result_body(),
+    )
+    def verify_protein_inference_support(
+        result: Annotated[
+            ProteinInferenceSupportRouteResult,
+            Depends(_protein_inference_support_result_body_parser),
+        ],
+    ) -> ProteinInferenceSupportRouteResult:
+        return protein_inference_support_service.verify(result)
 
     @app.post(
         "/v1/modules/M03-04/quality",
