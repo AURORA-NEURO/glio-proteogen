@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from hashlib import sha256
+from typing import Any
 
 import pytest
 from evals.research_proteomics.run import build_scenario_request, scenarios
@@ -15,6 +18,21 @@ from glio_proteogen.research import (
     run_research_protein_inference,
     verify_search_space_receipt,
 )
+
+
+def _rehashed(receipt: SearchSpaceReceipt, **changes: Any) -> SearchSpaceReceipt:
+    candidate = replace(receipt, **changes)
+    try:
+        payload = candidate.as_dict()
+    except AttributeError:
+        return candidate
+    payload.pop("search_space_digest")
+    return replace(
+        candidate,
+        search_space_digest=sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+    )
 
 
 def test_receipt_binds_cleavage_aware_target_decoy_pairs() -> None:
@@ -87,6 +105,75 @@ def test_receipt_verifier_rejects_pairing_and_outer_tampering() -> None:
     with pytest.raises(ValueError, match="search-space digest"):
         verify_search_space_receipt(replace(receipt, search_space_digest="0" * 64))
     assert isinstance(receipt, SearchSpaceReceipt)
+
+
+def test_receipt_verifier_rejects_forged_source_identity_and_controls() -> None:
+    entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
+    receipt = build_search_space_receipt(b"fixture", entries)
+    with pytest.raises(ValueError, match="source SHA-256"):
+        verify_search_space_receipt(_rehashed(receipt, source_sha256="g" * 64))
+    with pytest.raises(ValueError, match="version"):
+        verify_search_space_receipt(_rehashed(receipt, version="search-space-forged"))
+    with pytest.raises(ValueError, match="unmatched protein"):
+        verify_search_space_receipt(_rehashed(receipt, unmatched_target_proteins=1))
+
+
+def test_receipt_verifier_rejects_noncanonical_pair_identity_and_status() -> None:
+    entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
+    receipt = build_search_space_receipt(b"fixture", entries)
+    forged_identity = replace(
+        receipt,
+        pairs=(replace(receipt.pairs[0], decoy_accession="DECOY_OTHER"),),
+    )
+    with pytest.raises(ValueError, match="pair target/decoy identity"):
+        verify_search_space_receipt(_rehashed(forged_identity))
+    forged_status = replace(
+        receipt,
+        pairs=(replace(receipt.pairs[0], status="cleavage_mismatch"),),
+    )
+    with pytest.raises(ValueError, match="pair status"):
+        verify_search_space_receipt(_rehashed(forged_status))
+
+
+def test_receipt_verifier_closes_every_structural_control_boundary() -> None:
+    entries = (
+        FastaEntry("P1", "MPEPTIDER"),
+        FastaEntry("DECOY_P1", "MPEPTIDER"),
+        FastaEntry("P2", "PEPTIDEK"),
+        FastaEntry("DECOY_P2", "PEPTIDEK"),
+    )
+    receipt = build_search_space_receipt(b"fixture", entries)
+    reversed_pairs = tuple(reversed(receipt.pairs))
+    cases: tuple[tuple[dict[str, Any], str], ...] = (
+        ({"digestion_enzyme": "pepsin"}, "enzyme"),
+        ({"missed_cleavages": 99}, "digestion controls"),
+        ({"pairs": []}, "pairs must be a tuple"),
+        ({"pairs": reversed_pairs}, "canonically ordered"),
+        ({"pairs": ("not-a-pair",)}, "DecoyPair"),
+        ({"pairs": (replace(receipt.pairs[0], status="unknown"), *receipt.pairs[1:])}, "status"),
+        ({"pairs": (replace(receipt.pairs[0], target_peptides=-1), *receipt.pairs[1:])}, "count"),
+        ({"target_decoy_overlap_peptides": receipt.target_peptides + 1}, "overlap"),
+        (
+            {
+                "modification_rules": ("invalid-rule",),
+                "version": "search-space-receipt-2-modifications",
+                "max_variable_modifications": 1,
+            },
+            "modification rules",
+        ),
+        (
+            {
+                "modification_rules": ("UNIMOD:35",),
+                "version": "search-space-receipt-2-modifications",
+                "max_variable_modifications": 0,
+            },
+            "modification controls",
+        ),
+        ({"max_variable_modifications": 1}, "modification controls"),
+    )
+    for changes, message in cases:
+        with pytest.raises((TypeError, ValueError), match=message):
+            verify_search_space_receipt(_rehashed(receipt, **changes))
 
 
 def test_pipeline_result_and_evidence_bind_search_space_receipt() -> None:
