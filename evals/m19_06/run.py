@@ -22,8 +22,8 @@ from tests.contract.test_m19_06_provisional import _assignment, _entry, _request
 from glio_proteogen.contracts.m19_06 import (
     M1906_DOSSIER_SHA256,
     M1906_DOSSIER_SLICE,
-    QueueFindingCode,
     QueueEntryState,
+    QueueFindingCode,
     QueueResultStatus,
     ReviewDecision,
     contract_json_schemas,
