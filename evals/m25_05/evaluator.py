@@ -133,7 +133,13 @@ def _tamper() -> ScenarioResult:
 
 def _semantic_tamper() -> ScenarioResult:
     result = _ENGINE.generate(build_request())
-    assert result.report is not None
+    if result.report is None:
+        return ScenarioResult(
+            name="semantic_tamper_replay",
+            passed=False,
+            status="abstained",
+            detail="supported fixture unexpectedly lacked a report",
+        )
     forged = result.model_copy(
         update={"report": result.report.model_copy(update={"version": "1.0.1"})}
     )

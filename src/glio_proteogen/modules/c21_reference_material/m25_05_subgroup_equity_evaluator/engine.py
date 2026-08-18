@@ -166,7 +166,7 @@ class M2505SubgroupEquityEngine:
         if replayed.result_digest != result_payload_digest(replayed):
             raise M2505ReplayError
         if canonical_json_bytes(replayed) != canonical_json_bytes(regenerated):
-            raise M2505ReplayError("M25-05 deterministic replay output mismatch")
+            raise M2505ReplayError
         return replayed
 
 

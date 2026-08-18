@@ -114,7 +114,7 @@ def test_result_identifier_tampering_is_rejected() -> None:
         service.verify_replay(tampered)
 
 
-@pytest.mark.parametrize("mutation", ("report", "evidence"))
+@pytest.mark.parametrize("mutation", ["report", "evidence"])
 def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
     """A forged digest must not make a changed report or evidence replayable."""
 
@@ -132,7 +132,7 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
         forged = result.model_copy(update={"evidence": (changed_evidence,)})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
-    with pytest.raises(M2505ReplayError, match="output mismatch"):
+    with pytest.raises(M2505ReplayError):
         service.verify_replay(forged)
 
 
