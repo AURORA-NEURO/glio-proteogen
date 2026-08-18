@@ -100,9 +100,7 @@ def test_research_evidence_verifier_rejects_cohort_provenance_mutation(tmp_path:
         assert isinstance(cohort, dict)
         outcomes = cohort["outcomes"]
         assert isinstance(outcomes, list)
-        outcome = next(
-            item for item in outcomes if item["id"] == "pdc_provenance_replay"
-        )
+        outcome = next(item for item in outcomes if item["id"] == "pdc_provenance_replay")
         projection = outcome["projection"]
         assert isinstance(projection, dict)
         configuration = projection["configuration"]

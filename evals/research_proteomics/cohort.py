@@ -222,10 +222,10 @@ def run_evaluator() -> dict[str, object]:
         "duplicate_biological_source",
         "technical_duplicate_visibility",
         "unknown_independence_abstention",
-            "incompatible_search_space",
-            "pdc_provenance_replay",
-            "pdc_manifest_receipt_identity",
-        )
+        "incompatible_search_space",
+        "pdc_provenance_replay",
+        "pdc_manifest_receipt_identity",
+    )
     if _locked_ids() != expected_ids:
         raise ValueError
     target = next(item for item in scenarios() if item.scenario_id == "target_supported")

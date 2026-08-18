@@ -137,9 +137,7 @@ def test_wrong_pdc_study_binding_is_rejected() -> None:
         ("pdc_file_name", "forged.mzML", "PDC file"),
     ],
 )
-def test_pdc_manifest_cannot_forge_receipt_identity(
-    field: str, value: str, message: str
-) -> None:
+def test_pdc_manifest_cannot_forge_receipt_identity(field: str, value: str, message: str) -> None:
     target = next(item for item in scenarios() if item.scenario_id == "target_supported")
     first = _pdc_sample(target, "pdc-a", "r1")
     second = _pdc_sample(target, "pdc-b", "r2")

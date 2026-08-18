@@ -300,9 +300,7 @@ class CohortSourceManifest:
                 if binding.receipt_digest != receipt.digest:
                     raise ValueError("source manifest receipt does not match the run request")
                 if binding.catalog_response_sha256 != receipt.response_sha256:
-                    raise ValueError(
-                        "source manifest catalog response does not match the receipt"
-                    )
+                    raise ValueError("source manifest catalog response does not match the receipt")
                 if binding.pdc_file_locator != receipt.file.location:
                     raise ValueError("source manifest PDC locator does not match the receipt")
                 if binding.pdc_file_name != receipt.file.file_name:
