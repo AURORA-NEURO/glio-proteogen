@@ -265,6 +265,7 @@ def run_evaluator() -> dict[str, object]:
                 "groups": [list(group.accessions) for group in result.protein_groups],
                 "fdr_summary": result.fdr_summary.as_dict() if result.fdr_summary else None,
                 "quantified_peptides": len(result.peptide_intensities),
+                "search_diagnostics": dict(result.search_diagnostics),
             }
         )
     return {

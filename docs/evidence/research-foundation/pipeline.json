@@ -8,6 +8,7 @@
       "bounded_mzml_decode",
       "tryptic_digest",
       "b_y_fragment_matching",
+      "fragment_and_precursor_mass_error_diagnostics",
       "target_decoy_q_values",
       "winner_level_fdr_summary",
       "spectral_count_quantification",

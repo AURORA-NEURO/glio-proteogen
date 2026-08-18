@@ -104,6 +104,8 @@ def test_digest_search_target_decoy_and_protein_ambiguity() -> None:
         ),
     )
     assert psm is not None
+    assert psm.mean_fragment_error_da == pytest.approx(0.030468466)
+    assert psm.precursor_error_ppm == pytest.approx(0.0)
     qvalues = target_decoy_qvalues((psm,))
     assert qvalues[0].q_value == 0.0
     groups = infer_protein_groups({"MPEPTIDER": ("P1",), "MPEPTIDE": ("P1", "P2")})
