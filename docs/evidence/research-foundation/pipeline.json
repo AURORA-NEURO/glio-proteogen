@@ -16,6 +16,10 @@
       "median_scaled_missingness_preserving_normalization",
       "ambiguity_preserving_protein_groups",
       "ambiguity_aware_protein_group_quantification",
+      "pdc_declaration_bound_external_source_evidence",
+      "multi_sample_cohort_matrix_with_explicit_null_missingness",
+      "replicate_median_mad_quality_summary",
+      "cohort_configuration_compatibility_and_child_replay",
       "content_addressed_replay"
     ],
     "claims": {
@@ -27,6 +31,7 @@
   },
   "validation": {
     "scenarios": 8,
+    "cohort_scenarios": 4,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",
@@ -38,6 +43,9 @@
       "multi_peptide_quantification"
     ],
     "replay": "full_result_projection_and_digest",
-    "raw_cohort_bytes_bundled": false
+    "raw_cohort_bytes_bundled": false,
+    "cohort_evaluator": "evals/research_proteomics/cohort.py",
+    "cohort_fixture": "tests/fixtures/research/cohort_scenarios.json",
+    "installed_replay": "release CI replays both single-run and cohort entrypoints from the built wheel"
   }
 }

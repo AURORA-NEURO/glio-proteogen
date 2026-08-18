@@ -240,7 +240,7 @@ def _verify_package(path: Path, receipt: dict[str, object]) -> None:
             raise VerificationError(f"package omits research member {member}")
 
 
-def _verify_package_receipt(
+def _verify_package_receipt(  # noqa: C901
     path: Path,
     wheel: Path | None,
     sdist: Path | None,

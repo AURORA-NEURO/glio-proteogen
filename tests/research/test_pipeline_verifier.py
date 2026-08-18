@@ -148,10 +148,10 @@ def test_research_benchmark_recomputes_nearest_rank_p95() -> None:
 def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path: Path) -> None:
     artifact = tmp_path / "research.whl"
     with ZipFile(artifact, "w") as archive:
-            archive.writestr("glio_proteogen/research/pipeline.py", "")
-            archive.writestr("glio_proteogen/research/search.py", "")
-            archive.writestr("glio_proteogen/research/protein.py", "")
-            archive.writestr("glio_proteogen/research/cohort.py", "")
+        archive.writestr("glio_proteogen/research/pipeline.py", "")
+        archive.writestr("glio_proteogen/research/search.py", "")
+        archive.writestr("glio_proteogen/research/protein.py", "")
+        archive.writestr("glio_proteogen/research/cohort.py", "")
     digest = sha256(artifact.read_bytes()).hexdigest()
     receipt = {"filename": artifact.name, "bytes": artifact.stat().st_size, "sha256": digest}
     _verify_package(artifact, receipt)

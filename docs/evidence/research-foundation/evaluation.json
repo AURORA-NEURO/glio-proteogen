@@ -1,6 +1,6 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "c1a9f3670e8faa685891eb7fb46aab54c83dbc393b9c56d2147bdeea9055cf19",
+  "fixture_sha256": "2c40584b5373175ca2208782ae80387297674adba81a0cae292ea03736f0d37b",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "declared": 8,
@@ -17,22 +17,34 @@
       "multi_peptide_quantification"
     ]
   },
+  "cohort_evaluation": {
+    "fixture_sha256": "92404e0c40f38e9f825af10b5b08d9116fe97ea81702e30ee6f2130c01e6dff5",
+    "declared": 4,
+    "executed": 4,
+    "passed": true,
+    "scenario_ids": [
+      "replicate_matrix",
+      "explicit_missingness",
+      "incompatible_search_space",
+      "pdc_provenance_replay"
+    ]
+  },
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
     "percentile_method": "nearest_rank",
-    "samples_ns": [490000, 438800, 427600, 407500, 686300, 398100, 395600, 387800, 384300, 370300],
-    "mean_ns": 438630.0,
-    "median_ns": 407500,
-    "p95_ns": 686300,
-    "result_digest": "36c79e6a9c9b36bd1cfedff80f0fe10320027073c66c050202e23666cfac94e8"
+    "samples_ns": [331600, 317500, 313200, 311000, 322900, 318200, 320100, 331300, 317700, 318400],
+    "mean_ns": 320190.0,
+    "median_ns": 318400,
+    "p95_ns": 331600,
+    "result_digest": "3fc9174420bdb621c9aa5f24ff39d96f83e8f8d5520c27e2732f38cc75a91197"
   },
   "coverage": {
-    "statements": 1312,
-    "missed_statements": 44,
-    "branches": 480,
-    "partial_branches": 41,
-    "percent": 95.03048780487805,
+    "statements": 1451,
+    "missed_statements": 46,
+    "branches": 516,
+    "partial_branches": 43,
+    "percent": 95.271987798678,
     "fail_under": 95
   }
 }
