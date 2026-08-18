@@ -10,6 +10,11 @@ and does not widen M03/M04 contracts.
 one deterministic, auditable path:
 
 1. Decode bounded mzML spectra and retain MS2 spectra only for identification.
+   An optional caller-supplied mzIdentML file is structurally parsed separately;
+   its bytes, identifiers, identification-result/item counts, peptide-evidence count,
+   protein-detection-hypothesis count, and pass-threshold item count become a receipt.
+   The pipeline never imports mzIdentML PSMs or protein hypotheses into its own search
+   or grouping computation.
 2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
    controls.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
@@ -160,6 +165,16 @@ The locked precursor-policy evaluator includes a deliberately near-boundary prec
 fixture: the 1 ppm policy abstains at approximately 1.07 ppm error, while the 20 ppm
 policy accepts, and replay with the changed policy is rejected. This validates a scientific
 threshold and its digest boundary rather than only checking that a field serializes.
+
+### Optional mzIdentML provenance
+
+`ResearchRunRequest.mzidentml_source` is an explicit, bounded structural-evidence input.
+The parser rejects malformed/unsafe XML and records an exact SHA-256, identifier digest,
+result/item/evidence/hypothesis counts, and pass-threshold item count in the run
+configuration, evidence bundle, result projection, and replay digest. Providing or
+changing this file therefore changes the content-addressed run even when mzML/FASTA
+search output is unchanged. This is provenance of an external identification artifact,
+not acceptance of its PSMs, protein hypotheses, FDR, or biological claims.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
 each record's quality metadata, the derived quality summary, limitations, and outer digest.

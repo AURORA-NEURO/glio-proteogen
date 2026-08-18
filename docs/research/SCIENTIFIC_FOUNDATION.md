@@ -22,6 +22,12 @@ C03/C04 computation contract:
   validity evidence.
 - `parse_mzml` decodes bounded m/z and intensity arrays from local mzML or gzip-compressed mzML.
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
+- The run pipeline accepts an optional bounded mzIdentML byte stream only as structural
+  provenance: safe XML parsing records its exact SHA-256, identifier digest, result/item,
+  peptide-evidence, protein-detection-hypothesis, and pass-threshold counts. Those
+  fields are replay-bound and can be changed without changing the independently computed
+  mzML/FASTA PSM projection; mzIdentML PSMs and hypotheses are never imported into
+  search or protein grouping.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
 - `parse_modified_peptide` and `expand_peptide_map` provide a bounded residue-local catalogue
