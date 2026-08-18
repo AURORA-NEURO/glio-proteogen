@@ -931,6 +931,17 @@ def test_ci_records_eval_and_benchmark_evidence_for_all_modules() -> None:
         assert f"evals.{module}.benchmark --output {module}-benchmark.json" in workflow
 
 
+def test_ci_replays_public_proteomics_receipt_from_installed_wheel() -> None:
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    replay = workflow.index("Replay from the built wheel in a clean environment")
+    pipeline = workflow.index("tools/verify_research_pipeline.py", replay)
+    public = workflow.index("tools/verify_research_public_proteomics.py", pipeline)
+    assert pipeline < public
+    assert "docs/evidence/research-foundation/evaluation.json" in workflow[pipeline:public]
+    assert '"$wheel" "$sdist"' in workflow[public:]
+
+
 def test_ci_exercises_the_native_m04_03_windows_interface() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
 

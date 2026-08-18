@@ -6,7 +6,7 @@ import hashlib
 import io
 import json
 import tarfile
-from typing import TYPE_CHECKING
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -17,9 +17,6 @@ from tools.verify_research_public_proteomics import (
     _verify_package,
     _verify_reproducibility,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _wheel(tmp_path: Path, names: tuple[str, ...]) -> Path:
@@ -108,3 +105,21 @@ def test_public_package_verifier_requires_reproducible_receipts() -> None:
     forged["source_date_epoch"] = 0
     with pytest.raises(VerificationError, match="SOURCE_DATE_EPOCH"):
         _verify_reproducibility(forged)
+
+
+def test_checked_in_public_receipt_has_complete_reproducible_inventories() -> None:
+    root = Path(__file__).resolve().parents[2]
+    evidence_path = root / "docs" / "evidence" / "research_public_proteomics" / "package.json"
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    _verify_reproducibility(evidence)
+    for label in ("wheel", "sdist"):
+        record = evidence[label]
+        assert isinstance(record, dict)
+        inventory = record["member_inventory"]
+        assert isinstance(inventory, dict)
+        members = inventory["members"]
+        assert isinstance(members, list)
+        assert members == sorted(members)
+        assert inventory["count"] == len(members) == record["members"]
+        assert inventory["sha256"] == _member_inventory_digest(members)
