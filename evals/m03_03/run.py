@@ -108,7 +108,7 @@ SCENARIO_PATH = ROOT / "tests" / "fixtures" / "m03_03" / "scenarios.json"
 _REQUEST_ADAPTER = TypeAdapter(IngestProteinInferenceRawInputsRequest)
 _RESULT_ADAPTER = TypeAdapter(ProteinInferenceRawAdmissionResult)
 _EXPECTED_GROUP_COUNT = 8
-_EXPECTED_CASE_COUNT = 77
+_EXPECTED_CASE_COUNT = 79
 _EXPECTED_SCHEMA_NAMES = 8
 _HTTP_OK = 200
 _BUILD_ID = "build.synthetic.reference"
@@ -1009,6 +1009,40 @@ def _parsing_checks(scenario: Scenario) -> list[EvalCheck]:
         dangling_scenario.request,
         dangling_scenario.sources,
     )
+    duplicate_mzident = (
+        b'<?xml version="1.0"?>'
+        b'<MzIdentML xmlns="http://psidev.info/psi/pi/mzIdentML/1.3" version="1.3.0">'
+        b"<DataCollection><Inputs>"
+        b'<SearchDatabase id="database-1" databaseName="build.synthetic.targets-decoys-v1" '
+        b'version="2026.1.0"/><SpectraData id="spectra-1"/>'
+        b'<SpectraData id="spectra-1"/>'
+        b"</Inputs><AnalysisData>"
+        b'<SpectrumIdentificationList id="list-1"><SpectrumIdentificationResult '
+        b'id="result-1" spectraData_ref="spectra-1"/></SpectrumIdentificationList>'
+        b"</AnalysisData></DataCollection></MzIdentML>"
+    )
+    duplicate_mzident_scenario = build_scenario(
+        options=ScenarioOptions(
+            raw_overrides={ProteinInferenceRawRole.PEPTIDE_EVIDENCE: duplicate_mzident}
+        )
+    )
+    duplicate_mzident_result = ingest_protein_inference_raw_inputs(
+        duplicate_mzident_scenario.request,
+        duplicate_mzident_scenario.sources,
+    )
+    duplicate_fasta_scenario = build_scenario(
+        options=ScenarioOptions(
+            raw_overrides={
+                ProteinInferenceRawRole.CANONICAL_SEQUENCES: (
+                    b">duplicate first\nMPEPTIDEK\n>duplicate second\nKEDITPEPM\n"
+                )
+            }
+        )
+    )
+    duplicate_fasta_result = ingest_protein_inference_raw_inputs(
+        duplicate_fasta_scenario.request,
+        duplicate_fasta_scenario.sources,
+    )
     by_role = {role: _role_output(canonical, role) for role in ProteinInferenceRawRole}
     fasta_roles = (
         ProteinInferenceRawRole.CANONICAL_SEQUENCES,
@@ -1120,6 +1154,26 @@ def _parsing_checks(scenario: Scenario) -> list[EvalCheck]:
                 and dangling.disposition is ProteinInferenceAdmissionDisposition.QUARANTINED
             ),
             detail="dangling ambiguity claim quarantined",
+        ),
+        _scenario(
+            "mzidentml_duplicate_xml_ids_are_quarantined",
+            passed=(
+                duplicate_mzident_result.disposition
+                is ProteinInferenceAdmissionDisposition.QUARANTINED
+                and ProteinInferenceDiagnosticCode.MALFORMED_CONTENT
+                in _diagnostic_codes(duplicate_mzident_result)
+            ),
+            detail="ambiguous XML identifiers fail closed before reference closure",
+        ),
+        _scenario(
+            "fasta_duplicate_sequence_identifiers_are_quarantined",
+            passed=(
+                duplicate_fasta_result.disposition
+                is ProteinInferenceAdmissionDisposition.QUARANTINED
+                and ProteinInferenceDiagnosticCode.MALFORMED_CONTENT
+                in _diagnostic_codes(duplicate_fasta_result)
+            ),
+            detail="ambiguous FASTA keys fail closed before search-space binding",
         ),
     ]
 

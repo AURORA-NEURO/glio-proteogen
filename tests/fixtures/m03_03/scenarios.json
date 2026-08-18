@@ -77,9 +77,11 @@
         "vcf_header_records_and_references_validated",
         "gff3_directives_records_and_references_validated",
         "gzip_is_detected_by_magic_bytes_not_filename_suffix",
-        "malformed_content_or_dangling_reference_fails_closed"
+        "malformed_content_or_dangling_reference_fails_closed",
+        "mzidentml_duplicate_xml_ids_are_quarantined",
+        "fasta_duplicate_sequence_identifiers_are_quarantined"
       ],
-      "expected_case_count": 11,
+      "expected_case_count": 13,
       "v1_format_boundary": "mzTab and mzTab-M are not accepted or silently treated as another profile",
       "parse_output_ceiling": "typed source admission and parse diagnostics only; parsed biological observations are not emitted"
     },
