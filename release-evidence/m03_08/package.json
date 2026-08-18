@@ -2,7 +2,7 @@
   "module_id": "GLIO-PROTEOGEN-M03-08",
   "contract_version": "1.0.0",
   "passed": true,
-  "base_commit": "d079fb1ba5513393365629b657a3d2f3834ed55a",
+  "base_commit": "6699d83b2e224f52c84fa12e1c003d301dddff84",
   "source_date_epoch": 315532800,
   "reproducible_builds": true,
   "isolated_import": true,
@@ -11,16 +11,16 @@
     {
       "kind": "wheel",
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "size_bytes": 3842304,
-      "sha256": "e804bf1253f60e5c5e8c5d3e385773666750e1c5ae5a2bfe582de6aa1cac9eb2",
-      "members": 1989
+      "size_bytes": 3862605,
+      "sha256": "576279bcf1192fe57ad07b06f0ca6519ac002d7fa0b350231b04e0aee8afd64c",
+      "members": 1990
     },
     {
       "kind": "sdist",
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "size_bytes": 4469767,
-      "sha256": "f5b93430561219cd40d507e8a7b170a194b90f3b3511dfdd2d19449cd329ca73",
-      "members": 4615
+      "size_bytes": 4520634,
+      "sha256": "4a2094b0827f38112796b80dba708e2c718d9c65c44eaa44cbd87f83dfafe8f7",
+      "members": 4625
     }
   ]
 }

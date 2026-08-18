@@ -13,6 +13,7 @@ from tools.verify_m03_08_release import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -142,4 +143,40 @@ def test_release_verifier_rejects_forged_evaluator_inventory(tmp_path: Path) -> 
     evaluation["checks"][0]["name"] = "scenario.fake"
     (directory / "evaluation.json").write_text(json.dumps(evaluation), encoding="utf-8")
     with pytest.raises(M0308ReleaseEvidenceError, match="locked corpus"):
+        verify_release(directory)
+
+
+@pytest.mark.parametrize(
+    ("filename", "mutator", "message"),
+    [
+        ("benchmark.json", lambda report: report.update(mean_ns="nan"), "finite number"),
+        (
+            "coverage.json",
+            lambda report: report["totals"].update(percent_covered="nan"),
+            "finite number",
+        ),
+        (
+            "package.json",
+            lambda report: report["artifacts"][0].update(filename="../escape.whl"),
+            "unsafe or duplicated",
+        ),
+        (
+            "package.json",
+            lambda report: report["artifacts"][0].update(sha256="A" * 64),
+            "not canonical",
+        ),
+    ],
+)
+def test_release_verifier_rejects_noncanonical_receipt_scalars_and_paths(
+    tmp_path: Path,
+    filename: str,
+    mutator: Callable[[dict[str, object]], None],
+    message: str,
+) -> None:
+    directory = _evidence(tmp_path)
+    path = directory / filename
+    report = json.loads(path.read_text(encoding="utf-8"))
+    mutator(report)
+    path.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(M0308ReleaseEvidenceError, match=message):
         verify_release(directory)

@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 import tarfile
 import zipfile
@@ -25,6 +26,8 @@ EXPECTED_ARCHIVE_MEMBER_COUNT: Final = 10
 EXPECTED_SOFTWARE_VERSION_COUNT: Final = 64
 EXPECTED_REFERENCE_VERSION_COUNT: Final = 64
 EXPECTED_PACKAGE_ARTIFACT_COUNT: Final = 2
+SHA256_HEX_LENGTH: Final = 64
+MAX_COVERAGE_PERCENT: Final = 100.0
 MEAN_BUDGET_NS: Final = 2_000_000_000
 P95_BUDGET_NS: Final = 3_000_000_000
 MIN_COVERAGE_PERCENT: Final = 95.0
@@ -145,19 +148,38 @@ def _require_exact_evaluator(evaluation: Mapping[str, object]) -> None:
         raise M0308ReleaseEvidenceError("evaluator contains a failing or malformed check")
 
 
+def _finite_number(value: object, label: str) -> float:
+    if type(value) not in (int, float) or isinstance(value, bool):
+        raise M0308ReleaseEvidenceError(f"{label} is not a finite number")
+    converted = float(cast("float | int", value))
+    if not math.isfinite(converted):
+        raise M0308ReleaseEvidenceError(f"{label} is not a finite number")
+    return converted
+
+
+def _exact_nonnegative_int(value: object, label: str) -> int:
+    if type(value) is not int or value < 0:
+        raise M0308ReleaseEvidenceError(f"{label} is not a non-negative integer")
+    return value
+
+
 def _require_benchmark(benchmark: Mapping[str, object]) -> None:
-    if (
-        benchmark.get("mean_budget_ns") != MEAN_BUDGET_NS
-        or benchmark.get("p95_budget_ns") != P95_BUDGET_NS
-        or benchmark.get("software_version_count") != EXPECTED_SOFTWARE_VERSION_COUNT
-        or benchmark.get("reference_version_count") != EXPECTED_REFERENCE_VERSION_COUNT
-        or benchmark.get("archive_member_count") != EXPECTED_ARCHIVE_MEMBER_COUNT
-        or benchmark.get("workload") != "public_build_exact_64_software_64_reference_shape"
+    for field, expected in (
+        ("mean_budget_ns", MEAN_BUDGET_NS),
+        ("p95_budget_ns", P95_BUDGET_NS),
+        ("software_version_count", EXPECTED_SOFTWARE_VERSION_COUNT),
+        ("reference_version_count", EXPECTED_REFERENCE_VERSION_COUNT),
+        ("archive_member_count", EXPECTED_ARCHIVE_MEMBER_COUNT),
     ):
+        if _exact_nonnegative_int(benchmark.get(field), f"benchmark {field}") != expected:
+            raise M0308ReleaseEvidenceError("benchmark workload or budget changed")
+    if benchmark.get("workload") != "public_build_exact_64_software_64_reference_shape":
         raise M0308ReleaseEvidenceError("benchmark workload or budget changed")
-    if float(cast("float", benchmark.get("mean_ns", float("inf")))) > MEAN_BUDGET_NS:
+    mean_ns = _finite_number(benchmark.get("mean_ns"), "benchmark mean_ns")
+    p95_ns = _finite_number(benchmark.get("p95_ns"), "benchmark p95_ns")
+    if mean_ns < 0 or mean_ns > MEAN_BUDGET_NS:
         raise M0308ReleaseEvidenceError("benchmark mean exceeds budget")
-    if float(cast("float", benchmark.get("p95_ns", float("inf")))) > P95_BUDGET_NS:
+    if p95_ns < 0 or p95_ns > P95_BUDGET_NS:
         raise M0308ReleaseEvidenceError("benchmark p95 exceeds budget")
 
 
@@ -166,10 +188,36 @@ def _artifact_receipts(package: Mapping[str, object]) -> list[dict[str, object]]
     if not isinstance(artifacts, list) or len(artifacts) != EXPECTED_PACKAGE_ARTIFACT_COUNT:
         raise M0308ReleaseEvidenceError("package must bind exactly wheel and sdist")
     receipts: list[dict[str, object]] = []
+    filenames: set[str] = set()
     for artifact in artifacts:
         if not isinstance(artifact, dict):
             raise M0308ReleaseEvidenceError("package artifact receipt is not an object")
-        receipts.append(cast("dict[str, object]", artifact))
+        receipt = cast("dict[str, object]", artifact)
+        kind = receipt.get("kind")
+        filename = receipt.get("filename")
+        if type(kind) is not str or kind not in {"wheel", "sdist"}:
+            raise M0308ReleaseEvidenceError("package artifact kind is invalid")
+        if (
+            type(filename) is not str
+            or not filename
+            or Path(filename).name != filename
+            or filename in filenames
+        ):
+            raise M0308ReleaseEvidenceError("package artifact filename is unsafe or duplicated")
+        expected_suffix = ".whl" if kind == "wheel" else ".tar.gz"
+        if not filename.endswith(expected_suffix):
+            raise M0308ReleaseEvidenceError("package artifact filename does not match its kind")
+        _exact_nonnegative_int(receipt.get("size_bytes"), f"{kind} size_bytes")
+        _exact_nonnegative_int(receipt.get("members"), f"{kind} members")
+        digest = receipt.get("sha256")
+        if (
+            type(digest) is not str
+            or len(digest) != SHA256_HEX_LENGTH
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise M0308ReleaseEvidenceError(f"{kind} sha256 is not canonical")
+        filenames.add(filename)
+        receipts.append(receipt)
     if {item.get("kind") for item in receipts} != {"wheel", "sdist"}:
         raise M0308ReleaseEvidenceError("package artifact kinds are incomplete")
     return receipts
@@ -215,8 +263,8 @@ def verify_release(directory: Path, artifacts_dir: Path | None = None) -> dict[s
     totals = coverage.get("totals")
     if not isinstance(totals, dict):
         raise M0308ReleaseEvidenceError("coverage totals are missing")
-    coverage_percent = float(cast("float", totals.get("percent_covered", 0.0)))
-    if coverage_percent < MIN_COVERAGE_PERCENT:
+    coverage_percent = _finite_number(totals.get("percent_covered"), "coverage percent")
+    if coverage_percent < MIN_COVERAGE_PERCENT or coverage_percent > MAX_COVERAGE_PERCENT:
         raise M0308ReleaseEvidenceError("coverage is below the release threshold")
     if package.get("source_date_epoch") != SOURCE_DATE_EPOCH:
         raise M0308ReleaseEvidenceError("reproducible-build epoch changed")
@@ -224,8 +272,11 @@ def verify_release(directory: Path, artifacts_dir: Path | None = None) -> dict[s
         raise M0308ReleaseEvidenceError("package reproducibility/import closure is incomplete")
     receipts = _artifact_receipts(package)
     if artifacts_dir is not None:
+        artifact_root = artifacts_dir.resolve()
+        if not artifact_root.is_dir():
+            raise M0308ReleaseEvidenceError("artifact directory is unavailable")
         for receipt in receipts:
-            _verify_external_artifact(artifacts_dir / str(receipt["filename"]), receipt)
+            _verify_external_artifact(artifact_root / str(receipt["filename"]), receipt)
     return {
         "module_id": MODULE_ID,
         "contract_version": CONTRACT_VERSION,
