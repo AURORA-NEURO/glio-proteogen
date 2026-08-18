@@ -57,15 +57,15 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "7425da87cd6c9ce5519eed4692f462937a26fd70ecc8d40d9a914bf5060d2c5a",
+    "fixture_sha256": "79cfc3abca07e990137dcdbad4c95db2b0f8527954aef1be377f063be799122d",
     "cohort_fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
     "focused_tests": 197,
     "coverage": {
-      "statements": 2152,
+      "statements": 2184,
       "missed_statements": 73,
-      "branches": 796,
+      "branches": 804,
       "partial_branches": 64,
-      "percent": 95.15337837837837,
+      "percent": 95.21419009370817,
       "fail_under": 95
     },
     "wheel": {
