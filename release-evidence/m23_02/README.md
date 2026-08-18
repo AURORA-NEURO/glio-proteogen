@@ -15,7 +15,7 @@ current-main source state. Generated build, coverage, and installation
 directories are intentionally excluded from the repository.
 
 Two builds with `SOURCE_DATE_EPOCH=315532800` were byte-identical. The wheel
-is `3,712,534` bytes with `1,935` members and SHA-256
-`617522a4edc0b11b96b920cbb53e8af60a6411ec023db01a203db83a996c9e13`. The
-sdist is `4,264,615` bytes with SHA-256
-`6da24857404d3d9c04e74ae60671a2505ded4a6fb81e2a9cb098e1ecdb882c51`.
+is `3,713,185` bytes with `1,935` members and SHA-256
+`64713c7bd5b675552c7f9bd817d0283b51582efbdd6c8c81fa448b4f6bc350c2`. The
+sdist is `4,268,359` bytes with SHA-256
+`3d22f8a34a8ed25298337a7e32d6e9051c97144b108d90653865243365f18353`.
