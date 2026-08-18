@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m27_02 import (
     LineageStatus,
     ResolveComplexActivityLineageRequest,
     graph_payload_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
@@ -111,6 +112,27 @@ def test_runtime_resolves_multi_source_graph_and_replays_exactly() -> None:
     )
     assert len(first.provenance.control_decisions) == _EXPECTED_CONTROL_COUNT
     assert first.emits_parent is False
+    assert M2702Service().verify(first)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    result = M2702LineageResolver().resolve(_request())
+    mutated_support = result.support_decision.model_copy(
+        update={"rationale": "caller-rehashed lineage mutation"}
+    )
+    forged = result.model_copy(update={"support_decision": mutated_support})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert not M2702Service().verify(rehashed)
+
+
+def test_replay_rejects_stale_request_identity_after_rehash() -> None:
+    result = M2702LineageResolver().resolve(_request())
+    changed = _request().model_copy(update={"root_object_id": "m2702.changed-root"})
+    forged = result.model_copy(update={"request": changed})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert not M2702Service().verify(rehashed)
 
 
 def test_duplicate_source_identifier_abstains_without_graph() -> None:
