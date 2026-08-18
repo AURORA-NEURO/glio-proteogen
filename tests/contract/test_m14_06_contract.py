@@ -13,7 +13,7 @@ from glio_proteogen.contracts.m14_06 import (
     contract_json_schemas,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
-from glio_proteogen.kernel.models import ArtifactReference
+from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
 
 _SCHEMA_COUNT = 7
 
@@ -24,6 +24,14 @@ def _artifact(label: str) -> ArtifactReference:
         version="1.0.0",
         digest=sha256_digest({"m1406": label}),
         media_type="application/json",
+    )
+
+
+def _evidence(label: str) -> EvidenceReference:
+    return EvidenceReference(
+        reference=_artifact(label),
+        role="counter_evidence",
+        claim="Caller-declared counter-evidence for the bounded response.",
     )
 
 
@@ -66,6 +74,7 @@ def test_m1406_perturbation_and_bounded_response_invariants() -> None:
         lower_bound=0.25,
         upper_bound=0.75,
         assumptions=("The perturbation remains within the supported envelope.",),
+        counter_evidence=(_evidence("counter"),),
     )
     assert response.lower_bound <= response.response_value <= response.upper_bound
 
