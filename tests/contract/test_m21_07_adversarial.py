@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
@@ -108,7 +108,7 @@ def test_result_identifier_evidence_findings_and_report_closure_are_immutable() 
     )
     invalid_result = result.model_copy(update={"report": invalid_report})
     with pytest.raises(ValueError, match="metrics must equal"):
-        invalid_result.result_is_closed()
+        cast("Any", invalid_result).result_is_closed()
     with pytest.raises(ValidationError, match="abstained result"):
         adapter.validate_python(
             result.model_copy(
