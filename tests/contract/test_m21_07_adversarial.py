@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
@@ -13,7 +15,11 @@ from glio_proteogen.contracts.m21_07 import (
     OperationalDimension,
     OperationalStatus,
 )
-from glio_proteogen.contracts.m21_07.canonical import result_payload_digest
+from glio_proteogen.contracts.m21_07.canonical import (
+    canonical_request_digest,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operational_evaluator import (  # noqa: E501
     M2107Engine,
     M2107ReplayError,
@@ -132,6 +138,69 @@ def test_replay_rejects_each_canonical_tamper_and_expected_mismatch() -> None:
     mismatch = mismatch.model_copy(update={"result_digest": result_payload_digest(mismatch)})
     with pytest.raises(M2107ReplayError):
         engine.replay(mismatch)
+
+
+def _self_rehashed(
+    result: ComplexActivityHumanFactorsResult, updates: dict[str, Any]
+) -> ComplexActivityHumanFactorsResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+
+@pytest.mark.parametrize(
+    "region",
+    ["report", "finding", "support", "provenance", "evidence", "limitations", "review"],
+)
+def test_self_rehashed_operational_output_mutations_are_rejected(region: str) -> None:
+    result = M2107Engine().evaluate(_request())
+    assert result.report is not None
+    updates: dict[str, Any]
+    if region == "report":
+        metric = result.report.metrics[0].model_copy(update={"observed_value": 0.1})
+        updates = {
+            "report": result.report.model_copy(
+                update={"metrics": (metric, *result.report.metrics[1:])}
+            )
+        }
+    elif region == "finding":
+        finding = result.findings[0].model_copy(update={"message": "forged operational finding"})
+        updates = {"findings": (finding, *result.findings[1:])}
+    elif region == "support":
+        updates = {
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged support rationale"}
+            )
+        }
+    elif region == "provenance":
+        updates = {"provenance": result.provenance.model_copy(update={"actor_id": "forged-actor"})}
+    elif region == "evidence":
+        evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
+        updates = {"evidence": (evidence, *result.evidence[1:])}
+    elif region == "limitations":
+        limitation = result.limitations[0].model_copy(update={"statement": "forged limitation"})
+        updates = {"limitations": (limitation, *result.limitations[1:])}
+    else:
+        updates = {"human_review_required": False}
+    with pytest.raises(M2107ReplayError, match="replay verification failed"):
+        M2107Engine().replay(_self_rehashed(result, updates))
+
+
+def test_self_rehashed_request_is_rejected_after_regeneration() -> None:
+    request = _request()
+    result = M2107Engine().evaluate(request)
+    metric = request.metrics[0].model_copy(update={"observed_value": 0.1})
+    changed_request = request.model_copy(update={"metrics": (metric, *request.metrics[1:])})
+    forged = result.model_copy(
+        update={
+            "request": changed_request,
+            "request_digest": canonical_request_digest(changed_request),
+            "result_id": result_identifier(changed_request),
+        }
+    )
+    with pytest.raises(M2107ReplayError, match="replay verification failed"):
+        M2107Engine().replay(_self_rehashed(forged, {}))
 
 
 def test_preflight_and_metric_status_boundaries_fail_closed() -> None:

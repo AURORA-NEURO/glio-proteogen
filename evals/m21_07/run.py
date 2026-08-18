@@ -33,6 +33,7 @@ from glio_proteogen.contracts.m21_07 import (
     canonical_request_digest,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m21_07.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -258,7 +259,16 @@ def run_evaluator() -> dict[str, object]:
     else:
         media_ok = False
     checks.append(EvalCheck("upstream_media_boundary", media_ok, "M21-06 media type required"))
-    tampered = supported.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+    tampered = supported.model_copy(
+        update={
+            "support_decision": supported.support_decision.model_copy(
+                update={"rationale": "forged operational support rationale"}
+            )
+        }
+    )
+    tampered = type(tampered).model_construct(
+        **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
+    )
     try:
         engine.replay(tampered)
     except ValueError:
