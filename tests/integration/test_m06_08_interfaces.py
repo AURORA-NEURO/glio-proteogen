@@ -20,6 +20,7 @@ from tests.modules.c06_protein_abundance.test_m06_08_runtime import request
 
 _CLI_CONTRACT_ERROR = 2
 _CLI_AUTH_ERROR = 3
+_CLI_REPLAY_ERROR = 3
 
 
 def test_api_schema_publish_and_verify_have_sanitized_parity() -> None:
@@ -95,7 +96,20 @@ def test_cli_schema_and_validation_are_deterministic(tmp_path) -> None:
     assert json.loads(validated.stdout) == request().model_dump(mode="json")
     published = runner.invoke(m0608_app, ["publish", str(request_path)])
     assert published.exit_code == 0
-    assert json.loads(published.stdout)["status"] == "abstained"
+    published_payload = json.loads(published.stdout)
+    assert published_payload["status"] == "abstained"
+    result_path = tmp_path / "result.json"
+    result_path.write_text(json.dumps(published_payload), encoding="utf-8")
+    verified = runner.invoke(m0608_app, ["verify", str(result_path)])
+    assert verified.exit_code == 0
+    assert json.loads(verified.stdout) == published_payload
+    forged = dict(published_payload)
+    forged["abstention_reason"] = "forged replay explanation"
+    forged["result_digest"] = result_payload_digest(forged)
+    result_path.write_text(json.dumps(forged), encoding="utf-8")
+    rejected = runner.invoke(m0608_app, ["verify", str(result_path)])
+    assert rejected.exit_code == _CLI_REPLAY_ERROR
+    assert "replay verification failed" in rejected.output
 
 
 def test_cli_unknown_schema_and_duplicate_json_fail_closed(tmp_path) -> None:

@@ -203,6 +203,8 @@ def test_receipt_verifier_reports_each_untrusted_model_mutation() -> None:
     )
     with pytest.raises(M0608ReplayVerificationError):
         service.verify(replay_differs)
+    with pytest.raises(M0608ReplayVerificationError):
+        service.verify(replay_differs, replay=False)
 
 
 def test_canonical_helpers_accept_mapping_projections() -> None:
@@ -269,6 +271,10 @@ def test_plugin_parse_once_token_and_verification_boundary() -> None:
     assert isinstance(token, ValidatedM0608Request)
     assert plugin.run(token) == service.execute(candidate)
     assert plugin.verify(plugin.run(token)) == plugin.run(token)
+    forged = plugin.run(token).model_copy(update={"abstention_reason": "forged replay"})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M0608ReplayVerificationError):
+        plugin.verify(forged, replay=False)
     serialized = canonical_json_bytes(candidate.model_dump(mode="json"))
     assert plugin.run(plugin.validate(serialized)).status is EvidencePublicationStatus.ABSTAINED
     forged = ValidatedM0608Request(request=token.request, _seal=object())
