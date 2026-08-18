@@ -1,0 +1,10 @@
+{
+  "scope": "glio_proteogen.research.public_proteomics",
+  "tool": "coverage.py branch mode",
+  "tests": 30,
+  "statements": {"total": 439, "covered": 430, "percent": 97.9498861047836},
+  "branches": {"total": 144, "covered": 134, "percent": 93.05555555555556},
+  "combined_percent": 96.7409948542024,
+  "fail_under": 95,
+  "status": "passed"
+}

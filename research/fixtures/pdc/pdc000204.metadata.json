@@ -1,0 +1,22 @@
+{
+  "data": {
+    "study": [
+      {
+        "study_id": "cfe9f4a2-1797-11ea-9bfa-0a42f3c845fe",
+        "pdc_study_id": "PDC000204",
+        "study_submitter_id": "CPTAC GBM Discovery Study - Proteome",
+        "project_id": "267d6671-0e78-11e9-a064-0a9c39d33490",
+        "study_name": "CPTAC GBM Discovery Study - Proteome",
+        "study_description": "<p>Glioblastoma is the most common type of brain cancer in adults with approximately 14,000 new diagnoses each year (<a href='https://www.cancer.gov/news-events/cancer-currents-blog/2017/glioblastoma-research-making-progress' target='_blank'>NCI Cancer Currents, 2017</a>). Tumors from patients with GBM were molecularly profiled by The Cancer Genome Atlas (TCGA) and these studies identified somatic mutations associated with essential signaling pathways (<a href='https://www.nature.com/articles/nature07385' target='_blank'>Nature 2008</a>, <a href='https://www.cell.com/fulltext/S0092-8674%2813%2901208-7' target='_blank'>Cell 2013</a>). To elucidate the proteomic, phosphoproteomic, and acetylome profiles of GBM tumors, tissue from 99 patients were subjected to mass spectrometry analysis using the 11-plexed isobaric tandem mass tags (TMT-11). Normal brain samples from 10 participants of the <a href='https://commonfund.nih.gov/GTex' target='_blank'>Genotype-Tissue Expression(GTEx)</a> program were also analyzed.</p><p>Supplementary Data from Wang et al., 2021 Cancer Cell is available for download below (see Readme file in GBM_Metadata_CancerCell2021 for description)<br>Clinical_Data_Subtypes<br>Gene_Expression_RNA<br>Circular_RNA<br>miRNA<br>snRNA<br>DNA_Methylation<br>Proteome<br>Lipidome<br>Metabolome<br><br> See the NCI GDC CPTAC GBM presentation for:<br>Gene Fusions<br>Somatic CNV and Mutations<br><br></p>",
+        "program_name": "Clinical Proteomic Tumor Analysis Consortium",
+        "project_name": "CPTAC3 Discovery and Confirmatory",
+        "disease_type": "Glioblastoma;Other",
+        "primary_site": "Brain",
+        "analytical_fraction": "Proteome",
+        "experiment_type": "TMT11",
+        "cases_count": 111,
+        "aliquots_count": 111
+      }
+    ]
+  }
+}

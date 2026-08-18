@@ -1,0 +1,21 @@
+{
+  "scope": "research/public-proteomics-foundation",
+  "abi_status": "additive research-only; no governed module ABI",
+  "m03_m04_public_abi_changed": false,
+  "raw_cohort_bytes_committed": false,
+  "pdc_endpoint": "https://pdc.cancer.gov/graphql",
+  "pdc_study": "PDC000204",
+  "pdc_query_sha256": "sha256:f46083cdecd99b08afb71e75a5df313bf58f79510dd58a0698b4f3279b613b37",
+  "pdc_canonical_response_sha256": "sha256:ed3fcc96a94e3d14733ce75ca04adc992560aa3ec5f00168c8b77829857b0918",
+  "python_source_loc": 769,
+  "python_test_loc": 522,
+  "gates": {
+    "ruff": "passed",
+    "mypy_strict": "passed",
+    "focused_tests": "30 passed",
+    "branch_coverage": "96.7409948542024% combined",
+    "two_build_reproducibility": "passed",
+    "isolated_import": "passed"
+  },
+  "status": "passed"
+}

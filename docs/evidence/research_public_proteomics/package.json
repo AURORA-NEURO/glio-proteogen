@@ -1,0 +1,18 @@
+{
+  "build_tool": "uv build / hatchling 1.31.0",
+  "reproducible_two_builds": true,
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3797563,
+    "members": 1977,
+    "sha256": "3ee4de3cf63e192b38bd8de0bf4de8c97a8f719c311937c2072d228511a5e854"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 15504651,
+    "members": 4553,
+    "sha256": "817ed1ab7e7fb346b093909b2b57c82fa31df24595adf7171c0847ec02bcd268"
+  },
+  "isolated_wheel_import": "passed",
+  "status": "passed"
+}

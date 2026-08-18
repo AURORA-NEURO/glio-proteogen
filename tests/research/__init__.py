@@ -1,1 +1,1 @@
-"""Research foundation tests."""
+"""Research-only foundation and public-proteomics infrastructure tests."""

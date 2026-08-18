@@ -1,0 +1,15 @@
+{
+  "scope": "additive public proteomics research foundation",
+  "focused_tests": 30,
+  "scenarios": [
+    "canonical provenance and local byte verification",
+    "PDC000204 fixture and strict response validation",
+    "bounded FASTA structural extraction",
+    "safe mzML structural extraction without binary decoding",
+    "safe mzIdentML structural extraction without scoring or inference",
+    "manifest-bound deterministic evidence aggregation",
+    "network, size, XML, malformed-input, and tamper-adjacent failure paths"
+  ],
+  "biological_claims_emitted": false,
+  "status": "passed"
+}

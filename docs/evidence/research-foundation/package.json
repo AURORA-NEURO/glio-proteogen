@@ -26,24 +26,24 @@
     "caller_download_required": true
   },
   "verification": {
-    "focused_tests": 28,
+    "focused_tests": 60,
     "coverage": {
-      "statements": 373,
-      "missed_statements": 0,
-      "branches": 140,
-      "partial_branches": 3,
-      "percent": 99.0,
+      "statements": 842,
+      "missed_statements": 9,
+      "branches": 300,
+      "partial_branches": 13,
+      "percent": 98.0,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3785361,
-      "sha256": "750da0f45366aa4f5a0c27d279b7c2353ed7cae0c34e56cf5470e04f83928904"
+      "bytes": 3797563,
+      "sha256": "3ee4de3cf63e192b38bd8de0bf4de8c97a8f719c311937c2072d228511a5e854"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 15484183,
-      "sha256": "47a5725e62355ac93bc8131b4431ed0ff03ccca08e0719bccd95bb61234b7063"
+      "bytes": 15504651,
+      "sha256": "817ed1ab7e7fb346b093909b2b57c82fa31df24595adf7171c0847ec02bcd268"
     },
     "reproducible_builds": 2,
     "isolated_import": true,
