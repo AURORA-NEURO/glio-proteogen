@@ -38,8 +38,12 @@ C03/C04 computation contract:
   intensity quantification, ambiguity-preserving protein groups, and deterministic replay.
 - `run_research_cohort` composes compatible child runs into a deterministic sample-by-group
   matrix with explicit null missingness, replicate QC (median/MAD), child/source digests, and
-  replay verification. It aggregates evidence only; it does not perform differential testing,
-  batch correction, glioma inference, or mechanism discovery.
+  replay verification. Its opt-in `within_label_median_v1` normalization computes bounded
+  scale factors only from positive groups shared by every replicate of a caller-declared label,
+  retaining raw and normalized matrices plus label/group descriptive evidence. Insufficient
+  overlap or replicate support abstains explicitly; no null is imputed. It aggregates evidence
+  only; it does not perform differential testing, batch correction, glioma inference, or
+  mechanism discovery.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or

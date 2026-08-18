@@ -19,6 +19,8 @@
       "pdc_declaration_bound_external_source_evidence",
       "multi_sample_cohort_matrix_with_explicit_null_missingness",
       "replicate_median_mad_quality_summary",
+      "within_label_median_normalization_with_scale_receipts",
+      "label_group_descriptive_evidence_and_overlap_abstention",
       "cohort_configuration_compatibility_and_child_replay",
       "content_addressed_replay"
     ],
@@ -31,7 +33,7 @@
   },
   "validation": {
     "scenarios": 8,
-    "cohort_scenarios": 4,
+    "cohort_scenarios": 5,
     "expected_paths": [
       "target_supported",
       "decoy_rejected",

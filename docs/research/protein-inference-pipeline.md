@@ -60,6 +60,18 @@ The locked release evidence carries these projections per evaluator scenario, an
 verifier compares the recorded matrix, null cells, QC, source provenance, configuration,
 and child/result digests to a fresh run; counts and a fixture hash alone are insufficient.
 
+The cohort request also accepts an explicit `normalization_policy`. `none` preserves the
+raw matrix and records identity scale receipts. The opt-in `within_label_median_v1` policy
+uses only positive protein-group values shared by every replicate in each caller-declared
+label: each sample is scaled to the median of its label's sample medians. Raw and normalized
+matrices are both retained, nulls remain null, and every scale factor records its overlap,
+positive-feature count, and status. A label with fewer than two replicates, no shared positive
+group, or a non-finite scale abstains with an explicit status rather than imputing or emitting
+a normalized value. Label QC and label-by-group evidence report descriptive median/MAD,
+replicate counts, missingness, and `descriptive`/`abstained_*` statuses. Labels are caller
+metadata only; this is not a case/control test, batch correction claim, differential model,
+or biological interpretation.
+
 This is evidence aggregation, not a differential-expression or cohort inference model:
 there are no p-values, effect-size claims, batch correction, survival endpoints, glioma
 subtype claims, mechanism discovery, or clinical recommendations. A future governed
