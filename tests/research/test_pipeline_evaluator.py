@@ -2,10 +2,35 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from pathlib import Path
 from typing import cast
 
 import pytest
 from evals.research_proteomics.run import run_benchmark, run_evaluator
+
+
+def test_research_evaluator_scripts_bootstrap_when_run_by_path() -> None:
+    root = Path(__file__).resolve().parents[2]
+    for relative_path, expected_key in (
+        ("evals/research_proteomics/run.py", "evaluation"),
+        ("evals/research_proteomics/cohort.py", "passed"),
+    ):
+        completed = subprocess.run(  # noqa: S603 - fixed repository-local entrypoint
+            [sys.executable, relative_path],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        payload = json.loads(completed.stdout)
+        if expected_key == "evaluation":
+            assert payload[expected_key]["passed"] is True
+        else:
+            assert payload[expected_key] is True
 
 
 def test_locked_research_pipeline_evaluator() -> None:
@@ -37,6 +62,12 @@ def test_locked_research_pipeline_evaluator() -> None:
     assert multi_receipt["signal_quality"] == "descriptive_positive_signal"
     assert multi_receipt["raw_positive_mad"] == 7.5
     assert multi_receipt["raw_positive_iqr"] == 15.0
+    generated = cast("dict[str, object]", report["generated_search_space"])
+    assert generated["passed"] is True
+    generated_receipt = cast("dict[str, object]", generated["search_space_receipt"])
+    assert generated_receipt["decoy_strategy"] == "reverse_protein"
+    assert generated_receipt["generated_decoy_entries"] == 1
+    assert generated_receipt["collision_peptides"] == 0
 
 
 def test_research_pipeline_benchmark_is_deterministic() -> None:

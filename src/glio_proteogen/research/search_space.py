@@ -65,16 +65,29 @@ class SearchSpaceReceipt:
     pairs: tuple[DecoyPair, ...]
     pairing_digest: str
     search_space_digest: str
+    digest: str = ""
+    decoy_strategy: str = "caller_declared"
+    declared_decoy_entries: int = 0
+    generated_decoy_entries: int = 0
+    peptide_count: int = 0
     modification_rules: tuple[str, ...] = ()
     max_variable_modifications: int = 0
     modified_target_peptides: int = 0
     modified_decoy_peptides: int = 0
+
+    @property
+    def target_entries(self) -> int:
+        """Return the number of non-decoy FASTA entries in the receipt."""
+
+        return self.target_proteins
 
     def as_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
             "cleavage_compatible_pairs": self.cleavage_compatible_pairs,
             "decoy_peptides": self.decoy_peptides,
             "decoy_prefix": self.decoy_prefix,
+            "decoy_strategy": self.decoy_strategy,
+            "declared_decoy_entries": self.declared_decoy_entries,
             "decoy_proteins": self.decoy_proteins,
             "digestion_enzyme": self.digestion_enzyme,
             "max_peptide_length": self.max_peptide_length,
@@ -82,10 +95,14 @@ class SearchSpaceReceipt:
             "missed_cleavages": self.missed_cleavages,
             "paired_proteins": self.paired_proteins,
             "pairing_digest": self.pairing_digest,
+            "generated_decoy_entries": self.generated_decoy_entries,
             "pairs": [item.as_dict() for item in self.pairs],
+            "peptide_count": self.peptide_count,
             "search_space_digest": self.search_space_digest,
             "source_sha256": self.source_sha256,
+            "target_entries": self.target_entries,
             "target_decoy_overlap_peptides": self.target_decoy_overlap_peptides,
+            "collision_peptides": self.target_decoy_overlap_peptides,
             "target_peptides": self.target_peptides,
             "target_proteins": self.target_proteins,
             "unmatched_decoy_proteins": self.unmatched_decoy_proteins,
@@ -116,7 +133,7 @@ def _validate_entries(entries: tuple[FastaEntry, ...]) -> None:
         raise ValueError("FASTA accessions must be non-empty")
 
 
-def build_search_space_receipt(
+def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds every control
     source_bytes: bytes,
     entries: Iterable[FastaEntry],
     *,
@@ -124,6 +141,7 @@ def build_search_space_receipt(
     min_peptide_length: int = 7,
     max_peptide_length: int = 40,
     decoy_prefix: str = _DECOY_PREFIX,
+    decoy_strategy: str = "caller_declared",
     modification_rules: tuple[str, ...] = (),
     max_variable_modifications: int = 0,
 ) -> SearchSpaceReceipt:
@@ -140,7 +158,13 @@ def build_search_space_receipt(
         raise TypeError("source_bytes must be immutable bytes")
     if not source_bytes:
         raise ValueError("search-space source cannot be empty")
-    if len(decoy_prefix) < 2 or any(char.isspace() for char in decoy_prefix):
+    if decoy_strategy not in {"caller_declared", "reverse_protein"}:
+        raise ValueError("unsupported decoy_strategy")
+    if (
+        not isinstance(decoy_prefix, str)
+        or not 1 <= len(decoy_prefix) <= 32
+        or any(char.isspace() or ord(char) < 33 for char in decoy_prefix)
+    ):
         raise ValueError("decoy_prefix must be a bounded non-whitespace token")
     modification_rules = normalize_modification_rules(modification_rules)
     receipt_version = _MODIFICATION_VERSION if modification_rules else _BASE_VERSION
@@ -152,6 +176,24 @@ def build_search_space_receipt(
     if not entries_tuple:
         raise ValueError("search-space receipt requires at least one FASTA entry")
     _validate_entries(entries_tuple)
+    declared_decoys = tuple(
+        entry for entry in entries_tuple if entry.accession.startswith(decoy_prefix)
+    )
+    targets_entries = tuple(
+        entry for entry in entries_tuple if not entry.accession.startswith(decoy_prefix)
+    )
+    generated_decoys = (
+        tuple(
+            FastaEntry(f"{decoy_prefix}{entry.accession}", entry.sequence[::-1])
+            for entry in targets_entries
+        )
+        if decoy_strategy == "reverse_protein"
+        else ()
+    )
+    supplied_accessions = {entry.accession for entry in entries_tuple}
+    if any(entry.accession in supplied_accessions for entry in generated_decoys):
+        raise ValueError("generated decoy accession collides with supplied FASTA")
+    search_entries = entries_tuple + generated_decoys
     digests = {
         entry.accession: digest_entry_trypsin(
             entry,
@@ -159,9 +201,9 @@ def build_search_space_receipt(
             min_length=min_peptide_length,
             max_length=max_peptide_length,
         )
-        for entry in entries_tuple
+        for entry in search_entries
     }
-    by_accession = {entry.accession: entry for entry in entries_tuple}
+    by_accession = {entry.accession: entry for entry in search_entries}
     targets = tuple(
         sorted(accession for accession in by_accession if not accession.startswith(decoy_prefix))
     )
@@ -226,6 +268,8 @@ def build_search_space_receipt(
         "cleavage_compatible_pairs": compatible_pairs,
         "decoy_peptides": len(decoy_peptide_set),
         "decoy_prefix": decoy_prefix,
+        "decoy_strategy": decoy_strategy,
+        "declared_decoy_entries": len(declared_decoys),
         "decoy_proteins": len(decoys),
         "digestion_enzyme": "trypsin",
         "max_peptide_length": max_peptide_length,
@@ -233,9 +277,13 @@ def build_search_space_receipt(
         "missed_cleavages": missed_cleavages,
         "paired_proteins": len(pairs),
         "pairing_digest": pairing_digest,
+        "generated_decoy_entries": len(generated_decoys),
         "pairs": pair_payload,
+        "peptide_count": len(target_peptide_set | decoy_peptide_set),
         "source_sha256": sha256(source_bytes).hexdigest(),
+        "target_entries": len(targets),
         "target_decoy_overlap_peptides": len(target_peptide_set & decoy_peptide_set),
+        "collision_peptides": len(target_peptide_set & decoy_peptide_set),
         "target_peptides": len(target_peptide_set),
         "target_proteins": len(targets),
         "unmatched_decoy_proteins": unmatched_decoys,
@@ -259,6 +307,10 @@ def build_search_space_receipt(
         min_peptide_length=min_peptide_length,
         max_peptide_length=max_peptide_length,
         decoy_prefix=decoy_prefix,
+        decoy_strategy=decoy_strategy,
+        declared_decoy_entries=len(declared_decoys),
+        generated_decoy_entries=len(generated_decoys),
+        peptide_count=len(target_peptide_set | decoy_peptide_set),
         target_proteins=len(targets),
         decoy_proteins=len(decoys),
         target_peptides=len(target_peptide_set),
@@ -282,6 +334,7 @@ def build_search_space_receipt(
         ),
         pairing_digest=pairing_digest,
         search_space_digest=_digest(payload),
+        digest=_digest(payload),
         modification_rules=modification_rules,
         max_variable_modifications=max_variable_modifications,
         modified_target_peptides=len(modified_target_peptide_set),
@@ -306,6 +359,8 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
             raise ValueError(f"search-space {field} is not a lowercase SHA-256")
     if receipt.digestion_enzyme != "trypsin":
         raise ValueError("search-space digestion enzyme is unsupported")
+    if receipt.decoy_strategy not in {"caller_declared", "reverse_protein"}:
+        raise ValueError("search-space decoy strategy is unsupported")
     if (
         type(receipt.missed_cleavages) is not int
         or not 0 <= receipt.missed_cleavages <= 4
@@ -366,13 +421,29 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
     _validate_nonnegative_int(receipt.cleavage_compatible_pairs, "compatible pair count")
     _validate_nonnegative_int(receipt.modified_target_peptides, "modified target peptide count")
     _validate_nonnegative_int(receipt.modified_decoy_peptides, "modified decoy peptide count")
+    _validate_nonnegative_int(receipt.declared_decoy_entries, "declared decoy entry count")
+    _validate_nonnegative_int(receipt.generated_decoy_entries, "generated decoy entry count")
+    _validate_nonnegative_int(receipt.peptide_count, "search-space peptide count")
     if (
         receipt.target_proteins != receipt.paired_proteins + receipt.unmatched_target_proteins
         or receipt.decoy_proteins != receipt.paired_proteins + receipt.unmatched_decoy_proteins
     ):
         raise ValueError("search-space unmatched protein counts are inconsistent")
+    if receipt.declared_decoy_entries + receipt.generated_decoy_entries != receipt.decoy_proteins:
+        raise ValueError("search-space decoy entry counts are inconsistent")
+    if receipt.decoy_strategy == "caller_declared" and receipt.generated_decoy_entries:
+        raise ValueError("caller-declared search space cannot contain generated decoys")
+    if (
+        receipt.decoy_strategy == "reverse_protein"
+        and receipt.generated_decoy_entries != receipt.target_proteins
+    ):
+        raise ValueError("reverse search space must generate one decoy per target")
     if receipt.target_decoy_overlap_peptides > min(receipt.target_peptides, receipt.decoy_peptides):
         raise ValueError("search-space overlap count is inconsistent")
+    if receipt.peptide_count != (
+        receipt.target_peptides + receipt.decoy_peptides - receipt.target_decoy_overlap_peptides
+    ):
+        raise ValueError("search-space peptide count is inconsistent")
     if receipt.modification_rules:
         try:
             normalized_rules = normalize_modification_rules(receipt.modification_rules)
@@ -387,6 +458,8 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
             raise ValueError("search-space modification controls are inconsistent")
     elif receipt.version != _BASE_VERSION or receipt.max_variable_modifications != 0:
         raise ValueError("search-space modification controls are inconsistent")
+    if receipt.digest and receipt.digest != receipt.search_space_digest:
+        raise ValueError("search-space digest alias is invalid")
 
 
 def verify_search_space_receipt(receipt: SearchSpaceReceipt) -> SearchSpaceReceipt:

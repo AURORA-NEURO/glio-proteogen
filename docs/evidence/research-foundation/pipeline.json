@@ -10,6 +10,8 @@
     "stages": [
       "bounded_mzml_decode",
       "tryptic_digest",
+      "explicit_target_decoy_search_space_receipt",
+      "deterministic_reverse_protein_decoy_generation",
       "b_y_fragment_matching",
       "fragment_and_precursor_mass_error_diagnostics",
       "candidate_level_target_decoy_competition_receipts",

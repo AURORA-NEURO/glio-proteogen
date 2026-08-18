@@ -35,7 +35,16 @@ from .evidence_aggregation import (
     aggregate_external_evidence,
     replay_external_evidence,
 )
-from .fasta import FastaEntry, digest_trypsin, read_fasta
+from .fasta import (
+    FastaEntry,
+    SearchSpace,
+    build_search_space,
+    digest_trypsin,
+    read_fasta,
+)
+from .fasta import (
+    SearchSpaceReceipt as GeneratedSearchSpaceReceipt,
+)
 from .modifications import (
     ModificationSpec,
     ParsedPeptide,
@@ -117,6 +126,7 @@ __all__ = [
     "ExternalEvidenceObservation",
     "FastaEntry",
     "FdrSummary",
+    "GeneratedSearchSpaceReceipt",
     "ModificationSpec",
     "MzIdentMlStructure",
     "ParsedPeptide",
@@ -141,6 +151,7 @@ __all__ = [
     "ResearchRunRequest",
     "ResearchRunResult",
     "SearchParameters",
+    "SearchSpace",
     "SearchSpaceReceipt",
     "SourceReference",
     "Spectrum",
@@ -148,6 +159,7 @@ __all__ = [
     "aggregate_evidence",
     "aggregate_external_evidence",
     "bind_pdc_mzml_source",
+    "build_search_space",
     "build_search_space_receipt",
     "digest_trypsin",
     "expand_peptide",

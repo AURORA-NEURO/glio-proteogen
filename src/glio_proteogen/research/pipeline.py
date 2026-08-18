@@ -16,7 +16,7 @@ from hashlib import md5, sha256
 from typing import BinaryIO
 
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify_evidence_bundle
-from .fasta import digest_trypsin, read_fasta
+from .fasta import build_search_space, read_fasta
 from .modifications import expand_peptide_map, normalize_modification_rules
 from .mzml import parse_mzml
 from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
@@ -71,6 +71,8 @@ class ResearchRunRequest:
     max_peptide_length: int = 40
     max_spectra: int = 100_000
     q_value_threshold: float = 0.01
+    decoy_strategy: str = "caller_declared"
+    decoy_prefix: str = "DECOY_"
     max_bytes: int = 256 * 1024 * 1024
     variable_modifications: tuple[str, ...] = ()
     max_variable_modifications: int = 0
@@ -432,6 +434,14 @@ def _validate_request(request: ResearchRunRequest) -> None:
         or not math.isfinite(request.q_value_threshold)
     ):
         raise ValueError("q_value_threshold must be finite and between zero and one")
+    if request.decoy_strategy not in {"caller_declared", "reverse_protein"}:
+        raise ValueError("unsupported decoy_strategy")
+    if (
+        not isinstance(request.decoy_prefix, str)
+        or not 1 <= len(request.decoy_prefix) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in request.decoy_prefix)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
 
 
 def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunResult:  # noqa: PLR0915
@@ -457,20 +467,24 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             raise ValueError("external source reference does not match mzML input bytes")
     spectra = parse_mzml(mzml_bytes, max_bytes=request.max_bytes, max_spectra=request.max_spectra)
     entries = read_fasta(fasta_bytes)
-    peptide_map = digest_trypsin(
+    search_space = build_search_space(
         entries,
+        decoy_strategy=request.decoy_strategy,
+        decoy_prefix=request.decoy_prefix,
         missed_cleavages=request.missed_cleavages,
         min_length=request.min_peptide_length,
         max_length=request.max_peptide_length,
     )
     peptide_map = expand_peptide_map(
-        peptide_map,
+        search_space.as_map(),
         allowed_modifications=request.variable_modifications,
         max_variable_modifications=request.max_variable_modifications,
     )
     search_space_receipt = build_search_space_receipt(
         fasta_bytes,
         entries,
+        decoy_strategy=request.decoy_strategy,
+        decoy_prefix=request.decoy_prefix,
         missed_cleavages=request.missed_cleavages,
         min_peptide_length=request.min_peptide_length,
         max_peptide_length=request.max_peptide_length,
@@ -481,6 +495,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         precursor_tolerance_ppm=request.precursor_tolerance_ppm,
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
+        decoy_prefix=request.decoy_prefix,
         require_precursor_mz=True,
         allowed_modifications=request.variable_modifications,
         max_variable_modifications=request.max_variable_modifications,
@@ -507,6 +522,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 fragment_tolerance_da=parameters.fragment_tolerance_da,
                 min_matched_ions=parameters.min_matched_ions,
                 precursor_charge=spectrum.precursor_charge,
+                decoy_prefix=request.decoy_prefix,
                 require_precursor_mz=True,
                 allowed_modifications=request.variable_modifications,
                 max_variable_modifications=request.max_variable_modifications,
@@ -515,10 +531,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         if candidates:
             candidate_psms.extend(candidates)
             competition_audit.append(PsmCompetition.from_candidates(candidates))
-    scored = target_decoy_qvalues(tuple(candidate_psms))
+    scored = target_decoy_qvalues(tuple(candidate_psms), decoy_prefix=request.decoy_prefix)
     fdr_summary = summarize_target_decoy(
         scored,
         q_value_threshold=request.q_value_threshold,
+        decoy_prefix=request.decoy_prefix,
     )
     accepted = tuple(
         item
@@ -559,7 +576,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         )
     )
     group_candidates, protein_group_fdr_summary = infer_protein_group_candidates(
-        scored, q_value_threshold=request.q_value_threshold
+        scored,
+        q_value_threshold=request.q_value_threshold,
+        decoy_prefix=request.decoy_prefix,
     )
     accepted_group_candidates = tuple(
         item for item in group_candidates if item.acceptance == "accepted"
@@ -622,6 +641,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "max_peptide_length": request.max_peptide_length,
         "max_spectra": request.max_spectra,
         "q_value_threshold": request.q_value_threshold,
+        "decoy_strategy": request.decoy_strategy,
+        "decoy_prefix": request.decoy_prefix,
         "max_bytes": request.max_bytes,
         "quantification_version": "matched-ion-median-2",
         "quantification_quality_version": "matched-ion-descriptive-dispersion-1",
@@ -679,7 +700,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             "input:fasta",
             f"sha256:{fasta_digest}",
             "search_space",
-            {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
+            {
+                "bytes": len(fasta_bytes),
+                "peptides": len(peptide_map),
+                "search_space_receipt": search_space_receipt.as_dict(),
+            },
         ),
         EvidenceRecord.create(
             "search-space:receipt",

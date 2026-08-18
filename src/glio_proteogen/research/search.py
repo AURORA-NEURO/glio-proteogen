@@ -17,6 +17,7 @@ class SearchParameters:
     fragment_tolerance_da: float = 0.02
     min_matched_ions: int = 2
     precursor_charge: int = 1
+    decoy_prefix: str = "DECOY_"
     require_precursor_mz: bool = False
     allowed_modifications: tuple[str, ...] = ()
     max_variable_modifications: int = 0
@@ -30,6 +31,12 @@ class SearchParameters:
             raise ValueError("min_matched_ions must be positive")
         if type(self.precursor_charge) is not int or not 1 <= self.precursor_charge <= 20:
             raise ValueError("precursor_charge must be positive")
+        if (
+            not isinstance(self.decoy_prefix, str)
+            or not 1 <= len(self.decoy_prefix) <= 32
+            or any(character.isspace() or ord(character) < 33 for character in self.decoy_prefix)
+        ):
+            raise ValueError("decoy_prefix must be a bounded non-whitespace token")
         if type(self.require_precursor_mz) is not bool:
             raise ValueError("require_precursor_mz must be boolean")
         normalized = normalize_modification_rules(self.allowed_modifications)
@@ -152,7 +159,7 @@ class FdrSummary:
         }
 
 
-def _validate_target_decoy_psm(psm: Psm) -> None:
+def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> None:
     """Validate the target/decoy class against the declared accessions.
 
     The search primitive is public and can be called without the pipeline's
@@ -169,9 +176,9 @@ def _validate_target_decoy_psm(psm: Psm) -> None:
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
-    derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+    derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
     derived_collision = (
-        any(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+        any(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
         and not derived_decoy
     )
     if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
@@ -331,7 +338,7 @@ def search_spectrum_candidates(
             protein_accessions=tuple(accessions),
             score=matched + (intensity_score / norm if norm else 0.0),
             matched_ions=matched,
-            decoy=all(accession.startswith("DECOY_") for accession in accessions),
+            decoy=all(accession.startswith(parameters.decoy_prefix) for accession in accessions),
             matched_intensity=matched_intensity,
             mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
             precursor_error_ppm=(
@@ -340,8 +347,10 @@ def search_spectrum_candidates(
                 else None
             ),
             target_decoy_collision=(
-                any(accession.startswith("DECOY_") for accession in accessions)
-                and not all(accession.startswith("DECOY_") for accession in accessions)
+                any(accession.startswith(parameters.decoy_prefix) for accession in accessions)
+                and not all(
+                    accession.startswith(parameters.decoy_prefix) for accession in accessions
+                )
             ),
         )
         all_candidates.append(candidate)
@@ -370,10 +379,10 @@ def search_spectrum(
     return candidates[0] if candidates else None
 
 
-def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
+def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -> tuple[Psm, ...]:
     winners: dict[str, Psm] = {}
     for psm in psms:
-        _validate_target_decoy_psm(psm)
+        _validate_target_decoy_psm(psm, decoy_prefix=decoy_prefix)
         if not isfinite(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         current = winners.get(psm.spectrum_id)
@@ -412,12 +421,14 @@ def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
     return tuple(reversed(output))
 
 
-def summarize_target_decoy(psms: Iterable[Psm], *, q_value_threshold: float) -> FdrSummary:
+def summarize_target_decoy(
+    psms: Iterable[Psm], *, q_value_threshold: float, decoy_prefix: str = "DECOY_"
+) -> FdrSummary:
     """Return replayable winner-level FDR evidence for a declared threshold."""
 
     if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
-    scored = target_decoy_qvalues(psms)
+    scored = target_decoy_qvalues(psms, decoy_prefix=decoy_prefix)
     target_winners = sum(not item.decoy and not item.target_decoy_collision for item in scored)
     decoy_winners = sum(item.decoy for item in scored)
     collision_winners = sum(item.target_decoy_collision for item in scored)
