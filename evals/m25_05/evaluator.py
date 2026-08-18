@@ -6,7 +6,12 @@ from dataclasses import dataclass
 from typing import Final
 
 from evals.m25_05.fixture import build_request, denied_request
-from glio_proteogen.contracts.m25_05 import CoverageStatus, EquityStatus, EvaluationStatus
+from glio_proteogen.contracts.m25_05 import (
+    CoverageStatus,
+    EquityStatus,
+    EvaluationStatus,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material.m25_05_subgroup_equity_evaluator.engine import (
     M2505AuthorizationError,
     M2505ReplayError,
@@ -126,8 +131,32 @@ def _tamper() -> ScenarioResult:
     )
 
 
+def _semantic_tamper() -> ScenarioResult:
+    result = _ENGINE.generate(build_request())
+    assert result.report is not None
+    forged = result.model_copy(
+        update={"report": result.report.model_copy(update={"version": "1.0.1"})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    try:
+        _ENGINE.replay(forged)
+    except M2505ReplayError:
+        return ScenarioResult(
+            name="semantic_tamper_replay",
+            passed=True,
+            status="rejected",
+            detail="self-rehashed report mutation rejected by canonical regeneration",
+        )
+    return ScenarioResult(
+        name="semantic_tamper_replay",
+        passed=False,
+        status="accepted",
+        detail="self-rehashed report mutation was accepted",
+    )
+
+
 def run_scenarios() -> tuple[ScenarioResult, ...]:
-    """Run the locked nine-scenario M25-05 evaluator matrix."""
+    """Run the locked ten-scenario M25-05 evaluator matrix."""
 
     return (
         _supported(),
@@ -139,6 +168,7 @@ def run_scenarios() -> tuple[ScenarioResult, ...]:
         _denied(),
         _determinism(),
         _tamper(),
+        _semantic_tamper(),
     )
 
 
@@ -148,6 +178,7 @@ def run_adversarial() -> tuple[ScenarioResult, ...]:
     return (
         _denied(),
         _tamper(),
+        _semantic_tamper(),
         _unsupported_coverage(),
         _floor_abstention(),
     )
