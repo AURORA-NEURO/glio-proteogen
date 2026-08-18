@@ -2,7 +2,7 @@
 
 from typing import Any, cast
 
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m19_05 import (
     M1905_DOSSIER_SHA256,
