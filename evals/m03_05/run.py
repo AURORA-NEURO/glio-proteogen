@@ -102,7 +102,7 @@ MODULE_ID = "GLIO-PROTEOGEN-M03-05"
 ROOT = Path(__file__).parents[2]
 SCENARIO_PATH = ROOT / "tests" / "fixtures" / "m03_05" / "scenarios.json"
 _EXPECTED_GROUP_COUNT = 8
-_EXPECTED_CASE_COUNT = 56
+_EXPECTED_CASE_COUNT = 57
 _SCHEMA_NAMES = (
     "request",
     "output",
@@ -1676,11 +1676,18 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
     with tempfile.TemporaryDirectory() as directory:
         temp = Path(directory)
         request_path = temp / "request.json"
+        result_path = temp / "result.json"
         request_path.write_bytes(canonical_json_bytes(request))
+        result_path.write_bytes(canonical_json_bytes(library))
         with TestClient(create_app(temp / "eval.sqlite3")) as client:
             api_response = client.post(
                 "/v1/modules/M03-05/artifacts",
                 content=canonical_json_bytes(request),
+                headers={"content-type": "application/json"},
+            )
+            api_verify_response = client.post(
+                "/v1/modules/M03-05/artifacts/verify",
+                content=result_path.read_bytes(),
                 headers={"content-type": "application/json"},
             )
             api_schemas = {
@@ -1695,6 +1702,14 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
         )
         cli_result = ProteinInferenceArtifactDetectionResult.model_validate_json(
             cli_detect.stdout, strict=True
+        )
+        cli_verify = CliRunner().invoke(
+            cli_app,
+            ["protein-inference-artifacts", "verify", str(result_path)],
+        )
+        cli_verify_result = ProteinInferenceArtifactDetectionResult.model_validate_json(
+            cli_verify.stdout,
+            strict=True,
         )
         cli_schemas = {
             name: CliRunner().invoke(
@@ -1745,6 +1760,24 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             "cli_detection_result_matches_public_library_operation",
             passed=(cli_detect.exit_code == 0 and cli_result == library),
             detail=f"exit={cli_detect.exit_code};digest={cli_result.result_digest}",
+        ),
+        _scenario(
+            "api_and_cli_replay_verification_matches_public_library_result",
+            passed=(
+                api_verify_response.status_code == _HTTP_OK
+                and cli_verify.exit_code == 0
+                and ProteinInferenceArtifactDetectionResult.model_validate_json(
+                    api_verify_response.content,
+                    strict=True,
+                )
+                == library
+                and cli_verify_result == library
+                and service.verify(library) == library
+            ),
+            detail=(
+                f"api={api_verify_response.status_code};cli={cli_verify.exit_code};"
+                f"digest={library.result_digest}"
+            ),
         ),
         _scenario(
             "schema_api_and_cli_export_exact_installed_contracts",

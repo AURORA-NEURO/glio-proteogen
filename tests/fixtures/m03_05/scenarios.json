@@ -193,11 +193,12 @@
         "public_library_engine_service_and_plugin_results_match",
         "api_detection_result_matches_public_library_operation",
         "cli_detection_result_matches_public_library_operation",
+        "api_and_cli_replay_verification_matches_public_library_result",
         "schema_api_and_cli_export_exact_installed_contracts",
         "recovery_requires_new_superseding_artifact_result",
         "evidence_artifacts_and_benchmark_time_only_public_m0305_operation"
       ],
-      "expected_case_count": 6,
+      "expected_case_count": 7,
       "schema_urn_template": "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-05:1.0.0:{name}",
       "recovery_rule": "prior results remain immutable; corrected evidence or policy produces a new content-addressed result with explicit supersession provenance",
       "benchmark_rule": "construct the genuine M01-02 through M03-04 handoff, compact quality receipt, artifact ledger, and policy before timing; time only detect_protein_inference_artifacts"

@@ -64,7 +64,10 @@ integer evidence scores are explicitly not calibrated probabilities.
     result equality and stable content digests.
 14. Expose one operation across library, engine, service, plugin, API, and CLI:
     `detect_protein_inference_artifacts`, `POST /v1/modules/M03-05/artifacts`, and
-    `protein-inference-artifacts detect REQUEST`. Exact installed schemas are exported through
+    `protein-inference-artifacts detect REQUEST`. Stored outputs have a bounded replay path
+    through `M0305Service.verify`, `POST /v1/modules/M03-05/artifacts/verify`, and
+    `protein-inference-artifacts verify RESULT`; all three reject duplicate JSON keys and any
+    re-signed nested contradiction. Exact installed schemas are exported through
     `GET /v1/contracts/M03-05/{name}/schema` and
     `protein-inference-artifacts export-schema NAME`.
 15. Recover append-only. Corrected evidence, policy, or upstream quality creates a new immutable,
@@ -85,7 +88,7 @@ frequentist posterior probability and every score-bearing output carries
 
 ## Evidence gate
 
-Gate G1 contains exactly 56 executable cases in eight groups: genuine M01-02 through M03-04
+Gate G1 contains exactly 57 executable cases in eight groups: genuine M01-02 through M03-04
 handoff and graph closure; exact integer scoring and thresholds; contamination, exclusion masks,
 and seeded acceptance; missingness, signal domains, profiles, and disagreement; safe-failure
 precedence with zero ledger traversal; strict ingress, capacity, and hostile authorization;
