@@ -17,6 +17,8 @@ C03/C04 computation contract:
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
 - `target_decoy_qvalues` performs explicit target/decoy competition.
+- `summarize_target_decoy` records winner-level target/decoy counts, accepted targets, threshold,
+  and descriptive decoy/target ratio in the replay-bound result evidence.
 - `quantify_matched_ions` aggregates finite matched-fragment intensity per peptide and applies
   median scaling while preserving zero-signal missingness. It is not precursor-based abundance.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity

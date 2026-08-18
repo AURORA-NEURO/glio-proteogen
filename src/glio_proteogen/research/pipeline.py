@@ -20,7 +20,14 @@ from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
 from .protein import ProteinGroup, infer_protein_groups
 from .quantification import quantify_matched_ions
-from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
+from .search import (
+    FdrSummary,
+    Psm,
+    SearchParameters,
+    search_spectrum,
+    summarize_target_decoy,
+    target_decoy_qvalues,
+)
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
@@ -72,6 +79,7 @@ class ResearchRunResult:
     missing_precursor_ms2: int
     result_digest: str
     peptide_intensities: tuple[tuple[str, float], ...] = ()
+    fdr_summary: FdrSummary | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -90,6 +98,7 @@ class ResearchRunResult:
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
             "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
             "peptide_intensities": [list(item) for item in self.peptide_intensities],
+            "fdr_summary": self.fdr_summary.as_dict() if self.fdr_summary else None,
             "protein_groups": [_group_dict(item) for item in self.protein_groups],
             "configuration": dict(self.configuration),
             "evidence_records": [
@@ -239,6 +248,10 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         if psm is not None:
             psms.append(psm)
     scored = target_decoy_qvalues(tuple(psms))
+    fdr_summary = summarize_target_decoy(
+        scored,
+        q_value_threshold=request.q_value_threshold,
+    )
     accepted = tuple(
         item
         for item in scored
@@ -312,6 +325,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                     "missing_precursor_ms2": missing_precursor_count,
                     "quantified_peptides": len(peptide_intensities),
                     "quantification_unit": "median_scaled_matched_ion_intensity",
+                    "fdr_summary": fdr_summary.as_dict(),
                 },
             ),
         )
@@ -328,6 +342,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "accepted_psms": [_psm_dict(item) for item in accepted],
         "peptide_spectral_counts": [list(item) for item in counts],
         "peptide_intensities": [list(item) for item in peptide_intensities],
+        "fdr_summary": fdr_summary.as_dict(),
         "protein_groups": [_group_dict(item) for item in groups],
         "configuration": dict(configuration),
         "evidence_records": [
@@ -360,6 +375,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         missing_precursor_ms2=missing_precursor_count,
         result_digest=result_digest,
         peptide_intensities=peptide_intensities,
+        fdr_summary=fdr_summary,
     )
 
 

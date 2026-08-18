@@ -38,6 +38,37 @@ class Psm:
     matched_intensity: float = 0.0
 
 
+@dataclass(frozen=True, slots=True)
+class FdrSummary:
+    """Auditable target/decoy summary for one winner per spectrum.
+
+    The summary is descriptive evidence, not a calibrated probability or a
+    clinical confidence score.  Decoys are retained in the winner table and
+    are never promoted to accepted targets by the pipeline.
+    """
+
+    method: str
+    spectrum_winners: int
+    target_winners: int
+    decoy_winners: int
+    accepted_targets: int
+    q_value_threshold: float
+    max_accepted_q_value: float | None
+    decoy_to_target_ratio: float
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "accepted_targets": self.accepted_targets,
+            "decoy_to_target_ratio": self.decoy_to_target_ratio,
+            "decoy_winners": self.decoy_winners,
+            "max_accepted_q_value": self.max_accepted_q_value,
+            "method": self.method,
+            "q_value_threshold": self.q_value_threshold,
+            "spectrum_winners": self.spectrum_winners,
+            "target_winners": self.target_winners,
+        }
+
+
 _MASS = {
     "A": 71.037114,
     "R": 156.101111,
@@ -200,3 +231,29 @@ def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
         running = min(running, value)
         output.append(replace(psm, q_value=None if psm.decoy else running))
     return tuple(reversed(output))
+
+
+def summarize_target_decoy(psms: Iterable[Psm], *, q_value_threshold: float) -> FdrSummary:
+    """Return replayable winner-level FDR evidence for a declared threshold."""
+
+    if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
+        raise ValueError("q_value_threshold must be finite and between zero and one")
+    scored = target_decoy_qvalues(psms)
+    target_winners = sum(not item.decoy for item in scored)
+    decoy_winners = sum(item.decoy for item in scored)
+    accepted = tuple(
+        item
+        for item in scored
+        if not item.decoy and item.q_value is not None and item.q_value <= q_value_threshold
+    )
+    accepted_q_values = tuple(item.q_value for item in accepted if item.q_value is not None)
+    return FdrSummary(
+        method="winner-per-spectrum-monotone-target-decoy-1",
+        spectrum_winners=len(scored),
+        target_winners=target_winners,
+        decoy_winners=decoy_winners,
+        accepted_targets=len(accepted),
+        q_value_threshold=q_value_threshold,
+        max_accepted_q_value=max(accepted_q_values) if accepted_q_values else None,
+        decoy_to_target_ratio=decoy_winners / target_winners if target_winners else 0.0,
+    )

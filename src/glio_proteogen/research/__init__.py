@@ -17,12 +17,20 @@ from .pipeline import (
 )
 from .protein import ProteinGroup, infer_protein_groups
 from .quantification import PeptideQuant, median_normalize, quantify_matched_ions
-from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
+from .search import (
+    FdrSummary,
+    Psm,
+    SearchParameters,
+    search_spectrum,
+    summarize_target_decoy,
+    target_decoy_qvalues,
+)
 
 __all__ = [
     "EvidenceBundle",
     "EvidenceRecord",
     "FastaEntry",
+    "FdrSummary",
     "PdcClient",
     "PdcFile",
     "PdcStudySnapshot",
@@ -43,5 +51,6 @@ __all__ = [
     "replay_research_protein_inference",
     "run_research_protein_inference",
     "search_spectrum",
+    "summarize_target_decoy",
     "target_decoy_qvalues",
 ]

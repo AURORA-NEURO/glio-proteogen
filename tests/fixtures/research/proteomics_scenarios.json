@@ -5,23 +5,62 @@
             "id": "target_supported",
             "expected_psms": 1,
             "expected_accepted": 1,
-            "expected_groups": [["P1"]]
+            "expected_groups": [["P1"]],
+            "expected_target_winners": 1,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 1
         },
-        {"id": "decoy_rejected", "expected_psms": 1, "expected_accepted": 0},
-        {"id": "no_match", "expected_psms": 0, "expected_accepted": 0},
-        {"id": "precursor_rejected", "expected_psms": 0, "expected_accepted": 0},
+        {
+            "id": "decoy_rejected",
+            "expected_psms": 1,
+            "expected_accepted": 0,
+            "expected_target_winners": 0,
+            "expected_decoy_winners": 1,
+            "expected_quantified_peptides": 0
+        },
+        {
+            "id": "no_match",
+            "expected_psms": 0,
+            "expected_accepted": 0,
+            "expected_target_winners": 0,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 0
+        },
+        {
+            "id": "precursor_rejected",
+            "expected_psms": 0,
+            "expected_accepted": 0,
+            "expected_target_winners": 0,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 0
+        },
         {
             "id": "shared_peptide_group",
             "expected_psms": 1,
             "expected_accepted": 1,
             "expected_groups": [["P1", "P2"]],
-            "expected_shared": ["MPEPTIDER"]
+            "expected_shared": ["MPEPTIDER"],
+            "expected_target_winners": 1,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 1
         },
         {
             "id": "multi_spectrum",
             "expected_psms": 1,
             "expected_accepted": 1,
-            "expected_groups": [["P1"]]
+            "expected_groups": [["P1"]],
+            "expected_target_winners": 1,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 1
+        },
+        {
+            "id": "multi_peptide_quantification",
+            "expected_psms": 2,
+            "expected_accepted": 2,
+            "expected_groups": [["P1"], ["P2"]],
+            "expected_target_winners": 2,
+            "expected_decoy_winners": 0,
+            "expected_quantified_peptides": 2
         }
     ],
     "claims": {"production_abi": false, "clinical": false, "glioma": false, "mechanism": false}
