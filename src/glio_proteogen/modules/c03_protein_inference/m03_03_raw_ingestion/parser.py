@@ -330,47 +330,29 @@ def _validate_mzidentml_shape(root: Element) -> None:
 
 def _mzidentml_index(
     root: Element,
-) -> tuple[dict[str, set[str]], list[tuple[str, str]]]:
-    by_kind: dict[str, set[str]] = {
-        kind: set()
-        for kind in (
-            "SearchDatabase",
-            "SpectraData",
-            "ProteinDetectionList",
-            "ProteinAmbiguityGroup",
-            "ProteinDetectionHypothesis",
-        )
-    }
+) -> tuple[set[str], list[str]]:
     identifiers: set[str] = set()
-    references: list[tuple[str, str]] = []
-    reference_fields = {
-        "searchDatabase_ref": "SearchDatabase",
-        "spectraData_ref": "SpectraData",
-        "proteinDetectionList_ref": "ProteinDetectionList",
-        "proteinAmbiguityGroup_ref": "ProteinAmbiguityGroup",
-        "proteinDetectionHypothesis_ref": "ProteinDetectionHypothesis",
-    }
+    references: list[str] = []
     for element in root.iter():
-        name = _local(element.tag)
         identifier = element.attrib.get("id")
         if identifier is not None:
             if not _MZIDENT_ID.fullmatch(identifier) or identifier in identifiers:
                 raise _ParseFailure
             identifiers.add(identifier)
-            if name in by_kind:
-                by_kind[name].add(identifier)
-        for attribute, target in reference_fields.items():
-            value = element.attrib.get(attribute)
-            if value:
-                references.append((target, value))
-    return by_kind, references
+        for attribute, value in element.attrib.items():
+            if not attribute.endswith("_ref"):
+                continue
+            if not _MZIDENT_ID.fullmatch(value):
+                raise _ParseFailure
+            references.append(value)
+    return identifiers, references
 
 
 def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, object]]:
     root = _xml_root(payload)
     _validate_mzidentml_shape(root)
-    by_kind, references = _mzidentml_index(root)
-    if any(value not in by_kind[kind] for kind, value in references):
+    identifiers, references = _mzidentml_index(root)
+    if any(value not in identifiers for value in references):
         raise _DanglingReference
     databases = [element for element in root.iter() if _local(element.tag) == "SearchDatabase"]
     spectra_data = [element for element in root.iter() if _local(element.tag) == "SpectraData"]
