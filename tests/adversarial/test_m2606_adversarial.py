@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,14 +11,22 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_06 import (
     ControlStatus,
+    ProteomicsSecurityAccessResult,
+    SecurityAssessmentStatus,
     SecurityControlKind,
 )
-from glio_proteogen.contracts.m26_06.canonical import canonical_request_digest
+from glio_proteogen.contracts.m26_06.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
     M2606AuthorizationError,
+    M2606ReplayError,
     M2606SecurityEngine,
     M2606SecurityPlugin,
+    M2606SecurityService,
     M2606TokenError,
     SecuritySubmission,
     preflight_m2606_authorization,
@@ -29,6 +38,15 @@ from tests.contract.test_m26_06_provisional import _request
 
 _HTTP_UNPROCESSABLE = 422
 _HTTP_NOT_FOUND = 404
+
+
+def _self_rehashed(
+    result: ProteomicsSecurityAccessResult, updates: dict[str, Any]
+) -> ProteomicsSecurityAccessResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
 
 
 def test_request_context_and_control_declaration_drift_is_rejected() -> None:
@@ -122,3 +140,65 @@ def test_canonical_request_digest_ignores_only_no_fields_and_is_stable() -> None
     assert canonical_json_bytes(payload) == canonical_json_bytes(
         json.loads(canonical_json_bytes(payload))
     )
+
+
+@pytest.mark.parametrize("region", ["reason", "status", "posture", "evidence", "limitations"])
+def test_self_rehashed_mutations_are_rejected_across_result_regions(region: str) -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    updates: dict[str, Any]
+    if region == "reason":
+        assert result.access_decision is not None
+        updates = {
+            "access_decision": result.access_decision.model_copy(
+                update={"reason": "forged security decision"}
+            )
+        }
+    elif region == "status":
+        updates = {"status": SecurityAssessmentStatus.ABSTAINED}
+    elif region == "posture":
+        assert result.security_posture is not None
+        finding = result.security_posture.findings[0].model_copy(update={"message": "forged"})
+        updates = {
+            "security_posture": result.security_posture.model_copy(
+                update={"findings": (finding, *result.security_posture.findings[1:])}
+            )
+        }
+    elif region == "evidence":
+        evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+        updates = {"evidence": (evidence, *result.evidence[1:])}
+    else:
+        limitation = result.limitations[0].model_copy(update={"statement": "forged"})
+        updates = {"limitations": (limitation, *result.limitations[1:])}
+    forged = _self_rehashed(result, updates)
+    with pytest.raises(M2606ReplayError):
+        M2606SecurityService.verify(forged)
+
+
+def test_self_rehashed_result_identity_and_auth_failure_are_rejected_safely() -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    forged_identity = _self_rehashed(result, {"result_id": "result.m2606.forged"})
+    with pytest.raises(M2606ReplayError, match="replay verification failed"):
+        M2606SecurityService.verify(forged_identity)
+
+    references = result.request.context.references.model_copy(
+        update={
+            "consent": result.request.context.references.consent.model_copy(
+                update={"state": ConsentState.REVOKED}
+            )
+        }
+    )
+    request = result.request.model_copy(
+        update={"context": result.request.context.model_copy(update={"references": references})}
+    )
+    request_digest = canonical_request_digest(request)
+    forged = result.model_copy(update={"request": request, "request_digest": request_digest})
+    forged = type(forged).model_construct(
+        **{
+            **forged.__dict__,
+            "request": request,
+            "request_digest": request_digest,
+            "result_digest": result_payload_digest(forged),
+        }
+    )
+    with pytest.raises(M2606ReplayError, match="replay verification failed"):
+        M2606SecurityService.verify(forged)

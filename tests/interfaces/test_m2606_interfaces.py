@@ -15,9 +15,11 @@ from glio_proteogen.contracts.m26_06 import (
     ProteomicsSecurityAccessResult,
     SecurityControlKind,
 )
+from glio_proteogen.contracts.m26_06.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c20_biomarker_panel.m26_06_security_privacy_access_control import (
+    M2606SecurityEngine,
     M2606SecurityPlugin,
     M2606SecurityService,
     M2606TokenError,
@@ -109,6 +111,36 @@ def test_fastapi_validation_error_paths_are_sanitized() -> None:
 
     invalid_replay = client.post("/v1/modules/M26-06/verify", json={"result": {"bad": True}})
     assert invalid_replay.status_code == _HTTP_UNPROCESSABLE
+
+
+def test_api_cli_and_plugin_reject_self_rehashed_security_result(tmp_path: Path) -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    assert result.access_decision is not None
+    changed = result.access_decision.model_copy(update={"reason": "forged security decision"})
+    forged = result.model_copy(update={"access_decision": changed})
+    forged = type(forged).model_construct(
+        **{
+            **forged.__dict__,
+            "access_decision": changed,
+            "result_digest": result_payload_digest(forged),
+        }
+    )
+
+    client = TestClient(create_m2606_app())
+    response = client.post(
+        "/v1/modules/M26-06/verify", json={"result": forged.model_dump(mode="json")}
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "replay envelope is invalid"
+
+    result_path = tmp_path / "forged-result.json"
+    result_path.write_bytes(canonical_json_bytes(forged))
+    cli = CliRunner().invoke(cli_app, ["verify", str(result_path)])
+    assert cli.exit_code != 0
+    assert "Traceback" not in cli.output
+
+    with pytest.raises(ValueError, match="replay verification failed"):
+        M2606SecurityPlugin().replay(forged)
 
 
 def test_plugin_requires_opaque_token_and_sdk_matches_service() -> None:
