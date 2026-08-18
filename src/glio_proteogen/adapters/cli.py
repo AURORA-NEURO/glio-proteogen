@@ -37,6 +37,8 @@ from glio_proteogen.adapters.api import (
     _identity_contract_schema,
     _m0603_baseline_contract_schema,
     _m0606_uncertainty_contract_schema,
+    _m0801_contract_schema,
+    _m0803_contract_schema,
     _m1306_contract_schema,
     _m1403_contract_schema,
     _m1405_contract_schema,
@@ -258,6 +260,14 @@ from glio_proteogen.contracts.m06_04 import (
 from glio_proteogen.contracts.m06_06 import (
     M0606_MAX_CANONICAL_REQUEST_BYTES,
     DecomposeProteinAbundanceUncertaintyRequest,
+)
+from glio_proteogen.contracts.m08_01 import (
+    M0801_MAX_CANONICAL_REQUEST_BYTES,
+    ValidateTranscriptProteinStateRequest,
+)
+from glio_proteogen.contracts.m08_03 import (
+    M0803_MAX_CANONICAL_REQUEST_BYTES,
+    EstimateProteinSubtypeBaselineRequest,
 )
 from glio_proteogen.contracts.m13_06 import (
     M1306_MAX_CANONICAL_REQUEST_BYTES,
@@ -588,6 +598,26 @@ from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decompositi
 from glio_proteogen.modules.c06_protein_abundance.m06_06_uncertainty_decomposition.service import (
     M0606Service,
 )
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    M0801FormalStateAuthorizationError,
+    M0801Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state import (
+    preflight_formal_state_authorization as preflight_m0801_authorization,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_01_formal_state.engine import (
+    _validate_json_request as _validate_m0801_json_request,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
+    M0803BaselineAuthorizationError,
+    M0803Service,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator import (
+    preflight_baseline_authorization as preflight_m0803_authorization,
+)
+from glio_proteogen.modules.c08_transcript_protein.m08_03_mature_baseline_estimator.engine import (
+    _validate_json_request as _validate_m0803_json_request,
+)
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Service,
@@ -798,6 +828,16 @@ m0603_baseline_app = typer.Typer(
     help="M06-03 provisional deterministic mature baseline estimation.",
 )
 app.add_typer(m0603_baseline_app, name="mature-baseline")
+m0801_formal_state_app = typer.Typer(
+    no_args_is_help=True,
+    help="M08-01 provisional transcript/protein formal-state validation.",
+)
+app.add_typer(m0801_formal_state_app, name="transcript-protein-state")
+m0803_baseline_app = typer.Typer(
+    no_args_is_help=True,
+    help="M08-03 provisional protein-subtype baseline estimation.",
+)
+app.add_typer(m0803_baseline_app, name="protein-subtype-baseline")
 probabilistic_estimator_app = typer.Typer(
     no_args_is_help=True,
     help="M06-04 provisional probabilistic and advanced estimation.",
@@ -1077,6 +1117,10 @@ ProteoformQualityOutputOption = Annotated[
 M0603BaselineOutputOption = Annotated[
     str,
     typer.Option("--output", "-o", help="New M06-03 canonical result JSON path."),
+]
+JsonResultOutputOption = Annotated[
+    Path,
+    typer.Option("--output", "-o", help="New canonical result JSON path."),
 ]
 M0606UncertaintyOutputOption = Annotated[
     str,
@@ -1396,6 +1440,8 @@ def _load_request[RequestT](
     except (
         FormalStateAuthorizationError,
         PtmBaselineAuthorizationError,
+        M0801FormalStateAuthorizationError,
+        M0803BaselineAuthorizationError,
         ProbabilisticEstimatorAuthorizationError,
         M0606UncertaintyDecompositionAuthorizationError,
         ProteoformArtifactAuthorizationError,
@@ -1417,6 +1463,14 @@ def _load_request[RequestT](
     except OSError as error:
         typer.echo("invalid request: unable to read or decode request document", err=True)
         raise typer.Exit(code=2) from error
+
+
+def _write_canonical_json_result(path: Path, value: object) -> None:
+    """Create one canonical result file without overwriting an existing artifact."""
+
+    payload = value.model_dump(mode="json") if hasattr(value, "model_dump") else value
+    with path.open("xb") as stream:
+        stream.write(canonical_json_bytes(payload))
 
 
 def _service(database: Path) -> M0101Service:
@@ -4899,6 +4953,94 @@ def estimate_m0603_baseline(
         raise typer.Exit(code=2) from error
     except (OSError, TypeError, ValueError) as error:
         typer.echo(f"m06-03 baseline estimation failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0801_formal_state_app.command("export-schema")
+def export_m0801_formal_state_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "feature-definition",
+            "feature-value",
+            "invariant",
+            "invariant-result",
+            "schema",
+            "migration",
+        ],
+        typer.Argument(help="M08-01 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M08-01 contract."""
+
+    _emit(_m0801_contract_schema(contract))
+
+
+@m0801_formal_state_app.command("validate")
+def validate_m0801_formal_state(
+    request: RequestArgument,
+    output: JsonResultOutputOption,
+) -> None:
+    """Validate one transcript/protein formal-state request into a new result file."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(ValidateTranscriptProteinStateRequest),
+            preflight_m0801_authorization,
+            M0801_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0801_json_request,
+        )
+        _write_canonical_json_result(Path(output), M0801Service().execute(parsed))
+    except M0801FormalStateAuthorizationError as error:
+        typer.echo(f"M08-01 formal-state validation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("M08-01 formal-state validation failed: invalid request", err=True)
+        raise typer.Exit(code=1) from error
+
+
+@m0803_baseline_app.command("export-schema")
+def export_m0803_baseline_schema(
+    contract: Annotated[
+        Literal[
+            "request",
+            "output",
+            "configuration",
+            "estimate",
+            "diagnostic",
+            "feature",
+        ],
+        typer.Argument(help="M08-03 public contract to export as JSON Schema 2020-12."),
+    ],
+) -> None:
+    """Export one machine-readable provisional M08-03 contract."""
+
+    _emit(_m0803_contract_schema(contract))
+
+
+@m0803_baseline_app.command("estimate")
+def estimate_m0803_baseline(
+    request: RequestArgument,
+    output: JsonResultOutputOption,
+) -> None:
+    """Estimate one transparent protein-subtype baseline into a new result file."""
+
+    try:
+        parsed = _load_request(
+            request,
+            TypeAdapter(EstimateProteinSubtypeBaselineRequest),
+            preflight_m0803_authorization,
+            M0803_MAX_CANONICAL_REQUEST_BYTES,
+            _validate_m0803_json_request,
+        )
+        _write_canonical_json_result(Path(output), M0803Service().execute(parsed))
+    except M0803BaselineAuthorizationError as error:
+        typer.echo(f"M08-03 baseline estimation denied: {error}", err=True)
+        raise typer.Exit(code=2) from error
+    except (OSError, TypeError, ValueError) as error:
+        typer.echo("M08-03 baseline estimation failed: invalid request", err=True)
         raise typer.Exit(code=1) from error
 
 
