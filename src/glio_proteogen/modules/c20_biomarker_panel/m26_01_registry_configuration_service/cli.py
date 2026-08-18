@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_01 import (
     M2601_MAX_CANONICAL_REQUEST_BYTES,
+    M2601_MAX_CANONICAL_RESULT_BYTES,
     ProteinSubtypeRegistryResult,
     RegisterProteinSubtypeRegistryRequest,
     contract_json_schema,
@@ -34,9 +35,29 @@ class M2601CliError(typer.BadParameter):
     """Sanitized M26-01 command-line validation error."""
 
 
+def _read_bounded(path: Path, *, max_bytes: int) -> bytes:
+    """Read a local JSON file without bypassing its canonical byte ceiling.
+
+    The metadata check avoids allocating an arbitrarily large file.  The
+    bounded read remains necessary because a file can grow between ``stat``
+    and ``open``; reading one sentinel byte makes that race fail closed.
+    """
+
+    try:
+        if path.stat().st_size > max_bytes:
+            raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
+        with path.open("rb") as stream:
+            data = stream.read(max_bytes + 1)
+    except OSError as error:
+        raise ValueError("input cannot be read") from error  # noqa: TRY003
+    if len(data) > max_bytes:
+        raise ValueError("input exceeds the bounded JSON byte limit")  # noqa: TRY003
+    return data
+
+
 def _read_request(path: Path) -> RegisterProteinSubtypeRegistryRequest:
     try:
-        data = path.read_bytes()
+        data = _read_bounded(path, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -47,8 +68,8 @@ def _read_request(path: Path) -> RegisterProteinSubtypeRegistryRequest:
 
 def _read_result(path: Path) -> ProteinSubtypeRegistryResult:
     try:
-        data = path.read_bytes()
-        strict_json_loads(data)
+        data = _read_bounded(path, max_bytes=M2601_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2601_MAX_CANONICAL_RESULT_BYTES)
         return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2601CliError("input must be a valid M26-01 result") from error  # noqa: TRY003

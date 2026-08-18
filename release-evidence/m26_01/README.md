@@ -8,4 +8,7 @@ exact slice `GLIO-PROTEOGEN_240_Module_Dossier.md:9036-9076`.
 
 `evaluation.json`, `benchmark.json`, `coverage.json`, and `package.json` are
 checked by `tools/verify_m2601_release.py`. Generated coverage, build, and
-isolated-install directories are intentionally not committed.
+isolated-install directories are intentionally not committed. The package
+receipt records two byte-identical SOURCE_DATE_EPOCH builds after the CLI/API
+replay resource-boundary hardening; the 4 MiB request and 8 MiB result limits
+are exercised by the focused interface suite.
