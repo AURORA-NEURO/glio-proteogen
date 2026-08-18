@@ -3,17 +3,17 @@
   "build_backend": "hatchling 1.31.0",
   "wheel": {
     "path": "dist/glio_proteogen-0.1.0-py3-none-any.whl",
-    "bytes": 3671786,
-    "members": 1913,
+    "bytes": 3689797,
+    "members": 1923,
     "unsafe_members": 0,
-    "sha256": "5f56eb29a2e63723efee3cea811a9cb6ae4cba71591655d2b2ab491da9c1b0f7"
+    "sha256": "828c1e2ada06bb09ea16c25a21e49b42fe196a6b3fd43501d6bca7348bf74254"
   },
   "sdist": {
     "path": "dist/glio_proteogen-0.1.0.tar.gz",
-    "bytes": 4215465,
-    "members": 4392,
+    "bytes": 4232465,
+    "members": 4413,
     "unsafe_members": 0,
-    "sha256": "69db6bbf7584811a202ff66e0c5706c77857d923d45200589c9f16a6f2730f8c"
+    "sha256": "4941cfac49ec1b73b1bb9749acdf3c02ad56abc5bf9a0e1fe14202c2e2536f5e"
   },
   "isolated_import": "passed"
 }
