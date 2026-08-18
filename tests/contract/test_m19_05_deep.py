@@ -28,6 +28,7 @@ from glio_proteogen.contracts.m19_05 import (
     ReviewItem,
     ReviewItemStatus,
     ViewKind,
+    WorkflowFindingCode,
     WorkspaceStatus,
     contract_json_schemas,
 )
@@ -402,6 +403,65 @@ def test_engine_abstains_on_abstained_item_without_negative_conversion() -> None
     assert result.abstention_reason is not None
     assert result.uncertainty.measurement.probability is None
     assert result.emits_parent is False
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "configuration_method",
+        "configuration_evidence",
+        "title",
+        "evidence_summary",
+        "uncertainty_summary",
+        "item_evidence",
+        "next_action_label",
+        "next_action_rationale",
+    ],
+)
+def test_engine_abstains_on_prohibited_caller_claim_surfaces(surface: str) -> None:
+    request = build_request()
+    if surface == "configuration_method":
+        configuration = request.policy.configuration.model_copy(
+            update={"method": "kinase activity"}
+        )
+        policy = request.policy.model_copy(update={"configuration": configuration})
+        request = request.model_copy(update={"policy": policy})
+    elif surface == "configuration_evidence":
+        evidence = request.policy.configuration.evidence[0].model_copy(
+            update={"claim": "treatment recommendation"}
+        )
+        configuration = request.policy.configuration.model_copy(update={"evidence": (evidence,)})
+        policy = request.policy.model_copy(update={"configuration": configuration})
+        request = request.model_copy(update={"policy": policy})
+    else:
+        item = request.review_items[0]
+        if surface == "title":
+            item = item.model_copy(update={"title": "identity inference"})
+        elif surface == "evidence_summary":
+            item = item.model_copy(update={"evidence_summary": "all-omics fusion"})
+        elif surface == "uncertainty_summary":
+            item = item.model_copy(update={"uncertainty_summary": "proteoform claim"})
+        elif surface == "item_evidence":
+            evidence = item.evidence[0].model_copy(update={"claim": "direct treatment"})
+            item = item.model_copy(update={"evidence": (evidence,)})
+        else:
+            action = NextAction(
+                action_id="action.m1905.boundary",
+                label="Review",
+                rationale=(
+                    "identity inference" if surface == "next_action_rationale" else "kinase review"
+                ),
+            )
+            item = item.model_copy(update={"next_action": action})
+        request = request.model_copy(update={"review_items": (item, *request.review_items[1:])})
+
+    result = M1905Engine().present(request)
+    assert result.status is WorkspaceStatus.ABSTAINED
+    assert result.workspace is None
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert any(
+        finding.code is WorkflowFindingCode.PROHIBITED_CLAIM_BOUNDARY for finding in result.findings
+    )
 
 
 def test_authorization_gate_is_fail_closed_and_sanitized() -> None:
