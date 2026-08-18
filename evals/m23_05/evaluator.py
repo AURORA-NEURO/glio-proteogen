@@ -12,8 +12,12 @@ if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
-from glio_proteogen.contracts.m23_05 import SubgroupDimension
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.contracts.m23_05 import (
+    SubgroupDimension,
+    VariantPeptideSubgroupEvaluationResult,
+    result_payload_digest,
+)
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
     M2305AuthorizationError,
     M2305ReplayError,
@@ -73,6 +77,26 @@ def run_evaluator() -> dict[str, Any]:
         checks["tamper_rejected"] = True
     else:
         checks["tamper_rejected"] = False
+    if result.report is None:
+        checks["semantic_replay_rejects_self_rehash"] = False
+    else:
+        performance = result.report.performance[0].model_copy(update={"value": 0.71})
+        forged_report = result.report.model_copy(
+            update={"performance": (performance, *result.report.performance[1:])}
+        )
+        forged = result.model_copy(update={"report": forged_report})
+        forged = VariantPeptideSubgroupEvaluationResult.model_validate_json(
+            canonical_json_bytes(
+                forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+            ),
+            strict=True,
+        )
+        try:
+            service.replay(forged)
+        except M2305ReplayError:
+            checks["semantic_replay_rejects_self_rehash"] = True
+        else:
+            checks["semantic_replay_rejects_self_rehash"] = False
     return {
         "module": "M23-05",
         "checks": checks,
