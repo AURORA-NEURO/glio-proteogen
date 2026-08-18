@@ -30,6 +30,7 @@ from glio_proteogen.contracts.m21_08 import (
     ApprovalDecision,
     GateRunStatus,
     RiskSeverity,
+    result_payload_digest,
 )
 from glio_proteogen.modules.c21_reference_material.m21_08_evidence_gate_release_adjudicator import (
     M2108AuthorizationError,
@@ -69,7 +70,7 @@ def build_scenario_request() -> AdjudicateComplexActivityEvidenceGateRequest:
     return _request()
 
 
-def run_evaluator() -> dict[str, object]:
+def run_evaluator() -> dict[str, object]:  # noqa: C901, PLR0915
     fixture = json.loads(SCENARIO_PATH.read_text(encoding="utf-8"))
     case_ids = tuple(item["case_id"] for item in fixture["cases"])
     if case_ids != EXPECTED_CASE_IDS:
@@ -191,18 +192,33 @@ def run_evaluator() -> dict[str, object]:
     else:
         source_ok = False
     checks.append(EvalCheck("source_media_boundary", source_ok, M2108_M2106_INPUT_MEDIA_TYPE))
-    tampered = supported.model_copy(update={"result_digest": "sha256:" + "f" * 64})
+    tampered = supported.model_copy(
+        update={
+            "support_decision": supported.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    )
+    tampered = type(tampered).model_construct(
+        **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
+    )
     try:
         engine.verify(tampered)
     except ValueError:
         tamper_ok = True
     else:
         tamper_ok = False
+    try:
+        engine.verify(supported, replay=False)
+    except ValueError:
+        disabled_replay_ok = True
+    else:
+        disabled_replay_ok = False
     checks.append(
         EvalCheck(
             "replay_tamper",
-            tamper_ok and engine.verify(supported) == supported,
-            "replay and tamper",
+            tamper_ok and disabled_replay_ok and engine.verify(supported) == supported,
+            "full replay, self-rehashed tamper, and no bypass",
         )
     )
     repeat = engine.evaluate(request)

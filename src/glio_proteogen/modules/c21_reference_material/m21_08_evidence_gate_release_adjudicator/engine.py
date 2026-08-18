@@ -69,6 +69,9 @@ class M2108EvaluationError(ValueError):
 class M2108ReplayError(ValueError):
     """A gate result failed canonical replay verification."""
 
+    def __init__(self, message: str = "M21-08 replay verification failed") -> None:
+        super().__init__(message)
+
 
 def _member(candidate: object, name: str) -> object:
     if isinstance(candidate, Mapping):
@@ -386,16 +389,22 @@ class M2108Engine:
         *,
         replay: bool = True,
     ) -> ComplexActivityEvidenceGateResult:
+        if replay is False:
+            raise M2108ReplayError("M21-08 replay verification cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M2108ReplayError("M21-08 result is invalid") from error
-        if validated.result_digest != result_payload_digest(validated):
-            raise M2108ReplayError("M21-08 result digest mismatch")
-        if replay:
+        try:
+            digest_matches = validated.result_digest == result_payload_digest(validated)
             expected = self.evaluate(validated.request)
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M2108ReplayError("M21-08 deterministic replay mismatch")
+            canonical_match = expected.model_dump(mode="json") == validated.model_dump(mode="json")
+        except Exception as error:
+            raise M2108ReplayError from error
+        if not digest_matches:
+            raise M2108ReplayError("M21-08 result digest mismatch")
+        if not canonical_match:
+            raise M2108ReplayError("M21-08 deterministic replay mismatch")
         return validated
 
 

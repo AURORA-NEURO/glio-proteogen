@@ -56,6 +56,10 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c21_reference_material.m21_08_evidence_gate_release_adjudicator import (
+    M2108Engine,
+    M2108ReplayError,
+)
 
 _SCHEMA_COUNT = 9
 
@@ -336,6 +340,16 @@ def _result(
     return ComplexActivityEvidenceGateResult(**payload)
 
 
+def _self_rehashed(
+    result: ComplexActivityEvidenceGateResult,
+    updates: dict[str, Any],
+) -> ComplexActivityEvidenceGateResult:
+    forged = result.model_copy(update=updates)
+    return type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+
 def test_schema_metadata_locks_authority_and_media_boundaries() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
@@ -410,6 +424,54 @@ def test_release_record_and_result_identifiers_evidence_and_replay_are_closed() 
     record["requirements"] = (_requirement(), _requirement())
     with pytest.raises(ValidationError, match="identifiers"):
         SignedReleaseRecord(**record)
+
+
+@pytest.mark.parametrize(
+    "region",
+    ["release_record", "support_decision", "provenance", "evidence", "limitations"],
+)
+def test_self_rehashed_release_evidence_regions_are_rejected_by_replay(region: str) -> None:
+    result = _result(_request())
+    if region == "release_record":
+        assert result.release_record is not None
+        updates: dict[str, Any] = {
+            "release_record": result.release_record.model_copy(
+                update={"signature_digest": sha256_digest("forged-release")}
+            )
+        }
+    elif region == "support_decision":
+        updates = {
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "Forged release approval."}
+            )
+        }
+    elif region == "provenance":
+        updates = {"provenance": result.provenance.model_copy(update={"actor_id": "actor.forged"})}
+    elif region == "evidence":
+        evidence = result.evidence[0].model_copy(update={"claim": "Forged evidence claim."})
+        updates = {"evidence": (evidence, *result.evidence[1:])}
+    else:
+        updates = {
+            "limitations": (
+                result.limitations[0].model_copy(update={"statement": "Forged limitation."}),
+                *result.limitations[1:],
+            )
+        }
+    forged = _self_rehashed(result, updates)
+    assert forged.result_digest == result_payload_digest(forged)
+    with pytest.raises(M2108ReplayError, match="replay"):
+        M2108Engine().verify(forged)
+
+
+def test_self_rehashed_request_and_disabled_replay_are_rejected() -> None:
+    request = _request()
+    result = _result(request)
+    changed_request = request.model_copy(update={"request_id": "request.m2108.forged"})
+    forged = _self_rehashed(result, {"request": changed_request})
+    with pytest.raises(M2108ReplayError, match="result is invalid"):
+        M2108Engine().verify(forged)
+    with pytest.raises(ValueError, match="cannot be disabled"):
+        M2108Engine().verify(result, replay=False)
 
 
 def test_abstained_result_requires_safe_status_and_no_release_record() -> None:

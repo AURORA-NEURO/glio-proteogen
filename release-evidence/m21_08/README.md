@@ -6,6 +6,12 @@ from the frozen evaluator and locked benchmark wrapper. `coverage.json`
 records branch-enabled scoped coverage. `package.json` records wheel/sdist
 hashes, sizes, member counts, and isolated import verification.
 
+Replay closure is mandatory: verification regenerates the complete result
+from its bound request and compares the canonical envelope. Digest-only
+verification cannot be selected (`replay=False` is rejected), and evaluator
+coverage includes self-rehashed mutations to release, support, provenance,
+evidence, and limitation regions.
+
 Authority: `sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181`,
 `GLIO-PROTEOGEN_240_Module_Dossier.md:7544-7584`.
 

@@ -1,10 +1,11 @@
 {
   "branch_enabled": true,
-  "coverage_percent": 95.20123839009288,
-  "covered_lines": 548,
-  "statements": 568,
+  "coverage_percent": 95.12937595129375,
+  "covered_lines": 557,
+  "statements": 579,
   "branches": 78,
-  "covered_branches": 67,
+  "covered_branches": 68,
   "fail_under_percent": 95.0,
-  "focused_tests": 34
+  "focused_tests": 40,
+  "scope": "M21-08 contract and production module source"
 }
