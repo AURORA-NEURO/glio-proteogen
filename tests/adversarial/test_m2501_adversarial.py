@@ -258,8 +258,10 @@ def test_replay_rejects_self_rehashed_semantic_regions() -> None:
     mutations: tuple[tuple[str, object], ...] = (
         (
             "limitations",
-            (result.limitations[0].model_copy(update={"statement": "forged limitation"}),)
-            + result.limitations[1:],
+            (
+                result.limitations[0].model_copy(update={"statement": "forged limitation"}),
+                *result.limitations[1:],
+            ),
         ),
         ("evidence", (evidence,)),
         ("provenance", provenance),
