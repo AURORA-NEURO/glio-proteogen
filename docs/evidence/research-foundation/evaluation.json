@@ -944,7 +944,7 @@
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "71f768371fce89eadb8d9fe5d17c9a30742c35fe75b3e79f1017c422d40b9249",
+        "result_digest": "4c7e21434a89ee9879c209d2ba1f9ec674d7995d0cb408738388b2afa063f708",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -962,6 +962,7 @@
               "f6a4c1072247cf32904b5055e17c1f56eef81b5b7b5ae39e0c5c61d411aec927",
               "e21c9665f19815811f8fe4e9c20f20dbe5b9f8fbf34abe9cf5d8712c34bc8a35"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "homogeneous",
@@ -1088,7 +1089,7 @@
               ]
             ]
           ],
-          "result_digest": "71f768371fce89eadb8d9fe5d17c9a30742c35fe75b3e79f1017c422d40b9249",
+          "result_digest": "4c7e21434a89ee9879c209d2ba1f9ec674d7995d0cb408738388b2afa063f708",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -1178,6 +1179,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -1215,7 +1217,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "bd3f3f70dd5a4b85f043eaa18c6d56773954fcfa32287e892d2d6533ad895f70",
+            "digest": "47fd3b89f5057e94164f994562ef3be2759fe5d6d692a6fff79a14c621b6ea5c",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1224,13 +1226,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 1,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 1.0,
-              "weighted_score": 1.0
+              "weighted_completeness": 0.75,
+              "weighted_score": 0.75
             },
             "records": [
+              {
+                "digest": "8e487a209e13c1370beeba11b418f9b2e963a42e8c9526a442f9cb73dca1405e",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 1,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "1c52c00616a5d40e8ae0efabb17a1dba67be0458927a332d9953c89ce63707b0",
                 "evidence_id": "cohort.matrix.v1",
@@ -1289,7 +1308,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "2bee91d78571dd4a7703c7892ce2bda9856197a8656f28c2f4f0fa9e303d9668",
+                "digest": "aad9349a25f6e900909554caecf9eee543f217f46b68365f22701e01551d0414",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -1298,6 +1317,7 @@
                       "f6a4c1072247cf32904b5055e17c1f56eef81b5b7b5ae39e0c5c61d411aec927",
                       "e21c9665f19815811f8fe4e9c20f20dbe5b9f8fbf34abe9cf5d8712c34bc8a35"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
                     "cohort_normalization_version": "none",
                     "cohort_provenance_policy": "homogeneous",
@@ -1540,7 +1560,7 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "fea7b54a9130386d97a1a8d0f07bbe570692d049f7bbdae23d86e299dd7e69f1",
+        "result_digest": "076610c99b107824fac1328ea11ede4e13aae4a98c209ab5a525f08fecc3447f",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -1558,6 +1578,7 @@
               "17022df5bc2c7e63c690a8e0055ac66c2d5ce08c391e18621f90403fa92036b1",
               "d326b6d0ed5ed972ee3860ec472fcfb2913adc442d7a0f4ecee376371c0bd1ad"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "homogeneous",
@@ -1684,7 +1705,7 @@
               ]
             ]
           ],
-          "result_digest": "fea7b54a9130386d97a1a8d0f07bbe570692d049f7bbdae23d86e299dd7e69f1",
+          "result_digest": "076610c99b107824fac1328ea11ede4e13aae4a98c209ab5a525f08fecc3447f",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1774,6 +1795,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -1811,7 +1833,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "87f179f81295db49b7ed217d90de00b1d169f3d997d782c2678aaf4ea832d7ec",
+            "digest": "308c135b53c966eebdec32fbe89926190fad4cfecf9ccf22f2b0eb90bfaa466f",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1820,13 +1842,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 2,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 0.8333333333333334,
-              "weighted_score": 0.8333333333333334
+              "weighted_completeness": 0.625,
+              "weighted_score": 0.625
             },
             "records": [
+              {
+                "digest": "27174b67461794b014fd562be416c0a6d719a1a753768ebed20724f06bb5eddd",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 2,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "eea891d2bd2efb59ffc81258f6dae81315c02194b0fdb0524d99f51233c33f0e",
                 "evidence_id": "cohort.matrix.v1",
@@ -1885,7 +1924,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "674d32266c5fb8aebc554919bf6bcc0456ddcaf093cf83dba4bbee532c1f3bba",
+                "digest": "f6b338ab2daa5a2d53337cf11ec0f206c03cd922622a90ecab8440a522b18407",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -1894,6 +1933,7 @@
                       "17022df5bc2c7e63c690a8e0055ac66c2d5ce08c391e18621f90403fa92036b1",
                       "d326b6d0ed5ed972ee3860ec472fcfb2913adc442d7a0f4ecee376371c0bd1ad"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
                     "cohort_normalization_version": "none",
                     "cohort_provenance_policy": "homogeneous",
@@ -2136,7 +2176,7 @@
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "971cf4c09a081ee0c04ead32cfc93957e68a9935c8f8e914aeed53459ad0242b",
+        "result_digest": "0aa04c0a1db55c3509b1e766ce0d124a21c893cd28f5baa7099ac6236d8f6cc7",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -2154,6 +2194,7 @@
               "4d0e49d2199b700663284ed4c19d00b31c649eef48d08ccaf26d367d7020e8bc",
               "ddf8944cf97094ce532c9b882e4372819abc32cb290ed16e8cf5ba14f560f327"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "homogeneous",
@@ -2280,7 +2321,7 @@
               ]
             ]
           ],
-          "result_digest": "971cf4c09a081ee0c04ead32cfc93957e68a9935c8f8e914aeed53459ad0242b",
+          "result_digest": "0aa04c0a1db55c3509b1e766ce0d124a21c893cd28f5baa7099ac6236d8f6cc7",
           "sample_ids": [
             "absent",
             "present"
@@ -2370,6 +2411,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -2407,7 +2449,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "93325e95ce8ba4fbe4b16cf48fa6ade44a44573585b36f95902e0beada8a5ce1",
+            "digest": "5dccb3c308f945800ad7305e080a353e408d5b34b32be6e439c075675924f5cc",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -2416,13 +2458,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 2,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 0.8333333333333334,
-              "weighted_score": 0.8333333333333334
+              "weighted_completeness": 0.625,
+              "weighted_score": 0.625
             },
             "records": [
+              {
+                "digest": "27174b67461794b014fd562be416c0a6d719a1a753768ebed20724f06bb5eddd",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 2,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "e446b96874e86b36d19e450008ba22384d090dfca2c3ad03465eb330ea151de3",
                 "evidence_id": "cohort.matrix.v1",
@@ -2481,7 +2540,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "614cee2f27e4bb4ed06dd6e565667e9232d2ac48814a986060a491cbeb00373e",
+                "digest": "9133abfa7032879ac67f430dd62ee8a6d659e11440c30c54d5a34f6e0c2f7025",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -2490,6 +2549,7 @@
                       "4d0e49d2199b700663284ed4c19d00b31c649eef48d08ccaf26d367d7020e8bc",
                       "ddf8944cf97094ce532c9b882e4372819abc32cb290ed16e8cf5ba14f560f327"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
                     "cohort_normalization_version": "none",
                     "cohort_provenance_policy": "homogeneous",
@@ -2732,7 +2792,7 @@
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "f0520c3f41a78fccb2ca6d3868115b5d7dcf37f0eaf878183873be036ffcae63",
+        "result_digest": "426b7a82585e08689aaf08a800c4891ec47ba6a85b0e2bf4d4e62a39b9225982",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -2760,6 +2820,7 @@
               "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
               "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
             "cohort_provenance_policy": "homogeneous",
@@ -2992,7 +3053,7 @@
               ]
             ]
           ],
-          "result_digest": "f0520c3f41a78fccb2ca6d3868115b5d7dcf37f0eaf878183873be036ffcae63",
+          "result_digest": "426b7a82585e08689aaf08a800c4891ec47ba6a85b0e2bf4d4e62a39b9225982",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -3187,6 +3248,46 @@
               "independent_observed_replicates": 2
             }
           ],
+          "label_contrasts": [
+            {
+              "cohort_label_a": "case",
+              "cohort_label_b": "control",
+              "group_accessions": [
+                "P1"
+              ],
+              "label_a_median": 15.0,
+              "label_a_missingness_rate": 0.0,
+              "label_a_observed_replicates": 2,
+              "label_a_status": "descriptive",
+              "label_b_median": 150.0,
+              "label_b_missingness_rate": 0.0,
+              "label_b_observed_replicates": 2,
+              "label_b_status": "descriptive",
+              "log2_median_ratio": -3.321928094887362,
+              "median_difference": -135.0,
+              "median_ratio": 0.1,
+              "status": "descriptive"
+            },
+            {
+              "cohort_label_a": "case",
+              "cohort_label_b": "control",
+              "group_accessions": [
+                "P2"
+              ],
+              "label_a_median": 45.0,
+              "label_a_missingness_rate": 0.0,
+              "label_a_observed_replicates": 2,
+              "label_a_status": "descriptive",
+              "label_b_median": 450.0,
+              "label_b_missingness_rate": 0.0,
+              "label_b_observed_replicates": 2,
+              "label_b_status": "descriptive",
+              "log2_median_ratio": -3.321928094887362,
+              "median_difference": -405.0,
+              "median_ratio": 0.1,
+              "status": "descriptive"
+            }
+          ],
           "source_manifest": {
             "bindings": [
               {
@@ -3256,7 +3357,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "5bc0db6ff8ee3cebc449517cbdbe02f4ef915e522f614ad617803377ae0edfe3",
+            "digest": "03146e1d1bd45be679df8854f7b8b60fc3bb6f4664321f0d4de6be8270926db7",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -3265,13 +3366,69 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 4,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
               "weighted_completeness": 1.0,
               "weighted_score": 1.0
             },
             "records": [
+              {
+                "digest": "e53186a247952da749a4dc6071a1ba85003e4229da076c8cea9802121c442185",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [
+                    {
+                      "cohort_label_a": "case",
+                      "cohort_label_b": "control",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "label_a_median": 15.0,
+                      "label_a_missingness_rate": 0.0,
+                      "label_a_observed_replicates": 2,
+                      "label_a_status": "descriptive",
+                      "label_b_median": 150.0,
+                      "label_b_missingness_rate": 0.0,
+                      "label_b_observed_replicates": 2,
+                      "label_b_status": "descriptive",
+                      "log2_median_ratio": -3.321928094887362,
+                      "median_difference": -135.0,
+                      "median_ratio": 0.1,
+                      "status": "descriptive"
+                    },
+                    {
+                      "cohort_label_a": "case",
+                      "cohort_label_b": "control",
+                      "group_accessions": [
+                        "P2"
+                      ],
+                      "label_a_median": 45.0,
+                      "label_a_missingness_rate": 0.0,
+                      "label_a_observed_replicates": 2,
+                      "label_a_status": "descriptive",
+                      "label_b_median": 450.0,
+                      "label_b_missingness_rate": 0.0,
+                      "label_b_observed_replicates": 2,
+                      "label_b_status": "descriptive",
+                      "log2_median_ratio": -3.321928094887362,
+                      "median_difference": -405.0,
+                      "median_ratio": 0.1,
+                      "status": "descriptive"
+                    }
+                  ],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 1.0,
+                  "independent_sources": 4,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "085fe1af3accb3686ae693ac9259c058163001b85f59e2225aa9e9ccbe8c3355",
                 "evidence_id": "cohort.matrix.v1",
@@ -3374,7 +3531,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "a7b2d283ee076922280ad995cf6607a05a6781dc615b8ff6a1cc12d7573050e9",
+                "digest": "f2e3c6f43efef04ea328e91124ac58e360cdbbb0521ecc5abb7c3acff40551a5",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -3385,6 +3542,7 @@
                       "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd",
                       "8b516f03986e2ec2c8fac8691b4b85b364f7c4dd09db1570ee84a6e82fc4efcd"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
                     "cohort_normalization_version": "within-label-median-v1",
                     "cohort_provenance_policy": "homogeneous",
@@ -3833,7 +3991,7 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "8a3e38b5139277c02ba04fa7fcf910204eda8cb939e9ed1fe37efe9d0016f1dc",
+        "result_digest": "012cdf115722804816b8e0a6fc90be460e6359aa6d9d0bf43328c6fac6797d6d",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -3851,6 +4009,7 @@
               "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
               "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
             "cohort_provenance_policy": "homogeneous",
@@ -3977,7 +4136,7 @@
               ]
             ]
           ],
-          "result_digest": "8a3e38b5139277c02ba04fa7fcf910204eda8cb939e9ed1fe37efe9d0016f1dc",
+          "result_digest": "012cdf115722804816b8e0a6fc90be460e6359aa6d9d0bf43328c6fac6797d6d",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -4067,6 +4226,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -4104,7 +4264,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "95f99ce8943b29804415311142b3f1db1e792130944e0733357522e28d280739",
+            "digest": "6b2f4e0dded0261d2c574ff86c09ffed7d4f3b55f7df8b682bb2721503300e34",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -4113,13 +4273,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 1,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 1.0,
-              "weighted_score": 1.0
+              "weighted_completeness": 0.75,
+              "weighted_score": 0.75
             },
             "records": [
+              {
+                "digest": "8e487a209e13c1370beeba11b418f9b2e963a42e8c9526a442f9cb73dca1405e",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 1,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "1caa108dcbb845d6ddc702ae540cfe3552e9d2eac799284580a5cf67a3eabcf1",
                 "evidence_id": "cohort.matrix.v1",
@@ -4178,7 +4355,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "164ec31a02c094753503bf584ce610b677b8fc747730818aa19c220f8920c62b",
+                "digest": "374e7c9d2c9f0680764f82c8074de830b2d8608823743802986db1ea4dcdb46c",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -4187,6 +4364,7 @@
                       "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
                       "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
                     "cohort_normalization_version": "within-label-median-v1",
                     "cohort_provenance_policy": "homogeneous",
@@ -4429,7 +4607,7 @@
       {
         "id": "unknown_independence_abstention",
         "passed": true,
-        "result_digest": "7cb446aea6a017df2b1a85c07aa535e4ec9d94c8f3e959e96f1e2fa40ef8cca5",
+        "result_digest": "cf56f002412608a4c96aae8b0f0ff28701d30238a0dd1b4b183184198169dbbe",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -4447,6 +4625,7 @@
               "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
               "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
             "cohort_provenance_policy": "homogeneous",
@@ -4573,7 +4752,7 @@
               ]
             ]
           ],
-          "result_digest": "7cb446aea6a017df2b1a85c07aa535e4ec9d94c8f3e959e96f1e2fa40ef8cca5",
+          "result_digest": "cf56f002412608a4c96aae8b0f0ff28701d30238a0dd1b4b183184198169dbbe",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -4663,6 +4842,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -4700,7 +4880,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "cf362845aa57cca0bcd51c65129d1254f139a447824d809d536a38da21433759",
+            "digest": "fa04e78335c2350c40ade4646b11888fb3a6137bea750a951b83eb158fde3426",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -4709,13 +4889,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 1,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 1.0,
-              "weighted_score": 1.0
+              "weighted_completeness": 0.75,
+              "weighted_score": 0.75
             },
             "records": [
+              {
+                "digest": "8e487a209e13c1370beeba11b418f9b2e963a42e8c9526a442f9cb73dca1405e",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 1,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "1caa108dcbb845d6ddc702ae540cfe3552e9d2eac799284580a5cf67a3eabcf1",
                 "evidence_id": "cohort.matrix.v1",
@@ -4774,7 +4971,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "121cfc5d9ea7c0c880620314a93200a612060f7dff24e5524a1ce886048e96be",
+                "digest": "2ff41a4a0c824eddb3296104ea147aecd43bd82ea67e3c785cee175e7fed1e88",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -4783,6 +4980,7 @@
                       "5c819fe352139ab4189195c191ddadddf4eb92810805419a812a67d0d7ca95b0",
                       "2aee27cfa346b6c332fd2ddb99430bb664ae72852cf1e534a6fdfabcac30ec1f"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "within_label_median_v1",
                     "cohort_normalization_version": "within-label-median-v1",
                     "cohort_provenance_policy": "homogeneous",
@@ -5032,7 +5230,7 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "9bcff93a5bb894ba5cd3d4585fc4ebe55a342aab817c126a15068efa64c4ed67",
+        "result_digest": "86b0210a6ccf1f2335996ed410a7607d71d5f5b0bfef8844216c60a6a5b4d3e8",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -5050,6 +5248,7 @@
               "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
               "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
             ],
+            "cohort_contrast_version": "caller-label-median-contrast-v1",
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
             "cohort_provenance_policy": "external_same_study",
@@ -5300,7 +5499,7 @@
               ]
             ]
           ],
-          "result_digest": "9bcff93a5bb894ba5cd3d4585fc4ebe55a342aab817c126a15068efa64c4ed67",
+          "result_digest": "86b0210a6ccf1f2335996ed410a7607d71d5f5b0bfef8844216c60a6a5b4d3e8",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -5390,6 +5589,7 @@
               "independent_observed_replicates": 0
             }
           ],
+          "label_contrasts": [],
           "source_manifest": {
             "bindings": [
               {
@@ -5427,7 +5627,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "13d721c0ed1e6d96848731ba5ccad11ed32a09d31eed3de0fb78bf85591367de",
+            "digest": "4303d4b88437bf85ec704d61b132cebf6d3c373b5503156a0f4c4fde40fd5d46",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -5436,13 +5636,30 @@
             "quality_summary": {
               "abstained_records": 0,
               "independent_sources": 1,
-              "scored_records": 3,
+              "scored_records": 4,
               "ungraded_records": 0,
               "weighted_auditability": 1.0,
-              "weighted_completeness": 1.0,
-              "weighted_score": 1.0
+              "weighted_completeness": 0.75,
+              "weighted_score": 0.75
             },
             "records": [
+              {
+                "digest": "8e487a209e13c1370beeba11b418f9b2e963a42e8c9526a442f9cb73dca1405e",
+                "evidence_id": "cohort.contrast.v1",
+                "kind": "descriptive_label_contrast",
+                "payload": {
+                  "contrasts": [],
+                  "policy": "caller-label-median-difference-ratio-log2-v1-no-imputation"
+                },
+                "quality": {
+                  "auditability": 1.0,
+                  "basis": "caller_label_descriptive_median_contrasts_no_imputation",
+                  "completeness": 0.0,
+                  "independent_sources": 1,
+                  "status": "computed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
               {
                 "digest": "cf363411b547689adb28eb8f4a8c2a5b5c000896c3b5303c0b856456f37295b2",
                 "evidence_id": "cohort.matrix.v1",
@@ -5501,7 +5718,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "526aa7ccc9b3cb85b1de1bde2ab36d27fdd70be929e6e8f176fed7105b40b0fb",
+                "digest": "c2112ccf57443c8ac52ddbd7b3f78f227978226b9039245f9af1237d2bb40d90",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
@@ -5510,6 +5727,7 @@
                       "f0f60a844bf71ae6e93d1cf8823db358cc68b915c93c48b5abf8c00d88afc769",
                       "7a709d29cdc8e13ed584972b216a7f42819f378094db5a82e3f76731add5fc51"
                     ],
+                    "cohort_contrast_version": "caller-label-median-contrast-v1",
                     "cohort_normalization_policy": "none",
                     "cohort_normalization_version": "none",
                     "cohort_provenance_policy": "external_same_study",
@@ -5886,20 +6104,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      636300,
-      783700,
-      745900,
-      649300,
-      706500,
-      626500,
-      614100,
-      601700,
-      780500,
-      680700
+      638900,
+      795400,
+      791100,
+      670900,
+      643700,
+      705500,
+      610700,
+      733800,
+      711700,
+      664600
     ],
-    "mean_ns": 682520.0,
-    "median_ns": 680700,
-    "p95_ns": 783700,
+    "mean_ns": 696630.0,
+    "median_ns": 705500,
+    "p95_ns": 795400,
     "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
   },
   "coverage": {
