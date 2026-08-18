@@ -1864,6 +1864,11 @@ def expected_provenance(
                 *((profile_digest(profile),) if profile is not None else ()),
                 *(item.reference.digest for item in evidence),
                 *(item.evidence_digest for item in controls),
+                *(
+                    (request.supersedes_result_digest,)
+                    if request.supersedes_result_digest is not None
+                    else ()
+                ),
             }
         )
     )

@@ -1724,10 +1724,14 @@ def _interface_recovery_evidence_checks(scenario: Scenario) -> list[EvalCheck]:
             passed=(
                 superseding_request.supersedes_result_digest == library.result_digest
                 and superseding_result.result_digest != library.result_digest
+                and library.result_digest in superseding_result.provenance.input_digests
                 and library.request.supersedes_result_digest is None
                 and library == compute_protein_inference_quality(request)
             ),
-            detail=(f"prior={library.result_digest};new={superseding_result.result_digest}"),
+            detail=(
+                f"prior={library.result_digest};new={superseding_result.result_digest};"
+                f"bound={library.result_digest in superseding_result.provenance.input_digests}"
+            ),
         ),
         _scenario_check(
             "evidence_artifacts_and_benchmark_time_only_public_m0304_operation",
