@@ -16,8 +16,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m14_04 import (
     M1404_MAX_CANONICAL_REQUEST_BYTES,
+    M1404_MAX_CANONICAL_RESULT_BYTES,
     InferProteinSubtypeMechanismRequest,
     ProteinSubtypeMechanismInferenceResult,
     contract_json_schema,
@@ -99,7 +101,7 @@ async def verify(request: Request) -> JSONResponse:
         raise _json_error(415, "content-type must be application/json")
     try:
         body = await request.body()
-        strict_json_loads(body, max_bytes=M1404_MAX_CANONICAL_REQUEST_BYTES * 2)
+        strict_json_loads(body, max_bytes=M1404_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(body, strict=True)
         verified = _SERVICE.verify(result)
     except (StrictJsonError, ValidationError, M1404ReplayVerificationError) as error:
@@ -109,12 +111,22 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> InferProteinSubtypeMechanismRequest:
     try:
-        raw = path.read_bytes()
+        raw = read_bounded(path, M1404_MAX_CANONICAL_REQUEST_BYTES)
         decoded = strict_json_loads(raw, max_bytes=M1404_MAX_CANONICAL_REQUEST_BYTES)
         preflight_mechanism_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(raw, strict=True)
-    except (OSError, StrictJsonError, ValidationError, M1404MechanismAuthorizationError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        M1404MechanismAuthorizationError,
+    ) as error:
         raise typer.BadParameter(_INVALID_REQUEST) from error
+
+
+def _read_result(path: Path) -> bytes:
+    return read_bounded(path, M1404_MAX_CANONICAL_RESULT_BYTES)
 
 
 @m1404_app.command("export-schema")
@@ -153,11 +165,17 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        raw = result_path.read_bytes()
+        raw = _read_result(result_path)
         strict_json_loads(raw, max_bytes=M1404_MAX_CANONICAL_REQUEST_BYTES * 2)
         result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.verify(result)
-    except (OSError, StrictJsonError, ValidationError, M1404ReplayVerificationError) as error:
+    except (
+        OSError,
+        RequestBodyTooLargeError,
+        StrictJsonError,
+        ValidationError,
+        M1404ReplayVerificationError,
+    ) as error:
         typer.echo("verification failed: M14-04 result is invalid", err=True)
         raise typer.Exit(code=1) from error
     typer.echo(canonical_json_bytes(verified).decode("utf-8"))
