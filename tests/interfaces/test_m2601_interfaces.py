@@ -9,6 +9,10 @@ from typing import TYPE_CHECKING
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_01 import (
+    M2601_MAX_CANONICAL_REQUEST_BYTES,
+    M2601_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.modules.c20_biomarker_panel.m26_01_registry_configuration_service import (
     api as m2601_api,
 )
@@ -18,6 +22,8 @@ from glio_proteogen.modules.c20_biomarker_panel.m26_01_registry_configuration_se
 from tests.contract.test_m2601_deep import _request
 
 if TYPE_CHECKING:
+    import pytest
+
     from pathlib import Path
 
 _SCHEMA_COUNT = 8
@@ -56,7 +62,7 @@ def test_fastapi_sanitizes_invalid_and_nonobject_replay() -> None:
 
     nonobject = client.post("/v1/modules/M26-01/verify", content=b"[]")
     assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert "request JSON must be an object" in nonobject.text
+    assert "replay envelope JSON must be an object" in nonobject.text
 
 
 def test_typer_round_trip_schema_register_verify_and_no_overwrite(tmp_path: Path) -> None:
@@ -98,3 +104,42 @@ def test_typer_sanitizes_unknown_schema_and_malformed_input(tmp_path: Path) -> N
     response = runner.invoke(m2601_cli.app, ["validate", str(malformed)])
     assert response.exit_code != 0
     assert "strict M26-01 request contract" in response.output
+
+
+def test_interfaces_reject_oversized_request_and_result_before_parse(tmp_path: Path) -> None:
+    request_path = tmp_path / "oversized-request.json"
+    result_path = tmp_path / "oversized-result.json"
+    request_path.write_bytes(b"{" + b"a" * M2601_MAX_CANONICAL_REQUEST_BYTES + b"}")
+    result_path.write_bytes(b"{" + b"a" * M2601_MAX_CANONICAL_RESULT_BYTES + b"}")
+
+    runner = CliRunner()
+    request_response = runner.invoke(m2601_cli.app, ["validate", str(request_path)])
+    result_response = runner.invoke(m2601_cli.app, ["verify", str(result_path)])
+    assert request_response.exit_code != 0
+    assert result_response.exit_code != 0
+    assert "strict M26-01 request contract" in request_response.output
+    assert "valid M26-01 result" in result_response.output
+    assert "Traceback" not in request_response.output + result_response.output
+
+    client = TestClient(m2601_api.create_app())
+    oversized = b"{" + b"a" * M2601_MAX_CANONICAL_RESULT_BYTES + b"}"
+    api_response = client.post("/v1/modules/M26-01/verify", content=oversized)
+    assert api_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "replay envelope JSON is invalid" in api_response.text
+    assert "StrictJsonError" not in api_response.text
+
+
+def test_api_verify_parser_uses_result_ceiling(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: list[int] = []
+
+    def capture(body: bytes, *, max_bytes: int) -> dict[str, object]:
+        del body
+        observed.append(max_bytes)
+        return {}
+
+    monkeypatch.setattr(m2601_api, "strict_json_loads", capture)
+    response = TestClient(m2601_api.create_app()).post(
+        "/v1/modules/M26-01/verify", content=b"{}"
+    )
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert observed == [M2601_MAX_CANONICAL_RESULT_BYTES]
