@@ -20,11 +20,13 @@ from glio_proteogen.contracts.m21_01 import (
     ReferenceKind,
     ReferenceTruthPackage,
     package_lock_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material.m21_01_reference_truth_benchmark_curator import (
     M2101AuthorizationError,
     M2101Plugin,
+    M2101ReplayError,
     M2101Service,
     ReferenceTruthSubmission,
     cli_app,
@@ -310,6 +312,18 @@ def test_result_digest_tamper_is_rejected() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     with pytest.raises(ValidationError, match="result digest"):
         ComplexActivityReferenceTruthResult(**cast("Any", tampered.model_dump(mode="python")))
+
+
+def test_replay_rejects_self_rehashed_reference_evidence_forgery() -> None:
+    result = M2101Service().execute(build_request())
+    evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+    forged = result.model_copy(update={"evidence": (evidence, *result.evidence[1:])})
+    forged = ComplexActivityReferenceTruthResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+    with pytest.raises(M2101ReplayError):
+        M2101Service().verify_replay(forged)
 
 
 def test_plugin_rejects_unwrapped_request_and_bad_json() -> None:
