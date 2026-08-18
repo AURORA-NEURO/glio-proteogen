@@ -251,7 +251,7 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
         )
         for item in locked
     )
-    if declared != observed or fixture["fixture_version"] != "research-proteomics-2":
+    if declared != observed or fixture["fixture_version"] != "research-proteomics-3":
         raise ValueError
     if any(bool(value) for value in fixture["claims"].values()):
         raise ValueError
