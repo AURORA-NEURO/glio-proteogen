@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m19_04 import (
     M1904_CONTRACT_VERSION,
     M1904_EVIDENCE_CLAIM,
     M1904_MODULE_ID,
+    M1904_PROHIBITED_CLAIM_TERMS,
     AdapterFinding,
     AdapterFindingCode,
     AdapterStatus,
@@ -68,9 +69,7 @@ _REQUIRED_DISPLAY_SECTIONS: Final = frozenset(
 _TREATMENT_TERMS: Final = frozenset(
     {"treatment", "therapy", "therapeutic", "recommendation", "clinical recommendation"}
 )
-_FORBIDDEN_CLAIM_TERMS: Final = frozenset(
-    {"kinase", "all-omics", "identity inference", "direct treatment"}
-)
+_FORBIDDEN_CLAIM_TERMS: Final = frozenset(M1904_PROHIBITED_CLAIM_TERMS)
 
 
 class M1904AuthorizationError(ValueError):
@@ -205,6 +204,23 @@ def _evidence(request: AdaptProteotypeIntendedUseRequest) -> tuple[EvidenceRefer
     )
 
 
+def _claim_texts(request: AdaptProteotypeIntendedUseRequest) -> tuple[str, ...]:
+    """Collect caller-controlled claim and disclosure text before policy evaluation."""
+
+    ceiling = request.registration.claim_ceiling
+    display = request.registration.display_semantics
+    texts = [
+        request.registration.audience,
+        ceiling.maximum_claim,
+        ceiling.rationale,
+        *(item.claim for item in ceiling.evidence),
+        display.safe_default,
+        *(item.claim for item in display.evidence),
+        *(item.claim for item in request.registration.evidence),
+    ]
+    return tuple(text.casefold() for text in texts)
+
+
 def _limitations() -> tuple[Limitation, ...]:
     return (
         Limitation(
@@ -231,7 +247,7 @@ def _policy_decision(
     registration = request.registration
     # Prohibited interpretations are the caller-declared safety ceiling; their
     # presence is evidence of a boundary, not a claim being requested.
-    claim_text = registration.claim_ceiling.maximum_claim.lower()
+    claim_texts = _claim_texts(request)
     findings: list[AdapterFinding] = []
     blocked_claims: list[str] = []
     if registration.audience.lower() not in _SUPPORTED_AUDIENCES:
@@ -264,7 +280,9 @@ def _policy_decision(
             )
         )
         blocked_claims.append("display semantics")
-    treatment_terms = sorted(term for term in _TREATMENT_TERMS if term in claim_text)
+    treatment_terms = sorted(
+        term for term in _TREATMENT_TERMS if any(term in text for text in claim_texts)
+    )
     if treatment_terms:
         findings.append(
             AdapterFinding(
@@ -274,7 +292,9 @@ def _policy_decision(
             )
         )
         blocked_claims.extend(treatment_terms)
-    forbidden_terms = sorted(term for term in _FORBIDDEN_CLAIM_TERMS if term in claim_text)
+    forbidden_terms = sorted(
+        term for term in _FORBIDDEN_CLAIM_TERMS if any(term in text for text in claim_texts)
+    )
     if forbidden_terms:
         findings.append(
             AdapterFinding(
