@@ -1,11 +1,12 @@
-"""Architecture-level firewall for governed M03/M04/M05 surfaces.
+"""Architecture-level firewall for governed C03/C04/C05 surfaces.
 
 The research package is intentionally additive and non-governed.  The frozen
-M03/M04/M05 contracts must therefore remain unable to import or expose it by
-accident, even as the central adapters grow.  These checks inspect the source
-graph and the assembled transports rather than relying only on individual
-module tests; a copied route or a new import is consequently visible at the
-boundary where it would become public.
+M03/M04/M05 contracts and their C03/C04/C05 implementation families must
+therefore remain unable to import or expose it by accident, even as the
+central adapters grow.  These checks inspect the source graph and the
+assembled transports rather than relying only on individual module tests; a
+copied route, a new import, or a nested CLI registration is consequently
+visible at the boundary where it would become public.
 """
 
 from __future__ import annotations
@@ -34,42 +35,83 @@ pytestmark = pytest.mark.contract
 _REPO_ROOT: Final = Path(__file__).resolve().parents[2]
 _SOURCE_ROOT: Final = _REPO_ROOT / "src" / "glio_proteogen"
 _RESEARCH_NAMESPACE: Final = "glio_proteogen.research"
-_GOVERNED_COMPONENTS: Final = ("contracts", "modules")
-_FROZEN_MODULES: Final = {
-    *(f"M03-{index:02d}" for index in range(1, 9)),
-    *(f"M04-{index:02d}" for index in range(1, 9)),
-    *(f"M05-{index:02d}" for index in range(1, 6)),
-}
+_GOVERNED_FAMILY_GLOBS: Final = (
+    "modules/c03_*",
+    "modules/c04_*",
+    "modules/c05_*",
+    "contracts/m03_*",
+    "contracts/m04_*",
+    "contracts/m05_*",
+)
 _FROZEN_MANIFEST_MODULES: Final = {
     *(f"M03-{index:02d}" for index in range(1, 9)),
     *(f"M04-{index:02d}" for index in range(1, 9)),
     *(f"M05-{index:02d}" for index in range(1, 5)),
 }
-_RESEARCH_ROUTE_TOKENS: Final = (
+_RESEARCH_CAPABILITY_MARKERS: Final = (
     "/research",
+    "research",
     "spectrum",
     "mzml",
     "psm",
     "fdr",
+    "q-value",
+    "qvalue",
     "quantification",
     "protein-groups",
+    "protein_groups",
+    "peptide-spectrum",
+    "target-decoy",
+    "target_decoy",
     "cohort",
 )
 
 
 def _governed_python_files() -> Iterator[Path]:
-    """Yield every frozen M03/M04/M05 source file, including nested helpers."""
+    """Yield every tracked C03/C04/C05 source file, including nested helpers.
 
-    for component in _GOVERNED_COMPONENTS:
-        component_root = _SOURCE_ROOT / component
-        for module_path in component_root.glob("m??_??"):
-            module_id = module_path.name.upper().replace("_", "-")
-            if module_id in _FROZEN_MODULES:
-                yield from module_path.rglob("*.py")
+    The previous guard discovered only ``contracts/m03_01``-style folders and
+    silently missed the implementation families, which live below
+    ``modules/c03_*``.  Keep the inventory explicit and deterministic so a
+    newly added family cannot fall outside the AST firewall unnoticed.
+    """
+
+    paths: set[Path] = set()
+    for pattern in _GOVERNED_FAMILY_GLOBS:
+        for family_root in _SOURCE_ROOT.glob(pattern):
+            if family_root.is_dir():
+                paths.update(family_root.rglob("*.py"))
 
     # Central adapters are governed transport composition, not research code.
-    yield _SOURCE_ROOT / "adapters" / "api.py"
-    yield _SOURCE_ROOT / "adapters" / "cli.py"
+    paths.update(
+        {
+            _SOURCE_ROOT / "adapters" / "api.py",
+            _SOURCE_ROOT / "adapters" / "cli.py",
+        }
+    )
+    yield from sorted(paths)
+
+
+def _family_roots() -> tuple[Path, ...]:
+    """Return the implementation families covered by the source inventory."""
+
+    return tuple(
+        sorted(
+            family_root
+            for pattern in _GOVERNED_FAMILY_GLOBS[:3]
+            for family_root in _SOURCE_ROOT.glob(pattern)
+            if family_root.is_dir()
+        )
+    )
+
+
+@pytest.mark.contract
+def test_governed_family_inventory_is_complete() -> None:
+    """The firewall must see all three governed implementation families."""
+
+    family_roots = _family_roots()
+    assert tuple(path.name[:3] for path in family_roots) == ("c03", "c04", "c05")
+    assert all(tuple(path.rglob("*.py")) for path in family_roots)
 
 
 def _import_targets(tree: ast.AST) -> Iterator[tuple[str, int]]:
@@ -98,17 +140,25 @@ def _callback_module(callback: object) -> str | None:
 
 
 def _registered_cli_callbacks() -> Iterator[tuple[str, object]]:
-    for command in cli_app.registered_commands:
-        if command.callback is not None:
-            yield command.name or "<root>", command.callback
-    for group in cli_app.registered_groups:
-        typer_app = group.typer_instance
-        if typer_app is None:
-            continue
-        for command in typer_app.registered_commands:
-            if command.callback is not None:
-                name = f"{group.name or '<group>'} {command.name or '<root>'}"
-                yield name, command.callback
+    """Walk all Typer nesting levels, including future nested sub-groups."""
+
+    def walk(typer_app: object, prefix: str, seen: set[int]) -> Iterator[tuple[str, object]]:
+        app_id = id(typer_app)
+        if app_id in seen:
+            return
+        seen.add(app_id)
+        for command in getattr(typer_app, "registered_commands", ()):
+            callback = getattr(command, "callback", None)
+            if callback is not None:
+                name = getattr(command, "name", None) or "<root>"
+                yield f"{prefix} {name}".strip(), callback
+        for group in getattr(typer_app, "registered_groups", ()):
+            child = getattr(group, "typer_instance", None)
+            if child is not None:
+                name = getattr(group, "name", None) or "<group>"
+                yield from walk(child, f"{prefix} {name}".strip(), seen)
+
+    yield from walk(cli_app, "", set())
 
 
 @pytest.mark.contract
@@ -122,10 +172,10 @@ def test_central_cli_has_no_research_execution_or_research_owned_callbacks() -> 
         assert module is not None, (name, module)
         assert module.startswith("glio_proteogen.adapters."), (name, module)
         assert not module.startswith(_RESEARCH_NAMESPACE), (name, module)
-        assert not any(token in name.lower() for token in _RESEARCH_ROUTE_TOKENS), name
+        assert not any(token in name.lower() for token in _RESEARCH_CAPABILITY_MARKERS), name
 
 
-def _route_inventory() -> tuple[tuple[str, str, str], ...]:
+def _route_inventory() -> tuple[tuple[str, str, str, str], ...]:
     with (
         TemporaryDirectory(prefix="glio-governed-firewall-") as temporary,
         TestClient(create_app(Path(temporary) / "events.sqlite")) as client,
@@ -138,7 +188,14 @@ def _route_inventory() -> tuple[tuple[str, str, str], ...]:
             if not isinstance(path, str) or endpoint is None:
                 continue
             methods = ",".join(sorted(getattr(route, "methods", ())))
-            routes.append((path, methods, _callback_module(endpoint) or ""))
+            routes.append(
+                (
+                    path,
+                    methods,
+                    _callback_module(endpoint) or "",
+                    getattr(endpoint, "__qualname__", getattr(endpoint, "__name__", "")),
+                )
+            )
         return tuple(routes)
 
 
@@ -148,14 +205,45 @@ def test_central_api_route_inventory_has_no_research_execution_surface() -> None
 
     routes = _route_inventory()
     assert routes, "central API route inventory unexpectedly empty"
-    for path, methods, module in routes:
-        normalized = path.lower()
-        assert not any(token in normalized for token in _RESEARCH_ROUTE_TOKENS), (
+    for path, methods, module, qualname in routes:
+        public_metadata = f"{path} {methods} {module} {qualname}".lower()
+        assert not any(token in public_metadata for token in _RESEARCH_CAPABILITY_MARKERS), (
             path,
             methods,
+            module,
+            qualname,
         )
         if module.startswith("glio_proteogen"):
             assert module == "glio_proteogen.adapters.api", (path, module)
+
+
+@pytest.mark.contract
+def test_central_openapi_inventory_has_no_research_capability_aliases() -> None:
+    """Operation IDs and summaries cannot smuggle research execution public."""
+
+    with (
+        TemporaryDirectory(prefix="glio-governed-firewall-openapi-") as temporary,
+        TestClient(create_app(Path(temporary) / "events.sqlite")) as client,
+    ):
+        document = client.get("/openapi.json").json()
+    paths = document.get("paths")
+    assert isinstance(paths, dict)
+    assert paths
+    exposed: list[str] = []
+    for path, operations in paths.items():
+        if not isinstance(operations, dict):
+            continue
+        for method, operation in operations.items():
+            if not isinstance(operation, dict):
+                continue
+            metadata = " ".join(
+                str(operation.get(field, ""))
+                for field in ("operationId", "summary", "description", "tags")
+            )
+            haystack = f"{path} {method} {metadata}".lower()
+            if any(marker in haystack for marker in _RESEARCH_CAPABILITY_MARKERS):
+                exposed.append(haystack)
+    assert not exposed, "research capability leaked into OpenAPI inventory: " + "; ".join(exposed)
 
 
 @pytest.mark.contract
