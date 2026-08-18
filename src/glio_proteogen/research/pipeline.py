@@ -738,7 +738,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         evidence_records.append(
             EvidenceRecord.create(
                 "input:mzidentml",
-                f"sha256:{mzidentml_structure.sha256}",
+                mzidentml_structure.sha256,
                 "identification_evidence_structure",
                 mzidentml_structure.as_dict(),
             )
