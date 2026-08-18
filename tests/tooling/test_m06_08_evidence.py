@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tools.verify_m0608_evidence import verify_evidence
 
-_CHECK_COUNT = 7
+_CHECK_COUNT = 8
 
 
 def test_committed_m0608_evidence_closure_passes() -> None:

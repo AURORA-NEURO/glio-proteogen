@@ -8,7 +8,7 @@ from pathlib import Path
 from evals.m06_08.benchmark import run_benchmark
 from evals.m06_08.run import evaluate
 
-_CHECK_COUNT = 7
+_CHECK_COUNT = 8
 _BENCHMARK_ITERATIONS = 10
 
 
