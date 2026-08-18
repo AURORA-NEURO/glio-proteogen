@@ -11,8 +11,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m11_07 import (
     M1107_MAX_CANONICAL_REQUEST_BYTES,
+    M1107_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateVariantPeptidePlausibilityRequest,
     VariantPeptidePlausibilityAdjudicationResult,
     contract_json_schema,
@@ -103,10 +105,10 @@ async def adjudicate(request: Request) -> JSONResponse:
 @app.post("/v1/modules/M11-07/verify")
 async def verify(request: Request) -> JSONResponse:
     body = await request.body()
-    if len(body) > M1107_MAX_CANONICAL_REQUEST_BYTES * 2:
+    if len(body) > M1107_MAX_CANONICAL_RESULT_BYTES:
         raise HTTPException(status_code=413, detail="verification envelope exceeds byte limit")
     try:
-        decoded = strict_json_loads(body, max_bytes=M1107_MAX_CANONICAL_REQUEST_BYTES * 2)
+        decoded = strict_json_loads(body, max_bytes=M1107_MAX_CANONICAL_RESULT_BYTES)
         if not isinstance(decoded, dict):
             raise HTTPException(status_code=422, detail="verification envelope must be an object")
         request_value = decoded.get("request")
@@ -127,13 +129,11 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path) -> bytes:
+def _read_json(path: Path, max_bytes: int = M1107_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
     try:
-        body = path.read_bytes()
-    except OSError as error:
+        body = read_bounded(path, max_bytes)
+    except (OSError, RequestBodyTooLargeError) as error:
         raise _CliParameterError("read") from error
-    if len(body) > M1107_MAX_CANONICAL_REQUEST_BYTES:
-        raise _CliParameterError("large")
     return body
 
 
@@ -192,7 +192,7 @@ def cli_verify(
     """Verify deterministic replay of a request and result pair."""
 
     request_body = _read_json(request_path)
-    result_body = _read_json(result_path)
+    result_body = _read_json(result_path, M1107_MAX_CANONICAL_RESULT_BYTES)
     try:
         request = _plugin.validate(request_body).request
         result = VariantPeptidePlausibilityAdjudicationResult.model_validate_json(result_body)

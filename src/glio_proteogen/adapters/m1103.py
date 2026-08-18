@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path  # noqa: TC003
-from typing import Annotated, Final, cast
+from typing import Annotated, cast
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m11_03 import (
     M1103_MAX_CANONICAL_REQUEST_BYTES,
+    M1103_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     VariantPeptideMechanisticFeatureResult,
     contract_json_schema,
@@ -32,8 +34,6 @@ from glio_proteogen.modules.c11_protein_native_subtype.m11_03_mechanistic_featur
 from glio_proteogen.modules.c11_protein_native_subtype.m11_03_mechanistic_feature_constructor.engine import (  # noqa: E501
     _validate_json_request,
 )
-
-_MAX_RESULT_BYTES: Final = 8 * 1024 * 1024
 
 
 class _OutputExistsError(FileExistsError):
@@ -94,7 +94,7 @@ async def construct_alias(request: Request) -> JSONResponse:
 
 @app.post("/v1/modules/M11-03/verify")
 async def verify(request: Request) -> JSONResponse:
-    decoded, _raw = await _body(request, _MAX_RESULT_BYTES)
+    decoded, _raw = await _body(request, M1103_MAX_CANONICAL_RESULT_BYTES)
     if type(decoded) is not dict:
         return _error(422, "verify body must be an object containing request and result")
     body = cast("dict[str, object]", decoded)
@@ -117,7 +117,7 @@ async def verify(request: Request) -> JSONResponse:
 
 
 def _read_json(path: Path, max_bytes: int) -> tuple[object, bytes]:
-    raw = path.read_bytes()
+    raw = read_bounded(path, max_bytes)
     return strict_json_loads(raw, max_bytes=max_bytes), raw
 
 
@@ -172,7 +172,7 @@ def cli_verify(
     try:
         request_value, request_raw = _read_json(request, M1103_MAX_CANONICAL_REQUEST_BYTES)
         _ = request_raw
-        result_value, _ = _read_json(result, _MAX_RESULT_BYTES)
+        result_value, _ = _read_json(result, M1103_MAX_CANONICAL_RESULT_BYTES)
         typed_request = _validate_json_request(request_value, canonical_json_bytes(request_value))
         typed_result = VariantPeptideMechanisticFeatureResult.model_validate(
             result_value, strict=False

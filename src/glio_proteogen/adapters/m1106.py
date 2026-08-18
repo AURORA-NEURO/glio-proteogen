@@ -16,8 +16,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m11_06 import (
     M1106_MAX_CANONICAL_REQUEST_BYTES,
+    M1106_MAX_CANONICAL_RESULT_BYTES,
     SimulateVariantPeptidePerturbationsRequest,
     VariantPeptideSensitivitySimulationResult,
     contract_json_schema,
@@ -105,7 +107,7 @@ async def verify(request: Request) -> JSONResponse:
         raise _json_error(415, "content-type must be application/json")
     try:
         body = await request.body()
-        strict_json_loads(body, max_bytes=M1106_MAX_CANONICAL_REQUEST_BYTES * 2)
+        strict_json_loads(body, max_bytes=M1106_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(body, strict=True)
         verified = _SERVICE.verify(result)
     except (StrictJsonError, ValidationError, M1106ReplayVerificationError) as error:
@@ -115,7 +117,7 @@ async def verify(request: Request) -> JSONResponse:
 
 def _load_request(path: Path) -> SimulateVariantPeptidePerturbationsRequest:
     try:
-        raw = path.read_bytes()
+        raw = read_bounded(path, M1106_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(raw, max_bytes=M1106_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(raw, strict=True)
     except (OSError, StrictJsonError, ValidationError) as error:
@@ -158,8 +160,8 @@ def verify_command(
     result_path: Annotated[Path, typer.Argument(exists=True, readable=True)],
 ) -> None:
     try:
-        raw = result_path.read_bytes()
-        strict_json_loads(raw, max_bytes=M1106_MAX_CANONICAL_REQUEST_BYTES * 2)
+        raw = read_bounded(result_path, M1106_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(raw, max_bytes=M1106_MAX_CANONICAL_RESULT_BYTES)
         result = _RESULT_ADAPTER.validate_json(raw, strict=True)
         verified = _SERVICE.verify(result)
     except (OSError, StrictJsonError, ValidationError, M1106ReplayVerificationError) as error:
