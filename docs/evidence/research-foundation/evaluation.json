@@ -937,9 +937,9 @@
   },
   "cohort_evaluation": {
     "passed": true,
-    "declared": 9,
-    "executed": 9,
-    "fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
+    "declared": 10,
+    "executed": 10,
+    "fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
     "outcomes": [
       {
         "id": "replicate_matrix",
@@ -5872,6 +5872,13 @@
             ]
           }
         }
+      },
+      {
+        "id": "pdc_manifest_receipt_identity",
+        "passed": true,
+        "result_digest": null,
+        "missing_cells": null,
+        "projection": null
       }
     ]
   },
@@ -5879,20 +5886,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      609900,
-      617000,
-      602200,
-      632600,
-      599500,
-      833100,
-      626700,
-      625100,
-      612900,
-      596500
+      868500,
+      850200,
+      663700,
+      595800,
+      847500,
+      617800,
+      588400,
+      610400,
+      628600,
+      588500
     ],
-    "mean_ns": 635550.0,
-    "median_ns": 617000,
-    "p95_ns": 833100,
+    "mean_ns": 685940.0,
+    "median_ns": 628600,
+    "p95_ns": 868500,
     "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
   },
   "coverage": {
