@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m19_07 import (
     M1907_MAX_CANONICAL_REQUEST_BYTES,
+    M1907_MAX_CANONICAL_RESULT_BYTES,
     ExportProteotypeDownstreamContractRequest,
     ProteotypeDownstreamExportResult,
 )
@@ -77,7 +78,7 @@ class M1907Plugin:
         replay: bool = True,
     ) -> ProteotypeDownstreamExportResult:
         if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result)
+            decoded = strict_json_loads(result, max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         else:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)

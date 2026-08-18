@@ -9,8 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m19_07 import (
     M1907_MAX_CANONICAL_REQUEST_BYTES,
+    M1907_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     ExportProteotypeDownstreamContractRequest,
     ProteotypeDownstreamExportResult,
@@ -27,8 +29,19 @@ _RESULT_ADAPTER = TypeAdapter(ProteotypeDownstreamExportResult)
 
 
 def _read_request(path: Path) -> ExportProteotypeDownstreamContractRequest:
-    decoded = strict_json_loads(path.read_bytes(), max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES)
+    decoded = strict_json_loads(
+        read_bounded(path, M1907_MAX_CANONICAL_REQUEST_BYTES),
+        max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES,
+    )
     return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+
+
+def _read_result(path: Path) -> ProteotypeDownstreamExportResult:
+    decoded = strict_json_loads(
+        read_bounded(path, M1907_MAX_CANONICAL_RESULT_BYTES),
+        max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES,
+    )
+    return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
 
 
 def _write_json(path: Path, value: object, *, overwrite: bool) -> None:
@@ -68,10 +81,7 @@ def export(input_path: Annotated[Path, typer.Argument()]) -> None:
 def verify(input_path: Annotated[Path, typer.Argument()]) -> None:
     """Verify result digest and deterministic replay."""
 
-    decoded = strict_json_loads(
-        input_path.read_bytes(), max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES * 2
-    )
-    result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+    result = _read_result(input_path)
     verified = M1907Service().verify(result)
     typer.echo(json.dumps(verified.model_dump(mode="json"), sort_keys=True))
 

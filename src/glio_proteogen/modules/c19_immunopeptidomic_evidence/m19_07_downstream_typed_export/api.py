@@ -10,6 +10,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m19_07 import (
     M1907_MAX_CANONICAL_REQUEST_BYTES,
+    M1907_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     ExportProteotypeDownstreamContractRequest,
     ProteotypeDownstreamExportResult,
@@ -40,7 +41,7 @@ async def _result_body(request: Request) -> ProteotypeDownstreamExportResult:
     try:
         decoded = strict_json_loads(
             await request.body(),
-            max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES * 2,
+            max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES,
         )
         return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     except (ValueError, ValidationError) as error:
