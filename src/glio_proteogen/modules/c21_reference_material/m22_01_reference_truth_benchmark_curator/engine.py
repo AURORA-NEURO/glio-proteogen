@@ -136,15 +136,24 @@ class M2201ReferenceTruthBenchmarkCurator:
         self,
         result: ProteinRnaDiscordanceReferenceTruthResult,
     ) -> ProteinRnaDiscordanceReferenceTruthResult:
+        """Re-curate the bound request and compare the complete result."""
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2201ReplayError("M22-01 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2201ReplayError("M22-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2201ReplayError("M22-01 result payload digest mismatch")  # noqa: TRY003
-        return ProteinRnaDiscordanceReferenceTruthResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ProteinRnaDiscordanceReferenceTruthResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.curate(replayed.request)
+        except Exception as error:
+            raise M2201ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2201ReplayError("M22-01 semantic replay mismatch")  # noqa: TRY003
+        return replayed
 
 
 def curate_protein_rna_discordance_reference_truth(

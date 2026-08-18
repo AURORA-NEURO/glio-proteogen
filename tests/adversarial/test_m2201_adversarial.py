@@ -51,6 +51,10 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchmark_curator import (
+    M2201ReplayError,
+    M2201Service,
+)
 
 
 def _artifact(name: str, media_type: str = "application/json") -> ArtifactReference:
@@ -408,6 +412,19 @@ def test_adjudication_and_result_replay_closure_are_fail_closed() -> None:
     tampered["findings"] = (finding, finding)
     with pytest.raises(ValidationError, match="finding ids"):
         ProteinRnaDiscordanceReferenceTruthResult(**tampered)
+
+
+def test_replay_rejects_self_rehashed_reference_evidence_forgery() -> None:
+    request = _request()
+    result = _result(request)
+    forged_evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+    forged = result.model_copy(update={"evidence": (forged_evidence,)})
+    forged = ProteinRnaDiscordanceReferenceTruthResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+    with pytest.raises(M2201ReplayError):
+        M2201Service().verify_replay(forged)
 
 
 def test_adjudication_partition_and_package_sets_are_closed() -> None:
