@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M19-05",
+  "fixture_sha256": "50bee227561659dcf92d16476338633d610b881d944fbb905f6603288a715bf2",
+  "declared_cases": 7,
+  "executed_cases": 7,
+  "passed_cases": 7,
+  "passed": true,
+  "adversarial_surfaces": 8,
+  "checks": [
+    "supported_workspace",
+    "limited_review_visible",
+    "conflicted_review_visible",
+    "abstained_item",
+    "canonical_replay",
+    "tamper_rejection",
+    "authorization_failure",
+    "prohibited_caller_claim_surfaces"
+  ]
+}
