@@ -26,8 +26,10 @@ Contract and safety boundaries:
   one observation, and dispositions must agree with the caller-declared
   expected disposition and OOD band.
 - Seven caller-declared controls are checked fail-closed before challenge
-  evaluation. Replay verifies request digest, deterministic result ID, and
-  canonical result digest.
+  evaluation. Replay verifies request digest and deterministic result ID,
+  validates the canonical envelope, regenerates the challenge from its bound
+  request, and compares the complete canonical result projection. A result
+  digest alone is not treated as proof of evaluator origin.
 - Unsupported or denied inputs return an explicit safe-failure report with
   support, provenance, seven uncertainty dimensions, evidence, and
   limitations. They never become negative findings.

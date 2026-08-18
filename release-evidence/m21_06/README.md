@@ -7,7 +7,8 @@ permitted authority is dossier SHA-256
 slice `GLIO-PROTEOGEN_240_Module_Dossier.md:7456-7496`.
 
 `evaluation.json` records twelve executable checks and frozen fixture
-request/result digests. `benchmark.json` records ten timed metadata-only
+request/result digests, including a self-rehashed output tamper case.
+`benchmark.json` records ten timed metadata-only
 calls against provisional 500,000,000/750,000,000 ns budgets.
 `coverage.json` records the branch-enabled scoped coverage gate.
 `package.json` is populated only after the final wheel and sdist are built and
