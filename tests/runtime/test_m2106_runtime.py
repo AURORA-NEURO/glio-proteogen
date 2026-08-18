@@ -74,7 +74,7 @@ def test_replay_closes_request_and_result_identity_and_public_entrypoint() -> No
 
 def test_preflight_fails_closed_for_hostile_mappings() -> None:
     class HostileMapping(Mapping[str, object]):
-        def get(self, _field: str) -> object:
+        def get(self, _field: str, _default: object = None) -> object:
             raise RuntimeError("hostile mapping")  # noqa: TRY003
 
         def __getitem__(self, _key: str) -> object:
