@@ -15,7 +15,9 @@ from glio_proteogen.research import (
 from .test_pipeline import _mzml
 
 
-def _request(*, precursor_mz: str = "1087.508837466", tolerance_ppm: int = 20) -> ResearchRunRequest:
+def _request(
+    *, precursor_mz: str = "1087.508837466", tolerance_ppm: int = 20
+) -> ResearchRunRequest:
     mzml = _mzml().replace(b"1087.508837466", precursor_mz.encode("ascii"))
     return ResearchRunRequest(
         sample_id="precursor-policy",
