@@ -26,6 +26,7 @@
       "protein_group_target_decoy_fdr",
       "protein_group_collision_abstention",
       "caller_bound_pdc_mzml_provenance",
+      "explicit_bounded_pdc_raw_retrieval_with_receipt",
       "fixture_bound_raw_input_hashes",
       "exact_psm_quantification_and_mass_diagnostics_oracle",
       "artifact_bound_ci_replay",

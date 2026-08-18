@@ -148,7 +148,10 @@ q-value, spectral count, or protein group is not itself a disease or mechanistic
 
 The public PDC record used by the surrounding foundation is metadata and provenance only;
 raw cohort bytes remain caller-supplied and are not bundled or downloaded implicitly. When
-the caller supplies a downloaded mzML together with a matching PDC file declaration and
+the caller explicitly invokes `PdcClient.download_file_with_receipt`, the retriever requires an
+allowlisted HTTPS delivery host (or a caller-approved exact host), validates redirects, timeout,
+response media, declared size, MD5, and SHA-256, and writes only fully verified bytes. The caller
+can then supply that downloaded mzML together with a matching PDC file declaration and
 content-addressed `SourceReference`, `bind_pdc_mzml_source` verifies format, locator, size,
 MD5, and SHA-256 before the pipeline parses it and records the external source in evidence.
 A future governed computation ABI must freeze reference/search versions, modifications and
