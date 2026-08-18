@@ -97,6 +97,7 @@ class PdcSourceReceipt:
     observed_sha256: str
     observed_md5: str
     observed_size: int
+    observed_media_type: str = "application/mzml"
 
     def __post_init__(self) -> None:
         if not isinstance(self.snapshot, PdcStudySnapshot):
@@ -117,6 +118,17 @@ class PdcSourceReceipt:
             raise ValueError("observed source MD5 is malformed")
         if type(self.observed_size) is not int or self.observed_size < 0:
             raise ValueError("observed source size is invalid")
+        observed_media = self.observed_media_type.split(";", 1)[0].strip().lower()
+        try:
+            allowed_media_types = _media_types(self.file.file_format)
+        except PdcError as error:
+            raise ValueError(
+                "observed source media type is incompatible with the catalog mzML file"
+            ) from error
+        if observed_media not in allowed_media_types:
+            raise ValueError(
+                "observed source media type is incompatible with the catalog mzML file"
+            )
         if self.file.file_format is None or self.file.file_format.lower() not in {
             "mzml",
             "mzml.gz",
@@ -135,6 +147,12 @@ class PdcSourceReceipt:
             raise ValueError("observed source size does not match the catalog file")
         if self.file.md5 is not None and self.observed_md5.lower() != self.file.md5.lower():
             raise ValueError("observed source MD5 does not match the catalog file")
+        reference_media = _media_type(self.source_reference.media_type)
+        if observed_media != reference_media and "application/octet-stream" not in {
+            observed_media,
+            reference_media,
+        }:
+            raise ValueError("observed source media type does not match the source reference")
 
     @property
     def response_sha256(self) -> str:
@@ -144,6 +162,7 @@ class PdcSourceReceipt:
         return {
             "file": _file_dict(self.file),
             "observed_md5": self.observed_md5.lower(),
+            "observed_media_type": self.observed_media_type.split(";", 1)[0].strip().lower(),
             "observed_sha256": (
                 self.observed_sha256
                 if self.observed_sha256.startswith("sha256:")
@@ -315,7 +334,7 @@ def _validate_response_headers(
     response: Any,  # noqa: ANN401
     file: PdcFile,
     source_reference: SourceReference | None,
-) -> None:
+) -> str:
     media_types = _media_types(file.file_format)
     response_media = _media_type(response.headers.get("Content-Type"))
     if response_media not in media_types:
@@ -339,6 +358,7 @@ def _validate_response_headers(
             raise PdcError("PDC download Content-Length is not an integer") from error
         if declared_length != file.file_size:
             raise PdcError("PDC download Content-Length differs from the file declaration")
+    return response_media
 
 
 class PdcClient:
@@ -406,7 +426,7 @@ class PdcClient:
         supplied by PDC are checked before any verified bytes are copied to the
         destination. Redirects are revalidated at every hop.
         """
-        total, _, _ = self._download_file(
+        total, _, _, _ = self._download_file(
             file,
             destination,
             max_bytes=max_bytes,
@@ -440,7 +460,7 @@ class PdcClient:
             raise TypeError("source_reference must be a SourceReference")
         if file not in snapshot.files:
             raise PdcError("PDC file is absent from the captured catalog snapshot")
-        total, md5_hex, sha256_hex = self._download_file(
+        total, md5_hex, sha256_hex, observed_media_type = self._download_file(
             file,
             destination,
             max_bytes=max_bytes,
@@ -455,6 +475,7 @@ class PdcClient:
             observed_sha256="sha256:" + sha256_hex,
             observed_md5=md5_hex,
             observed_size=total,
+            observed_media_type=observed_media_type,
         )
 
     @staticmethod
@@ -466,7 +487,7 @@ class PdcClient:
         timeout_seconds: float,
         approved_hosts: Iterable[str],
         source_reference: SourceReference | None = None,
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, str, str, str]:
         if type(max_bytes) is not int or not 0 < max_bytes <= 2 * 1024 * 1024 * 1024:
             raise ValueError("max_bytes is outside supported bounds")
         if (
@@ -493,7 +514,7 @@ class PdcClient:
             timeout_seconds=float(timeout_seconds),
             allowed_hosts=allowed_hosts,
         ) as response:
-            _validate_response_headers(response, file, source_reference)
+            response_media = _validate_response_headers(response, file, source_reference)
             with SpooledTemporaryFile(
                 max_size=min(max_bytes, _SPOOL_MEMORY_BYTES), mode="w+b"
             ) as spool:
@@ -524,4 +545,4 @@ class PdcClient:
                 spool.seek(0)
                 while chunk := spool.read(_DOWNLOAD_CHUNK_BYTES):
                     destination.write(chunk)
-        return total, md5_hex, sha256_hex
+        return total, md5_hex, sha256_hex, response_media
