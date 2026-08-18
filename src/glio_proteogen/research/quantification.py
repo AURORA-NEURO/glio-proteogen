@@ -48,6 +48,11 @@ class QuantificationReceipt:
     scale_factor: float | None
     raw_peptide_signals: tuple[tuple[str, float, bool], ...]
     normalized_peptide_signals: tuple[tuple[str, float, bool], ...]
+    raw_positive_mad: float | None = None
+    raw_positive_iqr: float | None = None
+    raw_robust_cv: float | None = None
+    positive_signal_fraction: float = 0.0
+    signal_quality: str = "no_positive_signal"
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -63,9 +68,14 @@ class QuantificationReceipt:
             "observed_peptides": self.observed_peptides,
             "raw_peptide_signals": [list(item) for item in self.raw_peptide_signals],
             "raw_positive_median": self.raw_positive_median,
+            "raw_positive_mad": self.raw_positive_mad,
+            "raw_positive_iqr": self.raw_positive_iqr,
+            "raw_robust_cv": self.raw_robust_cv,
             "raw_total_signal": self.raw_total_signal,
             "sample_id": self.sample_id,
             "scale_factor": self.scale_factor,
+            "positive_signal_fraction": self.positive_signal_fraction,
+            "signal_quality": self.signal_quality,
             "unique_peptides": self.unique_peptides,
             "version": self.version,
         }
@@ -92,6 +102,10 @@ class ProteinGroupQuant:
     primary_intensity: float | None
     status: str
     supporting_psms: int
+    unique_positive_count: int = 0
+    unique_signal_mad: float | None = None
+    unique_signal_iqr: float | None = None
+    unique_signal_quality: str = "no_unique_signal"
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -104,7 +118,41 @@ class ProteinGroupQuant:
             "total_signal": self.total_signal,
             "unique_peptides": list(self.unique_peptides),
             "unique_signal": self.unique_signal,
+            "unique_positive_count": self.unique_positive_count,
+            "unique_signal_mad": self.unique_signal_mad,
+            "unique_signal_iqr": self.unique_signal_iqr,
+            "unique_signal_quality": self.unique_signal_quality,
         }
+
+
+def _median_absolute_deviation(values: tuple[float, ...]) -> float | None:
+    """Return descriptive median absolute deviation for at least two values."""
+
+    if len(values) < 2:
+        return None
+    center = float(median(values))
+    return float(median(tuple(abs(value - center) for value in values)))
+
+
+def _interquartile_range(values: tuple[float, ...]) -> float | None:
+    """Return a deterministic Tukey-hinge IQR for at least two values."""
+
+    if len(values) < 2:
+        return None
+    ordered = tuple(sorted(values))
+    midpoint = len(ordered) // 2
+    lower = ordered[:midpoint]
+    upper = ordered[midpoint:] if len(ordered) % 2 == 0 else ordered[midpoint + 1 :]
+    return float(median(upper) - median(lower))
+
+
+def _signal_quality(positive_count: int, *, unique: bool = False) -> str:
+    prefix = "unique_" if unique else ""
+    if positive_count == 0:
+        return f"{prefix}no_positive_signal"
+    if positive_count == 1:
+        return f"{prefix}single_positive_signal"
+    return f"{prefix}descriptive_positive_signal"
 
 
 def quantify_matched_ions(
@@ -151,9 +199,12 @@ def quantify_matched_ions_with_receipt(
     normalized = median_normalize(values)
     positive = tuple(item.intensity for item in values if not item.missing and item.intensity > 0)
     raw_median = median(positive) if positive else None
+    positive_count = len(positive)
+    positive_mad = _median_absolute_deviation(positive)
+    positive_iqr = _interquartile_range(positive)
     receipt = QuantificationReceipt(
         sample_id=sample_id,
-        version="matched-ion-median-2",
+        version="matched-ion-median-3",
         measurement_unit="median_scaled_matched_ion_intensity",
         normalization_method="sample_median_scaled",
         missingness_policy="zero_signal_is_missing_no_imputation",
@@ -164,6 +215,15 @@ def quantify_matched_ions_with_receipt(
         duplicate_observations=len(observed) - len(values),
         raw_total_signal=sum(item.intensity for item in values),
         raw_positive_median=raw_median,
+        raw_positive_mad=positive_mad,
+        raw_positive_iqr=positive_iqr,
+        raw_robust_cv=(
+            positive_mad / raw_median
+            if positive_mad is not None and raw_median is not None and raw_median > 0
+            else None
+        ),
+        positive_signal_fraction=(positive_count / len(values) if values else 0.0),
+        signal_quality=_signal_quality(positive_count),
         normalization_target=raw_median,
         normalized_total_signal=sum(item.intensity for item in normalized),
         scale_factor=1.0 if positive else None,
@@ -264,6 +324,10 @@ def quantify_protein_groups(
                 primary_intensity=primary_intensity,
                 status=status,
                 supporting_psms=supporting_psms,
+                unique_positive_count=len(unique_signal_values),
+                unique_signal_mad=_median_absolute_deviation(unique_signal_values),
+                unique_signal_iqr=_interquartile_range(unique_signal_values),
+                unique_signal_quality=_signal_quality(len(unique_signal_values), unique=True),
             )
         )
     return tuple(output)

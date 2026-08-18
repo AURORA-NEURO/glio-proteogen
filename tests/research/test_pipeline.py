@@ -99,6 +99,9 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.protein_group_quantifications[0].primary_intensity == 20.0
     assert result.quantification_receipt is not None
     assert result.quantification_receipt.raw_positive_median == 20.0
+    assert result.quantification_receipt.signal_quality == "single_positive_signal"
+    assert result.quantification_receipt.positive_signal_fraction == 1.0
+    assert result.quantification_receipt.raw_positive_mad is None
     assert result.quantification_receipt.measurement_unit == ("median_scaled_matched_ion_intensity")
     assert len(result.result_digest) == 64
     assert result.result_digest == run_research_protein_inference(request).result_digest

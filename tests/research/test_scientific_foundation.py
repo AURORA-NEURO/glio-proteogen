@@ -173,7 +173,7 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     )
     receipt = quantified.receipt
     assert isinstance(receipt, QuantificationReceipt)
-    assert receipt.version == "matched-ion-median-2"
+    assert receipt.version == "matched-ion-median-3"
     assert receipt.measurement_unit == "median_scaled_matched_ion_intensity"
     assert receipt.normalization_method == "sample_median_scaled"
     assert receipt.missingness_policy == "zero_signal_is_missing_no_imputation"
@@ -184,6 +184,11 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     assert receipt.duplicate_observations == 1
     assert receipt.raw_total_signal == 60.0
     assert receipt.raw_positive_median == 30.0
+    assert receipt.raw_positive_mad == 10.0
+    assert receipt.raw_positive_iqr == 20.0
+    assert receipt.raw_robust_cv == pytest.approx(1 / 3)
+    assert receipt.positive_signal_fraction == pytest.approx(2 / 3)
+    assert receipt.signal_quality == "descriptive_positive_signal"
     assert receipt.normalization_target == 30.0
     assert receipt.normalized_total_signal == 60.0
     assert receipt.scale_factor == 1.0
@@ -1087,3 +1092,8 @@ def test_protein_group_quantification_is_unique_signal_bound_and_deterministic()
     assert p1.primary_intensity == 20.0
     assert p1.unique_signal == 40.0
     assert p1.supporting_psms == 3
+    assert p1.unique_positive_count == 2
+    assert p1.unique_signal_mad == 10.0
+    assert p1.unique_signal_iqr == 20.0
+    assert p1.unique_signal_quality == "unique_descriptive_positive_signal"
+    assert shared_only.unique_signal_quality == "unique_no_positive_signal"
