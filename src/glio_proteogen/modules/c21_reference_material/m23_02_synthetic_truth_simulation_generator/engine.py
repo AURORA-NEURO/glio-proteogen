@@ -297,6 +297,10 @@ class M2302Engine:
             raise M2302EvaluationError("M23-02 result construction failed safely") from error
 
     def replay(self, result: object) -> VariantPeptideSyntheticTruthResult:
+        if isinstance(result, VariantPeptideSyntheticTruthResult) and (
+            result.result_digest != result_payload_digest(result)
+        ):
+            raise M2302ReplayError("M23-02 result payload digest mismatch")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:

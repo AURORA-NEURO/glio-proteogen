@@ -252,6 +252,15 @@ def test_configuration_case_and_manifest_invariants_are_fail_closed() -> None:
     config["requested_fixture_kinds"] = tuple(FixtureKind)[:-1]
     with pytest.raises(ValueError, match="must request"):
         GenerationConfiguration.model_validate(config)
+    config["requested_fixture_kinds"] = (
+        FixtureKind.NORMAL,
+        FixtureKind.NORMAL,
+        FixtureKind.EDGE,
+        FixtureKind.MISSING,
+        FixtureKind.SHIFTED,
+    )
+    with pytest.raises(ValueError, match="must be unique"):
+        GenerationConfiguration.model_validate(config)
     duplicate_case = _case(FixtureKind.NORMAL, 0).model_dump(mode="python")
     duplicate_case["truth_values"] = ("1.0",)
     with pytest.raises(ValueError, match="equal dimensions"):
@@ -265,6 +274,14 @@ def test_configuration_case_and_manifest_invariants_are_fail_closed() -> None:
     manifest["reproducibility_digest"] = "sha256:" + ("0" * 64)
     with pytest.raises(ValueError, match="cannot be zero"):
         GenerationManifest.model_validate(manifest)
+    duplicate_cases = list(cases)
+    duplicate_cases[1] = duplicate_cases[1].model_copy(
+        update={"case_id": duplicate_cases[0].case_id}
+    )
+    duplicate_corpus = _corpus().model_dump(mode="python")
+    duplicate_corpus["cases"] = tuple(duplicate_cases)
+    with pytest.raises(ValueError, match="corpus case ids must be unique"):
+        SyntheticTruthCorpus.model_validate(duplicate_corpus)
 
 
 def test_corpus_closure_rejects_manifest_version_and_source_tampering() -> None:
@@ -307,15 +324,15 @@ def test_result_identity_digest_and_safe_status_are_replay_closed() -> None:
     result = _generated_result()
     assert result.result_id == result_identifier(result.request)
     assert result.result_digest == result_payload_digest(result)
-    changed = result.model_dump(mode="python")
+    changed = result.__dict__.copy()
     changed["result_id"] = "result." + "f" * 64
     with pytest.raises(ValueError, match="identifier must be derived"):
         VariantPeptideSyntheticTruthResult.model_validate(changed)
-    changed = result.model_dump(mode="python")
+    changed = result.__dict__.copy()
     changed["request_digest"] = "sha256:" + "f" * 64
     with pytest.raises(ValueError, match="exact request"):
         VariantPeptideSyntheticTruthResult.model_validate(changed)
-    changed = result.model_dump(mode="python")
+    changed = result.__dict__.copy()
     changed["support_decision"] = SupportDecision(
         status=SupportStatus.UNSUPPORTED,
         reason_code="m2302_unsupported",
@@ -329,3 +346,30 @@ def test_result_identity_digest_and_safe_status_are_replay_closed() -> None:
     changed["result_digest"] = result_payload_digest(changed)
     with pytest.raises(ValueError, match="safe status"):
         VariantPeptideSyntheticTruthResult.model_validate(changed)
+
+    generated_without_corpus = result.__dict__.copy()
+    generated_without_corpus["corpus"] = None
+    generated_without_corpus["manifest"] = None
+    with pytest.raises(ValueError, match="supported corpus and manifest"):
+        VariantPeptideSyntheticTruthResult.model_validate(generated_without_corpus)
+
+    abstained = result.__dict__.copy()
+    abstained.update(
+        {
+            "status": GenerationStatus.ABSTAINED,
+            "corpus": None,
+            "manifest": None,
+            "abstention_reason": "fixture support requires review",
+            "support_decision": SupportDecision(
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m2302_review_required",
+                rationale="The caller-declared support decision requires manual review.",
+            ),
+            "human_review_required": True,
+        }
+    )
+    abstained["result_digest"] = result_payload_digest(
+        VariantPeptideSyntheticTruthResult.model_construct(**abstained)
+    )
+    validated = VariantPeptideSyntheticTruthResult.model_validate(abstained)
+    assert validated.status is GenerationStatus.ABSTAINED

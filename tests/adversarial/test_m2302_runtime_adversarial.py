@@ -13,7 +13,13 @@ from typer.testing import CliRunner
 
 import glio_proteogen.modules.c21_reference_material.m23_02_synthetic_truth_simulation_generator.api as m2302_api  # noqa: E501
 import glio_proteogen.modules.c21_reference_material.m23_02_synthetic_truth_simulation_generator.cli as m2302_cli  # noqa: E501
+from glio_proteogen.contracts.m23_02 import (
+    GenerationStatus,
+    VariantPeptideSyntheticTruthResult,
+)
+from glio_proteogen.contracts.m23_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.modules.c21_reference_material.m23_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2302AuthorizationError,
     M2302Engine,
@@ -148,3 +154,69 @@ def test_cli_can_emit_schema_and_result_to_stdout_or_new_file(tmp_path: Path) ->
     generated = runner.invoke(m2302_cli.app, ["generate", str(request_path)])
     assert generated.exit_code == 0
     assert json.loads(generated.stdout)["status"] == "generated"
+
+
+def test_cli_emits_abstention_with_nonzero_exit(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    generated = M2302Engine().generate(_request())
+    payload = generated.__dict__.copy()
+    payload.update(
+        {
+            "status": GenerationStatus.ABSTAINED,
+            "corpus": None,
+            "manifest": None,
+            "abstention_reason": "caller-declared support requires review",
+            "support_decision": SupportDecision(
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m2302_review_required",
+                rationale="Review is required before synthetic fixture generation.",
+            ),
+            "human_review_required": True,
+        }
+    )
+    payload["result_digest"] = result_payload_digest(
+        VariantPeptideSyntheticTruthResult.model_construct(**payload)
+    )
+    abstained = VariantPeptideSyntheticTruthResult.model_validate(payload)
+    monkeypatch.setattr(m2302_cli._SERVICE, "execute", lambda _request: abstained)
+    request_path = tmp_path / "request.json"
+    request_path.write_text(_request().model_dump_json(), encoding="utf-8")
+
+    result = CliRunner().invoke(m2302_cli.app, ["generate", str(request_path)])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["status"] == "abstained"
+
+
+def test_cli_sanitizes_service_verify_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    result = M2302Engine().generate(_request())
+    result_path = tmp_path / "result.json"
+    result_path.write_text(result.model_dump_json(), encoding="utf-8")
+
+    def fail_verify(_result: object) -> VariantPeptideSyntheticTruthResult:
+        raise ValueError("private replay detail")  # noqa: TRY003
+
+    monkeypatch.setattr(m2302_cli._SERVICE, "verify", fail_verify)
+    response = CliRunner().invoke(m2302_cli.app, ["verify", str(result_path)])
+
+    assert response.exit_code != 0
+    assert "private replay detail" not in response.output
+    assert "result replay is invalid" in response.output
+
+
+def test_cli_reports_replay_digest_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    result = M2302Engine().generate(_request())
+    result_path = tmp_path / "result.json"
+    result_path.write_text(result.model_dump_json(), encoding="utf-8")
+    forged = result.model_copy(update={"result_digest": sha256_digest("cli-mismatch")})
+    monkeypatch.setattr(m2302_cli._SERVICE, "verify", lambda _result: forged)
+
+    response = CliRunner().invoke(m2302_cli.app, ["verify", str(result_path)])
+
+    assert response.exit_code == 1
+    assert json.loads(response.stdout)["verified"] is False
