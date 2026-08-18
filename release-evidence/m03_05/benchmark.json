@@ -1,0 +1,19 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-05",
+  "contract_version": "1.0.0",
+  "passed": true,
+  "iterations": 10,
+  "warmup_count": 1,
+  "mean_ns": 134124840.0,
+  "p50_ns": 131540400.0,
+  "p95_ns": 150496700.0,
+  "maximum_ns": 150496700,
+  "mean_budget_ns": 2000000000,
+  "p95_budget_ns": 3000000000,
+  "request_digest": "sha256:428906d222522764610c68f5bc5f0ce3b3469db7291d61762d17551c3498cd43",
+  "result_digest": "sha256:f18f02add4f81d2ef6531c104c80b914daf3f6df32333c08d83bf57f8ca19736",
+  "signal_score_count": 48,
+  "unit_count": 6,
+  "timed_boundary": "detect_protein_inference_artifacts_only",
+  "workload": "genuine_m0102_through_m0304_prepared_m0305_artifact_evidence"
+}

@@ -1,0 +1,21 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M03-05",
+  "contract_version": "1.0.0",
+  "passed": true,
+  "phase": "locked_executable_corpus",
+  "declared_case_count": 57,
+  "executed_case_count": 57,
+  "unique_case_count": 57,
+  "missing_case_ids": [],
+  "extra_case_ids": [],
+  "seeded_signal_classes_detected": 8,
+  "seeded_signal_classes_expected": 8,
+  "canonical_clean_false_exclusions": 0,
+  "replay_verification": {
+    "library": true,
+    "api": true,
+    "cli": true,
+    "tamper_rejection": true
+  },
+  "claims_ceiling": "categorical synthetic metadata-artifact reduction only; not a calibrated probability, contamination proof, peptide/protein inference, biological claim, or clinical result"
+}
