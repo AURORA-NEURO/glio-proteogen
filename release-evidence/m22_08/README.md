@@ -12,5 +12,5 @@ isolated-install directories are intentionally not committed.
 Two builds with `SOURCE_DATE_EPOCH=315532800` were byte-identical. The wheel
 is `3,857,365` bytes with `1,990` members and SHA-256
 `4efd815407a5c4acb6a59a2d31c3b85484b632407116060cb472591ef78bd39b`; the sdist
-is `4,511,901` bytes with `4,624` members and SHA-256
-`571854e2dee0aa159bb24c968c34c0d845c441992c9f80cec93dc0d0dc555fa1`.
+is `4,511,890` bytes with `4,624` members and SHA-256
+`3517782efbee4303fb5617084b87ea0088fc0e815aa646fd070b9f57d387e16c`.

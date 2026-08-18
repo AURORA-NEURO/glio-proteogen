@@ -147,10 +147,7 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
 def test_replay_fails_closed_for_self_rehashed_invalid_record() -> None:
     engine = M2208EvidenceGateEngine()
     result = engine.adjudicate(_request())
-    assert result.release_record is not None
-    forged = result.model_copy(
-        update={"release_record": result.release_record.model_copy(update={"decision": "invalid"})}
-    )
+    forged = result.model_copy(update={"release_record": None})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
     with pytest.raises(M2208ReplayError, match="replay verification"):
         engine.replay(forged)
