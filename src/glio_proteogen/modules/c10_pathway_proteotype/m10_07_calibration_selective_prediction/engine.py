@@ -192,7 +192,7 @@ def _replay_reason(
     if isinstance(result, ProteinRnaDiscordanceSelectivePredictionResult):
         expected = result
     elif type(result) is dict and _is_plain_json(result):
-        expected = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
     else:
         return "result replay input is invalid"
     if typed != expected:
