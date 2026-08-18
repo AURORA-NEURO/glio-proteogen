@@ -26,6 +26,7 @@ from glio_proteogen.research import (
     median_normalize,
     parse_mzml,
     pdc,
+    quantify_matched_ions,
     read_fasta,
     search_spectrum,
     target_decoy_qvalues,
@@ -121,6 +122,28 @@ def test_median_quantification_preserves_missingness() -> None:
     assert normalized[2].intensity == pytest.approx(133.3333333333)
     assert normalized[-1].missing is True
     assert normalized[-1].intensity == 0.0
+
+
+def test_matched_ion_quantification_aggregates_and_normalizes() -> None:
+    quantified = quantify_matched_ions(
+        "sample-1",
+        (("PEPTIDE", 10.0), ("PEPTIDE", 30.0), ("OTHER", 20.0), ("MISSING", 0.0)),
+    )
+    assert quantified[0].peptide == "MISSING"
+    assert quantified[0].missing is True
+    assert quantified[0].intensity == 0.0
+    assert quantified[1].peptide == "OTHER"
+    assert quantified[1].intensity == pytest.approx(20.0)
+    assert quantified[2].peptide == "PEPTIDE"
+    assert quantified[2].intensity == pytest.approx(40.0)
+
+
+@pytest.mark.parametrize("observation", [("", 1.0), ("P", -1.0), ("P", math.nan)])
+def test_matched_ion_quantification_rejects_invalid_observations(
+    observation: tuple[str, float],
+) -> None:
+    with pytest.raises(ValueError):
+        quantify_matched_ions("sample-1", (observation,))
 
 
 def test_evidence_aggregation_is_order_stable_and_explicitly_limited() -> None:

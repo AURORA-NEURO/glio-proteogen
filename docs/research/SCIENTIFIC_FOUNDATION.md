@@ -17,14 +17,14 @@ C03/C04 computation contract:
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
 - `target_decoy_qvalues` performs explicit target/decoy competition.
-- `median_normalize` performs deterministic label-free peptide-intensity normalization while
-  preserving missingness.
+- `quantify_matched_ions` aggregates finite matched-fragment intensity per peptide and applies
+  median scaling while preserving zero-signal missingness. It is not precursor-based abundance.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
 - `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
-  research run: fragment matching, target/decoy q-values, spectral-count quantification,
-  ambiguity-preserving protein groups, and deterministic replay.
+  research run: fragment matching, target/decoy q-values, spectral counts, matched-ion
+  intensity quantification, ambiguity-preserving protein groups, and deterministic replay.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or

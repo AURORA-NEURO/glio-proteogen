@@ -10,6 +10,8 @@
       "b_y_fragment_matching",
       "target_decoy_q_values",
       "spectral_count_quantification",
+      "matched_ion_intensity_quantification",
+      "median_scaled_missingness_preserving_normalization",
       "ambiguity_preserving_protein_groups",
       "content_addressed_replay"
     ],

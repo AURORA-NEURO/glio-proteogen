@@ -16,7 +16,7 @@ from .pipeline import (
     run_research_protein_inference,
 )
 from .protein import ProteinGroup, infer_protein_groups
-from .quantification import PeptideQuant, median_normalize
+from .quantification import PeptideQuant, median_normalize, quantify_matched_ions
 from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
 
 __all__ = [
@@ -38,6 +38,7 @@ __all__ = [
     "infer_protein_groups",
     "median_normalize",
     "parse_mzml",
+    "quantify_matched_ions",
     "read_fasta",
     "replay_research_protein_inference",
     "run_research_protein_inference",

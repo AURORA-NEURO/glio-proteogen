@@ -16,9 +16,10 @@ one deterministic, auditable path:
    explicit fragment tolerance and minimum matched-ion threshold.
 4. Perform target/decoy competition and calculate monotone q-values. PSMs are accepted
    only at the caller-declared q-value threshold.
-5. Quantify accepted peptides by spectral counts, preserving zero observations rather
-   than converting missingness to a negative measurement.
-6. Resolve protein groups with the existing ambiguity-preserving parsimony routine;
+5. Aggregate matched fragment-ion intensity per accepted peptide and median-normalize
+   within the sample with explicit zero-signal missingness; spectral counts remain a
+   separate transparent measure.
+6. Resolve protein groups with the existing ambiguity-preserving component routine;
    shared peptides remain attached to all compatible accessions.
 7. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
@@ -31,7 +32,7 @@ and all claim-boundary flags. The benchmark uses one warm-up followed by timed p
 
 This is a transparent research computation, not a calibrated clinical estimator. It does
 not perform modification-localized search, retention-time modeling, isotope/charge-state
-deconvolution, DIA fragment grouping, intensity-based abundance estimation, protein
+deconvolution, DIA fragment grouping, precursor-based abundance estimation, protein
 probability calibration, tissue/cell deconvolution, glioma classification, mechanism
 discovery, treatment recommendation, identity inference, or consent inference. A PSM score,
 q-value, spectral count, or protein group is not itself a disease or mechanistic claim.

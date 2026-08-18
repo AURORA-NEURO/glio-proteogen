@@ -18,17 +18,17 @@
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
-    "mean_ns": 186890,
-    "median_ns": 189100,
-    "p95_ns": 195600,
-    "result_digest": "4f1608e8edc003d1b9c38ed2453f378b682309feae0a0102dcb046dc2050fcbc"
+    "mean_ns": 456350,
+    "median_ns": 406400,
+    "p95_ns": 562600,
+    "result_digest": "8971349612fd65bbeba28e9a7ea3c4a9e8b49406a4bfc593f03b1a9e0aeb98e4"
   },
   "coverage": {
-    "statements": 1108,
-    "missed_statements": 28,
-    "branches": 416,
-    "partial_branches": 25,
-    "percent": 96.25984251968504,
+    "statements": 1130,
+    "missed_statements": 29,
+    "branches": 424,
+    "partial_branches": 26,
+    "percent": 96.2033462033462,
     "fail_under": 95
   }
 }
