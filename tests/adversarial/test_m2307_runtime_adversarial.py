@@ -8,7 +8,11 @@ import pytest
 from evals.m23_07.fixture import build_request
 from pydantic import ValidationError
 
-from glio_proteogen.contracts.m23_07 import HumanFactorsOperationalReport, OperationalStatus
+from glio_proteogen.contracts.m23_07 import (
+    HumanFactorsOperationalReport,
+    OperationalStatus,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c21_reference_material import (
     m23_07_human_factors_operational_evaluator as m2307,
 )
@@ -142,6 +146,26 @@ def test_report_and_result_replay_closures_reject_forgery() -> None:
     payload["result_digest"] = "sha256:" + "0" * 64
     with pytest.raises(ValidationError, match="result digest"):
         type(result).model_validate(payload)
+
+
+@pytest.mark.parametrize("mutation", ["report", "evidence"])
+def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
+    service = m2307.M2307Service()
+    result = service.evaluate(build_request())
+    if mutation == "report":
+        assert result.report is not None
+        changed_report = result.report.model_copy(update={"version": "0.1.1"})
+        forged = result.model_copy(update={"report": changed_report})
+    else:
+        assert result.evidence
+        changed_evidence = result.evidence[0].model_copy(
+            update={"claim": "forged operational evidence claim"}
+        )
+        forged = result.model_copy(update={"evidence": (changed_evidence,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(m2307.M2307ReplayError):
+        service.replay(forged)
 
 
 def test_preflight_and_runtime_wrapper_cover_hostile_and_public_paths() -> None:
