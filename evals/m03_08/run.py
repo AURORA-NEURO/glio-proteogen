@@ -44,6 +44,7 @@ from glio_proteogen.contracts.m03_07 import (
 )
 from glio_proteogen.contracts.m03_08 import (
     M0308_ARCHIVE_MEMBER_COUNT,
+    M0308_CONTRACT_VERSION,
     M0308_MANIFEST_PATH,
     M0308_MAX_ARTIFACT_BYTES,
     M0308_MAX_CANONICAL_REQUEST_BYTES,
@@ -1751,6 +1752,7 @@ def main(argv: list[str] | None = None) -> int:
     checks = [_corpus_check(), *scenario_checks, coverage]
     report = {
         "module_id": MODULE_ID,
+        "contract_version": M0308_CONTRACT_VERSION,
         "status": "PASS" if all(item.passed for item in checks) else "FAIL",
         "checks": [asdict(item) for item in checks],
         "declared_case_count": len(declared),
