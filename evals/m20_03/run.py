@@ -27,6 +27,7 @@ from glio_proteogen.contracts.m20_03 import (
     FuseProteinSubtypeEvidenceRequest,
     FusionStatus,
     ReliabilityBand,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_03_fusion_aggregation import (
@@ -189,13 +190,22 @@ def evaluate() -> EvaluationReport:
         )
     )
     tampered = integrated.model_copy(update={"human_review_required": True})
+    tampered = type(tampered).model_construct(
+        **{**tampered.__dict__, "result_digest": result_payload_digest(tampered)}
+    )
     try:
         engine.replay(tampered)
     except M2003ReplayError:
         replay_denied = True
     else:
         replay_denied = False
-    checks.append(EvalCheck("replay.tamper_denied", replay_denied, "payload digest is bound"))
+    checks.append(
+        EvalCheck(
+            "replay.tamper_denied",
+            replay_denied,
+            "full result regeneration rejects self-rehashed semantic mutation",
+        )
+    )
     adversarial_passed = 0
     for name in ("low_reliability", "open_disagreement", "forbidden_claim"):
         result = engine.fuse(_scenario(name))

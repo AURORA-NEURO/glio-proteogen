@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -13,12 +14,14 @@ from glio_proteogen.contracts.m20_03 import (
     FuseProteinSubtypeEvidenceRequest,
     FusionFindingCode,
     FusionStatus,
+    ProteinSubtypeIntegratedEvidenceResult,
     ReliabilityBand,
     SourceContribution,
     SourceKind,
     canonical_request_bytes,
     canonical_request_digest,
     canonical_result_payload_bytes,
+    result_payload_digest,
     verify_request_digest,
     verify_result_digest,
 )
@@ -158,6 +161,16 @@ def _request(
     )
 
 
+def _self_rehashed(
+    result: ProteinSubtypeIntegratedEvidenceResult,
+    updates: dict[str, Any],
+) -> ProteinSubtypeIntegratedEvidenceResult:
+    forged = result.model_copy(update=updates)
+    return type(result).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+
 def test_supported_fusion_integrates_and_replays() -> None:
     result = M2003Engine().fuse(_request())
     assert result.status is FusionStatus.INTEGRATED
@@ -224,6 +237,65 @@ def test_tampering_is_rejected_and_canonical_helpers_are_stable() -> None:
     assert not verify_result_digest(
         {**result.model_dump(mode="json"), "human_review_required": True}, result.result_digest
     )
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        pytest.param({"human_review_required": True}, id="review-flag"),
+        pytest.param(
+            {
+                "support_decision": lambda result: result.support_decision.model_copy(
+                    update={"rationale": "forged rationale"}
+                )
+            },
+            id="support-rationale",
+        ),
+        pytest.param(
+            {
+                "limitations": lambda result: (
+                    result.limitations[0].model_copy(update={"statement": "forged limitation"}),
+                    *result.limitations[1:],
+                )
+            },
+            id="limitation-statement",
+        ),
+        pytest.param(
+            {
+                "provenance": lambda result: result.provenance.model_copy(
+                    update={"actor_id": "actor.forged"}
+                )
+            },
+            id="provenance-actor",
+        ),
+        pytest.param(
+            {
+                "evidence": lambda result: (
+                    result.evidence[0].model_copy(update={"claim": "forged claim"}),
+                    *result.evidence[1:],
+                )
+            },
+            id="evidence-claim",
+        ),
+        pytest.param(
+            {
+                "integrated_evidence": lambda result: result.integrated_evidence.model_copy(
+                    update={"aggregate_claim": "forged aggregate"}
+                )
+            },
+            id="integrated-claim",
+        ),
+    ],
+)
+def test_self_rehashed_semantic_mutations_are_rejected(updates: dict[str, Any]) -> None:
+    result = M2003Engine().fuse(_request())
+    resolved_updates = {
+        name: value(result) if callable(value) else value for name, value in updates.items()
+    }
+    forged = _self_rehashed(result, resolved_updates)
+    assert forged.result_digest == result_payload_digest(forged)
+    with pytest.raises(M2003ReplayError, match="deterministic replay"):
+        M2003Engine().replay(forged)
 
 
 def test_service_plugin_parity_and_descriptor_boundaries() -> None:
