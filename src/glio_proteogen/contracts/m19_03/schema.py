@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m19_03.v1 import (
     M1903_OUTPUT_MEDIA_TYPE,
     M1903_OWNER,
     M1903_PARENT,
+    M1903_PROHIBITED_CLAIM_TERMS,
     M1903_PROVISIONAL_ABI,
     M1903_SAFETY_CLASS,
     AggregationConfiguration,
@@ -96,6 +97,7 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
         "humanReviewRequiredForConflict": True,
         "explicitAbstentionRequired": True,
         "humanReviewRequired": True,
+        "prohibitedClaimTerms": M1903_PROHIBITED_CLAIM_TERMS,
     }
     if name == "request":
         schema["x-glio-contract"]["maxRequestBytes"] = M1903_MAX_CANONICAL_REQUEST_BYTES

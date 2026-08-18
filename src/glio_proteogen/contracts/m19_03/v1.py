@@ -58,6 +58,24 @@ M1903_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-03 source attribution, reliability, aggregation and "
     "disagreement material; issuer authority is not authenticated."
 )
+# Caller-declared text containing any of these terms is outside the M19-03
+# component-specific proteotype authority boundary and must not be integrated.
+M1903_PROHIBITED_CLAIM_TERMS: Final = (
+    "all-omics",
+    "kinase",
+    "treatment",
+    "identity",
+    "consent",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "identity inference",
+    "consent inference",
+    "diagnosis",
+    "subtype",
+    "glioma-specific",
+    "glioma specific biology",
+)
 _HIGH_RELIABILITY_THRESHOLD: Final = 0.8
 _MODERATE_RELIABILITY_THRESHOLD: Final = 0.5
 
@@ -329,6 +347,7 @@ __all__ = [
     "M1903_OUTPUT_MEDIA_TYPE",
     "M1903_OWNER",
     "M1903_PARENT",
+    "M1903_PROHIBITED_CLAIM_TERMS",
     "M1903_PROVISIONAL_ABI",
     "M1903_SAFETY_CLASS",
     "AggregationConfiguration",

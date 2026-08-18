@@ -6,6 +6,7 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from glio_proteogen.contracts.m19_03 import (
     M1903_OUTPUT_MEDIA_TYPE,
+    M1903_PROHIBITED_CLAIM_TERMS,
     M1903_PROVISIONAL_ABI,
     DisagreementStatus,
     FusionStatus,
@@ -57,6 +58,10 @@ def test_provisional_schemas_preserve_attribution_and_conflict() -> None:
     )
     assert _metadata(schemas["output"])["outputMediaType"] == M1903_OUTPUT_MEDIA_TYPE
     assert M1903_PROVISIONAL_ABI is True
+    assert all(
+        tuple(item["prohibitedClaimTerms"]) == M1903_PROHIBITED_CLAIM_TERMS
+        for item in metadata
+    )
 
 
 def test_replay_helpers_are_canonical_and_tamper_sensitive() -> None:
