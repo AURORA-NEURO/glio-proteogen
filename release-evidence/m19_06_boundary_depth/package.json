@@ -3,11 +3,11 @@
   "base_commit": "e8071eab",
   "build_a": {
     "wheel_sha256": "5a05fdde306b515975e93e1d70aa4c26ff0d1b0aeaa48ac0b35a8d398cbbc9b9",
-    "sdist_sha256": "99a990dd781dbb98daa094574f2c2d7352667491f125c6945bc9276ba921c367"
+    "sdist_sha256": "55a85a55d1d84273be037bb0e3db87c1444fc2b9ebbc77427175504663d00048"
   },
   "build_b": {
     "wheel_sha256": "5a05fdde306b515975e93e1d70aa4c26ff0d1b0aeaa48ac0b35a8d398cbbc9b9",
-    "sdist_sha256": "99a990dd781dbb98daa094574f2c2d7352667491f125c6945bc9276ba921c367"
+    "sdist_sha256": "55a85a55d1d84273be037bb0e3db87c1444fc2b9ebbc77427175504663d00048"
   },
   "reproducible": true,
   "isolated_import": {
@@ -25,10 +25,10 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "bytes": 4234010,
-    "size_bytes": 4234010,
-    "member_count": 4414,
-    "members": 4414,
-    "sha256": "99a990dd781dbb98daa094574f2c2d7352667491f125c6945bc9276ba921c367"
+    "bytes": 4234761,
+    "size_bytes": 4234761,
+    "member_count": 4415,
+    "members": 4415,
+    "sha256": "55a85a55d1d84273be037bb0e3db87c1444fc2b9ebbc77427175504663d00048"
   }
 }
