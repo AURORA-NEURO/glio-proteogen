@@ -180,13 +180,15 @@ class M0608EvidencePublisherEngine:
         *,
         replay: bool = True,
     ) -> ProteinAbundanceEvidencePublicationResult:
-        """Strictly verify the envelope and, by default, replay its request.
+        """Strictly verify the envelope and replay its request.
 
-        ``replay`` is exposed for callers that only need a receipt check.  The
-        service and evaluator use the default transitive replay, which catches
-        changes to the request digest, evidence references, controls, and
-        abstention explanation.
+        ``replay`` remains accepted for source compatibility with provisional
+        callers, but cannot disable semantic reconstruction. A digest-only
+        receipt check would accept a forged nested payload after an attacker
+        recomputed ``result_digest``.
         """
+
+        del replay
 
         if isinstance(result, BaseModel):
             if not verify_result_digest(result):
@@ -209,10 +211,9 @@ class M0608EvidencePublisherEngine:
             raise M0608ReplayVerificationError("result digest does not match canonical payload")  # noqa: TRY003
         if validated.request_digest != canonical_request_digest(validated.request):
             raise M0608ReplayVerificationError("request digest does not match embedded request")  # noqa: TRY003
-        if replay:
-            expected = self.publish(validated.request)
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M0608ReplayVerificationError("replayed request produced a different result")  # noqa: TRY003
+        expected = self.publish(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M0608ReplayVerificationError("replayed request produced a different result")  # noqa: TRY003
         return validated
 
 
