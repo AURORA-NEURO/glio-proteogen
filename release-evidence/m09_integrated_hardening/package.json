@@ -1,0 +1,31 @@
+{
+  "moduleScope": "M09-01..M09-08 integrated hardening",
+  "buildBackend": "hatchling 1.31.0",
+  "wheel": {
+    "file": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3665153,
+    "sha256": "8a1f544a7bf60626954f59c6c3f66701c772f6d84e47c086b74cd44eaebc44fd",
+    "members": 1913,
+    "generatedMembers": 0
+  },
+  "sdist": {
+    "file": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 4205519,
+    "sha256": "827b10e14348cb283044ab38f74c165d477e086d8dbee642b2b00de586b52997",
+    "members": 4389,
+    "generatedMembers": 0
+  },
+  "isolatedImport": true,
+  "artifactAudit": {
+    "unsafePaths": 0,
+    "excludedGeneratedPatterns": [
+      ".coverage*",
+      "coverage_*.json",
+      "coverage.xml",
+      "__pycache__",
+      "*.pyc",
+      ".venv",
+      ".m09-integrated*"
+    ]
+  }
+}

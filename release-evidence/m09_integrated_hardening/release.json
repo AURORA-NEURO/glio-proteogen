@@ -1,0 +1,23 @@
+{
+  "scope": "M09-01..M09-08",
+  "baseCommit": "e4ae745888879fdc9895df49a9d0dcf3d8307187",
+  "branch": "audit/m09-integrated-hardening",
+  "provisionalAbi": true,
+  "hardeningCommitChain": [
+    "a319a522",
+    "2a4c2e24",
+    "c547f99e"
+  ],
+  "safetyClosures": [
+    "exact built-in dict canonicalization with hostile-mapping rejection",
+    "full request/configuration/source provenance replay binding",
+    "uncertainty profile replay binding for M09-07",
+    "forged provenance rejection across all M09 result verifiers"
+  ],
+  "static": {
+    "ruff": true,
+    "format": true,
+    "mypyStrict": true,
+    "compileall": true
+  }
+}
