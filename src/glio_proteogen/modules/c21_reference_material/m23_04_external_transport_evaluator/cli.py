@@ -9,8 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m23_04 import (
     M2304_MAX_CANONICAL_REQUEST_BYTES,
+    M2304_MAX_CANONICAL_RESULT_BYTES,
     EvaluateVariantPeptideExternalTransportRequest,
     VariantPeptideExternalTransportResult,
     contract_json_schema,
@@ -43,7 +45,7 @@ class M2304CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> EvaluateVariantPeptideExternalTransportRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2304_MAX_CANONICAL_REQUEST_BYTES)
         parsed = strict_json_loads(data, max_bytes=M2304_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -54,7 +56,10 @@ def _read_request(path: Path) -> EvaluateVariantPeptideExternalTransportRequest:
 
 def _read_result(path: Path) -> VariantPeptideExternalTransportResult:
     try:
-        parsed = strict_json_loads(path.read_bytes())
+        parsed = strict_json_loads(
+            read_bounded(path, M2304_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M2304_MAX_CANONICAL_RESULT_BYTES,
+        )
         return _RESULT_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2304CliError("input must be a valid M23-04 result") from error  # noqa: TRY003

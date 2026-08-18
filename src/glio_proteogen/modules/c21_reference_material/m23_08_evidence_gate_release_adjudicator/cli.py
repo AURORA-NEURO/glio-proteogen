@@ -9,8 +9,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m23_08 import (
     M2308_MAX_CANONICAL_REQUEST_BYTES,
+    M2308_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateVariantPeptideEvidenceGateRequest,
     VariantPeptideEvidenceGateResult,
     contract_json_schema,
@@ -47,7 +49,7 @@ class M2308CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> AdjudicateVariantPeptideEvidenceGateRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2308_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -58,8 +60,8 @@ def _read_request(path: Path) -> AdjudicateVariantPeptideEvidenceGateRequest:
 
 def _read_result(path: Path) -> VariantPeptideEvidenceGateResult:
     try:
-        data = path.read_bytes()
-        strict_json_loads(data)
+        data = read_bounded(path, M2308_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2308_MAX_CANONICAL_RESULT_BYTES)
         return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2308CliError("input must be a valid M23-08 result") from error  # noqa: TRY003
