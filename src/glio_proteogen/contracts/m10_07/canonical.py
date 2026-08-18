@@ -16,8 +16,26 @@ def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
     if type(value) is dict:
-        return value.copy()
+        return _plain_dict(value)
     raise TypeError("canonical values must be Pydantic models or exact dicts")
+
+
+def _plain_dict(value: dict[str, Any]) -> dict[str, Any]:
+    """Copy only built-in containers before canonical serialization."""
+
+    return {key: _plain_value(item) for key, item in value.items()}
+
+
+def _plain_value(value: object) -> object:
+    if type(value) is dict:
+        return _plain_dict(value)
+    if type(value) is list:
+        return [_plain_value(item) for item in value]
+    if type(value) is tuple:
+        return tuple(_plain_value(item) for item in value)
+    if isinstance(value, (dict, list, tuple)):
+        raise TypeError("canonical values must use built-in containers")
+    return value
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
