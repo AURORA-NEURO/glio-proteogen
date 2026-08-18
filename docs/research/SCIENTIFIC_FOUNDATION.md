@@ -12,7 +12,10 @@ C03/C04 computation contract:
 - `PdcClient` retrieves bounded public NCI Proteomic Data Commons metadata over the documented open
   GraphQL endpoint. It records the study URL, file metadata, and response SHA-256; its explicit
   `download_file_with_receipt` path additionally binds one caller-requested download to the exact
-  captured catalog file and observed SHA-256/MD5/size. It never fetches raw cohort data implicitly.
+  captured catalog file and observed SHA-256/MD5/size. The opt-in raw-byte path requires an HTTPS
+  PDC delivery host or an exact caller-approved host (loopback HTTP is test-only), bounds timeout
+  and decoded bytes, validates mzML media and declared length, revalidates every redirect, and
+  stages bytes until all catalog/reference hashes pass. It never fetches raw cohort data implicitly.
 - `parse_mzml` decodes bounded m/z and intensity arrays from local mzML or gzip-compressed mzML.
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable

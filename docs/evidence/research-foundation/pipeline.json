@@ -17,6 +17,7 @@
       "ambiguity_preserving_protein_groups",
       "ambiguity_aware_protein_group_quantification",
       "pdc_declaration_bound_external_source_evidence",
+      "explicit_bounded_pdc_raw_retrieval_with_receipt",
       "multi_sample_cohort_matrix_with_explicit_null_missingness",
       "replicate_median_mad_quality_summary",
       "within_label_median_normalization_with_scale_receipts",

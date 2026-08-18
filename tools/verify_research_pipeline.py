@@ -46,6 +46,8 @@ _EXPECTED_COHORT_SCENARIOS = (
 )
 _RESEARCH_MEMBERS = (
     "glio_proteogen/research/pipeline.py",
+    "glio_proteogen/research/pdc.py",
+    "glio_proteogen/research/public_proteomics/provenance.py",
     "glio_proteogen/research/search.py",
     "glio_proteogen/research/protein.py",
     "glio_proteogen/research/cohort.py",

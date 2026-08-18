@@ -3,18 +3,31 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from hashlib import md5, sha256
-from typing import Any, BinaryIO
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from tempfile import SpooledTemporaryFile
+from typing import Any, BinaryIO, Iterable
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 from .public_proteomics.provenance import SourceReference
 
 PDC_GRAPHQL_ENDPOINT = "https://pdc.cancer.gov/graphql"
 PDC_STUDY_URL = "https://pdc.cancer.gov/pdc/study/{study_id}"
 PDC_DOWNLOAD_HOSTS = frozenset({"pdc.cancer.gov", "d3iwtkuvwz4jtf.cloudfront.net"})
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+_DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+_SPOOL_MEMORY_BYTES = 8 * 1024 * 1024
+_MAX_DOWNLOAD_TIMEOUT_SECONDS = 300.0
+_MZML_MEDIA_TYPES = frozenset(
+    {"application/mzml", "application/xml", "text/xml", "application/octet-stream"}
+)
+_MZML_GZIP_MEDIA_TYPES = frozenset(
+    {"application/gzip", "application/x-gzip", "application/octet-stream"}
+)
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 
@@ -207,6 +220,127 @@ def _file(value: object) -> PdcFile:
     )
 
 
+def _approved_hosts(extra_hosts: Iterable[str]) -> frozenset[str]:
+    hosts = set(PDC_DOWNLOAD_HOSTS)
+    for host in extra_hosts:
+        if (
+            not isinstance(host, str)
+            or not host
+            or host != host.strip()
+            or any(character.isspace() for character in host)
+            or "/" in host
+            or (":" in host and host != "::1")
+        ):
+            raise ValueError("approved download hosts must be exact host names")
+        hosts.add(host.lower())
+    return frozenset(hosts)
+
+
+def _validate_download_url(url: str, allowed_hosts: frozenset[str]) -> None:
+    parsed = urlparse(url)
+    host = parsed.hostname.lower() if parsed.hostname is not None else None
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise PdcError("PDC download URL has an invalid port") from error
+    if (
+        parsed.username is not None
+        or parsed.password is not None
+        or host is None
+        or host not in allowed_hosts
+        or parsed.fragment
+        or parsed.scheme not in {"http", "https"}
+    ):
+        raise PdcError("PDC download URL is outside the exact host allowlist")
+    if parsed.scheme == "https" and port not in {None, 443}:
+        raise PdcError("PDC HTTPS download URL must use the default port")
+    if parsed.scheme == "http" and host not in _LOOPBACK_HOSTS:
+        raise PdcError("non-HTTPS PDC downloads are limited to loopback test hosts")
+
+
+class _AllowlistedRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, allowed_hosts: frozenset[str]) -> None:
+        super().__init__()
+        self._allowed_hosts = allowed_hosts
+
+    def redirect_request(  # noqa: PLR0917
+        self,
+        request: Request,
+        file: Any,  # noqa: ANN401
+        code: int,
+        msg: str,
+        headers: Any,  # noqa: ANN401
+        new_url: str,
+    ) -> Request | None:
+        target = urljoin(request.full_url, new_url)
+        _validate_download_url(target, self._allowed_hosts)
+        return super().redirect_request(request, file, code, msg, headers, target)
+
+
+def _open_download_response(
+    request: Request, *, timeout_seconds: float, allowed_hosts: frozenset[str]
+) -> Any:  # noqa: ANN401
+    opener = build_opener(_AllowlistedRedirectHandler(allowed_hosts))
+    try:
+        return opener.open(request, timeout=timeout_seconds)
+    except PdcError:
+        raise
+    except HTTPError as error:
+        raise PdcError(f"PDC download returned HTTP status {error.code}") from error
+    except (OSError, URLError, TimeoutError) as error:
+        raise PdcError("PDC download request failed") from error
+
+
+def _media_types(file_format: str | None) -> frozenset[str]:
+    if file_format is None:
+        raise PdcError("PDC file has no declared mzML format")
+    normalized = file_format.lower()
+    if normalized == "mzml":
+        return _MZML_MEDIA_TYPES
+    if normalized == "mzml.gz":
+        return _MZML_GZIP_MEDIA_TYPES
+    raise PdcError("PDC raw retrieval supports only mzML or mzML.gz")
+
+
+def _media_type(value: str | None) -> str:
+    if value is None:
+        raise PdcError("PDC download response has no Content-Type")
+    media = value.split(";", 1)[0].strip().lower()
+    if not media:
+        raise PdcError("PDC download response has an empty Content-Type")
+    return media
+
+
+def _validate_response_headers(
+    response: Any,  # noqa: ANN401
+    file: PdcFile,
+    source_reference: SourceReference | None,
+) -> None:
+    media_types = _media_types(file.file_format)
+    response_media = _media_type(response.headers.get("Content-Type"))
+    if response_media not in media_types:
+        raise PdcError("PDC download Content-Type is incompatible with the declared mzML format")
+    if source_reference is not None:
+        reference_media = _media_type(source_reference.media_type)
+        if reference_media not in media_types:
+            raise PdcError(
+                "source reference media type is incompatible with the declared mzML format"
+            )
+        if response_media != reference_media and "application/octet-stream" not in {
+            response_media,
+            reference_media,
+        }:
+            raise PdcError("PDC download Content-Type does not match the source reference")
+    content_length = response.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as error:
+            raise PdcError("PDC download Content-Length is not an integer") from error
+        if declared_length != file.file_size:
+            raise PdcError("PDC download Content-Length differs from the file declaration")
+
+
 class PdcClient:
     """Fetch bounded study metadata; never downloads raw spectra implicitly."""
 
@@ -261,15 +395,24 @@ class PdcClient:
         destination: BinaryIO,
         *,
         max_bytes: int = 512 * 1024 * 1024,
+        timeout_seconds: float = 120.0,
+        approved_hosts: Iterable[str] = (),
     ) -> int:
         """Explicitly stream one signed PDC file into a caller-owned destination.
 
         Metadata discovery never calls this method. The signed URL must be HTTPS on
-        an allowlisted PDC delivery host, the declared size must fit the caller's
-        bound, and an MD5 supplied by PDC is checked over the received bytes before
-        returning.
+        an allowlisted PDC delivery host (or an exact caller-approved host), the
+        declared size and response media must fit the caller's bound, and checksums
+        supplied by PDC are checked before any verified bytes are copied to the
+        destination. Redirects are revalidated at every hop.
         """
-        total, _, _ = self._download_file(file, destination, max_bytes=max_bytes)
+        total, _, _ = self._download_file(
+            file,
+            destination,
+            max_bytes=max_bytes,
+            timeout_seconds=timeout_seconds,
+            approved_hosts=approved_hosts,
+        )
         return total
 
     def download_file_with_receipt(
@@ -280,8 +423,16 @@ class PdcClient:
         destination: BinaryIO,
         *,
         max_bytes: int = 512 * 1024 * 1024,
+        timeout_seconds: float = 120.0,
+        approved_hosts: Iterable[str] = (),
     ) -> PdcSourceReceipt:
-        """Download one catalog-listed file and return its content-addressed receipt."""
+        """Download one catalog-listed file and return its content-addressed receipt.
+
+        This is the explicit raw-byte retrieval boundary. It never runs from a
+        metadata query or the research inference pipeline, and it writes to the
+        caller destination only after URL, media, size, SHA-256, and MD5 checks
+        succeed.
+        """
 
         if not isinstance(snapshot, PdcStudySnapshot):
             raise TypeError("snapshot must be a PdcStudySnapshot")
@@ -289,7 +440,14 @@ class PdcClient:
             raise TypeError("source_reference must be a SourceReference")
         if file not in snapshot.files:
             raise PdcError("PDC file is absent from the captured catalog snapshot")
-        total, md5_hex, sha256_hex = self._download_file(file, destination, max_bytes=max_bytes)
+        total, md5_hex, sha256_hex = self._download_file(
+            file,
+            destination,
+            max_bytes=max_bytes,
+            timeout_seconds=timeout_seconds,
+            approved_hosts=approved_hosts,
+            source_reference=source_reference,
+        )
         return PdcSourceReceipt(
             snapshot=snapshot,
             file=file,
@@ -301,37 +459,69 @@ class PdcClient:
 
     @staticmethod
     def _download_file(
-        file: PdcFile, destination: BinaryIO, *, max_bytes: int
+        file: PdcFile,
+        destination: BinaryIO,
+        *,
+        max_bytes: int,
+        timeout_seconds: float,
+        approved_hosts: Iterable[str],
+        source_reference: SourceReference | None = None,
     ) -> tuple[int, str, str]:
-        if not 0 < max_bytes <= 2 * 1024 * 1024 * 1024:
+        if type(max_bytes) is not int or not 0 < max_bytes <= 2 * 1024 * 1024 * 1024:
             raise ValueError("max_bytes is outside supported bounds")
+        if (
+            type(timeout_seconds) not in (int, float)
+            or not math.isfinite(timeout_seconds)
+            or not 0 < timeout_seconds <= _MAX_DOWNLOAD_TIMEOUT_SECONDS
+        ):
+            raise ValueError("timeout_seconds is outside supported bounds")
         if file.signed_url is None:
             raise PdcError("PDC file has no signed download URL")
-        parsed = urlparse(file.signed_url)
-        if parsed.scheme != "https" or parsed.hostname not in PDC_DOWNLOAD_HOSTS:
-            raise PdcError("PDC signed URL is outside the HTTPS delivery-host allowlist")
+        allowed_hosts = _approved_hosts(approved_hosts)
+        _validate_download_url(file.signed_url, allowed_hosts)
         if file.file_size > max_bytes:
             raise PdcError("PDC file exceeds the caller download limit")
         request = Request(  # noqa: S310 - HTTPS host allowlist validated above
-            file.signed_url, headers={"Accept": "application/octet-stream"}
+            file.signed_url,
+            headers={"Accept": ", ".join(sorted(_media_types(file.file_format)))},
         )
         md5_digest = md5(usedforsecurity=False)
         sha256_digest = sha256()
         total = 0
-        with urlopen(request, timeout=120.0) as response:  # noqa: S310 - HTTPS allowlist above
-            while True:
-                chunk = response.read(min(1024 * 1024, max_bytes - total + 1))
-                if not chunk:
-                    break
-                total += len(chunk)
-                if total > max_bytes or total > file.file_size:
-                    raise PdcError("PDC download exceeded the declared or caller limit")
-                md5_digest.update(chunk)
-                sha256_digest.update(chunk)
-                destination.write(chunk)
-        if total != file.file_size:
-            raise PdcError("PDC download length differs from metadata")
-        md5_hex = md5_digest.hexdigest().lower()
-        if file.md5 is not None and md5_hex != file.md5.lower():
-            raise PdcError("PDC download MD5 differs from metadata")
-        return total, md5_hex, sha256_digest.hexdigest()
+        with _open_download_response(
+            request,
+            timeout_seconds=float(timeout_seconds),
+            allowed_hosts=allowed_hosts,
+        ) as response:
+            _validate_response_headers(response, file, source_reference)
+            with SpooledTemporaryFile(
+                max_size=min(max_bytes, _SPOOL_MEMORY_BYTES), mode="w+b"
+            ) as spool:
+                while True:
+                    try:
+                        chunk = response.read(min(_DOWNLOAD_CHUNK_BYTES, max_bytes - total + 1))
+                    except (OSError, TimeoutError) as error:
+                        raise PdcError("PDC download request failed") from error
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > max_bytes or total > file.file_size:
+                        raise PdcError("PDC download exceeded the declared or caller limit")
+                    md5_digest.update(chunk)
+                    sha256_digest.update(chunk)
+                    spool.write(chunk)
+                if total != file.file_size:
+                    raise PdcError("PDC download length differs from metadata")
+                md5_hex = md5_digest.hexdigest().lower()
+                sha256_hex = sha256_digest.hexdigest()
+                if file.md5 is not None and md5_hex != file.md5.lower():
+                    raise PdcError("PDC download MD5 differs from metadata")
+                observed_sha = "sha256:" + sha256_hex
+                if source_reference is not None and (
+                    source_reference.byte_length != total or source_reference.sha256 != observed_sha
+                ):
+                    raise PdcError("PDC download bytes differ from the source reference")
+                spool.seek(0)
+                while chunk := spool.read(_DOWNLOAD_CHUNK_BYTES):
+                    destination.write(chunk)
+        return total, md5_hex, sha256_hex
