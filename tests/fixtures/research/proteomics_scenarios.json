@@ -451,7 +451,7 @@
         }
       ],
       "expected_group_fdr": {
-        "accepted_targets": 1,
+        "accepted_targets": 0,
         "candidates": 1,
         "collision_candidates": 0,
         "decoy_candidates": 0,
@@ -459,7 +459,7 @@
         "duplicate_spectrum_psms": 0,
         "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
         "input_psms": 1,
-        "max_accepted_q_value": 0.0,
+        "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
@@ -473,14 +473,14 @@
             "P1",
             "P2"
           ],
-          "acceptance": "accepted",
+          "acceptance": "abstained",
           "q_value": 0.0,
           "status": "target"
         }
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "df575ee7ea61631f96e458e60e113c877642ae70dde4304def9d22826b697ca9",
+      "expected_result_digest": "65424d1675e4ceab8cccaddce99e30a98e4e0f856e8c721dafae1af83add2fbe",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
