@@ -15,6 +15,8 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m23_01.canonical import (
     canonical_request_digest,
+    package_payload_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -33,8 +35,12 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 7956-7996.
+# PROVISIONAL ABI: inferred solely from the permitted dossier slice.
 M2301_MODULE_ID: Final = "GLIO-PROTEOGEN-M23-01"
+M2301_DOSSIER_SHA256: Final = (
+    "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
+)
+M2301_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:7956-7996"
 M2301_OPERATION: Final = "curate_variant_peptide_reference_truth"
 M2301_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2301_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m23-01+json"
@@ -109,6 +115,12 @@ class ReferenceEntry(FrozenModel):
     uncertainty: UncertaintyProfile
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2301_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def challenge_kind_matches_flag(self) -> ReferenceEntry:
+        if (self.kind is ReferenceKind.CHALLENGE_SET) != self.challenge_set:
+            raise ValueError("challenge-set kind and flag must agree")
+        return self
+
 
 class InclusionDecision(FrozenModel):
     reference_id: Identifier
@@ -171,13 +183,24 @@ class ReferenceTruthPackage(FrozenModel):
         controls = tuple(item.reference_id for item in self.controls)
         if len(references) != len(set(references)) or len(controls) != len(set(controls)):
             raise ValueError("reference and control ids must be unique")
+        if self.configuration.parent_target != M2301_PARENT or not self.configuration.locked:
+            raise ValueError("package configuration must be locked to the parent target")
         all_ids = set(references) | set(controls)
-        if {item.reference_id for item in self.inclusions} != all_ids:
+        inclusion_ids = tuple(item.reference_id for item in self.inclusions)
+        adjudication_ids = tuple(item.reference_id for item in self.adjudications)
+        if len(inclusion_ids) != len(set(inclusion_ids)) or set(inclusion_ids) != all_ids:
             raise ValueError("inclusion decisions must classify every reference and control")
-        if {item.reference_id for item in self.adjudications} != all_ids:
+        if len(adjudication_ids) != len(set(adjudication_ids)) or set(adjudication_ids) != all_ids:
             raise ValueError("adjudications must cover every reference and control")
         if not set(self.challenge_set_ids) <= set(references):
             raise ValueError("challenge set must reference known entries")
+        challenge_ids = {item.reference_id for item in self.references if item.challenge_set}
+        if set(self.challenge_set_ids) != challenge_ids:
+            raise ValueError("challenge set IDs must match flagged reference entries")
+        if any(item.status is not AdjudicationStatus.LOCKED for item in self.adjudications):
+            raise ValueError("locked package requires locked adjudications")
+        if self.lock_digest != package_payload_digest(self):
+            raise ValueError("package lock digest must bind the canonical package payload")
         return self
 
 
@@ -208,14 +231,54 @@ class CurateVariantPeptideReferenceTruthRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> CurateVariantPeptideReferenceTruthRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context request ID must match the request")
         ids = tuple(item.reference_id for item in (*self.references, *self.controls))
         if len(ids) != len(set(ids)):
             raise ValueError("request reference and control ids must be unique")
         known = set(ids)
-        if {item.reference_id for item in self.inclusions} != known:
+        if any(
+            item.kind
+            not in {
+                ReferenceKind.CALIBRATOR,
+                ReferenceKind.SPIKE_IN,
+                ReferenceKind.CHALLENGE_SET,
+            }
+            for item in self.references
+        ):
+            raise ValueError("reference partition contains a control kind")
+        if any(
+            item.kind not in {ReferenceKind.POSITIVE_CONTROL, ReferenceKind.NEGATIVE_CONTROL}
+            for item in self.controls
+        ):
+            raise ValueError("control partition contains a reference kind")
+        inclusion_ids = tuple(item.reference_id for item in self.inclusions)
+        adjudication_ids = tuple(item.reference_id for item in self.adjudications)
+        if len(inclusion_ids) != len(set(inclusion_ids)) or set(inclusion_ids) != known:
             raise ValueError("request inclusions must classify every item")
-        if {item.reference_id for item in self.adjudications} != known:
+        if len(adjudication_ids) != len(set(adjudication_ids)) or set(adjudication_ids) != known:
             raise ValueError("request adjudications must cover every item")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifacts must have unique artifact IDs")
+        declared: list[ArtifactReference] = []
+        for entry in (*self.references, *self.controls):
+            declared.extend((entry.artifact, entry.provenance_artifact))
+            declared.extend(item.reference for item in entry.evidence)
+        declared.extend(item.reference for item in self.endpoint.evidence)
+        declared.extend(
+            evidence_item.reference
+            for inclusion in self.inclusions
+            for evidence_item in inclusion.evidence
+        )
+        declared.extend(
+            evidence_item.reference
+            for adjudication in self.adjudications
+            for evidence_item in adjudication.evidence
+        )
+        declared.extend(item.reference for item in self.configuration.evidence)
+        if any(source_by_id.get(item.artifact_id) != item for item in declared):
+            raise ValueError("source artifacts must bind every declared artifact exactly")
         return self
 
 
@@ -243,6 +306,8 @@ class VariantPeptideReferenceTruthResult(FrozenModel):
     def result_is_closed(self) -> VariantPeptideReferenceTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result identifier must bind the request digest")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None
@@ -250,6 +315,15 @@ class VariantPeptideReferenceTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("curated result requires a supported truth package")
+            if self.package is not None and (
+                self.package.endpoint != self.request.endpoint
+                or self.package.references != self.request.references
+                or self.package.controls != self.request.controls
+                or self.package.inclusions != self.request.inclusions
+                or self.package.adjudications != self.request.adjudications
+                or self.package.configuration != self.request.configuration
+            ):
+                raise ValueError("curated package must bind the exact request declarations")
         elif (
             self.package is not None
             or self.abstention_reason is None
@@ -264,6 +338,8 @@ class VariantPeptideReferenceTruthResult(FrozenModel):
 
 __all__ = [
     "M2301_CONTRACT_VERSION",
+    "M2301_DOSSIER_SHA256",
+    "M2301_DOSSIER_SLICE",
     "M2301_EVIDENCE_CLAIM",
     "M2301_GATE",
     "M2301_MAX_ADJUDICATIONS",
