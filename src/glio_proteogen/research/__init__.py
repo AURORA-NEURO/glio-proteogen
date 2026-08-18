@@ -55,6 +55,7 @@ from .protein import (
     infer_protein_group_candidates,
     infer_protein_groups,
 )
+from .public_proteomics.formats import MzIdentMlStructure, extract_mzidentml_structure
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     PeptideQuant,
@@ -101,6 +102,7 @@ __all__ = [
     "FastaEntry",
     "FdrSummary",
     "ModificationSpec",
+    "MzIdentMlStructure",
     "ParsedPeptide",
     "PdcClient",
     "PdcFile",
@@ -133,6 +135,7 @@ __all__ = [
     "digest_trypsin",
     "expand_peptide",
     "expand_peptide_map",
+    "extract_mzidentml_structure",
     "infer_protein_group_candidates",
     "infer_protein_groups",
     "median_normalize",

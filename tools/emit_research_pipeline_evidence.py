@@ -12,6 +12,9 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from evals.research_proteomics.cohort import run_evaluator as run_cohort_evaluator
+from evals.research_proteomics.mzidentml_provenance import (
+    run_mzidentml_provenance_evaluator,
+)
 from evals.research_proteomics.precursor_policy import run_precursor_policy_evaluator
 from evals.research_proteomics.run import run_benchmark, run_evaluator
 
@@ -25,12 +28,19 @@ def refresh() -> None:
     evaluation = run_evaluator()
     cohort = run_cohort_evaluator()
     precursor_policy = run_precursor_policy_evaluator()
-    if not evaluation["passed"] or not cohort["passed"] or not precursor_policy["passed"]:
+    mzidentml_provenance = run_mzidentml_provenance_evaluator()
+    if (
+        not evaluation["passed"]
+        or not cohort["passed"]
+        or not precursor_policy["passed"]
+        or not mzidentml_provenance["passed"]
+    ):
         raise ValueError("locked research evaluator did not pass")
     evidence["fixture_sha256"] = evaluation["fixture_sha256"]
     evidence["evaluator"] = evaluation
     evidence["cohort_evaluation"] = cohort
     evidence["precursor_policy_evaluation"] = precursor_policy
+    evidence["mzidentml_provenance_evaluation"] = mzidentml_provenance
     evidence["benchmark"] = run_benchmark(iterations=10)
     _EVIDENCE.write_text(
         json.dumps(evidence, indent=2, ensure_ascii=True, allow_nan=False) + "\n",
