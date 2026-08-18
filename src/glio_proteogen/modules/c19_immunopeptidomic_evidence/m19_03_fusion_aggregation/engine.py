@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m19_03 import (
     M1903_EVIDENCE_CLAIM,
     M1903_MAX_EVIDENCE,
     M1903_MODULE_ID,
+    M1903_PROHIBITED_CLAIM_TERMS,
     DisagreementStatus,
     FuseProteotypeEvidenceRequest,
     FusionFinding,
@@ -53,9 +54,7 @@ _CONTROL_STATES: Final = {
     "support": UpstreamDecisionState.ACCEPTED.value,
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
-_FORBIDDEN_CLAIM_TERMS: Final = frozenset(
-    {"all-omics", "kinase", "treatment", "identity inference", "diagnosis", "subtype"}
-)
+_FORBIDDEN_CLAIM_TERMS: Final = frozenset(M1903_PROHIBITED_CLAIM_TERMS)
 
 
 class M1903AuthorizationError(ValueError):
@@ -244,22 +243,49 @@ def _finding(
     )
 
 
+def _forbidden_texts(request: FuseProteotypeEvidenceRequest) -> tuple[str, ...]:
+    """Collect every caller-controlled text surface before integration."""
+
+    texts = [
+        request.configuration.method,
+        *(item.claim for item in request.configuration.evidence),
+        *request.aggregate_values,
+    ]
+    for contribution in request.contributions:
+        texts.extend(
+            (
+                contribution.owner,
+                contribution.claim,
+                contribution.uncertainty_note,
+                *(item.claim for item in contribution.evidence),
+            )
+        )
+    for disagreement in request.disagreements:
+        texts.extend(
+            (
+                disagreement.description,
+                disagreement.resolution or "",
+                *(item.claim for item in disagreement.evidence),
+            )
+        )
+    return tuple(text.casefold() for text in texts)
+
+
 def _findings(
     request: FuseProteotypeEvidenceRequest,
 ) -> tuple[FusionFinding, ...]:
     findings: list[FusionFinding] = []
     threshold = request.configuration.reliability_threshold
-    for contribution in request.contributions:
-        claim = contribution.claim.casefold()
-        if any(term in claim for term in _FORBIDDEN_CLAIM_TERMS):
-            findings.append(
-                _finding(
-                    request.request_id,
-                    FusionFindingCode.OWNERSHIP_UNCLEAR,
-                    "Contribution claim exceeds the component-specific M19-03 authority boundary.",
-                    contribution.evidence,
-                )
+    if any(term in text for text in _forbidden_texts(request) for term in _FORBIDDEN_CLAIM_TERMS):
+        findings.append(
+            _finding(
+                request.request_id,
+                FusionFindingCode.OWNERSHIP_UNCLEAR,
+                "Caller-declared text exceeds the component-specific M19-03 authority boundary.",
+                _evidence(request),
             )
+        )
+    for contribution in request.contributions:
         if contribution.reliability_band is ReliabilityBand.NOT_EVALUABLE:
             findings.append(
                 _finding(
