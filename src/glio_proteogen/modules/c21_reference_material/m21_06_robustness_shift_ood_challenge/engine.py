@@ -84,6 +84,9 @@ class M2106AuthorizationError(ValueError):
 class M2106ReplayError(ValueError):
     """Raised when a robustness result fails canonical replay verification."""
 
+    def __init__(self, message: str = "M21-06 replay verification failed") -> None:
+        super().__init__(message)
+
 
 class M2106Engine:
     """Build and replay one deterministic metadata-only robustness surface."""
@@ -135,15 +138,38 @@ class M2106Engine:
         self,
         result: ComplexActivityRobustnessChallengeResult,
     ) -> ComplexActivityRobustnessChallengeResult:
-        if result.request_digest != canonical_request_digest(result.request):
+        """Regenerate the challenge from its bound request before accepting replay.
+
+        The payload digest proves only that the supplied envelope is internally
+        consistent.  It does not prove that this evaluator produced the envelope:
+        a caller can alter a finding, observation, evidence reference, or safe
+        failure and then recompute the digest.  Replay therefore validates the
+        envelope, regenerates the deterministic result, and compares every
+        canonical field.
+        """
+
+        try:
+            request_digest = canonical_request_digest(result.request)
+            result_id = result_identifier(result.request)
+            payload_digest = result_payload_digest(result)
+        except Exception as error:
+            raise M2106ReplayError from error
+        if result.request_digest != request_digest:
             raise M2106ReplayError("M21-06 result request digest mismatch")  # noqa: TRY003
-        if result.result_id != result_identifier(result.request):
+        if result.result_id != result_id:
             raise M2106ReplayError("M21-06 result identifier mismatch")  # noqa: TRY003
-        if result.result_digest != result_payload_digest(result):
+        if result.result_digest != payload_digest:
             raise M2106ReplayError("M21-06 result payload digest mismatch")  # noqa: TRY003
-        return ComplexActivityRobustnessChallengeResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ComplexActivityRobustnessChallengeResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2106ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2106ReplayError
+        return replayed
 
 
 def run_complex_activity_robustness_challenge(
