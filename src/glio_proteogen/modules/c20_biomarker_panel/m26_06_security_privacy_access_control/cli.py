@@ -9,6 +9,7 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m26_06 import (
     M2606_MAX_CANONICAL_REQUEST_BYTES,
     M2606_MAX_CANONICAL_RESULT_BYTES,
@@ -50,7 +51,10 @@ class M2606CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> EvaluateProteomicsSecurityAccessRequest:
     try:
-        decoded = strict_json_loads(path.read_bytes(), max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+        decoded = strict_json_loads(
+            read_bounded(path, M2606_MAX_CANONICAL_REQUEST_BYTES),
+            max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES,
+        )
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2606CliError("input must satisfy the strict M26-06 request contract") from error  # noqa: TRY003
@@ -58,7 +62,10 @@ def _read_request(path: Path) -> EvaluateProteomicsSecurityAccessRequest:
 
 def _read_result(path: Path) -> ProteomicsSecurityAccessResult:
     try:
-        decoded = strict_json_loads(path.read_bytes(), max_bytes=M2606_MAX_CANONICAL_RESULT_BYTES)
+        decoded = strict_json_loads(
+            read_bounded(path, M2606_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M2606_MAX_CANONICAL_RESULT_BYTES,
+        )
         return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2606CliError("input must be a valid M26-06 result") from error  # noqa: TRY003
