@@ -385,6 +385,13 @@ class M0905ConstraintIntegrator:
                 verified=False,
                 reason=ConstraintReplayReason.INVALID_RESULT,
             )
+        if typed.provenance != _provenance(typed.request):
+            return IntegrateComplexActivityConstraintsVerification(
+                content_verified=False,
+                deterministic_verified=False,
+                verified=False,
+                reason=ConstraintReplayReason.DIGEST_MISMATCH,
+            )
         if canonical_bytes is not None and (
             type(canonical_bytes) is not bytes
             or len(canonical_bytes) > M0905_MAX_CANONICAL_RESULT_BYTES

@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 def _dump(value: BaseModel | dict[str, Any]) -> dict[str, Any]:
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
-    return dict(value)
+    if type(value) is dict:
+        return value.copy()
+    raise TypeError("canonical values must be Pydantic models or exact dicts")
 
 
 def normalized_request(value: BaseModel | dict[str, Any]) -> dict[str, Any]:

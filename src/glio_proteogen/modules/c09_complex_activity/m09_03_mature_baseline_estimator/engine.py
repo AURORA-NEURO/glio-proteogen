@@ -460,6 +460,8 @@ class M0903BaselineEstimator:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         except (TypeError, ValueError, ValidationError):
             return False
+        if typed.provenance != _provenance(typed.request):
+            return False
         if canonical_bytes is not None:
             if (
                 type(canonical_bytes) is not bytes

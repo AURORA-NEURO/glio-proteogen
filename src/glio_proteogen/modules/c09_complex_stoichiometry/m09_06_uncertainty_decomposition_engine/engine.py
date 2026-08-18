@@ -423,10 +423,20 @@ class M0906UncertaintyDecompositionEngine:
                     verified=False,
                     reason="canonical result differs from supplied result",
                 )
-            if typed.request_digest != canonical_request_digest(typed.request):
+            request_digest_verified = typed.request_digest == canonical_request_digest(
+                typed.request
+            )
+            provenance_verified = typed.provenance == _provenance(
+                typed.request, typed.request_digest
+            )
+            if not request_digest_verified or not provenance_verified:
                 return M0906ReplayVerification(
                     verified=False,
-                    reason="request digest does not replay",
+                    reason=(
+                        "request digest does not replay"
+                        if not request_digest_verified
+                        else "provenance does not replay"
+                    ),
                 )
             if typed.result_digest != result_payload_digest(typed):
                 return M0906ReplayVerification(

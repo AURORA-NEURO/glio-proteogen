@@ -31,6 +31,7 @@ from glio_proteogen.contracts.m09_04 import (
     PosteriorEstimateKind,
     ProbabilisticReplayReason,
     ProbabilisticResultStatus,
+    expected_provenance,
 )
 from glio_proteogen.contracts.m09_04.canonical import (
     canonical_request_digest,
@@ -173,25 +174,10 @@ def _provenance(
     request: EstimateComplexActivityProbabilisticRequest,
     request_digest: str,
 ) -> ProvenanceRecord:
-    refs = request.context.references
-    input_digests = tuple(
-        sorted(
-            {item.digest for item in request.source_artifacts} | {request.baseline_result.digest}
-        )
-    )
-    return ProvenanceRecord(
-        activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
-        actor_id=request.context.actor_id,
-        module_id="GLIO-PROTEOGEN-M09-04",
-        module_version=M0904_CONTRACT_VERSION,
-        generated_at=request.context.occurred_at,
-        input_digests=input_digests,
-        configuration_digest=sha256_digest(request.configuration),
-        consent_decision_id=refs.consent.decision_id,
-        consent_state=refs.consent.state,
-        consent_policy_version=refs.consent.policy_version,
-        consent_evidence_digest=refs.consent.evidence.digest,
-        control_decisions=_control_decisions(request),
+    return expected_provenance(
+        request,
+        request_digest,
+        sha256_digest(request.configuration),
     )
 
 
@@ -345,6 +331,7 @@ def _build_result(
     if hard_constraints:
         blocked.extend(item.constraint_id for item in hard_constraints)
 
+    diagnostics: tuple[OptimizationDiagnostic, ...]
     if blocked or failed:
         reason_parts = []
         if blocked:
