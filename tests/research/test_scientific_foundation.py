@@ -6,6 +6,7 @@ import base64
 import gzip
 import io
 import json
+import math
 import struct
 import zlib
 from dataclasses import replace
@@ -91,11 +92,13 @@ def test_digest_search_target_decoy_and_protein_ambiguity() -> None:
     assert "MPEPTIDER" in peptide_map
     psm = search_spectrum(
         "scan=1",
-        500.0,
+        1087.508837466,
         {"MPEPTIDER": ("P1",)},
         (132.0, 229.1, 358.1),
         (10.0, 20.0, 30.0),
-        parameters=SearchParameters(fragment_tolerance_da=0.2, min_matched_ions=1),
+        parameters=SearchParameters(
+            fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+        ),
     )
     assert psm is not None
     qvalues = target_decoy_qvalues((psm,))
@@ -177,15 +180,17 @@ def test_search_no_match_and_decoy_q_values() -> None:
     assert search_spectrum("none", 1.0, {"PEPTIDE": ("P1",)}, (1.0,), (1.0,)) is None
     decoy = search_spectrum(
         "decoy",
-        1.0,
+        1087.508837466,
         {"MPEPTIDER": ("DECOY_P1",)},
         (132.0,),
         (10.0,),
-        parameters=SearchParameters(fragment_tolerance_da=0.2, min_matched_ions=1),
+        parameters=SearchParameters(
+            fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+        ),
     )
     assert decoy is not None
     assert decoy.decoy
-    assert target_decoy_qvalues((decoy,))[0].q_value == 1.0
+    assert target_decoy_qvalues((decoy,))[0].q_value is None
 
 
 def test_quantification_all_missing_is_identity() -> None:
@@ -267,6 +272,17 @@ def test_mzml_precision_compression_retention_and_limits() -> None:
     assert spectrum.retention_time_seconds == 120.0
     assert spectrum.mz == pytest.approx((100.0, 200.0))
     assert spectrum.intensity == pytest.approx((10.0, 20.0))
+    precursor_payload = payload.replace(
+        b"<binaryDataArrayList>",
+        b"<precursorList><precursor><selectedIonList><selectedIon>"
+        b'<cvParam accession="MS:1000744" value="544.258056966"/>'
+        b'<cvParam accession="MS:1000041" value="2"/>'
+        b"</selectedIon></selectedIonList></precursor></precursorList>"
+        b"<binaryDataArrayList>",
+    )
+    precursor = parse_mzml(precursor_payload)[0]
+    assert precursor.precursor_mz == pytest.approx(544.258056966)
+    assert precursor.precursor_charge == 2
     empty = (
         b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
         b"<binaryDataArray /></binaryDataArrayList></spectrum>"
@@ -291,6 +307,18 @@ def test_mzml_precision_compression_retention_and_limits() -> None:
         )
     with pytest.raises(ValueError):
         parse_mzml(gzip.compress(b"x" * 256), max_bytes=64)
+    expanded = zlib.compress(struct.pack("<1024f", *([0.0] * 1024)))
+    expanded_payload = (
+        b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
+        b'<binaryDataArray><cvParam accession="MS:1000574"/>'
+        b'<cvParam accession="MS:1000523"/>'
+        + b"<binary>"
+        + base64.b64encode(expanded)
+        + b"</binary></binaryDataArray></binaryDataArrayList>"
+        b"</spectrum></spectrumList></run></mzML>"
+    )
+    with pytest.raises(ValueError):
+        parse_mzml(expanded_payload, max_bytes=1024)
 
 
 def test_search_and_quantification_edge_closures() -> None:
@@ -305,6 +333,87 @@ def test_search_and_quantification_edge_closures() -> None:
     normalized = median_normalize(values)
     assert normalized[0].intensity == 0.0
     assert normalized[2].intensity == 0.0
+
+
+def test_search_requires_precursor_and_matches_each_peak_once() -> None:
+    assert (
+        search_spectrum(
+            "missing-precursor",
+            0.0,
+            {"MPEPTIDER": ("P1",)},
+            (132.0, 229.1, 358.1),
+            (10.0, 20.0, 30.0),
+            parameters=SearchParameters(
+                fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+            ),
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "wrong-precursor",
+            500.0,
+            {"MPEPTIDER": ("P1",)},
+            (132.0, 229.1, 358.1),
+            (10.0, 20.0, 30.0),
+            parameters=SearchParameters(
+                fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+            ),
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "non-finite-peak",
+            1087.508837466,
+            {"MPEPTIDER": ("P1",)},
+            (math.nan,),
+            (10.0,),
+            parameters=SearchParameters(
+                fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+            ),
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "one-to-one",
+            1087.508837466,
+            {"MPEPTIDER": ("P1",)},
+            (100.0,),
+            (10.0,),
+            parameters=SearchParameters(
+                fragment_tolerance_da=100.0, min_matched_ions=2, require_precursor_mz=True
+            ),
+        )
+        is None
+    )
+
+
+def test_target_decoy_competition_is_per_spectrum_and_decoys_have_no_qvalue() -> None:
+    target = search_spectrum(
+        "same-spectrum",
+        1087.508837466,
+        {"MPEPTIDER": ("P1",)},
+        (132.0, 229.1, 358.1),
+        (10.0, 20.0, 30.0),
+        parameters=SearchParameters(fragment_tolerance_da=0.2, min_matched_ions=1),
+    )
+    assert target is not None
+    target = replace(target, score=1.0)
+    decoy = replace(target, protein_accessions=("DECOY_P1",), decoy=True, score=2.0)
+    scored = target_decoy_qvalues((target, decoy))
+    assert len(scored) == 1
+    assert scored[0].decoy is True
+    assert scored[0].q_value is None
+
+
+def test_protein_components_are_non_overlapping() -> None:
+    groups = infer_protein_groups({"UNIQUE_A": ("A",), "SHARED": ("A", "B"), "UNIQUE_B": ("B",)})
+    assert len(groups) == 1
+    assert groups[0].accessions == ("A", "B")
+    assert groups[0].unique_peptides == ("UNIQUE_A", "UNIQUE_B")
+    assert groups[0].shared_peptides == ("SHARED",)
 
 
 class _FakeResponse:
