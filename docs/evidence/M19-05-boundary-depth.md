@@ -11,7 +11,7 @@ consent.
 - Dossier SHA-256:
   `0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181`.
 - Exact authority slice: `GLIO-PROTEOGEN-M19-05:6692-6732`.
-- Base: `87bea75c` (`M19-03/04` merged main).
+- Base: `af87f46a` (`M19-03/04` merged main plus current M22 main).
 - Upstream binding remains the caller-declared M19-04 aligned evidence bundle;
   no external content is dereferenced.
 
@@ -37,14 +37,14 @@ consent.
   2 missed; 90 branches, 2 partial).
 - 10-iteration benchmark: mean **2,464,030 ns**, median **2,249,700 ns**, p95
   **2,425,700 ns**, within 2,000,000,000/3,000,000,000 ns budgets.
-- Strict package builds were byte-identical. Wheel: **3,670,900 bytes**, SHA-256
-  `e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef`.
-  Sdist: **4,215,408 bytes**, SHA-256
-  `66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f`.
+- Strict package builds were byte-identical. Wheel: **3,688,910 bytes**, SHA-256
+  `86ba3f90acd7e6101b733e9541e7c87c0451b0e3b56e07f3f08e0797ab0e5712`.
+  Sdist: **4,232,404 bytes**, SHA-256
+  `7bd73e40e5fb75d7014faaea6c76987c9dad469d9fee4ec97bb3d6e2ad398d0e`.
   Isolated wheel import passed.
 
 ## Python LOC
 
-Against `87bea75c`, this lane changes **6 Python files**, with **168 additions,
-5 deletions, +163 net LOC**. Current tracked total: **546,225 Python LOC across
-3,699 files**.
+Against `af87f46a`, this lane changes **6 Python files**, with **169 additions,
+6 deletions, +163 net LOC**. Current tracked total: **548,609 Python LOC across
+3,718 files**.

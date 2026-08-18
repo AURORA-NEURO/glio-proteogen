@@ -1,12 +1,12 @@
 {
-  "base_commit": "87bea75c",
+  "base_commit": "af87f46a",
   "build_a": {
-    "wheel_sha256": "e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef",
-    "sdist_sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
+    "wheel_sha256": "86ba3f90acd7e6101b733e9541e7c87c0451b0e3b56e07f3f08e0797ab0e5712",
+    "sdist_sha256": "7bd73e40e5fb75d7014faaea6c76987c9dad469d9fee4ec97bb3d6e2ad398d0e"
   },
   "build_b": {
-    "wheel_sha256": "e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef",
-    "sdist_sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
+    "wheel_sha256": "86ba3f90acd7e6101b733e9541e7c87c0451b0e3b56e07f3f08e0797ab0e5712",
+    "sdist_sha256": "7bd73e40e5fb75d7014faaea6c76987c9dad469d9fee4ec97bb3d6e2ad398d0e"
   },
   "reproducible": true,
   "isolated_import": {
@@ -15,13 +15,13 @@
     "prohibited_term_count": 14
   },
   "wheel": {
-    "bytes": 3670900,
-    "members": 1913,
-    "sha256": "e92730086903536ad1be721a96d9a2c6a3b5f9c52ad88d9ac9f504d822f3caef"
+    "bytes": 3688910,
+    "members": 1923,
+    "sha256": "86ba3f90acd7e6101b733e9541e7c87c0451b0e3b56e07f3f08e0797ab0e5712"
   },
   "sdist": {
-    "bytes": 4215408,
-    "members": 4392,
-    "sha256": "66c0f7ccdab74416c46cbb3466edd410b781bb25020061486742ce523d63f82f"
+    "bytes": 4232404,
+    "members": 4413,
+    "sha256": "7bd73e40e5fb75d7014faaea6c76987c9dad469d9fee4ec97bb3d6e2ad398d0e"
   }
 }
