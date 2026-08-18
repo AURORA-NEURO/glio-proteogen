@@ -433,7 +433,7 @@ def summarize_target_decoy(psms: Iterable[Psm], *, q_value_threshold: float) -> 
     )
     accepted_q_values = tuple(item.q_value for item in accepted if item.q_value is not None)
     return FdrSummary(
-        method="winner-per-spectrum-target-decoy-collision-abstain-1",
+        method="winner-per-spectrum-target-decoy-collision-abstain-2",
         spectrum_winners=len(scored),
         target_winners=target_winners,
         decoy_winners=decoy_winners,
@@ -441,5 +441,7 @@ def summarize_target_decoy(psms: Iterable[Psm], *, q_value_threshold: float) -> 
         accepted_targets=len(accepted),
         q_value_threshold=q_value_threshold,
         max_accepted_q_value=max(accepted_q_values) if accepted_q_values else None,
-        decoy_to_target_ratio=decoy_winners / target_winners if target_winners else 0.0,
+        decoy_to_target_ratio=(
+            (decoy_winners + collision_winners) / target_winners if target_winners else 0.0
+        ),
     )

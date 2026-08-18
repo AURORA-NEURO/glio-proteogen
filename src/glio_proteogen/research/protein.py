@@ -206,6 +206,9 @@ def infer_protein_group_candidates(
     raw: list[tuple[ProteinGroupCandidate, float | None]] = []
     for candidate in ordered:
         if candidate.status == "collision":
+            # A mixed target/decoy group is never reportable, but it is still
+            # decoy evidence for conservative group-level FDR estimation.
+            decoys += 1
             raw.append((candidate, None))
             continue
         decoys += int(candidate.status == "decoy")
@@ -249,7 +252,7 @@ def infer_protein_group_candidates(
         if item.acceptance == "accepted" and item.q_value is not None
     )
     summary = ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-3",
         candidates=len(finalized),
         target_candidates=sum(item.status == "target" for item in finalized),
         decoy_candidates=sum(item.status == "decoy" for item in finalized),
@@ -258,7 +261,7 @@ def infer_protein_group_candidates(
         q_value_threshold=q_value_threshold,
         max_accepted_q_value=max(accepted_q) if accepted_q else None,
         decoy_to_target_ratio=(
-            sum(item.status == "decoy" for item in finalized)
+            sum(item.status in {"decoy", "collision"} for item in finalized)
             / sum(item.status == "target" for item in finalized)
             if any(item.status == "target" for item in finalized)
             else 0.0
