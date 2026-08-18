@@ -35,6 +35,7 @@ class Psm:
     matched_ions: int
     decoy: bool
     q_value: float | None = None
+    matched_intensity: float = 0.0
 
 
 _MASS = {
@@ -124,6 +125,7 @@ def search_spectrum(
         theoretical = _fragments(peptide)[0] + _fragments(peptide)[1]
         matched = 0
         intensity_score = 0.0
+        matched_intensity = 0.0
         used_indices: set[int] = set()
         for value in theoretical:
             candidates = [
@@ -136,6 +138,7 @@ def search_spectrum(
                 index, observed = min(candidates, key=lambda item: abs(item[1] - value))
                 used_indices.add(index)
                 matched += 1
+                matched_intensity += intensity[index]
                 intensity_score += intensity[index] / (1.0 + abs(observed - value))
         if matched < parameters.min_matched_ions:
             continue
@@ -146,6 +149,7 @@ def search_spectrum(
             score=matched + (intensity_score / norm if norm else 0.0),
             matched_ions=matched,
             decoy=any(accession.startswith("DECOY_") for accession in accessions),
+            matched_intensity=matched_intensity,
         )
         if best is None or (
             candidate.score,
