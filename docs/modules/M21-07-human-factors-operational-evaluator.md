@@ -30,7 +30,10 @@ Safety boundaries:
   emitted.
 
 The engine, service, opaque plugin, FastAPI adapter, and Typer adapter share a
-strict parse-once request path and canonical request/result replay verification.
+strict parse-once request path. Replay validates the envelope, regenerates the
+operational result from its bound request, and compares the complete canonical
+result; a self-rehashed digest is not accepted as evaluator provenance.
 The frozen evaluator executes eight scenarios; adversarial coverage includes
-tampering, control denial, unsupported input, malformed JSON, media mismatch,
-duplicate closure, abstention, and no-overwrite behavior.
+surface/report/support/provenance/evidence/limitation/request tampering, control
+denial, unsupported input, malformed JSON, media mismatch, duplicate closure,
+abstention, and no-overwrite behavior.
