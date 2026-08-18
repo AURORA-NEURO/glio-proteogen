@@ -84,7 +84,7 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
             }
         )
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(M2303ReplayError, match="canonical replay"):
+    with pytest.raises(M2303ReplayError, match="replay verification"):
         service.replay(forged)
 
 

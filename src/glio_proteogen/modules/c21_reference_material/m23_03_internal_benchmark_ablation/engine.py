@@ -82,6 +82,9 @@ class M2303AuthorizationError(ValueError):
 class M2303ReplayError(ValueError):
     """Raised when a benchmark result fails canonical replay verification."""
 
+    def __init__(self, message: str = "M23-03 canonical replay verification failed") -> None:
+        super().__init__(message)
+
 
 class M2303BenchmarkEngine:
     """Build and replay one deterministic metadata-only benchmark dossier."""
@@ -142,10 +145,10 @@ class M2303BenchmarkEngine:
                 canonical_json_bytes(result), strict=True
             )
             regenerated = self.generate(canonical_result.request)
-        except Exception as error:  # noqa: BLE001 - replay fails closed at the model boundary.
-            raise M2303ReplayError("M23-03 canonical replay regeneration failed") from error
+        except Exception as error:
+            raise M2303ReplayError from error
         if canonical_json_bytes(canonical_result) != canonical_json_bytes(regenerated):
-            raise M2303ReplayError("M23-03 canonical replay result mismatch")  # noqa: TRY003
+            raise M2303ReplayError
         return canonical_result
 
 
