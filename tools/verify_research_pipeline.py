@@ -35,6 +35,7 @@ _EXPECTED_SCENARIOS = (
 _EXPECTED_COHORT_SCENARIOS = (
     "replicate_matrix",
     "explicit_missingness",
+    "label_normalization",
     "incompatible_search_space",
     "pdc_provenance_replay",
 )

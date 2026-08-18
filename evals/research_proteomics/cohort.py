@@ -7,21 +7,30 @@ import sys
 from dataclasses import replace
 from hashlib import md5, sha256
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
+import glio_proteogen.research.cohort as cohort_module
 from glio_proteogen.research import (
     PdcFile,
     PdcStudySnapshot,
+    ProteinGroup,
+    ProteinGroupQuant,
     ResearchCohortRequest,
     ResearchCohortResult,
     ResearchCohortSample,
     ResearchRunRequest,
+    ResearchRunResult,
     SourceReference,
     bind_pdc_mzml_source,
     replay_research_cohort,
     run_research_cohort,
 )
+from glio_proteogen.research.pipeline import run_research_protein_inference
 
 from .run import Scenario, build_scenario_request, scenarios
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _EXPECTED_INTENSITY = 20.0
 _EXPECTED_SAMPLE_COUNT = 2
@@ -45,7 +54,7 @@ def _fixture_path() -> Path:
 
 def _locked_ids() -> tuple[str, ...]:
     fixture = json.loads(_fixture_path().read_text(encoding="utf-8"))
-    if fixture.get("fixture_version") != "research-cohort-1":
+    if fixture.get("fixture_version") != "research-cohort-2":
         raise ValueError
     if any(bool(value) for value in fixture.get("claims", {}).values()):
         raise ValueError
@@ -60,6 +69,69 @@ def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortS
         cohort_label="locked-cohort",
         replicate_label=replicate,
     )
+
+
+def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
+    """Exercise cross-run normalization with deliberately scaled synthetic outputs."""
+
+    values = {
+        "case-a": (10.0, 30.0),
+        "case-b": (20.0, 60.0),
+        "control-a": (100.0, 300.0),
+        "control-b": (200.0, 600.0),
+    }
+    base = run_research_protein_inference(
+        replace(build_scenario_request(target), sample_id="normalization-template")
+    )
+    synthetic = {
+        sample_id: replace(
+            base,
+            sample_id=sample_id,
+            protein_groups=(
+                ProteinGroup(("P1",), ("PEPTIDE",), ()),
+                ProteinGroup(("P2",), ("PEPTIDE2",), ()),
+            ),
+            protein_group_quantifications=(
+                ProteinGroupQuant(
+                    ("P1",), ("PEPTIDE",), (), pair[0], 0.0, pair[0], pair[0], "quantified", 1
+                ),
+                ProteinGroupQuant(
+                    ("P2",), ("PEPTIDE2",), (), pair[1], 0.0, pair[1], pair[1], "quantified", 1
+                ),
+            ),
+        )
+        for sample_id, pair in values.items()
+    }
+    original = cast(
+        "Callable[[ResearchRunRequest], ResearchRunResult]",
+        cohort_module.__dict__["run_research_protein_inference"],
+    )
+    cohort_module.__dict__["run_research_protein_inference"] = lambda request: synthetic[
+        request.sample_id
+    ]
+    try:
+        samples = tuple(
+            ResearchCohortSample(
+                sample_id=sample_id,
+                request=replace(build_scenario_request(target), sample_id=sample_id),
+                cohort_label="case" if sample_id.startswith("case") else "control",
+                replicate_label=replicate,
+            )
+            for sample_id, replicate in (
+                ("control-b", "r2"),
+                ("case-b", "r2"),
+                ("control-a", "r1"),
+                ("case-a", "r1"),
+            )
+        )
+        return run_research_cohort(
+            ResearchCohortRequest(
+                samples,
+                normalization_policy="within_label_median_v1",
+            )
+        )
+    finally:
+        cohort_module.__dict__["run_research_protein_inference"] = original
 
 
 def _pdc_sample(scenario: Scenario, sample_id: str, replicate: str) -> ResearchCohortSample:
@@ -122,6 +194,7 @@ def run_evaluator() -> dict[str, object]:
     expected_ids = (
         "replicate_matrix",
         "explicit_missingness",
+        "label_normalization",
         "incompatible_search_space",
         "pdc_provenance_replay",
     )
@@ -148,7 +221,6 @@ def run_evaluator() -> dict[str, object]:
             "projection": _projection(replicate),
         }
     )
-
     missing = run_research_cohort(
         ResearchCohortRequest(
             (_sample("target_supported", "present", "r1"), _sample("no_match", "absent", "r2"))
@@ -163,6 +235,20 @@ def run_evaluator() -> dict[str, object]:
             "result_digest": missing.result_digest,
             "missing_cells": sum(value is None for _, values in missing.matrix for value in values),
             "projection": _projection(missing),
+        }
+    )
+    normalized = _label_normalization_case(target)
+    outcomes.append(
+        {
+            "id": "label_normalization",
+            "passed": normalized.raw_matrix[0][1] == (10.0, 20.0, 100.0, 200.0)
+            and normalized.normalized_matrix[0][1] == (15.0, 15.0, 150.0, 150.0)
+            and normalized.normalized_matrix[1][1] == (45.0, 45.0, 450.0, 450.0)
+            and {item.cohort_label for item in normalized.label_qc} == {"case", "control"}
+            and all(item.status == "descriptive" for item in normalized.label_group_evidence),
+            "result_digest": normalized.result_digest,
+            "missing_cells": 0,
+            "projection": _projection(normalized),
         }
     )
 
