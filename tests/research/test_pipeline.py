@@ -204,6 +204,51 @@ def test_pipeline_preserves_decoy_rejection_and_ms2_boundary() -> None:
     assert run_research_protein_inference(ms1).psms == ()
 
 
+def test_pipeline_binds_generated_reverse_decoy_search_space() -> None:
+    request = ResearchRunRequest(
+        "generated-decoy",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        decoy_strategy="reverse_protein",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    assert result.search_space_receipt is not None
+    receipt = result.search_space_receipt
+    assert receipt.generated_decoy_entries == 1
+    assert receipt.target_peptides == 1
+    assert receipt.decoy_peptides == 1
+    assert receipt.peptide_count == 2
+    assert dict(result.configuration)["decoy_strategy"] == "reverse_protein"
+    fasta_record = next(
+        item for item in result.evidence.records if item.evidence_id == "input:fasta"
+    )
+    assert fasta_record.payload_jsonable["search_space_receipt"] == receipt.as_dict()
+    assert replay_research_protein_inference(request, result).result_digest == result.result_digest
+
+
+def test_pipeline_replay_rejects_tampered_search_space_receipt() -> None:
+    request = ResearchRunRequest(
+        "generated-decoy-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        decoy_strategy="reverse_protein",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    assert result.search_space_receipt is not None
+    tampered = replace(
+        result,
+        search_space_receipt=replace(result.search_space_receipt, digest="0" * 64),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, tampered)
+
+
 def test_pipeline_abstains_on_target_decoy_sequence_collision() -> None:
     result = run_research_protein_inference(
         ResearchRunRequest(
