@@ -8,7 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m22_05 import CoverageStatus
+from glio_proteogen.contracts.m22_05 import (
+    CoverageStatus,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evaluator import (
@@ -76,6 +79,35 @@ def test_fastapi_unsupported_coverage_is_explicit_abstention() -> None:
     assert response.status_code == _HTTP_OK
     assert response.json()["status"] == "abstained"
     assert response.json()["report"] is None
+
+
+def test_api_cli_and_plugin_reject_self_rehashed_result(tmp_path: Path) -> None:
+    result = M2205Service().evaluate(_request())
+    changed = result.support_decision.model_copy(update={"rationale": "forged rationale"})
+    forged = result.model_copy(update={"support_decision": changed})
+    forged = type(forged).model_construct(
+        **{
+            **forged.__dict__,
+            "support_decision": changed,
+            "result_digest": result_payload_digest(forged),
+        }
+    )
+
+    client = TestClient(create_app(M2205Service()))
+    response = client.post(
+        "/v1/modules/M22-05/verify", json={"result": forged.model_dump(mode="json")}
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json()["detail"] == "replay envelope is invalid"
+
+    result_path = tmp_path / "forged-result.json"
+    result_path.write_bytes(canonical_json_bytes(forged))
+    cli = CliRunner().invoke(cli_app, ["verify", str(result_path)])
+    assert cli.exit_code != 0
+    assert "Traceback" not in cli.output
+
+    with pytest.raises(ValueError, match="replay verification failed"):
+        M2205Plugin(M2205Service()).replay(forged)
 
 
 def test_fastapi_denied_controls_are_sanitized() -> None:
