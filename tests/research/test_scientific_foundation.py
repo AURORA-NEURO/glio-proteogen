@@ -414,6 +414,9 @@ def test_protein_components_are_non_overlapping() -> None:
     assert groups[0].accessions == ("A", "B")
     assert groups[0].unique_peptides == ("UNIQUE_A", "UNIQUE_B")
     assert groups[0].shared_peptides == ("SHARED",)
+    disjoint = infer_protein_groups({"ONLY_A": ("A",), "ONLY_B": ("B",)})
+    assert len(disjoint) == 2
+    assert {group.accessions for group in disjoint} == {("A",), ("B",)}
 
 
 class _FakeResponse:
