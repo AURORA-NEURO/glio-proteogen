@@ -12,7 +12,7 @@ consent from caller text.
   exact slice `GLIO-PROTEOGEN_240_Module_Dossier.md:6604-6644`.
 - M19-04 authority: the same dossier SHA, exact slice
   `GLIO-PROTEOGEN_240_Module_Dossier.md:6648-6688`.
-- Base: `8cc38ba1`; this branch is a current-main safety hardening lane, not a
+- Base: `9bf9ae37`; this branch is a current-main safety hardening lane, not a
   replacement for either provisional ABI.
 
 ## Implemented depth
@@ -45,14 +45,14 @@ consent from caller text.
 - 25-iteration benchmark: M19-03 mean **1,307,060 ns**, p95 **1,822,100 ns**;
   M19-04 mean **2,739,208 ns**, p95 **3,336,000 ns**. Both are within the
   provisional 500,000,000/750,000,000 ns budgets.
-- Package builds A/B were byte-identical. Wheel: **3,669,477 bytes**, SHA-256
-  `2488a5f0e0abc56ebc949d712346e2848308f73d1fc36e07e01c390ab3a28635`.
-  Sdist: **4,212,150 bytes**, SHA-256
-  `fb5ebefa15544483101db743a43af2fc97d46d8c09e92a5b4f7bbb33fcc9e3fa`.
+- Package builds A/B were byte-identical. Wheel: **3,670,309 bytes**, SHA-256
+  `6e77f9e1daad3856ef2292ebd0e577d3caecea92ff61d8b072497869b8ad7af7`.
+  Sdist: **4,214,361 bytes**, SHA-256
+  `82a9f00d9544e3b94dc160dae1bd306eca7786d27d09cc7e10fc65cc1df69036`.
   Isolated wheel import passed.
 
 ## Python LOC
 
-Against base `8cc38ba1`, the branch changes **13 Python files**, with **311
+Against base `9bf9ae37`, the branch changes **13 Python files**, with **311
 additions / 25 deletions / +286 net LOC**. The current tracked repository total
-is **545,778 Python LOC across 3,696 files**.
+is **546,074 Python LOC across 3,699 files**.
