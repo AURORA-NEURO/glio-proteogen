@@ -22,6 +22,8 @@ from glio_proteogen.contracts.m10_07 import (
     CalibrationMethod,
     CalibrationScope,
     CalibrationStatus,
+    expected_evidence,
+    provenance_is_bound,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -161,6 +163,20 @@ def run_evaluation(
         "seven_uncertainty_dimensions",
         passed=len(built.result.uncertainty.model_dump()) >= UNCERTAINTY_DIMENSION_COUNT,
         detail="explicit uncertainty profile",
+    )
+    add(
+        "result_identifier_binding",
+        passed=built.result.result_id
+        == f"result.{built.result.request_digest.removeprefix('sha256:')}",
+        detail=built.result.result_id,
+    )
+    add(
+        "evidence_provenance_binding",
+        passed=(
+            built.result.evidence == expected_evidence(base)
+            and provenance_is_bound(base, built.result.request_digest, built.result.provenance)
+        ),
+        detail="request sources and seven controls are bound",
     )
     add(
         "support_threshold_abstention",
