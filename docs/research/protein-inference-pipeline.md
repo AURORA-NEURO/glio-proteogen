@@ -72,6 +72,15 @@ replicate counts, missingness, and `descriptive`/`abstained_*` statuses. Labels 
 metadata only; this is not a case/control test, batch correction claim, differential model,
 or biological interpretation.
 
+Every cohort request also carries a closed `CohortQcPolicy` receipt. Its minimum replicate
+count, minimum observed-group count, and maximum missingness rate are validated as finite
+caller-declared values and included in the configuration/result digest. A label that fails an
+active gate keeps its raw values for audit but receives an all-null normalized projection and an
+explicit `abstained_insufficient_replicates`, `abstained_insufficient_observed_groups`, or
+`abstained_missingness` status. This prevents partial observations from being presented as
+normalized cohort evidence; it does not estimate missing values or promote caller labels into
+biological strata.
+
 This is evidence aggregation, not a differential-expression or cohort inference model:
 there are no p-values, effect-size claims, batch correction, survival endpoints, glioma
 subtype claims, mechanism discovery, or clinical recommendations. A future governed
