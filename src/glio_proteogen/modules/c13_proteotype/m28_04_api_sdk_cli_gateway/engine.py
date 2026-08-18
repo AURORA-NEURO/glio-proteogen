@@ -47,6 +47,13 @@ _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaDiscordanceAccessSurfaceResult)
 _ZERO_DIGEST: Final = "sha256:" + "0" * 64
 
 
+def _bounded_mapping_bytes(candidate: dict[object, object]) -> bytes:
+    serialized = canonical_json_bytes(dict(candidate))
+    if len(serialized) > M2804_MAX_CANONICAL_REQUEST_BYTES:
+        raise ValueError("M28-04 request exceeds canonical byte limit")  # noqa: TRY003
+    return serialized
+
+
 class M2804AuthorizationError(ValueError):
     """Caller-declared controls do not authorize gateway publication."""
 
@@ -105,7 +112,7 @@ def _validate_request(candidate: object) -> PublishProteinRnaDiscordanceAccessSu
         decoded = strict_json_loads(candidate, max_bytes=M2804_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if type(candidate) is dict:
-        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(candidate)), strict=True)
+        return _REQUEST_ADAPTER.validate_json(_bounded_mapping_bytes(candidate), strict=True)
     if isinstance(candidate, PublishProteinRnaDiscordanceAccessSurfaceRequest):
         return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
     raise TypeError from None

@@ -13,7 +13,7 @@ from glio_proteogen.contracts.m28_04 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2804GatewayEngine, preflight_m2804_authorization
+from .engine import M2804GatewayEngine, _bounded_mapping_bytes, preflight_m2804_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(PublishProteinRnaDiscordanceAccessSurfaceRequest)
 
@@ -33,7 +33,7 @@ class M2804Service:
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         preflight_m2804_authorization(request)
         if type(request) is dict:
-            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(request)), strict=True)
+            return _REQUEST_ADAPTER.validate_json(_bounded_mapping_bytes(request), strict=True)
         if isinstance(request, PublishProteinRnaDiscordanceAccessSurfaceRequest):
             return _REQUEST_ADAPTER.validate_python(request, strict=True)
         raise TypeError from None
@@ -48,8 +48,11 @@ class M2804Service:
                 canonical_json_bytes(decoded), strict=True
             )
         elif type(result) is dict:
+            serialized = canonical_json_bytes(dict(result))
+            if len(serialized) > M2804_MAX_CANONICAL_RESULT_BYTES:
+                raise ValueError("M28-04 result exceeds canonical byte limit")  # noqa: TRY003
             typed = ProteinRnaDiscordanceAccessSurfaceResult.model_validate_json(
-                canonical_json_bytes(dict(result)), strict=True
+                serialized, strict=True
             )
         elif isinstance(result, ProteinRnaDiscordanceAccessSurfaceResult):
             typed = ProteinRnaDiscordanceAccessSurfaceResult.model_validate(result, strict=True)
