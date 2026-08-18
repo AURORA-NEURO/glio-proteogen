@@ -806,6 +806,10 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
         pdc.PdcClient().download_file_with_receipt(
             replace(file, file_name="not-listed.mzML"), snapshot, reference, io.BytesIO()
         )
+    with pytest.raises(TypeError, match="PdcStudySnapshot"):
+        pdc.PdcClient().download_file_with_receipt(file, object(), reference, io.BytesIO())
+    with pytest.raises(TypeError, match="SourceReference"):
+        pdc.PdcClient().download_file_with_receipt(file, snapshot, object(), io.BytesIO())
 
 
 @pytest.mark.parametrize(
