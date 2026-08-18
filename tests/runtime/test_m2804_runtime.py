@@ -9,6 +9,8 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m28_04 import (
+    M2804_MAX_CANONICAL_REQUEST_BYTES,
+    M2804_MAX_CANONICAL_RESULT_BYTES,
     M2804_OUTPUT_MEDIA_TYPE,
     AccessProtocol,
     AsyncJobRecord,
@@ -255,6 +257,20 @@ def test_service_rejects_custom_mapping_and_tampered_replay() -> None:
     tampered["result_id"] = "gateway.m2804.forged"
     with pytest.raises((M2804ReplayError, ValidationError)):
         M2804Service().replay(tampered)
+
+
+def test_mapping_request_and_result_paths_enforce_byte_limits() -> None:
+    request = _request().model_dump(mode="json")
+    request["context"]["actor_id"] = "a" * M2804_MAX_CANONICAL_REQUEST_BYTES
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        M2804Service().validate_request(request)
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        M2804GatewayEngine().publish(request)
+
+    result = M2804Service().publish(_request()).model_dump(mode="json")
+    result["request"]["context"]["actor_id"] = "a" * M2804_MAX_CANONICAL_RESULT_BYTES
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        M2804Service().replay(result)
 
 
 def test_plugin_requires_sealed_token_and_matches_service() -> None:
