@@ -7,8 +7,10 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m21_02 import (
     M2102_MAX_CANONICAL_REQUEST_BYTES,
+    M2102_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivitySyntheticTruthResult,
     GenerateComplexActivitySyntheticTruthRequest,
     contract_json_schema,
@@ -46,9 +48,13 @@ def _parse_request(body: bytes) -> GenerateComplexActivitySyntheticTruthRequest:
         raise _safe_validation(error) from error
 
 
-def _parse_object(body: bytes) -> dict[str, Any]:
+def _parse_object(
+    body: bytes,
+    *,
+    max_bytes: int = M2102_MAX_CANONICAL_RESULT_BYTES,
+) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body)
+        value = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -61,6 +67,13 @@ def create_app(service: M2102Service | None = None) -> FastAPI:
 
     boundary = service or M2102Service()
     app = FastAPI(title="GLIO-PROTEOGEN M21-02", version="0.1.0-provisional")
+    # The result ceiling is the transport ceiling so verify can admit the
+    # larger result envelope while request routes enforce their 4 MiB parser
+    # limit below.  This rejects oversized bodies before route allocation.
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2102_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M21-02/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
