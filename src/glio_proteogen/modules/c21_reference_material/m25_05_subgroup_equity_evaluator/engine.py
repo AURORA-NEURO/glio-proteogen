@@ -159,12 +159,6 @@ class M2505SubgroupEquityEngine:
             regenerated = self.generate(replayed.request)
         except Exception as error:
             raise M2505ReplayError from error
-        if replayed.request_digest != canonical_request_digest(replayed.request):
-            raise M2505ReplayError
-        if replayed.result_id != result_identifier(replayed.request, replayed.status.value):
-            raise M2505ReplayError
-        if replayed.result_digest != result_payload_digest(replayed):
-            raise M2505ReplayError
         if canonical_json_bytes(replayed) != canonical_json_bytes(regenerated):
             raise M2505ReplayError
         return replayed
