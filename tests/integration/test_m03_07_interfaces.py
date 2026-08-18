@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Final
 import pytest
 from evals.m03_07.run import build_scenario_request
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters import cli as cli_adapter
@@ -17,10 +18,12 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m03_07 import (
     M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     ProteinInferenceSupportRouteResult,
     RouteProteinInferenceSupportRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     M0307Plugin,
     M0307ProteinInferenceSupportRouterEngine,
@@ -169,6 +172,48 @@ def test_api_and_cli_return_the_same_result_as_public_operation(
     assert (
         ProteinInferenceSupportRouteResult.model_validate_json(cli.stdout, strict=True) == expected
     )
+
+
+def test_service_api_and_cli_replay_verify_reject_forged_and_duplicate_results(
+    tmp_path: Path,
+) -> None:
+    request = build_scenario_request()
+    expected = M0307Service().execute(request)
+    result_path = tmp_path / "support-route-result.json"
+    result_path.write_bytes(expected.model_dump_json().encode("utf-8"))
+
+    assert M0307Service().verify(result_path.read_bytes()) == expected
+    forged = copy.deepcopy(expected.model_dump(mode="json"))
+    forged["result_digest"] = "sha256:" + ("f" * 64)
+    with pytest.raises(ValidationError):
+        M0307Service().verify(forged)
+    duplicate = expected.model_dump_json().replace(
+        '"route_id":', '"route_id":"duplicate","route_id":', 1
+    )
+    with pytest.raises(StrictJsonError):
+        M0307Service().verify(duplicate)
+
+    with TestClient(create_app(tmp_path / "verify.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-07/support-route/verify",
+            content=result_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_OK, response.text
+    assert (
+        ProteinInferenceSupportRouteResult.model_validate_json(response.content, strict=True)
+        == expected
+    )
+
+    cli = CliRunner().invoke(
+        cli_app,
+        ["protein-inference-support", "verify", str(result_path)],
+    )
+    assert cli.exit_code == 0, cli.output
+    assert (
+        ProteinInferenceSupportRouteResult.model_validate_json(cli.stdout, strict=True) == expected
+    )
+    assert len(result_path.read_bytes()) <= M0307_MAX_CANONICAL_RESULT_BYTES
 
 
 @pytest.mark.parametrize(("role", "denied_state"), AUTHORIZATION_DENIALS)

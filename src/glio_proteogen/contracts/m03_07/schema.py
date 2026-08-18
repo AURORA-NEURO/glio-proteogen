@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m03_07.v1 import (
     M0307_CONTRACT_VERSION,
     M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     M0307_MODULE_ID,
     ProteinInferenceAbstention,
     ProteinInferenceContextReceipt,
@@ -82,7 +83,13 @@ def contract_json_schema(name: ContractName) -> dict[str, object]:
             "^(request|profile|policy|envelope|specimen|disease|reference|use|reason|"
             r"remediation|evidence|reviewer|route)\.[0-9a-f]{64}$"
         ),
-        **({"maxRequestBytes": M0307_MAX_CANONICAL_REQUEST_BYTES} if name == "request" else {}),
+        **(
+            {"maxRequestBytes": M0307_MAX_CANONICAL_REQUEST_BYTES}
+            if name == "request"
+            else {"maxResultBytes": M0307_MAX_CANONICAL_RESULT_BYTES}
+            if name == "output"
+            else {}
+        ),
     }
     return schema
 
