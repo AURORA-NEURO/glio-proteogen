@@ -1,0 +1,15 @@
+{
+  "reproducible_builds": true,
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3668154,
+    "sha256": "ec85902bb88f465c521467e4646463d4de26bb2cda90072536ecb46183c5c3d5"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 4243087,
+    "sha256": "331a444c3e01402bcf9965a95ced160338c88d9fa9421cf649a09f0e3757394b"
+  },
+  "isolated_install_import": true,
+  "import_probe": ["glio_proteogen", "glio_proteogen.adapters.api", "glio_proteogen.adapters.cli"]
+}

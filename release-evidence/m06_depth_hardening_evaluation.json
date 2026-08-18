@@ -1,0 +1,22 @@
+{
+  "base": "77fb1ce6537161b529c53084fa8e27a9c18f021a",
+  "module_scope": ["M06-01", "M06-02", "M06-03", "M06-04", "M06-05", "M06-06", "M06-07", "M06-08"],
+  "passed": true,
+  "focused_tests": 306,
+  "evaluators": {
+    "M06-01": {"passed": true, "scenario_count": 6, "corpus_digest": "sha256:9c0ad878b1523e3ea1353ec57406566627d6cc485f3a56e5284d083f32adaf4b"},
+    "M06-02": {"passed": true, "constructed": true, "abstained": true, "replay_verified": true},
+    "M06-03": {"passed": true, "cases": 3, "estimated": 1, "abstained": 2},
+    "M06-04": {"passed": true, "scenario_count": 6, "corpus_digest": "sha256:6083a5faee40eb92f641c450c6ca39e86f5caf8b53a1a9d28219af2f551d569b"},
+    "M06-05": {"passed": true, "integrated": true, "hard_violation": true, "unsupported_abstention": true},
+    "M06-06": {"passed": true, "all_abstained": true, "all_digests_equal": true},
+    "M06-07": {"passed": true, "calibrated": true, "prediction_set": true, "replay_verified": true},
+    "M06-08": {"passed": true, "check_count": 7, "safe_abstention": true, "replay": true, "tamper_rejected": true}
+  },
+  "capability_hardening": {
+    "cross_plugin_token_reuse_rejected": true,
+    "forged_token_rejected": true,
+    "post_issuance_request_mutation_rejected": true,
+    "tests": 8
+  }
+}
