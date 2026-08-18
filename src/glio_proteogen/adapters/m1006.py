@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m10_06 import (
     M1006_MAX_CANONICAL_REQUEST_BYTES,
     M1006_MAX_CANONICAL_RESULT_BYTES,
@@ -154,7 +154,8 @@ m1006_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
 def _read_request(path: Path, *, result: bool = False) -> object:
-    return _validated_json(path.read_bytes(), result=result)
+    max_bytes = M1006_MAX_CANONICAL_RESULT_BYTES if result else M1006_MAX_CANONICAL_REQUEST_BYTES
+    return _validated_json(read_bounded(path, max_bytes=max_bytes), result=result)
 
 
 def _emit(value: object) -> None:
