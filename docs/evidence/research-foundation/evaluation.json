@@ -1,17 +1,17 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
+  "fixture_sha256": "87624a7a8ae30f787517701d5683563d79721b1a50c191ea3052620a42586076",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
+    "fixture_sha256": "87624a7a8ae30f787517701d5683563d79721b1a50c191ea3052620a42586076",
     "outcomes": [
       {
         "scenario_id": "target_supported",
         "passed": true,
-        "result_digest": "4518331dad8b7bc3252f8e7afd4577ea1ca47f5101edb1a48c5e11f1a5a5eb40",
+        "result_digest": "cd880624ea8bb3890350f996876c8b3c9a3332fe237cf348c1ee0604da221715",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -52,6 +52,37 @@
           }
         ],
         "quantified_peptides": 1,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 1,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": 20.0,
+          "normalized_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "normalized_total_signal": 20.0,
+          "observed_peptides": 1,
+          "raw_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "raw_positive_median": 20.0,
+          "raw_total_signal": 20.0,
+          "sample_id": "research-eval:target_supported",
+          "scale_factor": 1.0,
+          "unique_peptides": 1,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [
           {
             "group_accessions": [
@@ -80,7 +111,7 @@
       {
         "scenario_id": "decoy_rejected",
         "passed": true,
-        "result_digest": "786e1a2cbd9b447d0abcfa64857a6f98dee59c208ce7755fd0691d4107743c14",
+        "result_digest": "416151ed3ae907d0be2f32d7f32bdaa23dac7b6c2babf905737ff4b467cb4c62",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -117,6 +148,25 @@
           }
         ],
         "quantified_peptides": 0,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 0,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": null,
+          "normalized_peptide_signals": [],
+          "normalized_total_signal": 0,
+          "observed_peptides": 0,
+          "raw_peptide_signals": [],
+          "raw_positive_median": null,
+          "raw_total_signal": 0,
+          "sample_id": "research-eval:decoy_rejected",
+          "scale_factor": null,
+          "unique_peptides": 0,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [],
         "search_diagnostics": {
           "matched_psms": 1,
@@ -129,7 +179,7 @@
       {
         "scenario_id": "target_decoy_collision",
         "passed": true,
-        "result_digest": "75b4b3e9e98f9f92ef8a00607476d075b027e9b3a561359aeae92f0a8af0ab10",
+        "result_digest": "87e0e623d6269f2121ad87a454f0f1a8a3368ffa4c192b4d8d9312f2fb672084",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -167,6 +217,25 @@
           }
         ],
         "quantified_peptides": 0,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 0,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": null,
+          "normalized_peptide_signals": [],
+          "normalized_total_signal": 0,
+          "observed_peptides": 0,
+          "raw_peptide_signals": [],
+          "raw_positive_median": null,
+          "raw_total_signal": 0,
+          "sample_id": "research-eval:target_decoy_collision",
+          "scale_factor": null,
+          "unique_peptides": 0,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [],
         "search_diagnostics": {
           "matched_psms": 1,
@@ -179,7 +248,7 @@
       {
         "scenario_id": "no_match",
         "passed": true,
-        "result_digest": "fef93f2c651c69142670f782ead71b5101f86037172b02bed27a24a34d69e230",
+        "result_digest": "f8a593159ea13b6e2ed185700e5c9725299e8552c7c352a5bf22e21526c06d41",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -207,6 +276,25 @@
         },
         "protein_group_candidates": [],
         "quantified_peptides": 0,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 0,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": null,
+          "normalized_peptide_signals": [],
+          "normalized_total_signal": 0,
+          "observed_peptides": 0,
+          "raw_peptide_signals": [],
+          "raw_positive_median": null,
+          "raw_total_signal": 0,
+          "sample_id": "research-eval:no_match",
+          "scale_factor": null,
+          "unique_peptides": 0,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [],
         "search_diagnostics": {
           "matched_psms": 0,
@@ -219,7 +307,7 @@
       {
         "scenario_id": "precursor_rejected",
         "passed": true,
-        "result_digest": "efb68c354cff0adef41f1bf4aeef8de473aad506c25322521181b01247894716",
+        "result_digest": "f80124401126d53a2b89c2518fe7390678df9d28d9773f7923bf8c8a2be55a23",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -247,6 +335,25 @@
         },
         "protein_group_candidates": [],
         "quantified_peptides": 0,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 0,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": null,
+          "normalized_peptide_signals": [],
+          "normalized_total_signal": 0,
+          "observed_peptides": 0,
+          "raw_peptide_signals": [],
+          "raw_positive_median": null,
+          "raw_total_signal": 0,
+          "sample_id": "research-eval:precursor_rejected",
+          "scale_factor": null,
+          "unique_peptides": 0,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [],
         "search_diagnostics": {
           "matched_psms": 0,
@@ -259,7 +366,7 @@
       {
         "scenario_id": "shared_peptide_group",
         "passed": true,
-        "result_digest": "954aa85a38da744b8b74ca28f5cc355ba74ef30d2a5bb483b1b2159ef2df23da",
+        "result_digest": "c5aa5f962ddf901af070372be4bad8f7db3df3776adeba0028e63cf50375ccad",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -302,6 +409,37 @@
           }
         ],
         "quantified_peptides": 1,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 1,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": 20.0,
+          "normalized_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "normalized_total_signal": 20.0,
+          "observed_peptides": 1,
+          "raw_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "raw_positive_median": 20.0,
+          "raw_total_signal": 20.0,
+          "sample_id": "research-eval:shared_peptide_group",
+          "scale_factor": 1.0,
+          "unique_peptides": 1,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [
           {
             "group_accessions": [
@@ -331,7 +469,7 @@
       {
         "scenario_id": "multi_spectrum",
         "passed": true,
-        "result_digest": "2cfa9552584e66d6c02494c1b6b9db87e4a2ae6644cc04827199eafdc01e0343",
+        "result_digest": "6f6c5dea8158f6b3ed962f7b94b4e43bed8ece7b0bc2d435d9b441e1d4b463f7",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -372,6 +510,37 @@
           }
         ],
         "quantified_peptides": 1,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 1,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": 20.0,
+          "normalized_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "normalized_total_signal": 20.0,
+          "observed_peptides": 1,
+          "raw_peptide_signals": [
+            [
+              "MPEPTIDER",
+              20.0,
+              false
+            ]
+          ],
+          "raw_positive_median": 20.0,
+          "raw_total_signal": 20.0,
+          "sample_id": "research-eval:multi_spectrum",
+          "scale_factor": 1.0,
+          "unique_peptides": 1,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [
           {
             "group_accessions": [
@@ -400,7 +569,7 @@
       {
         "scenario_id": "multi_peptide_quantification",
         "passed": true,
-        "result_digest": "6d964f48779e4cc3cddcb2f44f7d12b801f4c9f81531e4aee0f032c3bf2eb7bf",
+        "result_digest": "5cef6ebef933153f2f3fb381112442be3bc0772739ff63a5426393db51fdbedb",
         "psms": 2,
         "accepted_psms": 2,
         "groups": [
@@ -452,6 +621,47 @@
           }
         ],
         "quantified_peptides": 2,
+        "quantification_receipt": {
+          "duplicate_observations": 0,
+          "input_observations": 2,
+          "measurement_unit": "median_scaled_matched_ion_intensity",
+          "missing_peptides": 0,
+          "missingness_policy": "zero_signal_is_missing_no_imputation",
+          "normalization_method": "sample_median_scaled",
+          "normalization_target": 52.5,
+          "normalized_peptide_signals": [
+            [
+              "MPEPTIDER",
+              60.0,
+              false
+            ],
+            [
+              "PEPTIDEK",
+              45.0,
+              false
+            ]
+          ],
+          "normalized_total_signal": 105.0,
+          "observed_peptides": 2,
+          "raw_peptide_signals": [
+            [
+              "MPEPTIDER",
+              60.0,
+              false
+            ],
+            [
+              "PEPTIDEK",
+              45.0,
+              false
+            ]
+          ],
+          "raw_positive_median": 52.5,
+          "raw_total_signal": 105.0,
+          "sample_id": "research-eval:multi_peptide_quantification",
+          "scale_factor": 1.0,
+          "unique_peptides": 2,
+          "version": "matched-ion-median-2"
+        },
         "protein_group_quantifications": [
           {
             "group_accessions": [
@@ -503,23 +713,23 @@
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "e66bd8784f62e25ab2b53b7238a50fc804863747b2d9cc5560d75a9833528bce",
+        "result_digest": "4ec60d3ce2ce6b278a92e31c070a97a767a9cae32db9ebb810afa7ee46aec7e2",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "rep-a",
-              "c70104c9e88075c44016123c5b4aa4b2b3c7176ad2c0a8438c1260630383dd62"
+              "456c636a696a5e8bf56df31f9a6efded85ba887fbd93f002906491b5be293c38"
             ],
             [
               "rep-b",
-              "509e36a02ae42b810e82c01f64924ae030d1199c53bee48e9a371416bb10e8b9"
+              "68ef758a401399fe9b3b36696eb8e304b5cad7221e6977e7e417a3311bfb5bec"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "c70104c9e88075c44016123c5b4aa4b2b3c7176ad2c0a8438c1260630383dd62",
-              "509e36a02ae42b810e82c01f64924ae030d1199c53bee48e9a371416bb10e8b9"
+              "456c636a696a5e8bf56df31f9a6efded85ba887fbd93f002906491b5be293c38",
+              "68ef758a401399fe9b3b36696eb8e304b5cad7221e6977e7e417a3311bfb5bec"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -647,7 +857,7 @@
               ]
             ]
           ],
-          "result_digest": "e66bd8784f62e25ab2b53b7238a50fc804863747b2d9cc5560d75a9833528bce",
+          "result_digest": "4ec60d3ce2ce6b278a92e31c070a97a767a9cae32db9ebb810afa7ee46aec7e2",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -778,23 +988,23 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "caf2ad754ccfc41bf84cb4a9c5c24da709cf4d8a6979da319e956c6805c384bd",
+        "result_digest": "947ef504c8206bee7beb5f48f982014229439d9ec766fc20e0502e11dea5066d",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "qc-absent",
-              "612653d5be6f9484775733a19c58be0dc3718ec4cbe0f4cfd590c1631c018576"
+              "053d0946c20f7799f5e8b6e625682e816bfed6aeffdf58249a7b71d321588cd7"
             ],
             [
               "qc-present",
-              "03c4af8246c5bce14f6bfb48a245dd6c6c4b7082ef83e0235990ed1ca78af02b"
+              "f96a5f19bdad738a0539c12edca49ca78a70803c275804bc8676f79d36906379"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "612653d5be6f9484775733a19c58be0dc3718ec4cbe0f4cfd590c1631c018576",
-              "03c4af8246c5bce14f6bfb48a245dd6c6c4b7082ef83e0235990ed1ca78af02b"
+              "053d0946c20f7799f5e8b6e625682e816bfed6aeffdf58249a7b71d321588cd7",
+              "f96a5f19bdad738a0539c12edca49ca78a70803c275804bc8676f79d36906379"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -922,7 +1132,7 @@
               ]
             ]
           ],
-          "result_digest": "caf2ad754ccfc41bf84cb4a9c5c24da709cf4d8a6979da319e956c6805c384bd",
+          "result_digest": "947ef504c8206bee7beb5f48f982014229439d9ec766fc20e0502e11dea5066d",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1053,23 +1263,23 @@
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "d12a0743680738be94a1774cccbaf12cf73dec59b56e2ddf7f364f2b4d17039e",
+        "result_digest": "84b981ab35074409e92f617dfc30d086dec51b9d2237d4a51037a67d0486470c",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "absent",
-              "ab37dcb05a3c570d735cba848ec535c311fc4674cf30a9be628bba920f846d64"
+              "49ec3d541bbba0ed0321d4ca7c5e9207e8b0fd9c0beff2c45d7cd9f833df076a"
             ],
             [
               "present",
-              "0f602ca4774722a58e880259b776e6ade93c66b74750850a21e662f2f4a2ad74"
+              "8c40a9bc2d0b7d2cb096e3e5c9fbc899946ea9c3f4f51a4188d42912e9804b1d"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "ab37dcb05a3c570d735cba848ec535c311fc4674cf30a9be628bba920f846d64",
-              "0f602ca4774722a58e880259b776e6ade93c66b74750850a21e662f2f4a2ad74"
+              "49ec3d541bbba0ed0321d4ca7c5e9207e8b0fd9c0beff2c45d7cd9f833df076a",
+              "8c40a9bc2d0b7d2cb096e3e5c9fbc899946ea9c3f4f51a4188d42912e9804b1d"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -1197,7 +1407,7 @@
               ]
             ]
           ],
-          "result_digest": "d12a0743680738be94a1774cccbaf12cf73dec59b56e2ddf7f364f2b4d17039e",
+          "result_digest": "84b981ab35074409e92f617dfc30d086dec51b9d2237d4a51037a67d0486470c",
           "sample_ids": [
             "absent",
             "present"
@@ -1328,33 +1538,33 @@
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "422f9af713adf3617b2b6a72c2b6c39351dd2884c8ca6cdf5f4a380af0b9d60e",
+        "result_digest": "f6cc62f10bc505ff62186a16449ca96320fd1e39abd52ed3dbc89fc146ebf5f3",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "case-a",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8"
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
             ],
             [
               "case-b",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8"
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
             ],
             [
               "control-a",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8"
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
             ],
             [
               "control-b",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8"
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8",
-              "374159ac08221d2c3d71679ff7c520b3064afb08075164e53316842d7f75ede8"
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
+              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -1588,7 +1798,7 @@
               ]
             ]
           ],
-          "result_digest": "422f9af713adf3617b2b6a72c2b6c39351dd2884c8ca6cdf5f4a380af0b9d60e",
+          "result_digest": "f6cc62f10bc505ff62186a16449ca96320fd1e39abd52ed3dbc89fc146ebf5f3",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -1863,23 +2073,23 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "86bdd314bf25ddecc969102af00cec0df8b3774cffc73b71d4dfad60830fc1be",
+        "result_digest": "4c11fad62da7d9eff0ce41fce5c6009e1fe484f074457b2d99fa4244017392f4",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b"
+              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05"
             ],
             [
               "duplicate-b",
-              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b",
-              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05",
+              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -2007,7 +2217,7 @@
               ]
             ]
           ],
-          "result_digest": "86bdd314bf25ddecc969102af00cec0df8b3774cffc73b71d4dfad60830fc1be",
+          "result_digest": "4c11fad62da7d9eff0ce41fce5c6009e1fe484f074457b2d99fa4244017392f4",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2138,23 +2348,23 @@
       {
         "id": "unknown_independence_abstention",
         "passed": true,
-        "result_digest": "de5b85cb97c0e868912b6ff76477c3e9995b8893256f9b6a4eaa0d34d080e1fa",
+        "result_digest": "6e5718ed092a21eb5adbf0d2d550e7a558a7bb0191ed289205192aa6e5259a5d",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b"
+              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05"
             ],
             [
               "duplicate-b",
-              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "9f3166032dc1e9a0e080cbec5372f4c10eef55e075be8d1da23bc2eeb605640b",
-              "d89b94b2399efc380cdfce95c52d59c43de9f7ae1803f22b38263c88d9b54b10"
+              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05",
+              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -2282,7 +2492,7 @@
               ]
             ]
           ],
-          "result_digest": "de5b85cb97c0e868912b6ff76477c3e9995b8893256f9b6a4eaa0d34d080e1fa",
+          "result_digest": "6e5718ed092a21eb5adbf0d2d550e7a558a7bb0191ed289205192aa6e5259a5d",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2420,23 +2630,23 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "b814ffe328d7d576ca0a809a599167879de32e79d1662f02673261f00b5efc1f",
+        "result_digest": "5a7cd7912d78c05cdca8a616f9db9f9feea80a9809b1e1d6a10e3e065bdc2702",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "pdc-a",
-              "f975af375ad5af7322eb1aace573b9b8ba9b664b33f38856a3f46f17767b7b55"
+              "d9405e8ebc24b6bcec4406da1fb5f2a64b8dfde1efdfe9f78966c515684d9f90"
             ],
             [
               "pdc-b",
-              "c7cd693a907fc87400e5c3120b717b22b9a5043ac8cf100fd1c86a0d44389a1c"
+              "c05d0904bd56c1e7448937badb067d93e795ab96ea8f7f3147c388c8f5156acb"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "f975af375ad5af7322eb1aace573b9b8ba9b664b33f38856a3f46f17767b7b55",
-              "c7cd693a907fc87400e5c3120b717b22b9a5043ac8cf100fd1c86a0d44389a1c"
+              "d9405e8ebc24b6bcec4406da1fb5f2a64b8dfde1efdfe9f78966c515684d9f90",
+              "c05d0904bd56c1e7448937badb067d93e795ab96ea8f7f3147c388c8f5156acb"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -2686,7 +2896,7 @@
               ]
             ]
           ],
-          "result_digest": "b814ffe328d7d576ca0a809a599167879de32e79d1662f02673261f00b5efc1f",
+          "result_digest": "5a7cd7912d78c05cdca8a616f9db9f9feea80a9809b1e1d6a10e3e065bdc2702",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -2820,21 +3030,21 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      365200,
-      354100,
-      340300,
-      340700,
-      345200,
-      334200,
-      334800,
-      325700,
-      332400,
-      337900
+      765100,
+      829200,
+      838600,
+      736300,
+      953500,
+      722600,
+      761600,
+      909000,
+      750400,
+      726700
     ],
-    "mean_ns": 341050.0,
-    "median_ns": 340300,
-    "p95_ns": 365200,
-    "result_digest": "4518331dad8b7bc3252f8e7afd4577ea1ca47f5101edb1a48c5e11f1a5a5eb40"
+    "mean_ns": 799300.0,
+    "median_ns": 765100,
+    "p95_ns": 953500,
+    "result_digest": "cd880624ea8bb3890350f996876c8b3c9a3332fe237cf348c1ee0604da221715"
   },
   "coverage": {
     "statements": 1722,

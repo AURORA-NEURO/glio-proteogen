@@ -26,7 +26,10 @@ one deterministic, auditable path:
    transparent group-FDR evidence, not a calibrated protein probability.
 6. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral
-   counts remain a separate transparent measure.
+   counts remain a separate transparent measure. Every run emits a replay-bound
+   quantification receipt containing the arbitrary measurement unit, raw and normalized
+   peptide signals, duplicate-observation count, positive/missing counts, raw median,
+   normalization target, and scale factor.
 7. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
@@ -156,4 +159,17 @@ content-addressed `SourceReference`, `bind_pdc_mzml_source` verifies format, loc
 MD5, and SHA-256 before the pipeline parses it and records the external source in evidence.
 A future governed computation ABI must freeze reference/search versions, modifications and
 units, FDR calibration, missingness, ambiguity, privacy/consent, validation cohorts, review,
-and safe-abstention semantics before this lane can be promoted.
+  and safe-abstention semantics before this lane can be promoted.
+
+### Quantification receipt and units
+
+`QuantificationReceipt` is the explicit measurement contract for the research computation.
+Its `median_scaled_matched_ion_intensity` unit is an arbitrary matched-fragment-ion signal,
+not a precursor intensity, molar quantity, concentration, or cross-instrument calibrated
+abundance. Repeated PSM observations for a peptide are summed once into its raw peptide
+signal, and the receipt records how many input observations were collapsed. Zero signal is
+represented as missing and is never converted into a positive value. The sample-median
+normalization target is retained alongside raw and normalized peptide projections so a
+replay can distinguish source signal from scaling. Protein-group primary intensity remains
+the median of positive unique-peptide values; shared signal is visible but cannot create a
+resolved group estimate.

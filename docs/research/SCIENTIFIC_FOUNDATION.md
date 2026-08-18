@@ -29,6 +29,11 @@ C03/C04 computation contract:
   unique/shared/total signal and uses only positive unique-peptide medians for a primary group
   intensity; shared-only groups remain explicitly non-quantifiable. Neither is precursor-based
   abundance.
+- `quantify_matched_ions_with_receipt` additionally returns a replay-bound
+  `QuantificationReceipt`: arbitrary matched-ion units, raw/normalized peptide signals,
+  duplicate-observation collapse, positive/missing counts, raw median, normalization target,
+  and scale factor are all explicit. This prevents a normalized research signal from being
+  mistaken for calibrated abundance while retaining enough computation detail to audit it.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
 - `infer_protein_group_candidates` retains all scored target/decoy/collision evidence, computes
