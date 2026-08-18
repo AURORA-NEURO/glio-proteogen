@@ -61,6 +61,9 @@ if str(_ROOT) not in sys.path:
 from evals.research_proteomics.cohort import (  # noqa: E402
     run_evaluator as run_cohort_evaluator,
 )
+from evals.research_proteomics.precursor_policy import (  # noqa: E402
+    run_precursor_policy_evaluator,
+)
 from evals.research_proteomics.run import run_benchmark, run_evaluator  # noqa: E402
 
 
@@ -148,10 +151,12 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
     benchmark = run_benchmark(iterations=10)
     recorded_eval = evidence.get("evaluation") or evidence.get("evaluator")
     recorded_cohort = evidence.get("cohort_evaluation")
+    recorded_precursor_policy = evidence.get("precursor_policy_evaluation")
     recorded_benchmark = evidence.get("benchmark")
     if (
         not isinstance(recorded_eval, dict)
         or not isinstance(recorded_cohort, dict)
+        or not isinstance(recorded_precursor_policy, dict)
         or not isinstance(recorded_benchmark, dict)
     ):
         raise VerificationError(
@@ -209,6 +214,13 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
         raise VerificationError("research cohort evidence is not passing")
     if recorded_cohort.get("outcomes") != cohort_outcomes:
         raise VerificationError("research cohort outcome projections are not locked")
+    observed_precursor_policy = run_precursor_policy_evaluator()
+    if (
+        recorded_precursor_policy != observed_precursor_policy
+        or observed_precursor_policy.get("passed") is not True
+        or observed_precursor_policy.get("declared") != observed_precursor_policy.get("executed")
+    ):
+        raise VerificationError("research precursor-tolerance policy evidence is not passing")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
         raise VerificationError("research benchmark result digest changed")
     _verify_benchmark_record(recorded_benchmark)

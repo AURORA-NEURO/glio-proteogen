@@ -36,6 +36,12 @@ C03/C04 computation contract:
   receipt, so a changed lower-scoring contender cannot silently replay as the same result.
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
   target/decoy sequence collisions as conservative abstentions.
+- The composed pipeline requires a selected-ion precursor m/z and charge for MS2
+  matching and applies a caller-declared integer precursor tolerance bounded to
+  0–500 ppm. The tolerance is applied before candidate competition and is bound into
+  diagnostics, configuration, result digest, and replay; missing precursor metadata
+  abstains rather than opening an implicit open search. This is an auditable mass
+  filter, not a calibrated identification probability.
 - `summarize_target_decoy` records winner-level target/decoy counts, accepted targets, threshold,
   and descriptive decoy/target ratio in the replay-bound result evidence.
 - `quantify_matched_ions` aggregates finite matched-fragment intensity per peptide and applies

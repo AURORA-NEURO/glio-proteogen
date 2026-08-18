@@ -14,15 +14,20 @@ one deterministic, auditable path:
    controls.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold.
-4. Retain every precursor-compatible candidate in a per-spectrum competition receipt,
+4. Apply the caller-declared integer precursor tolerance (0–500 ppm) to the selected
+   mzML precursor m/z and charge before fragment candidates enter competition. The
+   tolerance, observed precursor error diagnostics, and missing-precursor abstentions
+   are part of the run configuration and result digest; a changed tolerance therefore
+   cannot replay as the same computation.
+5. Retain every precursor-compatible candidate in a per-spectrum competition receipt,
    including target/decoy/collision counts, winner/runner-up scores, score margin, and a
    canonical candidate digest. The legacy single-winner projection is derived from this
    receipt; lower-scoring contenders are never silently discarded from replay evidence.
-5. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
+6. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. PSMs are accepted only
    at the caller-declared q-value threshold.
-6. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
+7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in
    the group summary. Each candidate receives a deterministic max-supporting-PSM score and
@@ -30,16 +35,16 @@ one deterministic, auditable path:
    as null-q collision abstentions, and shared-only groups are marked ambiguous before
    quantification. Only target groups passing this second threshold become reportable groups.
    This is transparent group-FDR evidence, not a calibrated protein probability.
-7. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
+8. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral
    counts remain a separate transparent measure. Every run emits a replay-bound
    quantification receipt containing the arbitrary measurement unit, raw and normalized
    peptide signals, duplicate-observation count, positive/missing counts, raw median,
    normalization target, and scale factor.
-8. Quantify each reportable protein group from the median positive unique-peptide
+9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
-9. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
+10. Emit SHA-256 input/evidence/result digests and permit a complete deterministic replay.
 
 ## Multi-sample cohort evidence
 
@@ -150,7 +155,11 @@ control beyond the supplied target/decoy search space.
 
 Each PSM also records mean absolute fragment error and precursor ppm error when precursor
 filtering is enabled; aggregate search diagnostics retain the maximum observed errors and
-the declared precursor tolerance so a replay can audit mass-error behavior directly.
+the caller-declared precursor tolerance so a replay can audit mass-error behavior directly.
+The locked precursor-policy evaluator includes a deliberately near-boundary precursor
+fixture: the 1 ppm policy abstains at approximately 1.07 ppm error, while the 20 ppm
+policy accepts, and replay with the changed policy is rejected. This validates a scientific
+threshold and its digest boundary rather than only checking that a field serializes.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
 each record's quality metadata, the derived quality summary, limitations, and outer digest.
