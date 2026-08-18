@@ -88,6 +88,10 @@ class M2101AuthorizationError(ValueError):
         super().__init__(_AUTHORIZATION_MESSAGE)
 
 
+class M2101ReplayError(ValueError):
+    """Raised when an immutable M21-01 result fails semantic replay."""
+
+
 class M2101ReferenceTruthBenchmarkCurator:
     """Validate, lock, and replay one M21-01 reference-truth request."""
 
@@ -142,10 +146,17 @@ class M2101ReferenceTruthBenchmarkCurator:
     ) -> ComplexActivityReferenceTruthResult:
         """Revalidate an immutable result and return the exact replayed value."""
 
-        return ComplexActivityReferenceTruthResult.model_validate_json(
-            canonical_json_bytes(result),
-            strict=True,
-        )
+        try:
+            replayed = ComplexActivityReferenceTruthResult.model_validate_json(
+                canonical_json_bytes(result),
+                strict=True,
+            )
+            expected = self.curate(replayed.request)
+        except Exception as error:
+            raise M2101ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2101ReplayError
+        return replayed
 
 
 def curate_complex_activity_reference_truth(

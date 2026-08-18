@@ -5,6 +5,7 @@ from .cli import app as cli_app
 from .engine import (
     M2101AuthorizationError,
     M2101ReferenceTruthBenchmarkCurator,
+    M2101ReplayError,
     curate_complex_activity_reference_truth,
     preflight_m2101_authorization,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "M2101AuthorizationError",
     "M2101Plugin",
     "M2101ReferenceTruthBenchmarkCurator",
+    "M2101ReplayError",
     "M2101Service",
     "ReferenceTruthSubmission",
     "ValidatedM2101Request",
