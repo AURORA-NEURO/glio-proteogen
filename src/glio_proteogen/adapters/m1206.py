@@ -15,13 +15,15 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m12_06 import (
+    M1206_MAX_CANONICAL_REQUEST_BYTES,
+    M1206_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelPerturbationSensitivityResult,
     SimulateBiomarkerPanelPerturbationRequest,
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import (
-    MAX_JSON_BYTES,
     StrictJsonError,
     sanitized_validation_errors,
     strict_json_error_detail,
@@ -53,9 +55,13 @@ _SCHEMA_NAMES: Final = frozenset(
 )
 
 
-def _validated_request(payload: bytes) -> SimulateBiomarkerPanelPerturbationRequest:
+def _validated_request(
+    payload: bytes,
+    *,
+    max_bytes: int = M1206_MAX_CANONICAL_REQUEST_BYTES,
+) -> SimulateBiomarkerPanelPerturbationRequest:
     try:
-        decoded = strict_json_loads(payload, max_bytes=MAX_JSON_BYTES)
+        decoded = strict_json_loads(payload, max_bytes=max_bytes)
         preflight_m1206_authorization(decoded)
         return _REQUEST_ADAPTER.validate_json(payload, strict=True)
     except M1206AuthorizationError:
@@ -103,7 +109,7 @@ async def simulate(request: Request) -> JSONResponse:
 async def verify(request: Request) -> JSONResponse:
     body = await request.body()
     try:
-        decoded = strict_json_loads(body, max_bytes=MAX_JSON_BYTES)
+        decoded = strict_json_loads(body, max_bytes=M1206_MAX_CANONICAL_RESULT_BYTES)
         if not isinstance(decoded, dict):
             raise ValueError("verify envelope must be an object")
         preflight_m1206_authorization(decoded.get("request"))
@@ -132,8 +138,11 @@ async def verify(request: Request) -> JSONResponse:
 m1206_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
-def _read_json(path: Path) -> bytes:
-    return path.read_bytes()
+def _read_json(
+    path: Path,
+    max_bytes: int = M1206_MAX_CANONICAL_REQUEST_BYTES,
+) -> bytes:
+    return read_bounded(path, max_bytes)
 
 
 def _write_json(path: Path, value: object, *, force: bool) -> None:
@@ -183,8 +192,8 @@ def verify_cli(
 ) -> None:
     try:
         typed_request = _validated_request(_read_json(request))
-        result_bytes = _read_json(result)
-        strict_json_loads(result_bytes, max_bytes=8 * 1024 * 1024)
+        result_bytes = _read_json(result, M1206_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(result_bytes, max_bytes=M1206_MAX_CANONICAL_RESULT_BYTES)
         typed_result = _RESULT_ADAPTER.validate_json(result_bytes, strict=True)
         _SERVICE.verify(typed_request, typed_result)
     except (

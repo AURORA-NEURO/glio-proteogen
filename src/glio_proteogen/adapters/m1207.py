@@ -9,6 +9,7 @@ import typer
 from fastapi import FastAPI, HTTPException
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m12_07 import (
     M1207_MAX_CANONICAL_REQUEST_BYTES,
     M1207_MAX_CANONICAL_RESULT_BYTES,
@@ -95,7 +96,7 @@ def _load_json(path: Path, *, max_bytes: int) -> dict[str, object]:
             "input path must name a regular JSON file"
         )
     try:
-        decoded = strict_json_loads(path.read_bytes(), max_bytes=max_bytes)
+        decoded = strict_json_loads(read_bounded(path, max_bytes), max_bytes=max_bytes)
         return _JSON_OBJECT_ADAPTER.validate_python(decoded, strict=True)
     except (OSError, ValueError, TypeError, ValidationError) as exc:
         raise typer.BadParameter(  # noqa: TRY003
