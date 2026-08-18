@@ -86,6 +86,7 @@ from glio_proteogen.adapters.limits import (
     RequestBodyTooLargeError,
     read_bounded,
 )
+from glio_proteogen.adapters.m2001 import m2001_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
     RegisterProtocolRequest,
@@ -858,6 +859,7 @@ m1701_app = typer.Typer(
     help="M17-01 typed upstream contract resolution for variant-peptide inputs.",
 )
 app.add_typer(m1701_app, name="m1701-upstream")
+app.add_typer(m2001_app, name="m2001-upstream")
 m1704_app = typer.Typer(
     no_args_is_help=True,
     help="M17-04 bounded intended-use policy adaptation.",

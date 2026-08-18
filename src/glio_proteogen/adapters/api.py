@@ -614,6 +614,18 @@ from glio_proteogen.contracts.m19_08.v1 import (
     MonitorProteotypeTranslationHealthRequest,
     ProteotypeTranslationMonitoringResult,
 )
+from glio_proteogen.contracts.m20_01.schema import (
+    ContractName as M2001ContractName,
+)
+from glio_proteogen.contracts.m20_01.schema import (
+    contract_json_schema as m2001_contract_json_schema,
+)
+from glio_proteogen.contracts.m20_01.v1 import (
+    M2001_MAX_CANONICAL_REQUEST_BYTES,
+    M2001_MAX_CANONICAL_RESULT_BYTES,
+    ProteinSubtypeUpstreamResolutionResult,
+    ResolveProteinSubtypeUpstreamContractsRequest,
+)
 from glio_proteogen.contracts.m27_02.schema import (
     ContractName as M2702ContractName,
 )
@@ -905,6 +917,9 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_08_translation_monitoring_service as m1908_monitoring,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m20_01_upstream_contract_resolver as m2001_resolver,
+)
 from glio_proteogen.modules.c18_spatial_proteomics import (
     m18_08_translation_monitoring_service as m1808_monitoring,
 )
@@ -977,6 +992,8 @@ _M1808_REQUEST_ADAPTER: Final = TypeAdapter(MonitorBiomarkerPanelTranslationHeal
 _M1806_ADJUDICATION_ADAPTER: Final = TypeAdapter(AdjudicateBiomarkerPanelQueueRequest)
 _M1803_REQUEST_ADAPTER: Final = TypeAdapter(FuseBiomarkerPanelEvidenceRequest)
 _M1701_REQUEST_ADAPTER: Final = TypeAdapter(ResolveVariantPeptideUpstreamContractsRequest)
+_M2001_REQUEST_ADAPTER: Final = TypeAdapter(ResolveProteinSubtypeUpstreamContractsRequest)
+_M2001_RESULT_ADAPTER: Final = TypeAdapter(ProteinSubtypeUpstreamResolutionResult)
 _M1704_REQUEST_ADAPTER: Final = TypeAdapter(AdaptVariantPeptideIntendedUseRequest)
 _M1708_REQUEST_ADAPTER: Final = TypeAdapter(MonitorVariantPeptideTranslationHealthRequest)
 _M1606_QUEUE_ADAPTER: Final = TypeAdapter(AdjudicateProteinRnaDiscordanceQueueRequest)
@@ -1215,6 +1232,19 @@ def _m1803_contract_schema(name: M1803ContractName) -> dict[str, object]:
 
 def _m1701_contract_schema(name: M1701ContractName) -> dict[str, object]:
     return m1701_contract_json_schema(name)
+
+
+def _m2001_contract_schema(name: M2001ContractName) -> dict[str, object]:
+    return m2001_contract_json_schema(name)
+
+
+def _m2001_request_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m2001_contract_json_schema("request")}},
+        }
+    }
 
 
 def _m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
@@ -2240,6 +2270,25 @@ async def _m1701_body(
     )
 
 
+async def _m2001_body(
+    request: Request,
+) -> ResolveProteinSubtypeUpstreamContractsRequest:
+    return await _strict_json_body(
+        request,
+        _M2001_REQUEST_ADAPTER,
+        m2001_resolver.preflight_m2001_authorization,
+        M2001_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _m2001_result_body(request: Request) -> ProteinSubtypeUpstreamResolutionResult:
+    return await _strict_json_body(
+        request,
+        _M2001_RESULT_ADAPTER,
+        max_bytes=M2001_MAX_CANONICAL_RESULT_BYTES,
+    )
+
+
 async def _m1704_body(
     request: Request,
 ) -> AdaptVariantPeptideIntendedUseRequest:
@@ -2380,6 +2429,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     m1403_service = m1403_module.M1403Service()
     m1306_service = M1306Service()
     m1701_service = m1701_resolver.M1701Service()
+    m2001_service = m2001_resolver.M2001Service()
     m1704_service = m1704_adapter.M1704Service()
     m1708_service = m1708_monitoring.M1708Service()
     m2702_service = M2702Service()
@@ -2455,6 +2505,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(m1403_module.M1403AuthorizationError)
     @app.exception_handler(M1306AuthorizationError)
     @app.exception_handler(m1701_resolver.M1701AuthorizationError)
+    @app.exception_handler(m2001_resolver.M2001AuthorizationError)
     @app.exception_handler(m1704_adapter.M1704AuthorizationError)
     @app.exception_handler(m1708_monitoring.M1708AuthorizationError)
     @app.exception_handler(M2702AuthorizationError)
@@ -2844,6 +2895,37 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     ) -> VariantPeptideUpstreamResolutionResult:
         return m1701_service.resolve(request)
 
+    @app.get("/v1/contracts/M20-01/{name}/schema", tags=["contracts"])
+    def m2001_contract_schema(name: M2001ContractName) -> dict[str, object]:
+        return _m2001_contract_schema(name)
+
+    @app.post(
+        "/v1/modules/M20-01/resolve",
+        response_model=ProteinSubtypeUpstreamResolutionResult,
+        tags=["M20-01"],
+        openapi_extra=_m2001_request_body(),
+    )
+    def resolve_m2001_upstream_contracts(
+        request: Annotated[
+            ResolveProteinSubtypeUpstreamContractsRequest,
+            Depends(_m2001_body),
+        ],
+    ) -> ProteinSubtypeUpstreamResolutionResult:
+        return m2001_service.resolve(request)
+
+    @app.post(
+        "/v1/modules/M20-01/verify",
+        response_model=ProteinSubtypeUpstreamResolutionResult,
+        tags=["M20-01"],
+    )
+    def verify_m2001_upstream_contracts(
+        result: Annotated[
+            ProteinSubtypeUpstreamResolutionResult,
+            Depends(_m2001_result_body),
+        ],
+    ) -> ProteinSubtypeUpstreamResolutionResult:
+        return m2001_service.replay(result)
+
     @app.get("/v1/contracts/M17-04/{name}/schema", tags=["contracts"])
     def m1704_contract_schema(name: M1704ContractName) -> dict[str, object]:
         return _m1704_contract_schema(name)
@@ -2951,12 +3033,6 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> LongitudinalRecurrenceContextStratificationResult:
         return m1502_service.execute(request)
-
-    @app.get("/v1/contracts/M04-05/{name}/schema", tags=["contracts"])
-    def proteoform_artifact_contract_schema(
-        name: M0405ContractName,
-    ) -> dict[str, object]:
-        return _proteoform_artifact_contract_schema(name)
 
     @app.post(
         "/v1/modules/M04-04/quality-metric-computation",
@@ -3281,20 +3357,6 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteotypePerturbationSensitivityResult:
         return m1306_service.execute(request)
-
-    @app.post(
-        "/v1/modules/M04-05/artifact-detection",
-        response_model=ProteoformArtifactDetectionResult,
-        tags=["M04-05"],
-        openapi_extra=_proteoform_artifact_request_body(),
-    )
-    def detect_proteoform_artifacts(
-        request: Annotated[
-            DetectProteoformArtifactsRequest,
-            Depends(_proteoform_artifact_body),
-        ],
-    ) -> ProteoformArtifactDetectionResult:
-        return proteoform_artifact_service._execute_validated(request)
 
     @app.post(
         "/v1/modules/M04-02/identity-lineage-reconciliation",
