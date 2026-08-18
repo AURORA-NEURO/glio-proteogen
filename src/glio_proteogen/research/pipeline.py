@@ -26,6 +26,7 @@ from .protein import (
     ProteinGroupFdrSummary,
     infer_protein_group_candidates,
 )
+from .public_proteomics.formats import MzIdentMlStructure, extract_mzidentml_structure
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     ProteinGroupQuant,
@@ -79,6 +80,7 @@ class ResearchRunRequest:
     external_pdc_receipt: PdcSourceReceipt | None = None
     quantification_policy: QuantificationPolicy = field(default_factory=QuantificationPolicy)
     precursor_tolerance_ppm: int = 20
+    mzidentml_source: bytes | bytearray | BinaryIO | None = None
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -87,8 +89,14 @@ class ResearchRunRequest:
             raise ValueError("max_bytes is outside the research limit")
         mzml_bytes = _read_bytes(self.mzml_source, self.max_bytes)
         fasta_bytes = _read_bytes(self.fasta_source, self.max_bytes)
+        mzidentml_bytes = (
+            _read_bytes(self.mzidentml_source, self.max_bytes)
+            if self.mzidentml_source is not None
+            else None
+        )
         object.__setattr__(self, "mzml_source", mzml_bytes)
         object.__setattr__(self, "fasta_source", fasta_bytes)
+        object.__setattr__(self, "mzidentml_source", mzidentml_bytes)
         object.__setattr__(
             self,
             "variable_modifications",
@@ -246,13 +254,14 @@ class ResearchRunResult:
     protein_group_fdr_summary: ProteinGroupFdrSummary | None = None
     quantification_receipt: QuantificationReceipt | None = None
     competition_audit: tuple[PsmCompetition, ...] = ()
+    mzidentml_structure: MzIdentMlStructure | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
         return self.evidence.limitations
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "sample_id": self.sample_id,
             "mzml_sha256": self.mzml_sha256,
             "fasta_sha256": self.fasta_sha256,
@@ -304,6 +313,10 @@ class ResearchRunResult:
             "evidence_digest": self.evidence.digest,
             "result_digest": self.result_digest,
         }
+        if self.mzidentml_structure is not None:
+            payload["mzidentml_sha256"] = self.mzidentml_structure.sha256
+            payload["mzidentml_structure"] = self.mzidentml_structure.as_dict()
+        return payload
 
 
 def _read_bytes(source: bytes | bytearray | str | BinaryIO, max_bytes: int) -> bytes:
@@ -426,6 +439,14 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     _validate_request(request)
     mzml_bytes = _read_bytes(request.mzml_source, request.max_bytes)
     fasta_bytes = _read_bytes(request.fasta_source, request.max_bytes)
+    mzidentml_bytes = (
+        _read_bytes(request.mzidentml_source, request.max_bytes)
+        if request.mzidentml_source is not None
+        else None
+    )
+    mzidentml_structure = (
+        extract_mzidentml_structure(mzidentml_bytes) if mzidentml_bytes is not None else None
+    )
     external_reference = request.external_source_reference
     if external_reference is not None:
         observed_external_sha = "sha256:" + sha256(mzml_bytes).hexdigest()
@@ -629,6 +650,13 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         )
     if request.quantification_policy != QuantificationPolicy():
         configuration_payload["quantification_policy"] = request.quantification_policy.as_dict()
+    if mzidentml_structure is not None:
+        configuration_payload.update(
+            {
+                "mzidentml_sha256": mzidentml_structure.sha256,
+                "mzidentml_structure": mzidentml_structure.as_dict(),
+            }
+        )
     configuration = tuple(sorted(configuration_payload.items()))
     evidence_records = [
         EvidenceRecord.create(
@@ -706,8 +734,17 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 },
             )
         )
+    if mzidentml_structure is not None:
+        evidence_records.append(
+            EvidenceRecord.create(
+                "input:mzidentml",
+                f"sha256:{mzidentml_structure.sha256}",
+                "identification_evidence_structure",
+                mzidentml_structure.as_dict(),
+            )
+        )
     evidence = aggregate_evidence(tuple(evidence_records))
-    result_payload = {
+    result_payload: dict[str, object] = {
         "sample_id": request.sample_id,
         "mzml_sha256": mzml_digest,
         "fasta_sha256": fasta_digest,
@@ -744,6 +781,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "limitations": list(evidence.limitations),
         "evidence_digest": evidence.digest,
     }
+    if mzidentml_structure is not None:
+        result_payload["mzidentml_sha256"] = mzidentml_structure.sha256
+        result_payload["mzidentml_structure"] = mzidentml_structure.as_dict()
     result_digest = _result_digest(result_payload)
     return ResearchRunResult(
         sample_id=request.sample_id,
@@ -769,6 +809,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         protein_group_fdr_summary=protein_group_fdr_summary,
         quantification_receipt=quantified.receipt,
         competition_audit=tuple(competition_audit),
+        mzidentml_structure=mzidentml_structure,
     )
 
 
