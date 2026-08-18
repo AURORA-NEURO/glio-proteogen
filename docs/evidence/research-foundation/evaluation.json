@@ -1,17 +1,17 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "f9c44e6edd40dc1c80e74861f42f4bc1edc30efa773d6a5da47b269babdbadc4",
+  "fixture_sha256": "0ef7015f1931063b3e366e04b9f4bdaad54d4c8f13f5cf602dd63913c94eab9e",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "f9c44e6edd40dc1c80e74861f42f4bc1edc30efa773d6a5da47b269babdbadc4",
+    "fixture_sha256": "0ef7015f1931063b3e366e04b9f4bdaad54d4c8f13f5cf602dd63913c94eab9e",
     "outcomes": [
       {
         "scenario_id": "target_supported",
         "passed": true,
-        "result_digest": "cd880624ea8bb3890350f996876c8b3c9a3332fe237cf348c1ee0604da221715",
+        "result_digest": "f1d827e66770961724db47b8426a1c5f31624c181b00de1bde6c055a61be9eef",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -101,17 +101,34 @@
           }
         ],
         "search_diagnostics": {
+          "candidate_competition_digest": "87c0878ecd1b754a3cdb0672159b180ce18898447817a9e6326cb2945a78becf",
+          "candidate_psms": 1,
+          "competition_spectra": 1,
+          "contested_spectra": 0,
           "matched_psms": 1,
           "max_fragment_error_da": 0.0005254659999991418,
           "max_precursor_error_ppm": 0.0,
           "mean_fragment_error_da": 0.0005254659999991418,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "fca228961c8dcdf25d2fb4e89bb7113bfe78c3f2ce091e15b0b08a8f30175ac9",
+            "collision_candidates": 0,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 1,
+            "winner_score": 1.5342417579452687
+          }
+        ]
       },
       {
         "scenario_id": "decoy_rejected",
         "passed": true,
-        "result_digest": "416151ed3ae907d0be2f32d7f32bdaa23dac7b6c2babf905737ff4b467cb4c62",
+        "result_digest": "a1cd7e0ae7de6cd40ee1d0a8ac24d0d9aaaafec3f25f3670f9bd53412de18c4f",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -169,17 +186,34 @@
         },
         "protein_group_quantifications": [],
         "search_diagnostics": {
+          "candidate_competition_digest": "fe06fccbd4955150c7408c6e40775ad4c995fa2d3c2eb7890141f3cb7e72c89c",
+          "candidate_psms": 1,
+          "competition_spectra": 1,
+          "contested_spectra": 0,
           "matched_psms": 1,
           "max_fragment_error_da": 0.0005254659999991418,
           "max_precursor_error_ppm": 0.0,
           "mean_fragment_error_da": 0.0005254659999991418,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "7be2f0b0f30c3ae8935d33d17a8273332d71d2e4db36a63c9a3a6208489d8dd4",
+            "collision_candidates": 0,
+            "decoy_candidates": 1,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 0,
+            "winner_score": 1.5342417579452687
+          }
+        ]
       },
       {
         "scenario_id": "target_decoy_collision",
         "passed": true,
-        "result_digest": "87e0e623d6269f2121ad87a454f0f1a8a3368ffa4c192b4d8d9312f2fb672084",
+        "result_digest": "83454555ba37964105a045836512db9f3e177183bfc0c39ac467e6491115e72d",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
@@ -238,17 +272,34 @@
         },
         "protein_group_quantifications": [],
         "search_diagnostics": {
+          "candidate_competition_digest": "bd9183c2b7da707547988781c4e7301f2ec753957fcfba1fed135c6af409de1c",
+          "candidate_psms": 1,
+          "competition_spectra": 1,
+          "contested_spectra": 0,
           "matched_psms": 1,
           "max_fragment_error_da": 0.0005254659999991418,
           "max_precursor_error_ppm": 0.0,
           "mean_fragment_error_da": 0.0005254659999991418,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "60a159d5fda33ee7d7564ce1ae7c6969dd51b89a3b4e2da276e3ecbf8ff7f559",
+            "collision_candidates": 1,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 0,
+            "winner_score": 1.5342417579452687
+          }
+        ]
       },
       {
         "scenario_id": "no_match",
         "passed": true,
-        "result_digest": "f8a593159ea13b6e2ed185700e5c9725299e8552c7c352a5bf22e21526c06d41",
+        "result_digest": "8f0905d3c8f30c134d99c173fb06d79a0b74c5b9753063a3ce009884d0b5492d",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -297,17 +348,22 @@
         },
         "protein_group_quantifications": [],
         "search_diagnostics": {
+          "candidate_competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_psms": 0,
+          "competition_spectra": 0,
+          "contested_spectra": 0,
           "matched_psms": 0,
           "max_fragment_error_da": null,
           "max_precursor_error_ppm": null,
           "mean_fragment_error_da": null,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": []
       },
       {
         "scenario_id": "precursor_rejected",
         "passed": true,
-        "result_digest": "f80124401126d53a2b89c2518fe7390678df9d28d9773f7923bf8c8a2be55a23",
+        "result_digest": "2e79f84bbca998e7ef1affca65ab1a851596b2a9cfc45dd1e90e16d75d6a82b1",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
@@ -356,17 +412,22 @@
         },
         "protein_group_quantifications": [],
         "search_diagnostics": {
+          "candidate_competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_psms": 0,
+          "competition_spectra": 0,
+          "contested_spectra": 0,
           "matched_psms": 0,
           "max_fragment_error_da": null,
           "max_precursor_error_ppm": null,
           "mean_fragment_error_da": null,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": []
       },
       {
         "scenario_id": "shared_peptide_group",
         "passed": true,
-        "result_digest": "c5aa5f962ddf901af070372be4bad8f7db3df3776adeba0028e63cf50375ccad",
+        "result_digest": "d69a33f0c755a02f090cbacf4a10fbc9bd4c8fbd81bc5dc85e8040feb8dd1f3e",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -459,17 +520,34 @@
           }
         ],
         "search_diagnostics": {
+          "candidate_competition_digest": "ab014dafbe5f05f76b583ec72100a81fa68059a75f4cd8a4d2371869357456e5",
+          "candidate_psms": 1,
+          "competition_spectra": 1,
+          "contested_spectra": 0,
           "matched_psms": 1,
           "max_fragment_error_da": 0.0005254659999991418,
           "max_precursor_error_ppm": 0.0,
           "mean_fragment_error_da": 0.0005254659999991418,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "24a5e7fdac02e3ca8639c71354d880e231470e111a8ee62009cc7434031af605",
+            "collision_candidates": 0,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 1,
+            "winner_score": 1.5342417579452687
+          }
+        ]
       },
       {
         "scenario_id": "multi_spectrum",
         "passed": true,
-        "result_digest": "6f6c5dea8158f6b3ed962f7b94b4e43bed8ece7b0bc2d435d9b441e1d4b463f7",
+        "result_digest": "38566cbdb059a4319bd9dc51989e411f84239920690d465f6530d02a7a46b5ce",
         "psms": 1,
         "accepted_psms": 1,
         "groups": [
@@ -559,17 +637,34 @@
           }
         ],
         "search_diagnostics": {
+          "candidate_competition_digest": "87c0878ecd1b754a3cdb0672159b180ce18898447817a9e6326cb2945a78becf",
+          "candidate_psms": 1,
+          "competition_spectra": 1,
+          "contested_spectra": 0,
           "matched_psms": 1,
           "max_fragment_error_da": 0.0005254659999991418,
           "max_precursor_error_ppm": 0.0,
           "mean_fragment_error_da": 0.0005254659999991418,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "fca228961c8dcdf25d2fb4e89bb7113bfe78c3f2ce091e15b0b08a8f30175ac9",
+            "collision_candidates": 0,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 1,
+            "winner_score": 1.5342417579452687
+          }
+        ]
       },
       {
         "scenario_id": "multi_peptide_quantification",
         "passed": true,
-        "result_digest": "5cef6ebef933153f2f3fb381112442be3bc0772739ff63a5426393db51fdbedb",
+        "result_digest": "f4130f1331a4bd0ece37d1e5a701a4f5c7ba54de8c35c029ca7a7525952b1876",
         "psms": 2,
         "accepted_psms": 2,
         "groups": [
@@ -695,12 +790,40 @@
           }
         ],
         "search_diagnostics": {
+          "candidate_competition_digest": "740262c3f7b4e8cccbe6c03694310e2a90268d090efccb8f3cec725e4d15b06b",
+          "candidate_psms": 2,
+          "competition_spectra": 2,
+          "contested_spectra": 0,
           "matched_psms": 2,
           "max_fragment_error_da": 1.8947806286936004e-14,
           "max_precursor_error_ppm": 1.224463819580059e-10,
           "mean_fragment_error_da": 1.6579330501069002e-14,
           "precursor_tolerance_ppm": 20
-        }
+        },
+        "competition_audit": [
+          {
+            "candidate_count": 1,
+            "candidate_digest": "b4c4f27f3b19c2faa2067cdc23ec443edcda973a7e6c336cdeeca21b173430cd",
+            "collision_candidates": 0,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=1",
+            "target_candidates": 1,
+            "winner_score": 4.6035674514745
+          },
+          {
+            "candidate_count": 1,
+            "candidate_digest": "a758610f4fa30df1a79aba500761ed9388b2d0b1dcfb9b1eeab59cd3ef659dd3",
+            "collision_candidates": 0,
+            "decoy_candidates": 0,
+            "runner_up_score": null,
+            "score_margin": null,
+            "spectrum_id": "scan=2",
+            "target_candidates": 1,
+            "winner_score": 4.521277658511313
+          }
+        ]
       }
     ]
   },
@@ -713,23 +836,23 @@
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "4ec60d3ce2ce6b278a92e31c070a97a767a9cae32db9ebb810afa7ee46aec7e2",
+        "result_digest": "7c3bae446b9dba58bd9398d37a260848b68997d83a4cdf8b667acb854e11747e",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "rep-a",
-              "456c636a696a5e8bf56df31f9a6efded85ba887fbd93f002906491b5be293c38"
+              "e15f99ed58691d00b06d7507ef386f689d29727a683c7aa8f87b8f930c33415f"
             ],
             [
               "rep-b",
-              "68ef758a401399fe9b3b36696eb8e304b5cad7221e6977e7e417a3311bfb5bec"
+              "5ece2f30e23194587affe6fadfc54564b64793cf20d4c4281c5e1a3e4667da06"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "456c636a696a5e8bf56df31f9a6efded85ba887fbd93f002906491b5be293c38",
-              "68ef758a401399fe9b3b36696eb8e304b5cad7221e6977e7e417a3311bfb5bec"
+              "e15f99ed58691d00b06d7507ef386f689d29727a683c7aa8f87b8f930c33415f",
+              "5ece2f30e23194587affe6fadfc54564b64793cf20d4c4281c5e1a3e4667da06"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -857,7 +980,7 @@
               ]
             ]
           ],
-          "result_digest": "4ec60d3ce2ce6b278a92e31c070a97a767a9cae32db9ebb810afa7ee46aec7e2",
+          "result_digest": "7c3bae446b9dba58bd9398d37a260848b68997d83a4cdf8b667acb854e11747e",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -988,23 +1111,23 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "947ef504c8206bee7beb5f48f982014229439d9ec766fc20e0502e11dea5066d",
+        "result_digest": "32da8681f6ae7604c1e9f87e4827f8bb5eb6b699ffadc5c9c6a035791f5ee7fc",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "qc-absent",
-              "053d0946c20f7799f5e8b6e625682e816bfed6aeffdf58249a7b71d321588cd7"
+              "67baa8d254cb6d697709de9d10b9cd7211ea9f8cc91772390584e769a626424d"
             ],
             [
               "qc-present",
-              "f96a5f19bdad738a0539c12edca49ca78a70803c275804bc8676f79d36906379"
+              "73572b52f2dafdb5234c94d0f54251ae72915c6cd1cc8d00b3e23bd8807c8733"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "053d0946c20f7799f5e8b6e625682e816bfed6aeffdf58249a7b71d321588cd7",
-              "f96a5f19bdad738a0539c12edca49ca78a70803c275804bc8676f79d36906379"
+              "67baa8d254cb6d697709de9d10b9cd7211ea9f8cc91772390584e769a626424d",
+              "73572b52f2dafdb5234c94d0f54251ae72915c6cd1cc8d00b3e23bd8807c8733"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -1132,7 +1255,7 @@
               ]
             ]
           ],
-          "result_digest": "947ef504c8206bee7beb5f48f982014229439d9ec766fc20e0502e11dea5066d",
+          "result_digest": "32da8681f6ae7604c1e9f87e4827f8bb5eb6b699ffadc5c9c6a035791f5ee7fc",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1263,23 +1386,23 @@
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "84b981ab35074409e92f617dfc30d086dec51b9d2237d4a51037a67d0486470c",
+        "result_digest": "20bafd773b83b86cbbddb32cfc2b247cd0199f6d2427d313340bbe6ec9a223cd",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "absent",
-              "49ec3d541bbba0ed0321d4ca7c5e9207e8b0fd9c0beff2c45d7cd9f833df076a"
+              "bedaca761594966d2d9fbd841acf7397687c779862703b9bf5b1237a6ff492f2"
             ],
             [
               "present",
-              "8c40a9bc2d0b7d2cb096e3e5c9fbc899946ea9c3f4f51a4188d42912e9804b1d"
+              "aa2e7aa3e0bdd0b21108a892cd147a9c49d58728c12ef7dc87888cb32f0a6dea"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "49ec3d541bbba0ed0321d4ca7c5e9207e8b0fd9c0beff2c45d7cd9f833df076a",
-              "8c40a9bc2d0b7d2cb096e3e5c9fbc899946ea9c3f4f51a4188d42912e9804b1d"
+              "bedaca761594966d2d9fbd841acf7397687c779862703b9bf5b1237a6ff492f2",
+              "aa2e7aa3e0bdd0b21108a892cd147a9c49d58728c12ef7dc87888cb32f0a6dea"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -1407,7 +1530,7 @@
               ]
             ]
           ],
-          "result_digest": "84b981ab35074409e92f617dfc30d086dec51b9d2237d4a51037a67d0486470c",
+          "result_digest": "20bafd773b83b86cbbddb32cfc2b247cd0199f6d2427d313340bbe6ec9a223cd",
           "sample_ids": [
             "absent",
             "present"
@@ -1538,33 +1661,33 @@
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "f6cc62f10bc505ff62186a16449ca96320fd1e39abd52ed3dbc89fc146ebf5f3",
+        "result_digest": "1803c53f767428f50c3a269c83b91c79e3f401bbdc460e8c79c8fb75e7f0fe16",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "case-a",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
             ],
             [
               "case-b",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
             ],
             [
               "control-a",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
             ],
             [
               "control-b",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f",
-              "39e831dc78a6e8530cc9be4db6e4c7355a871a5b279717f39ce418a1503a763f"
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+              "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -1798,7 +1921,7 @@
               ]
             ]
           ],
-          "result_digest": "f6cc62f10bc505ff62186a16449ca96320fd1e39abd52ed3dbc89fc146ebf5f3",
+          "result_digest": "1803c53f767428f50c3a269c83b91c79e3f401bbdc460e8c79c8fb75e7f0fe16",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -2073,23 +2196,23 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "4c11fad62da7d9eff0ce41fce5c6009e1fe484f074457b2d99fa4244017392f4",
+        "result_digest": "8f501aee291f882b3fac61c45637a8beb928eee5e10454e2d149723528fc502c",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05"
+              "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c"
             ],
             [
               "duplicate-b",
-              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
+              "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05",
-              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
+              "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c",
+              "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -2217,7 +2340,7 @@
               ]
             ]
           ],
-          "result_digest": "4c11fad62da7d9eff0ce41fce5c6009e1fe484f074457b2d99fa4244017392f4",
+          "result_digest": "8f501aee291f882b3fac61c45637a8beb928eee5e10454e2d149723528fc502c",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2348,23 +2471,23 @@
       {
         "id": "unknown_independence_abstention",
         "passed": true,
-        "result_digest": "6e5718ed092a21eb5adbf0d2d550e7a558a7bb0191ed289205192aa6e5259a5d",
+        "result_digest": "2a40d21e094b52745ac6adeedd895d2a390d39f18fc52396398fffbbf2785702",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "duplicate-a",
-              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05"
+              "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c"
             ],
             [
               "duplicate-b",
-              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
+              "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "ed6ed30d013a0181031aa9094fa61481b056d5f1f94528471c4462b3d8ec1b05",
-              "a51465bea6426fcb3496a538f447b1402aa64c298ed0be76f652717ca7b1962f"
+              "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c",
+              "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
             ],
             "cohort_normalization_policy": "within_label_median_v1",
             "cohort_normalization_version": "within-label-median-v1",
@@ -2492,7 +2615,7 @@
               ]
             ]
           ],
-          "result_digest": "6e5718ed092a21eb5adbf0d2d550e7a558a7bb0191ed289205192aa6e5259a5d",
+          "result_digest": "2a40d21e094b52745ac6adeedd895d2a390d39f18fc52396398fffbbf2785702",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2630,23 +2753,23 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "5a7cd7912d78c05cdca8a616f9db9f9feea80a9809b1e1d6a10e3e065bdc2702",
+        "result_digest": "cb75c0685150c32c64b6b1cb0bf4a56ba2aa568cc05a3cbc5727e7a6107365c5",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
             [
               "pdc-a",
-              "d9405e8ebc24b6bcec4406da1fb5f2a64b8dfde1efdfe9f78966c515684d9f90"
+              "e7e5ab429f9e3ef218a40741c1ba8eca27cf5bd8f2073fb6508c406b0ca2da29"
             ],
             [
               "pdc-b",
-              "c05d0904bd56c1e7448937badb067d93e795ab96ea8f7f3147c388c8f5156acb"
+              "b88c6cf0c3bbeb10ef310ded043c9f78918eaea6b149dbc363d6c4a1e6012d8a"
             ]
           ],
           "configuration": {
             "child_result_digests": [
-              "d9405e8ebc24b6bcec4406da1fb5f2a64b8dfde1efdfe9f78966c515684d9f90",
-              "c05d0904bd56c1e7448937badb067d93e795ab96ea8f7f3147c388c8f5156acb"
+              "e7e5ab429f9e3ef218a40741c1ba8eca27cf5bd8f2073fb6508c406b0ca2da29",
+              "b88c6cf0c3bbeb10ef310ded043c9f78918eaea6b149dbc363d6c4a1e6012d8a"
             ],
             "cohort_normalization_policy": "none",
             "cohort_normalization_version": "none",
@@ -2896,7 +3019,7 @@
               ]
             ]
           ],
-          "result_digest": "5a7cd7912d78c05cdca8a616f9db9f9feea80a9809b1e1d6a10e3e065bdc2702",
+          "result_digest": "cb75c0685150c32c64b6b1cb0bf4a56ba2aa568cc05a3cbc5727e7a6107365c5",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -3030,21 +3153,21 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      472100,
-      1027400,
-      738600,
-      885500,
-      682800,
-      772200,
-      857700,
-      604400,
-      601400,
-      528300
+      471000,
+      456300,
+      444600,
+      431000,
+      428500,
+      427900,
+      423300,
+      421500,
+      408700,
+      417800
     ],
-    "mean_ns": 717040.0,
-    "median_ns": 738600,
-    "p95_ns": 1027400,
-    "result_digest": "cd880624ea8bb3890350f996876c8b3c9a3332fe237cf348c1ee0604da221715"
+    "mean_ns": 433060.0,
+    "median_ns": 428500,
+    "p95_ns": 471000,
+    "result_digest": "f1d827e66770961724db47b8426a1c5f31624c181b00de1bde6c055a61be9eef"
   },
   "coverage": {
     "statements": 1722,
