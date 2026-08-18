@@ -205,6 +205,4 @@ def test_central_api_and_cli_register_m2001_surface(tmp_path: Path) -> None:
     assert result_cli.exit_code == 0, result_cli.output
     assert ProteinSubtypeUpstreamResolutionResult.model_validate_json(
         result_path.read_bytes(), strict=True
-    ) == ProteinSubtypeUpstreamResolutionResult.model_validate_json(
-        resolved.content, strict=True
-    )
+    ) == ProteinSubtypeUpstreamResolutionResult.model_validate_json(resolved.content, strict=True)
