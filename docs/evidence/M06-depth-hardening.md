@@ -1,7 +1,7 @@
 # M06 depth hardening
 
 This evidence package audits M06-01 through M06-08 on the current M26 base
-`77fb1ce6537161b529c53084fa8e27a9c18f021a`. The ABI remains provisional; this
+`76feeea036baa5ecc33d8a95f60d19a65059fe1f`. The ABI remains provisional; this
 change does not add protein, proteoform, isoform, glioma-specific, treatment, or
 kinase inference. It hardens the existing validated-token capability boundary
 and restores the established global API/CLI route parity for M06-01, M06-03,
@@ -19,7 +19,7 @@ M06-04, and M06-06.
 
 ## Change size
 
-Compared with the current M26 base, the branch contributes **832 additions, 32 deletions, net +800 Python LOC across 11 files**. The resulting tracked repository contains **627,502 Python LOC across 3,692 files**.
+Compared with the current M26 base, the branch contributes **832 additions, 32 deletions, net +800 Python LOC across 11 files**. The resulting tracked repository contains **627,888 Python LOC across 3,696 files**.
 
 ## Reproduction
 
