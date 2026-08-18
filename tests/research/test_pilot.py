@@ -83,6 +83,22 @@ def test_checked_in_empty_spectrum_fixture_abstains_safely() -> None:
     assert result.signal_proxies == ()
 
 
+def test_strict_precursor_policy_abstains_without_precursor_metadata() -> None:
+    request = _request(_mzml_with_ms2())
+    request = replace(
+        request,
+        parameters=SearchParameters(
+            fragment_tolerance_da=0.2,
+            min_matched_ions=1,
+            require_precursor_mz=True,
+        ),
+    )
+    result = run_pilot(request)
+    assert result.status == "ABSTAINED"
+    assert result.abstention_reason == "NO_SUPPORTED_PSM"
+    assert result.searched_spectra == 1
+
+
 def test_policy_is_closed_against_network_or_claim_expansion() -> None:
     with pytest.raises(PilotError, match="network_access"):
         PilotPolicy(network_access=True)  # type: ignore[arg-type]
@@ -117,3 +133,10 @@ def test_replay_detects_tampered_receipt() -> None:
     tampered = replace(result, sample_id="tampered")
     with pytest.raises(PilotError, match="replay"):
         verify_pilot_replay(request, tampered)
+
+    changed_parameters = replace(
+        result,
+        parameters=SearchParameters(fragment_tolerance_da=0.1, min_matched_ions=1),
+    )
+    with pytest.raises(PilotError, match="replay"):
+        verify_pilot_replay(request, changed_parameters)
