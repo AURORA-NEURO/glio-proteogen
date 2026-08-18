@@ -133,7 +133,7 @@ def _verify_package(path: Path, receipt: dict[str, object]) -> None:
         not isinstance(expected_sha, str)
         or len(expected_sha) != 64
         or any(character not in "0123456789abcdef" for character in expected_sha.lower())
-        or _sha256(path) != expected_sha
+        or _sha256(path) != expected_sha.lower()
     ):
         raise VerificationError(f"package SHA-256 does not match receipt: {path.name}")
     if path.name.endswith(".whl"):
