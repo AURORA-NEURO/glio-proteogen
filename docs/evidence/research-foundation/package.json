@@ -80,14 +80,14 @@
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4480045,
-      "members": 4611,
-      "sha256": "0980813fafea10e9fdacd05269128d71027efb6ace0f92542601b7f272a583e8"
+      "bytes": 4460924,
+      "members": 4610,
+      "sha256": "cdfbbef4e7bc22248964d2d157d64e178f164afe6b6b827dfdbf040f9113e979"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
       "wheel": "6d7c4c27f23a685bea8a4f9b77910f465f2d44fb916b0e4fa961cf206f1efb2c",
-      "sdist": "0980813fafea10e9fdacd05269128d71027efb6ace0f92542601b7f272a583e8"
+      "sdist": "cdfbbef4e7bc22248964d2d157d64e178f164afe6b6b827dfdbf040f9113e979"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
