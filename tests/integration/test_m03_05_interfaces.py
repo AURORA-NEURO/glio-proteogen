@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Final
 import pytest
 from evals.m03_05.run import build_scenario_request
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters import cli as cli_adapter
@@ -26,6 +27,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection impo
     M0305Service,
     ProteinInferenceArtifactAuthorizationError,
     detect_protein_inference_artifacts,
+)
+from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection.engine import (
+    prepare_artifact_request_candidate,
 )
 
 if TYPE_CHECKING:
@@ -140,6 +144,98 @@ def test_library_engine_service_plugin_api_and_cli_return_equal_result(
         ProteinInferenceArtifactDetectionResult.model_validate_json(cli.stdout, strict=True)
         == library
     )
+
+
+def test_api_cli_and_service_replay_verify_the_complete_result(
+    tmp_path: Path,
+) -> None:
+    result = detect_protein_inference_artifacts(build_scenario_request())
+    result_path = tmp_path / "artifact-result.json"
+    result_path.write_bytes(canonical_json_bytes(result))
+
+    service = M0305Service()
+    assert service.verify(result) == result
+
+    with TestClient(create_app(tmp_path / "verify.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-05/artifacts/verify",
+            content=result_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(
+        cli_app,
+        ["protein-inference-artifacts", "verify", str(result_path)],
+    )
+
+    assert response.status_code == HTTP_OK, response.text
+    assert cli.exit_code == 0, cli.output
+    assert (
+        ProteinInferenceArtifactDetectionResult.model_validate_json(
+            response.content,
+            strict=True,
+        )
+        == result
+    )
+    assert (
+        ProteinInferenceArtifactDetectionResult.model_validate_json(
+            cli.stdout,
+            strict=True,
+        )
+        == result
+    )
+
+
+def test_replay_verify_rejects_a_re_signed_nested_score(
+    tmp_path: Path,
+) -> None:
+    result = detect_protein_inference_artifacts(build_scenario_request())
+    payload = result.model_dump(mode="json")
+    payload["result_digest"] = "sha256:" + ("a" * 64)
+    result_path = tmp_path / "tampered-result.json"
+    result_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with TestClient(create_app(tmp_path / "tamper.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-05/artifacts/verify",
+            content=result_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(
+        cli_app,
+        ["protein-inference-artifacts", "verify", str(result_path)],
+    )
+
+    assert response.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert cli.exit_code == CLI_USAGE_ERROR
+    assert "Traceback" not in response.text + cli.output
+
+
+def test_library_replay_verifier_accepts_bounded_json_and_mapping_inputs(
+    tmp_path: Path,
+) -> None:
+    del tmp_path
+    result = detect_protein_inference_artifacts(build_scenario_request())
+    serialized = canonical_json_bytes(result)
+    service = M0305Service()
+
+    assert service.verify(serialized) == result
+    assert service.verify(bytearray(serialized)) == result
+    assert service.verify(result.model_dump(mode="json")) == result
+    with pytest.raises(ValidationError):
+        service.verify([])
+
+
+def test_malformed_shallow_metadata_is_preserved_for_strict_reconstruction() -> None:
+    class ExplosiveReceipt:
+        @property
+        def quality_disposition(self) -> str:
+            raise RuntimeError("hostile metadata accessor")  # noqa: TRY003
+
+    candidate = {
+        "quality_receipt": ExplosiveReceipt(),
+        "policy": {},
+    }
+    assert prepare_artifact_request_candidate(candidate) is candidate
 
 
 @pytest.mark.parametrize(("role", "denied_state"), AUTHORIZATION_DENIALS)

@@ -206,6 +206,7 @@ from glio_proteogen.contracts.m03_05.schema import (
 )
 from glio_proteogen.contracts.m03_05.v1 import (
     M0305_MAX_CANONICAL_REQUEST_BYTES,
+    M0305_MAX_CANONICAL_RESULT_BYTES,
     DetectProteinInferenceArtifactsRequest,
     ProteinInferenceArtifactDetectionResult,
 )
@@ -968,6 +969,7 @@ _M0302_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteinInferenceIdentityLin
 _M0304_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteinInferenceQualityRequest)
 _M0304_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceQualityResult)
 _M0305_ARTIFACT_ADAPTER: Final = TypeAdapter(DetectProteinInferenceArtifactsRequest)
+_M0305_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceArtifactDetectionResult)
 _M0306_HARMONIZATION_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
@@ -1492,6 +1494,15 @@ def _protein_inference_artifact_request_body() -> dict[str, object]:
     }
 
 
+def _protein_inference_artifact_result_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0305_contract_json_schema("output")}},
+        }
+    }
+
+
 def _protein_inference_harmonization_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -1959,6 +1970,16 @@ async def _protein_inference_artifact_body(
         _M0305_ARTIFACT_ADAPTER,
         preflight_protein_inference_artifact_authorization,
         M0305_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _protein_inference_artifact_result_body_parser(
+    request: Request,
+) -> ProteinInferenceArtifactDetectionResult:
+    return await _strict_json_body(
+        request,
+        _M0305_RESULT_ADAPTER,
+        max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
     )
 
 
@@ -2742,6 +2763,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteinInferenceArtifactDetectionResult:
         return protein_inference_artifact_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M03-05/artifacts/verify",
+        response_model=ProteinInferenceArtifactDetectionResult,
+        tags=["M03-05"],
+        openapi_extra=_protein_inference_artifact_result_body(),
+    )
+    def verify_protein_inference_artifacts(
+        result: Annotated[
+            ProteinInferenceArtifactDetectionResult,
+            Depends(_protein_inference_artifact_result_body_parser),
+        ],
+    ) -> ProteinInferenceArtifactDetectionResult:
+        return protein_inference_artifact_service.verify(result)
 
     @app.get("/v1/contracts/M03-06/{name}/schema", tags=["contracts"])
     def protein_inference_harmonization_contract_schema(

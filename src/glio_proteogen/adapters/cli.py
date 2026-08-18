@@ -155,6 +155,7 @@ from glio_proteogen.contracts.m03_04 import (
 )
 from glio_proteogen.contracts.m03_05 import (
     M0305_MAX_CANONICAL_REQUEST_BYTES,
+    M0305_MAX_CANONICAL_RESULT_BYTES,
     DetectProteinInferenceArtifactsRequest,
     ProteinInferenceArtifactDetectionResult,
 )
@@ -4062,6 +4063,18 @@ def detect_protein_inference_artifacts(request: RequestArgument) -> None:
         M0305_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0305Service().execute(parsed))
+
+
+@protein_inference_artifacts_app.command("verify")
+def verify_protein_inference_artifacts(result: RequestArgument) -> None:
+    """Replay-verify one canonical metadata-only artifact result."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteinInferenceArtifactDetectionResult),
+        max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(M0305Service().verify(parsed))
 
 
 @protein_inference_harmonization_app.command("export-schema")
