@@ -11,8 +11,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m20_07 import (
     M2007_MAX_CANONICAL_REQUEST_BYTES,
+    M2007_MAX_CANONICAL_RESULT_BYTES,
     ExportProteinSubtypeDownstreamContractRequest,
     ProteinSubtypeDownstreamExportResult,
     contract_json_schema,
@@ -45,7 +47,7 @@ class M2007CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> ExportProteinSubtypeDownstreamContractRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2007_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2007_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -54,7 +56,9 @@ def _read_request(path: Path) -> ExportProteinSubtypeDownstreamContractRequest:
 
 def _read_result(path: Path) -> ProteinSubtypeDownstreamExportResult:
     try:
-        return _RESULT_ADAPTER.validate_json(path.read_bytes(), strict=True)
+        data = read_bounded(path, M2007_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2007_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2007CliError("input must be a valid M20-07 result") from error
 
