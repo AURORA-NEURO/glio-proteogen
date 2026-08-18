@@ -16,7 +16,15 @@ SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:8580-8620"
 MEAN_BUDGET_NS = 500_000_000
 P95_BUDGET_NS = 750_000_000
 MIN_COVERAGE = 95.0
-SCENARIO_COUNT = 5
+EXPECTED_SCENARIO_IDS = (
+    "supported",
+    "metric_failure_abstained",
+    "fallback_failure_abstained",
+    "denied_control_rejected",
+    "replay_verified",
+    "semantic_replay_rejected",
+)
+SCENARIO_COUNT = len(EXPECTED_SCENARIO_IDS)
 ADVERSARIAL_COUNT = 11
 BENCHMARK_ITERATIONS = 10
 
@@ -46,6 +54,8 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
     mean_ns = cast("float | int", benchmark.get("mean_ns", MEAN_BUDGET_NS + 1))
     p95_ns = cast("float | int", benchmark.get("p95_ns", P95_BUDGET_NS + 1))
     coverage_percent = cast("float | int", coverage.get("coverage_percent", 0))
+    observed_scenario_ids = evaluation.get("scenario_ids")
+    scenario_ids = tuple(observed_scenario_ids) if isinstance(observed_scenario_ids, list) else ()
     checks: dict[str, bool] = {
         "module": evaluation.get("module_id")
         == MODULE
@@ -55,6 +65,7 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
         and evaluation.get("dossier_slice") == SLICE,
         "evaluation": evaluation.get("passed") is True
         and evaluation.get("scenario_count") == SCENARIO_COUNT
+        and scenario_ids == EXPECTED_SCENARIO_IDS
         and evaluation.get("adversarial_case_count") == ADVERSARIAL_COUNT
         and evaluation.get("adversarial_passed_count") == ADVERSARIAL_COUNT,
         "benchmark": benchmark.get("passed") is True
