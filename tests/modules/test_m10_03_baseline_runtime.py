@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m10_03 import (
     BaselineTuningSpec,
     EstimateProteinRnaDiscordanceBaselineRequest,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -213,3 +214,29 @@ def test_plain_builtin_paths_and_replay_tamper_are_exercised() -> None:
     result = estimate_protein_rna_discordance_baseline(request)
     tampered = result.model_copy(update={"result_digest": _artifact("wrong").digest})
     assert verify_result_replay(tampered) is False
+
+
+@pytest.mark.parametrize("field", ["request", "estimates", "diagnostics", "provenance"])
+def test_replay_rejects_self_rehashed_nested_mutations(field: str) -> None:
+    """A forged payload must not become valid by recomputing its digest."""
+
+    request = _request()
+    result = estimate_protein_rna_discordance_baseline(request)
+    if field == "request":
+        mutated_request = request.model_copy(update={"request_id": "request.attacker"})
+        forged = result.model_copy(
+            update={
+                "request": mutated_request,
+                "request_digest": canonical_request_digest(mutated_request),
+            }
+        )
+    elif field == "estimates":
+        forged = result.model_copy(update={"estimates": ()})
+    elif field == "diagnostics":
+        forged = result.model_copy(update={"diagnostics": ()})
+    else:
+        forged = result.model_copy(
+            update={"provenance": result.provenance.model_copy(update={"actor_id": "actor.forged"})}
+        )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert verify_result_replay(forged) is False

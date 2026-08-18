@@ -438,11 +438,20 @@ def estimate_protein_rna_discordance_baseline(
 
 
 def verify_result_replay(result: ProteinRnaDiscordanceBaselineResult) -> bool:
+    """Verify the complete deterministic result, not only its receipt hash.
+
+    A caller can otherwise mutate a frozen model with ``model_copy`` and
+    recompute ``result_digest``.  Re-validating that self-consistent payload
+    proves only internal serialization integrity; it does not prove that the
+    estimator would produce the same estimates for the embedded request.
+    """
+
     try:
         reparsed = ProteinRnaDiscordanceBaselineResult.model_validate_json(
             result.model_dump_json(), strict=True
         )
-        return reparsed.result_digest == result_payload_digest(reparsed)
+        expected = M1003BaselineEngine().estimate(reparsed.request)
+        return reparsed.model_dump(mode="json") == expected.model_dump(mode="json")
     except (TypeError, ValueError):
         return False
 
