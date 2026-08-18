@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
@@ -16,12 +17,9 @@ from glio_proteogen.contracts.m28_04 import (
 )
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.api import create_app
-from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.cli import app
+from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.cli import _read_bounded, app
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.sdk import M2804Client
 from tests.runtime.test_m2804_runtime import _request
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 HTTP_OK = 200
 HTTP_NOT_FOUND = 404
@@ -190,3 +188,10 @@ def test_cli_rejects_oversized_request_and_result_before_parse(tmp_path: Path) -
     assert result_result.exit_code != 0
     assert "Traceback" not in request_result.output
     assert "Traceback" not in result_result.output
+
+
+def test_cli_bounded_reader_avoids_unbounded_path_read_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "bounded.json"
+    path.write_bytes(b"{}")
+    with patch.object(Path, "read_bytes", side_effect=AssertionError("unbounded read")):
+        assert _read_bounded(path, max_bytes=2) == b"{}"
