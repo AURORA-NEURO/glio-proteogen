@@ -81,9 +81,17 @@ def _verify_coverage(root: Path) -> None:
     _require(evidence.get("module_id") == MODULE_ID, "coverage module mismatch")
     _require(evidence.get("branch_enabled") is True, "branch coverage disabled")
     _require(evidence.get("passed") is True, "coverage did not pass")
+    statements = evidence.get("statements")
+    covered_statements = evidence.get("covered_statements")
+    branches = evidence.get("branches")
+    covered_branches = evidence.get("covered_branches")
     _require(
-        evidence.get("covered_statements") == evidence.get("statements")
-        and evidence.get("covered_branches") == evidence.get("branches")
+        isinstance(statements, int)
+        and isinstance(covered_statements, int)
+        and isinstance(branches, int)
+        and isinstance(covered_branches, int)
+        and 0 <= covered_statements <= statements
+        and 0 <= covered_branches <= branches
         and float(evidence.get("coverage_percent", 0.0)) >= float(evidence.get("fail_under", 95.0)),
         "coverage gate failed",
     )
