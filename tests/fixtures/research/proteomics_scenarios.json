@@ -1,0 +1,26 @@
+{
+  "fixture_version": "research-proteomics-1",
+  "scenarios": [
+    {
+      "id": "target_supported",
+      "expected_psms": 1,
+      "expected_accepted": 1
+    },
+    {
+      "id": "decoy_rejected",
+      "expected_psms": 1,
+      "expected_accepted": 0
+    },
+    {
+      "id": "no_match",
+      "expected_psms": 0,
+      "expected_accepted": 0
+    }
+  ],
+  "claims": {
+    "production_abi": false,
+    "clinical": false,
+    "glioma": false,
+    "mechanism": false
+  }
+}
