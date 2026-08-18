@@ -13,9 +13,10 @@ the module-owned provisional receipts or freeze their ABI.
   evidence-reference closure. The fixtures now exercise the required
   counter-evidence/evidence fields rather than relying on invalid construction.
 
-The production change is 6 inserted Python lines. The complete Python diff,
-including the two regression-fixture updates, is 27 insertions and 2 deletions
-across three files.
+The production change is 6 inserted Python lines. The application plus
+regression-fixture diff is 27 insertions and 2 deletions across three files.
+The standalone release verifier adds 124 Python lines, for an overall audit
+diff of 151 insertions and 2 deletions across four Python files.
 
 ## Verification
 

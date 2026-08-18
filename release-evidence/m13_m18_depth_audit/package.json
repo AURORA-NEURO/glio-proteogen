@@ -6,9 +6,12 @@
   "source_date_epoch": 315532800,
   "python_loc_delta": {
     "production_insertions": 6,
-    "all_python_insertions": 27,
+    "regression_fixture_insertions": 21,
+    "regression_fixture_deletions": 2,
+    "release_tool_insertions": 124,
+    "all_python_insertions": 151,
     "all_python_deletions": 2,
-    "changed_python_files": 3
+    "changed_python_files": 4
   },
   "reproducible_builds": {
     "build_count": 2,
