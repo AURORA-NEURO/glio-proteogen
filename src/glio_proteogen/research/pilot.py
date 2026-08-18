@@ -284,6 +284,7 @@ def _abstained(
     reason: str,
     spectra_seen: int,
     ms2_spectra: int,
+    searched_spectra: int,
     manifest_digest: str,
     metadata_digest: str,
     evidence_digest: str,
@@ -296,7 +297,7 @@ def _abstained(
             sample_id=request.sample_id,
             spectra_seen=spectra_seen,
             ms2_spectra=ms2_spectra,
-            searched_spectra=0,
+            searched_spectra=searched_spectra,
             matched_psms=(),
             protein_groups=(),
             signal_proxies=(),
@@ -334,13 +335,16 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             reason="NO_MS2_SPECTRA",
             spectra_seen=len(spectra),
             ms2_spectra=0,
+            searched_spectra=0,
             manifest_digest=manifest_digest,
             metadata_digest=metadata_digest,
             evidence_digest=evidence_digest,
         )
     psms: list[Psm] = []
     signal_by_spectrum: dict[str, float] = {}
+    searched_spectra = 0
     for spectrum in ms2:
+        searched_spectra += 1
         signal_by_spectrum[spectrum.spectrum_id] = sum(spectrum.intensity)
         psm = search_spectrum(
             spectrum.spectrum_id,
@@ -361,6 +365,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             reason="NO_SUPPORTED_PSM",
             spectra_seen=len(spectra),
             ms2_spectra=len(ms2),
+            searched_spectra=searched_spectra,
             manifest_digest=manifest_digest,
             metadata_digest=metadata_digest,
             evidence_digest=evidence_digest,
@@ -395,7 +400,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             sample_id=request.sample_id,
             spectra_seen=len(spectra),
             ms2_spectra=len(ms2),
-            searched_spectra=len(ms2),
+            searched_spectra=searched_spectra,
             matched_psms=scored,
             protein_groups=groups,
             signal_proxies=signals,

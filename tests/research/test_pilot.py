@@ -63,6 +63,7 @@ def test_positive_pilot_is_content_addressed_and_replayable() -> None:
     assert result.status == "COMPLETED"
     assert result.abstention_reason is None
     assert result.ms2_spectra == 1
+    assert result.searched_spectra == 1
     assert len(result.matched_psms) == 1
     assert result.matched_psms[0].peptide == "MPEPTIDER"
     assert result.protein_groups[0].accessions == ("P1",)
