@@ -52,6 +52,12 @@ C03/C04 computation contract:
   contender cannot replay as the same group result. This is transparent research FDR evidence,
   not a calibrated protein probability.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
+  Each record may additionally carry an `EvidenceQuality` assessment that separates
+  byte/computation auditability, observed completeness, and caller-declared independent source
+  count. `EvidenceQualitySummary` reports a deterministic source-count-weighted auditability
+  projection and is explicitly not a probability of biological truth. Aggregation rejects two
+  different payloads claiming the same source/kind so a stale or contradictory external receipt
+  cannot silently coexist with a newer one under a different evidence ID.
 - `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
   research run: fragment matching, target/decoy q-values, spectral counts, matched-ion
   intensity quantification, ambiguity-preserving protein groups, and deterministic replay.
@@ -80,6 +86,10 @@ C03/C04 computation contract:
   snapshot cannot be presented with an old cohort evidence digest. Metadata snapshot
   versions must be uniform within one cohort or the run rejects before emitting an
   aggregate.
+  Their quality assessments distinguish complete versus missing matrix support and bind the
+  number of distinct source identities without treating technical replicates as independent
+  biological evidence. Quality scores remain auditability/completeness metadata, not confidence
+  in a protein, disease, or mechanism claim.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or
