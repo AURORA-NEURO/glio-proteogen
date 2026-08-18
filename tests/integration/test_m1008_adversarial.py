@@ -48,6 +48,17 @@ def test_api_rejects_invalid_json_nonfinite_and_bad_contract() -> None:
     assert bad_schema.status_code == HTTP_UNPROCESSABLE
 
 
+def test_api_result_boundary_uses_result_limit_and_rejects_oversize_body() -> None:
+    client = TestClient(create_m1008_app())
+    oversized = b'{"result_digest":"' + (b"a" * (8 * 1024 * 1024 + 1)) + b'"}'
+    response = client.post(
+        "/v1/m10-08/verify",
+        content=oversized,
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == HTTP_BAD_REQUEST
+
+
 def test_cli_publish_verify_replay_and_sanitized_failures() -> None:
     runner = CliRunner()
     request_json = _request().model_dump_json()

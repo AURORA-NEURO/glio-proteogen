@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m10_08 import (
     M1008_MAX_CANONICAL_REQUEST_BYTES,
+    M1008_MAX_CANONICAL_RESULT_BYTES,
     ProteinRnaEvidencePublicationResult,
     PublishProteinRnaEvidenceRequest,
     contract_json_schema,
@@ -77,7 +78,7 @@ def create_m1008_app(
 
 
 async def _parse_request(request: Request) -> PublishProteinRnaEvidenceRequest:
-    decoded, serialized = await _strict_body(request)
+    decoded, serialized = await _strict_body(request, max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES)
     try:
         m1008_runtime.preflight_m1008_authorization(decoded)
     except m1008_runtime.M1008AuthorizationError as error:
@@ -92,7 +93,7 @@ async def _parse_request(request: Request) -> PublishProteinRnaEvidenceRequest:
 
 
 async def _parse_result(request: Request) -> ProteinRnaEvidencePublicationResult:
-    decoded, serialized = await _strict_body(request)
+    decoded, serialized = await _strict_body(request, max_bytes=M1008_MAX_CANONICAL_RESULT_BYTES)
     try:
         return ProteinRnaEvidencePublicationResult.model_validate_json(serialized, strict=True)
     except ValidationError as error:
@@ -110,10 +111,10 @@ async def _parse_result(request: Request) -> ProteinRnaEvidencePublicationResult
         ) from error
 
 
-async def _strict_body(request: Request) -> tuple[object, bytes]:
+async def _strict_body(request: Request, *, max_bytes: int) -> tuple[object, bytes]:
     body = await request.body()
     try:
-        return strict_json_loads(body, max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES), body
+        return strict_json_loads(body, max_bytes=max_bytes), body
     except StrictJsonError as error:
         raise HTTPException(
             status_code=400,
@@ -203,7 +204,7 @@ def _load_request_path(path: str) -> PublishProteinRnaEvidenceRequest:
 
 def _load_result_path(path: str) -> ProteinRnaEvidencePublicationResult:
     serialized = _read_path(path)
-    decoded = strict_json_loads(serialized, max_bytes=M1008_MAX_CANONICAL_REQUEST_BYTES)
+    decoded = strict_json_loads(serialized, max_bytes=M1008_MAX_CANONICAL_RESULT_BYTES)
     try:
         return ProteinRnaEvidencePublicationResult.model_validate_json(serialized, strict=True)
     except ValidationError as error:
