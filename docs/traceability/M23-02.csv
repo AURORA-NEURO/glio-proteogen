@@ -1,0 +1,13 @@
+module_id,requirement,evidence,verification,status
+GLIO-PROTEOGEN-M23-02,caller-declared M23-01 opaque media boundary,contracts/m23_02/v1.py request_is_bound and M23-01 media constant,contract media/source-retention tests,pass
+GLIO-PROTEOGEN-M23-02,normal edge missing shifted adversarial fixture kinds,contracts/m23_02/v1.py FixtureKind and SyntheticTruthCase,evaluator fixture matrix and adversarial tests,pass
+GLIO-PROTEOGEN-M23-02,analytic and semi-synthetic representations,contracts/m23_02/v1.py TruthRepresentation and engine.py deterministic case construction,evaluator representation checks,pass
+GLIO-PROTEOGEN-M23-02,locked deterministic seed and reproducibility manifest,contracts/m23_02/v1.py GenerationConfiguration/GenerationManifest,manifest digest and repeated-result tests,pass
+GLIO-PROTEOGEN-M23-02,seven-control fail-closed preflight,modules/.../engine.py preflight_m2302_authorization,denied malformed mapping and API/CLI denial tests,pass
+GLIO-PROTEOGEN-M23-02,safe fixture-state semantics without unsupported-to-negative conversion,contracts/m23_02/v1.py status/parent closure and engine.py,fixture boundary/evaluator tests,pass
+GLIO-PROTEOGEN-M23-02,seven uncertainty dimensions and provenance,engine.py _uncertainty/_provenance,runtime and evaluator assertions,pass
+GLIO-PROTEOGEN-M23-02,canonical request/result identity replay and tamper rejection,contracts/m23_02/canonical.py and engine.py,replay/tamper/adversarial tests,pass
+GLIO-PROTEOGEN-M23-02,strict parse-once plugin,modules/.../plugin.py,typed-token duplicate-key and parity tests,pass
+GLIO-PROTEOGEN-M23-02,FastAPI/Typer interfaces,modules/.../api.py and cli.py,interface and sanitized-error tests,pass
+GLIO-PROTEOGEN-M23-02,evaluator fixture and locked benchmark,evals/m23_02,evaluator matrix and ten iterations,pass
+GLIO-PROTEOGEN-M23-02,provisional authority and prohibited boundaries,docs/modules/M23-02-synthetic-truth-simulation-generator.md,release evidence and owner review,provisional
