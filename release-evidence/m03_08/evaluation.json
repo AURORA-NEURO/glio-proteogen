@@ -1,0 +1,214 @@
+{
+  "checks": [
+    {
+      "detail": "groups=8;cases=38;unique=38",
+      "name": "corpus.exact_eight_groups_thirty_eight_cases",
+      "passed": true
+    },
+    {
+      "detail": "disposition=released;members=10",
+      "name": "scenario.canonical_release",
+      "passed": true
+    },
+    {
+      "detail": "request_equal=True;package_equal=True",
+      "name": "scenario.semantic_reorder_replay",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-01', 'GLIO-PROTEOGEN-M03-02', 'GLIO-PROTEOGEN-M03-03', 'GLIO-PROTEOGEN-M03-04', 'GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_01_quarantined",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-02', 'GLIO-PROTEOGEN-M03-03', 'GLIO-PROTEOGEN-M03-04', 'GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_02_unreleasable",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-03', 'GLIO-PROTEOGEN-M03-04', 'GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_03_unreleasable",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-04', 'GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_04_quarantined",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_05_quarantined",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-05', 'GLIO-PROTEOGEN-M03-06', 'GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_06_quarantined",
+      "passed": true
+    },
+    {
+      "detail": "public_build=quarantined;reason_stages=['GLIO-PROTEOGEN-M03-07'];verifier_calls=0",
+      "name": "scenario.m03_07_abstained",
+      "passed": true
+    },
+    {
+      "detail": "error=chain_mismatch;verifier_calls=0",
+      "name": "scenario.identity_lineage_substitution",
+      "passed": true
+    },
+    {
+      "detail": "error=chain_mismatch;verifier_calls=0",
+      "name": "scenario.predecessor_digest_substitution",
+      "passed": true
+    },
+    {
+      "detail": "error=chain_mismatch;verifier_calls=0",
+      "name": "scenario.harmonization_support_substitution",
+      "passed": true
+    },
+    {
+      "detail": "error=artifact_digest_mismatch",
+      "name": "scenario.artifact_byte_digest_mismatch",
+      "passed": true
+    },
+    {
+      "detail": "error=artifact_digest_mismatch",
+      "name": "scenario.artifact_declared_digest_mismatch",
+      "passed": true
+    },
+    {
+      "detail": "error=artifact_size_mismatch",
+      "name": "scenario.artifact_size_mismatch",
+      "passed": true
+    },
+    {
+      "detail": "error=artifact_mapping_mismatch",
+      "name": "scenario.missing_artifact_member",
+      "passed": true
+    },
+    {
+      "detail": "error=artifact_mapping_mismatch",
+      "name": "scenario.undeclared_artifact_member",
+      "passed": true
+    },
+    {
+      "detail": "reason=package_invalid;verifier_calls=0",
+      "name": "scenario.duplicate_canonical_member",
+      "passed": true
+    },
+    {
+      "detail": "reason=inventory_mismatch;verifier_calls=0",
+      "name": "scenario.unsafe_member_path",
+      "passed": true
+    },
+    {
+      "detail": "reason=inventory_mismatch;verifier_calls=0",
+      "name": "scenario.archive_member_alias",
+      "passed": true
+    },
+    {
+      "detail": "calls=1;noncircular_replay=True",
+      "name": "scenario.verified_statement_releases",
+      "passed": true
+    },
+    {
+      "detail": "statement_mismatch",
+      "name": "scenario.statement_digest_mismatch_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "validation_rejected=True",
+      "name": "scenario.unsupported_signature_algorithm_rejected",
+      "passed": true
+    },
+    {
+      "detail": "verifier_unavailable",
+      "name": "scenario.verifier_unavailable_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "verifier_rejected",
+      "name": "scenario.verifier_rejected_quarantines",
+      "passed": true
+    },
+    {
+      "detail": "strict_rejected=True",
+      "name": "scenario.malformed_signature_value_rejected",
+      "passed": true
+    },
+    {
+      "detail": "strict integer",
+      "name": "scenario.coerced_integer_rejected",
+      "passed": true
+    },
+    {
+      "detail": "strict boolean",
+      "name": "scenario.coerced_boolean_rejected",
+      "passed": true
+    },
+    {
+      "detail": "extra forbid",
+      "name": "scenario.unknown_field_rejected",
+      "passed": true
+    },
+    {
+      "detail": "closed signature algorithm",
+      "name": "scenario.invalid_enumeration_rejected",
+      "passed": true
+    },
+    {
+      "detail": "request/context identity closure",
+      "name": "scenario.stale_derived_digest_rejected",
+      "passed": true
+    },
+    {
+      "detail": "duplicate software identity",
+      "name": "scenario.semantic_duplicate_rejected",
+      "passed": true
+    },
+    {
+      "detail": "opaque_identifiers=90;package_bytes_not_in_result=True",
+      "name": "scenario.recursive_output_boundary",
+      "passed": true
+    },
+    {
+      "detail": "blocked=True;traversals=0",
+      "name": "scenario.consent_denied_before_hostile_chain",
+      "passed": true
+    },
+    {
+      "detail": "blocked=True;traversals=0",
+      "name": "scenario.consent_denied_before_hostile_artifacts",
+      "passed": true
+    },
+    {
+      "detail": "blocked_then=released",
+      "name": "scenario.typed_blocked_recovery",
+      "passed": true
+    },
+    {
+      "detail": "software=64;reference=64",
+      "name": "scenario.maximum_accepted_shape",
+      "passed": true
+    },
+    {
+      "detail": "axes=12;failed=[]",
+      "name": "scenario.first_excess_rejected_before_archive",
+      "passed": true
+    },
+    {
+      "detail": "declared=38;executed=38;missing=[];extra=[];declared_duplicates=[];executed_duplicates=[]",
+      "name": "coverage.exact_declared_executable_case_set",
+      "passed": true
+    }
+  ],
+  "contract_version": "1.0.0",
+  "declared_case_count": 38,
+  "duplicate_declared_case_ids": [],
+  "duplicate_executed_case_ids": [],
+  "executed_case_count": 38,
+  "extra_case_ids": [],
+  "missing_case_ids": [],
+  "module_id": "GLIO-PROTEOGEN-M03-08",
+  "passed_case_count": 38,
+  "status": "PASS"
+}
