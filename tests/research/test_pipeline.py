@@ -280,8 +280,13 @@ def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
     assert dict(result.configuration)["external_source_id"] == source_reference.source_id
     assert any(record.kind == "external_proteomics_mzml" for record in result.evidence.records)
     assert any(record.kind == "external_pdc_file_declaration" for record in result.evidence.records)
-    renamed = replace(bound, external_pdc_file=replace(pdc_file, file_name="renamed.mzML"))
-    assert run_research_protein_inference(renamed).result_digest != result.result_digest
+    with pytest.raises(ValueError, match="locator"):
+        replace(
+            bound,
+            external_pdc_file=replace(pdc_file, location="memory://PDC000204/renamed.mzML"),
+        )
+    with pytest.raises(ValueError, match="MD5"):
+        replace(bound, external_pdc_file=replace(pdc_file, md5="0" * 32))
     response_bound = replace(bound, external_pdc_response_sha256="a" * 64)
     assert run_research_protein_inference(response_bound).result_digest != result.result_digest
     with pytest.raises(ValueError, match="size"):
@@ -295,6 +300,34 @@ def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
             request,
             replace(pdc_file, md5="0" * 32),
             source_reference,
+        )
+
+
+def test_pipeline_rejects_unbound_pdc_declarations() -> None:
+    payload = _mzml()
+    pdc_file = PdcFile(
+        study_id="PDC000204",
+        file_name="fixture.mzML",
+        file_type="Mass Spectrometry",
+        data_category="Raw Mass Spectra",
+        file_format="mzML",
+        file_size=len(payload),
+        md5=md5(payload, usedforsecurity=False).hexdigest(),
+        location="memory://PDC000204/fixture.mzML",
+    )
+    with pytest.raises(ValueError, match="source reference"):
+        ResearchRunRequest(
+            "unbound-pdc",
+            payload,
+            b">P1\nMPEPTIDER\n",
+            external_pdc_file=pdc_file,
+        )
+    with pytest.raises(ValueError, match="response hash"):
+        ResearchRunRequest(
+            "response-without-file",
+            payload,
+            b">P1\nMPEPTIDER\n",
+            external_pdc_response_sha256="a" * 64,
         )
 
 
