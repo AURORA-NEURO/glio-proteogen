@@ -9,6 +9,7 @@ from glio_proteogen.contracts.m19_06 import (
     M1906_DOSSIER_SHA256,
     M1906_DOSSIER_SLICE,
     M1906_OUTPUT_MEDIA_TYPE,
+    M1906_PROHIBITED_CLAIM_TERMS,
     M1906_PROVISIONAL_ABI,
     AdjudicateProteotypeQueueRequest,
     AdjudicationRecord,
@@ -79,6 +80,9 @@ def test_provisional_schemas_require_immutable_review_history() -> None:
         M1906_DOSSIER_SHA256.removeprefix("sha256:")
     )
     assert _metadata(schemas["request"])["dossierSlice"] == M1906_DOSSIER_SLICE
+    assert _metadata(schemas["request"])["prohibitedClaimTerms"] == list(
+        M1906_PROHIBITED_CLAIM_TERMS
+    )
 
 
 def test_adjudication_states_and_safe_review_are_explicit() -> None:
