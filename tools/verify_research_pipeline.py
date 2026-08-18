@@ -198,6 +198,8 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
         or not recorded_cohort.get("passed")
     ):
         raise VerificationError("research cohort evidence is not passing")
+    if recorded_cohort.get("outcomes") != cohort_outcomes:
+        raise VerificationError("research cohort outcome projections are not locked")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
         raise VerificationError("research benchmark result digest changed")
     _verify_benchmark_record(recorded_benchmark)
