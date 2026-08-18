@@ -20,6 +20,8 @@
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
+    "percentile_method": "nearest_rank",
+    "samples_ns": [350000, 360000, 370000, 375000, 378800, 378800, 380000, 400000, 403200, 412200],
     "mean_ns": 380800.0,
     "median_ns": 378800,
     "p95_ns": 412200,

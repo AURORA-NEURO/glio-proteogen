@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
-from tools.verify_research_pipeline import VerificationError, _verify_package, verify
+from tools.verify_research_pipeline import (
+    VerificationError,
+    _require_installed_research_runtime,
+    _verify_benchmark_record,
+    _verify_package,
+    verify,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,7 +34,17 @@ def _write_mutation(tmp_path: Path, mutate: Callable[[dict[str, object]], None])
 
 
 def test_research_evidence_verifier_accepts_locked_record() -> None:
-    verify(_EVIDENCE)
+    verify(_EVIDENCE, allow_metadata_only=True)
+
+
+def test_research_evidence_verifier_requires_artifacts_by_default() -> None:
+    with pytest.raises(VerificationError, match="wheel and sdist"):
+        verify(_EVIDENCE)
+
+
+def test_artifact_bound_replay_rejects_source_checkout_runtime() -> None:
+    with pytest.raises(VerificationError, match="installed wheel"):
+        _require_installed_research_runtime()
 
 
 def test_research_evidence_verifier_rejects_fixture_digest_mutation(tmp_path: Path) -> None:
@@ -37,7 +53,7 @@ def test_research_evidence_verifier_rejects_fixture_digest_mutation(tmp_path: Pa
 
     evidence = _write_mutation(tmp_path, mutate)
     with pytest.raises(VerificationError, match="fixture digest"):
-        verify(evidence)
+        verify(evidence, allow_metadata_only=True)
 
 
 def test_research_evidence_verifier_rejects_scenario_inventory_mutation(tmp_path: Path) -> None:
@@ -48,7 +64,7 @@ def test_research_evidence_verifier_rejects_scenario_inventory_mutation(tmp_path
 
     evidence = _write_mutation(tmp_path, mutate)
     with pytest.raises(VerificationError, match="scenario inventory"):
-        verify(evidence)
+        verify(evidence, allow_metadata_only=True)
 
 
 def test_research_evidence_verifier_rejects_package_hash_receipt_mutation(
@@ -63,7 +79,7 @@ def test_research_evidence_verifier_rejects_package_hash_receipt_mutation(
     mutated = tmp_path / "package.json"
     mutated.write_text(json.dumps(package), encoding="utf-8")
     with pytest.raises(VerificationError, match=r"sha256|SHA-256|receipt"):
-        verify(_EVIDENCE, package_evidence=mutated)
+        verify(_EVIDENCE, package_evidence=mutated, allow_metadata_only=True)
 
 
 def test_research_evidence_verifier_rejects_non_reproducible_receipt(
@@ -74,7 +90,7 @@ def test_research_evidence_verifier_rejects_non_reproducible_receipt(
     mutated = tmp_path / "package.json"
     mutated.write_text(json.dumps(package), encoding="utf-8")
     with pytest.raises(VerificationError, match="two reproducible builds"):
-        verify(_EVIDENCE, package_evidence=mutated)
+        verify(_EVIDENCE, package_evidence=mutated, allow_metadata_only=True)
 
 
 def test_research_evidence_verifier_rejects_package_fixture_drift(tmp_path: Path) -> None:
@@ -85,7 +101,33 @@ def test_research_evidence_verifier_rejects_package_fixture_drift(tmp_path: Path
     mutated = tmp_path / "package.json"
     mutated.write_text(json.dumps(package), encoding="utf-8")
     with pytest.raises(VerificationError, match="package fixture digest"):
-        verify(_EVIDENCE, package_evidence=mutated)
+        verify(_EVIDENCE, package_evidence=mutated, allow_metadata_only=True)
+
+
+def test_research_benchmark_rejects_nonfinite_exponent_value() -> None:
+    record = {
+        "iterations": 10,
+        "percentile_method": "nearest_rank",
+        "samples_ns": list(range(1, 11)),
+        "mean_ns": float("inf"),
+        "median_ns": 6,
+        "p95_ns": 10,
+    }
+    with pytest.raises(VerificationError, match="mean_ns"):
+        _verify_benchmark_record(record)
+
+
+def test_research_benchmark_recomputes_nearest_rank_p95() -> None:
+    record = {
+        "iterations": 10,
+        "percentile_method": "nearest_rank",
+        "samples_ns": list(range(1, 11)),
+        "mean_ns": 5.5,
+        "median_ns": 6,
+        "p95_ns": 9,
+    }
+    with pytest.raises(VerificationError, match="p95"):
+        _verify_benchmark_record(record)
 
 
 def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path: Path) -> None:

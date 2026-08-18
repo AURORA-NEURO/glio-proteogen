@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import struct
 import sys
 import time
@@ -388,11 +389,16 @@ def run_benchmark(iterations: int = 10) -> dict[str, object]:
         result = run_research_protein_inference(request)
         samples.append(time.perf_counter_ns() - started)
     ordered = sorted(samples)
+    # Use the nearest-rank definition so p95 is the worst observed sample for
+    # the locked ten-iteration release run (ceil(0.95 * n) - 1).
+    p95_index = min(len(ordered) - 1, max(0, math.ceil(len(ordered) * 0.95) - 1))
     return {
         "iterations": iterations,
+        "percentile_method": "nearest_rank",
+        "samples_ns": samples,
         "mean_ns": sum(samples) / len(samples),
         "median_ns": ordered[len(ordered) // 2],
-        "p95_ns": ordered[min(len(ordered) - 1, max(0, int(len(ordered) * 0.95) - 1))],
+        "p95_ns": ordered[p95_index],
         "result_digest": result.result_digest,
     }
 
