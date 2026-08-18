@@ -10,7 +10,10 @@ from glio_proteogen.contracts.m27_08 import (
     ArchiveStatus,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m27_08.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_08.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708Service
 
 
@@ -41,6 +44,15 @@ def test_result_replay_rejects_forged_digest() -> None:
     result = M2708Service().execute(build_request())
     forged = result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
     assert not M2708Service().verify(forged)
+
+
+def test_result_replay_rejects_self_rehashed_forged_package() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.package is not None
+    forged_package = result.package.model_copy(update={"version": "9.9.9"})
+    forged = result.model_copy(update={"package": forged_package})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert not M2708Service().verify(rehashed)
 
 
 def test_abstention_has_no_package_and_requires_review() -> None:

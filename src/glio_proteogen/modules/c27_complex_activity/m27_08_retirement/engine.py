@@ -290,6 +290,12 @@ class M2708RetirementEngine:
     def replay(self, result: ComplexActivityRetirementResult) -> ComplexActivityRetirementResult:
         if result.result_digest != result_payload_digest(result):
             raise RetirementReplayError("result digest mismatch")
+        try:
+            recomputed = self.evaluate(result.request)
+        except Exception as error:
+            raise RetirementReplayError("retirement result replay failed") from error
+        if recomputed.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise RetirementReplayError("retirement result replay differs from request")
         return result
 
 
