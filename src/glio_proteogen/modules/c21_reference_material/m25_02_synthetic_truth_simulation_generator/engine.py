@@ -131,15 +131,24 @@ class M2502SyntheticTruthGenerator:
         self,
         result: ProteotypeSyntheticTruthResult,
     ) -> ProteotypeSyntheticTruthResult:
+        """Rebuild and compare the complete synthetic corpus during replay."""
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2502ReplayError("M25-02 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(canonical_request_digest(result.request)):
             raise M2502ReplayError("M25-02 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2502ReplayError("M25-02 result payload digest mismatch")  # noqa: TRY003
-        return ProteotypeSyntheticTruthResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = ProteotypeSyntheticTruthResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.generate(replayed.request)
+        except Exception as error:
+            raise M2502ReplayError("M25-02 deterministic replay could not execute") from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2502ReplayError("M25-02 deterministic replay output mismatch")  # noqa: TRY003
+        return replayed
 
 
 def generate_proteotype_synthetic_truth(
