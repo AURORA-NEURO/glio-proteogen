@@ -9,6 +9,7 @@ from glio_proteogen.contracts.m19_05 import (
     M1905_DOSSIER_SLICE,
     M1905_M1904_RESULT_MEDIA_TYPE,
     M1905_OUTPUT_MEDIA_TYPE,
+    M1905_PROHIBITED_CLAIM_TERMS,
     M1905_PROVISIONAL_ABI,
     OrderingPolicy,
     ReviewItem,
@@ -57,6 +58,9 @@ def test_provisional_schemas_require_safe_review_workspace_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "proteotype"
         assert metadata["upstreamInputMediaType"] == M1905_M1904_RESULT_MEDIA_TYPE
+        assert tuple(cast("list[str]", metadata["prohibitedClaimTerms"])) == (
+            *M1905_PROHIBITED_CLAIM_TERMS,
+        )
     output_schema = cast("dict[str, Any]", schemas["output"])
     output_metadata = cast("dict[str, Any]", output_schema["x-glio-contract"])
     assert output_metadata["outputMediaType"] == M1905_OUTPUT_MEDIA_TYPE

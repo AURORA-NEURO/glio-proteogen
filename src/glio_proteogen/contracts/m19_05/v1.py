@@ -60,6 +60,22 @@ M1905_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-05 workspace presentation evidence; issuer authority, biological "
     "truth and human-review decisions remain outside this service."
 )
+M1905_PROHIBITED_CLAIM_TERMS: Final = (
+    "all-omics",
+    "kinase",
+    "treatment",
+    "identity",
+    "consent",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "identity inference",
+    "consent inference",
+    "glioma-specific",
+    "glioma specific biology",
+    "diagnosis",
+    "subtype",
+)
 
 
 def _unique(values: Iterable[object], label: str) -> None:
@@ -104,6 +120,7 @@ class WorkflowFindingCode(StrEnum):
     AUTOMATION_BIAS_GUARD = "automation_bias_guard"
     PROVENANCE_REQUIRED = "provenance_required"
     PROVISIONAL_ABI_PENDING_REVIEW = "provisional_abi_pending_review"
+    PROHIBITED_CLAIM_BOUNDARY = "prohibited_claim_boundary"
 
 
 class PresentationConfiguration(FrozenModel):
@@ -336,6 +353,7 @@ __all__ = [
     "M1905_OUTPUT_MEDIA_TYPE",
     "M1905_OWNER",
     "M1905_PARENT",
+    "M1905_PROHIBITED_CLAIM_TERMS",
     "M1905_PROVISIONAL_ABI",
     "M1905_SAFETY_CLASS",
     "HumanReviewWorkspace",
