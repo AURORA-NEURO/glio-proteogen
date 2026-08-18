@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m10_07 import (
     M1007_MAX_CANONICAL_REQUEST_BYTES,
+    M1007_MAX_CANONICAL_RESULT_BYTES,
     CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
     contract_json_schema,
     contract_json_schemas,
@@ -22,9 +23,11 @@ from .service import M1007Service
 _REQUEST_ADAPTER = TypeAdapter(CalibrateProteinRnaDiscordanceSelectivePredictionRequest)
 
 
-def _parse_body(body: bytes) -> dict[str, Any]:
+def _parse_body(
+    body: bytes, *, max_bytes: int = M1007_MAX_CANONICAL_REQUEST_BYTES
+) -> dict[str, Any]:
     try:
-        payload = strict_json_loads(body)
+        payload = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(payload, dict):
@@ -92,7 +95,7 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M10-07/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_body(await request.body())
+        envelope = _parse_body(await request.body(), max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
         result = envelope.get("result")
         canonical = envelope.get("canonical")
         if not isinstance(result, dict) or not isinstance(canonical, (str, dict)):
