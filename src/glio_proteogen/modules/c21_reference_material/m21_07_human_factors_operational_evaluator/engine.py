@@ -57,6 +57,9 @@ class M2107AuthorizationError(ValueError):
 class M2107ReplayError(ValueError):
     """A human-factors result failed canonical replay verification."""
 
+    def __init__(self, message: str = "M21-07 replay verification failed") -> None:
+        super().__init__(message)
+
 
 def _member(candidate: object, field: str) -> object:
     if isinstance(candidate, Mapping):
@@ -352,15 +355,21 @@ class M2107Engine:
     ) -> ComplexActivityHumanFactorsResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+            request_digest = canonical_request_digest(validated.request)
+            result_id = result_identifier(validated.request)
+            payload_digest = result_payload_digest(validated)
         except Exception as error:
             raise M2107ReplayError from error
-        if validated.request_digest != canonical_request_digest(validated.request):
+        if validated.request_digest != request_digest:
             raise M2107ReplayError
-        if validated.result_id != result_identifier(validated.request):
+        if validated.result_id != result_id:
             raise M2107ReplayError
-        if validated.result_digest != result_payload_digest(validated):
+        if validated.result_digest != payload_digest:
             raise M2107ReplayError
-        expected = self.evaluate(validated.request)
+        try:
+            expected = self.evaluate(validated.request)
+        except Exception as error:
+            raise M2107ReplayError from error
         if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
             raise M2107ReplayError
         return validated
