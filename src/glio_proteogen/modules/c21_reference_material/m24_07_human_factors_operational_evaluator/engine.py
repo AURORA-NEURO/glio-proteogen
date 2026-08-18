@@ -145,15 +145,24 @@ class M2407HumanFactorsOperationalEvaluator:
         self,
         result: BiomarkerPanelHumanFactorsResult,
     ) -> BiomarkerPanelHumanFactorsResult:
+        """Re-evaluate the bound request and compare every result region."""
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2407ReplayError("M24-07 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2407ReplayError("M24-07 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2407ReplayError("M24-07 result payload digest mismatch")  # noqa: TRY003
-        return BiomarkerPanelHumanFactorsResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = BiomarkerPanelHumanFactorsResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.evaluate(replayed.request)
+        except Exception as error:
+            raise M2407ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2407ReplayError("M24-07 semantic replay mismatch")  # noqa: TRY003
+        return replayed
 
 
 def evaluate_biomarker_panel_human_factors_operational(

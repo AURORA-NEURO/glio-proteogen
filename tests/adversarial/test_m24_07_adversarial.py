@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m24_07 import (
     OperationalStatus,
     canonical_request_digest,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
@@ -213,6 +214,22 @@ def test_result_closure_rejects_identity_provenance_and_duplicate_finding_forger
             },
             strict=True,
         )
+
+
+def test_replay_rejects_self_rehashed_report_and_evidence_forgery() -> None:
+    service = m2407.M2407Service()
+    result = service.evaluate(fixture_request())
+    assert result.report is not None
+    metric = result.report.metrics[0].model_copy(update={"observed_value": 0.0})
+    report = result.report.model_copy(update={"metrics": (metric, *result.report.metrics[1:])})
+    evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+    forged = result.model_copy(update={"report": report, "evidence": (evidence,)})
+    forged = BiomarkerPanelHumanFactorsResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+    with pytest.raises(m2407.M2407ReplayError):
+        service.verify_replay(forged)
 
 
 def test_api_rejects_nonobject_duplicate_and_tampered_verify_payloads() -> None:
