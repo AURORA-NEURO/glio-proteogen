@@ -129,6 +129,36 @@ def test_wrong_pdc_study_binding_is_rejected() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("source_id", "pdc:forged", "source ID"),
+        ("catalog_response_sha256", "f" * 64, "catalog response"),
+        ("pdc_file_name", "forged.mzML", "PDC file"),
+    ],
+)
+def test_pdc_manifest_cannot_forge_receipt_identity(
+    field: str, value: str, message: str
+) -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    first = _pdc_sample(target, "pdc-a", "r1")
+    second = _pdc_sample(target, "pdc-b", "r2")
+    manifest = CohortSourceManifest.from_requests(
+        (first.request, second.request),
+        replicate_kinds={"pdc-a": "technical", "pdc-b": "technical"},
+    )
+    forged = replace(manifest.for_sample("pdc-a"), **{field: value})
+    bad = CohortSourceManifest((forged, manifest.for_sample("pdc-b")))
+    with pytest.raises(ValueError, match=message):
+        run_research_cohort(
+            ResearchCohortRequest(
+                (first, second),
+                provenance_policy="external_same_study",
+                source_manifest=bad,
+            )
+        )
+
+
 def test_manifest_digest_is_permutation_stable_and_tamper_visible() -> None:
     samples = (_sample("a", "r1"), _sample("b", "r2"))
     manifest = _manifest(samples, "technical")

@@ -295,10 +295,18 @@ class CohortSourceManifest:
                 raise ValueError("local request has a non-local source binding")
             if request.external_pdc_receipt is not None:
                 receipt = request.external_pdc_receipt
+                if binding.source_id != receipt.source_reference.source_id:
+                    raise ValueError("source manifest source ID does not match the receipt")
                 if binding.receipt_digest != receipt.digest:
                     raise ValueError("source manifest receipt does not match the run request")
+                if binding.catalog_response_sha256 != receipt.response_sha256:
+                    raise ValueError(
+                        "source manifest catalog response does not match the receipt"
+                    )
                 if binding.pdc_file_locator != receipt.file.location:
                     raise ValueError("source manifest PDC locator does not match the receipt")
+                if binding.pdc_file_name != receipt.file.file_name:
+                    raise ValueError("source manifest PDC file does not match the receipt")
                 if binding.pdc_study_id != receipt.file.study_id:
                     raise ValueError("source manifest PDC study does not match the receipt")
 
