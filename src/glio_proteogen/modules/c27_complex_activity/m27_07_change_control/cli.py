@@ -10,7 +10,10 @@ from typing import Annotated, cast
 
 import typer
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m27_07 import (
+    M2707_MAX_CANONICAL_REQUEST_BYTES,
+    M2707_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityChangeControlResult,
     ContractName,
     contract_json_schema,
@@ -21,10 +24,10 @@ cli = typer.Typer(add_completion=False, no_args_is_help=True)
 _service = M2707Service()
 
 
-def _read(path: Path) -> bytes:
+def _read(path: Path, *, max_bytes: int) -> bytes:
     try:
-        return path.read_bytes()
-    except OSError as error:
+        return read_bounded(path, max_bytes)
+    except (OSError, RequestBodyTooLargeError) as error:
         raise typer.BadParameter("unable to read request") from error
 
 
@@ -56,7 +59,9 @@ def validate(request: Annotated[Path, typer.Argument()]) -> None:
     """Validate a request without executing it."""
 
     try:
-        parsed = _service.validate_request(_read(request))
+        parsed = _service.validate_request(
+            _read(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
+        )
     except ValueError as error:
         raise typer.BadParameter("request validation failed") from error
     typer.echo(json.dumps(parsed.model_dump(mode="json"), sort_keys=True))
@@ -70,7 +75,7 @@ def control(
     """Execute change control and optionally write a result."""
 
     try:
-        result = _service.execute_json(_read(request))
+        result = _service.execute_json(_read(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES))
     except ValueError as error:
         raise typer.BadParameter("change control denied or invalid") from error
     _write(output, result.model_dump(mode="json"))
@@ -81,7 +86,9 @@ def verify(result: Annotated[Path, typer.Argument()]) -> None:
     """Verify a result digest and report JSON."""
 
     try:
-        parsed = ComplexActivityChangeControlResult.model_validate_json(_read(result), strict=True)
+        parsed = ComplexActivityChangeControlResult.model_validate_json(
+            _read(result, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES), strict=True
+        )
     except (ValueError, TypeError, json.JSONDecodeError) as error:
         raise typer.BadParameter("result verification failed") from error
     typer.echo(json.dumps({"verified": _service.verify(parsed)}, sort_keys=True))
