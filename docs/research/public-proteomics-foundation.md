@@ -35,6 +35,16 @@ PDC metadata is a public source record, not an independently verified
 scientific result. Current API usage terms must be checked before any future
 retrieval or redistribution.
 
+## Package integrity evidence
+
+`docs/evidence/research_public_proteomics/package.json` is an artifact-bound
+receipt for the public-proteomics surface. It records two byte-identical
+`SOURCE_DATE_EPOCH=315532800` builds, exact wheel and sdist SHA-256 values,
+and the complete sorted archive-member inventory for each artifact. The
+standard-library verifier checks the receipt against both candidate files,
+rejects duplicate or missing members, and is invoked by the release-evidence
+workflow after the candidate wheel is installed into its isolated runtime.
+
 ## Promotion gate
 
 Before this foundation can feed a governed module, an owner must freeze the

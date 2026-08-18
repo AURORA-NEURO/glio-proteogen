@@ -230,6 +230,9 @@ jobs:
             "$GITHUB_WORKSPACE/tools/verify_research_pipeline.py" \
             "$GITHUB_WORKSPACE/evidence/research-proteomics-eval.json" \
             "$RELEASE_WHEEL" "$research_sdist"
+          "$runtime_python" -I \
+            "$GITHUB_WORKSPACE/tools/verify_research_public_proteomics.py" \
+            "$RELEASE_WHEEL" "$research_sdist"
           echo "RELEASE_RUNTIME_PYTHON=$runtime_python" >> "$GITHUB_ENV"
       - name: Generate reproducible runtime SBOM from the wheel environment
         run: |

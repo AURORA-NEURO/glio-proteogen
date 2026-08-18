@@ -736,6 +736,7 @@ def test_release_workflow_attests_only_after_reproducible_wheel_replay() -> None
     assert "--output-reproducible" in workflow
     assert 'PYTHON_VERSION: "3.12.13"' in workflow
     assert "verify_release_artifacts.py" in workflow
+    assert "tools/verify_research_public_proteomics.py" in workflow
     assert "runtime-sbom" in workflow
     assert "--require-hashes" in workflow
     assert "--expected-tag" in workflow
