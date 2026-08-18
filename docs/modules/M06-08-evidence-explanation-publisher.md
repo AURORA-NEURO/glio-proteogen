@@ -37,11 +37,16 @@ negative finding from missing/unsupported evidence.
 ## Verification and interfaces
 
 `M0608Service.verify` validates the result digest and replays the exact request;
-the plugin exposes the same verification seam. The dedicated provisional
-FastAPI app uses a parse-once strict JSON boundary and sanitized validation
-diagnostics. The Typer app provides deterministic `export-schema`, `validate`,
-and `publish` commands. These adapters are intentionally isolated from the
-repository-wide frozen CLI while the ABI remains provisional.
+the plugin exposes the same verification seam. The compatibility `replay`
+keyword remains accepted, but cannot downgrade verification to a digest-only
+receipt check: a caller that changes a nested explanation, evidence, or
+provenance field and recomputes the outer digest is rejected by deterministic
+reconstruction. The dedicated provisional FastAPI app uses a parse-once strict
+JSON boundary and sanitized validation diagnostics. The Typer app provides
+deterministic `export-schema`, `validate`, `publish`, and `verify` commands;
+`verify` uses the same mandatory reconstruction path. These adapters are
+intentionally isolated from the repository-wide frozen CLI while the ABI
+remains provisional.
 
 ## Gates
 
