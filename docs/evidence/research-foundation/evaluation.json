@@ -5886,20 +5886,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      710800,
-      701700,
-      698400,
-      673500,
-      673900,
-      697500,
-      689900,
-      670400,
-      653700,
-      644000
+      663400,
+      651600,
+      639100,
+      637000,
+      611900,
+      619000,
+      620700,
+      623100,
+      620200,
+      618700
     ],
-    "mean_ns": 681380.0,
-    "median_ns": 689900,
-    "p95_ns": 710800,
+    "mean_ns": 630470.0,
+    "median_ns": 623100,
+    "p95_ns": 663400,
     "result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74"
   },
   "coverage": {
@@ -5946,7 +5946,7 @@
       "digest_changes_with_receipt": true
     },
     "baseline_result_digest": "d34f8f75d75c82afeda77d886f517357cc7c790b81d030738372b68b9ef2fc74",
-    "bound_result_digest": "82b446bdcfba0dd5995e13cd1bbced68b1b4a69355ed2de00458586f9cbe6d00",
+    "bound_result_digest": "75882fae29bca3dc39401e7268c8ad68ab436f877fdaec3591d80008d07909ac",
     "mzidentml_sha256": "sha256:c77bda79fc6c3adb95cdc311a05e1546eb0de20f0f676f453ff10b4fdc9137c9"
   }
 }
