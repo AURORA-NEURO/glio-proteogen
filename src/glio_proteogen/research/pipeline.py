@@ -17,6 +17,7 @@ from typing import BinaryIO
 
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify_evidence_bundle
 from .fasta import digest_trypsin, read_fasta
+from .modifications import expand_peptide_map, normalize_modification_rules
 from .mzml import parse_mzml
 from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
 from .protein import (
@@ -51,6 +52,7 @@ _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
 _SEARCH_VERSION = "fragment-search-2-candidate-audit"
 _DIGESTION_VERSION = "trypsin-digest-1"
+_MODIFICATION_VERSION = "residue-local-unimod-1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +70,8 @@ class ResearchRunRequest:
     max_spectra: int = 100_000
     q_value_threshold: float = 0.01
     max_bytes: int = 256 * 1024 * 1024
+    variable_modifications: tuple[str, ...] = ()
+    max_variable_modifications: int = 0
     external_source_reference: SourceReference | None = None
     external_pdc_file: PdcFile | None = None
     external_pdc_response_sha256: str | None = None
@@ -82,6 +86,16 @@ class ResearchRunRequest:
         fasta_bytes = _read_bytes(self.fasta_source, self.max_bytes)
         object.__setattr__(self, "mzml_source", mzml_bytes)
         object.__setattr__(self, "fasta_source", fasta_bytes)
+        object.__setattr__(
+            self,
+            "variable_modifications",
+            normalize_modification_rules(self.variable_modifications),
+        )
+        if (
+            type(self.max_variable_modifications) is not int
+            or not 0 <= self.max_variable_modifications <= 3
+        ):
+            raise ValueError("max_variable_modifications must be between zero and three")
         if self.external_pdc_file is not None and not isinstance(self.external_pdc_file, PdcFile):
             raise TypeError("external_pdc_file must be a PdcFile")
         if self.external_pdc_file is not None:
@@ -383,6 +397,13 @@ def _validate_request(request: ResearchRunRequest) -> None:
     if type(request.max_spectra) is not int or not 0 < request.max_spectra <= 1_000_000:
         raise ValueError("max_spectra is outside the research limit")
     if (
+        type(request.max_variable_modifications) is not int
+        or not 0 <= request.max_variable_modifications <= 3
+    ):
+        raise ValueError("max_variable_modifications must be between zero and three")
+    if request.variable_modifications and request.max_variable_modifications == 0:
+        raise ValueError("declared variable modifications require a positive site limit")
+    if (
         type(request.q_value_threshold) not in (int, float)
         or not 0 <= request.q_value_threshold <= 1
         or not math.isfinite(request.q_value_threshold)
@@ -411,17 +432,26 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         min_length=request.min_peptide_length,
         max_length=request.max_peptide_length,
     )
+    peptide_map = expand_peptide_map(
+        peptide_map,
+        allowed_modifications=request.variable_modifications,
+        max_variable_modifications=request.max_variable_modifications,
+    )
     search_space_receipt = build_search_space_receipt(
         fasta_bytes,
         entries,
         missed_cleavages=request.missed_cleavages,
         min_peptide_length=request.min_peptide_length,
         max_peptide_length=request.max_peptide_length,
+        modification_rules=request.variable_modifications,
+        max_variable_modifications=request.max_variable_modifications,
     )
     parameters = SearchParameters(
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
         require_precursor_mz=True,
+        allowed_modifications=request.variable_modifications,
+        max_variable_modifications=request.max_variable_modifications,
     )
     candidate_psms: list[Psm] = []
     competition_audit: list[PsmCompetition] = []
@@ -446,6 +476,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 min_matched_ions=parameters.min_matched_ions,
                 precursor_charge=spectrum.precursor_charge,
                 require_precursor_mz=True,
+                allowed_modifications=request.variable_modifications,
+                max_variable_modifications=request.max_variable_modifications,
             ),
         )
         if candidates:
@@ -528,57 +560,62 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     )
     mzml_digest = sha256(mzml_bytes).hexdigest()
     fasta_digest = sha256(fasta_bytes).hexdigest()
-    configuration = tuple(
-        sorted(
+    configuration_payload: dict[str, object] = {
+        "pipeline_version": _PIPELINE_VERSION,
+        "mzml_parser_version": _MZML_PARSER_VERSION,
+        "search_version": _SEARCH_VERSION,
+        "digestion_version": _DIGESTION_VERSION,
+        "fragment_tolerance_da": request.fragment_tolerance_da,
+        "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
+        "min_matched_ions": request.min_matched_ions,
+        "missed_cleavages": request.missed_cleavages,
+        "min_peptide_length": request.min_peptide_length,
+        "max_peptide_length": request.max_peptide_length,
+        "max_spectra": request.max_spectra,
+        "q_value_threshold": request.q_value_threshold,
+        "max_bytes": request.max_bytes,
+        "quantification_version": "matched-ion-median-2",
+        "quantification_quality_version": "matched-ion-descriptive-dispersion-1",
+        "quantification_unit": "median_scaled_matched_ion_intensity",
+        "quantification_receipt_version": quantified.receipt.version,
+        "protein_group_quantification_version": "unique-peptide-median-v1",
+        "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
+        "require_precursor_mz": True,
+        "precursor_charge_source": "mzml_selected_ion",
+        "search_space_version": search_space_receipt.version,
+        "search_space_digest": search_space_receipt.search_space_digest,
+        "search_space_pairing_digest": search_space_receipt.pairing_digest,
+        "search_space_target_proteins": search_space_receipt.target_proteins,
+        "search_space_decoy_proteins": search_space_receipt.decoy_proteins,
+        "search_space_unmatched_targets": search_space_receipt.unmatched_target_proteins,
+        "search_space_unmatched_decoys": search_space_receipt.unmatched_decoy_proteins,
+        "external_source_id": (
+            external_reference.source_id if external_reference is not None else None
+        ),
+        "external_source_sha256": (
+            external_reference.sha256 if external_reference is not None else None
+        ),
+        "external_pdc_file": (
+            _pdc_file_dict(request.external_pdc_file)
+            if request.external_pdc_file is not None
+            else None
+        ),
+        "external_pdc_response_sha256": request.external_pdc_response_sha256,
+        "external_pdc_receipt": (
+            request.external_pdc_receipt.as_dict()
+            if request.external_pdc_receipt is not None
+            else None
+        ),
+    }
+    if request.variable_modifications:
+        configuration_payload.update(
             {
-                "pipeline_version": _PIPELINE_VERSION,
-                "mzml_parser_version": _MZML_PARSER_VERSION,
-                "search_version": _SEARCH_VERSION,
-                "digestion_version": _DIGESTION_VERSION,
-                "fragment_tolerance_da": request.fragment_tolerance_da,
-                "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
-                "min_matched_ions": request.min_matched_ions,
-                "missed_cleavages": request.missed_cleavages,
-                "min_peptide_length": request.min_peptide_length,
-                "max_peptide_length": request.max_peptide_length,
-                "max_spectra": request.max_spectra,
-                "q_value_threshold": request.q_value_threshold,
-                "max_bytes": request.max_bytes,
-                "quantification_version": "matched-ion-median-2",
-                "quantification_quality_version": "matched-ion-descriptive-dispersion-1",
-                "quantification_unit": "median_scaled_matched_ion_intensity",
-                "quantification_receipt_version": quantified.receipt.version,
-                "protein_group_quantification_version": "unique-peptide-median-v1",
-                "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
-                "require_precursor_mz": True,
-                "precursor_charge_source": "mzml_selected_ion",
-                "search_space_version": search_space_receipt.version,
-                "search_space_digest": search_space_receipt.search_space_digest,
-                "search_space_pairing_digest": search_space_receipt.pairing_digest,
-                "search_space_target_proteins": search_space_receipt.target_proteins,
-                "search_space_decoy_proteins": search_space_receipt.decoy_proteins,
-                "search_space_unmatched_targets": search_space_receipt.unmatched_target_proteins,
-                "search_space_unmatched_decoys": search_space_receipt.unmatched_decoy_proteins,
-                "external_source_id": (
-                    external_reference.source_id if external_reference is not None else None
-                ),
-                "external_source_sha256": (
-                    external_reference.sha256 if external_reference is not None else None
-                ),
-                "external_pdc_file": (
-                    _pdc_file_dict(request.external_pdc_file)
-                    if request.external_pdc_file is not None
-                    else None
-                ),
-                "external_pdc_response_sha256": request.external_pdc_response_sha256,
-                "external_pdc_receipt": (
-                    request.external_pdc_receipt.as_dict()
-                    if request.external_pdc_receipt is not None
-                    else None
-                ),
-            }.items()
+                "modification_version": _MODIFICATION_VERSION,
+                "variable_modifications": list(request.variable_modifications),
+                "max_variable_modifications": request.max_variable_modifications,
+            }
         )
-    )
+    configuration = tuple(sorted(configuration_payload.items()))
     evidence_records = [
         EvidenceRecord.create(
             "input:fasta",

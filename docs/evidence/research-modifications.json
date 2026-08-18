@@ -1,0 +1,70 @@
+{
+  "lane": "research-variable-modification-search-depth",
+  "status": "research_only_not_production_abi",
+  "base_commit": "c3564305",
+  "python_loc": {
+    "production_added": 431,
+    "production_removed": 68,
+    "production_net": 363,
+    "evaluator_added": 162,
+    "tests_added": 290,
+    "total_added": 883,
+    "total_removed": 68,
+    "total_net": 815
+  },
+  "computation": {
+    "catalogue": ["UNIMOD:4", "UNIMOD:21", "UNIMOD:35"],
+    "operations": [
+      "strict_residue_local_modification_parser",
+      "declared_variable_modification_expansion",
+      "finite_precursor_mass_with_modification_delta",
+      "finite_b_y_fragment_mass_with_modification_delta",
+      "modification_aware_precursor_ppm_filter",
+      "bounded_target_decoy_variant_search_space_receipt",
+      "modification_policy_replay_binding",
+      "undeclared_and_incompatible_modification_abstention",
+      "deterministic_modification_evaluator"
+    ],
+    "terminal_modifications_supported": false,
+    "arbitrary_numeric_mass_shifts_supported": false,
+    "clinical_or_mechanistic_claims": false,
+    "production_module_wiring": false
+  },
+  "evaluator": {
+    "version": "research-modifications-1",
+    "declared": 4,
+    "executed": 4,
+    "passed": true,
+    "inventory_sha256": "69e39ddfd707a0cb1a655c93dd84566fcd9cd3413defe8473508c47e321851d0"
+  },
+  "tests": {
+    "research_suite": 234,
+    "modification_focused": 19,
+    "coverage_statements": 2550,
+    "coverage_missed_statements": 87,
+    "coverage_branches": 948,
+    "coverage_partial_branches": 79,
+    "coverage_percent": 95.08,
+    "coverage_fail_under": 95
+  },
+  "verification": {
+    "ruff": true,
+    "mypy_strict_targeted": true,
+    "compileall": true,
+    "reproducible_builds": 2,
+    "source_date_epoch": 315532800,
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3838194,
+      "members": 1989,
+      "sha256": "a94f274becb107679afd676e14b696f5ad25084cd7dc47d9d8309677dd5b8294"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4450506,
+      "members": 4601,
+      "sha256": "c49b13446a3ea420cbddad869e17fd320231ce882cae599434eacc98182dff91"
+    },
+    "isolated_import": true
+  }
+}

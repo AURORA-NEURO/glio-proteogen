@@ -20,6 +20,12 @@ C03/C04 computation contract:
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
   matching score, not a calibrated probability.
+- `parse_modified_peptide` and `expand_peptide_map` provide a bounded residue-local catalogue
+  (`UNIMOD:4`, `UNIMOD:21`, and `UNIMOD:35`). Declared modification deltas participate in both
+  precursor and fragment masses; unknown, undeclared, terminal, and residue-incompatible forms
+  abstain. Variable-modification rules, site limits, and target/decoy variant counts are bound in
+  the search-space receipt and run configuration. This is a constrained research surface, not a
+  full ProForma implementation or a production PTM/localization claim.
 - `search_spectrum_candidates` retains every compatible candidate for one spectrum and
   `PsmCompetition` binds target/decoy/collision counts, score margin, and a canonical digest
   over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
