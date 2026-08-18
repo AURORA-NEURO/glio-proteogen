@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "bdd3579f",
-  "pipeline_commit": "24e4e60e",
+  "base_commit": "822d92cd",
+  "pipeline_commit": "d0322cf3",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -36,7 +36,12 @@
       "label_group_descriptive_evidence_and_overlap_abstention",
       "cohort_pdc_provenance_replay",
       "caller_declared_qc_policy",
-      "missingness_and_observed_group_abstention"
+      "missingness_and_observed_group_abstention",
+      "independence_aware_source_manifest",
+      "biological_duplicate_source_rejection",
+      "technical_duplicate_retention_without_independent_support",
+      "unknown_independence_safe_abstention",
+      "source_identity_bound_replay"
     ],
     "clinical_or_mechanistic_claims": false,
     "production_module_wiring": false,
@@ -45,32 +50,32 @@
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "85ad097a48e71558a7df9ed3a65cae13fcd65cf08b20a39cdfa0be8dbdd68474",
-    "cohort_fixture_sha256": "d1c8ac59b8bdd361f10c71883baa1fbf1582bfae6cfa1307c352a3156268fd1b",
-    "focused_tests": 136,
+    "cohort_fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
+    "focused_tests": 161,
     "coverage": {
-      "statements": 1722,
-      "missed_statements": 57,
-      "branches": 638,
-      "partial_branches": 50,
-      "percent": 95.21,
+      "statements": 1923,
+      "missed_statements": 64,
+      "branches": 734,
+      "partial_branches": 57,
+      "percent": 95.22,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3817391,
-      "members": 1986,
-      "sha256": "446f11b4b4968b87cc191cfad617f4d368a3e5fee42bf591a2d774100061cf90"
+      "bytes": 3821595,
+      "members": 1987,
+      "sha256": "de2e6a712839959301782344c3e726ee4505431702cf0afe9ef5d2840023ec6b"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4405349,
-      "members": 4585,
-      "sha256": "ebe4c8c0d593cdd015f46b87a5de7eeb7ea71040bf1a98938e6bd284c9b1138f"
+      "bytes": 4414482,
+      "members": 4588,
+      "sha256": "41b4141c57bd76bafa80af888c18c07d9c8627374d2c594734079d03f130bddd"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "446f11b4b4968b87cc191cfad617f4d368a3e5fee42bf591a2d774100061cf90",
-      "sdist": "ebe4c8c0d593cdd015f46b87a5de7eeb7ea71040bf1a98938e6bd284c9b1138f"
+      "wheel": "de2e6a712839959301782344c3e726ee4505431702cf0afe9ef5d2840023ec6b",
+      "sdist": "41b4141c57bd76bafa80af888c18c07d9c8627374d2c594734079d03f130bddd"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

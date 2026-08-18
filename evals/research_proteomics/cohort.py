@@ -12,9 +12,9 @@ from typing import TYPE_CHECKING, cast
 import glio_proteogen.research.cohort as cohort_module
 from glio_proteogen.research import (
     CohortQcPolicy,
+    CohortSourceManifest,
     PdcFile,
     PdcStudySnapshot,
-    CohortSourceManifest,
     ProteinGroup,
     ProteinGroupQuant,
     ResearchCohortRequest,
@@ -88,7 +88,10 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
         sample_id: replace(
             build_scenario_request(target),
             sample_id=sample_id,
-            mzml_source=b"<!--" + sample_id.encode() + b"-->" + bytes(base_request.mzml_source),
+            mzml_source=b"<!--"
+            + sample_id.encode()
+            + b"-->"
+            + cast("bytes", base_request.mzml_source),
         )
         for sample_id in values
     }
@@ -108,7 +111,7 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
                     ("P2",), ("PEPTIDE2",), (), pair[1], 0.0, pair[1], pair[1], "quantified", 1
                 ),
             ),
-            mzml_sha256=sha256(bytes(sample_requests[sample_id].mzml_source)).hexdigest(),
+            mzml_sha256=sha256(cast("bytes", sample_requests[sample_id].mzml_source)).hexdigest(),
         )
         for sample_id, pair in values.items()
     }
@@ -302,7 +305,9 @@ def run_evaluator() -> dict[str, object]:
                 duplicate_samples,
                 source_manifest=CohortSourceManifest.from_requests(
                     tuple(sample.request for sample in duplicate_samples),
-                    replicate_kinds={sample.sample_id: "biological" for sample in duplicate_samples},
+                    replicate_kinds={
+                        sample.sample_id: "biological" for sample in duplicate_samples
+                    },
                 ),
             )
         )
@@ -331,7 +336,7 @@ def run_evaluator() -> dict[str, object]:
     outcomes.append(
         {
             "id": "technical_duplicate_visibility",
-            "passed": technical.label_qc[0].technical_replicates == 2
+            "passed": technical.label_qc[0].technical_replicates == _EXPECTED_SAMPLE_COUNT
             and technical.label_qc[0].independent_replicates == 0
             and technical.label_qc[0].status == "abstained_insufficient_replicates"
             and all(value is None for _, values in technical.normalized_matrix for value in values),

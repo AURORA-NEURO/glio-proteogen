@@ -3,7 +3,8 @@
 
 This verifier deliberately checks computation identity and package reachability,
 not scientific validity. It reruns the eight single-run and nine cohort locked
-scenarios, binds fixture digests and scenario IDs, and optionally checks that built distributions contain
+scenarios, binds fixture digests and scenario IDs, and optionally checks that built
+distributions contain
 the research pipeline without requiring or implying a governed ABI.
 """
 

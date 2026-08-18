@@ -14,11 +14,10 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
-from .pdc import PdcSourceReceipt
-from .public_proteomics.pdc import PDCSnapshot
-
 if TYPE_CHECKING:
+    from .pdc import PdcSourceReceipt
     from .pipeline import ResearchRunRequest
+    from .public_proteomics.pdc import PDCSnapshot
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _REPLICATE_KINDS = frozenset({"biological", "technical", "unknown"})
@@ -309,4 +308,6 @@ class CohortSourceManifest:
             by_identity.setdefault(binding.source_identity, []).append(binding)
         for values in by_identity.values():
             if sum(item.replicate_kind == "biological" for item in values) > 1:
-                raise ValueError("duplicate source identity cannot be used as biological replicates")
+                raise ValueError(
+                    "duplicate source identity cannot be used as biological replicates"
+                )

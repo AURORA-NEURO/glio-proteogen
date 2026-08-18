@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from hashlib import sha256
 from math import isfinite
 from statistics import median
+from typing import cast
 
 from .cohort_provenance import CohortSourceManifest
 from .pipeline import ResearchRunRequest, ResearchRunResult, run_research_protein_inference
@@ -391,7 +392,7 @@ def _median_mad(values: tuple[float, ...]) -> tuple[float | None, float | None]:
     return center, float(median(deviations)) if deviations else None
 
 
-def _build_label_evidence(  # noqa: PLR0915
+def _build_label_evidence(  # noqa: PLR0915, PLR0917
     ordered_samples: tuple[ResearchCohortSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
@@ -423,7 +424,9 @@ def _build_label_evidence(  # noqa: PLR0915
 
     for label in sorted(labels):
         indices = tuple(labels[label])
-        bindings = tuple(source_manifest.for_sample(ordered_samples[index].sample_id) for index in indices)
+        bindings = tuple(
+            source_manifest.for_sample(ordered_samples[index].sample_id) for index in indices
+        )
         biological_indices = tuple(
             index
             for index in indices
@@ -638,7 +641,10 @@ def _source_manifest(
     manifest.validate_against_samples(
         tuple(sample.sample_id for sample in ordered_samples),
         tuple(sample.request for sample in ordered_samples),
-        tuple(sha256(bytes(sample.request.mzml_source)).hexdigest() for sample in ordered_samples),
+        tuple(
+            sha256(cast("bytes", sample.request.mzml_source)).hexdigest()
+            for sample in ordered_samples
+        ),
     )
     manifest.validate_independence()
     return manifest
