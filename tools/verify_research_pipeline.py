@@ -62,6 +62,9 @@ if str(_ROOT) not in sys.path:
 from evals.research_proteomics.cohort import (  # noqa: E402
     run_evaluator as run_cohort_evaluator,
 )
+from evals.research_proteomics.mzidentml_provenance import (  # noqa: E402
+    run_mzidentml_provenance_evaluator,
+)
 from evals.research_proteomics.precursor_policy import (  # noqa: E402
     run_precursor_policy_evaluator,
 )
@@ -146,18 +149,20 @@ def _require_installed_research_runtime() -> None:
         )
 
 
-def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
+def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
     evidence = _read_json(path)
     observed = run_evaluator()
     benchmark = run_benchmark(iterations=10)
     recorded_eval = evidence.get("evaluation") or evidence.get("evaluator")
     recorded_cohort = evidence.get("cohort_evaluation")
     recorded_precursor_policy = evidence.get("precursor_policy_evaluation")
+    recorded_mzidentml_provenance = evidence.get("mzidentml_provenance_evaluation")
     recorded_benchmark = evidence.get("benchmark")
     if (
         not isinstance(recorded_eval, dict)
         or not isinstance(recorded_cohort, dict)
         or not isinstance(recorded_precursor_policy, dict)
+        or not isinstance(recorded_mzidentml_provenance, dict)
         or not isinstance(recorded_benchmark, dict)
     ):
         raise VerificationError(
@@ -222,6 +227,14 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912
         or observed_precursor_policy.get("declared") != observed_precursor_policy.get("executed")
     ):
         raise VerificationError("research precursor-tolerance policy evidence is not passing")
+    observed_mzidentml_provenance = run_mzidentml_provenance_evaluator()
+    if (
+        recorded_mzidentml_provenance != observed_mzidentml_provenance
+        or observed_mzidentml_provenance.get("passed") is not True
+        or observed_mzidentml_provenance.get("declared")
+        != observed_mzidentml_provenance.get("executed")
+    ):
+        raise VerificationError("research mzIdentML provenance evidence is not passing")
     if recorded_benchmark.get("result_digest") != benchmark.get("result_digest"):
         raise VerificationError("research benchmark result digest changed")
     _verify_benchmark_record(recorded_benchmark)
