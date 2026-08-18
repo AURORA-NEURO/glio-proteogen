@@ -3,6 +3,7 @@
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service.engine import (
     M2702AuthorizationError,
     M2702LineageResolver,
+    M2702ReplayError,
     preflight_m2702_authorization,
     resolve_complex_activity_lineage,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "M2702AuthorizationError",
     "M2702LineageResolver",
     "M2702Plugin",
+    "M2702ReplayError",
     "M2702Service",
     "ValidatedM2702Request",
     "preflight_m2702_authorization",
