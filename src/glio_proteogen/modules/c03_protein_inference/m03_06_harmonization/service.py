@@ -22,6 +22,22 @@ _REQUEST_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceHarmonizationResult)
 
 
+class _ResultSizeError(ValueError):
+    """Raised when a canonical result exceeds the public ingress/egress ceiling."""
+
+    def __init__(self) -> None:
+        super().__init__("M03-06 result exceeds its canonical byte limit")
+
+
+def _bounded_result_bytes(value: object) -> bytes:
+    """Canonicalize one result while enforcing the public result byte ceiling."""
+
+    payload = canonical_json_bytes(value)
+    if len(payload) > M0306_MAX_CANONICAL_RESULT_BYTES:
+        raise _ResultSizeError
+    return payload
+
+
 class M0306Service:
     """Authorize and strictly validate one metadata-only harmonization request."""
 
@@ -53,14 +69,14 @@ class M0306Service:
 
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M0306_MAX_CANONICAL_RESULT_BYTES)
-            return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+            return _RESULT_ADAPTER.validate_json(_bounded_result_bytes(decoded), strict=True)
         if isinstance(result, Mapping):
             return _RESULT_ADAPTER.validate_json(
-                canonical_json_bytes(dict(result)),
+                _bounded_result_bytes(dict(result)),
                 strict=True,
             )
         return _RESULT_ADAPTER.validate_json(
-            canonical_json_bytes(result),
+            _bounded_result_bytes(result),
             strict=True,
         )
 
