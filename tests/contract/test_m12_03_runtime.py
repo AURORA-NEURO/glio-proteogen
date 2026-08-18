@@ -467,6 +467,14 @@ def test_strict_replay_and_hostile_preflight_fail_closed() -> None:
         preflight_mechanistic_feature_authorization(Hostile())
     with pytest.raises(MechanisticFeatureValidationError):
         _plain_value({1: "non-string-key"})
+
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(MechanisticFeatureValidationError):
+        _plain_value(nested)
+    with pytest.raises(MechanisticFeatureValidationError):
+        _plain_value(["item"] * 4_097)
     assert _state_text("accepted") == "accepted"
     assert _state_text(UpstreamDecisionState.ACCEPTED) == "accepted"
     assert _state_text(object()) is None

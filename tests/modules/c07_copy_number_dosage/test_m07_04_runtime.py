@@ -22,6 +22,9 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_04_probabilistic_advanced
     ProbabilisticEstimatorReplayError,
     ValidatedM0704Request,
 )
+from glio_proteogen.modules.c07_copy_number_dosage.m07_04_probabilistic_advanced_estimator import (
+    engine as m0704_engine,
+)
 
 
 def test_service_accepts_typed_mapping_bytes_and_string() -> None:
@@ -44,6 +47,16 @@ def test_service_rejects_wrong_shapes_and_duplicate_transport() -> None:
         service.execute(b"[]")
     with pytest.raises(ProbabilisticEstimatorInputError):
         service.execute(b'{"context":{},"context":{}}')
+
+
+def test_plain_materialization_rejects_recursive_and_oversized_values() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(ValueError, match="request is invalid"):
+        m0704_engine._plain_value(nested)
+    with pytest.raises(ValueError, match="request is invalid"):
+        m0704_engine._plain_value(["item"] * 4_097)
 
 
 def test_authorization_fails_before_execution() -> None:

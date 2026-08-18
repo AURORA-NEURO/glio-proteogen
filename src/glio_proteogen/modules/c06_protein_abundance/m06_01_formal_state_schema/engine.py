@@ -2,7 +2,7 @@
 
 # The public boundary intentionally catches hostile caller objects and converts them to
 # non-reflecting typed errors. The expression evaluator is a closed comparison grammar.
-# ruff: noqa: PLR0911, TRY301
+# ruff: noqa: C901, PLR0911, PLR0912, TRY301
 
 from __future__ import annotations
 
@@ -49,6 +49,10 @@ _AUTHORIZATION_MESSAGE: Final = "M06-01 formal-state validation requires accepte
 _INPUT_MESSAGE: Final = "M06-01 request failed strict validation"
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 _MIN_QUOTED_LITERAL_LENGTH: Final = 2
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 4_096
+_MAX_PLAIN_NODES: Final = 100_000
 _EXPECTED_CONTROL_STATES: Final = {
     "approved_configuration": "accepted",
     "identity_lineage": "resolved",
@@ -90,25 +94,45 @@ def _state_text(value: object) -> str | None:
     return raw if isinstance(raw, str) else None
 
 
-def _plain_value(value: object) -> object:
+def _plain_value(
+    value: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise FormalStateInputError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise FormalStateInputError
     if isinstance(value, BaseModel):
         return value
     if isinstance(value, Enum):
-        return _plain_value(value.value)
+        return _plain_value(value.value, _depth=_depth + 1, _budget=budget)
     if isinstance(value, datetime | date):
         return value.isoformat()
     if value is None or type(value) in {str, int, float, bool}:
         return value
     if type(value) is list:
-        return [_plain_value(item) for item in cast("list[object]", value)]
+        items = cast("list[object]", value)
+        if len(items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise FormalStateInputError
+        return [_plain_value(item, _depth=_depth + 1, _budget=budget) for item in items]
     if type(value) is tuple:
-        return tuple(_plain_value(item) for item in cast("tuple[object, ...]", value))
+        tuple_items = cast("tuple[object, ...]", value)
+        if len(tuple_items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise FormalStateInputError
+        return tuple(_plain_value(item, _depth=_depth + 1, _budget=budget) for item in tuple_items)
     if type(value) is dict:
+        mapping = cast("dict[object, object]", value)
+        if len(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise FormalStateInputError
         result: dict[str, object] = {}
-        for key, item in cast("dict[object, object]", value).items():
+        for key, item in mapping.items():
             if type(key) is not str:
                 raise FormalStateInputError
-            result[key] = _plain_value(item)
+            result[key] = _plain_value(item, _depth=_depth + 1, _budget=budget)
         return result
     raise FormalStateInputError
 

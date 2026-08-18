@@ -9,7 +9,7 @@ calibrated evidence.
 """
 
 # The transport preparation path intentionally enumerates hostile input shapes.
-# ruff: noqa: C901, PLR0911, TRY301
+# ruff: noqa: C901, PLR0911, PLR0912, TRY301
 
 from __future__ import annotations
 
@@ -61,6 +61,10 @@ _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 M0604_PROXY_OPTIMIZER: Final = "deterministic_proxy_v1"
 _AUTHORIZATION_MESSAGE: Final = "M06-04 probabilistic request is not authorized"
 _INPUT_MESSAGE: Final = "M06-04 request failed strict validation"
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 4_096
+_MAX_PLAIN_NODES: Final = 100_000
 _EXPECTED_CONTROL_STATES: Final = {
     "approved_configuration": UpstreamDecisionState.ACCEPTED.value,
     "identity_lineage": IdentityLineageState.RESOLVED.value,
@@ -99,27 +103,47 @@ def _state_text(value: object) -> str | None:
     return raw if isinstance(raw, str) else None
 
 
-def _plain_value(value: object) -> object:
+def _plain_value(
+    value: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
     """Convert only finite JSON-like values accepted at the transport edge."""
 
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise ProbabilisticEstimatorInputError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise ProbabilisticEstimatorInputError
     if isinstance(value, BaseModel):
         return value.model_dump(mode="python")
     if isinstance(value, Enum):
-        return _plain_value(value.value)
+        return _plain_value(value.value, _depth=_depth + 1, _budget=budget)
     if isinstance(value, datetime | date):
         return value.isoformat()
     if value is None or type(value) in {str, int, float, bool}:
         return value
     if type(value) is list:
-        return [_plain_value(item) for item in cast("list[object]", value)]
+        items = cast("list[object]", value)
+        if len(items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise ProbabilisticEstimatorInputError
+        return [_plain_value(item, _depth=_depth + 1, _budget=budget) for item in items]
     if type(value) is tuple:
-        return tuple(_plain_value(item) for item in cast("tuple[object, ...]", value))
+        tuple_items = cast("tuple[object, ...]", value)
+        if len(tuple_items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise ProbabilisticEstimatorInputError
+        return tuple(_plain_value(item, _depth=_depth + 1, _budget=budget) for item in tuple_items)
     if type(value) is dict:
+        mapping = cast("dict[object, object]", value)
+        if len(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise ProbabilisticEstimatorInputError
         result: dict[str, object] = {}
-        for key, item in cast("dict[object, object]", value).items():
+        for key, item in mapping.items():
             if type(key) is not str:
                 raise ProbabilisticEstimatorInputError
-            result[key] = _plain_value(item)
+            result[key] = _plain_value(item, _depth=_depth + 1, _budget=budget)
         return result
     raise ProbabilisticEstimatorInputError
 

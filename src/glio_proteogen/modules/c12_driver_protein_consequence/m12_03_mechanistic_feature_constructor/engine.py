@@ -37,6 +37,10 @@ from glio_proteogen.kernel.strict_json import strict_json_loads
 
 _TOKEN_LIMIT: Final = 8 * 1024 * 1024
 _ZERO_DIGEST: Final = "sha256:" + "0" * 64
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 4_096
+_MAX_PLAIN_NODES: Final = 100_000
 _EXPECTED_CONTROLS: Final = {
     "approved_configuration": "accepted",
     "identity_lineage": "resolved",
@@ -338,22 +342,45 @@ def _state_text(value: object) -> object:
     return None
 
 
-def _plain_value(value: object) -> object:
+def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
+    value: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise MechanisticFeatureValidationError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise MechanisticFeatureValidationError
     mro = type.__getattribute__(type(value), "__mro__")
     if BaseModel in mro:
         storage = cast("dict[object, object]", object.__getattribute__(value, "__dict__"))
-        if any(type(key) is not str for key in storage):
+        if len(storage) > _MAX_PLAIN_DICT_ITEMS or any(type(key) is not str for key in storage):
             raise MechanisticFeatureValidationError
-        return {key: _plain_value(item) for key, item in storage.items()}
+        return {
+            key: _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for key, item in storage.items()
+        }
     if dict in mro:
         mapping = cast("dict[object, object]", value)
-        if any(type(key) is not str for key in mapping):
+        if len(mapping) > _MAX_PLAIN_DICT_ITEMS or any(type(key) is not str for key in mapping):
             raise MechanisticFeatureValidationError
-        return {key: _plain_value(item) for key, item in mapping.items()}
+        return {
+            key: _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for key, item in mapping.items()
+        }
     if list in mro:
-        return [_plain_value(item) for item in cast("list[object]", value)]
+        items = cast("list[object]", value)
+        if len(items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise MechanisticFeatureValidationError
+        return [_plain_value(item, _depth=_depth + 1, _budget=budget) for item in items]
     if tuple in mro:
-        return tuple(_plain_value(item) for item in cast("tuple[object, ...]", value))
+        tuple_items = cast("tuple[object, ...]", value)
+        if len(tuple_items) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise MechanisticFeatureValidationError
+        return tuple(_plain_value(item, _depth=_depth + 1, _budget=budget) for item in tuple_items)
     if Mapping in mro:
         raise MechanisticFeatureValidationError
     return value

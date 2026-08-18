@@ -41,6 +41,10 @@ _AUTHORIZATION_MESSAGE: Final = (
     "M11-07 plausibility adjudication requires accepted upstream controls"
 )
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 4_096
+_MAX_PLAIN_NODES: Final = 100_000
 _EXPECTED_STATES: Final = {
     "approved_configuration": "accepted",
     "identity_lineage": "resolved",
@@ -422,18 +426,44 @@ def _state_text(candidate: object) -> object:
     return None
 
 
-def _plain_value(candidate: object) -> object:
+def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
     if isinstance(candidate, BaseModel):
-        return _plain_value(candidate.model_dump(mode="python"))
+        return _plain_value(
+            candidate.model_dump(mode="python"),
+            _depth=_depth + 1,
+            _budget=budget,
+        )
     if type(candidate) is dict:
         mapping = cast("dict[object, object]", candidate)
-        if any(type(key) is not str for key in mapping):
+        if len(mapping) > _MAX_PLAIN_DICT_ITEMS or any(type(key) is not str for key in mapping):
             raise _InvalidPlainValueError
-        return {key: _plain_value(value) for key, value in mapping.items()}
+        return {
+            key: _plain_value(value, _depth=_depth + 1, _budget=budget)
+            for key, value in mapping.items()
+        }
     if type(candidate) is list:
-        return [_plain_value(value) for value in cast("list[object]", candidate)]
+        values = cast("list[object]", candidate)
+        if len(values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [_plain_value(value, _depth=_depth + 1, _budget=budget) for value in values]
     if type(candidate) is tuple:
-        return tuple(_plain_value(value) for value in cast("tuple[object, ...]", candidate))
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if len(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(value, _depth=_depth + 1, _budget=budget) for value in tuple_values
+        )
     if isinstance(candidate, Mapping):
         raise _InvalidPlainValueError
     return candidate

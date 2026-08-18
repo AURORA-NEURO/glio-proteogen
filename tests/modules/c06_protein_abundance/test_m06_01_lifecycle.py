@@ -1,7 +1,12 @@
 """Lifecycle and immutable replay checks for M06-01."""
 
+import pytest
+
 from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
     M0601Service,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_01_formal_state_schema import (
+    engine as m0601_engine,
 )
 from tests.contract.test_m06_01_hardening import _request
 
@@ -45,3 +50,13 @@ def test_result_retains_all_seven_controls_and_uncertainty_dimensions() -> None:
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.uncertainty.measurement.state.value == "not_estimable"
     assert result.uncertainty.transport.state.value == "not_estimable"
+
+
+def test_plain_materialization_rejects_recursive_and_oversized_values() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(ValueError, match="strict validation"):
+        m0601_engine._plain_value(nested)
+    with pytest.raises(ValueError, match="strict validation"):
+        m0601_engine._plain_value(["item"] * 4_097)

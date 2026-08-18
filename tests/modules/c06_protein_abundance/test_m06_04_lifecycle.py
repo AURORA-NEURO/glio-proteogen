@@ -1,7 +1,12 @@
 """Lifecycle and immutable replay checks for M06-04."""
 
+import pytest
+
 from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
     M0604Service,
+)
+from glio_proteogen.modules.c06_protein_abundance.m06_04_probabilistic_advanced_estimator import (
+    engine as m0604_engine,
 )
 from tests.contract.test_m06_04_hardening import _request
 
@@ -50,3 +55,13 @@ def test_result_retains_controls_and_uncertainty_dimensions() -> None:
     assert result.uncertainty.measurement.state.value == "not_estimable"
     assert result.uncertainty.transport.state.value == "not_estimable"
     assert result.emits_parent is False
+
+
+def test_plain_materialization_rejects_recursive_and_oversized_values() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(ValueError, match="strict validation"):
+        m0604_engine._plain_value(nested)
+    with pytest.raises(ValueError, match="strict validation"):
+        m0604_engine._plain_value(["item"] * 4_097)
