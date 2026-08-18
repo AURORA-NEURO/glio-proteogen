@@ -3,15 +3,25 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from statistics import median
 from time import perf_counter_ns
 from typing import Any
+
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.modules.c21_reference_material import (
     m23_07_human_factors_operational_evaluator as m2307,
 )
 
-from .fixture import build_request
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    from evals.m23_07.fixture import build_request
+else:
+    from .fixture import build_request
 
 MEAN_BUDGET_NS = 500_000_000
 P95_BUDGET_NS = 750_000_000
