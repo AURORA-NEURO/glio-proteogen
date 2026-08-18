@@ -21,6 +21,7 @@ PDC_DOWNLOAD_HOSTS = frozenset({"pdc.cancer.gov", "d3iwtkuvwz4jtf.cloudfront.net
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _SPOOL_MEMORY_BYTES = 8 * 1024 * 1024
+_MAX_CONTENT_VERIFY_BYTES = 2 * 1024 * 1024 * 1024
 _MAX_DOWNLOAD_TIMEOUT_SECONDS = 300.0
 _MZML_MEDIA_TYPES = frozenset(
     {"application/mzml", "application/xml", "text/xml", "application/octet-stream"}
@@ -180,6 +181,66 @@ class PdcSourceReceipt:
         return sha256(
             json.dumps(self.as_dict(), sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
+
+
+def verify_pdc_source_content(
+    receipt: PdcSourceReceipt,
+    content: bytes | bytearray | BinaryIO,
+    *,
+    max_bytes: int = _MAX_CONTENT_VERIFY_BYTES,
+) -> PdcSourceReceipt:
+    """Recompute a receipt against caller-held source bytes.
+
+    ``PdcSourceReceipt`` records hashes observed by the downloader, but callers
+    may deserialize or construct a receipt separately from the bytes they hold.
+    This bounded verifier closes that gap by checking the exact byte length,
+    SHA-256, and catalog MD5 against the supplied content.  A binary stream is
+    consumed once and is not rewound; no bytes are returned or persisted.
+    """
+
+    if not isinstance(receipt, PdcSourceReceipt):
+        raise TypeError("receipt must be a PdcSourceReceipt")
+    if type(max_bytes) is not int or not 0 < max_bytes <= _MAX_CONTENT_VERIFY_BYTES:
+        raise ValueError("max_bytes is outside supported bounds")
+    expected_size = receipt.observed_size
+    if expected_size > max_bytes:
+        raise PdcError("receipt exceeds the caller content verification limit")
+    expected_sha256 = receipt.observed_sha256.removeprefix("sha256:")
+    expected_md5 = receipt.observed_md5.lower()
+    sha256_digest = sha256()
+    md5_digest = md5(usedforsecurity=False)
+    total = 0
+
+    if isinstance(content, (bytes, bytearray)):
+        chunks: Iterable[bytes] = (bytes(content),)
+    else:
+        chunks = ()
+        while True:
+            chunk = content.read(min(_DOWNLOAD_CHUNK_BYTES, max_bytes - total + 1))
+            if not isinstance(chunk, (bytes, bytearray)):
+                raise TypeError("content stream must return bytes")
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes or total > expected_size:
+                raise PdcError("content exceeds the receipt byte length or caller limit")
+            sha256_digest.update(chunk)
+            md5_digest.update(chunk)
+
+    if isinstance(content, (bytes, bytearray)):
+        for chunk in chunks:
+            total += len(chunk)
+            if total > max_bytes or total > expected_size:
+                raise PdcError("content exceeds the receipt byte length or caller limit")
+            sha256_digest.update(chunk)
+            md5_digest.update(chunk)
+    if total != expected_size:
+        raise PdcError("content length differs from the PDC receipt")
+    if sha256_digest.hexdigest() != expected_sha256:
+        raise PdcError("content SHA-256 differs from the PDC receipt")
+    if md5_digest.hexdigest().lower() != expected_md5:
+        raise PdcError("content MD5 differs from the PDC receipt")
+    return receipt
 
 
 def _post(query: str, *, timeout: float = 30.0) -> tuple[dict[str, Any], bytes]:

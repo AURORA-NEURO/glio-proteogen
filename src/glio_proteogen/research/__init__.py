@@ -47,7 +47,13 @@ from .modifications import (
     supported_modifications,
 )
 from .mzml import Spectrum, parse_mzml
-from .pdc import PdcClient, PdcFile, PdcSourceReceipt, PdcStudySnapshot
+from .pdc import (
+    PdcClient,
+    PdcFile,
+    PdcSourceReceipt,
+    PdcStudySnapshot,
+    verify_pdc_source_content,
+)
 from .pipeline import (
     ResearchRunRequest,
     ResearchRunResult,
@@ -168,5 +174,6 @@ __all__ = [
     "supported_modifications",
     "target_decoy_qvalues",
     "verify_evidence_bundle",
+    "verify_pdc_source_content",
     "verify_search_space_receipt",
 ]
