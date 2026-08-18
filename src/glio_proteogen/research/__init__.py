@@ -40,9 +40,12 @@ from .protein import (
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     PeptideQuant,
+    PeptideQuantification,
     ProteinGroupQuant,
+    QuantificationReceipt,
     median_normalize,
     quantify_matched_ions,
+    quantify_matched_ions_with_receipt,
     quantify_protein_groups,
 )
 from .search import (
@@ -72,11 +75,13 @@ __all__ = [
     "PdcSourceReceipt",
     "PdcStudySnapshot",
     "PeptideQuant",
+    "PeptideQuantification",
     "ProteinGroup",
     "ProteinGroupCandidate",
     "ProteinGroupFdrSummary",
     "ProteinGroupQuant",
     "Psm",
+    "QuantificationReceipt",
     "ResearchCohortRequest",
     "ResearchCohortResult",
     "ResearchCohortSample",
@@ -93,6 +98,7 @@ __all__ = [
     "median_normalize",
     "parse_mzml",
     "quantify_matched_ions",
+    "quantify_matched_ions_with_receipt",
     "quantify_protein_groups",
     "read_fasta",
     "replay_research_cohort",

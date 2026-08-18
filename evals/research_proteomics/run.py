@@ -334,6 +334,9 @@ def run_evaluator() -> dict[str, object]:
             and tuple(item.q_value for item in result.psms) == tuple(expected["expected_q_values"])
             and result.peptide_intensities
             == tuple((item[0], item[1]) for item in expected["expected_peptide_intensities"])
+            and result.quantification_receipt is not None
+            and result.quantification_receipt.as_dict()
+            == expected["expected_quantification_receipt"]
             and all(
                 observed_diagnostics.get(key) == value
                 for key, value in expected_diagnostics.items()
@@ -363,6 +366,11 @@ def run_evaluator() -> dict[str, object]:
                     for item in result.protein_group_candidates
                 ],
                 "quantified_peptides": len(result.peptide_intensities),
+                "quantification_receipt": (
+                    result.quantification_receipt.as_dict()
+                    if result.quantification_receipt is not None
+                    else None
+                ),
                 "protein_group_quantifications": [
                     item.as_dict() for item in result.protein_group_quantifications
                 ],

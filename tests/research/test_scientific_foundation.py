@@ -22,6 +22,7 @@ from glio_proteogen.research import (
     PdcStudySnapshot,
     PeptideQuant,
     Psm,
+    QuantificationReceipt,
     SearchParameters,
     SourceReference,
     aggregate_evidence,
@@ -32,6 +33,7 @@ from glio_proteogen.research import (
     parse_mzml,
     pdc,
     quantify_matched_ions,
+    quantify_matched_ions_with_receipt,
     quantify_protein_groups,
     read_fasta,
     search_spectrum,
@@ -160,6 +162,39 @@ def test_matched_ion_quantification_aggregates_and_normalizes() -> None:
     assert quantified[1].intensity == pytest.approx(20.0)
     assert quantified[2].peptide == "PEPTIDE"
     assert quantified[2].intensity == pytest.approx(40.0)
+
+
+def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingness() -> None:
+    quantified = quantify_matched_ions_with_receipt(
+        "sample-1",
+        (("PEPTIDE", 10.0), ("PEPTIDE", 30.0), ("OTHER", 20.0), ("MISSING", 0.0)),
+    )
+    receipt = quantified.receipt
+    assert isinstance(receipt, QuantificationReceipt)
+    assert receipt.version == "matched-ion-median-2"
+    assert receipt.measurement_unit == "median_scaled_matched_ion_intensity"
+    assert receipt.normalization_method == "sample_median_scaled"
+    assert receipt.missingness_policy == "zero_signal_is_missing_no_imputation"
+    assert receipt.input_observations == 4
+    assert receipt.unique_peptides == 3
+    assert receipt.observed_peptides == 2
+    assert receipt.missing_peptides == 1
+    assert receipt.duplicate_observations == 1
+    assert receipt.raw_total_signal == 60.0
+    assert receipt.raw_positive_median == 30.0
+    assert receipt.normalization_target == 30.0
+    assert receipt.normalized_total_signal == 60.0
+    assert receipt.scale_factor == 1.0
+    assert receipt.raw_peptide_signals == (
+        ("MISSING", 0.0, True),
+        ("OTHER", 20.0, False),
+        ("PEPTIDE", 40.0, False),
+    )
+    assert receipt.as_dict()["normalized_peptide_signals"] == [
+        ["MISSING", 0.0, True],
+        ["OTHER", 20.0, False],
+        ["PEPTIDE", 40.0, False],
+    ]
 
 
 @pytest.mark.parametrize("observation", [("", 1.0), ("P", -1.0), ("P", math.nan)])

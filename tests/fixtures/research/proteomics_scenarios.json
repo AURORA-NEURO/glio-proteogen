@@ -1,155 +1,663 @@
 {
-    "fixture_version": "research-proteomics-2",
-    "scenarios": [
+  "fixture_version": "research-proteomics-2",
+  "scenarios": [
+    {
+      "id": "target_supported",
+      "expected_psms": 1,
+      "expected_accepted": 1,
+      "expected_groups": [
+        [
+          "P1"
+        ]
+      ],
+      "expected_target_winners": 1,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 1,
+      "expected_group_quant": [
         {
-            "id": "target_supported",
-            "expected_psms": 1,
-            "expected_accepted": 1,
-            "expected_groups": [["P1"]],
-            "expected_target_winners": 1,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1,
-            "expected_group_quant": [{"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 20.0}],
-            "expected_group_fdr": {"accepted_targets": 1, "candidates": 1, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": 0.0, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 1},
-            "expected_group_candidates": [{"accessions": ["P1"], "acceptance": "accepted", "q_value": 0.0, "status": "target"}],
-            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
-            "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-            "expected_result_digest": "4518331dad8b7bc3252f8e7afd4577ea1ca47f5101edb1a48c5e11f1a5a5eb40",
-            "expected_psm_peptides": ["MPEPTIDER"],
-            "expected_q_values": [0.0],
-            "expected_peptide_intensities": [["MPEPTIDER", 20.0]],
-            "expected_search_diagnostics": {"matched_psms": 1, "mean_fragment_error_da": 0.0005254659999991418, "max_fragment_error_da": 0.0005254659999991418, "max_precursor_error_ppm": 0.0}
-        },
-        {
-            "id": "decoy_rejected",
-            "expected_psms": 1,
-            "expected_accepted": 0,
-            "expected_target_winners": 0,
-            "expected_decoy_winners": 1,
-            "expected_quantified_peptides": 0,
-            "expected_group_fdr": {"accepted_targets": 0, "candidates": 1, "collision_candidates": 0, "decoy_candidates": 1, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": null, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 0},
-            "expected_group_candidates": [{"accessions": ["DECOY_P1"], "acceptance": "rejected", "q_value": null, "status": "decoy"}],
-            "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
-            "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-            "expected_result_digest": "786e1a2cbd9b447d0abcfa64857a6f98dee59c208ce7755fd0691d4107743c14",
-            "expected_psm_peptides": ["MPEPTIDER"],
-            "expected_q_values": [null],
-            "expected_peptide_intensities": [],
-            "expected_search_diagnostics": {"matched_psms": 1, "mean_fragment_error_da": 0.0005254659999991418, "max_fragment_error_da": 0.0005254659999991418, "max_precursor_error_ppm": 0.0}
-        },
-        {
-            "id": "target_decoy_collision",
-            "expected_psms": 1,
-            "expected_accepted": 0,
-            "expected_target_winners": 0,
-            "expected_decoy_winners": 0,
-            "expected_collision_winners": 1,
-            "expected_quantified_peptides": 0,
-            "expected_group_fdr": {"accepted_targets": 0, "candidates": 1, "collision_candidates": 1, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": null, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 0},
-            "expected_group_candidates": [{"accessions": ["DECOY_P1", "P1"], "acceptance": "abstained", "q_value": null, "status": "collision"}],
-            "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
-            "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-            "expected_result_digest": "75b4b3e9e98f9f92ef8a00607476d075b027e9b3a561359aeae92f0a8af0ab10",
-            "expected_psm_peptides": ["MPEPTIDER"],
-            "expected_q_values": [null],
-            "expected_peptide_intensities": [],
-            "expected_search_diagnostics": {"matched_psms": 1, "mean_fragment_error_da": 0.0005254659999991418, "max_fragment_error_da": 0.0005254659999991418, "max_precursor_error_ppm": 0.0}
-        },
-        {
-            "id": "no_match",
-            "expected_psms": 0,
-            "expected_accepted": 0,
-            "expected_target_winners": 0,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 0,
-            "expected_group_fdr": {"accepted_targets": 0, "candidates": 0, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": null, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 0},
-            "expected_group_candidates": [],
-            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
-            "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-            "expected_result_digest": "fef93f2c651c69142670f782ead71b5101f86037172b02bed27a24a34d69e230",
-            "expected_psm_peptides": [],
-            "expected_q_values": [],
-            "expected_peptide_intensities": [],
-            "expected_search_diagnostics": {"matched_psms": 0, "mean_fragment_error_da": null, "max_fragment_error_da": null, "max_precursor_error_ppm": null}
-        },
-        {
-            "id": "precursor_rejected",
-            "expected_psms": 0,
-            "expected_accepted": 0,
-            "expected_target_winners": 0,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 0,
-            "expected_group_fdr": {"accepted_targets": 0, "candidates": 0, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": null, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 0},
-            "expected_group_candidates": [],
-            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
-            "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-            "expected_result_digest": "efb68c354cff0adef41f1bf4aeef8de473aad506c25322521181b01247894716",
-            "expected_psm_peptides": [],
-            "expected_q_values": [],
-            "expected_peptide_intensities": [],
-            "expected_search_diagnostics": {"matched_psms": 0, "mean_fragment_error_da": null, "max_fragment_error_da": null, "max_precursor_error_ppm": null}
-        },
-        {
-            "id": "shared_peptide_group",
-            "expected_psms": 1,
-            "expected_accepted": 1,
-            "expected_groups": [["P1", "P2"]],
-            "expected_shared": ["MPEPTIDER"],
-            "expected_target_winners": 1,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1,
-            "expected_group_quant": [{"group_accessions": ["P1", "P2"], "status": "non_quantifiable_shared_only", "primary_intensity": null}],
-            "expected_group_fdr": {"accepted_targets": 1, "candidates": 1, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": 0.0, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 1},
-            "expected_group_candidates": [{"accessions": ["P1", "P2"], "acceptance": "accepted", "q_value": 0.0, "status": "target"}],
-            "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
-            "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-            "expected_result_digest": "954aa85a38da744b8b74ca28f5cc355ba74ef30d2a5bb483b1b2159ef2df23da",
-            "expected_psm_peptides": ["MPEPTIDER"],
-            "expected_q_values": [0.0],
-            "expected_peptide_intensities": [["MPEPTIDER", 20.0]],
-            "expected_search_diagnostics": {"matched_psms": 1, "mean_fragment_error_da": 0.0005254659999991418, "max_fragment_error_da": 0.0005254659999991418, "max_precursor_error_ppm": 0.0}
-        },
-        {
-            "id": "multi_spectrum",
-            "expected_psms": 1,
-            "expected_accepted": 1,
-            "expected_groups": [["P1"]],
-            "expected_target_winners": 1,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 1,
-            "expected_group_quant": [{"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 20.0}],
-            "expected_group_fdr": {"accepted_targets": 1, "candidates": 1, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": 0.0, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 1},
-            "expected_group_candidates": [{"accessions": ["P1"], "acceptance": "accepted", "q_value": 0.0, "status": "target"}],
-            "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
-            "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-            "expected_result_digest": "2cfa9552584e66d6c02494c1b6b9db87e4a2ae6644cc04827199eafdc01e0343",
-            "expected_psm_peptides": ["MPEPTIDER"],
-            "expected_q_values": [0.0],
-            "expected_peptide_intensities": [["MPEPTIDER", 20.0]],
-            "expected_search_diagnostics": {"matched_psms": 1, "mean_fragment_error_da": 0.0005254659999991418, "max_fragment_error_da": 0.0005254659999991418, "max_precursor_error_ppm": 0.0}
-        },
-        {
-            "id": "multi_peptide_quantification",
-            "expected_psms": 2,
-            "expected_accepted": 2,
-            "expected_groups": [["P1"], ["P2"]],
-            "expected_target_winners": 2,
-            "expected_decoy_winners": 0,
-            "expected_quantified_peptides": 2,
-            "expected_group_quant": [
-                {"group_accessions": ["P1"], "status": "quantified", "primary_intensity": 60.0},
-                {"group_accessions": ["P2"], "status": "quantified", "primary_intensity": 45.0}
-            ],
-            "expected_group_fdr": {"accepted_targets": 2, "candidates": 2, "collision_candidates": 0, "decoy_candidates": 0, "decoy_to_target_ratio": 0.0, "max_accepted_q_value": 0.0, "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1", "q_value_threshold": 0.01, "target_candidates": 2},
-            "expected_group_candidates": [{"accessions": ["P1"], "acceptance": "accepted", "q_value": 0.0, "status": "target"}, {"accessions": ["P2"], "acceptance": "accepted", "q_value": 0.0, "status": "target"}],
-            "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
-            "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-            "expected_result_digest": "6d964f48779e4cc3cddcb2f44f7d12b801f4c9f81531e4aee0f032c3bf2eb7bf",
-            "expected_psm_peptides": ["MPEPTIDER", "PEPTIDEK"],
-            "expected_q_values": [0.0, 0.0],
-            "expected_peptide_intensities": [["MPEPTIDER", 60.0], ["PEPTIDEK", 45.0]],
-            "expected_search_diagnostics": {"matched_psms": 2, "mean_fragment_error_da": 1.6579330501069002e-14, "max_fragment_error_da": 1.8947806286936004e-14, "max_precursor_error_ppm": 1.224463819580059e-10}
+          "group_accessions": [
+            "P1"
+          ],
+          "status": "quantified",
+          "primary_intensity": 20.0
         }
-    ],
-    "claims": {"production_abi": false, "clinical": false, "glioma": false, "mechanism": false}
+      ],
+      "expected_group_fdr": {
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "P1"
+          ],
+          "acceptance": "accepted",
+          "q_value": 0.0,
+          "status": "target"
+        }
+      ],
+      "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+      "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+      "expected_result_digest": "cd880624ea8bb3890350f996876c8b3c9a3332fe237cf348c1ee0604da221715",
+      "expected_psm_peptides": [
+        "MPEPTIDER"
+      ],
+      "expected_q_values": [
+        0.0
+      ],
+      "expected_peptide_intensities": [
+        [
+          "MPEPTIDER",
+          20.0
+        ]
+      ],
+      "expected_search_diagnostics": {
+        "matched_psms": 1,
+        "mean_fragment_error_da": 0.0005254659999991418,
+        "max_fragment_error_da": 0.0005254659999991418,
+        "max_precursor_error_ppm": 0.0
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 1,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": 20.0,
+        "normalized_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "normalized_total_signal": 20.0,
+        "observed_peptides": 1,
+        "raw_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "raw_positive_median": 20.0,
+        "raw_total_signal": 20.0,
+        "sample_id": "research-eval:target_supported",
+        "scale_factor": 1.0,
+        "unique_peptides": 1,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "decoy_rejected",
+      "expected_psms": 1,
+      "expected_accepted": 0,
+      "expected_target_winners": 0,
+      "expected_decoy_winners": 1,
+      "expected_quantified_peptides": 0,
+      "expected_group_fdr": {
+        "accepted_targets": 0,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 1,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "DECOY_P1"
+          ],
+          "acceptance": "rejected",
+          "q_value": null,
+          "status": "decoy"
+        }
+      ],
+      "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
+      "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+      "expected_result_digest": "416151ed3ae907d0be2f32d7f32bdaa23dac7b6c2babf905737ff4b467cb4c62",
+      "expected_psm_peptides": [
+        "MPEPTIDER"
+      ],
+      "expected_q_values": [
+        null
+      ],
+      "expected_peptide_intensities": [],
+      "expected_search_diagnostics": {
+        "matched_psms": 1,
+        "mean_fragment_error_da": 0.0005254659999991418,
+        "max_fragment_error_da": 0.0005254659999991418,
+        "max_precursor_error_ppm": 0.0
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 0,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": null,
+        "normalized_peptide_signals": [],
+        "normalized_total_signal": 0,
+        "observed_peptides": 0,
+        "raw_peptide_signals": [],
+        "raw_positive_median": null,
+        "raw_total_signal": 0,
+        "sample_id": "research-eval:decoy_rejected",
+        "scale_factor": null,
+        "unique_peptides": 0,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "target_decoy_collision",
+      "expected_psms": 1,
+      "expected_accepted": 0,
+      "expected_target_winners": 0,
+      "expected_decoy_winners": 0,
+      "expected_collision_winners": 1,
+      "expected_quantified_peptides": 0,
+      "expected_group_fdr": {
+        "accepted_targets": 0,
+        "candidates": 1,
+        "collision_candidates": 1,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "DECOY_P1",
+            "P1"
+          ],
+          "acceptance": "abstained",
+          "q_value": null,
+          "status": "collision"
+        }
+      ],
+      "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
+      "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+      "expected_result_digest": "87e0e623d6269f2121ad87a454f0f1a8a3368ffa4c192b4d8d9312f2fb672084",
+      "expected_psm_peptides": [
+        "MPEPTIDER"
+      ],
+      "expected_q_values": [
+        null
+      ],
+      "expected_peptide_intensities": [],
+      "expected_search_diagnostics": {
+        "matched_psms": 1,
+        "mean_fragment_error_da": 0.0005254659999991418,
+        "max_fragment_error_da": 0.0005254659999991418,
+        "max_precursor_error_ppm": 0.0
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 0,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": null,
+        "normalized_peptide_signals": [],
+        "normalized_total_signal": 0,
+        "observed_peptides": 0,
+        "raw_peptide_signals": [],
+        "raw_positive_median": null,
+        "raw_total_signal": 0,
+        "sample_id": "research-eval:target_decoy_collision",
+        "scale_factor": null,
+        "unique_peptides": 0,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "no_match",
+      "expected_psms": 0,
+      "expected_accepted": 0,
+      "expected_target_winners": 0,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 0,
+      "expected_group_fdr": {
+        "accepted_targets": 0,
+        "candidates": 0,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0
+      },
+      "expected_group_candidates": [],
+      "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+      "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+      "expected_result_digest": "f8a593159ea13b6e2ed185700e5c9725299e8552c7c352a5bf22e21526c06d41",
+      "expected_psm_peptides": [],
+      "expected_q_values": [],
+      "expected_peptide_intensities": [],
+      "expected_search_diagnostics": {
+        "matched_psms": 0,
+        "mean_fragment_error_da": null,
+        "max_fragment_error_da": null,
+        "max_precursor_error_ppm": null
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 0,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": null,
+        "normalized_peptide_signals": [],
+        "normalized_total_signal": 0,
+        "observed_peptides": 0,
+        "raw_peptide_signals": [],
+        "raw_positive_median": null,
+        "raw_total_signal": 0,
+        "sample_id": "research-eval:no_match",
+        "scale_factor": null,
+        "unique_peptides": 0,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "precursor_rejected",
+      "expected_psms": 0,
+      "expected_accepted": 0,
+      "expected_target_winners": 0,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 0,
+      "expected_group_fdr": {
+        "accepted_targets": 0,
+        "candidates": 0,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0
+      },
+      "expected_group_candidates": [],
+      "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+      "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
+      "expected_result_digest": "f80124401126d53a2b89c2518fe7390678df9d28d9773f7923bf8c8a2be55a23",
+      "expected_psm_peptides": [],
+      "expected_q_values": [],
+      "expected_peptide_intensities": [],
+      "expected_search_diagnostics": {
+        "matched_psms": 0,
+        "mean_fragment_error_da": null,
+        "max_fragment_error_da": null,
+        "max_precursor_error_ppm": null
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 0,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": null,
+        "normalized_peptide_signals": [],
+        "normalized_total_signal": 0,
+        "observed_peptides": 0,
+        "raw_peptide_signals": [],
+        "raw_positive_median": null,
+        "raw_total_signal": 0,
+        "sample_id": "research-eval:precursor_rejected",
+        "scale_factor": null,
+        "unique_peptides": 0,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "shared_peptide_group",
+      "expected_psms": 1,
+      "expected_accepted": 1,
+      "expected_groups": [
+        [
+          "P1",
+          "P2"
+        ]
+      ],
+      "expected_shared": [
+        "MPEPTIDER"
+      ],
+      "expected_target_winners": 1,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 1,
+      "expected_group_quant": [
+        {
+          "group_accessions": [
+            "P1",
+            "P2"
+          ],
+          "status": "non_quantifiable_shared_only",
+          "primary_intensity": null
+        }
+      ],
+      "expected_group_fdr": {
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "P1",
+            "P2"
+          ],
+          "acceptance": "accepted",
+          "q_value": 0.0,
+          "status": "target"
+        }
+      ],
+      "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
+      "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+      "expected_result_digest": "c5aa5f962ddf901af070372be4bad8f7db3df3776adeba0028e63cf50375ccad",
+      "expected_psm_peptides": [
+        "MPEPTIDER"
+      ],
+      "expected_q_values": [
+        0.0
+      ],
+      "expected_peptide_intensities": [
+        [
+          "MPEPTIDER",
+          20.0
+        ]
+      ],
+      "expected_search_diagnostics": {
+        "matched_psms": 1,
+        "mean_fragment_error_da": 0.0005254659999991418,
+        "max_fragment_error_da": 0.0005254659999991418,
+        "max_precursor_error_ppm": 0.0
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 1,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": 20.0,
+        "normalized_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "normalized_total_signal": 20.0,
+        "observed_peptides": 1,
+        "raw_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "raw_positive_median": 20.0,
+        "raw_total_signal": 20.0,
+        "sample_id": "research-eval:shared_peptide_group",
+        "scale_factor": 1.0,
+        "unique_peptides": 1,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "multi_spectrum",
+      "expected_psms": 1,
+      "expected_accepted": 1,
+      "expected_groups": [
+        [
+          "P1"
+        ]
+      ],
+      "expected_target_winners": 1,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 1,
+      "expected_group_quant": [
+        {
+          "group_accessions": [
+            "P1"
+          ],
+          "status": "quantified",
+          "primary_intensity": 20.0
+        }
+      ],
+      "expected_group_fdr": {
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "P1"
+          ],
+          "acceptance": "accepted",
+          "q_value": 0.0,
+          "status": "target"
+        }
+      ],
+      "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+      "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
+      "expected_result_digest": "6f6c5dea8158f6b3ed962f7b94b4e43bed8ece7b0bc2d435d9b441e1d4b463f7",
+      "expected_psm_peptides": [
+        "MPEPTIDER"
+      ],
+      "expected_q_values": [
+        0.0
+      ],
+      "expected_peptide_intensities": [
+        [
+          "MPEPTIDER",
+          20.0
+        ]
+      ],
+      "expected_search_diagnostics": {
+        "matched_psms": 1,
+        "mean_fragment_error_da": 0.0005254659999991418,
+        "max_fragment_error_da": 0.0005254659999991418,
+        "max_precursor_error_ppm": 0.0
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 1,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": 20.0,
+        "normalized_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "normalized_total_signal": 20.0,
+        "observed_peptides": 1,
+        "raw_peptide_signals": [
+          [
+            "MPEPTIDER",
+            20.0,
+            false
+          ]
+        ],
+        "raw_positive_median": 20.0,
+        "raw_total_signal": 20.0,
+        "sample_id": "research-eval:multi_spectrum",
+        "scale_factor": 1.0,
+        "unique_peptides": 1,
+        "version": "matched-ion-median-2"
+      }
+    },
+    {
+      "id": "multi_peptide_quantification",
+      "expected_psms": 2,
+      "expected_accepted": 2,
+      "expected_groups": [
+        [
+          "P1"
+        ],
+        [
+          "P2"
+        ]
+      ],
+      "expected_target_winners": 2,
+      "expected_decoy_winners": 0,
+      "expected_quantified_peptides": 2,
+      "expected_group_quant": [
+        {
+          "group_accessions": [
+            "P1"
+          ],
+          "status": "quantified",
+          "primary_intensity": 60.0
+        },
+        {
+          "group_accessions": [
+            "P2"
+          ],
+          "status": "quantified",
+          "primary_intensity": 45.0
+        }
+      ],
+      "expected_group_fdr": {
+        "accepted_targets": 2,
+        "candidates": 2,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        "q_value_threshold": 0.01,
+        "target_candidates": 2
+      },
+      "expected_group_candidates": [
+        {
+          "accessions": [
+            "P1"
+          ],
+          "acceptance": "accepted",
+          "q_value": 0.0,
+          "status": "target"
+        },
+        {
+          "accessions": [
+            "P2"
+          ],
+          "acceptance": "accepted",
+          "q_value": 0.0,
+          "status": "target"
+        }
+      ],
+      "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
+      "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
+      "expected_result_digest": "5cef6ebef933153f2f3fb381112442be3bc0772739ff63a5426393db51fdbedb",
+      "expected_psm_peptides": [
+        "MPEPTIDER",
+        "PEPTIDEK"
+      ],
+      "expected_q_values": [
+        0.0,
+        0.0
+      ],
+      "expected_peptide_intensities": [
+        [
+          "MPEPTIDER",
+          60.0
+        ],
+        [
+          "PEPTIDEK",
+          45.0
+        ]
+      ],
+      "expected_search_diagnostics": {
+        "matched_psms": 2,
+        "mean_fragment_error_da": 1.6579330501069002e-14,
+        "max_fragment_error_da": 1.8947806286936004e-14,
+        "max_precursor_error_ppm": 1.224463819580059e-10
+      },
+      "expected_quantification_receipt": {
+        "duplicate_observations": 0,
+        "input_observations": 2,
+        "measurement_unit": "median_scaled_matched_ion_intensity",
+        "missing_peptides": 0,
+        "missingness_policy": "zero_signal_is_missing_no_imputation",
+        "normalization_method": "sample_median_scaled",
+        "normalization_target": 52.5,
+        "normalized_peptide_signals": [
+          [
+            "MPEPTIDER",
+            60.0,
+            false
+          ],
+          [
+            "PEPTIDEK",
+            45.0,
+            false
+          ]
+        ],
+        "normalized_total_signal": 105.0,
+        "observed_peptides": 2,
+        "raw_peptide_signals": [
+          [
+            "MPEPTIDER",
+            60.0,
+            false
+          ],
+          [
+            "PEPTIDEK",
+            45.0,
+            false
+          ]
+        ],
+        "raw_positive_median": 52.5,
+        "raw_total_signal": 105.0,
+        "sample_id": "research-eval:multi_peptide_quantification",
+        "scale_factor": 1.0,
+        "unique_peptides": 2,
+        "version": "matched-ion-median-2"
+      }
+    }
+  ],
+  "claims": {
+    "production_abi": false,
+    "clinical": false,
+    "glioma": false,
+    "mechanism": false
+  }
 }
