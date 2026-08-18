@@ -17,7 +17,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.contracts.m10_02 import contract_json_schema, contract_json_schemas
+from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.contracts.m10_02 import (
+    M1002_MAX_CANONICAL_REQUEST_BYTES,
+    contract_json_schema,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -115,7 +120,9 @@ def validate_command(request: Path = typer.Argument(..., exists=True, readable=T
     """Validate one request without executing the constructor."""
 
     try:
-        token = M1002Plugin(M1002Service()).validate(request.read_bytes())
+        token = M1002Plugin(M1002Service()).validate(
+            read_bounded(request, M1002_MAX_CANONICAL_REQUEST_BYTES)
+        )
     except Exception as error:
         typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))
         raise typer.Exit(code=2) from error
@@ -133,7 +140,7 @@ def construct_command(
         raise typer.BadParameter("output already exists; refusing overwrite")
     try:
         plugin = M1002Plugin(M1002Service())
-        token = plugin.validate(request.read_bytes())
+        token = plugin.validate(read_bounded(request, M1002_MAX_CANONICAL_REQUEST_BYTES))
         result = plugin.run(token)
     except Exception as error:
         typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))

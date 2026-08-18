@@ -12,7 +12,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.contracts.m10_03 import contract_json_schema, contract_json_schemas
+from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.contracts.m10_03 import (
+    M1003_MAX_CANONICAL_REQUEST_BYTES,
+    contract_json_schema,
+    contract_json_schemas,
+)
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -96,7 +101,9 @@ def export_schema_command(
 @app.command("validate")
 def validate_command(request: Path = typer.Argument(..., exists=True, readable=True)) -> None:
     try:
-        token = M1003Plugin(M1003Service()).validate(request.read_bytes())
+        token = M1003Plugin(M1003Service()).validate(
+            read_bounded(request, M1003_MAX_CANONICAL_REQUEST_BYTES)
+        )
     except Exception as error:
         typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))
         raise typer.Exit(code=2) from error
@@ -112,7 +119,9 @@ def estimate_command(
         raise typer.BadParameter("output already exists; refusing overwrite")
     try:
         plugin = M1003Plugin(M1003Service())
-        result = plugin.run(plugin.validate(request.read_bytes()))
+        result = plugin.run(
+            plugin.validate(read_bounded(request, M1003_MAX_CANONICAL_REQUEST_BYTES))
+        )
     except Exception as error:
         typer.echo(json.dumps(bytes(_error_response(error).body).decode("utf-8"), sort_keys=True))
         raise typer.Exit(code=2) from error
