@@ -16,6 +16,10 @@ C03/C04 computation contract:
   PDC delivery host or an exact caller-approved host (loopback HTTP is test-only), bounds timeout
   and decoded bytes, validates mzML media and declared length, revalidates every redirect, and
   stages bytes until all catalog/reference hashes pass. It never fetches raw cohort data implicitly.
+  The resulting `PdcSourceReceipt` also records the normalized response media type and binds it
+  to the catalog format and caller source-reference media, so a replay cannot relabel verified
+  mzML bytes as another transport format. This is provenance evidence, not issuer or biological
+  validity evidence.
 - `parse_mzml` decodes bounded m/z and intensity arrays from local mzML or gzip-compressed mzML.
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable

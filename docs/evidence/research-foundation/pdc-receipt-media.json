@@ -1,0 +1,26 @@
+{
+  "lane": "research-pdc-receipt-media-depth",
+  "scope": "research-only",
+  "evaluator": "evals/research_proteomics/pdc_receipt.py",
+  "tests": [
+    "tests/research/test_pdc_retrieval.py",
+    "tests/research/test_pdc_receipt_evaluator.py"
+  ],
+  "declared_scenarios": 2,
+  "executed_scenarios": 2,
+  "passed": true,
+  "receipt_fields": [
+    "catalog file declaration",
+    "catalog response SHA-256",
+    "source reference SHA-256 and size",
+    "observed source SHA-256, MD5, and size",
+    "observed normalized response media type"
+  ],
+  "tamper_policy": "media relabeling is rejected and media participates in receipt digest",
+  "limitations": [
+    "HTTP fixture is synthetic and does not attest issuer truth",
+    "raw downloads remain explicit caller operations",
+    "no clinical, glioma, or mechanistic claim is made",
+    "not a governed M03/M04 ABI"
+  ]
+}

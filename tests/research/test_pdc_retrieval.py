@@ -6,7 +6,7 @@ import hashlib
 import io
 import time
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from types import SimpleNamespace
@@ -146,7 +146,26 @@ def test_successful_retrieval_is_receipt_bound_and_commits_only_verified_bytes()
         )
     assert destination.getvalue() == payload
     assert receipt.observed_size == len(payload)
+    assert receipt.observed_media_type == "application/mzml"
+    assert receipt.as_dict()["observed_media_type"] == "application/mzml"
     assert receipt.source_reference.sha256 == sha256_digest(payload)
+
+
+def test_receipt_rejects_tampered_observed_media_type() -> None:
+    payload = b"<mzML>verified</mzML>"
+    with _http_server({"/ok": _Route(200, payload, "application/mzML; charset=binary")}) as base:
+        file = _file(f"{base}/ok", payload)
+        snapshot, reference = _snapshot_and_reference(file, payload)
+        receipt = PdcClient().download_file_with_receipt(
+            file,
+            snapshot,
+            reference,
+            io.BytesIO(),
+            approved_hosts=("127.0.0.1",),
+            timeout_seconds=2,
+        )
+    with pytest.raises(ValueError, match="media type"):
+        replace(receipt, observed_media_type="text/plain")
 
 
 def test_redirect_to_unapproved_host_is_rejected_before_following() -> None:
@@ -294,6 +313,10 @@ def test_raw_retrieval_rejects_unsupported_file_formats(file_format: str | None)
         pdc_module._media_type(None)
     with pytest.raises(PdcError, match="Content-Type"):
         pdc_module._media_type(" ; charset=utf-8")
+
+
+def test_gzipped_mzml_declares_gzip_media_types() -> None:
+    assert "application/gzip" in pdc_module._media_types("mzml.gz")
 
 
 def test_response_header_validation_binds_media_and_declared_length() -> None:

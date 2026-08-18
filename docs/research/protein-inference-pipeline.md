@@ -191,6 +191,10 @@ response media, declared size, MD5, and SHA-256, and writes only fully verified 
 can then supply that downloaded mzML together with a matching PDC file declaration and
 content-addressed `SourceReference`, `bind_pdc_mzml_source` verifies format, locator, size,
 MD5, and SHA-256 before the pipeline parses it and records the external source in evidence.
+The resulting PDC receipt also preserves the normalized response `Content-Type`, bound to the
+catalog format and source-reference media, so transport relabeling changes the receipt digest
+and is rejected. This records delivery provenance only; it does not establish issuer truth or
+biological validity.
 A future governed computation ABI must freeze reference/search versions, modifications and
 units, FDR calibration, missingness, ambiguity, privacy/consent, validation cohorts, review,
   and safe-abstention semantics before this lane can be promoted.
