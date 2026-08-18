@@ -155,15 +155,31 @@ class M2307OperationalEngine:
         self,
         result: VariantPeptideHumanFactorsResult,
     ) -> VariantPeptideHumanFactorsResult:
+        """Regenerate and compare the complete canonical result.
+
+        A result digest only proves that a submitted document is internally
+        self-consistent.  Replaying from the bound request ensures that a
+        caller cannot alter a report, finding, provenance, or evidence record
+        and then make the altered document appear valid by recomputing its
+        digest.
+        """
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2307ReplayError("M23-07 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2307ReplayError("M23-07 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2307ReplayError("M23-07 result payload digest mismatch")  # noqa: TRY003
-        return VariantPeptideHumanFactorsResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            replayed = VariantPeptideHumanFactorsResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            regenerated = self.generate(replayed.request)
+        except Exception as error:
+            raise M2307ReplayError from error
+        if canonical_json_bytes(replayed) != canonical_json_bytes(regenerated):
+            raise M2307ReplayError
+        return replayed
 
 
 def evaluate_variant_peptide_human_factors_operational(
