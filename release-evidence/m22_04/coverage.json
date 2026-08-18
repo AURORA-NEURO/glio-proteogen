@@ -1,0 +1,14 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M22-04",
+  "branch_enabled": true,
+  "coverage_percent": 96.39953542392567,
+  "statements": 733,
+  "covered_statements": 714,
+  "branches": 128,
+  "covered_branches": 116,
+  "partial_branches": 12,
+  "fail_under_percent": 95.0,
+  "focused_tests": 23,
+  "passed": true,
+  "command": "coverage run --branch --source=contracts/m22_04,modules/.../m22_04_external_transport_evaluator,evals/m22_04 -m pytest --no-cov focused-suite"
+}
