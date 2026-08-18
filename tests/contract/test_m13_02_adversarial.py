@@ -178,6 +178,16 @@ def test_replay_json_and_hostile_preflight_paths_fail_closed() -> None:
         engine._plain_value(HostileMapping())
 
 
+def test_plain_value_bounds_reject_hostile_traversal() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(TypeError, match="built-in JSON"):
+        engine._plain_value(nested)
+    with pytest.raises(TypeError, match="built-in JSON"):
+        engine._plain_value([0] * 4_097)
+
+
 def test_unknown_candidate_dimension_is_not_a_negative_finding() -> None:
     request = _request()
     candidate = request.mechanism_candidates[0].model_copy(

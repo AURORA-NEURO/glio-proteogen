@@ -144,6 +144,16 @@ def test_canonical_dict_projection_and_hostile_mapping_fail_closed() -> None:
         module_impl._plain_value(UserDict({"bad": 1}))
 
 
+def test_plain_value_bounds_reject_hostile_traversal() -> None:
+    nested: object = "leaf"
+    for _ in range(70):
+        nested = {"nested": nested}
+    with pytest.raises(TypeError, match="string-keyed"):
+        module_impl._plain_value(nested)
+    with pytest.raises(TypeError, match="string-keyed"):
+        module_impl._plain_value([0] * 4_097)
+
+
 def test_preflight_hostile_member_exception_fails_closed(monkeypatch) -> None:
     def explode(*_args: object) -> object:
         raise RuntimeError
