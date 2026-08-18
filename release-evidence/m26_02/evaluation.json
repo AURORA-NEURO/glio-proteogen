@@ -5,9 +5,19 @@
     "dossierSha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
     "slice": "source-manifest.yaml:9011-9054"
   },
-  "fixtureDigest": "sha256:c9c4c9cbb4963de327f578906ddeccdcc084a28aa64f57a23e79e03d9edc9c28",
-  "scenarioCount": 7,
-  "passed": 7,
+  "fixtureDigest": "sha256:22fe5d71fee89439a8559b87136937fe497969e9a78245ba1869c094486be921",
+  "scenarioCount": 8,
+  "passed": 8,
+  "scenarioIds": [
+    "supported",
+    "bad_graph_digest",
+    "cycle",
+    "denied_control",
+    "plugin_parity",
+    "tamper_replay",
+    "semantic_tamper_replay",
+    "determinism"
+  ],
   "scenarios": {
     "bad_graph_digest": {
       "findingCodes": ["reproducibility_gap"],
@@ -34,6 +44,9 @@
     },
     "tamper_replay": {
       "tamper": "rejected"
+    },
+    "semantic_tamper_replay": {
+      "tamper": "self-rehashed semantic mutation rejected"
     }
   },
   "command": "uv run python -m evals.m26_02.evaluate"

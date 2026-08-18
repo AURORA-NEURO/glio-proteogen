@@ -25,7 +25,17 @@ AUTHORITY_SHA256 = "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70d
 MEAN_BUDGET_NS = 500_000_000
 P95_BUDGET_NS = 750_000_000
 MIN_COVERAGE = 95.0
-EXPECTED_SCENARIOS = 7
+EXPECTED_SCENARIO_IDS = (
+    "supported",
+    "bad_graph_digest",
+    "cycle",
+    "denied_control",
+    "plugin_parity",
+    "tamper_replay",
+    "semantic_tamper_replay",
+    "determinism",
+)
+EXPECTED_SCENARIOS = len(EXPECTED_SCENARIO_IDS)
 MIN_BENCHMARK_SAMPLES = 10
 EXPECTED_WHEEL_MEMBER = (
     "glio_proteogen/modules/c26_proteomics/m26_02_data_model_lineage_service/engine.py"
@@ -97,6 +107,9 @@ def _check_evaluation(document: Mapping[str, object]) -> None:
     passed = _integer(document.get("passed"), "evaluation.passed")
     if scenarios != EXPECTED_SCENARIOS or passed != scenarios:
         raise M2602ReleaseError("evaluation scenario matrix is incomplete")
+    observed = document.get("scenarioIds")
+    if not isinstance(observed, list) or tuple(observed) != EXPECTED_SCENARIO_IDS:
+        raise M2602ReleaseError("evaluation scenario IDs are incomplete")
     if not isinstance(document.get("scenarios"), dict):
         raise M2602ReleaseError("evaluation.scenarios must be an object")
 
