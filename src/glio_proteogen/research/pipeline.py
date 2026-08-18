@@ -78,6 +78,7 @@ class ResearchRunRequest:
     external_pdc_response_sha256: str | None = None
     external_pdc_receipt: PdcSourceReceipt | None = None
     quantification_policy: QuantificationPolicy = field(default_factory=QuantificationPolicy)
+    precursor_tolerance_ppm: int = 20
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -386,6 +387,11 @@ def _validate_request(request: ResearchRunRequest) -> None:
         raise ValueError("fragment_tolerance_da must be finite and positive")
     if request.fragment_tolerance_da > 5:
         raise ValueError("fragment_tolerance_da exceeds the research limit")
+    if (
+        type(request.precursor_tolerance_ppm) is not int
+        or not 0 <= request.precursor_tolerance_ppm <= 500
+    ):
+        raise ValueError("precursor_tolerance_ppm must be between zero and 500")
     if type(request.min_matched_ions) is not int or request.min_matched_ions < 1:
         raise ValueError("min_matched_ions must be positive")
     if request.min_matched_ions > 100:
@@ -451,6 +457,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         max_variable_modifications=request.max_variable_modifications,
     )
     parameters = SearchParameters(
+        precursor_tolerance_ppm=request.precursor_tolerance_ppm,
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
         require_precursor_mz=True,
