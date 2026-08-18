@@ -63,18 +63,44 @@ def digest_trypsin(
         raise ValueError("invalid digestion limits")
     peptide_map: dict[str, set[str]] = {}
     for entry in entries:
-        cuts = [0]
-        for index, residue in enumerate(entry.sequence[:-1], start=1):
-            if residue in "KR" and entry.sequence[index] != "P":
-                cuts.append(index)
-        cuts.append(len(entry.sequence))
-        for start_index, start in enumerate(cuts[:-1]):
-            for end_index in range(
-                start_index + 1, min(len(cuts), start_index + missed_cleavages + 2)
-            ):
-                peptide = entry.sequence[start : cuts[end_index]]
-                if min_length <= len(peptide) <= max_length and "*" not in peptide:
-                    peptide_map.setdefault(peptide, set()).add(entry.accession)
+        for peptide in digest_entry_trypsin(
+            entry,
+            missed_cleavages=missed_cleavages,
+            min_length=min_length,
+            max_length=max_length,
+        ):
+            peptide_map.setdefault(peptide, set()).add(entry.accession)
     return {
         peptide: tuple(sorted(accessions)) for peptide, accessions in sorted(peptide_map.items())
     }
+
+
+def digest_entry_trypsin(
+    entry: FastaEntry,
+    *,
+    missed_cleavages: int = 0,
+    min_length: int = 7,
+    max_length: int = 40,
+) -> tuple[str, ...]:
+    """Digest one entry while preserving the entry boundary.
+
+    Keeping the per-accession digest is important for a decoy receipt: a global
+    peptide map loses whether a peptide came from the target, its decoy partner,
+    or both.  The implementation uses the same tryptic rules as ``digest_trypsin``
+    so search-space provenance cannot silently diverge from the actual search.
+    """
+
+    if not 0 <= missed_cleavages <= 3 or not 1 <= min_length <= max_length <= 200:
+        raise ValueError("invalid digestion limits")
+    cuts = [0]
+    for index, residue in enumerate(entry.sequence[:-1], start=1):
+        if residue in "KR" and entry.sequence[index] != "P":
+            cuts.append(index)
+    cuts.append(len(entry.sequence))
+    peptides: set[str] = set()
+    for start_index, start in enumerate(cuts[:-1]):
+        for end_index in range(start_index + 1, min(len(cuts), start_index + missed_cleavages + 2)):
+            peptide = entry.sequence[start : cuts[end_index]]
+            if min_length <= len(peptide) <= max_length and "*" not in peptide:
+                peptides.add(peptide)
+    return tuple(sorted(peptides))

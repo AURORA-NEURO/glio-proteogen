@@ -66,6 +66,12 @@ from .search import (
     summarize_target_decoy,
     target_decoy_qvalues,
 )
+from .search_space import (
+    DecoyPair,
+    SearchSpaceReceipt,
+    build_search_space_receipt,
+    verify_search_space_receipt,
+)
 
 __all__ = [
     "CohortGroupQc",
@@ -76,6 +82,7 @@ __all__ = [
     "CohortSampleScale",
     "CohortSourceBinding",
     "CohortSourceManifest",
+    "DecoyPair",
     "EvidenceBundle",
     "EvidenceQuality",
     "EvidenceQualitySummary",
@@ -101,12 +108,14 @@ __all__ = [
     "ResearchRunRequest",
     "ResearchRunResult",
     "SearchParameters",
+    "SearchSpaceReceipt",
     "SourceReference",
     "Spectrum",
     "aggregate_cohort_evidence",
     "aggregate_evidence",
     "bind_pdc_mzml_source",
     "digest_trypsin",
+    "build_search_space_receipt",
     "infer_protein_group_candidates",
     "infer_protein_groups",
     "median_normalize",
@@ -124,4 +133,5 @@ __all__ = [
     "summarize_target_decoy",
     "target_decoy_qvalues",
     "verify_evidence_bundle",
+    "verify_search_space_receipt",
 ]
