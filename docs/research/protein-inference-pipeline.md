@@ -57,7 +57,9 @@ statuses/intensities, group membership, group-FDR summaries/candidate acceptance
 shared-peptide expectations, exact FASTA/mzML SHA-256 inputs, expected result digests,
 PSM peptide/q-value projections, and mass-error diagnostics. The benchmark uses one
 warm-up followed by timed public calls. The package-replay CI job runs the same verifier
-against the exact wheel and sdist it built, so a metadata-only receipt cannot mask an
+against the exact wheel and sdist it built, from a clean runtime whose
+`glio_proteogen.research` import must resolve from that exact wheel. The wheel and sdist
+are bound to their receipts; a source-tree replay or metadata-only receipt cannot mask an
 artifact mismatch.
 
 ## Scientific limits
