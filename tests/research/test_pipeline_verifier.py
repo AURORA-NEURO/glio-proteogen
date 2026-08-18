@@ -67,6 +67,42 @@ def test_research_evidence_verifier_rejects_scenario_inventory_mutation(tmp_path
         verify(evidence, allow_metadata_only=True)
 
 
+def test_research_evidence_verifier_rejects_cohort_projection_mutation(tmp_path: Path) -> None:
+    def mutate(value: dict[str, object]) -> None:
+        cohort = value["cohort_evaluation"]
+        assert isinstance(cohort, dict)
+        outcomes = cohort["outcomes"]
+        assert isinstance(outcomes, list)
+        projection = outcomes[0]["projection"]
+        assert isinstance(projection, dict)
+        matrix = projection["matrix"]
+        assert isinstance(matrix, list)
+        matrix[0][1][0] = 999.0
+
+    evidence = _write_mutation(tmp_path, mutate)
+    with pytest.raises(VerificationError, match="cohort outcome projections"):
+        verify(evidence, allow_metadata_only=True)
+
+
+def test_research_evidence_verifier_rejects_cohort_provenance_mutation(tmp_path: Path) -> None:
+    def mutate(value: dict[str, object]) -> None:
+        cohort = value["cohort_evaluation"]
+        assert isinstance(cohort, dict)
+        outcomes = cohort["outcomes"]
+        assert isinstance(outcomes, list)
+        projection = outcomes[-1]["projection"]
+        assert isinstance(projection, dict)
+        configuration = projection["configuration"]
+        assert isinstance(configuration, dict)
+        provenance = configuration["sample_source_provenance"]
+        assert isinstance(provenance, list)
+        provenance[0]["external_source_id"] = "pdc:forged"
+
+    evidence = _write_mutation(tmp_path, mutate)
+    with pytest.raises(VerificationError, match="cohort outcome projections"):
+        verify(evidence, allow_metadata_only=True)
+
+
 def test_research_evidence_verifier_rejects_package_hash_receipt_mutation(
     tmp_path: Path,
 ) -> None:

@@ -12,6 +12,7 @@ from glio_proteogen.research import (
     PdcFile,
     PdcStudySnapshot,
     ResearchCohortRequest,
+    ResearchCohortResult,
     ResearchCohortSample,
     ResearchRunRequest,
     SourceReference,
@@ -24,6 +25,12 @@ from .run import Scenario, build_scenario_request, scenarios
 
 _EXPECTED_INTENSITY = 20.0
 _EXPECTED_SAMPLE_COUNT = 2
+
+
+def _projection(result: ResearchCohortResult) -> dict[str, object]:
+    """Return the complete stable cohort output used by release evidence."""
+
+    return result.as_dict()
 
 
 def _fixture_path() -> Path:
@@ -138,6 +145,7 @@ def run_evaluator() -> dict[str, object]:
             "missing_cells": sum(
                 value is None for _, values in replicate.matrix for value in values
             ),
+            "projection": _projection(replicate),
         }
     )
 
@@ -154,6 +162,7 @@ def run_evaluator() -> dict[str, object]:
             and missing.group_qc[0].median_intensity == _EXPECTED_INTENSITY,
             "result_digest": missing.result_digest,
             "missing_cells": sum(value is None for _, values in missing.matrix for value in values),
+            "projection": _projection(missing),
         }
     )
 
@@ -175,6 +184,7 @@ def run_evaluator() -> dict[str, object]:
             "passed": incompatible_error,
             "result_digest": None,
             "missing_cells": None,
+            "projection": None,
         }
     )
 
@@ -201,6 +211,7 @@ def run_evaluator() -> dict[str, object]:
             and all(isinstance(item, dict) and item["external_pdc_file"] for item in provenance),
             "result_digest": pdc_result.result_digest,
             "missing_cells": 0,
+            "projection": _projection(pdc_result),
         }
     )
     return {

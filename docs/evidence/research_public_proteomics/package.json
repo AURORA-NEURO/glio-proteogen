@@ -2,20 +2,20 @@
   "build_tool": "uv build / hatchling 1.31.0",
   "reproducible_two_builds": true,
   "reproducible_hashes": {
-    "wheel": "73e79538553214dda908f7af8f1a3cad055542346b5182c1a2d5e4e9e2c5187d",
-    "sdist": "ef34e9d4bdff42c721ce5a368d9bbe9ef4ff3bb8c6a7d77b94e262366dc02f83"
+    "wheel": "7e9070304320176cbb1618b6774429e372c1d0fadd91dad883358767c58eb0bd",
+    "sdist": "7ad13df0717f7ada058eeaf50d2007d500295155efe2ea4200b2263707c1fdb8"
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "bytes": 3809064,
-    "members": 1985,
-    "sha256": "73e79538553214dda908f7af8f1a3cad055542346b5182c1a2d5e4e9e2c5187d"
+    "bytes": 3812696,
+    "members": 1986,
+    "sha256": "7e9070304320176cbb1618b6774429e372c1d0fadd91dad883358767c58eb0bd"
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "bytes": 4388349,
-    "members": 4577,
-    "sha256": "ef34e9d4bdff42c721ce5a368d9bbe9ef4ff3bb8c6a7d77b94e262366dc02f83"
+    "bytes": 4395608,
+    "members": 4583,
+    "sha256": "7ad13df0717f7ada058eeaf50d2007d500295155efe2ea4200b2263707c1fdb8"
   },
   "isolated_wheel_import": "passed",
   "status": "passed"
