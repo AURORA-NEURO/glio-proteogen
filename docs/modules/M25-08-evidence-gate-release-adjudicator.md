@@ -24,14 +24,16 @@ its runtime ABI is not imported or inferred in this lane.
   approval, and tamper remain safe abstentions or rejections;
 - deterministic results carry canonical request/result identities, seven
   uncertainty dimensions, provenance/control decisions, evidence, limits,
-  human-review requirement, and replay verification;
+  human-review requirement, and mandatory semantic replay verification; a
+  caller cannot disable replay or self-rehash a forged release payload;
 - FastAPI, Typer, and the strict parse-once plugin expose the same service
   semantics with sanitized errors and no-overwrite output behavior.
 
 ## Evidence and release posture
 
 The locked evaluator covers nominal adjudication, every blocking gate bucket,
-denied controls, replay, deterministic identity, and evidence/control closure.
+denied controls, replay, self-rehashed release mutation rejection,
+deterministic identity, and evidence/control closure.
 The adversarial suite covers unknown keys, type coercion, media-boundary loss,
 duplicate artifacts/findings/evidence, non-finite benchmarks, forged tokens,
 strict duplicate JSON keys, identity mutation, and unsupported parent output.
