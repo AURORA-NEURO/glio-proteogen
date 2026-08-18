@@ -1,0 +1,52 @@
+{
+  "lane": "research-scientific-foundation",
+  "status": "research_only_not_production_abi",
+  "base_commit": "39fc7fb0",
+  "source_fixture": {
+    "study": "PDC000204",
+    "title": "CPTAC GBM Discovery Study",
+    "metadata_url": "https://pdc.cancer.gov/pdc/study/PDC000204",
+    "api_url": "https://pdc.cancer.gov/graphql",
+    "fixture": "tests/fixtures/research/pdc000204_snapshot.json",
+    "fixture_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+    "raw_data_bundled": false
+  },
+  "computation": {
+    "operations": [
+      "bounded_mzml_decode",
+      "tryptic_fasta_digest",
+      "b_y_fragment_matching",
+      "target_decoy_q_values",
+      "label_free_median_normalization",
+      "ambiguity_preserving_protein_groups",
+      "content_addressed_evidence_aggregation"
+    ],
+    "clinical_or_mechanistic_claims": false,
+    "production_module_wiring": false,
+    "caller_download_required": true
+  },
+  "verification": {
+    "focused_tests": 28,
+    "coverage": {
+      "statements": 373,
+      "missed_statements": 0,
+      "branches": 140,
+      "partial_branches": 3,
+      "percent": 99.0,
+      "fail_under": 95
+    },
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3785361,
+      "sha256": "750da0f45366aa4f5a0c27d279b7c2353ed7cae0c34e56cf5470e04f83928904"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 15484183,
+      "sha256": "47a5725e62355ac93bc8131b4431ed0ff03ccca08e0719bccd95bb61234b7063"
+    },
+    "reproducible_builds": 2,
+    "isolated_import": true,
+    "source_date_epoch": 315532800
+  }
+}
