@@ -1,0 +1,15 @@
+{
+  "iterations": 25,
+  "maximum_ns": 1944700,
+  "mean_budget_ns": 500000000,
+  "mean_ns": 1617904.0,
+  "module_id": "GLIO-PROTEOGEN-M19-06",
+  "p50_ns": 1565000,
+  "p95_budget_ns": 750000000,
+  "p95_ns": 1867400,
+  "passed": true,
+  "request_digest": "sha256:b9fa1c41df25bde8e34426a775f1de2a588002fad492bee3fc3cf07941c3ab54",
+  "result_digest": "sha256:13e11c46f2953af3c568c9107ff8b13260ade11f50497abb5109afb312f48d72",
+  "warmup_count": 1,
+  "workload": "bounded_blinded_proteotype_adjudication_queue"
+}

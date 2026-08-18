@@ -258,6 +258,8 @@ def run() -> dict[str, object]:
     checks = _checks()
     return {
         "module_id": MODULE_ID,
+        "dossier_sha256": M1906_DOSSIER_SHA256.removeprefix("sha256:"),
+        "dossier_slice": M1906_DOSSIER_SLICE,
         "status": "PASS" if all(item.passed for item in checks) else "FAIL",
         "checks": [asdict(item) for item in checks],
         "declared_case_count": EXPECTED_CASE_COUNT,

@@ -1,0 +1,79 @@
+{
+  "adversarial_case_count": 8,
+  "adversarial_coverage_percent": 100.0,
+  "checks": [
+    {
+      "detail": "sha=0A6B200CBE073DB13A4BCF315EDC23AB97EDFE6F500BC7EA2785F5E1C70DA181;slice=GLIO-PROTEOGEN_240_Module_Dossier.md:6736-6776",
+      "name": "authority",
+      "passed": true
+    },
+    {
+      "detail": "declared=8;actual=8",
+      "name": "schema_inventory",
+      "passed": true
+    },
+    {
+      "detail": "status=recorded;record=True",
+      "name": "resolved_records",
+      "passed": true
+    },
+    {
+      "detail": "status=abstained;record=False",
+      "name": "unresolved_queue_abstains",
+      "passed": true
+    },
+    {
+      "detail": "status=abstained;record=False",
+      "name": "not_evaluable_abstains",
+      "passed": true
+    },
+    {
+      "detail": "authorization precedes traversal",
+      "name": "consent_denied_preflight",
+      "passed": true
+    },
+    {
+      "detail": "M19-05 media binding is strict",
+      "name": "upstream_media_rejected",
+      "passed": true
+    },
+    {
+      "detail": "result digest is immutable",
+      "name": "replay_tamper_rejected",
+      "passed": true
+    },
+    {
+      "detail": "event digest is immutable",
+      "name": "audit_chain_tamper_rejected",
+      "passed": true
+    },
+    {
+      "detail": "queue IDs are unique",
+      "name": "duplicate_discrepancy_rejected",
+      "passed": true
+    },
+    {
+      "detail": "status=abstained;record=False",
+      "name": "prohibited_claims_abstain",
+      "passed": true
+    },
+    {
+      "detail": "declared=9;executed=9",
+      "name": "coverage_exact_declared_case_set",
+      "passed": true
+    },
+    {
+      "detail": "adversarial_passed=8/8;target=95%",
+      "name": "adversarial_coverage_target",
+      "passed": true
+    }
+  ],
+  "coverage_percent": 100.0,
+  "declared_case_count": 9,
+  "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:6736-6776",
+  "executed_case_count": 9,
+  "module_id": "GLIO-PROTEOGEN-M19-06",
+  "status": "PASS",
+  "target_coverage_percent": 95
+}
