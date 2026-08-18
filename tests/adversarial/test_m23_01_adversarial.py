@@ -18,12 +18,14 @@ from glio_proteogen.contracts.m23_01 import (
     VariantPeptideReferenceTruthResult,
     canonical_request_digest,
     package_payload_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportDecision, SupportStatus
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c21_reference_material.m23_01_reference_truth_benchmark_curator import (
     M2301AuthorizationError,
     M2301Plugin,
+    M2301ReplayError,
     M2301Service,
     ReferenceTruthSubmission,
     api,
@@ -45,6 +47,18 @@ def test_plugin_rejects_duplicate_keys_and_unvalidated_tokens() -> None:
         plugin.validate(_request())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_replay_rejects_self_rehashed_reference_evidence_forgery() -> None:
+    result = M2301Service().execute(_request())
+    evidence = result.evidence[0].model_copy(update={"claim": "forged evidence"})
+    forged = result.model_copy(update={"evidence": (evidence, *result.evidence[1:])})
+    forged = VariantPeptideReferenceTruthResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+
+    with pytest.raises(M2301ReplayError):
+        M2301Service().verify_replay(forged)
 
 
 def test_contract_rejects_partition_kind_and_duplicate_source_ids() -> None:
