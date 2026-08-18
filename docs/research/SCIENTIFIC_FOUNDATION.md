@@ -135,6 +135,11 @@ C03/C04 computation contract:
   biological evidence. Quality scores remain auditability/completeness metadata, not confidence
   in a protein, disease, or mechanism claim.
 
+- `verify_pdc_source_content` recomputes the catalog-bound SHA-256, MD5, and exact byte length
+  over caller-held raw bytes or a bounded one-pass stream. It turns a serialized PDC receipt
+  into a content check without persisting or interpreting the raw file; mismatched, truncated,
+  and over-limit content is rejected before a caller can parse it.
+
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or
 redistributed raw spectra. The representative file is 193,963,708 bytes and is fetched only by an
