@@ -58,6 +58,10 @@
       "sha256": "8ad89dcb7610bf68334afbce013c34851a8db321c309b29052e1663e4dac4798"
     },
     "reproducible_builds": 2,
+    "reproducible_hashes": {
+      "wheel": "1ad726f55c658b8ebc69734c583761460031eb7b1f4ae17968292bb7f0a7c1f3",
+      "sdist": "33f039e2de624a911744905f58e08453ab5c974b88efb5e9ae499278dd475aee"
+    },
     "isolated_import": true,
     "source_date_epoch": 315532800
   }

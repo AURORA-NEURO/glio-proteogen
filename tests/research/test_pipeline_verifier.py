@@ -93,6 +93,21 @@ def test_research_evidence_verifier_rejects_non_reproducible_receipt(
         verify(_EVIDENCE, package_evidence=mutated, allow_metadata_only=True)
 
 
+def test_research_evidence_verifier_rejects_reproducibility_hash_drift(
+    tmp_path: Path,
+) -> None:
+    package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
+    verification = package["verification"]
+    assert isinstance(verification, dict)
+    hashes = verification["reproducible_hashes"]
+    assert isinstance(hashes, dict)
+    hashes["wheel"] = "0" * 64
+    mutated = tmp_path / "package.json"
+    mutated.write_text(json.dumps(package), encoding="utf-8")
+    with pytest.raises(VerificationError, match="reproducibility hashes"):
+        verify(_EVIDENCE, package_evidence=mutated, allow_metadata_only=True)
+
+
 def test_research_evidence_verifier_rejects_package_fixture_drift(tmp_path: Path) -> None:
     package = json.loads(_PACKAGE.read_text(encoding="utf-8"))
     verification = package["verification"]

@@ -227,6 +227,13 @@ def _verify_package_receipt(
         raise VerificationError("research package evidence must record two reproducible builds")
     if verification.get("source_date_epoch") != _EXPECTED_SOURCE_DATE_EPOCH:
         raise VerificationError("research package evidence has an unexpected SOURCE_DATE_EPOCH")
+    reproducible_hashes = verification.get("reproducible_hashes")
+    if (
+        not isinstance(reproducible_hashes, dict)
+        or reproducible_hashes.get("wheel") != wheel_receipt.get("sha256")
+        or reproducible_hashes.get("sdist") != sdist_receipt.get("sha256")
+    ):
+        raise VerificationError("research reproducibility hashes do not match artifact receipts")
     recorded_fixture = verification.get("fixture_sha256")
     if expected_fixture_sha256 is not None and recorded_fixture != expected_fixture_sha256:
         raise VerificationError("research package fixture digest does not match evaluation")
