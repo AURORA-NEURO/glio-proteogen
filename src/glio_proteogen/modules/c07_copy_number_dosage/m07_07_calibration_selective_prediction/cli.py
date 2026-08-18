@@ -15,6 +15,7 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
+from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
 from glio_proteogen.contracts.m07_07 import (
     M0707_MAX_CANONICAL_REQUEST_BYTES,
     canonical_request_digest,
@@ -33,7 +34,12 @@ app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
 def _read(path: Path | None) -> object:
-    raw = sys.stdin.buffer.read() if path is None else path.read_bytes()
+    if path is None:
+        raw = sys.stdin.buffer.read(M0707_MAX_CANONICAL_REQUEST_BYTES + 1)
+        if len(raw) > M0707_MAX_CANONICAL_REQUEST_BYTES:
+            raise RequestBodyTooLargeError
+    else:
+        raw = read_bounded(path, max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES)
     strict_json_loads(raw, max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES)
     return raw
 
