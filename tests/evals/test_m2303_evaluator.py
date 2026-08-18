@@ -7,7 +7,7 @@ from pathlib import Path
 from evals.m23_03.benchmark import run_benchmark
 from evals.m23_03.evaluator import run_evaluator
 
-_EVALUATOR_SCENARIOS = 11
+_EVALUATOR_SCENARIOS = 12
 _BENCHMARK_ITERATIONS = 3
 
 
@@ -38,5 +38,5 @@ def test_direct_evaluator_and_benchmark_entrypoints_bootstrap_project_root() -> 
         text=True,
         check=True,
     )
-    assert '"passed": 11' in evaluator.stdout
+    assert '"passed": 12' in evaluator.stdout
     assert '"passed": true' in benchmark.stdout

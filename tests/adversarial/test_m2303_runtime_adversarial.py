@@ -11,12 +11,18 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m23_03 import BaselineRun, BenchmarkDossier, ValidationStatus
+from glio_proteogen.contracts.m23_03 import (
+    BaselineRun,
+    BenchmarkDossier,
+    ValidationStatus,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
     BenchmarkSubmission,
     M2303AuthorizationError,
     M2303Plugin,
+    M2303ReplayError,
     M2303Service,
     cli_app,
     create_app,
@@ -57,6 +63,29 @@ def test_replay_closes_request_and_identifier_identity() -> None:
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
     with pytest.raises(ValueError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "wrong-result-id"}))
+
+
+@pytest.mark.parametrize("mutation", ["dossier", "evidence"])
+def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
+    service = M2303Service()
+    result = service.generate(_request())
+    dossier = result.dossier
+    assert dossier is not None
+    if mutation == "dossier":
+        forged = result.model_copy(
+            update={"dossier": dossier.model_copy(update={"version": "0.1.1"})}
+        )
+    else:
+        forged = result.model_copy(
+            update={
+                "evidence": (
+                    result.evidence[0].model_copy(update={"claim": "forged evidence claim"}),
+                )
+            }
+        )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2303ReplayError, match="replay verification"):
+        service.replay(forged)
 
 
 def test_contract_nested_identity_closures_reject_duplicates() -> None:
