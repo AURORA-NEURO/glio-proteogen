@@ -9,6 +9,10 @@ from evals.m20_05.fixture import abstained_request, denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m20_05 import (
+    M2005_MAX_CANONICAL_REQUEST_BYTES,
+    M2005_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
     M2005Plugin,
@@ -120,3 +124,21 @@ def test_typer_export_validate_present_verify_and_no_overwrite(tmp_path: Any) ->
         cli_app, ["present", str(abstained_path), "--output", str(abstained_result)]
     )
     assert abstained_run.exit_code == 1
+
+
+def test_typer_rejects_oversized_request_and_result_before_parse(tmp_path: Any) -> None:
+    request_path = tmp_path / "oversized-request.json"
+    result_path = tmp_path / "oversized-result.json"
+    for path, limit in (
+        (request_path, M2005_MAX_CANONICAL_REQUEST_BYTES),
+        (result_path, M2005_MAX_CANONICAL_RESULT_BYTES),
+    ):
+        with path.open("wb") as stream:
+            stream.seek(limit)
+            stream.write(b"{}")
+    runner = CliRunner()
+    request_failure = runner.invoke(cli_app, ["validate", str(request_path)])
+    result_failure = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert request_failure.exit_code != 0
+    assert result_failure.exit_code != 0
+    assert "Traceback" not in request_failure.output + result_failure.output

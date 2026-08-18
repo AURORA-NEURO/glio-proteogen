@@ -8,7 +8,11 @@ from pathlib import Path  # noqa: TC003 - Typer resolves runtime path annotation
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m20_08 import HealthSignalStatus
+from glio_proteogen.contracts.m20_08 import (
+    M2008_MAX_CANONICAL_REQUEST_BYTES,
+    M2008_MAX_CANONICAL_RESULT_BYTES,
+    HealthSignalStatus,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_rollback import (
     M2008Service,
@@ -155,3 +159,21 @@ def test_typer_rejects_bad_result(tmp_path: Path) -> None:
     result = runner.invoke(cli_app, ["verify", str(bad)])
     assert result.exit_code != 0
     assert M2008TranslationMonitoringEngine().infer(_request()).result_digest
+
+
+def test_typer_rejects_oversized_request_and_result_before_parse(tmp_path: Path) -> None:
+    request_path = tmp_path / "oversized-request.json"
+    result_path = tmp_path / "oversized-result.json"
+    for path, limit in (
+        (request_path, M2008_MAX_CANONICAL_REQUEST_BYTES),
+        (result_path, M2008_MAX_CANONICAL_RESULT_BYTES),
+    ):
+        with path.open("wb") as stream:
+            stream.seek(limit)
+            stream.write(b"{}")
+    runner = CliRunner()
+    request_failure = runner.invoke(cli_app, ["validate", str(request_path)])
+    result_failure = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert request_failure.exit_code != 0
+    assert result_failure.exit_code != 0
+    assert "Traceback" not in request_failure.output + result_failure.output
