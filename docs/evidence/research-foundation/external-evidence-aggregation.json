@@ -1,0 +1,63 @@
+{
+  "lane": "research-external-evidence-source-independence",
+  "status": "research_only_not_production_abi",
+  "base_commit": "bcda7491",
+  "scope": {
+    "source_identity": "sha256_and_byte_size",
+    "alias_policy": "different_source_ids_with_one_receipt_identity_count_once",
+    "conflicting_identity_policy": "one_source_id_bound_to_multiple_receipts_rejected",
+    "numerical_fusion": false,
+    "clinical_or_mechanistic_claims": false,
+    "governed_module_wiring": false
+  },
+  "evaluator": {
+    "module": "evals/research_proteomics/evidence_aggregation.py",
+    "evaluator_version": "research-external-evidence-v1",
+    "declared": 6,
+    "executed": 6,
+    "passed": true,
+    "scenarios": [
+      "consistent_support",
+      "mixed_direction",
+      "insufficient_independence",
+      "duplicate_receipt_aliases",
+      "source_conflict",
+      "observation_abstention"
+    ],
+    "source_sha256": "11ff4c95e8003a289ee1245fb18aa49bcd12bdb0df566e259f4d3056aa055baf"
+  },
+  "tests": {
+    "command": "uv run pytest -q --no-cov tests/research",
+    "passed": 303,
+    "focused_external_evidence": 26,
+    "source_sha256": "f393e52900f7f5933c3f81c65cefd3869fdd905ad890214cc70620d81a256583"
+  },
+  "coverage": {
+    "command": "uv run pytest -q -o addopts= tests/research --cov=glio_proteogen.research --cov-branch --cov-fail-under=95",
+    "statements": 2947,
+    "missed_statements": 94,
+    "branches": 1146,
+    "partial_branches": 86,
+    "percent": 95.46,
+    "fail_under": 95
+  },
+  "artifacts": {
+    "source_date_epoch": 315532800,
+    "reproducible_builds": 2,
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3850066,
+      "members": 1990,
+      "sha256": "7a8050ae0f14009b1363dcd8ed99f92bf274f8463753255994a4bf413ca09465"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4486496,
+      "members": 4622,
+      "sha256": "ef3029e676c1cdb31a3030cf559e7f88da627226fc2991517d1be39f4d2a38a7"
+    },
+    "two_builds_byte_identical": true
+  },
+  "implementation_source_sha256": "f38ebd46087a794c90767c67bfc4f2eacbffecff5ac7255a2f49d4bb7908fdd0",
+  "documentation_source_sha256": "004e6cc5110f32fef2edcfa7b2d6a6a1e4a8faf9e3d5862d640dc8240ecc7697"
+}
