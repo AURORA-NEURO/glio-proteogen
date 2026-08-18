@@ -16,6 +16,7 @@ if __package__ in {None, ""}:
     if str(_PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
+from tests.contract.test_m19_08_boundary_depth import _with_evidence_claim
 from tests.contract.test_m19_08_hardening import _request
 
 from glio_proteogen.contracts.m19_08 import (
@@ -205,17 +206,8 @@ def evaluate() -> EvaluationReport:
             "rollback_required",
         ),
         (
-            _request(
-                workflow_effects=(
-                    _request()
-                    .workflow_effects[0]
-                    .model_copy(update={"status": ObservationStatus.FAIL}),
-                ),
-                rollback_policy=_request().rollback_policy.model_copy(
-                    update={"critical_failure_threshold": 1}
-                ),
-            ),
-            "rollback_required",
+            _with_evidence_claim(_request()),
+            "abstained",
         ),
         (_scenario("suspended_discrepancy"), "suspended"),
         (_scenario("not_evaluable_abstention"), "abstained"),
