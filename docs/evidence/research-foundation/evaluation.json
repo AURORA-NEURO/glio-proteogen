@@ -1,0 +1,26 @@
+{
+  "lane": "research-protein-inference-pipeline",
+  "fixture_sha256": "3650445128869b8107c05992e31e958380ce6b04a39ba4ae0c430f13f57e9465",
+  "evaluator": {
+    "declared": 3,
+    "executed": 3,
+    "passed": true,
+    "scenario_ids": ["target_supported", "decoy_rejected", "no_match"]
+  },
+  "benchmark": {
+    "warmup": 1,
+    "iterations": 10,
+    "mean_ns": 112960,
+    "median_ns": 112200,
+    "p95_ns": 120900,
+    "result_digest": "3f5e0b7640ad61a0d356c4bcb82784356269dff8161d444797b9b833be7978ac"
+  },
+  "coverage": {
+    "statements": 944,
+    "missed_statements": 14,
+    "branches": 324,
+    "partial_branches": 17,
+    "percent": 98.0,
+    "fail_under": 95
+  }
+}
