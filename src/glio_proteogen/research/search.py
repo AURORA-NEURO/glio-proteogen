@@ -331,7 +331,7 @@ def search_spectrum_candidates(
             protein_accessions=tuple(accessions),
             score=matched + (intensity_score / norm if norm else 0.0),
             matched_ions=matched,
-            decoy=all(accession.startswith("DECOY_") for accession in accessions),
+            decoy=all(accession.startswith(parameters.decoy_prefix) for accession in accessions),
             matched_intensity=matched_intensity,
             mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
             precursor_error_ppm=(
@@ -340,8 +340,8 @@ def search_spectrum_candidates(
                 else None
             ),
             target_decoy_collision=(
-                any(accession.startswith("DECOY_") for accession in accessions)
-                and not all(accession.startswith("DECOY_") for accession in accessions)
+                any(accession.startswith(parameters.decoy_prefix) for accession in accessions)
+                and not all(accession.startswith(parameters.decoy_prefix) for accession in accessions)
             ),
         )
         all_candidates.append(candidate)
