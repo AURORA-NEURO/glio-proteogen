@@ -22,6 +22,64 @@ class PeptideQuant:
 
 
 @dataclass(frozen=True, slots=True)
+class QuantificationReceipt:
+    """Replay-bound measurement and normalization receipt for peptide signal.
+
+    Intensities are matched-fragment-ion signal in arbitrary instrument units.
+    The receipt makes the otherwise easy-to-misread median scaling and zero-signal
+    handling explicit; it is evidence about this computation, not abundance or
+    concentration calibration.
+    """
+
+    sample_id: str
+    version: str
+    measurement_unit: str
+    normalization_method: str
+    missingness_policy: str
+    input_observations: int
+    unique_peptides: int
+    observed_peptides: int
+    missing_peptides: int
+    duplicate_observations: int
+    raw_total_signal: float
+    raw_positive_median: float | None
+    normalization_target: float | None
+    normalized_total_signal: float
+    scale_factor: float | None
+    raw_peptide_signals: tuple[tuple[str, float, bool], ...]
+    normalized_peptide_signals: tuple[tuple[str, float, bool], ...]
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "duplicate_observations": self.duplicate_observations,
+            "input_observations": self.input_observations,
+            "measurement_unit": self.measurement_unit,
+            "missing_peptides": self.missing_peptides,
+            "missingness_policy": self.missingness_policy,
+            "normalization_method": self.normalization_method,
+            "normalization_target": self.normalization_target,
+            "normalized_peptide_signals": [list(item) for item in self.normalized_peptide_signals],
+            "normalized_total_signal": self.normalized_total_signal,
+            "observed_peptides": self.observed_peptides,
+            "raw_peptide_signals": [list(item) for item in self.raw_peptide_signals],
+            "raw_positive_median": self.raw_positive_median,
+            "raw_total_signal": self.raw_total_signal,
+            "sample_id": self.sample_id,
+            "scale_factor": self.scale_factor,
+            "unique_peptides": self.unique_peptides,
+            "version": self.version,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PeptideQuantification:
+    """Normalized peptide values plus the receipt that explains their scale."""
+
+    values: tuple[PeptideQuant, ...]
+    receipt: QuantificationReceipt
+
+
+@dataclass(frozen=True, slots=True)
 class ProteinGroupQuant:
     """Ambiguity-aware group signal with shared peptides excluded from the primary estimate."""
 
@@ -62,10 +120,25 @@ def quantify_matched_ions(
     negative or an imputed positive measurement.
     """
 
-    if not isinstance(sample_id, str) or not sample_id or len(sample_id) > 128:
+    return quantify_matched_ions_with_receipt(sample_id, observations).values
+
+
+def quantify_matched_ions_with_receipt(
+    sample_id: str, observations: Iterable[tuple[str, float]]
+) -> PeptideQuantification:
+    """Quantify matched-ion signal and return a complete scale/missingness receipt."""
+
+    if (
+        not isinstance(sample_id, str)
+        or not sample_id
+        or len(sample_id) > 128
+        or sample_id != sample_id.strip()
+        or any(character.isspace() or ord(character) < 32 for character in sample_id)
+    ):
         raise ValueError("sample_id must be a bounded non-empty string")
+    observed = tuple(observations)
     totals: dict[str, float] = defaultdict(float)
-    for peptide, intensity in observations:
+    for peptide, intensity in observed:
         if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
             raise ValueError("peptide must be a bounded non-empty string")
         if not isfinite(intensity) or intensity < 0:
@@ -75,7 +148,31 @@ def quantify_matched_ions(
         PeptideQuant(sample_id, peptide, intensity, missing=intensity <= 0)
         for peptide, intensity in sorted(totals.items())
     )
-    return median_normalize(values)
+    normalized = median_normalize(values)
+    positive = tuple(item.intensity for item in values if not item.missing and item.intensity > 0)
+    raw_median = median(positive) if positive else None
+    receipt = QuantificationReceipt(
+        sample_id=sample_id,
+        version="matched-ion-median-2",
+        measurement_unit="median_scaled_matched_ion_intensity",
+        normalization_method="sample_median_scaled",
+        missingness_policy="zero_signal_is_missing_no_imputation",
+        input_observations=len(observed),
+        unique_peptides=len(values),
+        observed_peptides=sum(not item.missing for item in values),
+        missing_peptides=sum(item.missing for item in values),
+        duplicate_observations=len(observed) - len(values),
+        raw_total_signal=sum(item.intensity for item in values),
+        raw_positive_median=raw_median,
+        normalization_target=raw_median,
+        normalized_total_signal=sum(item.intensity for item in normalized),
+        scale_factor=1.0 if positive else None,
+        raw_peptide_signals=tuple((item.peptide, item.intensity, item.missing) for item in values),
+        normalized_peptide_signals=tuple(
+            (item.peptide, item.intensity, item.missing) for item in normalized
+        ),
+    )
+    return PeptideQuantification(normalized, receipt)
 
 
 def median_normalize(values: tuple[PeptideQuant, ...]) -> tuple[PeptideQuant, ...]:

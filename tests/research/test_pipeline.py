@@ -91,10 +91,32 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.protein_groups[0].accessions == ("P1",)
     assert result.protein_group_quantifications[0].status == "quantified"
     assert result.protein_group_quantifications[0].primary_intensity == 20.0
+    assert result.quantification_receipt is not None
+    assert result.quantification_receipt.raw_positive_median == 20.0
+    assert result.quantification_receipt.measurement_unit == ("median_scaled_matched_ion_intensity")
     assert len(result.result_digest) == 64
     assert result.result_digest == run_research_protein_inference(request).result_digest
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
     assert result.as_dict()["evidence_digest"] == result.evidence.digest
+
+
+def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
+    request = ResearchRunRequest(
+        "receipt-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    assert result.quantification_receipt is not None
+    tampered = replace(
+        result,
+        quantification_receipt=replace(result.quantification_receipt, raw_total_signal=999.0),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, tampered)
 
 
 def test_pipeline_preserves_decoy_rejection_and_ms2_boundary() -> None:

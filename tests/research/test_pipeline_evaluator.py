@@ -21,6 +21,10 @@ def test_locked_research_pipeline_evaluator() -> None:
     target = next(item for item in outcomes if item["scenario_id"] == "target_supported")
     quant = cast("list[dict[str, object]]", target["protein_group_quantifications"])
     assert quant[0]["primary_intensity"] == 20.0
+    receipt = cast("dict[str, object]", target["quantification_receipt"])
+    assert receipt["measurement_unit"] == "median_scaled_matched_ion_intensity"
+    assert receipt["raw_positive_median"] == 20.0
+    assert receipt["missing_peptides"] == 0
     diagnostics = cast("dict[str, object]", target["search_diagnostics"])
     assert diagnostics["max_fragment_error_da"] == pytest.approx(0.0005254659999991418)
 

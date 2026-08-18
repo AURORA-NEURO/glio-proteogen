@@ -26,7 +26,12 @@ from .protein import (
     infer_protein_group_candidates,
 )
 from .public_proteomics.provenance import SourceReference
-from .quantification import ProteinGroupQuant, quantify_matched_ions, quantify_protein_groups
+from .quantification import (
+    ProteinGroupQuant,
+    QuantificationReceipt,
+    quantify_matched_ions_with_receipt,
+    quantify_protein_groups,
+)
 from .search import (
     FdrSummary,
     Psm,
@@ -213,6 +218,7 @@ class ResearchRunResult:
     protein_group_quantifications: tuple[ProteinGroupQuant, ...] = ()
     protein_group_candidates: tuple[ProteinGroupCandidate, ...] = ()
     protein_group_fdr_summary: ProteinGroupFdrSummary | None = None
+    quantification_receipt: QuantificationReceipt | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -231,6 +237,11 @@ class ResearchRunResult:
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
             "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
             "peptide_intensities": [list(item) for item in self.peptide_intensities],
+            "quantification_receipt": (
+                self.quantification_receipt.as_dict()
+                if self.quantification_receipt is not None
+                else None
+            ),
             "fdr_summary": self.fdr_summary.as_dict() if self.fdr_summary else None,
             "search_diagnostics": dict(self.search_diagnostics),
             "protein_group_quantifications": [
@@ -468,11 +479,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             for accessions in reportable_accession_sets
         )
     )
-    quantified = quantify_matched_ions(
+    quantified = quantify_matched_ions_with_receipt(
         request.sample_id,
         ((item.peptide, item.matched_intensity) for item in reportable_psms),
     )
-    peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified)
+    peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified.values)
     counts = tuple(sorted(Counter(item.peptide for item in reportable_psms).items()))
     protein_group_quantifications = quantify_protein_groups(
         groups,
@@ -499,6 +510,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_bytes": request.max_bytes,
                 "quantification_version": "matched-ion-median-1",
                 "quantification_unit": "median_scaled_matched_ion_intensity",
+                "quantification_receipt_version": quantified.receipt.version,
                 "protein_group_quantification_version": "unique-peptide-median-v1",
                 "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
                 "require_precursor_mz": True,
@@ -562,6 +574,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "protein_group_quantifications": [
                     item.as_dict() for item in protein_group_quantifications
                 ],
+                "quantification_receipt": quantified.receipt.as_dict(),
             },
         ),
     ]
@@ -604,6 +617,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "accepted_psms": [_psm_dict(item) for item in accepted],
         "peptide_spectral_counts": [list(item) for item in counts],
         "peptide_intensities": [list(item) for item in peptide_intensities],
+        "quantification_receipt": quantified.receipt.as_dict(),
         "fdr_summary": fdr_summary.as_dict(),
         "protein_group_fdr_summary": protein_group_fdr_summary.as_dict(),
         "protein_group_candidates": [item.as_dict() for item in group_candidates],
@@ -646,6 +660,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         protein_group_quantifications=protein_group_quantifications,
         protein_group_candidates=group_candidates,
         protein_group_fdr_summary=protein_group_fdr_summary,
+        quantification_receipt=quantified.receipt,
     )
 
 
