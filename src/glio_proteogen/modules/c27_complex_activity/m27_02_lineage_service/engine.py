@@ -1,5 +1,7 @@
 """Deterministic, reference-only M27-02 complex-activity lineage resolver."""
 
+# ruff: noqa: TRY003
+
 from __future__ import annotations
 
 from typing import Final, cast
@@ -64,6 +66,13 @@ class M2702AuthorizationError(ValueError):
 
     def __init__(self) -> None:
         super().__init__(_AUTHORIZATION_MESSAGE)
+
+
+class M2702ReplayError(ValueError):
+    """Raised when a lineage result is not bound to its exact request."""
+
+    def __init__(self, message: str = "M27-02 lineage replay verification failed") -> None:
+        super().__init__(message)
 
 
 def preflight_m2702_authorization(candidate: object) -> None:
@@ -133,6 +142,37 @@ class M2702LineageResolver:
         }
         payload["result_digest"] = result_payload_digest(payload)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
+
+    def replay(self, result: ComplexActivityLineageResult) -> ComplexActivityLineageResult:
+        """Revalidate and regenerate the complete lineage result.
+
+        A payload digest only proves that a submitted envelope is internally
+        self-consistent.  Rebinding the request digest, result identifier, and
+        every derived graph/evidence field prevents a caller from rehashing a
+        modified lineage report and presenting it as an engine-produced result.
+        """
+
+        try:
+            validated = ComplexActivityLineageResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise M2702ReplayError("M27-02 result envelope is invalid") from error
+        request_digest = canonical_request_digest(validated.request)
+        if validated.request_digest != request_digest:
+            raise M2702ReplayError("M27-02 request digest mismatch")
+        expected_id = f"result.m2702.{request_digest.removeprefix('sha256:')}"
+        if validated.result_id != expected_id:
+            raise M2702ReplayError("M27-02 result identifier mismatch")
+        if validated.result_digest != result_payload_digest(validated):
+            raise M2702ReplayError("M27-02 result digest mismatch")
+        try:
+            expected = self.resolve(validated.request)
+        except Exception as error:
+            raise M2702ReplayError("M27-02 result replay failed") from error
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2702ReplayError("M27-02 deterministic replay mismatch")
+        return validated
 
 
 def resolve_complex_activity_lineage(request: object) -> ComplexActivityLineageResult:
@@ -444,6 +484,7 @@ def _plain_value(candidate: object) -> object:
 __all__ = [
     "M2702AuthorizationError",
     "M2702LineageResolver",
+    "M2702ReplayError",
     "preflight_m2702_authorization",
     "resolve_complex_activity_lineage",
 ]
