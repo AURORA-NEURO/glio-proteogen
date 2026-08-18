@@ -28,9 +28,13 @@ def test_locked_research_pipeline_evaluator() -> None:
 def test_research_pipeline_benchmark_is_deterministic() -> None:
     report = run_benchmark(3)
     assert cast("int", report["iterations"]) == 3
+    samples = cast("list[int]", report["samples_ns"])
+    assert len(samples) == 3
+    assert report["percentile_method"] == "nearest_rank"
     assert cast("float", report["mean_ns"]) > 0
     assert cast("int", report["median_ns"]) > 0
     assert cast("int", report["p95_ns"]) > 0
+    assert report["p95_ns"] == max(samples)
     assert len(cast("str", report["result_digest"])) == 64
 
 

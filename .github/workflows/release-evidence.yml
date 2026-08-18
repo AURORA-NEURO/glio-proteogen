@@ -199,9 +199,6 @@ jobs:
           cp release-build-one/* evidence/distribution/
           cp "$RUNNER_TEMP/distribution-one.sha256" evidence/distribution-reproducibility.sha256
           wheel="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.whl')"
-          sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz')"
-          uv run python tools/verify_research_pipeline.py \
-            evidence/research-proteomics-eval.json "$wheel" "$sdist"
           echo "RELEASE_WHEEL=$wheel" >> "$GITHUB_ENV"
       - name: Install and test the exact candidate wheel
         run: |
@@ -228,6 +225,11 @@ jobs:
               "${tag_arguments[@]}" \
               --report "$GITHUB_WORKSPACE/evidence/installed-wheel-verification.json"
           )
+          research_sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          "$runtime_python" -I \
+            "$GITHUB_WORKSPACE/tools/verify_research_pipeline.py" \
+            "$GITHUB_WORKSPACE/evidence/research-proteomics-eval.json" \
+            "$RELEASE_WHEEL" "$research_sdist"
           echo "RELEASE_RUNTIME_PYTHON=$runtime_python" >> "$GITHUB_ENV"
       - name: Generate reproducible runtime SBOM from the wheel environment
         run: |
