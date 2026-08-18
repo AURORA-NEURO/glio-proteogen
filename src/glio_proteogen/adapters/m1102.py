@@ -17,7 +17,11 @@ if __package__ in {None, ""}:
     if str(_SOURCE_ROOT) not in sys.path:
         sys.path.insert(0, str(_SOURCE_ROOT))
 
-from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m11_02 import (
     M1102_MAX_CANONICAL_REQUEST_BYTES,
     M1102_MAX_CANONICAL_RESULT_BYTES,
@@ -54,6 +58,19 @@ def _error_response(
     return JSONResponse(status_code=status_code, content={"detail": detail})
 
 
+def _request_too_large() -> JSONResponse:
+    return _error_response(
+        [
+            {
+                "type": "request_too_large",
+                "loc": (),
+                "msg": "request body exceeds the byte limit",
+            }
+        ],
+        status_code=413,
+    )
+
+
 def _canonical_response(value: object) -> Response:
     return Response(content=canonical_json_bytes(value), media_type="application/json")
 
@@ -65,7 +82,7 @@ def create_m1102_app(service: M1102Service | None = None) -> FastAPI:  # noqa: C
     api = FastAPI(title="GLIO-PROTEOGEN M11-02", version="0.1.0-provisional")
     api.add_middleware(
         RequestSizeLimitMiddleware,
-        max_bytes=M1102_MAX_CANONICAL_REQUEST_BYTES,
+        max_bytes=M1102_MAX_CANONICAL_RESULT_BYTES,
     )
 
     @api.post("/v1/m11-02/schema/{contract}")
@@ -88,6 +105,8 @@ def create_m1102_app(service: M1102Service | None = None) -> FastAPI:  # noqa: C
         try:
             body = await request.body()
             typed = active.validate_json(body)
+        except RequestBodyTooLargeError:
+            return _request_too_large()
         except StrictJsonError as error:
             return _error_response([strict_json_error_detail(error)])
         except ValidationError as error:
@@ -107,6 +126,8 @@ def create_m1102_app(service: M1102Service | None = None) -> FastAPI:  # noqa: C
             body = await request.body()
             typed = active.validate_json(body)
             result = active.execute(typed)
+        except RequestBodyTooLargeError:
+            return _request_too_large()
         except StrictJsonError as error:
             return _error_response([strict_json_error_detail(error)])
         except ValidationError as error:
@@ -125,6 +146,8 @@ def create_m1102_app(service: M1102Service | None = None) -> FastAPI:  # noqa: C
             parsed = _request_json(body)
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
             verified = active.verify(result)
+        except RequestBodyTooLargeError:
+            return _request_too_large()
         except StrictJsonError as error:
             return _error_response([strict_json_error_detail(error)])
         except ValidationError as error:

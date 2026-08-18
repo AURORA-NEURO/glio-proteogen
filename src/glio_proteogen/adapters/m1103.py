@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m11_03 import (
     M1103_MAX_CANONICAL_REQUEST_BYTES,
     M1103_MAX_CANONICAL_RESULT_BYTES,
@@ -42,6 +42,10 @@ class _OutputExistsError(FileExistsError):
 
 
 app = FastAPI(title="GLIO-PROTEOGEN M11-03", version="0.1.0-provisional")
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1103_MAX_CANONICAL_RESULT_BYTES,
+)
 m1103_app = typer.Typer(help="M11-03 mechanistic feature constructor commands.")
 
 
