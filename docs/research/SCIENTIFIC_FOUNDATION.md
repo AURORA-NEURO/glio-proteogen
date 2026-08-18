@@ -40,10 +40,14 @@ C03/C04 computation contract:
   mistaken for calibrated abundance while retaining enough computation detail to audit it.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
-- `infer_protein_group_candidates` retains all scored target/decoy/collision evidence, computes
+- `infer_protein_group_candidates` deterministically reduces duplicate spectrum contenders before
+  group scoring, validates that target/decoy flags agree with accession labels, and binds a
+  canonical digest of every contender. It retains target/decoy/collision evidence, computes
   monotone max-PSM-score group q-values, rejects decoy groups, abstains on mixed collisions, and
-  exposes the accepted/rejected/abstained reason before quantification. This is transparent
-  research FDR evidence, not a calibrated protein probability.
+  exposes unique-peptide versus shared-only identifiability before quantification. The summary
+  records input-versus-unique spectra and shared-peptide counts, so a changed lower-scoring
+  contender cannot replay as the same group result. This is transparent research FDR evidence,
+  not a calibrated protein probability.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
 - `run_research_protein_inference` composes those primitives into an executable mzML-to-FASTA
   research run: fragment matching, target/decoy q-values, spectral counts, matched-ion

@@ -44,8 +44,9 @@ and the complete sorted archive-member inventory for each artifact. The
 standard-library verifier checks the receipt against both candidate files,
 rejects duplicate or missing members, and is invoked by the release-evidence
 workflow after the candidate wheel is installed into its isolated runtime.
-The receipt also records the 141-test research gate and 95.09% branch-enabled
-coverage result (95% minimum).
+The receipt records the public-proteomics gate. The additive research pipeline additionally has
+a locked evaluator for target/decoy competition, shared-peptide ambiguity, group-level FDR, and
+replay-bound quantification. It does not turn these fixtures into clinical or glioma claims.
 
 ## Promotion gate
 
