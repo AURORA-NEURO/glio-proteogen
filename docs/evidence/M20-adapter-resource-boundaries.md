@@ -35,7 +35,7 @@ ceiling, sanitized CLI result failures for all four adapters, HTTP request and
 verify routes for all four apps, and an AST guard preventing direct
 `Path.read_bytes()` from returning to the affected files.
 
-* 21 resource-boundary tests passed;
+* 22 resource-boundary tests passed;
 * 26 existing M20 integration/evaluator tests passed;
 * 47 focused tests passed with coverage disabled;
 * Ruff check/format, strict MyPy, compileall, and `git diff --check` passed.
