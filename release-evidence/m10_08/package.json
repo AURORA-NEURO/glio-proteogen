@@ -7,19 +7,26 @@
   "artifacts": [
     {
       "name": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 779401,
-      "sha256": "3e472f477e9efb8a8acc308c93cf659d87d5a1d3f45e2a21f0738b33f25ed775"
+      "bytes": 3669339,
+      "sha256": "92f2e14bb2cefbf311ca8cf5ab40f70925d7412902b02d5c1cb240c09a0a379a",
+      "members": 1913,
+      "generated_members": 0,
+      "unsafe_paths": 0
     },
     {
       "name": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 1444846,
-      "sha256": "c8789b7d95eec3273406608d88e050d705eb1861eb43f0d13a6230a354bd94ff"
+      "bytes": 4212041,
+      "sha256": "f0758ba0d0a50d9652c72df9c95b590c0ef608e4de43cd81cd4b022d46897a4e",
+      "members": 4392,
+      "generated_members": 0,
+      "unsafe_paths": 0
     }
   ],
   "isolated_install": {
     "target": "temporary_target",
     "import_check": "M1008_MODULE_ID and create_m1008_app",
-    "observed": "GLIO-PROTEOGEN-M10-08 GLIO-PROTEOGEN M10-08"
+    "observed": "GLIO-PROTEOGEN-M10-08 GLIO-PROTEOGEN M10-08",
+    "wheel_sha256": "92f2e14bb2cefbf311ca8cf5ab40f70925d7412902b02d5c1cb240c09a0a379a"
   },
   "passed": true
 }

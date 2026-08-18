@@ -322,11 +322,12 @@ def verify_publication_result(result: object) -> bool:
     """Verify strict model closure and the canonical result digest."""
 
     try:
-        typed = (
-            result
-            if type(result) is ProteinRnaEvidencePublicationResult
-            else ProteinRnaEvidencePublicationResult.model_validate(result, strict=True)
-        )
+        if type(result) is ProteinRnaEvidencePublicationResult:
+            typed = result
+        elif type(result) is dict:
+            typed = ProteinRnaEvidencePublicationResult.model_validate(result, strict=True)
+        else:
+            return False
         return typed.result_digest == result_payload_digest(typed)
     except (TypeError, ValueError, ValidationError):
         return False

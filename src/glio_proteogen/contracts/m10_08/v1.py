@@ -275,34 +275,71 @@ class ProteinRnaEvidencePublicationResult(FrozenModel):
         expected_result_id = f"result.m1008.{self.request_digest.removeprefix('sha256:')}"
         if self.result_id != expected_result_id:
             raise ValueError("result identifier does not bind the request digest")
-        if self.status is EvidencePublicationStatus.PUBLISHED:
-            if (
-                self.bundle is None
-                or self.explanation is None
-                or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-                or self.explanation.bundle_id != self.bundle.bundle_id
-            ):
-                raise ValueError("published result requires complete bundle and explanation")
-        elif (
-            self.bundle is not None
-            or self.explanation is not None
-            or self.abstention_reason is None
-            or self.support_decision.status
-            not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
-        ):
-            raise ValueError("abstained result requires no bundle, explanation, and safe status")
-        if self.status is EvidencePublicationStatus.ABSTAINED and not self.human_review_required:
-            raise ValueError("abstention requires human review")
-        if self.provenance.module_id != M1008_MODULE_ID:
-            raise ValueError("provenance must identify M10-08")
-        if self.provenance.consent_state is not ConsentState.GRANTED:
-            raise ValueError("result provenance must retain the consent decision")
-        if len(self.findings) != len(set(self.findings)):
-            raise ValueError("findings must be unique")
+        _validate_result_status(self)
+        _validate_result_bindings(self)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
+
+
+def _validate_result_status(result: ProteinRnaEvidencePublicationResult) -> None:
+    if result.status is EvidencePublicationStatus.PUBLISHED:
+        if (
+            result.bundle is None
+            or result.explanation is None
+            or result.abstention_reason is not None
+            or result.support_decision.status is not SupportStatus.SUPPORTED
+            or result.explanation.bundle_id != result.bundle.bundle_id
+        ):
+            raise ValueError("published result requires complete bundle and explanation")
+    elif (
+        result.bundle is not None
+        or result.explanation is not None
+        or result.abstention_reason is None
+        or result.support_decision.status
+        not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
+    ):
+        raise ValueError("abstained result requires no bundle, explanation, and safe status")
+    if result.status is EvidencePublicationStatus.ABSTAINED and not result.human_review_required:
+        raise ValueError("abstention requires human review")
+    if len(result.findings) != len(set(result.findings)):
+        raise ValueError("findings must be unique")
+
+
+def _validate_result_bindings(result: ProteinRnaEvidencePublicationResult) -> None:
+    if result.provenance.module_id != M1008_MODULE_ID:
+        raise ValueError("provenance must identify M10-08")
+    if result.provenance.consent_state is not ConsentState.GRANTED:
+        raise ValueError("result provenance must retain the consent decision")
+    if result.provenance != expected_provenance(
+        result.request.context,
+        input_digests=expected_input_digests(result.request),
+    ):
+        raise ValueError("result provenance does not bind the exact request context")
+    if result.uncertainty != expected_uncertainty():
+        raise ValueError("result uncertainty does not match the provisional profile")
+    if result.evidence != expected_evidence(result.request):
+        raise ValueError("result evidence does not bind the exact request sources")
+    if result.limitations != expected_limitations(
+        published=result.status is EvidencePublicationStatus.PUBLISHED
+    ):
+        raise ValueError("result limitations do not match its publication status")
+    if result.bundle is not None and (
+        result.bundle.upstream_result != result.request.upstream_result
+        or result.bundle.sources != result.request.source_artifacts
+        or result.bundle.assumptions != result.request.assumptions
+        or result.bundle.counter_evidence != result.request.counter_evidence
+        or result.bundle.uncertainty != result.uncertainty
+        or result.bundle.support_decision != result.support_decision
+        or result.bundle.provenance != result.provenance
+        or result.bundle.evidence != result.evidence
+    ):
+        raise ValueError("published bundle does not bind the result envelope")
+    if (
+        result.explanation is not None
+        and result.explanation.reconstruction_evidence != result.evidence
+    ):
+        raise ValueError("explanation evidence does not bind the result envelope")
 
 
 def expected_uncertainty() -> UncertaintyProfile:
@@ -351,6 +388,25 @@ def expected_limitations(*, published: bool) -> tuple[Limitation, ...]:
             )
         )
     return tuple(statements)
+
+
+def expected_evidence(request: PublishProteinRnaEvidenceRequest) -> tuple[EvidenceReference, ...]:
+    """Return the stable, duplicate-free evidence projection for a request."""
+
+    references = tuple(
+        evidence for source in request.source_artifacts for evidence in source.evidence
+    )
+    return tuple(dict.fromkeys(references))
+
+
+def expected_input_digests(request: PublishProteinRnaEvidenceRequest) -> tuple[Sha256Digest, ...]:
+    """Return source and evidence digests bound into module provenance."""
+
+    return (
+        request.upstream_result.digest,
+        *(source.artifact.digest for source in request.source_artifacts),
+        *(evidence.reference.digest for evidence in expected_evidence(request)),
+    )
 
 
 def expected_provenance(
@@ -463,6 +519,8 @@ __all__ = [
     "PublisherSourceKind",
     "ReconstructionStatus",
     "ReconstructionStep",
+    "expected_evidence",
+    "expected_input_digests",
     "expected_limitations",
     "expected_provenance",
     "expected_uncertainty",

@@ -4,11 +4,11 @@
   "authority_lines": "3584-3627",
   "iterations": 10,
   "mean_budget_ns": 2000000000,
-  "mean_ns": 1808110,
-  "median_ns": 1801600,
+  "mean_ns": 2136270,
+  "median_ns": 2057200,
   "p95_budget_ns": 3000000000,
-  "p95_ns": 1948900,
-  "samples_ns": [1789300, 1802700, 1821100, 1948900, 1800500, 1828800, 1818000, 1790300, 1736800, 1744700],
+  "p95_ns": 2898400,
+  "samples_ns": [2154400, 1870900, 1862700, 2898400, 1993600, 1948300, 2151700, 2382000, 1979900, 2120800],
   "timed_boundary": "M1008EvidencePublisherService.execute_only",
   "passed": true
 }
