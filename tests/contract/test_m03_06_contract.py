@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import pytest
 from evals.m03_06.run import Scenario, build_scenario
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m03_06 import (
@@ -132,9 +132,7 @@ def test_public_abi_constants_and_closed_enums_are_exact() -> None:
         "complex_activity",
     )
     assert M0306_RATE_SCALE == 10**6
-    assert M0306_FACTOR_COUNT == M0306_MAX_STAGES == len(
-        ProteinInferenceNormalizationFactor
-    )
+    assert M0306_FACTOR_COUNT == M0306_MAX_STAGES == len(ProteinInferenceNormalizationFactor)
     assert M0306_MAX_UNITS == 2**9
     assert {item.value for item in ProteinInferenceNormalizationFactor} == {
         "platform",
@@ -162,9 +160,7 @@ def test_all_installed_schemas_are_standalone_strict_draft_2020_12(name: str) ->
     Draft202012Validator.check_schema(schema)
 
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-    assert schema["$id"] == (
-        f"urn:aurora-neuro:glio-proteogen:{M0306_MODULE_ID}:1.0.0:{name}"
-    )
+    assert schema["$id"] == (f"urn:aurora-neuro:glio-proteogen:{M0306_MODULE_ID}:1.0.0:{name}")
     assert schema["additionalProperties"] is False
     metadata = cast("dict[str, object]", schema["x-glio-contract"])
     assert metadata["moduleId"] == M0306_MODULE_ID
@@ -278,9 +274,7 @@ def test_support_ledger_closes_unit_projection_invariants_and_digest(
     ledger = canonical_request.support_ledger
     assert ledger is not None
     assert len(ledger.observations) == canonical_request.artifact_receipt.unit_count
-    assert {item.kind for item in ledger.invariants} == set(
-        ProteinInferenceSupportInvariantKind
-    )
+    assert {item.kind for item in ledger.invariants} == set(ProteinInferenceSupportInvariantKind)
 
     duplicate_kind = ledger.invariants[0].model_copy(
         update={"invariant_id": "invariant." + ("f" * 64)}
@@ -290,9 +284,7 @@ def test_support_ledger_closes_unit_projection_invariants_and_digest(
             canonical_request,
             invariants=(ledger.invariants[0], duplicate_kind, ledger.invariants[1]),
         )
-    unknown = ledger.invariants[0].model_copy(
-        update={"left_unit_ids": ("unit." + ("f" * 64),)}
-    )
+    unknown = ledger.invariants[0].model_copy(update={"left_unit_ids": ("unit." + ("f" * 64),)})
     with pytest.raises(ValidationError, match="unknown unit"):
         _resigned_ledger(
             canonical_request,
@@ -342,9 +334,7 @@ def test_profile_stage_and_policy_match_domains_are_closed(
     assert {item.factor for item in profile.stages} == set(ProteinInferenceNormalizationFactor)
 
     repeated_factor = tuple(
-        stage.model_copy(update={"factor": profile.stages[0].factor})
-        if index == 1
-        else stage
+        stage.model_copy(update={"factor": profile.stages[0].factor}) if index == 1 else stage
         for index, stage in enumerate(profile.stages)
     )
     with pytest.raises(ValidationError, match="every technical factor"):
@@ -364,9 +354,7 @@ def test_profile_stage_and_policy_match_domains_are_closed(
             ),
             strict=True,
         )
-    overlapping = profile.model_copy(
-        update={"profile_id": "profile." + ("f" * 64)}
-    )
+    overlapping = profile.model_copy(update={"profile_id": "profile." + ("f" * 64)})
     with pytest.raises(ValidationError, match="match domains must be disjoint"):
         ProteinInferenceHarmonizationPolicy.model_validate(
             policy.model_copy(update={"profiles": (profile, overlapping)}),
@@ -505,9 +493,7 @@ def test_request_canonicalization_preserves_complete_typed_equality(
     ledger = canonical_request.support_ledger
     assert ledger is not None
     payload = _payload(canonical_request)
-    payload["artifact_receipt"]["units"] = tuple(
-        reversed(payload["artifact_receipt"]["units"])
-    )
+    payload["artifact_receipt"]["units"] = tuple(reversed(payload["artifact_receipt"]["units"]))
     payload["support_ledger"]["observations"] = tuple(
         reversed(payload["support_ledger"]["observations"])
     )
