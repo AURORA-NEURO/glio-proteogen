@@ -48,6 +48,9 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
+    M1904Engine,
+)
 
 type _ControlReference = UpstreamDecisionReference | IdentityLineageReference | ConsentReference
 
@@ -378,6 +381,50 @@ def test_abstention_requires_human_review_and_safe_support() -> None:
                 }
             )
         )
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "audience",
+        "maximum_claim",
+        "rationale",
+        "claim_ceiling_evidence",
+        "display_default",
+        "display_evidence",
+        "registration_evidence",
+    ],
+)
+def test_all_caller_claim_surfaces_block_prohibited_scope(surface: str) -> None:
+    request = _request()
+    registration = request.registration
+    if surface == "audience":
+        registration = registration.model_copy(update={"audience": "glioma-specific audience"})
+    elif surface in {"maximum_claim", "rationale", "claim_ceiling_evidence"}:
+        ceiling = registration.claim_ceiling
+        if surface == "maximum_claim":
+            ceiling = ceiling.model_copy(update={"maximum_claim": "proteoform inference claim"})
+        elif surface == "rationale":
+            ceiling = ceiling.model_copy(update={"rationale": "identity inference rationale"})
+        else:
+            evidence = ceiling.evidence[0].model_copy(update={"claim": "isoform evidence"})
+            ceiling = ceiling.model_copy(update={"evidence": (evidence,)})
+        registration = registration.model_copy(update={"claim_ceiling": ceiling})
+    elif surface in {"display_default", "display_evidence"}:
+        display = registration.display_semantics
+        if surface == "display_default":
+            display = display.model_copy(update={"safe_default": "Show protein inference."})
+        else:
+            evidence = display.evidence[0].model_copy(update={"claim": "proteoform evidence"})
+            display = display.model_copy(update={"evidence": (evidence,)})
+        registration = registration.model_copy(update={"display_semantics": display})
+    else:
+        evidence = registration.evidence[0].model_copy(update={"claim": "isoform evidence"})
+        registration = registration.model_copy(update={"evidence": (evidence,)})
+
+    result = M1904Engine().adapt(request.model_copy(update={"registration": registration}))
+    assert result.status is AdapterStatus.ABSTAINED
+    assert any(item.code is AdapterFindingCode.CLAIM_EXCEEDS_CEILING for item in result.findings)
     with pytest.raises(ValueError, match="human review"):
         _revalidate(
             result.model_copy(

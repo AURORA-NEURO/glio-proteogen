@@ -4,6 +4,7 @@ from typing import cast
 
 from glio_proteogen.contracts.m19_04 import (
     M1904_OUTPUT_MEDIA_TYPE,
+    M1904_PROHIBITED_CLAIM_TERMS,
     M1904_PROVISIONAL_ABI,
     ClaimCeiling,
     DisplaySemantics,
@@ -55,6 +56,10 @@ def test_provisional_schemas_preserve_intended_use_boundaries() -> None:
     )
     assert _metadata(schemas["output"])["outputMediaType"] == M1904_OUTPUT_MEDIA_TYPE
     assert M1904_PROVISIONAL_ABI is True
+    assert all(
+        tuple(cast("list[str]", item["prohibitedClaimTerms"])) == M1904_PROHIBITED_CLAIM_TERMS
+        for item in (_metadata(schema) for schema in schemas.values())
+    )
 
 
 def test_registration_keeps_claim_ceiling_and_display_semantics_typed() -> None:
