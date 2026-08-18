@@ -21,8 +21,15 @@
     }
   },
   "validation": {
-    "scenarios": 3,
-    "expected_paths": ["target_supported", "decoy_rejected", "no_match"],
+    "scenarios": 6,
+    "expected_paths": [
+      "target_supported",
+      "decoy_rejected",
+      "no_match",
+      "precursor_rejected",
+      "shared_peptide_group",
+      "multi_spectrum"
+    ],
     "replay": "full_result_projection_and_digest",
     "raw_cohort_bytes_bundled": false
   }
