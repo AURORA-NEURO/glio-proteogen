@@ -222,9 +222,10 @@ def run_evaluator() -> dict[str, object]:
         "duplicate_biological_source",
         "technical_duplicate_visibility",
         "unknown_independence_abstention",
-        "incompatible_search_space",
-        "pdc_provenance_replay",
-    )
+            "incompatible_search_space",
+            "pdc_provenance_replay",
+            "pdc_manifest_receipt_identity",
+        )
     if _locked_ids() != expected_ids:
         raise ValueError
     target = next(item for item in scenarios() if item.scenario_id == "target_supported")
@@ -391,17 +392,14 @@ def run_evaluator() -> dict[str, object]:
         }
     )
 
-    pdc_result = run_research_cohort(
-        ResearchCohortRequest(
-            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2")),
-            provenance_policy="external_same_study",
-        )
+    pdc_samples = (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2"))
+    pdc_request = ResearchCohortRequest(
+        pdc_samples,
+        provenance_policy="external_same_study",
     )
+    pdc_result = run_research_cohort(pdc_request)
     replay = replay_research_cohort(
-        ResearchCohortRequest(
-            (_pdc_sample(target, "pdc-a", "r1"), _pdc_sample(target, "pdc-b", "r2")),
-            provenance_policy="external_same_study",
-        ),
+        pdc_request,
         pdc_result,
     )
     provenance = dict(pdc_result.configuration)["sample_source_provenance"]
@@ -415,6 +413,32 @@ def run_evaluator() -> dict[str, object]:
             "result_digest": pdc_result.result_digest,
             "missing_cells": 0,
             "projection": _projection(pdc_result),
+        }
+    )
+    manifest = CohortSourceManifest.from_requests(
+        tuple(sample.request for sample in pdc_samples),
+        replicate_kinds={sample.sample_id: "technical" for sample in pdc_samples},
+    )
+    forged = replace(manifest.for_sample("pdc-a"), catalog_response_sha256="f" * 64)
+    forged_manifest = CohortSourceManifest((forged, manifest.for_sample("pdc-b")))
+    forged_error = False
+    try:
+        run_research_cohort(
+            ResearchCohortRequest(
+                pdc_samples,
+                provenance_policy="external_same_study",
+                source_manifest=forged_manifest,
+            )
+        )
+    except ValueError as error:
+        forged_error = "catalog response" in str(error)
+    outcomes.append(
+        {
+            "id": "pdc_manifest_receipt_identity",
+            "passed": forged_error,
+            "result_digest": None,
+            "missing_cells": None,
+            "projection": None,
         }
     )
     return {
