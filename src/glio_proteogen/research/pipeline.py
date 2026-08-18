@@ -58,6 +58,8 @@ class ResearchRunRequest:
     q_value_threshold: float = 0.01
     max_bytes: int = 256 * 1024 * 1024
     external_source_reference: SourceReference | None = None
+    external_pdc_file: PdcFile | None = None
+    external_pdc_response_sha256: str | None = None
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -66,12 +68,25 @@ class ResearchRunRequest:
             raise ValueError("max_bytes is outside the research limit")
         object.__setattr__(self, "mzml_source", _read_bytes(self.mzml_source, self.max_bytes))
         object.__setattr__(self, "fasta_source", _read_bytes(self.fasta_source, self.max_bytes))
+        if self.external_pdc_file is not None and not isinstance(self.external_pdc_file, PdcFile):
+            raise TypeError("external_pdc_file must be a PdcFile")
+        if self.external_pdc_response_sha256 is not None and (
+            type(self.external_pdc_response_sha256) is not str
+            or len(self.external_pdc_response_sha256) != 64
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.external_pdc_response_sha256.lower()
+            )
+        ):
+            raise ValueError("external_pdc_response_sha256 must be a 64-character SHA-256")
 
 
 def bind_pdc_mzml_source(
     request: ResearchRunRequest,
     pdc_file: PdcFile,
     source_reference: SourceReference,
+    *,
+    pdc_response_sha256: str | None = None,
 ) -> ResearchRunRequest:
     """Bind caller-downloaded PDC mzML bytes to immutable provenance metadata.
 
@@ -104,6 +119,8 @@ def bind_pdc_mzml_source(
         request,
         mzml_source=snapshot,
         external_source_reference=source_reference,
+        external_pdc_file=pdc_file,
+        external_pdc_response_sha256=pdc_response_sha256,
     )
 
 
@@ -222,6 +239,20 @@ def _group_dict(value: ProteinGroup) -> dict[str, object]:
     }
 
 
+def _pdc_file_dict(value: PdcFile) -> dict[str, object]:
+    return {
+        "data_category": value.data_category,
+        "file_format": value.file_format,
+        "file_name": value.file_name,
+        "file_size": value.file_size,
+        "file_type": value.file_type,
+        "location": value.location,
+        "md5": value.md5,
+        "signed_url": value.signed_url,
+        "study_id": value.study_id,
+    }
+
+
 def _result_digest(payload: dict[str, object]) -> str:
     return sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -267,7 +298,7 @@ def _validate_request(request: ResearchRunRequest) -> None:
         raise ValueError("q_value_threshold must be finite and between zero and one")
 
 
-def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunResult:
+def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunResult:  # noqa: PLR0915
     """Execute transparent spectrum search, FDR, spectral counting, and grouping."""
     _validate_request(request)
     mzml_bytes = _read_bytes(request.mzml_source, request.max_bytes)
@@ -413,6 +444,12 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "external_source_sha256": (
                     external_reference.sha256 if external_reference is not None else None
                 ),
+                "external_pdc_file": (
+                    _pdc_file_dict(request.external_pdc_file)
+                    if request.external_pdc_file is not None
+                    else None
+                ),
+                "external_pdc_response_sha256": request.external_pdc_response_sha256,
             }.items()
         )
     )
@@ -465,6 +502,18 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 external_reference.source_id,
                 "external_proteomics_mzml",
                 external_reference.as_dict(),
+            )
+        )
+    if request.external_pdc_file is not None:
+        evidence_records.append(
+            EvidenceRecord.create(
+                "input:external-pdc-file",
+                request.external_pdc_file.location,
+                "external_pdc_file_declaration",
+                {
+                    **_pdc_file_dict(request.external_pdc_file),
+                    "response_sha256": request.external_pdc_response_sha256,
+                },
             )
         )
     evidence = aggregate_evidence(tuple(evidence_records))

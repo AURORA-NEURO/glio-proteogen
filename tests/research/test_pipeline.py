@@ -278,6 +278,11 @@ def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
     result = run_research_protein_inference(bound)
     assert dict(result.configuration)["external_source_id"] == source_reference.source_id
     assert any(record.kind == "external_proteomics_mzml" for record in result.evidence.records)
+    assert any(record.kind == "external_pdc_file_declaration" for record in result.evidence.records)
+    renamed = replace(bound, external_pdc_file=replace(pdc_file, file_name="renamed.mzML"))
+    assert run_research_protein_inference(renamed).result_digest != result.result_digest
+    response_bound = replace(bound, external_pdc_response_sha256="a" * 64)
+    assert run_research_protein_inference(response_bound).result_digest != result.result_digest
     with pytest.raises(ValueError, match="size"):
         bind_pdc_mzml_source(
             request,

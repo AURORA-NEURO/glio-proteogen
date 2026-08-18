@@ -5,6 +5,15 @@ reproducible primitives for inspecting public proteomics evidence, but it does n
 protein, disease, or clinical claims and is not wired into the M03/M04 execution surfaces.
 """
 
+from .cohort import (
+    CohortGroupQc,
+    CohortSampleQc,
+    ResearchCohortRequest,
+    ResearchCohortResult,
+    ResearchCohortSample,
+    replay_research_cohort,
+    run_research_cohort,
+)
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import FastaEntry, digest_trypsin, read_fasta
 from .mzml import Spectrum, parse_mzml
@@ -41,6 +50,8 @@ from .search import (
 )
 
 __all__ = [
+    "CohortGroupQc",
+    "CohortSampleQc",
     "EvidenceBundle",
     "EvidenceRecord",
     "FastaEntry",
@@ -54,6 +65,9 @@ __all__ = [
     "ProteinGroupFdrSummary",
     "ProteinGroupQuant",
     "Psm",
+    "ResearchCohortRequest",
+    "ResearchCohortResult",
+    "ResearchCohortSample",
     "ResearchRunRequest",
     "ResearchRunResult",
     "SearchParameters",
@@ -69,7 +83,9 @@ __all__ = [
     "quantify_matched_ions",
     "quantify_protein_groups",
     "read_fasta",
+    "replay_research_cohort",
     "replay_research_protein_inference",
+    "run_research_cohort",
     "run_research_protein_inference",
     "search_spectrum",
     "summarize_target_decoy",
