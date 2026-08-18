@@ -70,7 +70,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _verify_evaluation(path: Path) -> None:
+def _verify_evaluation(path: Path) -> str:
     evidence = _read_json(path)
     observed = run_evaluator()
     benchmark = run_benchmark(iterations=10)
@@ -118,6 +118,7 @@ def _verify_evaluation(path: Path) -> None:
         or float(coverage.get("percent", 0.0)) < float(coverage.get("fail_under", 95.0))
     ):
         raise VerificationError("research coverage evidence is below its fail-under threshold")
+    return str(observed["fixture_sha256"])
 
 
 def _verify_package(path: Path, receipt: dict[str, object]) -> None:
@@ -151,7 +152,10 @@ def _verify_package(path: Path, receipt: dict[str, object]) -> None:
 
 
 def _verify_package_receipt(
-    path: Path, wheel: Path | None, sdist: Path | None
+    path: Path,
+    wheel: Path | None,
+    sdist: Path | None,
+    expected_fixture_sha256: str | None = None,
 ) -> tuple[dict[str, object], dict[str, object]]:
     evidence = _read_json(path)
     verification = evidence.get("verification")
@@ -176,6 +180,9 @@ def _verify_package_receipt(
         raise VerificationError("research package evidence must record two reproducible builds")
     if verification.get("source_date_epoch") != _EXPECTED_SOURCE_DATE_EPOCH:
         raise VerificationError("research package evidence has an unexpected SOURCE_DATE_EPOCH")
+    recorded_fixture = verification.get("fixture_sha256")
+    if expected_fixture_sha256 is not None and recorded_fixture != expected_fixture_sha256:
+        raise VerificationError("research package fixture digest does not match evaluation")
     if wheel is not None and sdist is not None:
         _verify_package(wheel, wheel_receipt)
         _verify_package(sdist, sdist_receipt)
@@ -190,13 +197,13 @@ def verify(
 ) -> None:
     """Verify evaluator evidence and, when supplied, package reachability."""
 
-    _verify_evaluation(evaluation)
+    fixture_sha256 = _verify_evaluation(evaluation)
     if (wheel is None) != (sdist is None):
         raise VerificationError("wheel and sdist must be supplied together")
     if wheel is not None and sdist is not None:
-        _verify_package_receipt(package_evidence, wheel, sdist)
+        _verify_package_receipt(package_evidence, wheel, sdist, fixture_sha256)
     else:
-        _verify_package_receipt(package_evidence, None, None)
+        _verify_package_receipt(package_evidence, None, None, fixture_sha256)
 
 
 def main() -> int:

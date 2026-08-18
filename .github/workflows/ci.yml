@@ -710,3 +710,10 @@ jobs:
               installed-wheel \
               "$wheel"
           )
+      - name: Replay research evidence against the exact distributions
+        run: |
+          wheel="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.whl')"
+          sdist="$(find "$GITHUB_WORKSPACE/dist-one" -maxdepth 1 -type f -name '*.tar.gz')"
+          uv run --offline python tools/verify_research_pipeline.py \
+            docs/evidence/research-foundation/evaluation.json \
+            "$wheel" "$sdist"
