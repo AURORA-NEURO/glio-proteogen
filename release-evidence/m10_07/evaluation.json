@@ -1,0 +1,9 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-07",
+  "authority_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "authority_lines": [3540, 3583],
+  "checks": 10,
+  "passed": true,
+  "fixture": "tests/fixtures/m10_07/scenarios.json",
+  "result_digest": "sha256:2a1185eb218ee0f88e3bb6a7761af1ab84888b5e9c95fcdb2d7e921fa8738264"
+}

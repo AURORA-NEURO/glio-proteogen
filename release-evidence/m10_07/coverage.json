@@ -1,0 +1,16 @@
+{
+  "module_id": "GLIO-PROTEOGEN-M10-07",
+  "branch_enabled": true,
+  "fail_under_percent": 95.0,
+  "percent_covered": 98.01699716713881,
+  "statements": 592,
+  "covered_statements": 582,
+  "missing_statements": 10,
+  "branches": 114,
+  "covered_branches": 110,
+  "missing_branches": 4,
+  "partial_branches": 4,
+  "percent_branches_covered": 96.49122807017544,
+  "passed": true,
+  "command": "uv run pytest -o addopts='' tests/contract/test_m10_07_contract.py tests/modules/test_m10_07_runtime.py tests/modules/test_m10_07_adversarial.py tests/integration/test_m10_07_interfaces.py tests/evals/test_m10_07_evaluation.py --cov=glio_proteogen.contracts.m10_07 --cov=glio_proteogen.modules.c10_pathway_proteotype.m10_07_calibration_selective_prediction --cov-branch --cov-fail-under=95"
+}
