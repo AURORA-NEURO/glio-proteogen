@@ -67,7 +67,8 @@
     "findings": 15,
     "support_coordinate_ppm": 1000000,
     "post_validation_residual_ppm": 2000000,
-    "canonical_request_bytes": 4194304
+    "canonical_request_bytes": 4194304,
+    "canonical_result_bytes": 4194304
   },
   "fixture_prohibitions": [
     "direct_patient_identifier",
@@ -213,15 +214,16 @@
         "library_engine_service_and_plugin_outputs_match",
         "api_operation_and_schema_exports_match_installed_contracts",
         "cli_operation_and_schema_exports_match_installed_contracts",
+        "api_cli_and_service_replay_verify_reject_forged_results",
         "supersession_recovery_is_append_only_and_immutable",
         "evidence_inventory_executes_every_declared_case",
         "representative_public_operation_benchmark_times_only_harmonization"
       ],
-      "expected_case_count": 6,
+      "expected_case_count": 7,
       "interface_rule": "library, engine, service, plugin, API, CLI, and installed schemas expose one strict operation with equal successful output and sanitized typed failure behavior",
       "recovery_rule": "correction creates a new immutable result whose request explicitly cites the superseded digest"
     }
   ],
   "expected_group_count": 8,
-  "expected_total_case_count": 56
+  "expected_total_case_count": 57
 }

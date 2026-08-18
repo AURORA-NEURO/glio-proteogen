@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, TypedDict, cast
 
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 if __package__ in {None, ""}:
@@ -35,6 +36,7 @@ from glio_proteogen.contracts.m03_05 import (
 )
 from glio_proteogen.contracts.m03_06 import (
     M0306_MAX_CANONICAL_REQUEST_BYTES,
+    M0306_MAX_CANONICAL_RESULT_BYTES,
     M0306_MAX_EVIDENCE,
     M0306_MAX_FINDINGS,
     M0306_MAX_INVARIANTS,
@@ -83,6 +85,7 @@ from glio_proteogen.contracts.m03_06 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import ArtifactReference
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
     compute_protein_inference_quality,
 )
@@ -104,7 +107,7 @@ MODULE_ID: Final = "GLIO-PROTEOGEN-M03-06"
 ROOT: Final = Path(__file__).parents[2]
 SCENARIO_PATH: Final = ROOT / "tests" / "fixtures" / "m03_06" / "scenarios.json"
 _EXPECTED_GROUP_COUNT: Final = 8
-_EXPECTED_CASE_COUNT: Final = 56
+_EXPECTED_CASE_COUNT: Final = 57
 _CANONICAL_UNIT_COUNT: Final = 38
 _REFERENCE_COORDINATE_PPM: Final = 500_000
 _INVARIANT_SCORE_PPM: Final = 200_000
@@ -115,9 +118,7 @@ _EXPECTED_RESULT_EVIDENCE_CAP: Final = 16
 _EXPECTED_FINDING_CAP: Final = 15
 _HTTP_OK: Final = 200
 _OPAQUE_DIGEST_LENGTH: Final = 64
-_OPAQUE_GRAPH_ID_FIELDS: Final[
-    dict[str, ProteinInferenceHarmonizationIdentifierNamespace]
-] = {
+_OPAQUE_GRAPH_ID_FIELDS: Final[dict[str, ProteinInferenceHarmonizationIdentifierNamespace]] = {
     "request_id": "request",
     "policy_id": "policy",
     "profile_id": "profile",
@@ -280,8 +281,7 @@ def _expanded_artifact_request(
     )
     unit_ids = {label: _unit_id(label, kind) for label, kind in labels}
     units: tuple[ProteinInferenceArtifactEvidenceUnit, ...] = tuple(
-        templates[kind].model_copy(update={"unit_id": unit_ids[label]})
-        for label, kind in labels
+        templates[kind].model_copy(update={"unit_id": unit_ids[label]}) for label, kind in labels
     )
     payload = ledger.model_dump(mode="python", exclude={"ledger_digest"})
     payload["units"] = units
@@ -506,9 +506,7 @@ def _profile(
             stage_id=_oid("stage", {"factor": factor.value, "ordinal": index}),
             ordinal=index,
             factor=factor,
-            reference_level_id=_oid(
-                "level", {"factor": factor.value, "side": "reference"}
-            ),
+            reference_level_id=_oid("level", {"factor": factor.value, "side": "reference"}),
             estimation_anchor_ids=(
                 _oid("anchor", {"purpose": "estimation", "factor": factor.value}),
             ),
@@ -573,9 +571,7 @@ def _scenario_for_unit_count(unit_count: int) -> Scenario:
                 "request", {"unit_count": unit_count, "ledger": ledger.ledger_digest}
             ),
             "occurred_at": artifact_result.completed_at + timedelta(seconds=2),
-            "references": references.model_copy(
-                update={"approved_configuration": approved}
-            ),
+            "references": references.model_copy(update={"approved_configuration": approved}),
         }
     )
     request = HarmonizeProteinInferenceSupportRequest(
@@ -668,11 +664,7 @@ def _with_policy(
         }
     )
     context = request.context.model_copy(
-        update={
-            "references": references.model_copy(
-                update={"approved_configuration": approved}
-            )
-        }
+        update={"references": references.model_copy(update={"approved_configuration": approved})}
     )
     ledger = request.support_ledger if support_ledger is ... else support_ledger
     return HarmonizeProteinInferenceSupportRequest.model_validate(
@@ -699,9 +691,7 @@ def _plugin_rejects(candidate: object) -> bool:
 
 
 def _authorization_rejects(candidate: object) -> bool:
-    return _fails(
-        lambda: preflight_protein_inference_harmonization_authorization(candidate)
-    )
+    return _fails(lambda: preflight_protein_inference_harmonization_authorization(candidate))
 
 
 def _corpus() -> Corpus:
@@ -732,8 +722,7 @@ def _genuine_closure_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "compact_artifact_receipt_binds_exact_m0305_result",
             passed=(
-                request.artifact_receipt
-                == artifact_harmonization_receipt(scenario.artifact_result)
+                request.artifact_receipt == artifact_harmonization_receipt(scenario.artifact_result)
                 and request.artifact_receipt.receipt_digest
                 == artifact_receipt_digest(request.artifact_receipt)
             ),
@@ -759,8 +748,7 @@ def _genuine_closure_checks(scenario: Scenario) -> list[EvalCheck]:
                         and observation.unit_kind is unit.unit_kind
                         and observation.artifact_posterior_state is unit.posterior_state
                         and observation.artifact_action is unit.action
-                        and observation.artifact_signal_score_digest
-                        == unit.signal_score_digest
+                        and observation.artifact_signal_score_digest == unit.signal_score_digest
                         and observation.artifact_posterior_digest == unit.posterior_digest
                         for unit in request.artifact_receipt.units
                     )
@@ -829,8 +817,7 @@ def _fixed_point_checks(scenario: Scenario) -> list[EvalCheck]:
         comparison = next(
             item
             for item in stage.level_shifts
-            if item.level_id
-            == _oid("level", {"factor": factor.value, "side": "comparison"})
+            if item.level_id == _oid("level", {"factor": factor.value, "side": "comparison"})
         )
         checks.append(
             _scenario(
@@ -1008,8 +995,7 @@ def _artifact_firewall_and_state_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "not_applicable_support_state_is_preserved",
             passed=(
-                not_applicable.input_state
-                is ProteinInferenceSupportObservationState.NOT_APPLICABLE
+                not_applicable.input_state is ProteinInferenceSupportObservationState.NOT_APPLICABLE
                 and not_applicable.harmonized_support_coordinate_ppm is None
                 and not not_applicable.adjustments
             ),
@@ -1018,8 +1004,7 @@ def _artifact_firewall_and_state_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "unsupported_support_state_is_preserved",
             passed=(
-                unsupported.input_state
-                is ProteinInferenceSupportObservationState.UNSUPPORTED
+                unsupported.input_state is ProteinInferenceSupportObservationState.UNSUPPORTED
                 and unsupported.harmonized_support_coordinate_ppm is None
                 and not unsupported.adjustments
             ),
@@ -1032,8 +1017,7 @@ def _artifact_firewall_and_state_checks(scenario: Scenario) -> list[EvalCheck]:
                 and zero.input_support_coordinate_ppm == 0
                 and zero.harmonized_support_coordinate_ppm == 0
                 and zero.input_state is not missing.input_state
-                and baseline_value.input_support_coordinate_ppm
-                == _RANK_LEFT_COORDINATE_PPM
+                and baseline_value.input_support_coordinate_ppm == _RANK_LEFT_COORDINATE_PPM
             ),
             detail="observed zero remains typed numeric zero",
         ),
@@ -1114,8 +1098,7 @@ def _invariant_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "unreduced_heldout_technical_effect_quarantines",
             passed=(
-                heldout_failure.disposition
-                is ProteinInferenceHarmonizationDisposition.QUARANTINED
+                heldout_failure.disposition is ProteinInferenceHarmonizationDisposition.QUARANTINED
                 and any(
                     item.code
                     is ProteinInferenceHarmonizationFindingCode.TECHNICAL_EFFECT_NOT_REDUCED
@@ -1170,8 +1153,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
         for name, quality in quality_results.items()
     }
     artifact_results = {
-        name: detect_protein_inference_artifacts(value)
-        for name, value in artifact_requests.items()
+        name: detect_protein_inference_artifacts(value) for name, value in artifact_requests.items()
     }
     safe_results: dict[str, ProteinInferenceHarmonizationResult] = {}
     for name, artifact_result in artifact_results.items():
@@ -1226,9 +1208,7 @@ def _safe_failure_checks(scenario: Scenario) -> list[EvalCheck]:
         update={"approved_assay_protocol_versions": ("9.9.9",)}
     )
     unsupported_policy = request.policy.model_copy(update={"profiles": (unmatched_profile,)})
-    unsupported = harmonize_protein_inference_support(
-        _with_policy(request, unsupported_policy)
-    )
+    unsupported = harmonize_protein_inference_support(_with_policy(request, unsupported_policy))
     # COMPLETE receipts prove their firewall state from unit posteriors; their action mapping
     # is therefore validated here without inventing a contradictory caller-authored envelope.
     unit = request.artifact_receipt.units[0]
@@ -1367,9 +1347,10 @@ def _strict_capacity_checks(scenario: Scenario) -> list[EvalCheck]:
     denied = payload
     denied["context"]["references"]["consent"]["state"] = "withheld"
     denied["support_ledger"] = hostile
-    denied_without_traversal = _fails(
-        lambda: preflight_protein_inference_harmonization_authorization(denied)
-    ) and hostile.traversals == 0
+    denied_without_traversal = (
+        _fails(lambda: preflight_protein_inference_harmonization_authorization(denied))
+        and hostile.traversals == 0
+    )
     controls = request.context.references
     denial_matrix = (
         ("approved_configuration", "state", "rejected"),
@@ -1553,9 +1534,7 @@ def _canonical_privacy_checks(scenario: Scenario) -> list[EvalCheck]:
     nested_forgery_rejected = _fails(
         lambda: ProteinInferenceHarmonizationResult.model_validate(forged_result, strict=True)
     )
-    receipt_payload = request.artifact_receipt.model_dump(
-        mode="python", exclude={"receipt_digest"}
-    )
+    receipt_payload = request.artifact_receipt.model_dump(mode="python", exclude={"receipt_digest"})
     first_unit = receipt_payload["units"][0]
     receipt_payload["units"] = (
         {**first_unit, "unit_id": "unit." + ("a" * 64)},
@@ -1661,8 +1640,7 @@ def _canonical_privacy_checks(scenario: Scenario) -> list[EvalCheck]:
         _scenario(
             "resigned_artifact_receipt_without_support_ledger_rebind_is_rejected",
             passed=(
-                resigned_result.disposition
-                is ProteinInferenceHarmonizationDisposition.QUARANTINED
+                resigned_result.disposition is ProteinInferenceHarmonizationDisposition.QUARANTINED
                 and resigned_result.analysis is None
                 and {item.code for item in resigned_result.findings}
                 == {ProteinInferenceHarmonizationFindingCode.SUPPORT_LEDGER_BINDING_MISMATCH}
@@ -1687,15 +1665,22 @@ def _interface_recovery_checks(scenario: Scenario) -> list[EvalCheck]:
         temp = Path(directory)
         request_path = temp / "request.json"
         request_path.write_bytes(canonical_json_bytes(request))
+        expected_result_path = temp / "result.json"
+        expected_result_path.write_bytes(canonical_json_bytes(library))
+        result_size = len(expected_result_path.read_bytes())
         with TestClient(create_app(temp / "eval.sqlite3")) as client:
             api_response = client.post(
                 "/v1/modules/M03-06/harmonization",
                 content=canonical_json_bytes(request),
                 headers={"content-type": "application/json"},
             )
+            api_verify_response = client.post(
+                "/v1/modules/M03-06/harmonization/verify",
+                content=expected_result_path.read_bytes(),
+                headers={"content-type": "application/json"},
+            )
             api_schemas = {
-                name: client.get(f"/v1/contracts/M03-06/{name}/schema")
-                for name in _SCHEMA_NAMES
+                name: client.get(f"/v1/contracts/M03-06/{name}/schema") for name in _SCHEMA_NAMES
             }
         api_result = ProteinInferenceHarmonizationResult.model_validate_json(
             api_response.content,
@@ -1709,6 +1694,31 @@ def _interface_recovery_checks(scenario: Scenario) -> list[EvalCheck]:
             cli_harmonize.stdout,
             strict=True,
         )
+        cli_verify = CliRunner().invoke(
+            cli_app,
+            ["protein-inference-harmonization", "verify", str(expected_result_path)],
+        )
+        cli_verify_result = ProteinInferenceHarmonizationResult.model_validate_json(
+            cli_verify.stdout,
+            strict=True,
+        )
+        forged = library.model_dump(mode="json")
+        forged["result_digest"] = "sha256:" + ("f" * 64)
+        duplicate = library.model_dump_json().replace(
+            '"result_id":', '"result_id":"duplicate","result_id":', 1
+        )
+        try:
+            service.verify(forged)
+        except ValidationError:
+            forged_rejected = True
+        else:
+            forged_rejected = False
+        try:
+            service.verify(duplicate)
+        except StrictJsonError:
+            duplicate_rejected = True
+        else:
+            duplicate_rejected = False
         cli_schemas = {
             name: CliRunner().invoke(
                 cli_app,
@@ -1769,6 +1779,26 @@ def _interface_recovery_checks(scenario: Scenario) -> list[EvalCheck]:
             detail=f"exit={cli_harmonize.exit_code};exact schemas={len(cli_schemas)}",
         ),
         _scenario(
+            "api_cli_and_service_replay_verify_reject_forged_results",
+            passed=(
+                api_verify_response.status_code == _HTTP_OK
+                and ProteinInferenceHarmonizationResult.model_validate_json(
+                    api_verify_response.content, strict=True
+                )
+                == library
+                and cli_verify.exit_code == 0
+                and cli_verify_result == library
+                and forged_rejected
+                and duplicate_rejected
+                and result_size <= M0306_MAX_CANONICAL_RESULT_BYTES
+            ),
+            detail=(
+                f"api={api_verify_response.status_code};cli={cli_verify.exit_code};"
+                "bounded="
+                f"{result_size <= M0306_MAX_CANONICAL_RESULT_BYTES}"
+            ),
+        ),
+        _scenario(
             "supersession_recovery_is_append_only_and_immutable",
             passed=(
                 superseding.supersedes_result_digest == library.result_digest
@@ -1807,9 +1837,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
     corpus = _corpus()
     scenario = build_scenario()
-    declared = {
-        case_id for group in corpus["scenario_groups"] for case_id in group["case_ids"]
-    }
+    declared = {case_id for group in corpus["scenario_groups"] for case_id in group["case_ids"]}
     checks = [
         EvalCheck(
             name="corpus.locked_inventory",
@@ -1845,13 +1873,10 @@ def main(argv: list[str] | None = None) -> int:
         EvalCheck(
             name="corpus.executable_coverage",
             passed=(
-                len(declared) == len(executed) == _EXPECTED_CASE_COUNT
-                and not missing
-                and not extra
+                len(declared) == len(executed) == _EXPECTED_CASE_COUNT and not missing and not extra
             ),
             detail=(
-                f"declared={len(declared)};executed={len(executed)};"
-                f"missing={missing};extra={extra}"
+                f"declared={len(declared)};executed={len(executed)};missing={missing};extra={extra}"
             ),
         )
     )

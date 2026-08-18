@@ -161,6 +161,7 @@ from glio_proteogen.contracts.m03_05 import (
 )
 from glio_proteogen.contracts.m03_06 import (
     M0306_MAX_CANONICAL_REQUEST_BYTES,
+    M0306_MAX_CANONICAL_RESULT_BYTES,
     HarmonizeProteinInferenceSupportRequest,
     ProteinInferenceHarmonizationResult,
 )
@@ -4121,6 +4122,18 @@ def harmonize_protein_inference_support(request: RequestArgument) -> None:
         M0306_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0306Service().execute(parsed))
+
+
+@protein_inference_harmonization_app.command("verify")
+def verify_protein_inference_harmonization(result: RequestArgument) -> None:
+    """Replay-verify one canonical metadata-only harmonization result."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteinInferenceHarmonizationResult),
+        max_bytes=M0306_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(M0306Service().verify(parsed))
 
 
 @protein_inference_support_app.command("export-schema")

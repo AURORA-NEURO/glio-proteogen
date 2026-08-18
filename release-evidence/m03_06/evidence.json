@@ -1,0 +1,65 @@
+{
+  "module": "GLIO-PROTEOGEN-M03-06",
+  "scope": "bounded replay verification depth",
+  "contract_version": "1.0.0",
+  "claims_ceiling": "deterministic caller-declared technical support-coordinate harmonization only; no protein, proteoform, isoform, activity, biology, abundance, probability, or clinical inference",
+  "python_loc_delta": {
+    "note": "core result-size contract cap, stateless service verifier, FastAPI and Typer replay surfaces, interface regression, evaluator and traceability closure"
+  },
+  "tests": {
+    "focused_contract_module_interface": 159,
+    "evaluator_cases": 57,
+    "passed": true
+  },
+  "coverage": {
+    "branch_enabled": true,
+    "statements": 1545,
+    "missed_statements": 31,
+    "branches": 396,
+    "partial_branches": 31,
+    "percent": 96.81,
+    "fail_under": 95
+  },
+  "static": {
+    "ruff_check": "clean",
+    "ruff_format": "clean",
+    "mypy_strict": "clean on 13 source/test/eval files",
+    "compileall": "clean"
+  },
+  "replay": {
+    "service": true,
+    "api": "POST /v1/modules/M03-06/harmonization/verify",
+    "cli": "protein-inference-harmonization verify RESULT",
+    "result_byte_limit": 4194304,
+    "duplicate_key_rejection": true,
+    "forged_digest_rejection": true,
+    "upstream_payload_reopened": false
+  },
+  "benchmark": {
+    "iterations": 10,
+    "mean_ns": 357059360.0,
+    "p50_ns": 346232250.0,
+    "p95_ns": 399189600,
+    "mean_budget_ns": 2000000000,
+    "p95_budget_ns": 3000000000,
+    "passed": true
+  },
+  "package": {
+    "python": "3.12.13",
+    "source_date_epoch": 315532800,
+    "reproducible_two_builds": true,
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3841359,
+      "members": 1989,
+      "sha256": "81be39468c25813699673b044e6c0fe167d62a5fdb149a179df5296abe307c64"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4459474,
+      "members": 4607,
+      "sha256": "6c7ffa4de559200dd717eb10d6ef1ea7d245ad8c90dd951b4cf1e120c82cbcd8"
+    },
+    "isolated_import": true
+  }
+}
