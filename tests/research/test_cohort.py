@@ -161,3 +161,39 @@ def test_cohort_provenance_policy_rejects_different_catalog_response() -> None:
         run_research_cohort(
             ResearchCohortRequest((first, altered), provenance_policy="external_same_study")
         )
+
+
+def test_cohort_provenance_policy_closes_local_only_and_unattested_external_paths() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    local_a = _sample("target_supported", "local-a", "r1")
+    local_b = _sample("target_supported", "local-b", "r2")
+    with pytest.raises(ValueError, match="provenance_policy"):
+        ResearchCohortRequest((local_a, local_b), provenance_policy="unknown")
+    with pytest.raises(ValueError, match="external_same_study"):
+        run_research_cohort(
+            ResearchCohortRequest((local_a, local_b), provenance_policy="external_same_study")
+        )
+    external = _pdc_sample(target, "external", "r1")
+    unattested_request = replace(external.request, external_pdc_receipt=None)
+    unattested = replace(external, request=unattested_request)
+    unattested_two = replace(
+        unattested,
+        sample_id="external-2",
+        request=replace(unattested.request, sample_id="external-2"),
+        replicate_label="r2",
+    )
+    with pytest.raises(ValueError, match="local_only"):
+        run_research_cohort(
+            ResearchCohortRequest((unattested, unattested_two), provenance_policy="local_only")
+        )
+    with pytest.raises(ValueError, match="catalog receipts"):
+        run_research_cohort(
+            ResearchCohortRequest(
+                (unattested, unattested_two),
+                provenance_policy="homogeneous",
+            )
+        )
+    mixed = run_research_cohort(
+        ResearchCohortRequest((local_a, external), provenance_policy="mixed_declared")
+    )
+    assert dict(mixed.configuration)["cohort_provenance_policy"] == "mixed_declared"

@@ -359,6 +359,53 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
         )
 
 
+def test_pipeline_rejects_receipt_field_replacement_and_malformed_response_hash() -> None:
+    payload = _mzml()
+    pdc_file = PdcFile(
+        "PDC000204",
+        "catalog.mzML",
+        "processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "https://pdc.cancer.gov/files/catalog.mzML",
+    )
+    source = SourceReference(
+        "pdc:catalog",
+        pdc_file.location,
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "processed", 1),),
+        (pdc_file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "b" * 64,
+    )
+    base = ResearchRunRequest("receipt-fields", payload, b">P1\nMPEPTIDER\n")
+    bound = bind_pdc_mzml_source(base, pdc_file, source, pdc_snapshot=snapshot)
+    with pytest.raises(ValueError, match="does not match"):
+        replace(bound, external_pdc_file=replace(pdc_file, file_name="other.mzML"))
+    with pytest.raises(ValueError, match="reference"):
+        replace(bound, external_source_reference=replace(source, source_id="pdc:other"))
+    with pytest.raises(ValueError, match="response"):
+        replace(bound, external_pdc_response_sha256="c" * 64)
+    with pytest.raises(TypeError, match="PdcSourceReceipt"):
+        replace(bound, external_pdc_receipt=object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="64-character"):
+        ResearchRunRequest(
+            "bad-response",
+            payload,
+            b">P1\nMPEPTIDER\n",
+            external_pdc_response_sha256="z" * 64,
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

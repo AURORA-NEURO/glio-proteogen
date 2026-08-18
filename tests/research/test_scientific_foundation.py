@@ -808,6 +808,120 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("snapshot", object(), "PdcStudySnapshot"),
+        ("file", object(), "PdcFile"),
+        ("source_reference", object(), "SourceReference"),
+        ("observed_sha256", "x", "SHA-256"),
+        ("observed_md5", "x", "MD5"),
+        ("observed_size", -1, "size"),
+        ("observed_size", True, "size"),
+    ],
+)
+def test_pdc_receipt_rejects_malformed_identity_fields(
+    field: str, value: object, message: str
+) -> None:
+    payload = b"receipt"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "x.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "locator",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:x",
+        "locator",
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    values: dict[str, object] = {
+        "snapshot": snapshot,
+        "file": file,
+        "source_reference": reference,
+        "observed_sha256": "sha256:" + sha256(payload).hexdigest(),
+        "observed_md5": md5(payload, usedforsecurity=False).hexdigest(),
+        "observed_size": len(payload),
+    }
+    values[field] = value
+    with pytest.raises((TypeError, ValueError), match=message):
+        PdcSourceReceipt(**values)  # type: ignore[arg-type]
+
+
+def test_pdc_receipt_rejects_catalog_and_source_mismatches() -> None:
+    payload = b"receipt-mismatch"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "x.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "locator",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 1),),
+        (file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:x",
+        "locator",
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    valid = {
+        "snapshot": snapshot,
+        "file": file,
+        "source_reference": reference,
+        "observed_sha256": "sha256:" + sha256(payload).hexdigest(),
+        "observed_md5": md5(payload, usedforsecurity=False).hexdigest(),
+        "observed_size": len(payload),
+    }
+    cases = [
+        (replace(snapshot, study_id="PDC000205"), "study"),
+        (replace(snapshot, response_sha256="z" * 64), "SHA-256"),
+        (replace(file, file_format="FASTA"), "mzML"),
+        (replace(file, location="other"), "locator"),
+        (replace(reference, sha256="sha256:" + "b" * 64), "observed bytes"),
+        (replace(reference, byte_length=len(payload) + 1), "size"),
+        (replace(file, file_size=len(payload) + 1), "size"),
+        (replace(file, md5="0" * 32), "MD5"),
+    ]
+    for value, message in cases:
+        changed = dict(valid)
+        if isinstance(value, PdcStudySnapshot):
+            changed["snapshot"] = value
+        elif isinstance(value, pdc.PdcFile):
+            changed["file"] = value
+            changed["snapshot"] = replace(snapshot, files=(value,))
+        else:
+            changed["source_reference"] = value
+        with pytest.raises(ValueError, match=message):
+            PdcSourceReceipt(**changed)  # type: ignore[arg-type]
+
+
 def test_pdc_private_file_size_and_required_fields() -> None:
     base = {
         "pdc_study_id": "PDC000204",
