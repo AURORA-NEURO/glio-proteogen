@@ -12,6 +12,7 @@
   "uncertainty_dimensions": 7,
   "request_digest": "sha256:ff56f3d989db80c5a26524b9ca715279a607ed9eceeb978b613569fdd9b3a7bd",
   "replay_result_digest": "sha256:fa8cb740b8cbc2a3877aff44b37addf2357fdc2479e5ad0d8cbf422f6e05e814",
-  "focused_tests": 35,
+  "focused_tests": 39,
+  "semantic_self_rehash_rejected": true,
   "passed": true
 }
