@@ -641,7 +641,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     configuration = tuple(
         sorted(
             {
-                "cohort_version": "research-cohort-2",
+                "cohort_version": "research-cohort-3",
                 "cohort_provenance_policy": request.provenance_policy,
                 "cohort_normalization_policy": request.normalization_policy,
                 "cohort_normalization_version": (
