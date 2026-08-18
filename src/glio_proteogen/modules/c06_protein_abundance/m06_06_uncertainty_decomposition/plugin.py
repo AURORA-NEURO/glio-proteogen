@@ -44,7 +44,7 @@ class ValidatedM0606Request:
     _seal: object
 
 
-_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0606Request, tuple[object, str]]] = (
+_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0606Request, tuple[object, object, str]]] = (
     WeakKeyDictionary()
 )
 
@@ -83,7 +83,7 @@ class M0606Plugin(
         else:
             typed = self._service.validate_request(candidate)
         token = ValidatedM0606Request(request=typed, _seal=_TOKEN_SEAL)
-        _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
+        _ISSUED_TOKENS[token] = (self, typed, canonical_request_digest(typed))
         return token
 
     def run(self, request: ValidatedM0606Request) -> ProteinAbundanceUncertaintyDecompositionResult:
@@ -95,8 +95,9 @@ class M0606Plugin(
             type(request) is not ValidatedM0606Request
             or request._seal is not _TOKEN_SEAL
             or snapshot is None
-            or snapshot[0] is not request.request
-            or snapshot[1] != canonical_request_digest(request.request)
+            or snapshot[0] is not self
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_request_digest(request.request)
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)

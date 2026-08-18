@@ -45,7 +45,9 @@ class ValidatedM0603Request:
     _seal: object
 
 
-_ISSUED: Final[WeakKeyDictionary[ValidatedM0603Request, tuple[object, str]]] = WeakKeyDictionary()
+_ISSUED: Final[WeakKeyDictionary[ValidatedM0603Request, tuple[object, object, str]]] = (
+    WeakKeyDictionary()
+)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -73,7 +75,7 @@ class M0603Plugin(
         else:
             typed = self._service.validate_request(candidate)
         token = ValidatedM0603Request(request=typed, _seal=_TOKEN_SEAL)
-        _ISSUED[token] = (typed, canonical_request_digest(typed))
+        _ISSUED[token] = (self, typed, canonical_request_digest(typed))
         return token
 
     def run(self, request: ValidatedM0603Request) -> EstimateProteinAbundanceBaselineResult:
@@ -87,8 +89,9 @@ class M0603Plugin(
             or getattr(request, "_seal", None) is not _TOKEN_SEAL
             or snapshot is None
             or not isinstance(candidate, EstimateProteinAbundanceBaselineRequest)
-            or snapshot[0] is not candidate
-            or snapshot[1] != canonical_request_digest(candidate)
+            or snapshot[0] is not self
+            or snapshot[1] is not candidate
+            or snapshot[2] != canonical_request_digest(candidate)
         ):
             raise _InvalidExecutionTokenError
         return self._service._execute_validated(request.request)

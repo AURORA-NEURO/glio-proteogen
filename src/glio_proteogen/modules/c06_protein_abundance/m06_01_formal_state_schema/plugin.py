@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -11,6 +12,7 @@ from glio_proteogen.contracts.m06_01 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
     ValidateFormalProteinStateRequest,
     ValidateFormalProteinStateResult,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor
 from glio_proteogen.kernel.strict_json import strict_json_loads
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     )
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ValidateFormalProteinStateRequest)
+_TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M06-01",
     title="Formal state and feature schema",
@@ -44,12 +47,17 @@ class M0601Submission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM0601Request:
     """Opaque capability proving M06-01 accepted the request boundary."""
 
     request: ValidateFormalProteinStateRequest
     _seal: object
+
+
+_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0601Request, tuple[object, object, str]]] = (
+    WeakKeyDictionary()
+)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -74,12 +82,28 @@ class M0601Plugin:
             decoded = strict_json_loads(candidate, max_bytes=M0601_MAX_CANONICAL_REQUEST_BYTES)
             preflight_formal_state_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM0601Request(request=self._service.validate_request(candidate), _seal=self)
+        typed = self._service.validate_request(candidate)
+        token = ValidatedM0601Request(request=typed, _seal=_TOKEN_SEAL)
+        _ISSUED_TOKENS[token] = (self, typed, canonical_request_digest(typed))
+        return token
 
     def run(self, request: ValidatedM0601Request) -> ValidateFormalProteinStateResult:
-        if not isinstance(request, ValidatedM0601Request) or request._seal is not self:
+        try:
+            snapshot = _ISSUED_TOKENS.get(request)
+        except TypeError as error:
+            raise _InvalidExecutionTokenError from error
+        candidate = getattr(request, "request", None)
+        if (
+            type(request) is not ValidatedM0601Request
+            or getattr(request, "_seal", None) is not _TOKEN_SEAL
+            or snapshot is None
+            or not isinstance(candidate, ValidateFormalProteinStateRequest)
+            or snapshot[0] is not self
+            or snapshot[1] is not candidate
+            or snapshot[2] != canonical_request_digest(candidate)
+        ):
             raise _InvalidExecutionTokenError
-        return self._service.execute(request.request)
+        return self._service.execute(candidate)
 
 
 __all__ = ["M0601Plugin", "M0601Submission", "ValidatedM0601Request"]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m06_05 import (
     M0605_MAX_CANONICAL_REQUEST_BYTES,
     M0605_MODULE_ID,
     IntegrateProteinAbundanceConstraintsRequest,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -21,6 +23,7 @@ if TYPE_CHECKING:
     from .engine import BuiltConstraintIntegration
 
 _REQUEST_ADAPTER: Final = TypeAdapter(IntegrateProteinAbundanceConstraintsRequest)
+_TOKEN_SEAL: Final = object()
 _PROVISIONAL_DESCRIPTOR: Final = {
     "moduleId": M0605_MODULE_ID,
     "title": "Mechanism and constraint integrator",
@@ -42,9 +45,15 @@ class ConstraintIntegrationSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM0605Request:
     request: IntegrateProteinAbundanceConstraintsRequest
+    _seal: object
+
+
+_ISSUED_TOKENS: Final[WeakKeyDictionary[ValidatedM0605Request, tuple[object, object, str]]] = (
+    WeakKeyDictionary()
+)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -76,12 +85,28 @@ class M0605Plugin:
             strict_json_loads(candidate, max_bytes=M0605_MAX_CANONICAL_REQUEST_BYTES)
             raw = bytes(candidate) if isinstance(candidate, bytearray) else candidate
             candidate = _REQUEST_ADAPTER.validate_json(raw, strict=True)
-        return ValidatedM0605Request(request=self._service.validate_request(candidate))
+        typed = self._service.validate_request(candidate)
+        token = ValidatedM0605Request(request=typed, _seal=_TOKEN_SEAL)
+        _ISSUED_TOKENS[token] = (self, typed, canonical_request_digest(typed))
+        return token
 
     def run(self, request: ValidatedM0605Request) -> BuiltConstraintIntegration:
-        if not isinstance(request, ValidatedM0605Request):
+        try:
+            snapshot = _ISSUED_TOKENS.get(request)
+        except TypeError as error:
+            raise _InvalidExecutionTokenError from error
+        candidate = getattr(request, "request", None)
+        if (
+            type(request) is not ValidatedM0605Request
+            or getattr(request, "_seal", None) is not _TOKEN_SEAL
+            or snapshot is None
+            or not isinstance(candidate, IntegrateProteinAbundanceConstraintsRequest)
+            or snapshot[0] is not self
+            or snapshot[1] is not candidate
+            or snapshot[2] != canonical_request_digest(candidate)
+        ):
             raise _InvalidExecutionTokenError
-        return self._service.integrate(request.request)
+        return self._service.integrate(candidate)
 
     def integrate(self, request: object) -> BuiltConstraintIntegration:
         return self._service.integrate(request)
