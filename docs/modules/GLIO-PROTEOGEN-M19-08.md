@@ -80,13 +80,13 @@ suite contains 47 passing tests, including seven caller-claim surfaces and API/C
 parity. Scoped branch-enabled coverage is 96.2171 percent over 514 statements and 94
 branches (499 statements and 86 branches covered; fail-under 95). The 25-iteration
 benchmark times only the deterministic engine call after construction and warm-up; the
-observed mean was 1,729,516 ns and p95 1,947,100 ns against provisional 500 ms / 750 ms
+observed mean was 1,815,720 ns and p95 2,029,700 ns against provisional 500 ms / 750 ms
 budgets.
 
-Two pinned builds were byte-identical: wheel 3,743,523 bytes with SHA-256
-`fe44eb4b4843b007d945727804b9ca6067465325266187343180332e4d6b9f98` and sdist
-4,306,693 bytes with SHA-256
-`005562c533b9c6ce4e2e9fb51d98f1a2f54505b7b118a7717a2b19a3d73e0f8b`. An isolated-wheel
+Two pinned builds were byte-identical: wheel 3,760,171 bytes with SHA-256
+`ed1c6c7249b3a18b3c85a5ddac0a8eb26677deeeebf796406787cf10443ffe49` and sdist
+4,318,051 bytes with SHA-256
+`aabe92b9cb1024019aea30e5f22e1bf42af3f8bad107ba43407618eaf056180c`. An isolated-wheel
 import and release verifier passed.
 
 These results establish software contract and deterministic control-flow behavior for
