@@ -41,6 +41,11 @@ from .search import (
     summarize_target_decoy,
     target_decoy_qvalues,
 )
+from .search_space import (
+    SearchSpaceReceipt,
+    build_search_space_receipt,
+    verify_search_space_receipt,
+)
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
@@ -213,6 +218,7 @@ class ResearchRunResult:
     configuration: tuple[tuple[str, object], ...]
     missing_precursor_ms2: int
     result_digest: str
+    search_space_receipt: SearchSpaceReceipt | None = None
     peptide_intensities: tuple[tuple[str, float], ...] = ()
     fdr_summary: FdrSummary | None = None
     search_diagnostics: tuple[tuple[str, object], ...] = ()
@@ -234,6 +240,11 @@ class ResearchRunResult:
             "spectra_seen": self.spectra_seen,
             "ms2_spectra_seen": self.ms2_spectra_seen,
             "search_space_peptides": self.search_space_peptides,
+            "search_space_receipt": (
+                self.search_space_receipt.as_dict()
+                if self.search_space_receipt is not None
+                else None
+            ),
             "missing_precursor_ms2": self.missing_precursor_ms2,
             "psms": [_psm_dict(item) for item in self.psms],
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
@@ -400,6 +411,13 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         min_length=request.min_peptide_length,
         max_length=request.max_peptide_length,
     )
+    search_space_receipt = build_search_space_receipt(
+        fasta_bytes,
+        entries,
+        missed_cleavages=request.missed_cleavages,
+        min_peptide_length=request.min_peptide_length,
+        max_peptide_length=request.max_peptide_length,
+    )
     parameters = SearchParameters(
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
@@ -534,6 +552,13 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
                 "require_precursor_mz": True,
                 "precursor_charge_source": "mzml_selected_ion",
+                "search_space_version": search_space_receipt.version,
+                "search_space_digest": search_space_receipt.search_space_digest,
+                "search_space_pairing_digest": search_space_receipt.pairing_digest,
+                "search_space_target_proteins": search_space_receipt.target_proteins,
+                "search_space_decoy_proteins": search_space_receipt.decoy_proteins,
+                "search_space_unmatched_targets": search_space_receipt.unmatched_target_proteins,
+                "search_space_unmatched_decoys": search_space_receipt.unmatched_decoy_proteins,
                 "external_source_id": (
                     external_reference.source_id if external_reference is not None else None
                 ),
@@ -560,6 +585,12 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             f"sha256:{fasta_digest}",
             "search_space",
             {"bytes": len(fasta_bytes), "peptides": len(peptide_map)},
+        ),
+        EvidenceRecord.create(
+            "search-space:receipt",
+            "research:search-space",
+            "search_space_receipt",
+            search_space_receipt.as_dict(),
         ),
         EvidenceRecord.create(
             "input:mzml",
@@ -632,6 +663,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "spectra_seen": len(spectra),
         "ms2_spectra_seen": ms2_count,
         "search_space_peptides": len(peptide_map),
+        "search_space_receipt": search_space_receipt.as_dict(),
         "missing_precursor_ms2": missing_precursor_count,
         "psms": [_psm_dict(item) for item in scored],
         "accepted_psms": [_psm_dict(item) for item in accepted],
@@ -669,6 +701,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         spectra_seen=len(spectra),
         ms2_spectra_seen=ms2_count,
         search_space_peptides=len(peptide_map),
+        search_space_receipt=search_space_receipt,
         psms=scored,
         accepted_psms=accepted,
         peptide_spectral_counts=counts,
@@ -700,6 +733,8 @@ def replay_research_protein_inference(
     ):
         raise ValueError("expected research result digest is invalid")
     verify_evidence_bundle(expected.evidence)
+    if expected.search_space_receipt is not None:
+        verify_search_space_receipt(expected.search_space_receipt)
     observed = run_research_protein_inference(request)
     if observed.as_dict() != {**expected_projection, "result_digest": expected_digest}:
         raise ValueError("research result replay or digest verification failed")
