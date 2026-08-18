@@ -2090,6 +2090,10 @@ def _validate_m0404_json_request_for_api(
 
     try:
         return _validate_m0404_json_request(candidate, serialized)
+    except ValidationError:
+        # Preserve the shared boundary's sanitized structured validation envelope.
+        # The generic ValueError guard below is reserved for hostile internal failures.
+        raise
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
 
