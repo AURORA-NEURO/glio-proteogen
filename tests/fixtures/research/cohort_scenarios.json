@@ -1,0 +1,16 @@
+{
+  "fixture_version": "research-cohort-1",
+  "claims": {
+    "clinical": false,
+    "differential": false,
+    "glioma": false,
+    "mechanism": false,
+    "production_abi": false
+  },
+  "scenarios": [
+    {"id": "replicate_matrix"},
+    {"id": "explicit_missingness"},
+    {"id": "incompatible_search_space"},
+    {"id": "pdc_provenance_replay"}
+  ]
+}
