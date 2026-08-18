@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -115,5 +115,8 @@ def test_api_cli_parity_preserves_claim_boundary_abstention(tmp_path: Path) -> N
 
 
 def test_schema_metadata_publishes_claim_ceiling() -> None:
-    metadata = contract_json_schemas()["request"]["x-glio-contract"]
+    metadata = cast(
+        "dict[str, object]",
+        contract_json_schemas()["request"]["x-glio-contract"],
+    )
     assert metadata["prohibitedClaimTerms"]
