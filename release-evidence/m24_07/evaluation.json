@@ -15,5 +15,13 @@
   "fixture_result_digest": "sha256:01f6595666e76ca46a0f80303f69a6ca1e9dec6e033f5960bdd98bec1d6f8d92",
   "module_id": "GLIO-PROTEOGEN-M24-07",
   "passed": true,
-  "scenario_count": 5
+  "scenario_count": 6,
+  "scenario_ids": [
+    "supported",
+    "metric_failure_abstained",
+    "fallback_failure_abstained",
+    "denied_control_rejected",
+    "replay_verified",
+    "semantic_replay_rejected"
+  ]
 }
