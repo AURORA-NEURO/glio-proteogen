@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from glio_proteogen.contracts.m18_08 import (
+    M1808_MAX_CANONICAL_REQUEST_BYTES,
+    M1808_MAX_CANONICAL_RESULT_BYTES,
     BiomarkerPanelTranslationMonitoringResult,
     MonitorBiomarkerPanelTranslationHealthRequest,
 )
@@ -21,6 +23,11 @@ class M1808Service:
         self._engine = engine or M1808TranslationMonitoringEngine()
 
     def validate_request(self, request: object) -> MonitorBiomarkerPanelTranslationHealthRequest:
+        if isinstance(request, Mapping):
+            serialized = _bounded_mapping_bytes(request, M1808_MAX_CANONICAL_REQUEST_BYTES)
+            return MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
+                serialized, strict=True
+            )
         return MonitorBiomarkerPanelTranslationHealthRequest.model_validate(request, strict=True)
 
     def execute(self, request: object) -> BiomarkerPanelTranslationMonitoringResult:
@@ -30,8 +37,9 @@ class M1808Service:
                 canonical_json_bytes(parsed), strict=True
             )
         elif isinstance(request, Mapping):
+            serialized = _bounded_mapping_bytes(request, M1808_MAX_CANONICAL_REQUEST_BYTES)
             request = MonitorBiomarkerPanelTranslationHealthRequest.model_validate_json(
-                canonical_json_bytes(dict(request)), strict=True
+                serialized, strict=True
             )
         return self._engine.infer(request)
 
@@ -42,8 +50,9 @@ class M1808Service:
                 canonical_json_bytes(parsed), strict=True
             )
         elif isinstance(result, Mapping):
+            serialized = _bounded_mapping_bytes(result, M1808_MAX_CANONICAL_RESULT_BYTES)
             result = BiomarkerPanelTranslationMonitoringResult.model_validate_json(
-                canonical_json_bytes(dict(result)), strict=True
+                serialized, strict=True
             )
         return self._engine.verify(result)
 
@@ -75,6 +84,13 @@ class M1808Service:
                 "consent inference",
             ),
         }
+
+
+def _bounded_mapping_bytes(value: Mapping[object, object], maximum: int) -> bytes:
+    serialized = canonical_json_bytes(dict(value))
+    if len(serialized) > maximum:
+        raise ValueError("M18-08 mapping payload exceeds its canonical byte limit")  # noqa: TRY003
+    return serialized
 
 
 __all__ = ["M1808Service"]

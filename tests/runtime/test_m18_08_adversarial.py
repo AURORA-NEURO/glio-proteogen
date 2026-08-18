@@ -77,6 +77,21 @@ def test_service_rejects_invalid_json() -> None:
         m1808.M1808Service().execute(b"{not-json")
 
 
+def test_service_mapping_paths_enforce_declared_byte_limits() -> None:
+    request = _request().model_dump(mode="json")
+    request["request_id"] = "r" * (4 * 1024 * 1024)
+    service = m1808.M1808Service()
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        service.execute(request)
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        service.validate_request(request)
+
+    result = m1808.M1808TranslationMonitoringEngine().infer(_request()).model_dump(mode="json")
+    result["result_id"] = "r" * (8 * 1024 * 1024)
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        service.verify(result)
+
+
 def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
     request = _request()
     first = m1808.M1808Plugin()
