@@ -25,6 +25,12 @@ in the pipeline result projection, the configuration/evidence records, and the
 result digest; `replay_research_protein_inference` verifies all three before
 accepting a replay. A forged pairing, changed source bytes, altered digestion
 controls, or changed decoy prefix therefore cannot replay as the same result.
+The standalone verifier also checks the source SHA-256 syntax, receipt/version
+and modification-policy compatibility, canonical pair order, exact
+target-to-`DECOY_<target>` identity, cleavage-status derivation, target/decoy
+and unmatched-protein closure, non-negative bounded counts, and overlap bounds
+before accepting either digest. Recomputing an outer digest is therefore not
+enough to turn a structurally invalid receipt into accepted evidence.
 
 This remains a research-only receipt. It does not infer protein identity,
 calibrate FDR, validate a search engine, authenticate a public data provider,
