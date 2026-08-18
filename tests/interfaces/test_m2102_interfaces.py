@@ -9,6 +9,10 @@ from evals.m21_02.fixture import build_request, denied_request
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m21_02 import (
+    M2102_MAX_CANONICAL_REQUEST_BYTES,
+    M2102_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2102Plugin,
@@ -23,6 +27,7 @@ from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simula
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
+_HTTP_PAYLOAD_TOO_LARGE = 413
 _HTTP_UNPROCESSABLE = 422
 
 
@@ -70,6 +75,29 @@ def test_fastapi_validate_generate_verify_and_sanitized_errors() -> None:
     invalid_replay = client.post("/v1/modules/M21-02/verify", json={"result": {}})
     assert invalid_replay.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in invalid_replay.text
+
+
+def test_fastapi_transport_rejects_oversized_bodies_before_route_parsing() -> None:
+    client = TestClient(create_app(M2102Service()))
+    oversized_result = b"{" + b" " * M2102_MAX_CANONICAL_RESULT_BYTES + b"}"
+    oversized_request = b"{" + b" " * M2102_MAX_CANONICAL_REQUEST_BYTES + b"}"
+
+    result_response = client.post(
+        "/v1/modules/M21-02/verify",
+        content=oversized_result,
+        headers={"content-type": "application/json"},
+    )
+    request_response = client.post(
+        "/v1/modules/M21-02/validate",
+        content=oversized_request,
+        headers={"content-type": "application/json"},
+    )
+
+    assert result_response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+    assert result_response.json() == {"detail": "request body exceeds the byte limit"}
+    # The transport ceiling is the result limit; request routes still enforce
+    # their stricter 4 MiB contract limit in _parse_request.
+    assert request_response.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
