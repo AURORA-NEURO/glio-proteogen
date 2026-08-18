@@ -10,7 +10,6 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m10_07 import (
     M1007_CONTRACT_VERSION,
-    M1007_EVIDENCE_CLAIM,
     M1007_MAX_CANONICAL_RESULT_BYTES,
     M1007_MODULE_ID,
     CalibratedEstimate,
@@ -22,6 +21,8 @@ from glio_proteogen.contracts.m10_07 import (
     PredictionSet,
     ProteinRnaDiscordanceSelectivePredictionResult,
     canonical_request_digest,
+    expected_evidence,
+    expected_uncertainty,
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -29,14 +30,12 @@ from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
     ControlRole,
-    EstimateState,
     EvidenceReference,
     IdentityLineageState,
     Limitation,
     ProvenanceRecord,
     SupportDecision,
     SupportStatus,
-    UncertaintyEstimate,
     UncertaintyProfile,
     UpstreamDecisionState,
 )
@@ -138,16 +137,7 @@ def _controls(
 def _evidence(
     request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest,
 ) -> tuple[EvidenceReference, ...]:
-    artifacts = (
-        request.uncertainty_result,
-        request.configuration.calibration_artifact,
-        request.configuration.benchmark_artifact,
-        *request.source_artifacts,
-    )
-    return tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M1007_EVIDENCE_CLAIM)
-        for item in artifacts
-    )
+    return expected_evidence(request)
 
 
 def _provenance(
@@ -181,28 +171,39 @@ def _provenance(
 
 
 def _uncertainty(digest: str) -> UncertaintyProfile:
-    def one(name: str) -> UncertaintyEstimate:
-        raw = int.from_bytes(sha256(f"{digest}|{name}|m10-07".encode()).digest()[:8], "big") / 2**64
-        return UncertaintyEstimate(
-            state=EstimateState.ESTIMATED,
-            probability=round(0.05 + raw * 0.3, 8),
-            rationale=(
-                f"Deterministic provisional {name} uncertainty from scoped calibration inputs."
-            ),
-        )
+    return expected_uncertainty(digest)
 
-    return UncertaintyProfile(
-        measurement=one("measurement"),
-        sampling=one("sampling"),
-        parameter=one("parameter"),
-        model_form=one("model_form"),
-        identification=one("identification"),
-        support=one("support"),
-        transport=one("transport"),
-        sensitivity_notes=(
-            "Nominal selective coverage is 90% within the provisional 85-95% envelope.",
-        ),
-    )
+
+def _is_plain_json(value: object) -> bool:
+    """Reject mapping/list subclasses before Pydantic traverses them."""
+
+    if type(value) is dict:
+        return all(type(key) is str and _is_plain_json(item) for key, item in value.items())
+    if type(value) is list:
+        return all(_is_plain_json(item) for item in value)
+    return value is None or type(value) in {str, int, float, bool}
+
+
+def _replay_reason(
+    result: object,
+    typed: ProteinRnaDiscordanceSelectivePredictionResult,
+    raw: bytes,
+) -> str | None:
+    if isinstance(result, ProteinRnaDiscordanceSelectivePredictionResult):
+        expected = result
+    elif type(result) is dict and _is_plain_json(result):
+        expected = _RESULT_ADAPTER.validate_python(result, strict=True)
+    else:
+        return "result replay input is invalid"
+    if typed != expected:
+        return "canonical result differs from supplied result"
+    if typed.request_digest != canonical_request_digest(typed.request):
+        return "request digest does not replay"
+    if typed.result_digest != result_payload_digest(typed):
+        return "result digest does not replay"
+    if canonical_json_bytes(typed.model_dump(mode="json")) != raw:
+        return "canonical bytes are not deterministic"
+    return None
 
 
 def _score(request: CalibrateProteinRnaDiscordanceSelectivePredictionRequest, digest: str) -> float:
@@ -389,27 +390,9 @@ class M1007CalibrationEngine:
             raw = canonical if isinstance(canonical, (bytes, bytearray)) else canonical.encode()
             strict_json_loads(raw, max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(raw, strict=True)
-            expected = (
-                result
-                if isinstance(result, ProteinRnaDiscordanceSelectivePredictionResult)
-                else _RESULT_ADAPTER.validate_json(canonical_json_bytes(result), strict=True)
-            )
-            if typed != expected:
-                return M1007ReplayVerification(
-                    verified=False, reason="canonical result differs from supplied result"
-                )
-            if typed.request_digest != canonical_request_digest(typed.request):
-                return M1007ReplayVerification(
-                    verified=False, reason="request digest does not replay"
-                )
-            if typed.result_digest != result_payload_digest(typed):
-                return M1007ReplayVerification(
-                    verified=False, reason="result digest does not replay"
-                )
-            if canonical_json_bytes(typed.model_dump(mode="json")) != bytes(raw):
-                return M1007ReplayVerification(
-                    verified=False, reason="canonical bytes are not deterministic"
-                )
+            reason = _replay_reason(result, typed, bytes(raw))
+            if reason is not None:
+                return M1007ReplayVerification(verified=False, reason=reason)
         except (TypeError, ValueError, ValidationError, StrictJsonError):
             return M1007ReplayVerification(verified=False, reason="result replay input is invalid")
         return M1007ReplayVerification(
