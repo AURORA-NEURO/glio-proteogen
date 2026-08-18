@@ -8,12 +8,24 @@ import argparse
 import hashlib
 import json
 import sys
+import tarfile
 from pathlib import Path
 from zipfile import ZipFile
 
 MODULE_ID = "GLIO-PROTEOGEN-M23-07"
 DOSSIER_SHA256 = "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 DOSSIER_SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:8220-8260"
+
+
+def _is_generated_member(name: str) -> bool:
+    """Reject local caches and M23-07 evidence from release archives."""
+
+    return (
+        "/__pycache__/" in name
+        or name.endswith(".pyc")
+        or ".m2307-" in name
+        or "coverage_m23_07" in name
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -63,6 +75,8 @@ def verify(evidence_dir: Path, wheel: Path | None = None, sdist: Path | None = N
     )
     _assert(package.get("isolated_import_passed") is True, "isolated import did not pass")
     _assert(package.get("release_verifier_passed") is True, "package verifier was not recorded")
+    _assert(package.get("generated_member_count") == 0, "generated members recorded")
+    _assert(package.get("generated_members") == [], "generated member list is not empty")
     for candidate, key in ((wheel, "wheel"), (sdist, "sdist")):
         if candidate is None:
             continue
@@ -75,10 +89,19 @@ def verify(evidence_dir: Path, wheel: Path | None = None, sdist: Path | None = N
         _assert(entry.get("size_bytes") == candidate.stat().st_size, f"{key} size mismatch")
         if key == "wheel":
             with ZipFile(candidate) as archive:
+                names = archive.namelist()
                 _assert(
-                    any(name.endswith("/METADATA") for name in archive.namelist()),
+                    any(name.endswith("/METADATA") for name in names),
                     "wheel metadata missing",
                 )
+        else:
+            with tarfile.open(candidate, mode="r:gz") as archive:
+                names = [member.name for member in archive.getmembers()]
+        _assert(len(names) == entry.get("members"), f"{key} member count mismatch")
+        _assert(
+            not any(_is_generated_member(name) for name in names),
+            f"{key} contains generated members",
+        )
 
 
 def main() -> int:
