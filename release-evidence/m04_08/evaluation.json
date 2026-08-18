@@ -6,8 +6,8 @@
       "passed": true
     },
     {
-      "detail": "all seven stage outputs are releasable",
-      "name": "scenario.genuine_m0401_m0407_chain",
+      "detail": "all seven synthetic stage outputs are structurally releasable",
+      "name": "scenario.synthetic_m0401_m0407_chain",
       "passed": true
     },
     {
@@ -63,8 +63,9 @@
   ],
   "declared_case_count": 12,
   "executed_check_count": 12,
-  "genuine_e2e_executed": true,
+  "genuine_e2e_executed": false,
   "module_id": "GLIO-PROTEOGEN-M04-08",
   "passed": true,
-  "phase": "locked_executable_release_evidence"
+  "phase": "locked_synthetic_release_evidence",
+  "synthetic_chain_executed": true
 }

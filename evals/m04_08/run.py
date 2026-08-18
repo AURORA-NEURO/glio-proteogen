@@ -76,7 +76,7 @@ _MEDIA: Final = (
 _EXPECTED_CASE_IDS: Final = frozenset(
     {
         "corpus_inventory",
-        "genuine_m0401_m0407_chain",
+        "synthetic_m0401_m0407_chain",
         "canonical_release",
         "semantic_reorder_replay",
         "archive_inventory",
@@ -322,14 +322,18 @@ def evaluate() -> dict[str, object]:
     checks = [
         _check(
             "corpus_inventory",
-            scenario["module_id"] == MODULE_ID and declared == _EXPECTED_CASE_IDS,
+            scenario["module_id"] == MODULE_ID
+            and declared == _EXPECTED_CASE_IDS
+            and scenario["dependency"]["state"] == "public_abi_not_frozen"
+            and scenario["dependency"]["genuine_e2e_allowed"] is False
+            and scenario["dependency"]["synthetic_chain_allowed"] is True,
             f"cases={len(declared)}",
         ),
         _check(
-            "genuine_m0401_m0407_chain",
+            "synthetic_m0401_m0407_chain",
             len(fixture.stages) == _STAGE_COUNT
             and all(hasattr(item, "disposition") for item in fixture.stages.values()),
-            "all seven stage outputs are releasable",
+            "all seven synthetic stage outputs are structurally releasable",
         ),
         _check(
             "canonical_release",
@@ -394,11 +398,12 @@ def evaluate() -> dict[str, object]:
     ]
     return {
         "module_id": MODULE_ID,
-        "phase": "locked_executable_release_evidence",
+        "phase": "locked_synthetic_release_evidence",
         "passed": all(item["passed"] is True for item in checks),
         "declared_case_count": len(declared),
         "executed_check_count": len(checks),
-        "genuine_e2e_executed": True,
+        "genuine_e2e_executed": False,
+        "synthetic_chain_executed": True,
         "checks": checks,
     }
 
