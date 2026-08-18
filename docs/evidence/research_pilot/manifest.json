@@ -1,7 +1,7 @@
 {
   "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
   "authority": "additive research foundation; no governed module ABI",
-  "base": "110d85958be7cece18dd36ae3e72b851d8708045",
+  "base": "22039db51cc003e5758547b353a872f632673b7a",
   "source_paths": [
     "src/glio_proteogen/research/pilot.py",
     "tests/research/test_pilot.py",
@@ -17,16 +17,16 @@
   "owner_review_required": true,
   "result_digest_replay_bound": true,
   "commits": [
-    "0054529a",
-    "6ed8bc37",
-    "ec3f1d62",
-    "0a98738e",
-    "f1fb9e21",
-    "ce61347a",
-    "ccdf7f9c",
-    "eb3e5fbe",
-    "92274dc6",
-    "a71b8e75",
-    "40814468"
+    "ea649ac6",
+    "1d8e62d0",
+    "3d0f7097",
+    "01768116",
+    "945cfd20",
+    "c873e00d",
+    "b0e191b7",
+    "371a93e1",
+    "8ae5f7cc",
+    "0ad54866",
+    "98ce0573"
   ]
 }
