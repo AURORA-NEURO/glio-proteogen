@@ -1910,6 +1910,8 @@ class ProteinInferenceHarmonizationResult(NonInferenceResultModel):
             raise ValueError("M03-06 completion time must equal execution time")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("M03-06 result digest does not match its canonical payload")
+        if len(canonical_json_bytes(self)) > M0306_MAX_CANONICAL_RESULT_BYTES:
+            raise ValueError("M03-06 result exceeds its canonical byte limit")
         return self
 
 

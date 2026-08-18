@@ -33,6 +33,7 @@ from glio_proteogen.contracts.m03_06 import (
     support_ledger_digest,
     unit_binding_digest,
 )
+from glio_proteogen.contracts.m03_06 import v1 as m0306_contract
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
@@ -43,6 +44,7 @@ from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
     execute_protein_inference_harmonization,
     harmonize_protein_inference_support,
     preflight_protein_inference_harmonization_authorization,
+    service,
 )
 from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization.engine import (
     prepare_harmonization_request_candidate,
@@ -120,6 +122,27 @@ def test_service_plugin_token_and_descriptor_lifecycle(
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M03-06"
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(canonical_request)  # type: ignore[arg-type]
+
+
+def test_service_verify_enforces_result_limit_for_typed_and_mapping_inputs(
+    canonical_request: HarmonizeProteinInferenceSupportRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = harmonize_protein_inference_support(canonical_request)
+    result_size = len(canonical_json_bytes(result))
+    monkeypatch.setattr(service, "M0306_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    service_instance = M0306Service()
+
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        service_instance.verify(result)
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        service_instance.verify(result.model_dump(mode="python"))
+
+    monkeypatch.setattr(m0306_contract, "M0306_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    with pytest.raises(ValidationError, match="result exceeds its canonical byte limit"):
+        ProteinInferenceHarmonizationResult.model_validate_json(
+            canonical_json_bytes(result), strict=True
+        )
 
 
 class _HostileLedger(Mapping[str, object]):
