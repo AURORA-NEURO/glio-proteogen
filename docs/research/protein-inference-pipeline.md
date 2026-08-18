@@ -17,7 +17,7 @@ one deterministic, auditable path:
    or grouping computation.
 2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
    controls.
-3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
+4. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold.
 4. Apply the caller-declared integer precursor tolerance (0–500 ppm) to the selected
    mzML precursor m/z and charge before fragment candidates enter competition. The
