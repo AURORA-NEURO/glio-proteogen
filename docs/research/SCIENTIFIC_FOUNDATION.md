@@ -66,6 +66,13 @@ C03/C04 computation contract:
   replicate kind. Biological reuse of one source is rejected; technical reuse remains visible
   but cannot inflate independent-replicate or normalization support; unknown independence
   abstains support-dependent projections. No independence is inferred from names or order.
+- Every cohort result also carries three inner evidence receipts (`cohort.matrix.v1`,
+  `cohort.qc.v1`, and `cohort.provenance.v1`) inside one content-addressed bundle. The
+  public `aggregate_cohort_evidence` helper recomputes and verifies these receipts without
+  re-reading raw spectra, so a changed matrix, QC decision, source manifest, or metadata
+  snapshot cannot be presented with an old cohort evidence digest. Metadata snapshot
+  versions must be uniform within one cohort or the run rejects before emitting an
+  aggregate.
 
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or
