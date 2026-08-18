@@ -92,7 +92,12 @@ class M0807Service:
                             strict=True,
                         )
                     )
-            return verify_result_replay(typed_result, typed_request)
+            if not verify_result_replay(typed_result, typed_request):
+                return False
+            if typed_request is None:
+                return True
+            regenerated = M0807Service().execute(typed_request)
+            return regenerated.model_dump(mode="json") == typed_result.model_dump(mode="json")
         except (TypeError, ValueError):
             return False
 
