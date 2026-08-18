@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 PDC_GRAPHQL_ENDPOINT = "https://pdc.cancer.gov/graphql"
 PDC_STUDY_URL = "https://pdc.cancer.gov/pdc/study/{study_id}"
+PDC_DOWNLOAD_HOSTS = frozenset({"pdc.cancer.gov", "d3iwtkuvwz4jtf.cloudfront.net"})
 
 
 class PdcError(RuntimeError):
@@ -154,16 +155,17 @@ class PdcClient:
         """Explicitly stream one signed PDC file into a caller-owned destination.
 
         Metadata discovery never calls this method. The signed URL must be HTTPS on
-        the PDC host, the declared size must fit the caller's bound, and an MD5
-        supplied by PDC is checked over the received bytes before returning.
+        an allowlisted PDC delivery host, the declared size must fit the caller's
+        bound, and an MD5 supplied by PDC is checked over the received bytes before
+        returning.
         """
         if not 0 < max_bytes <= 2 * 1024 * 1024 * 1024:
             raise ValueError("max_bytes is outside supported bounds")
         if file.signed_url is None:
             raise PdcError("PDC file has no signed download URL")
         parsed = urlparse(file.signed_url)
-        if parsed.scheme != "https" or parsed.hostname != "pdc.cancer.gov":
-            raise PdcError("PDC signed URL is outside the HTTPS PDC host allowlist")
+        if parsed.scheme != "https" or parsed.hostname not in PDC_DOWNLOAD_HOSTS:
+            raise PdcError("PDC signed URL is outside the HTTPS delivery-host allowlist")
         if file.file_size > max_bytes:
             raise PdcError("PDC file exceeds the caller download limit")
         request = Request(  # noqa: S310 - HTTPS host allowlist validated above

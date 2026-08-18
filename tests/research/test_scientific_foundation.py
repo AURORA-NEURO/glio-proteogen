@@ -426,6 +426,10 @@ def test_pdc_explicit_signed_download_verifies_bytes(monkeypatch: pytest.MonkeyP
             replace(file, signed_url="http://evil.example/x"),
             io.BytesIO(),
         )
+    cloudfront_file = replace(file, signed_url="https://d3iwtkuvwz4jtf.cloudfront.net/x")
+    assert pdc.PDC_DOWNLOAD_HOSTS
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    assert pdc.PdcClient().download_file(cloudfront_file, io.BytesIO()) == len(payload)
 
 
 def test_pdc_signed_download_rejects_missing_or_bad_digest(
