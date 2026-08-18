@@ -285,6 +285,11 @@ def test_search_no_match_and_decoy_q_values() -> None:
 def test_quantification_all_missing_is_identity() -> None:
     values = (PeptideQuant("A", "P", 0.0, missing=True),)
     assert median_normalize(values) == values
+    quantified = quantify_matched_ions_with_receipt("A", (("P", 0.0),))
+    assert quantified.receipt.signal_quality == "no_positive_signal"
+    assert quantified.receipt.positive_signal_fraction == 0.0
+    assert quantified.receipt.raw_positive_mad is None
+    assert quantified.receipt.raw_positive_iqr is None
 
 
 def test_evidence_rejects_empty_and_duplicate_ids() -> None:

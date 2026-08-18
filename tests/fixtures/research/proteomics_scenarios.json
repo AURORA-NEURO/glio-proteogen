@@ -1,5 +1,5 @@
 {
-  "fixture_version": "research-proteomics-2",
+  "fixture_version": "research-proteomics-3",
   "scenarios": [
     {
       "id": "target_supported",
@@ -23,21 +23,21 @@
         }
       ],
       "expected_group_fdr": {
-          "accepted_targets": 1,
-          "candidates": 1,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
-          "input_psms": 1,
-          "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 1,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 1
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
+        "input_psms": 1,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 1
       },
       "expected_group_candidates": [
         {
@@ -51,7 +51,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "01bcd09bb4a4062fe720bf8a2f94b811e2fef8c2409da90687f48329952395a6",
+      "expected_result_digest": "5e41a6836f753fa302adb4e5f1ab48946545ba5b2736377fd4159cb08487f9b9",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -95,11 +95,16 @@
           ]
         ],
         "raw_positive_median": 20.0,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 20.0,
         "sample_id": "research-eval:target_supported",
         "scale_factor": 1.0,
+        "positive_signal_fraction": 1.0,
+        "signal_quality": "single_positive_signal",
         "unique_peptides": 1,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
@@ -123,21 +128,21 @@
       "expected_decoy_winners": 1,
       "expected_quantified_peptides": 0,
       "expected_group_fdr": {
-          "accepted_targets": 0,
-          "candidates": 1,
-          "collision_candidates": 0,
-          "decoy_candidates": 1,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
-          "input_psms": 1,
-          "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 0,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 1
+        "accepted_targets": 0,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 1,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
+        "input_psms": 1,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 1
       },
       "expected_group_candidates": [
         {
@@ -151,7 +156,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "36f96174b4c23f6ed146f878950177e78a237d87b39d420d804459289deaf559",
+      "expected_result_digest": "aca60660dfd82283824961614141f5f45d235662cfbdd1ab5e70efdebb926073",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -178,11 +183,16 @@
         "observed_peptides": 0,
         "raw_peptide_signals": [],
         "raw_positive_median": null,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 0,
         "sample_id": "research-eval:decoy_rejected",
         "scale_factor": null,
+        "positive_signal_fraction": 0.0,
+        "signal_quality": "no_positive_signal",
         "unique_peptides": 0,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
@@ -207,21 +217,21 @@
       "expected_collision_winners": 1,
       "expected_quantified_peptides": 0,
       "expected_group_fdr": {
-          "accepted_targets": 0,
-          "candidates": 1,
-          "collision_candidates": 1,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
-          "input_psms": 1,
-          "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 0,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 1,
-          "unique_spectra": 1
+        "accepted_targets": 0,
+        "candidates": 1,
+        "collision_candidates": 1,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
+        "input_psms": 1,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 1,
+        "unique_spectra": 1
       },
       "expected_group_candidates": [
         {
@@ -236,7 +246,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "f8255d0e90d6cfee0afc38bd534e0894a306a7e4e312be253970844858316c32",
+      "expected_result_digest": "4646d97fb7952c4a8c5b040f7be9da59ca23db8684e0180a0ad439baaca3c769",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -263,11 +273,16 @@
         "observed_peptides": 0,
         "raw_peptide_signals": [],
         "raw_positive_median": null,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 0,
         "sample_id": "research-eval:target_decoy_collision",
         "scale_factor": null,
+        "positive_signal_fraction": 0.0,
+        "signal_quality": "no_positive_signal",
         "unique_peptides": 0,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
@@ -291,26 +306,26 @@
       "expected_decoy_winners": 0,
       "expected_quantified_peptides": 0,
       "expected_group_fdr": {
-          "accepted_targets": 0,
-          "candidates": 0,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-          "input_psms": 0,
-          "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 0,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 0
+        "accepted_targets": 0,
+        "candidates": 0,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "input_psms": 0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 0
       },
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "255ed45b1dc4a41f32c71fda25b291785fade4ef0027f80c18056f28035f458b",
+      "expected_result_digest": "6193e67714ce3d7e82aadc5a53285c05bbf9590e446231f737a485c8c6e99b62",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -333,11 +348,16 @@
         "observed_peptides": 0,
         "raw_peptide_signals": [],
         "raw_positive_median": null,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 0,
         "sample_id": "research-eval:no_match",
         "scale_factor": null,
+        "positive_signal_fraction": 0.0,
+        "signal_quality": "no_positive_signal",
         "unique_peptides": 0,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": []
     },
@@ -349,26 +369,26 @@
       "expected_decoy_winners": 0,
       "expected_quantified_peptides": 0,
       "expected_group_fdr": {
-          "accepted_targets": 0,
-          "candidates": 0,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-          "input_psms": 0,
-          "max_accepted_q_value": null,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 0,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 0
+        "accepted_targets": 0,
+        "candidates": 0,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "input_psms": 0,
+        "max_accepted_q_value": null,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 0,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 0
       },
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "3d83e1c7a2df9efe2d3138df8709a4b465e7a94ac2908f684818895c2319b14f",
+      "expected_result_digest": "1f99484cae7411c71d073acdb8adba46a2bd2938a96b7d7421fe1f6022d9d193",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -391,11 +411,16 @@
         "observed_peptides": 0,
         "raw_peptide_signals": [],
         "raw_positive_median": null,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 0,
         "sample_id": "research-eval:precursor_rejected",
         "scale_factor": null,
+        "positive_signal_fraction": 0.0,
+        "signal_quality": "no_positive_signal",
         "unique_peptides": 0,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": []
     },
@@ -426,21 +451,21 @@
         }
       ],
       "expected_group_fdr": {
-          "accepted_targets": 1,
-          "candidates": 1,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
-          "input_psms": 1,
-          "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 1,
-          "shared_only_candidates": 1,
-          "shared_peptide_candidates": 1,
-          "unique_spectra": 1
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "69a8106b5c80f2c3a0f6d225c78792bd8ca50289e1b4e49a59b71fc4f2562b99",
+        "input_psms": 1,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1,
+        "shared_only_candidates": 1,
+        "shared_peptide_candidates": 1,
+        "unique_spectra": 1
       },
       "expected_group_candidates": [
         {
@@ -455,7 +480,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "3e50a3f20fbb01a7f28af77d30f528cde1976f3449b7ab2049ea6d675de28a75",
+      "expected_result_digest": "772436938f6093296c6fc28b923cfb702c1217f05157d5b29dea5ae91167ba26",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -499,11 +524,16 @@
           ]
         ],
         "raw_positive_median": 20.0,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 20.0,
         "sample_id": "research-eval:shared_peptide_group",
         "scale_factor": 1.0,
+        "positive_signal_fraction": 1.0,
+        "signal_quality": "single_positive_signal",
         "unique_peptides": 1,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
@@ -541,21 +571,21 @@
         }
       ],
       "expected_group_fdr": {
-          "accepted_targets": 1,
-          "candidates": 1,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
-          "input_psms": 1,
-          "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 1,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 1
+        "accepted_targets": 1,
+        "candidates": 1,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "7cb95750fee4998de4b4f3fcede81c5c7e71dce9ebd5a755df6da97b16bbd151",
+        "input_psms": 1,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 1,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 1
       },
       "expected_group_candidates": [
         {
@@ -569,7 +599,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "2df31ec85e109d471e6c9852a00b5e73ae3e8cc65188e37967a5900b8d37e057",
+      "expected_result_digest": "883b7e85a22f6ff48e407389ebcd22b23c07a7c2039d453ee3c423e5742bb9d7",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -613,11 +643,16 @@
           ]
         ],
         "raw_positive_median": 20.0,
+        "raw_positive_mad": null,
+        "raw_positive_iqr": null,
+        "raw_robust_cv": null,
         "raw_total_signal": 20.0,
         "sample_id": "research-eval:multi_spectrum",
         "scale_factor": 1.0,
+        "positive_signal_fraction": 1.0,
+        "signal_quality": "single_positive_signal",
         "unique_peptides": 1,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
@@ -665,21 +700,21 @@
         }
       ],
       "expected_group_fdr": {
-          "accepted_targets": 2,
-          "candidates": 2,
-          "collision_candidates": 0,
-          "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
-          "duplicate_spectrum_psms": 0,
-          "competition_digest": "3a9b730fb6ff051603f7cfa05a6aed7a27e7ad0c683c21e6c1d88f0d3f84a0a4",
-          "input_psms": 2,
-          "max_accepted_q_value": 0.0,
-          "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
-          "q_value_threshold": 0.01,
-          "target_candidates": 2,
-          "shared_only_candidates": 0,
-          "shared_peptide_candidates": 0,
-          "unique_spectra": 2
+        "accepted_targets": 2,
+        "candidates": 2,
+        "collision_candidates": 0,
+        "decoy_candidates": 0,
+        "decoy_to_target_ratio": 0.0,
+        "duplicate_spectrum_psms": 0,
+        "competition_digest": "3a9b730fb6ff051603f7cfa05a6aed7a27e7ad0c683c21e6c1d88f0d3f84a0a4",
+        "input_psms": 2,
+        "max_accepted_q_value": 0.0,
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-2",
+        "q_value_threshold": 0.01,
+        "target_candidates": 2,
+        "shared_only_candidates": 0,
+        "shared_peptide_candidates": 0,
+        "unique_spectra": 2
       },
       "expected_group_candidates": [
         {
@@ -701,7 +736,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "bc9f4617ba4d68691c04baf94fe9efc53276463c363f3893bc25eca2b1cb7143",
+      "expected_result_digest": "90a8908f76ba787f36d6331b0e58682a850da7e2321b129550e6a8313251bc45",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
@@ -761,11 +796,16 @@
           ]
         ],
         "raw_positive_median": 52.5,
+        "raw_positive_mad": 7.5,
+        "raw_positive_iqr": 15.0,
+        "raw_robust_cv": 0.14285714285714285,
         "raw_total_signal": 105.0,
         "sample_id": "research-eval:multi_peptide_quantification",
         "scale_factor": 1.0,
+        "positive_signal_fraction": 1.0,
+        "signal_quality": "descriptive_positive_signal",
         "unique_peptides": 2,
-        "version": "matched-ion-median-2"
+        "version": "matched-ion-median-3"
       },
       "expected_competition_audit": [
         {
