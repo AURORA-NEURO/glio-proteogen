@@ -126,9 +126,7 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
         forged = result.model_copy(update={"report": changed_report})
     else:
         assert result.evidence
-        changed_evidence = result.evidence[0].model_copy(
-            update={"claim": "forged evidence claim"}
-        )
+        changed_evidence = result.evidence[0].model_copy(update={"claim": "forged evidence claim"})
         forged = result.model_copy(update={"evidence": (changed_evidence,)})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
