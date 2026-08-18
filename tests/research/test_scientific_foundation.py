@@ -816,6 +816,7 @@ def test_protein_group_candidate_exposes_shared_only_identifiability() -> None:
     assert summary.shared_peptide_candidates == 1
     assert summary.shared_only_candidates == 1
     assert candidates[0].identifiability == "shared_only_ambiguous"
+    assert candidates[0].acceptance == "abstained"
     assert candidates[0].as_dict()["identifiability"] == "shared_only_ambiguous"
 
 

@@ -152,6 +152,32 @@ class FdrSummary:
         }
 
 
+def _validate_target_decoy_psm(psm: Psm) -> None:
+    """Validate the target/decoy class against the declared accessions.
+
+    The search primitive is public and can be called without the pipeline's
+    later protein-group validation.  Accepting a forged ``decoy=False`` flag
+    here would let a decoy accession contribute to target-level FDR, so class
+    membership is derived and checked at the first FDR boundary.
+    """
+
+    if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
+        raise ValueError("PSM spectrum_id must be a non-empty string")
+    if not isinstance(psm.peptide, str) or not psm.peptide:
+        raise ValueError("PSM peptide must be a non-empty string")
+    if not isinstance(psm.protein_accessions, tuple) or not psm.protein_accessions:
+        raise ValueError("PSM must declare at least one protein accession")
+    if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
+        raise ValueError("PSM protein accessions must be non-empty strings")
+    derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+    derived_collision = (
+        any(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+        and not derived_decoy
+    )
+    if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
+        raise ValueError("PSM target/decoy flags do not match protein accessions")
+
+
 _MASS = {
     "A": 71.037114,
     "R": 156.101111,
@@ -347,6 +373,7 @@ def search_spectrum(
 def target_decoy_qvalues(psms: Iterable[Psm]) -> tuple[Psm, ...]:
     winners: dict[str, Psm] = {}
     for psm in psms:
+        _validate_target_decoy_psm(psm)
         if not isfinite(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         current = winners.get(psm.spectrum_id)

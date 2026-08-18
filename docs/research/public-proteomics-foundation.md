@@ -46,7 +46,10 @@ rejects duplicate or missing members, and is invoked by the release-evidence
 workflow after the candidate wheel is installed into its isolated runtime.
 The receipt records the public-proteomics gate. The additive research pipeline additionally has
 a locked evaluator for target/decoy competition, shared-peptide ambiguity, group-level FDR, and
-replay-bound quantification. It does not turn these fixtures into clinical or glioma claims.
+replay-bound quantification. Its invariant evaluator rejects accession/decoy flag mismatches,
+checks monotone target q-values and decoy exclusion, treats exact-LOQ signals as missing without
+imputation, and keeps shared-only group signal visible while abstaining from a primary estimate.
+It does not turn these fixtures into clinical or glioma claims.
 
 ## Promotion gate
 

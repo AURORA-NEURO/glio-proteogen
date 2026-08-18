@@ -78,8 +78,12 @@ C03/C04 computation contract:
   monotone max-PSM-score group q-values, rejects decoy groups, abstains on mixed collisions, and
   exposes unique-peptide versus shared-only identifiability before quantification. The summary
   records input-versus-unique spectra and shared-peptide counts, so a changed lower-scoring
-  contender cannot replay as the same group result. This is transparent research FDR evidence,
-  not a calibrated protein probability.
+  contender cannot replay as the same group result. A target group supported only by shared
+  peptides remains visible with shared signal and an explicit `abstained` acceptance; it cannot
+  become a reportable primary estimate merely because its group q-value is numerically small.
+  Direct target/decoy q-value entry also validates accession-derived class flags before
+  competition, preventing a forged decoy from entering the target denominator. This is
+  transparent research FDR evidence, not a calibrated protein probability.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
   Each record may additionally carry an `EvidenceQuality` assessment that separates
   byte/computation auditability, observed completeness, and caller-declared independent source
