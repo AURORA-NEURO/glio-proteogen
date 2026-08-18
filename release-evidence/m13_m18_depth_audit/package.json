@@ -1,0 +1,49 @@
+{
+  "scope": "M13-01..M18-08 available module lanes",
+  "base_commit": "e4ae7458",
+  "python": "3.12.13",
+  "build_backend": "hatchling",
+  "source_date_epoch": 315532800,
+  "python_loc_delta": {
+    "production_insertions": 6,
+    "all_python_insertions": 27,
+    "all_python_deletions": 2,
+    "changed_python_files": 3
+  },
+  "reproducible_builds": {
+    "build_count": 2,
+    "external_output_directories": true,
+    "byte_identical_wheel": true,
+    "byte_identical_sdist": true,
+    "command": "uv build --wheel --sdist --out-dir <external-output>"
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "bytes": 3664493,
+    "sha256": "643516db47037692f617882b126577fc6a9722161620704645908225d214d745"
+  },
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "bytes": 4203436,
+    "sha256": "8612ccab0b9a7670d8538746d3505154a4efb015252446dab448962f98be9bf5"
+  },
+  "isolated_install": {
+    "wheel_install_without_dependencies": true,
+    "import_check": "python -I -c \"import glio_proteogen\"",
+    "passed": true
+  },
+  "tests": {
+    "non_release_focused_passed": 1054,
+    "evaluator_entrypoints_passed": 47,
+    "benchmark_entrypoints_passed": 47
+  },
+  "coverage": {
+    "branch_enabled": true,
+    "percent": 97,
+    "statements": 8557,
+    "branches": 1690,
+    "partial_branches": 91,
+    "fail_under": 95
+  },
+  "status": "passed"
+}
