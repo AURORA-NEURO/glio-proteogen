@@ -29,6 +29,7 @@ from glio_proteogen.contracts.m03_04 import (
     configuration_digest,
     fact_ledger_digest,
     raw_quality_receipt_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
@@ -108,6 +109,29 @@ def test_semantic_reordering_preserves_complete_result_equality() -> None:
     assert compute_protein_inference_quality(reordered) == (
         compute_protein_inference_quality(request)
     )
+
+
+def test_superseding_recovery_binds_prior_result_in_provenance() -> None:
+    request = build_scenario_request()
+    prior = compute_protein_inference_quality(request)
+    superseding_request = ComputeProteinInferenceQualityRequest(
+        **{
+            **request.model_dump(mode="python"),
+            "supersedes_result_digest": prior.result_digest,
+        }
+    )
+
+    recovered = compute_protein_inference_quality(superseding_request)
+
+    assert recovered.request.supersedes_result_digest == prior.result_digest
+    assert prior.result_digest in recovered.provenance.input_digests
+    forged = recovered.model_dump(mode="python")
+    forged["provenance"]["input_digests"] = tuple(
+        digest for digest in forged["provenance"]["input_digests"] if digest != prior.result_digest
+    )
+    forged["result_digest"] = result_payload_digest(forged)
+    with pytest.raises(ValueError, match="provenance does not close"):
+        ProteinInferenceQualityResult.model_validate(forged, strict=True)
 
 
 @pytest.mark.parametrize(
