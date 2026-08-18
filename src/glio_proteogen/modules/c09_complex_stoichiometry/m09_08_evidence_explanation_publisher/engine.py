@@ -470,6 +470,13 @@ class M0908EvidencePublisher:
                 verified=False,
                 reason=PublicationReplayReason.INVALID_RESULT,
             )
+        if typed.provenance != _provenance(typed.request):
+            return ComplexActivityEvidencePublicationVerification(
+                content_verified=False,
+                deterministic_verified=False,
+                verified=False,
+                reason=PublicationReplayReason.DIGEST_MISMATCH,
+            )
         if canonical_bytes is not None and (
             type(canonical_bytes) is not bytes
             or len(canonical_bytes) > M0908_MAX_CANONICAL_RESULT_BYTES
