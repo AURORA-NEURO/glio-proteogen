@@ -6,14 +6,24 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Final
+
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
 
 from glio_proteogen.modules.c21_reference_material.m23_04_external_transport_evaluator import (
     M2304Engine,
 )
 
-from .run import build_scenario_request
+if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
+    from evals.m23_04.run import build_scenario_request
+else:
+    from .run import build_scenario_request
 
 ITERATIONS: Final = 10
 MEAN_BUDGET_NS: Final = 500_000_000
