@@ -139,9 +139,16 @@ class M2102Engine:
             raise M2102ReplayError("M21-02 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2102ReplayError("M21-02 result payload digest mismatch")  # noqa: TRY003
-        return ComplexActivitySyntheticTruthResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            validated = ComplexActivitySyntheticTruthResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise M2102ReplayError("M21-02 replay result validation failed") from error  # noqa: TRY003
+        expected = self.generate(validated.request)
+        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
+            raise M2102ReplayError("M21-02 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def generate_complex_activity_synthetic_truth(
