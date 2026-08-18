@@ -1,6 +1,7 @@
 {
   "lane": "research-protein-inference-pipeline",
   "fixture_sha256": "a55b31903caaa46b2026b191842df23d59a2c0cf6b2cf80fa59250183e2304ff",
+  "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "declared": 6,
     "executed": 6,
