@@ -11,8 +11,10 @@ from typing import Annotated
 import typer
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m25_08 import (
     M2508_MAX_CANONICAL_REQUEST_BYTES,
+    M2508_MAX_CANONICAL_RESULT_BYTES,
     AdjudicateProteotypeEvidenceGateRequest,
     ProteotypeEvidenceGateResult,
     contract_json_schema,
@@ -46,7 +48,7 @@ class M2508CliError(typer.BadParameter):
 
 def _read_request(path: Path) -> AdjudicateProteotypeEvidenceGateRequest:
     try:
-        data = path.read_bytes()
+        data = read_bounded(path, M2508_MAX_CANONICAL_REQUEST_BYTES)
         strict_json_loads(data, max_bytes=M2508_MAX_CANONICAL_REQUEST_BYTES)
         return _REQUEST_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
@@ -55,7 +57,9 @@ def _read_request(path: Path) -> AdjudicateProteotypeEvidenceGateRequest:
 
 def _read_result(path: Path) -> ProteotypeEvidenceGateResult:
     try:
-        return _RESULT_ADAPTER.validate_json(path.read_bytes(), strict=True)
+        return _RESULT_ADAPTER.validate_json(
+            read_bounded(path, M2508_MAX_CANONICAL_RESULT_BYTES), strict=True
+        )
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2508CliError("input must be a valid M25-08 result") from error
 
