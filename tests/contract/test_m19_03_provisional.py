@@ -2,7 +2,7 @@
 
 from typing import cast
 
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m19_03 import (
     M1903_OUTPUT_MEDIA_TYPE,
@@ -59,7 +59,7 @@ def test_provisional_schemas_preserve_attribution_and_conflict() -> None:
     assert _metadata(schemas["output"])["outputMediaType"] == M1903_OUTPUT_MEDIA_TYPE
     assert M1903_PROVISIONAL_ABI is True
     assert all(
-        tuple(item["prohibitedClaimTerms"]) == M1903_PROHIBITED_CLAIM_TERMS
+        cast("tuple[str, ...]", item["prohibitedClaimTerms"]) == M1903_PROHIBITED_CLAIM_TERMS
         for item in metadata
     )
 

@@ -57,7 +57,7 @@ def test_provisional_schemas_preserve_intended_use_boundaries() -> None:
     assert _metadata(schemas["output"])["outputMediaType"] == M1904_OUTPUT_MEDIA_TYPE
     assert M1904_PROVISIONAL_ABI is True
     assert all(
-        tuple(item["prohibitedClaimTerms"]) == M1904_PROHIBITED_CLAIM_TERMS
+        cast("tuple[str, ...]", item["prohibitedClaimTerms"]) == M1904_PROHIBITED_CLAIM_TERMS
         for item in (_metadata(schema) for schema in schemas.values())
     )
 
