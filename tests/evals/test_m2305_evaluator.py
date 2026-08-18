@@ -39,5 +39,5 @@ def test_direct_evaluator_and_benchmark_entrypoints_bootstrap_project_root() -> 
         text=True,
         check=True,
     )
-    assert '"passed": 11' in evaluator.stdout
+    assert '"passed": 12' in evaluator.stdout
     assert '"passed": true' in benchmark.stdout
