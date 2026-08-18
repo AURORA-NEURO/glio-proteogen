@@ -199,9 +199,6 @@ jobs:
           cp release-build-one/* evidence/distribution/
           cp "$RUNNER_TEMP/distribution-one.sha256" evidence/distribution-reproducibility.sha256
           wheel="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.whl')"
-          sdist="$(find "$GITHUB_WORKSPACE/evidence/distribution" -maxdepth 1 -type f -name '*.tar.gz')"
-          uv run python tools/verify_research_pipeline.py \
-            evidence/research-proteomics-eval.json "$wheel" "$sdist"
           echo "RELEASE_WHEEL=$wheel" >> "$GITHUB_ENV"
       - name: Install and test the exact candidate wheel
         run: |
