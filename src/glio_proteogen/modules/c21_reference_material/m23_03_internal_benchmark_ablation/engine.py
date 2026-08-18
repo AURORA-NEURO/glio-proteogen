@@ -123,15 +123,30 @@ class M2303BenchmarkEngine:
         self,
         result: VariantPeptideInternalBenchmarkResult,
     ) -> VariantPeptideInternalBenchmarkResult:
+        """Regenerate the benchmark result and compare its full canonical payload.
+
+        The digest checks below reject malformed identity fields with stable errors for
+        callers.  They are not sufficient on their own: a caller could mutate a dossier
+        or evidence record and then recompute ``result_digest``.  Revalidating the
+        submitted result and regenerating it from the request closes that semantic
+        self-rehash gap while preserving the provisional metadata-only ABI.
+        """
         if result.request_digest != canonical_request_digest(result.request):
             raise M2303ReplayError("M23-03 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
             raise M2303ReplayError("M23-03 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2303ReplayError("M23-03 result payload digest mismatch")  # noqa: TRY003
-        return VariantPeptideInternalBenchmarkResult.model_validate_json(
-            canonical_json_bytes(result), strict=True
-        )
+        try:
+            canonical_result = VariantPeptideInternalBenchmarkResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            regenerated = self.generate(canonical_result.request)
+        except Exception as error:  # noqa: BLE001 - replay fails closed at the model boundary.
+            raise M2303ReplayError("M23-03 canonical replay regeneration failed") from error
+        if canonical_json_bytes(canonical_result) != canonical_json_bytes(regenerated):
+            raise M2303ReplayError("M23-03 canonical replay result mismatch")  # noqa: TRY003
+        return canonical_result
 
 
 def run_variant_peptide_internal_benchmark(
