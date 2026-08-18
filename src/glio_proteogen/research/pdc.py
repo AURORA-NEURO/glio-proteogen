@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from hashlib import sha256
-from typing import Any
+from hashlib import md5, sha256
+from typing import Any, BinaryIO
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 PDC_GRAPHQL_ENDPOINT = "https://pdc.cancer.gov/graphql"
@@ -26,6 +27,7 @@ class PdcFile:
     file_size: int
     md5: str | None
     location: str
+    signed_url: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +87,12 @@ def _file(value: object) -> PdcFile:
         file_size=size,
         md5=value.get("md5sum") if isinstance(value.get("md5sum"), str) else None,
         location=_string(value.get("file_location"), "file_location"),
+        signed_url=(
+            value.get("signedUrl", {}).get("url")
+            if isinstance(value.get("signedUrl"), dict)
+            and isinstance(value.get("signedUrl", {}).get("url"), str)
+            else None
+        ),
     )
 
 
@@ -103,7 +111,7 @@ class PdcClient:
             'filesPerStudy(pdc_study_id: "'
             + study_id
             + f'", offset: 0, limit: {limit}) {{ pdc_study_id file_name file_type '
-            "md5sum file_location file_size data_category file_format } }"
+            "md5sum file_location file_size data_category file_format signedUrl { url } } }"
         )
         data, raw = _post(query)
         raw_counts = data.get("filesCountPerStudy")
@@ -135,3 +143,46 @@ class PdcClient:
             source_url=PDC_STUDY_URL.format(study_id=study_id),
             response_sha256=sha256(raw).hexdigest(),
         )
+
+    def download_file(
+        self,
+        file: PdcFile,
+        destination: BinaryIO,
+        *,
+        max_bytes: int = 512 * 1024 * 1024,
+    ) -> int:
+        """Explicitly stream one signed PDC file into a caller-owned destination.
+
+        Metadata discovery never calls this method. The signed URL must be HTTPS on
+        the PDC host, the declared size must fit the caller's bound, and an MD5
+        supplied by PDC is checked over the received bytes before returning.
+        """
+        if not 0 < max_bytes <= 2 * 1024 * 1024 * 1024:
+            raise ValueError("max_bytes is outside supported bounds")
+        if file.signed_url is None:
+            raise PdcError("PDC file has no signed download URL")
+        parsed = urlparse(file.signed_url)
+        if parsed.scheme != "https" or parsed.hostname != "pdc.cancer.gov":
+            raise PdcError("PDC signed URL is outside the HTTPS PDC host allowlist")
+        if file.file_size > max_bytes:
+            raise PdcError("PDC file exceeds the caller download limit")
+        request = Request(  # noqa: S310 - HTTPS host allowlist validated above
+            file.signed_url, headers={"Accept": "application/octet-stream"}
+        )
+        digest = md5(usedforsecurity=False)
+        total = 0
+        with urlopen(request, timeout=120.0) as response:  # noqa: S310 - HTTPS allowlist above
+            while True:
+                chunk = response.read(min(1024 * 1024, max_bytes - total + 1))
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes or total > file.file_size:
+                    raise PdcError("PDC download exceeded the declared or caller limit")
+                digest.update(chunk)
+                destination.write(chunk)
+        if total != file.file_size:
+            raise PdcError("PDC download length differs from metadata")
+        if file.md5 is not None and digest.hexdigest().lower() != file.md5.lower():
+            raise PdcError("PDC download MD5 differs from metadata")
+        return total

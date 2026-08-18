@@ -8,6 +8,8 @@ import io
 import json
 import struct
 import zlib
+from dataclasses import replace
+from hashlib import md5
 from pathlib import Path
 from typing import Self
 
@@ -308,6 +310,7 @@ def test_search_and_quantification_edge_closures() -> None:
 class _FakeResponse:
     def __init__(self, payload: bytes) -> None:
         self.payload = payload
+        self._read = False
 
     def __enter__(self) -> Self:
         return self
@@ -316,6 +319,9 @@ class _FakeResponse:
         return None
 
     def read(self, _limit: int) -> bytes:
+        if self._read:
+            return b""
+        self._read = True
         return self.payload
 
 
@@ -383,6 +389,75 @@ def test_pdc_count_rejections(monkeypatch: pytest.MonkeyPatch, value: object) ->
 def test_pdc_file_entry_must_be_an_object() -> None:
     with pytest.raises(pdc.PdcError):
         pdc._file(None)
+
+
+def test_pdc_explicit_signed_download_verifies_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = b"bounded-real-data"
+    file = pdc.PdcFile(
+        study_id="PDC000204",
+        file_name="fixture.mzML",
+        file_type="Processed Mass Spectra",
+        data_category="Processed Mass Spectra",
+        file_format="mzML",
+        file_size=len(payload),
+        md5=md5(payload, usedforsecurity=False).hexdigest(),
+        location="studies/204/fixture.mzML",
+        signed_url="https://pdc.cancer.gov/download/fixture",
+    )
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    destination = io.BytesIO()
+    assert pdc.PdcClient().download_file(file, destination) == len(payload)
+    assert destination.getvalue() == payload
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(file, io.BytesIO(), max_bytes=4)
+    with pytest.raises(ValueError):
+        pdc.PdcClient().download_file(file, io.BytesIO(), max_bytes=0)
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(replace(file, file_size=4, md5=None), io.BytesIO())
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(
+            replace(file, file_size=len(payload) + 1, md5=None), io.BytesIO()
+        )
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(replace(file, md5="0" * 32), io.BytesIO())
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(
+            replace(file, signed_url="http://evil.example/x"),
+            io.BytesIO(),
+        )
+
+
+def test_pdc_signed_download_rejects_missing_or_bad_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"content"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "fixture",
+        "Mass",
+        "Raw",
+        "mzML",
+        len(payload),
+        "0" * 32,
+        "fixture",
+        "https://pdc.cancer.gov/download/fixture",
+    )
+    monkeypatch.setattr(pdc, "urlopen", lambda *_args, **_kwargs: _FakeResponse(payload))
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(file, io.BytesIO())
+    missing = file.__class__(
+        file.study_id,
+        file.file_name,
+        file.file_type,
+        file.data_category,
+        file.file_format,
+        file.file_size,
+        file.md5,
+        file.location,
+    )
+    with pytest.raises(pdc.PdcError):
+        pdc.PdcClient().download_file(missing, io.BytesIO())
 
 
 def test_pdc_private_file_size_and_required_fields() -> None:
