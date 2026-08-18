@@ -18,6 +18,7 @@
   "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8132-8172",
   "fixture_digest": "sha256:584fc22b950561bc7af114dac31120a42ef6c4be43f91b56fedf286ac4f4ba50",
   "fixture_result_digest": "sha256:2241c5a194b196420d958f441a7af505002074a10eccc58f06edff597859480d",
+  "focused_tests": 37,
   "module_id": "GLIO-PROTEOGEN-M23-05",
   "passed": true,
   "scenario_count": 11

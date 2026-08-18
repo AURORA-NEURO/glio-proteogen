@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tarfile
 from pathlib import Path
 from typing import Any, cast
+from zipfile import ZipFile
 
 MODULE_ID = "GLIO-PROTEOGEN-M23-05"
 EVIDENCE_ROOT = Path("release-evidence/m23_05")
@@ -15,6 +17,17 @@ DOSSIER_SLICE = "GLIO-PROTEOGEN_240_Module_Dossier.md:8132-8172"
 
 class M2305ReleaseVerificationError(ValueError):
     """Raised when committed M23-05 evidence is incomplete or inconsistent."""
+
+
+def _is_generated_member(name: str) -> bool:
+    """Reject local caches and M23-05 evidence from release archives."""
+
+    return (
+        "/__pycache__/" in name
+        or name.endswith(".pyc")
+        or ".m2305-" in name
+        or "coverage_m23_05" in name
+    )
 
 
 def _load(root: Path, name: str) -> dict[str, Any]:
@@ -83,6 +96,8 @@ def _verify_package(root: Path) -> None:
         evidence.get("passed") is True and evidence.get("isolated_import") is True,
         "package evidence failed",
     )
+    _require(evidence.get("generated_member_count") == 0, "generated members recorded")
+    _require(evidence.get("generated_members") == [], "generated member list is not empty")
     for key in ("wheel", "sdist"):
         item = evidence.get(key)
         _require(isinstance(item, dict), f"missing {key} evidence")
@@ -93,6 +108,17 @@ def _verify_package(root: Path) -> None:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         _require(digest == item_map.get("sha256"), f"{key} hash mismatch")
         _require(path.stat().st_size == item_map.get("size_bytes"), f"{key} size mismatch")
+        if key == "wheel":
+            with ZipFile(path) as archive:
+                names = archive.namelist()
+        else:
+            with tarfile.open(path, mode="r:gz") as archive:
+                names = [member.name for member in archive.getmembers()]
+        _require(len(names) == item_map.get("member_count"), f"{key} member count mismatch")
+        _require(
+            not any(_is_generated_member(name) for name in names),
+            f"{key} contains generated members",
+        )
 
 
 def verify(root: Path | None = None) -> None:
