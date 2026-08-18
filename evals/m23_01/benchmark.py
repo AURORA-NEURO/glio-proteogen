@@ -6,8 +6,13 @@ from __future__ import annotations
 
 import json
 import statistics
+import sys
 import time
+from pathlib import Path
 from typing import Final
+
+if __package__ in (None, ""):  # pragma: no cover - direct script invocation.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tests.contract.test_m23_01_deep import _request
 
