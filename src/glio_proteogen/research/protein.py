@@ -154,9 +154,7 @@ def infer_protein_group_candidates(
     if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
     _validate_decoy_prefix(decoy_prefix)
-    input_psms, psms, competition_digest = _prepare_group_psms(
-        psms, decoy_prefix=decoy_prefix
-    )
+    input_psms, psms, competition_digest = _prepare_group_psms(psms, decoy_prefix=decoy_prefix)
     peptide_to_proteins: dict[str, set[str]] = {}
     for psm in psms:
         if not isinstance(psm.peptide, str) or not psm.peptide:
@@ -294,7 +292,9 @@ def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[st
 
 
 def _prepare_group_psms(
-    psms: tuple[Psm, ...], *, decoy_prefix: str,
+    psms: tuple[Psm, ...],
+    *,
+    decoy_prefix: str,
 ) -> tuple[tuple[Psm, ...], tuple[Psm, ...], str]:
     """Validate contenders, select one winner per spectrum, and digest all inputs."""
 
@@ -333,7 +333,7 @@ def _validate_group_psm(psm: Psm, *, decoy_prefix: str) -> None:
         raise ValueError("PSM protein accessions must be non-empty strings")
     if not isfinite(psm.score) or psm.score < 0:
         raise ValueError("PSM scores must be finite and non-negative")
-    derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+    derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
     derived_collision = (
         any(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
         and not derived_decoy

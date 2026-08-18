@@ -16,7 +16,7 @@ from hashlib import md5, sha256
 from typing import BinaryIO
 
 from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify_evidence_bundle
-from .fasta import digest_trypsin, read_fasta
+from .fasta import build_search_space, read_fasta
 from .modifications import expand_peptide_map, normalize_modification_rules
 from .mzml import parse_mzml
 from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
@@ -476,13 +476,15 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         max_length=request.max_peptide_length,
     )
     peptide_map = expand_peptide_map(
-        peptide_map,
+        search_space.as_map(),
         allowed_modifications=request.variable_modifications,
         max_variable_modifications=request.max_variable_modifications,
     )
     search_space_receipt = build_search_space_receipt(
         fasta_bytes,
         entries,
+        decoy_strategy=request.decoy_strategy,
+        decoy_prefix=request.decoy_prefix,
         missed_cleavages=request.missed_cleavages,
         min_peptide_length=request.min_peptide_length,
         max_peptide_length=request.max_peptide_length,
@@ -529,10 +531,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         if candidates:
             candidate_psms.extend(candidates)
             competition_audit.append(PsmCompetition.from_candidates(candidates))
-    scored = target_decoy_qvalues(tuple(candidate_psms))
+    scored = target_decoy_qvalues(tuple(candidate_psms), decoy_prefix=request.decoy_prefix)
     fdr_summary = summarize_target_decoy(
         scored,
         q_value_threshold=request.q_value_threshold,
+        decoy_prefix=request.decoy_prefix,
     )
     accepted = tuple(
         item
@@ -638,6 +641,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "max_peptide_length": request.max_peptide_length,
         "max_spectra": request.max_spectra,
         "q_value_threshold": request.q_value_threshold,
+        "decoy_strategy": request.decoy_strategy,
+        "decoy_prefix": request.decoy_prefix,
         "max_bytes": request.max_bytes,
         "quantification_version": "matched-ion-median-2",
         "quantification_quality_version": "matched-ion-descriptive-dispersion-1",
@@ -698,7 +703,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             {
                 "bytes": len(fasta_bytes),
                 "peptides": len(peptide_map),
-                "search_space_receipt": search_space.receipt.as_dict(),
+                "search_space_receipt": search_space_receipt.as_dict(),
             },
         ),
         EvidenceRecord.create(
