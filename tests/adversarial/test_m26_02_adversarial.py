@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path  # noqa: TC003 - runtime filesystem path.
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import pytest
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
     LineageRelation,
@@ -19,6 +25,9 @@ from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service imp
     LineageAuthorizationError,
     M2602LineagePlugin,
     M2602LineageService,
+)
+from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service import (
+    cli as cli_module,
 )
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.cli import app
 from tests.runtime.test_m26_02_runtime import _artifact, _request
@@ -114,3 +123,33 @@ def test_abstention_never_writes_cli_output(tmp_path: Path) -> None:
     )
     assert result.exit_code == _ABSTENTION_EXIT_CODE
     assert not output_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("helper", "limit"),
+    [
+        (cli_module._validated_request, M2602_MAX_CANONICAL_REQUEST_BYTES),
+        (cli_module._validated_result, M2602_MAX_CANONICAL_RESULT_BYTES),
+    ],
+)
+def test_cli_rejects_oversized_json_before_reading(
+    tmp_path: Path,
+    helper: Callable[[Path], object],
+    limit: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "oversized.json"
+    path.write_bytes(b"{" + b" " * limit + b"}")
+    read_called = False
+
+    def fail_if_read(_path: Path) -> bytes:
+        nonlocal read_called
+        read_called = True
+        raise AssertionError(  # noqa: TRY003
+            "oversized CLI input must be rejected before read_bytes"
+        )
+
+    monkeypatch.setattr(Path, "read_bytes", fail_if_read)
+    with pytest.raises(ValueError, match="bounded JSON byte limit"):
+        helper(path)
+    assert not read_called
