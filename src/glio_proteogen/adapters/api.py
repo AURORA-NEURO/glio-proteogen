@@ -2082,6 +2082,18 @@ async def _m1903_result_body(request: Request) -> ProteotypeIntegratedEvidenceRe
     return await _strict_json_body(request, _M1903_RESULT_ADAPTER)
 
 
+def _validate_m0404_json_request_for_api(
+    candidate: object,
+    serialized: bytes,
+) -> ComputeProteoformQualityMetricsRequest:
+    """Keep M04-04's sanitized legacy error envelope at the HTTP boundary."""
+
+    try:
+        return _validate_m0404_json_request(candidate, serialized)
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail="M04-04 request validation failed") from error
+
+
 async def _proteoform_quality_body(
     request: Request,
 ) -> ComputeProteoformQualityMetricsRequest:
@@ -2090,7 +2102,7 @@ async def _proteoform_quality_body(
         _M0404_QUALITY_ADAPTER,
         None,
         M0404_MAX_CANONICAL_REQUEST_BYTES,
-        _validate_m0404_json_request,
+        _validate_m0404_json_request_for_api,
     )
 
 
