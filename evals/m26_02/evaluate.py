@@ -11,7 +11,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from evals.m26_02.fixture import request
-from glio_proteogen.contracts.m26_02 import LineageStatus
+from glio_proteogen.contracts.m26_02 import LineageStatus, result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service import (
     LineageAuthorizationError,
@@ -80,6 +80,22 @@ def _tamper_replay() -> dict[str, Any]:
     raise AssertionError("tampered result must not verify")
 
 
+def _semantic_tamper_replay() -> dict[str, Any]:
+    service = M2602LineageService()
+    result = service.execute(request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={"activity_id": "forged"})}
+    )
+    forged = type(forged).model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    try:
+        service.verify(forged)
+    except LineageReplayError:
+        return {"tamper": "self-rehashed semantic mutation rejected"}
+    raise AssertionError("self-rehashed provenance must not verify")
+
+
 def _determinism() -> dict[str, Any]:
     service = M2602LineageService()
     first = service.execute(request())
@@ -95,6 +111,7 @@ SCENARIOS: dict[str, Scenario] = {
     "denied_control": _denied_control,
     "plugin_parity": _plugin_parity,
     "tamper_replay": _tamper_replay,
+    "semantic_tamper_replay": _semantic_tamper_replay,
     "determinism": _determinism,
 }
 

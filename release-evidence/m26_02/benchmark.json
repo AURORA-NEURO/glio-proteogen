@@ -1,12 +1,12 @@
 {
   "moduleId": "GLIO-PROTEOGEN-M26-02",
   "benchmark": "benchmarks/m26_02_lineage.py::test_m26_02_lineage_construction",
-  "sampleCount": 513,
+  "sampleCount": 510,
   "iterations": 1,
-  "meanNs": 2358895,
-  "medianNs": 2206500,
-  "p95Ns": 3348800,
-  "maxNs": 17447400,
+  "meanNs": 2518761,
+  "medianNs": 2305550,
+  "p95Ns": 3473500,
+  "maxNs": 20197300,
   "budgetsNs": {
     "mean": 500000000,
     "p95": 750000000
