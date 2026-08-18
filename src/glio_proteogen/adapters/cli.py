@@ -149,6 +149,7 @@ from glio_proteogen.contracts.m03_03 import (
 )
 from glio_proteogen.contracts.m03_04 import (
     M0304_MAX_CANONICAL_REQUEST_BYTES,
+    M0304_MAX_CANONICAL_RESULT_BYTES,
     ComputeProteinInferenceQualityRequest,
     ProteinInferenceQualityResult,
 )
@@ -4004,6 +4005,18 @@ def compute_protein_inference_quality(request: RequestArgument) -> None:
         M0304_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0304Service().execute(parsed))
+
+
+@protein_inference_quality_app.command("verify")
+def verify_protein_inference_quality(result: RequestArgument) -> None:
+    """Replay-verify one canonical metadata-only quality result."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteinInferenceQualityResult),
+        max_bytes=M0304_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(M0304Service().verify(parsed))
 
 
 @protein_inference_artifacts_app.command("export-schema")

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Final, cast
 import pytest
 from evals.m03_04.run import build_scenario_request
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters import cli as cli_adapter
@@ -18,6 +19,7 @@ from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m03_03 import ProteinInferenceAdmissionDisposition
 from glio_proteogen.contracts.m03_04 import (
     M0304_MAX_CANONICAL_REQUEST_BYTES,
+    M0304_MAX_CANONICAL_RESULT_BYTES,
     ComputeProteinInferenceQualityRequest,
     ProteinInferenceAssayQualityProfile,
     ProteinInferenceQualityPolicy,
@@ -30,6 +32,7 @@ from glio_proteogen.contracts.m03_04.canonical import (
     raw_quality_receipt_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
     M0304Service,
     ProteinInferenceQualityAuthorizationError,
@@ -128,11 +131,7 @@ def _payload() -> dict[str, Any]:
 def _source(payload: dict[str, Any], role: str) -> dict[str, Any]:
     return cast(
         "dict[str, Any]",
-        next(
-            item
-            for item in payload["raw_quality_receipt"]["sources"]
-            if item["role"] == role
-        ),
+        next(item for item in payload["raw_quality_receipt"]["sources"] if item["role"] == role),
     )
 
 
@@ -230,13 +229,13 @@ def _mutate_semantic_payload(payload: dict[str, Any], mutation: str) -> None:  #
     elif mutation == "input_postdates_execution":
         payload["policy"]["reviewed_at"] = "2026-08-14T00:00:00Z"
     elif mutation == "identity_control_binding_mismatch":
-        payload["context"]["references"]["identity_lineage"]["binding_digest"] = (
-            "sha256:" + ("0" * 64)
+        payload["context"]["references"]["identity_lineage"]["binding_digest"] = "sha256:" + (
+            "0" * 64
         )
     elif mutation == "approved_configuration_binding_mismatch":
-        payload["context"]["references"]["approved_configuration"]["evidence"][
-            "digest"
-        ] = "sha256:" + ("0" * 64)
+        payload["context"]["references"]["approved_configuration"]["evidence"]["digest"] = (
+            "sha256:" + ("0" * 64)
+        )
     elif mutation == "ledger_presence_mismatch":
         payload["fact_ledger"] = None
     elif mutation == "ledger_time_mismatch":
@@ -259,8 +258,7 @@ def test_api_and_cli_export_identical_m03_04_schemas(tmp_path: Path, name: str) 
     assert cli.exit_code == 0, cli.output
     assert response.json() == json.loads(cli.stdout)
     assert response.json()["$id"] == (
-        "urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-04:1.0.0:"
-        f"{name}"
+        f"urn:aurora-neuro:glio-proteogen:GLIO-PROTEOGEN-M03-04:1.0.0:{name}"
     )
 
 
@@ -285,10 +283,48 @@ def test_library_service_api_and_cli_return_complete_equal_result(tmp_path: Path
     assert response.status_code == HTTP_OK, response.text
     assert cli.exit_code == 0, cli.output
     assert (
-        ProteinInferenceQualityResult.model_validate_json(response.content, strict=True)
-        == expected
+        ProteinInferenceQualityResult.model_validate_json(response.content, strict=True) == expected
     )
     assert ProteinInferenceQualityResult.model_validate_json(cli.stdout, strict=True) == expected
+
+
+def test_service_api_and_cli_replay_verify_reject_forged_and_duplicate_results(
+    tmp_path: Path,
+) -> None:
+    request = build_scenario_request()
+    expected = M0304Service().execute(request)
+    result_path = tmp_path / "quality-result.json"
+    result_path.write_bytes(expected.model_dump_json().encode("utf-8"))
+
+    assert M0304Service().verify(result_path.read_bytes()) == expected
+    forged = copy.deepcopy(expected.model_dump(mode="json"))
+    forged["result_digest"] = "sha256:" + ("f" * 64)
+    with pytest.raises(ValidationError):
+        M0304Service().verify(forged)
+    duplicate = expected.model_dump_json().replace(
+        '"result_id":', '"result_id":"duplicate","result_id":', 1
+    )
+    with pytest.raises(StrictJsonError):
+        M0304Service().verify(duplicate)
+
+    with TestClient(create_app(tmp_path / "verify.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-04/quality/verify",
+            content=result_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_OK, response.text
+    assert (
+        ProteinInferenceQualityResult.model_validate_json(response.content, strict=True) == expected
+    )
+
+    cli = CliRunner().invoke(
+        cli_app,
+        ["protein-inference-quality", "verify", str(result_path)],
+    )
+    assert cli.exit_code == 0, cli.output
+    assert ProteinInferenceQualityResult.model_validate_json(cli.stdout, strict=True) == expected
+    assert len(result_path.read_bytes()) <= M0304_MAX_CANONICAL_RESULT_BYTES
 
 
 @pytest.mark.parametrize(("role", "denied_state"), AUTHORIZATION_DENIALS)
@@ -539,9 +575,7 @@ def test_service_api_and_cli_preserve_each_typed_upstream_safe_failure(
     )
     receipt_payload["receipt_digest"] = raw_quality_receipt_digest(receipt_payload)
     receipt = canonical.raw_quality_receipt.model_validate(receipt_payload, strict=True)
-    request = canonical.model_copy(
-        update={"raw_quality_receipt": receipt, "fact_ledger": None}
-    )
+    request = canonical.model_copy(update={"raw_quality_receipt": receipt, "fact_ledger": None})
     request = ComputeProteinInferenceQualityRequest.model_validate(
         request,
         strict=True,
@@ -565,9 +599,9 @@ def test_service_api_and_cli_preserve_each_typed_upstream_safe_failure(
     assert response.status_code == HTTP_OK, response.text
     assert cli.exit_code == 0, cli.output
     assert expected.disposition.value == expected_disposition
-    assert ProteinInferenceQualityResult.model_validate_json(
-        response.content, strict=True
-    ) == expected
+    assert (
+        ProteinInferenceQualityResult.model_validate_json(response.content, strict=True) == expected
+    )
     assert ProteinInferenceQualityResult.model_validate_json(cli.stdout, strict=True) == expected
 
 
@@ -595,8 +629,7 @@ def test_optional_warning_remains_qualified_but_limits_all_public_outputs(
         profile.model_copy(
             update={
                 "thresholds": tuple(
-                    changed_threshold if item == threshold else item
-                    for item in profile.thresholds
+                    changed_threshold if item == threshold else item for item in profile.thresholds
                 )
             }
         ),
@@ -648,7 +681,7 @@ def test_optional_warning_remains_qualified_but_limits_all_public_outputs(
     assert expected.disposition.value == "qualified"
     assert expected.support.status.value == "limited"
     assert expected.human_review_required is True
-    assert ProteinInferenceQualityResult.model_validate_json(
-        response.content, strict=True
-    ) == expected
+    assert (
+        ProteinInferenceQualityResult.model_validate_json(response.content, strict=True) == expected
+    )
     assert ProteinInferenceQualityResult.model_validate_json(cli.stdout, strict=True) == expected
