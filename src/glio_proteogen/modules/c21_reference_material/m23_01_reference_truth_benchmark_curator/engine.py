@@ -136,14 +136,18 @@ class M2301ReferenceTruthBenchmarkCurator:
         self,
         result: VariantPeptideReferenceTruthResult,
     ) -> VariantPeptideReferenceTruthResult:
-        """Revalidate an immutable result and return the exact replayed value."""
+        """Re-curate the bound request and compare every canonical result region."""
 
         try:
-            return VariantPeptideReferenceTruthResult.model_validate_json(
+            replayed = VariantPeptideReferenceTruthResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
+            expected = self.curate(replayed.request)
         except Exception as error:
             raise M2301ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2301ReplayError
+        return replayed
 
 
 def curate_variant_peptide_reference_truth(
