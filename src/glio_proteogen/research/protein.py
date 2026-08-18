@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from hashlib import sha256
 from math import isfinite
 from typing import TYPE_CHECKING
 
@@ -34,11 +36,13 @@ class ProteinGroupCandidate:
     status: str
     q_value: float | None
     acceptance: str
+    identifiability: str = "unique_peptide_supported"
 
     def as_dict(self) -> dict[str, object]:
         return {
             "acceptance": self.acceptance,
             "accessions": list(self.accessions),
+            "identifiability": self.identifiability,
             "q_value": self.q_value,
             "score": self.score,
             "shared_peptides": list(self.shared_peptides),
@@ -61,6 +65,12 @@ class ProteinGroupFdrSummary:
     q_value_threshold: float
     max_accepted_q_value: float | None
     decoy_to_target_ratio: float
+    input_psms: int = 0
+    unique_spectra: int = 0
+    duplicate_spectrum_psms: int = 0
+    competition_digest: str = ""
+    shared_peptide_candidates: int = 0
+    shared_only_candidates: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -69,10 +79,16 @@ class ProteinGroupFdrSummary:
             "collision_candidates": self.collision_candidates,
             "decoy_candidates": self.decoy_candidates,
             "decoy_to_target_ratio": self.decoy_to_target_ratio,
+            "duplicate_spectrum_psms": self.duplicate_spectrum_psms,
+            "competition_digest": self.competition_digest,
+            "input_psms": self.input_psms,
             "max_accepted_q_value": self.max_accepted_q_value,
             "method": self.method,
             "q_value_threshold": self.q_value_threshold,
             "target_candidates": self.target_candidates,
+            "shared_only_candidates": self.shared_only_candidates,
+            "shared_peptide_candidates": self.shared_peptide_candidates,
+            "unique_spectra": self.unique_spectra,
         }
 
 
@@ -137,6 +153,7 @@ def infer_protein_group_candidates(
 
     if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
+    input_psms, psms, competition_digest = _prepare_group_psms(psms)
     peptide_to_proteins: dict[str, set[str]] = {}
     for psm in psms:
         if not isinstance(psm.peptide, str) or not psm.peptide:
@@ -167,6 +184,13 @@ def infer_protein_group_candidates(
                 status=status,
                 q_value=None,
                 acceptance="abstained" if status == "collision" else "pending",
+                identifiability=(
+                    "target_decoy_collision"
+                    if status == "collision"
+                    else "shared_only_ambiguous"
+                    if not group.unique_peptides
+                    else "unique_peptide_supported"
+                ),
             )
         )
     ordered = sorted(
@@ -209,6 +233,7 @@ def infer_protein_group_candidates(
             status=candidate.status,
             q_value=q_value,
             acceptance=acceptance,
+            identifiability=candidate.identifiability,
         )
     finalized = tuple(sorted(by_accessions.values(), key=lambda item: item.accessions))
     accepted_q = tuple(
@@ -217,7 +242,7 @@ def infer_protein_group_candidates(
         if item.acceptance == "accepted" and item.q_value is not None
     )
     summary = ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-1",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-2",
         candidates=len(finalized),
         target_candidates=sum(item.status == "target" for item in finalized),
         decoy_candidates=sum(item.status == "decoy" for item in finalized),
@@ -231,5 +256,88 @@ def infer_protein_group_candidates(
             if any(item.status == "target" for item in finalized)
             else 0.0
         ),
+        input_psms=len(input_psms),
+        unique_spectra=len(psms),
+        duplicate_spectrum_psms=len(input_psms) - len(psms),
+        competition_digest=competition_digest,
+        shared_peptide_candidates=sum(bool(item.shared_peptides) for item in finalized),
+        shared_only_candidates=sum(
+            item.identifiability == "shared_only_ambiguous" for item in finalized
+        ),
     )
     return finalized, summary
+
+
+def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+    """Order group contenders with target and non-collision evidence first on ties."""
+
+    return (
+        value.score,
+        not value.target_decoy_collision,
+        not value.decoy,
+        value.peptide,
+        value.protein_accessions,
+    )
+
+
+def _prepare_group_psms(
+    psms: tuple[Psm, ...],
+) -> tuple[tuple[Psm, ...], tuple[Psm, ...], str]:
+    """Validate contenders, select one winner per spectrum, and digest all inputs."""
+
+    input_psms = tuple(psms)
+    winners_by_spectrum: dict[str, Psm] = {}
+    contenders_by_spectrum: dict[str, list[Psm]] = {}
+    for psm in input_psms:
+        _validate_group_psm(psm)
+        contenders_by_spectrum.setdefault(psm.spectrum_id, []).append(psm)
+        current = winners_by_spectrum.get(psm.spectrum_id)
+        if current is None or _group_competition_key(psm) > _group_competition_key(current):
+            winners_by_spectrum[psm.spectrum_id] = psm
+    winners = tuple(winners_by_spectrum[spectrum_id] for spectrum_id in sorted(winners_by_spectrum))
+    digest_payload = [
+        {
+            "spectrum_id": spectrum_id,
+            "candidates": [
+                _psm_payload(item)
+                for item in sorted(contenders, key=_group_competition_key, reverse=True)
+            ],
+        }
+        for spectrum_id, contenders in sorted(contenders_by_spectrum.items())
+    ]
+    digest = sha256(
+        json.dumps(digest_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return input_psms, winners, digest
+
+
+def _validate_group_psm(psm: Psm) -> None:
+    if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
+        raise ValueError("PSM spectrum_id must be a non-empty string")
+    if not isinstance(psm.protein_accessions, tuple) or not psm.protein_accessions:
+        raise ValueError("PSM must declare at least one protein accession")
+    if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
+        raise ValueError("PSM protein accessions must be non-empty strings")
+    derived_decoy = all(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+    derived_collision = (
+        any(accession.startswith("DECOY_") for accession in psm.protein_accessions)
+        and not derived_decoy
+    )
+    if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
+        raise ValueError("PSM target/decoy flags do not match protein accessions")
+
+
+def _psm_payload(value: Psm) -> dict[str, object]:
+    return {
+        "decoy": value.decoy,
+        "matched_intensity": value.matched_intensity,
+        "matched_ions": value.matched_ions,
+        "mean_fragment_error_da": value.mean_fragment_error_da,
+        "peptide": value.peptide,
+        "precursor_error_ppm": value.precursor_error_ppm,
+        "protein_accessions": list(value.protein_accessions),
+        "q_value": value.q_value,
+        "score": value.score,
+        "spectrum_id": value.spectrum_id,
+        "target_decoy_collision": value.target_decoy_collision,
+    }
