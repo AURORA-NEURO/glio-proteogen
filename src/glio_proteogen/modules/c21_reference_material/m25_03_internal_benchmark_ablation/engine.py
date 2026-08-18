@@ -136,6 +136,15 @@ class M2503BenchmarkEngine:
         self,
         result: ProteotypeInternalBenchmarkResult,
     ) -> ProteotypeInternalBenchmarkResult:
+        """Validate and semantically regenerate one immutable result.
+
+        The payload digest is an integrity check, not proof that the payload was
+        produced by this engine: an attacker who can edit a nested dossier or
+        provenance record can also recompute that digest.  Keep the cheap
+        request/result closure checks first so malformed or directly forged
+        digests retain their existing failure behavior, then regenerate from
+        the bound request and compare the complete canonical result.
+        """
         try:
             replayed = ProteotypeInternalBenchmarkResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
@@ -148,6 +157,12 @@ class M2503BenchmarkEngine:
             raise M2503ReplayError
         if replayed.result_digest != result_payload_digest(replayed):
             raise M2503ReplayError
+        try:
+            expected = self.generate(replayed.request)
+        except Exception as error:  # noqa: BLE001 - replay must fail closed.
+            raise M2503ReplayError from error
+        if expected.model_dump(mode="json") != replayed.model_dump(mode="json"):
+            raise M2503ReplayError("M25-03 replay output differs from deterministic regeneration")
         return replayed
 
 
