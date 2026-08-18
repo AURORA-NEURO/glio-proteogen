@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, cast
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m04_08 import (
     M0408_MAX_CANONICAL_REQUEST_BYTES,
     BuildProteoformReleaseRequest,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
@@ -50,11 +52,33 @@ class ProteoformReleaseSubmission:
     stage_results_by_module: Mapping[str, object]
 
 
-@dataclass(frozen=True, slots=True)
+_TOKEN_SEAL: Final = object()
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM0408Request:
     request: BuildProteoformReleaseRequest
     artifacts_by_path: Mapping[str, object]
     stage_results_by_module: Mapping[str, object]
+    _seal: object
+
+
+_ISSUED_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM0408Request,
+        tuple[BuildProteoformReleaseRequest, str],
+    ]
+] = WeakKeyDictionary()
+
+
+def _token_is_issued(token: ValidatedM0408Request) -> bool:
+    snapshot = _ISSUED_TOKENS.get(token)
+    return (
+        snapshot is not None
+        and token._seal is _TOKEN_SEAL
+        and snapshot[0] is token.request
+        and snapshot[1] == canonical_request_digest(token.request)
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -87,14 +111,17 @@ class M0408Plugin(ModulePlugin[object, ValidatedM0408Request, BuiltProteoformRel
             decoded = strict_json_loads(serialized, max_bytes=M0408_MAX_CANONICAL_REQUEST_BYTES)
             preflight_proteoform_release_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
-        return ValidatedM0408Request(
+        token = ValidatedM0408Request(
             request=self._service.validate_request(candidate),
             artifacts_by_path=request.artifacts_by_path,
             stage_results_by_module=request.stage_results_by_module,
+            _seal=_TOKEN_SEAL,
         )
+        _ISSUED_TOKENS[token] = (token.request, canonical_request_digest(token.request))
+        return token
 
     def run(self, request: ValidatedM0408Request) -> BuiltProteoformRelease:
-        if not isinstance(request, ValidatedM0408Request):
+        if type(request) is not ValidatedM0408Request or not _token_is_issued(request):
             raise _InvalidExecutionTokenError
         return self._service.build(
             request.request, request.artifacts_by_path, request.stage_results_by_module

@@ -1,0 +1,50 @@
+{
+  "scope": "M03-08/M04-08 release-plugin capability hardening",
+  "base_commit": "6adfd9bf1c584bbfa0df3043eb25a9c098ae2f1d",
+  "current_base_remote": "6e5caf0a8bfc87c570bff4c610a016c834ea6048",
+  "authority_boundary": "Existing M03/M04 ABI; no scientific inference added",
+  "python_loc_delta": {
+    "files": 3,
+    "insertions": 160,
+    "deletions": 6,
+    "net": 154,
+    "production_files": 2,
+    "production_insertions": 60,
+    "test_files": 1,
+    "test_insertions": 100
+  },
+  "tests": {
+    "curated_safety_selection": 180,
+    "plugin_capability_selection": 2,
+    "passed": true
+  },
+  "coverage": {
+    "changed_m03_08_plugin_percent": 100.0,
+    "changed_m04_08_plugin_percent": 100.0,
+    "branch_enabled": true
+  },
+  "static": {
+    "ruff": "clean",
+    "format": "clean",
+    "mypy_strict_files": 3,
+    "compileall": "passed",
+    "imported_m03_m04_packages": 65
+  },
+  "package": {
+    "python": "3.12.13",
+    "build_backend": "hatchling==1.31.0",
+    "reproducible": true,
+    "wheel": {
+      "bytes": 3663728,
+      "sha256": "6eba354d3ddf57a7dccdbca6e8d06eb2b867a5e20a363b341f64cbfdfde4d1d7",
+      "members": 1913
+    },
+    "sdist": {
+      "bytes": 4201439,
+      "sha256": "071f3995c3eb47465bda9e57fa2600db08b5b61c9afa591ffa36796bf2caeb82",
+      "members": 4387
+    },
+    "isolated_import": true
+  },
+  "broad_audit_note": "72-file lifecycle selection stopped at 8% after approximately 20 minutes due unbounded parametrization; no failures observed before termination."
+}
