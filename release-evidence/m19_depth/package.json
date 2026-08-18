@@ -1,0 +1,28 @@
+{
+  "base_commit": "8cc38ba1",
+  "build_a": {
+    "wheel_sha256": "2488a5f0e0abc56ebc949d712346e2848308f73d1fc36e07e01c390ab3a28635",
+    "sdist_sha256": "fb5ebefa15544483101db743a43af2fc97d46d8c09e92a5b4f7bbb33fcc9e3fa"
+  },
+  "build_b": {
+    "wheel_sha256": "2488a5f0e0abc56ebc949d712346e2848308f73d1fc36e07e01c390ab3a28635",
+    "sdist_sha256": "fb5ebefa15544483101db743a43af2fc97d46d8c09e92a5b4f7bbb33fcc9e3fa"
+  },
+  "isolated_import": {
+    "passed": true,
+    "module_version": "0.1.0",
+    "m1903_prohibited_term_count": 14,
+    "m1904_prohibited_term_count": 13
+  },
+  "reproducible": true,
+  "sdist": {
+    "bytes": 4212150,
+    "members": 4391,
+    "sha256": "fb5ebefa15544483101db743a43af2fc97d46d8c09e92a5b4f7bbb33fcc9e3fa"
+  },
+  "wheel": {
+    "bytes": 3669477,
+    "members": 1913,
+    "sha256": "2488a5f0e0abc56ebc949d712346e2848308f73d1fc36e07e01c390ab3a28635"
+  }
+}
