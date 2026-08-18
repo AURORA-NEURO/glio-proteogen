@@ -61,6 +61,21 @@ M1904_EVIDENCE_CLAIM: Final = (
     "Caller-declared M19-04 intended-use, evidence tier, claim ceiling and "
     "display-policy material; issuer authority is not authenticated."
 )
+M1904_PROHIBITED_CLAIM_TERMS: Final = (
+    "kinase",
+    "all-omics",
+    "identity inference",
+    "direct treatment",
+    "identity",
+    "consent",
+    "protein inference",
+    "proteoform",
+    "isoform",
+    "glioma-specific",
+    "glioma specific biology",
+    "diagnosis",
+    "subtype",
+)
 
 
 class IntendedUseKind(StrEnum):
@@ -300,6 +315,7 @@ __all__ = [
     "M1904_OUTPUT_MEDIA_TYPE",
     "M1904_OWNER",
     "M1904_PARENT",
+    "M1904_PROHIBITED_CLAIM_TERMS",
     "M1904_PROVISIONAL_ABI",
     "M1904_SAFETY_CLASS",
     "AdaptProteotypeIntendedUseRequest",
