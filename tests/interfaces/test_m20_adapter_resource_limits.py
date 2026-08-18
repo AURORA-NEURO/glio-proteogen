@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import typer
+from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters import m2001, m2002, m2003, m2004
@@ -30,7 +31,11 @@ from glio_proteogen.contracts.m20_04 import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
+
+    from fastapi import FastAPI
+
+_HTTP_PAYLOAD_TOO_LARGE = 413
 
 
 def _sparse_overflow(path: Path, limit: int) -> None:
@@ -131,6 +136,72 @@ def test_m20_cli_result_overflow_is_sanitized(
     result = CliRunner().invoke(app, [command, str(path)])
     assert result.exit_code != 0
     assert "verification failed" in result.output
+
+
+@pytest.mark.parametrize(
+    ("app", "path", "limit"),
+    [
+        (m2001.app, "/v1/modules/M20-01/verify", M2001_MAX_CANONICAL_RESULT_BYTES),
+        (m2002.app, "/v1/modules/M20-02/verify", M2002_MAX_CANONICAL_RESULT_BYTES),
+        (m2003.app, "/v1/modules/M20-03/verify", M2003_MAX_CANONICAL_RESULT_BYTES),
+        (m2004.app, "/v1/modules/M20-04/verify", M2004_MAX_CANONICAL_RESULT_BYTES),
+    ],
+)
+def test_m20_fastapi_transport_rejects_oversized_result_before_route_parsing(
+    app: FastAPI,
+    path: str,
+    limit: int,
+) -> None:
+    response = TestClient(app).post(
+        path,
+        content=b"{}",
+        headers={
+            "content-type": "application/json",
+            "content-length": str(limit + 1),
+        },
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
+
+
+@pytest.mark.parametrize(
+    ("app", "path", "limit"),
+    [
+        (m2001.app, "/v1/modules/M20-01/resolve", M2001_MAX_CANONICAL_RESULT_BYTES),
+        (m2002.app, "/v1/modules/M20-02/reconcile", M2002_MAX_CANONICAL_RESULT_BYTES),
+        (m2003.app, "/v1/modules/M20-03/fuse", M2003_MAX_CANONICAL_RESULT_BYTES),
+        (m2004.app, "/v1/modules/M20-04/adapt", M2004_MAX_CANONICAL_RESULT_BYTES),
+    ],
+)
+def test_m20_fastapi_transport_rejects_oversized_request_before_route_parsing(
+    app: FastAPI,
+    path: str,
+    limit: int,
+) -> None:
+    response = TestClient(app).post(
+        path,
+        content=b"{}",
+        headers={
+            "content-type": "application/json",
+            "content-length": str(limit + 1),
+        },
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
+
+
+def test_m20_fastapi_transport_rejects_oversized_chunked_body() -> None:
+    def chunks() -> Iterator[bytes]:
+        for _ in range(9):
+            yield b"x" * (1024 * 1024)
+
+    response = TestClient(m2001.app).post(
+        "/v1/modules/M20-01/resolve",
+        content=chunks(),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
 
 
 def test_m20_adapters_have_no_unbounded_path_read_bytes() -> None:
