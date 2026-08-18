@@ -19,7 +19,20 @@ m0807_api = importlib.import_module(f"{m0807_module.__name__}.api")
 m0907_api = importlib.import_module(f"{m0907_module.__name__}.api")
 
 _HTTP_BAD_REQUEST = 400
+_HTTP_UNPROCESSABLE_ENTITY = 422
 _HTTP_OK = 200
+
+
+class _ExecutionRejectingService:
+    """Minimal service seam for asserting sanitized execution failures."""
+
+    @staticmethod
+    def validate_request(_candidate: object) -> object:
+        return object()
+
+    @staticmethod
+    def execute(_candidate: object) -> object:
+        raise ValueError from None
 
 
 @pytest.mark.parametrize(
@@ -84,3 +97,26 @@ def test_standalone_schema_routes_remain_available(api_module: Any, schema_path:
 
     assert response.status_code == _HTTP_OK
     assert response.json()["schemas"]
+
+
+@pytest.mark.parametrize(
+    ("api_module", "path"),
+    [
+        (m0807_api, "/m08-07/calibrate"),
+        (m0907_api, "/m09-07/calibrate"),
+    ],
+)
+def test_standalone_calibration_sanitizes_execution_failure(api_module: Any, path: str) -> None:
+    """A service failure cannot leak private execution details through the API."""
+
+    client = TestClient(api_module.create_app(_ExecutionRejectingService()))
+
+    response = client.post(path, json={"request": "fixture"})
+
+    assert response.status_code == _HTTP_UNPROCESSABLE_ENTITY
+    assert response.json() == {
+        "error": {
+            "message": "request does not satisfy the module contract",
+            "type": "contract_rejected",
+        }
+    }

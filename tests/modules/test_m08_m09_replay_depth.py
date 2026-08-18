@@ -37,6 +37,10 @@ def test_self_rehashed_control_output_is_rejected_with_request(module: str) -> N
         forged = forged.model_copy(update={"result_digest": digest_m0807(forged)})
         assert m0807.M0807Service.verify(forged) is True
         assert m0807.M0807Service.verify(forged, request) is False
+        assert (
+            m0807.M0807Service.verify(result, request.model_copy(update={"candidate": None}))
+            is False
+        )
     else:
         request = request_m0907().model_copy(update={"candidate": candidate_m0907()})
         result = m0907.M0907Service().execute(request)
@@ -50,6 +54,10 @@ def test_self_rehashed_control_output_is_rejected_with_request(module: str) -> N
         forged = forged.model_copy(update={"result_digest": digest_m0907(forged)})
         assert m0907.M0907Service.verify(forged) is True
         assert m0907.M0907Service.verify(forged, request) is False
+        assert (
+            m0907.M0907Service.verify(result, request.model_copy(update={"candidate": None}))
+            is False
+        )
 
 
 def test_m0807_self_rehashed_provenance_and_uncertainty_are_closed() -> None:
