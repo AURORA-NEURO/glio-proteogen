@@ -609,14 +609,17 @@ def test_search_preserves_all_target_decoy_contenders_in_competition_receipt() -
     assert receipt.score_margin is not None
     assert len(receipt.candidate_digest) == HEX_DIGEST_LENGTH
     assert receipt.as_dict()["candidate_digest"] == receipt.candidate_digest
-    assert search_spectrum(
-        "contested",
-        1087.508837466,
-        {"MPEPTIDER": ("P1",), "MPEPTIDEK": ("DECOY_P1",)},
-        (132.0, 229.1, 358.1),
-        (10.0, 20.0, 30.0),
-        parameters=parameters,
-    ) == candidates[0]
+    assert (
+        search_spectrum(
+            "contested",
+            1087.508837466,
+            {"MPEPTIDER": ("P1",), "MPEPTIDEK": ("DECOY_P1",)},
+            (132.0, 229.1, 358.1),
+            (10.0, 20.0, 30.0),
+            parameters=parameters,
+        )
+        == candidates[0]
+    )
 
 
 def test_protein_components_are_non_overlapping() -> None:
@@ -668,6 +671,37 @@ def test_protein_group_fdr_abstains_mixed_collision_and_allows_decoy_only_reject
     )
     assert decoy_summary.decoy_candidates == 1
     assert decoy_candidates[0].acceptance == "rejected"
+
+
+def test_protein_group_fdr_collapses_duplicate_spectrum_contenders_and_binds_them() -> None:
+    high = Psm("scan-1", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    lower = Psm("scan-1", "PEPTIDEK", ("P2",), 4.0, 2, decoy=False)
+    candidates, summary = infer_protein_group_candidates((lower, high), q_value_threshold=0.01)
+    assert summary.input_psms == 2
+    assert summary.unique_spectra == 1
+    assert summary.duplicate_spectrum_psms == 1
+    assert len(summary.competition_digest) == HEX_DIGEST_LENGTH
+    assert [(item.accessions, item.supporting_psms) for item in candidates] == [(("P1",), 1)]
+    altered = Psm("scan-1", "PEPTIDEK", ("P2",), 3.0, 2, decoy=False)
+    _, altered_summary = infer_protein_group_candidates(
+        (lower, altered, high), q_value_threshold=0.01
+    )
+    assert altered_summary.competition_digest != summary.competition_digest
+
+
+def test_protein_group_fdr_rejects_inconsistent_target_decoy_flags() -> None:
+    inconsistent = Psm("scan-1", "PEPTIDER", ("DECOY_P1",), 5.0, 3, decoy=False)
+    with pytest.raises(ValueError, match="target/decoy flags"):
+        infer_protein_group_candidates((inconsistent,), q_value_threshold=0.01)
+
+
+def test_protein_group_candidate_exposes_shared_only_identifiability() -> None:
+    shared = Psm("scan-1", "PEPTIDER", ("P1", "P2"), 5.0, 3, decoy=False)
+    candidates, summary = infer_protein_group_candidates((shared,), q_value_threshold=0.01)
+    assert summary.shared_peptide_candidates == 1
+    assert summary.shared_only_candidates == 1
+    assert candidates[0].identifiability == "shared_only_ambiguous"
+    assert candidates[0].as_dict()["identifiability"] == "shared_only_ambiguous"
 
 
 class _FakeResponse:
