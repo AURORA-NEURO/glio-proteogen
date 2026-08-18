@@ -938,7 +938,7 @@ def test_ci_replays_public_proteomics_receipt_from_installed_wheel() -> None:
     pipeline = workflow.index("tools/verify_research_pipeline.py", replay)
     public = workflow.index("tools/verify_research_public_proteomics.py", pipeline)
     assert pipeline < public
-    assert 'docs/evidence/research-foundation/evaluation.json' in workflow[pipeline:public]
+    assert "docs/evidence/research-foundation/evaluation.json" in workflow[pipeline:public]
     assert '"$wheel" "$sdist"' in workflow[public:]
 
 

@@ -2,17 +2,17 @@
   "build_tool": "uv build / hatchling 1.31.0",
   "reproducible_two_builds": true,
   "reproducible_hashes": {
-    "wheel": "9ed67a1b283bbc21b4777bdc9bb1f9e441bab7b13db25a1ef24bfd3c746ad2d6",
-    "sdist": "88665e22b3f90f9f2ff6bf21f686bc0a5aeb858350ae991e804e71987db22968"
+    "wheel": "7ef87cf620b442a405fdd7063fc0381d1612a34068297e5cd9f7e135bbeb9c53",
+    "sdist": "1b2cbf0b1032f7dcc420093b15c8cbeefe2eb3a11a6e71a67afb103a0c8efeae"
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "bytes": 3817601,
-    "members": 1986,
-    "sha256": "9ed67a1b283bbc21b4777bdc9bb1f9e441bab7b13db25a1ef24bfd3c746ad2d6",
+    "bytes": 3824274,
+    "members": 1987,
+    "sha256": "7ef87cf620b442a405fdd7063fc0381d1612a34068297e5cd9f7e135bbeb9c53",
     "member_inventory": {
-      "count": 1986,
-      "sha256": "9a2d1f67754493c108410117c6ac26d9caaaa6ad7b918e443905d215782bad46",
+      "count": 1987,
+      "sha256": "e57615f222c8ce8f0954d3851255ebb77df1dd3ff9e664da73478578e9952512",
       "members": [
         "glio_proteogen-0.1.0.dist-info/METADATA",
         "glio_proteogen-0.1.0.dist-info/RECORD",
@@ -1987,6 +1987,7 @@
         "glio_proteogen/py.typed",
         "glio_proteogen/research/__init__.py",
         "glio_proteogen/research/cohort.py",
+        "glio_proteogen/research/cohort_provenance.py",
         "glio_proteogen/research/evidence.py",
         "glio_proteogen/research/fasta.py",
         "glio_proteogen/research/mzml.py",
@@ -2005,12 +2006,12 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "bytes": 4407160,
-    "members": 4586,
-    "sha256": "88665e22b3f90f9f2ff6bf21f686bc0a5aeb858350ae991e804e71987db22968",
+    "bytes": 4421857,
+    "members": 4589,
+    "sha256": "1b2cbf0b1032f7dcc420093b15c8cbeefe2eb3a11a6e71a67afb103a0c8efeae",
     "member_inventory": {
-      "count": 4586,
-      "sha256": "2b630da354fa6f3d9a19d5fd868eccddc49a1249296b07b1a000c8236e86e4a9",
+      "count": 4589,
+      "sha256": "775bb11980f1fc6dcab02a2811c50d2f17ece06178d2db806022a99d1ab6b765",
       "members": [
         "glio_proteogen-0.1.0/.gitattributes",
         "glio_proteogen-0.1.0/.github/workflows/ci.yml",
@@ -5149,6 +5150,7 @@
         "glio_proteogen-0.1.0/src/glio_proteogen/py.typed",
         "glio_proteogen-0.1.0/src/glio_proteogen/research/__init__.py",
         "glio_proteogen-0.1.0/src/glio_proteogen/research/cohort.py",
+        "glio_proteogen-0.1.0/src/glio_proteogen/research/cohort_provenance.py",
         "glio_proteogen-0.1.0/src/glio_proteogen/research/evidence.py",
         "glio_proteogen-0.1.0/src/glio_proteogen/research/fasta.py",
         "glio_proteogen-0.1.0/src/glio_proteogen/research/mzml.py",
@@ -6313,10 +6315,12 @@
         "glio_proteogen-0.1.0/tests/research/test_cohort.py",
         "glio_proteogen-0.1.0/tests/research/test_cohort_evaluator.py",
         "glio_proteogen-0.1.0/tests/research/test_cohort_normalization.py",
+        "glio_proteogen-0.1.0/tests/research/test_cohort_provenance.py",
         "glio_proteogen-0.1.0/tests/research/test_cohort_qc_policy.py",
         "glio_proteogen-0.1.0/tests/research/test_depth.py",
         "glio_proteogen-0.1.0/tests/research/test_formats.py",
         "glio_proteogen-0.1.0/tests/research/test_pdc.py",
+        "glio_proteogen-0.1.0/tests/research/test_pdc_retrieval.py",
         "glio_proteogen-0.1.0/tests/research/test_pipeline.py",
         "glio_proteogen-0.1.0/tests/research/test_pipeline_evaluator.py",
         "glio_proteogen-0.1.0/tests/research/test_pipeline_verifier.py",

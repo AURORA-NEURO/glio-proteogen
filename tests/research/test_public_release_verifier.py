@@ -18,6 +18,7 @@ from tools.verify_research_public_proteomics import (
     _verify_reproducibility,
 )
 
+
 def _wheel(tmp_path: Path, names: tuple[str, ...]) -> Path:
     path = tmp_path / "fixture.whl"
     with ZipFile(path, "w") as archive:
