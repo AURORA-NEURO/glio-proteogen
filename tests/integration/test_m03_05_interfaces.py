@@ -229,7 +229,7 @@ def test_malformed_shallow_metadata_is_preserved_for_strict_reconstruction() -> 
     class ExplosiveReceipt:
         @property
         def quality_disposition(self) -> str:
-            raise RuntimeError("hostile metadata accessor")
+            raise RuntimeError("hostile metadata accessor")  # noqa: TRY003
 
     candidate = {
         "quality_receipt": ExplosiveReceipt(),
