@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from hashlib import sha256
 
 import pytest
 from evals.research_proteomics.run import build_scenario_request, scenarios
@@ -16,13 +17,26 @@ from glio_proteogen.research import (
     replay_research_cohort,
     run_research_cohort,
 )
+from glio_proteogen.research import CohortSourceManifest
 from glio_proteogen.research.pipeline import run_research_protein_inference
 
 
 def _sample(sample_id: str, label: str, replicate: str) -> ResearchCohortSample:
     scenario = next(item for item in scenarios() if item.scenario_id == "target_supported")
-    request = replace(build_scenario_request(scenario), sample_id=sample_id)
+    base = build_scenario_request(scenario)
+    request = replace(
+        base,
+        sample_id=sample_id,
+        mzml_source=b"<!--" + sample_id.encode() + b"-->" + bytes(base.mzml_source),
+    )
     return ResearchCohortSample(sample_id, request, label, replicate)
+
+
+def _manifest(samples: tuple[ResearchCohortSample, ...]) -> CohortSourceManifest:
+    return CohortSourceManifest.from_requests(
+        tuple(sample.request for sample in samples),
+        replicate_kinds={sample.sample_id: "biological" for sample in samples},
+    )
 
 
 def _quant(group: tuple[str, ...], intensity: float) -> ProteinGroupQuant:
@@ -57,24 +71,28 @@ def test_within_label_normalization_preserves_raw_and_aligns_replicates(
                 _quant(("P1",), pair[0]),
                 _quant(("P2",), pair[1]),
             ),
-            protein_groups=(
-                ProteinGroup(("P1",), ("PEPTIDE",), ()),
-                ProteinGroup(("P2",), ("PEPTIDE2",), ()),
-            ),
-        )
+                protein_groups=(
+                    ProteinGroup(("P1",), ("PEPTIDE",), ()),
+                    ProteinGroup(("P2",), ("PEPTIDE2",), ()),
+                ),
+                mzml_sha256=sha256(
+                    bytes(_sample(sample_id, "case" if sample_id.startswith("case") else "control", "r1").request.mzml_source)
+                ).hexdigest(),
+            )
         for sample_id, pair in values.items()
     }
     monkeypatch.setattr(
         cohort_module, "run_research_protein_inference", lambda request: results[request.sample_id]
     )
     request = ResearchCohortRequest(
-        (
+        samples := (
             _sample("control-b", "control", "r2"),
             _sample("case-b", "case", "r2"),
             _sample("control-a", "control", "r1"),
             _sample("case-a", "case", "r1"),
         ),
         normalization_policy="within_label_median_v1",
+        source_manifest=_manifest(samples),
     )
     result = run_research_cohort(request)
     assert result.sample_ids == ("case-a", "case-b", "control-a", "control-b")
@@ -97,11 +115,12 @@ def test_insufficient_label_overlap_abstains_without_imputation(
         sample_id: replace(
             base,
             sample_id=sample_id,
-            protein_group_quantifications=(
-                _quant((group,), 10.0 if sample_id.endswith("a") else 20.0),
-            ),
-            protein_groups=(ProteinGroup((group,), ("PEPTIDE",), ()),),
-        )
+                protein_group_quantifications=(
+                    _quant((group,), 10.0 if sample_id.endswith("a") else 20.0),
+                ),
+                protein_groups=(ProteinGroup((group,), ("PEPTIDE",), ()),),
+                mzml_sha256=sha256(bytes(_sample(sample_id, "case", "r1").request.mzml_source)).hexdigest(),
+            )
         for sample_id, group in (("a", "P1"), ("b", "P2"))
     }
     monkeypatch.setattr(
@@ -111,8 +130,9 @@ def test_insufficient_label_overlap_abstains_without_imputation(
     )
     result = run_research_cohort(
         ResearchCohortRequest(
-            (_sample("a", "case", "r1"), _sample("b", "case", "r2")),
+            (samples := (_sample("a", "case", "r1"), _sample("b", "case", "r2"))),
             normalization_policy="within_label_median_v1",
+            source_manifest=_manifest(samples),
         )
     )
     assert all(item.status == "abstained_insufficient_overlap" for item in result.sample_scales)
@@ -124,8 +144,9 @@ def test_insufficient_label_overlap_abstains_without_imputation(
 def test_single_replicate_labels_abstain_before_scaling() -> None:
     result = run_research_cohort(
         ResearchCohortRequest(
-            (_sample("a", "case", "r1"), _sample("b", "control", "r1")),
+            (samples := (_sample("a", "case", "r1"), _sample("b", "control", "r1"))),
             normalization_policy="within_label_median_v1",
+            source_manifest=_manifest(samples),
         )
     )
     assert {item.status for item in result.sample_scales} == {"abstained_insufficient_replicates"}
@@ -137,17 +158,27 @@ def test_single_replicate_labels_abstain_before_scaling() -> None:
 
 def test_normalization_policy_is_replay_visible_and_permutation_stable() -> None:
     samples = (_sample("a", "case", "r1"), _sample("b", "case", "r2"))
+    manifest = _manifest(samples)
     with pytest.raises(ValueError, match="normalization_policy"):
         ResearchCohortRequest(samples, normalization_policy="mean_impute")
     first = run_research_cohort(
-        ResearchCohortRequest(samples, normalization_policy="within_label_median_v1")
+        ResearchCohortRequest(
+            samples,
+            normalization_policy="within_label_median_v1",
+            source_manifest=manifest,
+        )
     )
     second = run_research_cohort(
         ResearchCohortRequest(
-            tuple(reversed(samples)), normalization_policy="within_label_median_v1"
+            tuple(reversed(samples)),
+            normalization_policy="within_label_median_v1",
+            source_manifest=manifest,
         )
     )
     assert first.result_digest == second.result_digest
     assert dict(first.configuration)["cohort_normalization_version"] == "within-label-median-v1"
     with pytest.raises(ValueError, match="replay"):
-        replay_research_cohort(ResearchCohortRequest(samples, normalization_policy="none"), first)
+        replay_research_cohort(
+            ResearchCohortRequest(samples, normalization_policy="none", source_manifest=manifest),
+            first,
+        )

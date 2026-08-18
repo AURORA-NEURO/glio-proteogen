@@ -14,6 +14,7 @@ from glio_proteogen.research import (
     CohortQcPolicy,
     PdcFile,
     PdcStudySnapshot,
+    CohortSourceManifest,
     ProteinGroup,
     ProteinGroupQuant,
     ResearchCohortRequest,
@@ -81,9 +82,16 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
         "control-a": (100.0, 300.0),
         "control-b": (200.0, 600.0),
     }
-    base = run_research_protein_inference(
-        replace(build_scenario_request(target), sample_id="normalization-template")
-    )
+    base_request = replace(build_scenario_request(target), sample_id="normalization-template")
+    base = run_research_protein_inference(base_request)
+    sample_requests = {
+        sample_id: replace(
+            build_scenario_request(target),
+            sample_id=sample_id,
+            mzml_source=b"<!--" + sample_id.encode() + b"-->" + bytes(base_request.mzml_source),
+        )
+        for sample_id in values
+    }
     synthetic = {
         sample_id: replace(
             base,
@@ -100,6 +108,7 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
                     ("P2",), ("PEPTIDE2",), (), pair[1], 0.0, pair[1], pair[1], "quantified", 1
                 ),
             ),
+            mzml_sha256=sha256(bytes(sample_requests[sample_id].mzml_source)).hexdigest(),
         )
         for sample_id, pair in values.items()
     }
@@ -114,7 +123,7 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
         samples = tuple(
             ResearchCohortSample(
                 sample_id=sample_id,
-                request=replace(build_scenario_request(target), sample_id=sample_id),
+                request=sample_requests[sample_id],
                 cohort_label="case" if sample_id.startswith("case") else "control",
                 replicate_label=replicate,
             )
@@ -129,6 +138,10 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
             ResearchCohortRequest(
                 samples,
                 normalization_policy="within_label_median_v1",
+                source_manifest=CohortSourceManifest.from_requests(
+                    tuple(sample.request for sample in samples),
+                    replicate_kinds={sample.sample_id: "biological" for sample in samples},
+                ),
             )
         )
     finally:
@@ -197,6 +210,9 @@ def run_evaluator() -> dict[str, object]:
         "qc_abstention",
         "explicit_missingness",
         "label_normalization",
+        "duplicate_biological_source",
+        "technical_duplicate_visibility",
+        "unknown_independence_abstention",
         "incompatible_search_space",
         "pdc_provenance_replay",
     )
@@ -272,6 +288,73 @@ def run_evaluator() -> dict[str, object]:
             "result_digest": normalized.result_digest,
             "missing_cells": 0,
             "projection": _projection(normalized),
+        }
+    )
+
+    duplicate_samples = (
+        _sample("target_supported", "duplicate-a", "r1"),
+        _sample("target_supported", "duplicate-b", "r2"),
+    )
+    duplicate_error = False
+    try:
+        run_research_cohort(
+            ResearchCohortRequest(
+                duplicate_samples,
+                source_manifest=CohortSourceManifest.from_requests(
+                    tuple(sample.request for sample in duplicate_samples),
+                    replicate_kinds={sample.sample_id: "biological" for sample in duplicate_samples},
+                ),
+            )
+        )
+    except ValueError as error:
+        duplicate_error = "biological replicates" in str(error)
+    outcomes.append(
+        {
+            "id": "duplicate_biological_source",
+            "passed": duplicate_error,
+            "result_digest": None,
+            "missing_cells": None,
+            "projection": None,
+        }
+    )
+
+    technical = run_research_cohort(
+        ResearchCohortRequest(
+            duplicate_samples,
+            normalization_policy="within_label_median_v1",
+            source_manifest=CohortSourceManifest.from_requests(
+                tuple(sample.request for sample in duplicate_samples),
+                replicate_kinds={sample.sample_id: "technical" for sample in duplicate_samples},
+            ),
+        )
+    )
+    outcomes.append(
+        {
+            "id": "technical_duplicate_visibility",
+            "passed": technical.label_qc[0].technical_replicates == 2
+            and technical.label_qc[0].independent_replicates == 0
+            and technical.label_qc[0].status == "abstained_insufficient_replicates"
+            and all(value is None for _, values in technical.normalized_matrix for value in values),
+            "result_digest": technical.result_digest,
+            "missing_cells": 0,
+            "projection": _projection(technical),
+        }
+    )
+
+    unknown = run_research_cohort(
+        ResearchCohortRequest(
+            duplicate_samples,
+            normalization_policy="within_label_median_v1",
+        )
+    )
+    outcomes.append(
+        {
+            "id": "unknown_independence_abstention",
+            "passed": unknown.label_qc[0].status == "abstained_unknown_independence"
+            and all(value is None for _, values in unknown.normalized_matrix for value in values),
+            "result_digest": unknown.result_digest,
+            "missing_cells": 0,
+            "projection": _projection(unknown),
         }
     )
 

@@ -9,12 +9,25 @@ from hashlib import sha256
 from math import isfinite
 from statistics import median
 
+from .cohort_provenance import CohortSourceManifest
 from .pipeline import ResearchRunRequest, ResearchRunResult, run_research_protein_inference
 
 MAX_COHORT_SAMPLES = 32
 _NORMALIZATION_POLICIES = {"none", "within_label_median_v1"}
 _MIN_LABEL_REPLICATES = 2
-__all__ = ["run_research_protein_inference"]
+__all__ = [
+    "CohortGroupQc",
+    "CohortLabelGroupEvidence",
+    "CohortLabelQc",
+    "CohortQcPolicy",
+    "CohortSampleQc",
+    "CohortSampleScale",
+    "ResearchCohortRequest",
+    "ResearchCohortResult",
+    "ResearchCohortSample",
+    "replay_research_cohort",
+    "run_research_cohort",
+]
 
 
 def _label(value: str, field: str) -> str:
@@ -87,6 +100,7 @@ class ResearchCohortRequest:
     provenance_policy: str = "homogeneous"
     normalization_policy: str = "none"
     qc_policy: CohortQcPolicy = CohortQcPolicy()
+    source_manifest: CohortSourceManifest | None = None
 
     def __post_init__(self) -> None:
         if type(self.samples) is not tuple or any(
@@ -104,6 +118,10 @@ class ResearchCohortRequest:
             raise ValueError("normalization_policy is not supported")
         if not isinstance(self.qc_policy, CohortQcPolicy):
             raise TypeError("qc_policy must be a CohortQcPolicy")
+        if self.source_manifest is not None and not isinstance(
+            self.source_manifest, CohortSourceManifest
+        ):
+            raise TypeError("source_manifest must be a CohortSourceManifest")
         if not 2 <= len(self.samples) <= MAX_COHORT_SAMPLES:
             raise ValueError("cohort sample count is outside the bounded range")
         sample_ids = tuple(sample.sample_id for sample in self.samples)
@@ -208,6 +226,10 @@ class CohortLabelQc:
     mad_intensity: float | None
     status: str
     normalization_status: str = "not_applied"
+    independent_replicates: int = 0
+    technical_replicates: int = 0
+    unknown_replicates: int = 0
+    duplicate_sources: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -221,6 +243,10 @@ class CohortLabelQc:
             "sample_count": self.sample_count,
             "status": self.status,
             "normalization_status": self.normalization_status,
+            "independent_replicates": self.independent_replicates,
+            "technical_replicates": self.technical_replicates,
+            "unknown_replicates": self.unknown_replicates,
+            "duplicate_sources": self.duplicate_sources,
         }
 
 
@@ -236,6 +262,7 @@ class CohortLabelGroupEvidence:
     median_normalized_intensity: float | None
     mad_normalized_intensity: float | None
     status: str
+    independent_observed_replicates: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -247,6 +274,7 @@ class CohortLabelGroupEvidence:
             "missingness_rate": self.missingness_rate,
             "observed_replicates": self.observed_replicates,
             "status": self.status,
+            "independent_observed_replicates": self.independent_observed_replicates,
         }
 
 
@@ -267,6 +295,7 @@ class ResearchCohortResult:
     sample_scales: tuple[CohortSampleScale, ...] = ()
     label_qc: tuple[CohortLabelQc, ...] = ()
     label_group_evidence: tuple[CohortLabelGroupEvidence, ...] = ()
+    source_manifest: CohortSourceManifest | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -285,6 +314,9 @@ class ResearchCohortResult:
             "sample_scales": [item.as_dict() for item in self.sample_scales],
             "label_qc": [item.as_dict() for item in self.label_qc],
             "label_group_evidence": [item.as_dict() for item in self.label_group_evidence],
+            "source_manifest": (
+                self.source_manifest.as_dict() if self.source_manifest is not None else None
+            ),
         }
 
 
@@ -365,6 +397,7 @@ def _build_label_evidence(  # noqa: PLR0915
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     policy: str,
     qc_policy: CohortQcPolicy,
+    source_manifest: CohortSourceManifest,
 ) -> tuple[
     tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     tuple[CohortSampleScale, ...],
@@ -390,10 +423,25 @@ def _build_label_evidence(  # noqa: PLR0915
 
     for label in sorted(labels):
         indices = tuple(labels[label])
+        bindings = tuple(source_manifest.for_sample(ordered_samples[index].sample_id) for index in indices)
+        biological_indices = tuple(
+            index
+            for index in indices
+            if source_manifest.for_sample(ordered_samples[index].sample_id).replicate_kind
+            == "biological"
+        )
+        biological_sources = {
+            source_manifest.for_sample(ordered_samples[index].sample_id).source_identity
+            for index in biological_indices
+        }
+        technical_count = sum(item.replicate_kind == "technical" for item in bindings)
+        unknown_count = sum(item.replicate_kind == "unknown" for item in bindings)
+        duplicate_count = len(bindings) - len({item.source_identity for item in bindings})
+        support_indices = biological_indices
         shared = tuple(
             group
             for group in groups
-            if all(_positive(sample_rows[index].get(group)) for index in indices)
+            if all(_positive(sample_rows[index].get(group)) for index in support_indices)
         )
         positive_counts = {
             index: sum(_positive(sample_rows[index].get(group)) for group in groups)
@@ -402,7 +450,10 @@ def _build_label_evidence(  # noqa: PLR0915
         if policy == "none":
             status = "not_applied"
             factors: dict[int, float | None] = dict.fromkeys(indices, 1.0)
-        elif len(indices) < _MIN_LABEL_REPLICATES:
+        elif unknown_count:
+            status = "abstained_unknown_independence"
+            factors = dict.fromkeys(indices)
+        elif len(biological_sources) < _MIN_LABEL_REPLICATES:
             status = "abstained_insufficient_replicates"
             factors = dict.fromkeys(indices)
         elif not shared:
@@ -419,7 +470,7 @@ def _build_label_evidence(  # noqa: PLR0915
                         )
                     )
                 )
-                for index in indices
+                for index in support_indices
             }
             target = float(median(tuple(sample_centers.values())))
             factors = {
@@ -442,12 +493,14 @@ def _build_label_evidence(  # noqa: PLR0915
         )
         missingness_rate = (total_cells - observed_cells) / total_cells if total_cells else 1.0
         if status in {"normalized", "not_applied"}:
-            if len(indices) < qc_policy.min_replicates:
-                qc_status = "abstained_insufficient_replicates"
+            if missingness_rate > qc_policy.max_missingness_rate:
+                qc_status = "abstained_missingness"
             elif observed_groups < qc_policy.min_observed_groups:
                 qc_status = "abstained_insufficient_observed_groups"
-            elif missingness_rate > qc_policy.max_missingness_rate:
-                qc_status = "abstained_missingness"
+            elif unknown_count:
+                qc_status = "unverified_independence"
+            elif len(biological_sources) < qc_policy.min_replicates:
+                qc_status = "abstained_insufficient_replicates"
             else:
                 qc_status = "descriptive"
         else:
@@ -496,6 +549,10 @@ def _build_label_evidence(  # noqa: PLR0915
                 mad_intensity=label_mad,
                 status=qc_status,
                 normalization_status=status,
+                independent_replicates=len(biological_sources),
+                technical_replicates=technical_count,
+                unknown_replicates=unknown_count,
+                duplicate_sources=duplicate_count,
             )
         )
         for group in groups:
@@ -505,6 +562,9 @@ def _build_label_evidence(  # noqa: PLR0915
             )
             center, mad = _median_mad(observed)
             evidence_status = qc_status
+            independent_observed = sum(
+                _positive(sample_rows[index].get(group)) for index in biological_indices
+            )
             label_evidence.append(
                 CohortLabelGroupEvidence(
                     cohort_label=label,
@@ -515,6 +575,7 @@ def _build_label_evidence(  # noqa: PLR0915
                     median_normalized_intensity=center,
                     mad_normalized_intensity=mad,
                     status=evidence_status,
+                    independent_observed_replicates=independent_observed,
                 )
             )
     if any(value is None for value in scale_values):
@@ -565,6 +626,24 @@ def _validate_provenance_policy(
                 )
 
 
+def _source_manifest(
+    request: ResearchCohortRequest, ordered_samples: tuple[ResearchCohortSample, ...]
+) -> CohortSourceManifest:
+    if request.source_manifest is not None:
+        manifest = request.source_manifest
+    else:
+        manifest = CohortSourceManifest.from_requests(
+            tuple(sample.request for sample in ordered_samples)
+        )
+    manifest.validate_against_samples(
+        tuple(sample.sample_id for sample in ordered_samples),
+        tuple(sample.request for sample in ordered_samples),
+        tuple(sha256(bytes(sample.request.mzml_source)).hexdigest() for sample in ordered_samples),
+    )
+    manifest.validate_independence()
+    return manifest
+
+
 def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     """Run compatible samples and emit a deterministic matrix without imputation."""
 
@@ -572,6 +651,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
     _validate_provenance_policy(request, ordered_samples)
     _compatible_configuration(child)
+    source_manifest = _source_manifest(request, ordered_samples)
     sample_ids = tuple(item.sample_id for item in ordered_samples)
     groups = tuple(
         sorted({group.accessions for result in child for group in result.protein_groups})
@@ -612,7 +692,12 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         (group, tuple(values.get(group) for values in values_by_sample)) for group in groups
     )
     normalized_matrix, sample_scales, label_qc, label_group_evidence, _ = _build_label_evidence(
-        ordered_samples, groups, matrix, request.normalization_policy, request.qc_policy
+        ordered_samples,
+        groups,
+        matrix,
+        request.normalization_policy,
+        request.qc_policy,
+        source_manifest,
     )
     scale_by_sample = {item.sample_id: item for item in sample_scales}
     qc = [
@@ -648,6 +733,8 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
                     "none" if request.normalization_policy == "none" else "within-label-median-v1"
                 ),
                 "cohort_qc_policy": request.qc_policy.as_dict(),
+                "cohort_source_manifest_digest": source_manifest.digest,
+                "cohort_source_manifest": source_manifest.as_dict(),
                 "sample_ids": list(sample_ids),
                 "fasta_sha256": child[0].fasta_sha256,
                 "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
@@ -674,6 +761,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         "sample_scales": [item.as_dict() for item in sample_scales],
         "label_qc": [item.as_dict() for item in label_qc],
         "label_group_evidence": [item.as_dict() for item in label_group_evidence],
+        "source_manifest": source_manifest.as_dict(),
         "child_result_digests": [
             [sample.sample_id, result.result_digest]
             for sample, result in zip(ordered_samples, child, strict=True)
@@ -697,6 +785,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         sample_scales=sample_scales,
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
+        source_manifest=source_manifest,
     )
 
 

@@ -12,6 +12,9 @@
     {"id": "qc_abstention"},
     {"id": "explicit_missingness"},
     {"id": "label_normalization"},
+    {"id": "duplicate_biological_source"},
+    {"id": "technical_duplicate_visibility"},
+    {"id": "unknown_independence_abstention"},
     {"id": "incompatible_search_space"},
     {"id": "pdc_provenance_replay"}
   ]
