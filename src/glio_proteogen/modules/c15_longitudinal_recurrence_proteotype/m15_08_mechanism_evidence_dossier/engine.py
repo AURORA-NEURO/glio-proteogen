@@ -139,8 +139,7 @@ def preflight_m1508_authorization(candidate: object) -> None:
         context = _member(candidate, "context")
         references = _member(context, "references")
         states = {
-            role: _state(_member(_member(references, role), "state"))
-            for role in _EXPECTED_CONTROLS
+            role: _state(_member(_member(references, role), "state")) for role in _EXPECTED_CONTROLS
         }
     except Exception as error:
         raise M1508AuthorizationError from error
@@ -233,8 +232,7 @@ def _uncertainty() -> UncertaintyProfile:
         "identification": "Identity, lineage, and proteogenomic state are not inferred.",
         "support": "Support reflects caller controls, not external evidence authenticity.",
         "transport": (
-            "Transport across cohorts, assays, territories, and treatment eras is not "
-            "estimable."
+            "Transport across cohorts, assays, territories, and treatment eras is not estimable."
         ),
     }
     estimates = {
@@ -348,8 +346,7 @@ def _dossier(
         ValidationRoute(
             route_id="validation-route.m1508.orthogonal",
             method=(
-                "orthogonal assay, negative-control gating, and independent reviewer "
-                "reconstruction"
+                "orthogonal assay, negative-control gating, and independent reviewer reconstruction"
             ),
             status=ValidationRouteStatus.PLANNED,
             required_experiment=(
@@ -418,8 +415,7 @@ class M1508MechanismDossierEngine:
                 ),
                 status=DossierDiagnosticStatus.WARNING,
                 message=(
-                    "Validation route is planned and requires owner-approved experiment "
-                    "evidence."
+                    "Validation route is planned and requires owner-approved experiment evidence."
                 ),
                 evidence=evidence[:1],
             ),
@@ -474,6 +470,8 @@ class M1508MechanismDossierEngine:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1508ReplayVerificationError from error
+        if validated.result_digest != result_payload_digest(validated):
+            raise M1508ReplayVerificationError
         expected = self.construct(validated.request).model_dump(mode="json")
         if replay and expected != validated.model_dump(mode="json"):
             raise M1508ReplayVerificationError
