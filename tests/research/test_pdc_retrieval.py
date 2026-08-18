@@ -9,13 +9,15 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
-from typing import TYPE_CHECKING, ClassVar
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, ClassVar, Self
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
 import pytest
 
+from glio_proteogen.research import pdc as pdc_module
 from glio_proteogen.research.pdc import PdcClient, PdcError, PdcFile, PdcStudySnapshot
 from glio_proteogen.research.public_proteomics.provenance import SourceReference, sha256_digest
 
@@ -52,6 +54,28 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, _format: str, *_args: object) -> None:
         return None
+
+
+class _MemoryResponse:
+    def __init__(self, payload: bytes) -> None:
+        self.payload = payload
+        self.headers = {
+            "Content-Type": "application/mzml",
+            "Content-Length": str(len(payload)),
+        }
+        self._read = False
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def read(self, _limit: int) -> bytes:
+        if self._read:
+            return b""
+        self._read = True
+        return self.payload
 
 
 @contextmanager
@@ -237,3 +261,117 @@ def test_timeout_is_bounded_and_does_not_write_partial_bytes() -> None:
                 timeout_seconds=0.05,
             )
         assert destination.getvalue() == b""
+
+
+@pytest.mark.parametrize("host", ["", " pdc.cancer.gov", "pdc.cancer.gov/", "pdc:443"])
+def test_caller_approved_hosts_are_exact_and_not_authority_fragments(host: str) -> None:
+    with pytest.raises(ValueError, match="exact host"):
+        pdc_module._approved_hosts((host,))
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "ftp://pdc.cancer.gov/file",
+        "http://pdc.cancer.gov/file",
+        "https://pdc.cancer.gov:444/file",
+        "https://user@pdc.cancer.gov/file",
+        "https://pdc.cancer.gov/file#fragment",
+        "https://unapproved.example/file",
+        "https://pdc.cancer.gov:bad/file",
+    ],
+)
+def test_download_url_validation_rejects_transport_and_authority_escalation(url: str) -> None:
+    with pytest.raises(PdcError):
+        pdc_module._validate_download_url(url, frozenset(pdc_module.PDC_DOWNLOAD_HOSTS))
+
+
+@pytest.mark.parametrize("file_format", [None, "fasta"])
+def test_raw_retrieval_rejects_unsupported_file_formats(file_format: str | None) -> None:
+    with pytest.raises(PdcError, match="mzML"):
+        pdc_module._media_types(file_format)
+    with pytest.raises(PdcError, match="Content-Type"):
+        pdc_module._media_type(None)
+    with pytest.raises(PdcError, match="Content-Type"):
+        pdc_module._media_type(" ; charset=utf-8")
+
+
+def test_response_header_validation_binds_media_and_declared_length() -> None:
+    payload = b"<mzML>headers</mzML>"
+    file = _file("https://pdc.cancer.gov/files/headers", payload)
+    good = SimpleNamespace(
+        headers={
+            "Content-Type": "application/mzml; charset=utf-8",
+            "Content-Length": str(len(payload)),
+        }
+    )
+    pdc_module._validate_response_headers(good, file, None)
+    cases = (
+        ({"Content-Type": "text/plain", "Content-Length": str(len(payload))}, None),
+        ({"Content-Type": "application/mzml", "Content-Length": "bad"}, None),
+        ({"Content-Type": "application/mzml", "Content-Length": str(len(payload) + 1)}, None),
+    )
+    for headers, reference in cases:
+        with pytest.raises(PdcError):
+            pdc_module._validate_response_headers(SimpleNamespace(headers=headers), file, reference)
+
+
+def test_retrieval_rejects_reference_media_and_timeout_before_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"<mzML>reference</mzML>"
+    file = _file("https://pdc.cancer.gov/files/reference", payload)
+    snapshot, reference = _snapshot_and_reference(file, payload)
+    bad_reference = SourceReference(
+        reference.source_id,
+        reference.locator,
+        "text/plain",
+        reference.sha256,
+        reference.byte_length,
+        reference.retrieved_at,
+        reference.license_or_terms,
+    )
+    with pytest.raises(ValueError, match="timeout"):
+        PdcClient().download_file(file, io.BytesIO(), timeout_seconds=0)
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _MemoryResponse(payload),
+    )
+    with pytest.raises(PdcError, match="source reference media"):
+        PdcClient().download_file_with_receipt(file, snapshot, bad_reference, io.BytesIO())
+
+
+def test_read_failure_and_over_limit_are_safe_before_destination_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"<mzML>failure</mzML>"
+    file = _file("https://pdc.cancer.gov/files/failure", payload)
+
+    class _ReadFailure(_MemoryResponse):
+        def read(self, _limit: int) -> bytes:
+            raise OSError
+
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _ReadFailure(payload),
+    )
+    with pytest.raises(PdcError, match="request failed"):
+        PdcClient().download_file(file, io.BytesIO())
+
+    class _OverLimit(_MemoryResponse):
+        def __init__(self) -> None:
+            super().__init__(payload[:1])
+            self.headers["Content-Length"] = str(len(payload))
+
+        def read(self, _limit: int) -> bytes:
+            return payload + b"!"
+
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _OverLimit(),
+    )
+    with pytest.raises(PdcError, match="exceeded"):
+        PdcClient().download_file(file, io.BytesIO())
