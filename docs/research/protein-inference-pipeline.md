@@ -53,7 +53,10 @@ discovery, treatment recommendation, identity inference, or consent inference. A
 q-value, spectral count, or protein group is not itself a disease or mechanistic claim.
 
 The public PDC record used by the surrounding foundation is metadata and provenance only;
-raw cohort bytes remain caller-supplied and are not bundled or downloaded implicitly. A
-future governed computation ABI must freeze reference/search versions, modifications and
+raw cohort bytes remain caller-supplied and are not bundled or downloaded implicitly. When
+the caller supplies a downloaded mzML together with a matching PDC file declaration and
+content-addressed `SourceReference`, `bind_pdc_mzml_source` verifies format, locator, size,
+MD5, and SHA-256 before the pipeline parses it and records the external source in evidence.
+A future governed computation ABI must freeze reference/search versions, modifications and
 units, FDR calibration, missingness, ambiguity, privacy/consent, validation cohorts, review,
 and safe-abstention semantics before this lane can be promoted.

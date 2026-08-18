@@ -1,14 +1,15 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "f409d91401358dfd4d719539da381e473b0c98ed8023c1ad1bc30fbfe523c90d",
+  "fixture_sha256": "8d2e5a70a136b9a9c5ca6f92aa5284d114d116c69c1f4656f73a9508e3500bd6",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
-    "declared": 7,
-    "executed": 7,
+    "declared": 8,
+    "executed": 8,
     "passed": true,
     "scenario_ids": [
       "target_supported",
       "decoy_rejected",
+      "target_decoy_collision",
       "no_match",
       "precursor_rejected",
       "shared_peptide_group",
@@ -19,17 +20,17 @@
   "benchmark": {
     "warmup": 1,
     "iterations": 10,
-    "mean_ns": 309180,
-    "median_ns": 307600,
-    "p95_ns": 323200,
-    "result_digest": "6c08b877ce08a7cbbabdf018d640bcf664aa3e5e233889eadce2ee0d7d659bfe"
+    "mean_ns": 276670.0,
+    "median_ns": 276200,
+    "p95_ns": 284800,
+    "result_digest": "3d39d6c139b10045a2a1b3c554b2f921b450ba805582cc47558bb9fa30f8f09f"
   },
   "coverage": {
-    "statements": 1130,
-    "missed_statements": 29,
-    "branches": 424,
-    "partial_branches": 26,
-    "percent": 96.2033462033462,
+    "statements": 1239,
+    "missed_statements": 40,
+    "branches": 462,
+    "partial_branches": 37,
+    "percent": 95.23809523809524,
     "fail_under": 95
   }
 }
