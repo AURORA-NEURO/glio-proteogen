@@ -217,3 +217,12 @@ unique-peptide count, MAD, IQR, and `unique_*` quality status. These fields expo
 support and heterogeneity for review and replay. They are not confidence intervals, calibrated
 error bars, abundance uncertainty, or evidence of biological effect, and they never impute an
 absent signal.
+
+`QuantificationPolicy` makes the remaining controls explicit and replay-bound. Only arbitrary
+matched-ion intensity is accepted; normalization is either `none_v1` or
+`sample_median_scaled_v1`; and a finite caller-declared limit of quantification (LOQ) may be
+applied. A zero or below-LOQ raw signal remains visible in the raw receipt but is projected as
+missing with zero normalized signal and no imputation. The policy, below-LOQ count, and per-
+peptide status vectors are included in the non-default configuration/receipt digest, so a
+replay cannot silently change units, normalization, or LOQ semantics. The LOQ is not an
+empirical assay calibration and does not establish clinical detectability.

@@ -1,0 +1,29 @@
+{
+  "lane": "research-quantification-policy-depth",
+  "scope": "research-only",
+  "evaluator": "evals/research_proteomics/quantification_policy.py",
+  "tests": "tests/research/test_quantification_policy_depth.py",
+  "declared_scenarios": 2,
+  "executed_scenarios": 2,
+  "passed": true,
+  "controls": {
+    "measurement_unit": "matched_ion_intensity_arbitrary",
+    "normalization_methods": [
+      "none_v1",
+      "sample_median_scaled_v1"
+    ],
+    "missingness_policy": "zero_or_below_loq_is_missing_no_imputation_v1",
+    "limit_of_quantification": "finite caller-declared threshold",
+    "replay_binding": [
+      "request configuration",
+      "quantification receipt",
+      "result digest"
+    ]
+  },
+  "limitations": [
+    "matched-ion signal remains arbitrary instrument units",
+    "LOQ is caller-declared and is not empirically calibrated",
+    "no missing-value imputation or clinical abundance claim",
+    "not a governed M03/M04 ABI"
+  ]
+}
