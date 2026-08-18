@@ -1,0 +1,12 @@
+{
+  "budget_mean_ns": 500000000,
+  "budget_p95_ns": 750000000,
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8220-8260",
+  "iterations": 10,
+  "mean_ns": 3397740.0,
+  "median_ns": 3239300.0,
+  "module_id": "GLIO-PROTEOGEN-M23-07",
+  "p95_ns": 3604500,
+  "passed": true
+}

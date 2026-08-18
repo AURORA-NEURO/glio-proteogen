@@ -1,0 +1,57 @@
+"""Focused smoke coverage for the provisional M23-07 contract spine."""
+
+from typing import Final, cast
+
+import pytest
+from pydantic import ValidationError
+
+from glio_proteogen.contracts.m23_07 import (
+    M2307_M2306_INPUT_MEDIA_TYPE,
+    M2307_OUTPUT_MEDIA_TYPE,
+    M2307_PROVISIONAL_ABI,
+    FallbackScenario,
+    OperationalDimension,
+    OperationalStatus,
+    contract_json_schemas,
+)
+from glio_proteogen.kernel.models import ArtifactReference, EvidenceReference
+
+EXPECTED_SCHEMA_COUNT: Final = 7
+
+
+def _evidence() -> tuple[EvidenceReference, ...]:
+    reference = ArtifactReference(
+        artifact_id="m2307-evidence",
+        version="1.0.0",
+        digest="sha256:" + "a" * 64,
+        media_type="application/vnd.glio-proteogen.evidence+json",
+    )
+    return (EvidenceReference(reference=reference, role="evidence", claim="smoke"),)
+
+
+def test_m23_07_provisional_schema_and_safe_fallback() -> None:
+    schemas = contract_json_schemas()
+    assert len(schemas) == EXPECTED_SCHEMA_COUNT
+    assert all(
+        cast("dict[str, object]", schema["x-glio-contract"])["provisionalAbi"]
+        is M2307_PROVISIONAL_ABI
+        for schema in schemas.values()
+    )
+    metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
+    assert metadata["outputMediaType"] == M2307_OUTPUT_MEDIA_TYPE
+    assert metadata["upstreamInputMediaType"] == M2307_M2306_INPUT_MEDIA_TYPE
+    assert metadata["primaryArchitecture"] == "spatial_proteotype_field"
+    assert metadata["alternateArchitecture"] == "recurrence_transition"
+    assert metadata["pendingOwnerConfirmation"] is True
+
+    with pytest.raises(ValidationError, match="unavailable fallback cannot pass"):
+        FallbackScenario(
+            scenario_id="fallback-1",
+            dimension=OperationalDimension.FALLBACK,
+            trigger="challenge unsupported",
+            fallback_path="abstain",
+            recovery_seconds=0.0,
+            fallback_available=False,
+            status=OperationalStatus.PASS,
+            evidence=_evidence(),
+        )
