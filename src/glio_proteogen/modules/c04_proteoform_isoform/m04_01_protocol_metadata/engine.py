@@ -34,6 +34,10 @@ _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteoformProtocolConformanceResult)
 _AUTHORIZATION_MESSAGE: Final = "proteoform protocol evaluation requires accepted upstream controls"
 _ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
+_MAX_PLAIN_DEPTH: Final = 72
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_NODES: Final = 150_000
+_MAX_PLAIN_SEQUENCE: Final = 4_096
 
 
 class ProteoformProtocolAuthorizationError(ValueError):
@@ -41,6 +45,11 @@ class ProteoformProtocolAuthorizationError(ValueError):
 
     def __init__(self) -> None:
         super().__init__(_AUTHORIZATION_MESSAGE)
+
+
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M04-01 strict request values require exact built-in containers")
 
 
 class M0401ProteoformProtocolEngine:
@@ -168,16 +177,58 @@ def _member(candidate: object, field: str) -> object:
     return None
 
 
-def _plain_value(candidate: object) -> object:
+def _plain_value(
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    """Copy only bounded built-in containers before strict Pydantic validation.
+
+    M04-01 accepts ordinary mappings from API/CLI callers.  Without an explicit
+    traversal budget, a hostile but authorized payload can exhaust Python's
+    recursion limit before the contract validator gets a chance to reject it.
+    The limits are an input-safety boundary only; they do not alter the frozen
+    request model's field or cardinality limits.
+    """
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
     candidate_mro = type.__getattribute__(type(candidate), "__mro__")
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
-        return {key: _plain_value(dict.__getitem__(mapping, key)) for key in dict.keys(mapping)}
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS or any(
+            type(key) is not str for key in dict.keys(mapping)
+        ):
+            raise _InvalidPlainValueError
+        return {
+            key: _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+            )
+            for key in dict.keys(mapping)
+        }
     if list in candidate_mro:
-        return [_plain_value(item) for item in list.__iter__(cast("list[object]", candidate))]
+        list_values = cast("list[object]", candidate)
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in list.__iter__(list_values)
+        ]
     if tuple in candidate_mro:
-        values = cast("tuple[object, ...]", candidate)
-        return tuple(_plain_value(item) for item in tuple.__iter__(values))
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in tuple.__iter__(tuple_values)
+        )
     return candidate
 
 
