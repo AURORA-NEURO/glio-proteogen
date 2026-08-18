@@ -60,6 +60,7 @@
       "members": 4607,
       "sha256": "6c7ffa4de559200dd717eb10d6ef1ea7d245ad8c90dd951b4cf1e120c82cbcd8"
     },
-    "isolated_import": true
+    "isolated_import": true,
+    "release_verifier": true
   }
 }
