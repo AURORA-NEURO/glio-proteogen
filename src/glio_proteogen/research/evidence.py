@@ -59,6 +59,31 @@ class EvidenceBundle:
     digest: str
     limitations: tuple[str, ...]
 
+    def as_dict(self) -> dict[str, object]:
+        """Return the complete immutable receipt projection.
+
+        The older bundle API exposed only the outer digest.  That made a caller
+        unable to archive or independently verify the exact evidence records that
+        contributed to a cohort result.  Keep the projection JSON-native and
+        include each frozen payload so replay tooling can validate both inner and
+        outer digests without reaching into private dataclass storage.
+        """
+
+        return {
+            "digest": self.digest,
+            "limitations": list(self.limitations),
+            "records": [
+                {
+                    "digest": record.digest,
+                    "evidence_id": record.evidence_id,
+                    "kind": record.kind,
+                    "payload": record.payload_jsonable,
+                    "source": record.source,
+                }
+                for record in self.records
+            ],
+        }
+
 
 def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     if not records:

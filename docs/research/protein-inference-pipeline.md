@@ -114,6 +114,18 @@ cohort ABI still needs owner-approved cohort provenance, replicate/QC thresholds
 normalization units, missingness policy, privacy/consent boundaries, and independent
 validation data.
 
+Each `ResearchCohortResult` now carries a replay-bound `evidence_bundle` with three
+content-addressed records: `cohort.matrix.v1` for raw/normalized/null-preserving values,
+`cohort.qc.v1` for sample/group/label QC and replicate statuses, and
+`cohort.provenance.v1` for the complete source manifest and cohort configuration. The
+outer bundle digest covers the ordered record identities and each inner digest covers its
+frozen payload. `aggregate_cohort_evidence` recomputes all three records without rerunning
+the raw-byte computation and rejects a stale or tampered receipt. External metadata
+snapshot digests must be identical across a cohort or all be absent; a mixed metadata
+version is rejected rather than silently combining catalog contexts. The receipt remains
+descriptive research evidence and does not authenticate issuer truth or promote caller
+labels into biology.
+
 The result carries replay-bound `PsmCompetition`, `FdrSummary`, and
 `ProteinGroupFdrSummary` records. `PsmCompetition` binds the complete candidate-level
 search receipt for each spectrum: target/decoy/collision candidate counts, winner and

@@ -27,6 +27,7 @@ def test_locked_cohort_evaluator_emits_replay_complete_projections() -> None:
         assert {
             "child_result_digests",
             "configuration",
+            "evidence_bundle",
             "group_accessions",
             "group_qc",
             "matrix",
@@ -39,6 +40,16 @@ def test_locked_cohort_evaluator_emits_replay_complete_projections() -> None:
             "label_qc",
             "label_group_evidence",
         } <= projection.keys()
+        receipt = projection["evidence_bundle"]
+        assert isinstance(receipt, dict)
+        assert isinstance(receipt.get("digest"), str)
+        records = receipt.get("records")
+        assert isinstance(records, list)
+        assert {item["evidence_id"] for item in records if isinstance(item, dict)} == {
+            "cohort.matrix.v1",
+            "cohort.provenance.v1",
+            "cohort.qc.v1",
+        }
         configuration = projection["configuration"]
         assert isinstance(configuration, dict)
         assert "sample_source_provenance" in configuration

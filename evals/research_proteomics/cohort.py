@@ -23,6 +23,7 @@ from glio_proteogen.research import (
     ResearchRunRequest,
     ResearchRunResult,
     SourceReference,
+    aggregate_cohort_evidence,
     bind_pdc_mzml_source,
     replay_research_cohort,
     run_research_cohort,
@@ -41,7 +42,12 @@ _EXPECTED_SAMPLE_COUNT = 2
 def _projection(result: ResearchCohortResult) -> dict[str, object]:
     """Return the complete stable cohort output used by release evidence."""
 
-    return result.as_dict()
+    projection = result.as_dict()
+    receipt = aggregate_cohort_evidence(result)
+    bundle = projection.get("evidence_bundle")
+    if not isinstance(bundle, dict) or bundle.get("digest") != receipt.digest:
+        raise ValueError("cohort evidence receipt did not verify")  # noqa: TRY003
+    return projection
 
 
 def _fixture_path() -> Path:

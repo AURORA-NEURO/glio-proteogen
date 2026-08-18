@@ -795,9 +795,9 @@
           "competition_spectra": 2,
           "contested_spectra": 0,
           "matched_psms": 2,
-          "max_fragment_error_da": 1.8947806286936004e-14,
-          "max_precursor_error_ppm": 1.224463819580059e-10,
-          "mean_fragment_error_da": 1.6579330501069002e-14,
+          "max_fragment_error_da": 1.8947806286936004E-14,
+          "max_precursor_error_ppm": 1.224463819580059E-10,
+          "mean_fragment_error_da": 1.6579330501069002E-14,
           "precursor_tolerance_ppm": 20
         },
         "competition_audit": [
@@ -836,7 +836,7 @@
       {
         "id": "replicate_matrix",
         "passed": true,
-        "result_digest": "7c3bae446b9dba58bd9398d37a260848b68997d83a4cdf8b667acb854e11747e",
+        "result_digest": "52ad9bad895830d3ed7d8b70ff9abfee5886acfaa65a57391babbe93a94e37ae",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -980,7 +980,7 @@
               ]
             ]
           ],
-          "result_digest": "7c3bae446b9dba58bd9398d37a260848b68997d83a4cdf8b667acb854e11747e",
+          "result_digest": "52ad9bad895830d3ed7d8b70ff9abfee5886acfaa65a57391babbe93a94e37ae",
           "sample_ids": [
             "rep-a",
             "rep-b"
@@ -1105,13 +1105,304 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "cfd76a63751fc96b42a8375227791b84ba34c33b366d5a37146c255b078732fa",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "3fc952fb70f49628970c710bce39c6636afe3c459f19bbe77a2e64b5d6c7d5a5",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "rep-a",
+                    "rep-b"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "6655a0788bba2b63a6c89defa97692f62605dfbbb7faec67a117bac03f902b19",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "e15f99ed58691d00b06d7507ef386f689d29727a683c7aa8f87b8f930c33415f",
+                      "5ece2f30e23194587affe6fadfc54564b64793cf20d4c4281c5e1a3e4667da06"
+                    ],
+                    "cohort_normalization_policy": "none",
+                    "cohort_normalization_version": "none",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "rep-a",
+                          "source_id": "local:rep-a",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "rep-b",
+                          "source_id": "local:rep-b",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "f649aaaa31200ce1c1aec3cf49e935a70b6462d4acec6ada215f8af886c7a7ed",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "rep-a",
+                      "rep-b"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "rep-a",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "rep-b",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "rep-a",
+                        "source_id": "local:rep-a",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "rep-b",
+                        "source_id": "local:rep-b",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "f649aaaa31200ce1c1aec3cf49e935a70b6462d4acec6ada215f8af886c7a7ed"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "c5ed773c9fd7710ab5042a156adc20ed3711a3df952f3e8be886dc56bf4d7937",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 2
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 20.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "unverified_independence",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 2,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "unverified_independence",
+                      "normalization_status": "not_applied",
+                      "independent_replicates": 0,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 2,
+                      "duplicate_sources": 1
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "rep-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r2",
+                      "sample_id": "rep-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "rep-a",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    },
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "rep-b",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "32da8681f6ae7604c1e9f87e4827f8bb5eb6b699ffadc5c9c6a035791f5ee7fc",
+        "result_digest": "d90a31e3f63f2dbf0685b752f3c5716ff29eaea9abc67f4fb038667848661e1d",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -1255,7 +1546,7 @@
               ]
             ]
           ],
-          "result_digest": "32da8681f6ae7604c1e9f87e4827f8bb5eb6b699ffadc5c9c6a035791f5ee7fc",
+          "result_digest": "d90a31e3f63f2dbf0685b752f3c5716ff29eaea9abc67f4fb038667848661e1d",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1380,13 +1671,304 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "73482118a1cf2d63390d3d699de1f834d8dbeb190166049606263269fda02130",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "915d9be36da9b8bffa2538bf4a5ace3da69650ee4f9170ed02326b36de5f86ca",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        null
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "qc-absent",
+                    "qc-present"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "25d2ab66b6bf4e15aa51fa275cc044ffc169800207160d9c9a3a8d4602be1d33",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "67baa8d254cb6d697709de9d10b9cd7211ea9f8cc91772390584e769a626424d",
+                      "73572b52f2dafdb5234c94d0f54251ae72915c6cd1cc8d00b3e23bd8807c8733"
+                    ],
+                    "cohort_normalization_policy": "none",
+                    "cohort_normalization_version": "none",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.0,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "qc-absent",
+                          "source_id": "local:qc-absent",
+                          "source_kind": "local",
+                          "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                          "source_size": 647
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "qc-present",
+                          "source_id": "local:qc-present",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "79c756e75e7d6a9ba4e26b9b9b1d3667d9b419123df02e43be2308192f5b609b",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "qc-absent",
+                      "qc-present"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "qc-absent",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "qc-present",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "qc-absent",
+                        "source_id": "local:qc-absent",
+                        "source_kind": "local",
+                        "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                        "source_size": 647
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "qc-present",
+                        "source_id": "local:qc-present",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "79c756e75e7d6a9ba4e26b9b9b1d3667d9b419123df02e43be2308192f5b609b"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "66e2de83938acc7b7b66fd75f5a0a12a6b600698e63b76a613aa911e60478069",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 1,
+                      "missingness_rate": 0.5,
+                      "observed_samples": 1
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": null,
+                      "median_normalized_intensity": null,
+                      "missing_replicates": 2,
+                      "missingness_rate": 1.0,
+                      "observed_replicates": 0,
+                      "status": "abstained_missingness",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "mad_intensity": null,
+                      "median_intensity": null,
+                      "missing_cells": 1,
+                      "missingness_rate": 0.5,
+                      "observed_cells": 1,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "abstained_missingness",
+                      "normalization_status": "not_applied",
+                      "independent_replicates": 0,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 2,
+                      "duplicate_sources": 0
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 0,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": null,
+                      "missing_groups": 1,
+                      "missingness_rate": 1.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 0,
+                      "replicate_label": "r2",
+                      "sample_id": "qc-absent",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "qc-present",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 0,
+                      "sample_id": "qc-absent",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    },
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "qc-present",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "20bafd773b83b86cbbddb32cfc2b247cd0199f6d2427d313340bbe6ec9a223cd",
+        "result_digest": "eed84f2391c4080ee1a5e02764ace55da8e4cff92cbd38f799b29bdf9f006256",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
@@ -1530,7 +2112,7 @@
               ]
             ]
           ],
-          "result_digest": "20bafd773b83b86cbbddb32cfc2b247cd0199f6d2427d313340bbe6ec9a223cd",
+          "result_digest": "eed84f2391c4080ee1a5e02764ace55da8e4cff92cbd38f799b29bdf9f006256",
           "sample_ids": [
             "absent",
             "present"
@@ -1655,13 +2237,304 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "952c5a808c0d9cb178319829a27b6bdb174631f2382cb079cd9d1f04dbe66bdf",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "f952b974a7fc6651c4dc34794258881b1fece71f9953b4c54fbec5a82c338c35",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "absent",
+                    "present"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "84a9637b34772da8312ddd0822db0fa4616d2da82888142c359e715ab4b1a835",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "bedaca761594966d2d9fbd841acf7397687c779862703b9bf5b1237a6ff492f2",
+                      "aa2e7aa3e0bdd0b21108a892cd147a9c49d58728c12ef7dc87888cb32f0a6dea"
+                    ],
+                    "cohort_normalization_policy": "none",
+                    "cohort_normalization_version": "none",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "absent",
+                          "source_id": "local:absent",
+                          "source_kind": "local",
+                          "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                          "source_size": 647
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "present",
+                          "source_id": "local:present",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "7a2ca3afa8fb570254ce770cdf048acb9a51e3379dea4cf8cd2d6ee901177fa8",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "absent",
+                      "present"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "absent",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "present",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "absent",
+                        "source_id": "local:absent",
+                        "source_kind": "local",
+                        "source_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
+                        "source_size": 647
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "present",
+                        "source_id": "local:present",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "7a2ca3afa8fb570254ce770cdf048acb9a51e3379dea4cf8cd2d6ee901177fa8"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "56f54db5ca2fda72021f09610f3de907e02511b3e307dc68d9f1e15b22b55503",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 1,
+                      "missingness_rate": 0.5,
+                      "observed_samples": 1
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 20.0,
+                      "missing_replicates": 1,
+                      "missingness_rate": 0.5,
+                      "observed_replicates": 1,
+                      "status": "unverified_independence",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_cells": 1,
+                      "missingness_rate": 0.5,
+                      "observed_cells": 1,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "unverified_independence",
+                      "normalization_status": "not_applied",
+                      "independent_replicates": 0,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 2,
+                      "duplicate_sources": 0
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 0,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": null,
+                      "missing_groups": 1,
+                      "missingness_rate": 1.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 0,
+                      "replicate_label": "r2",
+                      "sample_id": "absent",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "present",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 0,
+                      "sample_id": "absent",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    },
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "present",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
       {
         "id": "label_normalization",
         "passed": true,
-        "result_digest": "1803c53f767428f50c3a269c83b91c79e3f401bbdc460e8c79c8fb75e7f0fe16",
+        "result_digest": "0fd0a9d6f97e4ecc1f7cc18da54e7f50bdf597aaa0af1fc8c64c0819faa665e4",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -1921,7 +2794,7 @@
               ]
             ]
           ],
-          "result_digest": "1803c53f767428f50c3a269c83b91c79e3f401bbdc460e8c79c8fb75e7f0fe16",
+          "result_digest": "0fd0a9d6f97e4ecc1f7cc18da54e7f50bdf597aaa0af1fc8c64c0819faa665e4",
           "sample_ids": [
             "case-a",
             "case-b",
@@ -2183,6 +3056,542 @@
                 "source_size": 703
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "67d26b7abfa2063f8cba980277db1884b6837587fd669eec5cab8be104065035",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "dc6ad8b77d0953a8718f939cf8282619837a928280d349dd569e4b2d1e09a330",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ],
+                    [
+                      "P2"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        10.0,
+                        20.0,
+                        100.0,
+                        200.0
+                      ]
+                    ],
+                    [
+                      [
+                        "P2"
+                      ],
+                      [
+                        30.0,
+                        60.0,
+                        300.0,
+                        600.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        15.0,
+                        15.0,
+                        150.0,
+                        150.0
+                      ]
+                    ],
+                    [
+                      [
+                        "P2"
+                      ],
+                      [
+                        45.0,
+                        45.0,
+                        450.0,
+                        450.0
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        10.0,
+                        20.0,
+                        100.0,
+                        200.0
+                      ]
+                    ],
+                    [
+                      [
+                        "P2"
+                      ],
+                      [
+                        30.0,
+                        60.0,
+                        300.0,
+                        600.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "case-a",
+                    "case-b",
+                    "control-a",
+                    "control-b"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "c5eac4b070d13406fcd84fed6c4f977255a753559e059e83f6ec2bf57128fcd7",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+                      "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+                      "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8",
+                      "b6d33eadab6dbe19bde2f0e4e8a74b077bc9790c3384b84af2ccae0e9e844af8"
+                    ],
+                    "cohort_normalization_policy": "within_label_median_v1",
+                    "cohort_normalization_version": "within-label-median-v1",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "biological",
+                          "sample_id": "case-a",
+                          "source_id": "local:case-a",
+                          "source_kind": "local",
+                          "source_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
+                          "source_size": 700
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "biological",
+                          "sample_id": "case-b",
+                          "source_id": "local:case-b",
+                          "source_kind": "local",
+                          "source_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
+                          "source_size": 700
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "biological",
+                          "sample_id": "control-a",
+                          "source_id": "local:control-a",
+                          "source_kind": "local",
+                          "source_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
+                          "source_size": 703
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "biological",
+                          "sample_id": "control-b",
+                          "source_id": "local:control-b",
+                          "source_kind": "local",
+                          "source_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
+                          "source_size": 703
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "fbc448a1207955428a124e8a5638d03682aea778a6818324bb8884474055e6a4",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "case-a",
+                      "case-b",
+                      "control-a",
+                      "control-b"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "case-a",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "case-b",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "control-a",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "control-b",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "biological",
+                        "sample_id": "case-a",
+                        "source_id": "local:case-a",
+                        "source_kind": "local",
+                        "source_sha256": "fbb96a51ef2d24b1cc177cf1ea407d99e2af2f1fb84d20dfa58889774aec6269",
+                        "source_size": 700
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "biological",
+                        "sample_id": "case-b",
+                        "source_id": "local:case-b",
+                        "source_kind": "local",
+                        "source_sha256": "075c362e06b4d124a51cd24040b6ce3faed3283b036a2dab7b8e8e6650ff3718",
+                        "source_size": 700
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "biological",
+                        "sample_id": "control-a",
+                        "source_id": "local:control-a",
+                        "source_kind": "local",
+                        "source_sha256": "3d9d6af414b999246dac1ed5399b2f4678c2a2fe51e4d947e34e1852dc0c01e0",
+                        "source_size": 703
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "biological",
+                        "sample_id": "control-b",
+                        "source_id": "local:control-b",
+                        "source_kind": "local",
+                        "source_sha256": "489c09456d73607328f930ca92ebb7e6ca1ffac70f29555eca0755af1b9ed817",
+                        "source_size": 703
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "fbc448a1207955428a124e8a5638d03682aea778a6818324bb8884474055e6a4"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "2c860db16203a8187ccb46a48a8b0e3d628aba62ca029efc491e317a58d8929f",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 45.0,
+                      "median_intensity": 60.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 4
+                    },
+                    {
+                      "group_accessions": [
+                        "P2"
+                      ],
+                      "mad_intensity": 135.0,
+                      "median_intensity": 180.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 4
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "case",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 15.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "descriptive",
+                      "independent_observed_replicates": 2
+                    },
+                    {
+                      "cohort_label": "case",
+                      "group_accessions": [
+                        "P2"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 45.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "descriptive",
+                      "independent_observed_replicates": 2
+                    },
+                    {
+                      "cohort_label": "control",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 150.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "descriptive",
+                      "independent_observed_replicates": 2
+                    },
+                    {
+                      "cohort_label": "control",
+                      "group_accessions": [
+                        "P2"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 450.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "descriptive",
+                      "independent_observed_replicates": 2
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "case",
+                      "mad_intensity": 15.0,
+                      "median_intensity": 30.0,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 4,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "descriptive",
+                      "normalization_status": "normalized",
+                      "independent_replicates": 2,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 0,
+                      "duplicate_sources": 0
+                    },
+                    {
+                      "cohort_label": "control",
+                      "mad_intensity": 150.0,
+                      "median_intensity": 300.0,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 4,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "descriptive",
+                      "normalization_status": "normalized",
+                      "independent_replicates": 2,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 0,
+                      "duplicate_sources": 0
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "case",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 2,
+                      "replicate_label": "r1",
+                      "sample_id": "case-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.5,
+                      "normalization_status": "normalized"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "case",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 2,
+                      "replicate_label": "r2",
+                      "sample_id": "case-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": 0.75,
+                      "normalization_status": "normalized"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "control",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 2,
+                      "replicate_label": "r1",
+                      "sample_id": "control-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.5,
+                      "normalization_status": "normalized"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "control",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 2,
+                      "replicate_label": "r2",
+                      "sample_id": "control-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": 0.75,
+                      "normalization_status": "normalized"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "case",
+                      "overlap_groups": 2,
+                      "positive_groups": 2,
+                      "sample_id": "case-a",
+                      "scale_factor": 1.5,
+                      "status": "normalized"
+                    },
+                    {
+                      "cohort_label": "case",
+                      "overlap_groups": 2,
+                      "positive_groups": 2,
+                      "sample_id": "case-b",
+                      "scale_factor": 0.75,
+                      "status": "normalized"
+                    },
+                    {
+                      "cohort_label": "control",
+                      "overlap_groups": 2,
+                      "positive_groups": 2,
+                      "sample_id": "control-a",
+                      "scale_factor": 1.5,
+                      "status": "normalized"
+                    },
+                    {
+                      "cohort_label": "control",
+                      "overlap_groups": 2,
+                      "positive_groups": 2,
+                      "sample_id": "control-b",
+                      "scale_factor": 0.75,
+                      "status": "normalized"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
@@ -2196,7 +3605,7 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "8f501aee291f882b3fac61c45637a8beb928eee5e10454e2d149723528fc502c",
+        "result_digest": "7a9497d74acb8c89923b3ab90441eee9203d3b1f8cca74aaebd5206c9ca05fab",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -2340,7 +3749,7 @@
               ]
             ]
           ],
-          "result_digest": "8f501aee291f882b3fac61c45637a8beb928eee5e10454e2d149723528fc502c",
+          "result_digest": "7a9497d74acb8c89923b3ab90441eee9203d3b1f8cca74aaebd5206c9ca05fab",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2465,13 +3874,304 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "097b253a9cf1a022229e6cec8d73631b4e411e3f090c18f2744816409fb09785",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "e18f6d71ee1ee6b0e5c59cacf525527b788b28a163eb7ba248e88ba33da2dbd5",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        null
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "duplicate-a",
+                    "duplicate-b"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "3b1d76894a13051b36d3134237a0ed5a645e296fde6a70ba82ccdc2168ccb82e",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c",
+                      "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
+                    ],
+                    "cohort_normalization_policy": "within_label_median_v1",
+                    "cohort_normalization_version": "within-label-median-v1",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "technical",
+                          "sample_id": "duplicate-a",
+                          "source_id": "local:duplicate-a",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "technical",
+                          "sample_id": "duplicate-b",
+                          "source_id": "local:duplicate-b",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "e42ccba7a658dfe65b42d516ed7ca6603ce27d1dd9b603f59ff8eaf12842f52b",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "duplicate-a",
+                      "duplicate-b"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "duplicate-a",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "duplicate-b",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "technical",
+                        "sample_id": "duplicate-a",
+                        "source_id": "local:duplicate-a",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "technical",
+                        "sample_id": "duplicate-b",
+                        "source_id": "local:duplicate-b",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "e42ccba7a658dfe65b42d516ed7ca6603ce27d1dd9b603f59ff8eaf12842f52b"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "3a47ab628318cc2e3208ec08d29c7f76b1dc26d99dafe55f8741ea5ee4f4bb03",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 2
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": null,
+                      "median_normalized_intensity": null,
+                      "missing_replicates": 2,
+                      "missingness_rate": 1.0,
+                      "observed_replicates": 0,
+                      "status": "abstained_insufficient_replicates",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "mad_intensity": null,
+                      "median_intensity": null,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 2,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "abstained_insufficient_replicates",
+                      "normalization_status": "abstained_insufficient_replicates",
+                      "independent_replicates": 0,
+                      "technical_replicates": 2,
+                      "unknown_replicates": 0,
+                      "duplicate_sources": 1
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "duplicate-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": null,
+                      "normalization_status": "abstained_insufficient_replicates"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r2",
+                      "sample_id": "duplicate-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": null,
+                      "normalization_status": "abstained_insufficient_replicates"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "duplicate-a",
+                      "scale_factor": null,
+                      "status": "abstained_insufficient_replicates"
+                    },
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "duplicate-b",
+                      "scale_factor": null,
+                      "status": "abstained_insufficient_replicates"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
       {
         "id": "unknown_independence_abstention",
         "passed": true,
-        "result_digest": "2a40d21e094b52745ac6adeedd895d2a390d39f18fc52396398fffbbf2785702",
+        "result_digest": "cc4381c9b620623e29166356d3a08e01f0431f9ad6ef7020037ca848aa45c249",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -2615,7 +4315,7 @@
               ]
             ]
           ],
-          "result_digest": "2a40d21e094b52745ac6adeedd895d2a390d39f18fc52396398fffbbf2785702",
+          "result_digest": "cc4381c9b620623e29166356d3a08e01f0431f9ad6ef7020037ca848aa45c249",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -2740,6 +4440,297 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "f3a6b79db6858b96ffdca19824098803b5a2124b655299acc4edb03437d4d5c1",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "e18f6d71ee1ee6b0e5c59cacf525527b788b28a163eb7ba248e88ba33da2dbd5",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        null,
+                        null
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "duplicate-a",
+                    "duplicate-b"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "baae5175e7d64645b215c04bcc5897e93fd30cd43ea26ab38cae7637406b4d53",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "4a30152a20a7c6063d3b16385f1aba7c5ed8969c06e496d62d7c743106ab881c",
+                      "8dfd0fc80ff2795f6ea03ef9e009744070dc690be48f81c9294e30081ffb96e8"
+                    ],
+                    "cohort_normalization_policy": "within_label_median_v1",
+                    "cohort_normalization_version": "within-label-median-v1",
+                    "cohort_provenance_policy": "homogeneous",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "duplicate-a",
+                          "source_id": "local:duplicate-a",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": null,
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": null,
+                          "pdc_file_name": null,
+                          "pdc_study_id": null,
+                          "receipt_digest": null,
+                          "replicate_kind": "unknown",
+                          "sample_id": "duplicate-b",
+                          "source_id": "local:duplicate-b",
+                          "source_kind": "local",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "cdd241f6b77f13172bb85cd1e700a7b21289c04cc254f3f2e1555b13decfde1e",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "duplicate-a",
+                      "duplicate-b"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "duplicate-a",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "duplicate-b",
+                        "external_source_id": null,
+                        "external_source_sha256": null,
+                        "external_pdc_file": null,
+                        "external_pdc_response_sha256": null,
+                        "external_pdc_receipt": null,
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "duplicate-a",
+                        "source_id": "local:duplicate-a",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": null,
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": null,
+                        "pdc_file_name": null,
+                        "pdc_study_id": null,
+                        "receipt_digest": null,
+                        "replicate_kind": "unknown",
+                        "sample_id": "duplicate-b",
+                        "source_id": "local:duplicate-b",
+                        "source_kind": "local",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "cdd241f6b77f13172bb85cd1e700a7b21289c04cc254f3f2e1555b13decfde1e"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "93a5f8cb27ddedc9f3f1b7731e58c4951d588e912e6d7940d74a94fef6a41387",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 2
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": null,
+                      "median_normalized_intensity": null,
+                      "missing_replicates": 2,
+                      "missingness_rate": 1.0,
+                      "observed_replicates": 0,
+                      "status": "abstained_unknown_independence",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "mad_intensity": null,
+                      "median_intensity": null,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 2,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "abstained_unknown_independence",
+                      "normalization_status": "abstained_unknown_independence",
+                      "independent_replicates": 0,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 2,
+                      "duplicate_sources": 1
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "duplicate-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": null,
+                      "normalization_status": "abstained_unknown_independence"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "locked-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r2",
+                      "sample_id": "duplicate-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": null,
+                      "normalization_status": "abstained_unknown_independence"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "duplicate-a",
+                      "scale_factor": null,
+                      "status": "abstained_unknown_independence"
+                    },
+                    {
+                      "cohort_label": "locked-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "duplicate-b",
+                      "scale_factor": null,
+                      "status": "abstained_unknown_independence"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       },
@@ -2753,7 +4744,7 @@
       {
         "id": "pdc_provenance_replay",
         "passed": true,
-        "result_digest": "cb75c0685150c32c64b6b1cb0bf4a56ba2aa568cc05a3cbc5727e7a6107365c5",
+        "result_digest": "1118bdf67851fd4b39245e93fa1a7510bd6deb2e905b621d86cef31d4ff5c7d6",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -3019,7 +5010,7 @@
               ]
             ]
           ],
-          "result_digest": "cb75c0685150c32c64b6b1cb0bf4a56ba2aa568cc05a3cbc5727e7a6107365c5",
+          "result_digest": "1118bdf67851fd4b39245e93fa1a7510bd6deb2e905b621d86cef31d4ff5c7d6",
           "sample_ids": [
             "pdc-a",
             "pdc-b"
@@ -3144,6 +5135,419 @@
                 "source_size": 687
               }
             ]
+          },
+          "evidence_bundle": {
+            "digest": "c5d4cc902522c891f43ce561fb97f63eb1b07b227ca9e4ec7cd72deac89f1c8a",
+            "limitations": [
+              "External evidence provenance is recorded but issuer truth is not authenticated.",
+              "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+              "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer."
+            ],
+            "records": [
+              {
+                "digest": "9dfe4718b6d460c89e116f07420ff219cb4f44e4dfd6ecb484c4317a75bede57",
+                "evidence_id": "cohort.matrix.v1",
+                "kind": "computed_matrix",
+                "payload": {
+                  "group_accessions": [
+                    [
+                      "P1"
+                    ]
+                  ],
+                  "matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "normalized_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "raw_matrix": [
+                    [
+                      [
+                        "P1"
+                      ],
+                      [
+                        20.0,
+                        20.0
+                      ]
+                    ]
+                  ],
+                  "sample_ids": [
+                    "pdc-a",
+                    "pdc-b"
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "d083d3ebb48cbf304d1f147b66d3032b42d57701399b45ecc7a731131a165fee",
+                "evidence_id": "cohort.provenance.v1",
+                "kind": "source_provenance",
+                "payload": {
+                  "configuration": {
+                    "child_result_digests": [
+                      "e7e5ab429f9e3ef218a40741c1ba8eca27cf5bd8f2073fb6508c406b0ca2da29",
+                      "b88c6cf0c3bbeb10ef310ded043c9f78918eaea6b149dbc363d6c4a1e6012d8a"
+                    ],
+                    "cohort_normalization_policy": "none",
+                    "cohort_normalization_version": "none",
+                    "cohort_provenance_policy": "external_same_study",
+                    "cohort_qc_policy": {
+                      "max_missingness_rate": 0.5,
+                      "min_observed_groups": 1,
+                      "min_replicates": 2
+                    },
+                    "cohort_source_manifest": {
+                      "bindings": [
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                          "pdc_file_name": "pdc-a.mzML",
+                          "pdc_study_id": "PDC000204",
+                          "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                          "replicate_kind": "unknown",
+                          "sample_id": "pdc-a",
+                          "source_id": "pdc:pdc-a",
+                          "source_kind": "pdc",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        },
+                        {
+                          "acquisition_id": null,
+                          "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                          "declared_aliquot_id": null,
+                          "metadata_snapshot_digest": null,
+                          "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                          "pdc_file_name": "pdc-b.mzML",
+                          "pdc_study_id": "PDC000204",
+                          "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                          "replicate_kind": "unknown",
+                          "sample_id": "pdc-b",
+                          "source_id": "pdc:pdc-b",
+                          "source_kind": "pdc",
+                          "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "source_size": 687
+                        }
+                      ]
+                    },
+                    "cohort_source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390",
+                    "cohort_version": "research-cohort-3",
+                    "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
+                    "matrix_feature": "accepted-protein-group-primary-intensity",
+                    "missingness_policy": "absent-or-nonquantifiable-is-null-no-imputation",
+                    "sample_ids": [
+                      "pdc-a",
+                      "pdc-b"
+                    ],
+                    "sample_source_provenance": [
+                      {
+                        "sample_id": "pdc-a",
+                        "external_source_id": "pdc:pdc-a",
+                        "external_source_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "external_pdc_file": {
+                          "data_category": "Proteome",
+                          "file_format": "mzML",
+                          "file_name": "pdc-a.mzML",
+                          "file_size": 687,
+                          "file_type": "processed_mzML",
+                          "location": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                          "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "signed_url": null,
+                          "study_id": "PDC000204"
+                        },
+                        "external_pdc_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                        "external_pdc_receipt": {
+                          "file": {
+                            "data_category": "Proteome",
+                            "file_format": "mzML",
+                            "file_name": "pdc-a.mzML",
+                            "file_size": 687,
+                            "file_type": "processed_mzML",
+                            "location": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                            "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                            "signed_url": null,
+                            "study_id": "PDC000204"
+                          },
+                          "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "observed_size": 687,
+                          "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                          "snapshot": {
+                            "counts": [
+                              [
+                                "Proteome",
+                                "processed_mzML",
+                                2
+                              ]
+                            ],
+                            "files": [
+                              {
+                                "data_category": "Proteome",
+                                "file_format": "mzML",
+                                "file_name": "pdc-a.mzML",
+                                "file_size": 687,
+                                "file_type": "processed_mzML",
+                                "location": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                                "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                                "signed_url": null,
+                                "study_id": "PDC000204"
+                              }
+                            ],
+                            "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                            "source_url": "https://pdc.cancer.gov/pdc/study/PDC000204",
+                            "study_id": "PDC000204"
+                          },
+                          "source_reference": {
+                            "byte_length": 687,
+                            "license_or_terms": "public metadata-bound research fixture",
+                            "locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                            "media_type": "application/mzml",
+                            "retrieved_at": "2026-08-18T00:00:00Z",
+                            "sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                            "source_id": "pdc:pdc-a"
+                          },
+                          "receipt_version": "pdc-source-receipt-1"
+                        },
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      },
+                      {
+                        "sample_id": "pdc-b",
+                        "external_source_id": "pdc:pdc-b",
+                        "external_source_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "external_pdc_file": {
+                          "data_category": "Proteome",
+                          "file_format": "mzML",
+                          "file_name": "pdc-b.mzML",
+                          "file_size": 687,
+                          "file_type": "processed_mzML",
+                          "location": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                          "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "signed_url": null,
+                          "study_id": "PDC000204"
+                        },
+                        "external_pdc_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                        "external_pdc_receipt": {
+                          "file": {
+                            "data_category": "Proteome",
+                            "file_format": "mzML",
+                            "file_name": "pdc-b.mzML",
+                            "file_size": 687,
+                            "file_type": "processed_mzML",
+                            "location": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                            "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                            "signed_url": null,
+                            "study_id": "PDC000204"
+                          },
+                          "observed_md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                          "observed_sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                          "observed_size": 687,
+                          "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                          "snapshot": {
+                            "counts": [
+                              [
+                                "Proteome",
+                                "processed_mzML",
+                                2
+                              ]
+                            ],
+                            "files": [
+                              {
+                                "data_category": "Proteome",
+                                "file_format": "mzML",
+                                "file_name": "pdc-b.mzML",
+                                "file_size": 687,
+                                "file_type": "processed_mzML",
+                                "location": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                                "md5": "ed5d438f1978190d7c60e67d0da3cd1c",
+                                "signed_url": null,
+                                "study_id": "PDC000204"
+                              }
+                            ],
+                            "response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                            "source_url": "https://pdc.cancer.gov/pdc/study/PDC000204",
+                            "study_id": "PDC000204"
+                          },
+                          "source_reference": {
+                            "byte_length": 687,
+                            "license_or_terms": "public metadata-bound research fixture",
+                            "locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                            "media_type": "application/mzml",
+                            "retrieved_at": "2026-08-18T00:00:00Z",
+                            "sha256": "sha256:56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                            "source_id": "pdc:pdc-b"
+                          },
+                          "receipt_version": "pdc-source-receipt-1"
+                        },
+                        "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e"
+                      }
+                    ]
+                  },
+                  "source_manifest": {
+                    "bindings": [
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-a.mzML",
+                        "pdc_file_name": "pdc-a.mzML",
+                        "pdc_study_id": "PDC000204",
+                        "receipt_digest": "c531561f29e5f83d0fee7d680bdac2e0e726afd4ac521d6acbbaee6f14587d30",
+                        "replicate_kind": "unknown",
+                        "sample_id": "pdc-a",
+                        "source_id": "pdc:pdc-a",
+                        "source_kind": "pdc",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      },
+                      {
+                        "acquisition_id": null,
+                        "catalog_response_sha256": "ccc69094eea33bd12e4ae857109807ac1307bdcfe4ab07621d369ca23f86f3c5",
+                        "declared_aliquot_id": null,
+                        "metadata_snapshot_digest": null,
+                        "pdc_file_locator": "https://pdc.cancer.gov/files/pdc-b.mzML",
+                        "pdc_file_name": "pdc-b.mzML",
+                        "pdc_study_id": "PDC000204",
+                        "receipt_digest": "54c08052e57c25292748435ef186e97b280cbe5aca5186194c129b63d60745f4",
+                        "replicate_kind": "unknown",
+                        "sample_id": "pdc-b",
+                        "source_id": "pdc:pdc-b",
+                        "source_kind": "pdc",
+                        "source_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
+                        "source_size": 687
+                      }
+                    ]
+                  },
+                  "source_manifest_digest": "580a3c952f36a5979dbdca980ca93bb391ad0645d472e191cc51ec49202e2390"
+                },
+                "source": "glio_proteogen.research.cohort"
+              },
+              {
+                "digest": "d539fa0d9551f7386ed18d9d62503b811be7b2fd8f8987cd1b791a85a4997f08",
+                "evidence_id": "cohort.qc.v1",
+                "kind": "descriptive_qc",
+                "payload": {
+                  "group_qc": [
+                    {
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_samples": 0,
+                      "missingness_rate": 0.0,
+                      "observed_samples": 2
+                    }
+                  ],
+                  "label_group_evidence": [
+                    {
+                      "cohort_label": "pdc-bound-cohort",
+                      "group_accessions": [
+                        "P1"
+                      ],
+                      "mad_normalized_intensity": 0.0,
+                      "median_normalized_intensity": 20.0,
+                      "missing_replicates": 0,
+                      "missingness_rate": 0.0,
+                      "observed_replicates": 2,
+                      "status": "unverified_independence",
+                      "independent_observed_replicates": 0
+                    }
+                  ],
+                  "label_qc": [
+                    {
+                      "cohort_label": "pdc-bound-cohort",
+                      "mad_intensity": 0.0,
+                      "median_intensity": 20.0,
+                      "missing_cells": 0,
+                      "missingness_rate": 0.0,
+                      "observed_cells": 2,
+                      "replicate_count": 2,
+                      "sample_count": 2,
+                      "status": "unverified_independence",
+                      "normalization_status": "not_applied",
+                      "independent_replicates": 0,
+                      "technical_replicates": 0,
+                      "unknown_replicates": 2,
+                      "duplicate_sources": 1
+                    }
+                  ],
+                  "sample_qc": [
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "pdc-bound-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r1",
+                      "sample_id": "pdc-a",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    },
+                    {
+                      "accepted_psms": 1,
+                      "cohort_label": "pdc-bound-cohort",
+                      "collision_winners": 0,
+                      "decoy_winners": 0,
+                      "max_precursor_error_ppm": 0.0,
+                      "missing_groups": 0,
+                      "missingness_rate": 0.0,
+                      "ms2_spectra_seen": 1,
+                      "quantified_groups": 1,
+                      "replicate_label": "r2",
+                      "sample_id": "pdc-b",
+                      "spectra_seen": 1,
+                      "normalization_scale": 1.0,
+                      "normalization_status": "not_applied"
+                    }
+                  ],
+                  "sample_scales": [
+                    {
+                      "cohort_label": "pdc-bound-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "pdc-a",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    },
+                    {
+                      "cohort_label": "pdc-bound-cohort",
+                      "overlap_groups": 1,
+                      "positive_groups": 1,
+                      "sample_id": "pdc-b",
+                      "scale_factor": 1.0,
+                      "status": "not_applied"
+                    }
+                  ]
+                },
+                "source": "glio_proteogen.research.cohort"
+              }
+            ]
           }
         }
       }
@@ -3153,28 +5557,28 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      471000,
-      456300,
-      444600,
-      431000,
-      428500,
-      427900,
-      423300,
-      421500,
-      408700,
-      417800
+      455500,
+      456700,
+      551700,
+      455700,
+      410800,
+      394000,
+      543000,
+      424800,
+      406400,
+      404100
     ],
-    "mean_ns": 433060.0,
-    "median_ns": 428500,
-    "p95_ns": 471000,
+    "mean_ns": 450270.0,
+    "median_ns": 455500,
+    "p95_ns": 551700,
     "result_digest": "f1d827e66770961724db47b8426a1c5f31624c181b00de1bde6c055a61be9eef"
   },
   "coverage": {
-    "statements": 1722,
-    "missed_statements": 57,
-    "branches": 638,
-    "partial_branches": 50,
-    "percent": 95.21,
+    "statements": 2113,
+    "missed_statements": 70,
+    "branches": 784,
+    "partial_branches": 61,
+    "percent": 95.27096996893339,
     "fail_under": 95
   }
 }
