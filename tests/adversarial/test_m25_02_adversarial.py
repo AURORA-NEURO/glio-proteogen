@@ -124,6 +124,23 @@ def test_result_replay_rejects_request_mutation() -> None:
         service.verify_replay(result.model_copy(update={"request": changed_request}))
 
 
+def test_result_replay_rejects_recomputed_digest_for_forged_corpus() -> None:
+    service = m2402.M2502Service()
+    result = service.generate(_request())
+    assert result.corpus is not None
+    forged_case = result.corpus.cases[0].model_copy(update={"truth_values": ("forged",) * 3})
+    forged_corpus = result.corpus.model_copy(
+        update={"cases": (forged_case, *result.corpus.cases[1:])}
+    )
+    payload = result.model_dump(mode="python")
+    payload["corpus"] = forged_corpus
+    provisional = ProteotypeSyntheticTruthResult.model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(provisional)
+    forged = ProteotypeSyntheticTruthResult.model_validate(payload, strict=True)
+    with pytest.raises(m2402.M2502ReplayError, match="output mismatch"):
+        service.verify_replay(forged)
+
+
 def test_contract_rejects_corpus_and_manifest_case_drift() -> None:
     result = m2402.M2502Service().generate(_request())
     assert result.corpus is not None
