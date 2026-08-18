@@ -1,15 +1,16 @@
 {
   "module_id": "GLIO-PROTEOGEN-M04-08",
-  "phase": "locked_executable_release_evidence",
+  "phase": "locked_synthetic_release_evidence",
   "dependency": {
     "module_id": "GLIO-PROTEOGEN-M04-07",
-    "state": "frozen_public_abi",
-    "genuine_e2e_allowed": true
+    "state": "public_abi_not_frozen",
+    "genuine_e2e_allowed": false,
+    "synthetic_chain_allowed": true
   },
   "cases": [
     {"case_id": "corpus_inventory", "kind": "owned_contract"},
-    {"case_id": "genuine_m0401_m0407_chain", "kind": "genuine_e2e"},
-    {"case_id": "canonical_release", "kind": "genuine_e2e"},
+    {"case_id": "synthetic_m0401_m0407_chain", "kind": "synthetic_chain"},
+    {"case_id": "canonical_release", "kind": "synthetic_chain"},
     {"case_id": "semantic_reorder_replay", "kind": "replay"},
     {"case_id": "archive_inventory", "kind": "archive"},
     {"case_id": "archive_tamper_detection", "kind": "archive"},
