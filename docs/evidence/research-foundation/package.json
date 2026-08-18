@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "d49a5001",
+  "base_commit": "ae21e4ca",
   "pipeline_commit": "e4b9376e",
   "source_fixture": {
     "study": "PDC000204",
@@ -16,6 +16,7 @@
     "operations": [
       "bounded_mzml_decode",
       "tryptic_fasta_digest",
+      "cleavage_aware_target_decoy_search_space_receipt",
       "b_y_fragment_matching",
       "candidate_level_target_decoy_competition_receipts",
       "candidate_score_margin_and_digest_replay_binding",
@@ -58,33 +59,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "dc16177dff9cf34d6583ffe97c99159837f0443f440925fdb7bc142a3f9bb0c8",
+    "fixture_sha256": "76039c7639a19e91e17dc0f3dffad7ef5051bd62e2898b61a8374b3c6adf2fd5",
     "cohort_fixture_sha256": "eebc6ecb57edc143f47218a54ed8a67aa7ce9efe6310269b407e2dca52ee584c",
-    "focused_tests": 209,
+    "focused_tests": 215,
     "coverage": {
-      "statements": 2267,
-      "missed_statements": 74,
-      "branches": 834,
-      "partial_branches": 65,
-      "percent": 95.32408900354724,
+      "statements": 2384,
+      "missed_statements": 81,
+      "branches": 872,
+      "partial_branches": 73,
+      "percent": 95.09,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3830666,
-      "members": 1987,
-      "sha256": "c6a177076108abfdf3ce25d523beb3cc6c2824b37326877592b08241da25482b"
+      "bytes": 3833760,
+      "members": 1988,
+      "sha256": "4043aa3e12cd9cd84f0eff9fd82836813e7983af37f72e4ec456db13e6ef678e"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4437236,
-      "members": 4594,
-      "sha256": "29da2ec6ea3ac8215667c45cc89520040b474f4eb238224b0e8e2359d42d901c"
+      "bytes": 4441430,
+      "members": 4597,
+      "sha256": "006e19b103f4c34a6ae0fb75c311587176c038c48c08b56ab26607ad9198f88a"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "c6a177076108abfdf3ce25d523beb3cc6c2824b37326877592b08241da25482b",
-      "sdist": "29da2ec6ea3ac8215667c45cc89520040b474f4eb238224b0e8e2359d42d901c"
+      "wheel": "4043aa3e12cd9cd84f0eff9fd82836813e7983af37f72e4ec456db13e6ef678e",
+      "sdist": "006e19b103f4c34a6ae0fb75c311587176c038c48c08b56ab26607ad9198f88a"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
