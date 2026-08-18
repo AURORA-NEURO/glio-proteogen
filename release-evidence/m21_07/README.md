@@ -15,9 +15,9 @@ Replay evidence includes a self-rehashed output matrix. Verification does not
 trust a result digest alone: it validates the envelope, regenerates from the
 bound request, and compares the complete canonical result.
 
-The wheel is 2,700,583 bytes with SHA-256
-`29bea142bac71ddf74ec88ca9f30a6b4961c7cc3da44615318f98daeb4026210` and
-1,433 members. The source distribution is 3,206,047 bytes with SHA-256
-`f0ac4d24d7d61df89612f27a9458e3dfd43c5f2afb44ed8ab3a06d66b040b293`.
+The wheel is 3,857,112 bytes with SHA-256
+`864e44692be5a52692abf4df331f14bd60b0cca45ea8ceead66f518097b48ff5` and
+1,990 members. The source distribution is 4,505,464 bytes with SHA-256
+`a038a8e2836d3d4b9e0e5b8ed6b9201bd0909df57d87c1b3179a8697c78548db`.
 The wheel was installed into an isolated target and imported successfully;
 the release verifier passed.
