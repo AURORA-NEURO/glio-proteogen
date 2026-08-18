@@ -2,7 +2,7 @@
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
   "base_commit": "49509469",
-  "pipeline_commit": "ffe314f0",
+  "pipeline_commit": "c06cf232",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -38,13 +38,13 @@
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3800255,
-      "sha256": "a11d092ba8df950e166dbdd1d3888591adc22514b5d0fe7f284314598856af20"
+      "bytes": 3803356,
+      "sha256": "23e9630dce35c52b545e3d24380af07b1ddf83411069536519123af817574a7c"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 15509270,
-      "sha256": "2608e501bdb33ff509b1facbb7a98aa79fddf611507aee31378e703dc8418cb2"
+      "bytes": 15513968,
+      "sha256": "9e3419d1d189ef755ac30b1b87d21fd866973b3507ff6e7e2577be94008f0d00"
     },
     "reproducible_builds": 2,
     "isolated_import": true,
