@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sys
+import tarfile
 from pathlib import Path
 from typing import cast
 from zipfile import BadZipFile, ZipFile
@@ -18,6 +19,17 @@ P95_BUDGET_NS = 750_000_000
 MIN_COVERAGE = 95.0
 CASE_COUNT = 8
 BENCHMARK_ITERATIONS = 10
+
+
+def _is_generated_member(name: str) -> bool:
+    """Reject caches and local M23-04 evidence from release archives."""
+
+    return (
+        "/__pycache__/" in name
+        or name.endswith(".pyc")
+        or ".m2304-" in name
+        or "coverage_m23_04" in name
+    )
 
 
 def _load(path: Path) -> dict[str, object]:
@@ -80,17 +92,30 @@ def verify(root: Path, wheel: Path | None = None, sdist: Path | None = None) -> 
                 and sdist.stat().st_size == cast("int", sdist_data.get("size_bytes"))
                 and _sha256(sdist) == sdist_data.get("sha256")
                 and package.get("isolated_import") is True
+                and package.get("generated_member_count") == 0
+                and package.get("generated_members") == []
             )
         else:
             checks["package"] = False
         if checks["package"]:
             try:
                 with ZipFile(wheel) as archive:
-                    checks["wheel_members"] = len(archive.namelist()) == cast(
+                    wheel_names = archive.namelist()
+                    checks["wheel_members"] = len(wheel_names) == cast(
                         "dict[str, object]", wheel_record
-                    ).get("member_count")
-            except (BadZipFile, OSError):
+                    ).get("member_count") and not any(
+                        _is_generated_member(name) for name in wheel_names
+                    )
+                with tarfile.open(sdist, mode="r:gz") as archive:
+                    sdist_names = [member.name for member in archive.getmembers()]
+                    checks["sdist_members"] = len(sdist_names) == cast(
+                        "dict[str, object]", sdist_record
+                    ).get("member_count") and not any(
+                        _is_generated_member(name) for name in sdist_names
+                    )
+            except (BadZipFile, OSError, tarfile.TarError):
                 checks["wheel_members"] = False
+                checks["sdist_members"] = False
     return {"module_id": MODULE, "checks": checks, "passed": all(checks.values())}
 
 
