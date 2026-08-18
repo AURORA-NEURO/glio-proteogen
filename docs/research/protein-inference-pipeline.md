@@ -230,6 +230,11 @@ The resulting PDC receipt also preserves the normalized response `Content-Type`,
 catalog format and source-reference media, so transport relabeling changes the receipt digest
 and is rejected. This records delivery provenance only; it does not establish issuer truth or
 biological validity.
+When bytes are obtained through another approved path, `verify_pdc_source_content` recomputes
+the receipt's SHA-256, catalog MD5, and exact byte length over caller-held bytes or a bounded
+binary stream. The stream is consumed once, over-length content is rejected before acceptance,
+and no raw bytes are persisted by the verifier; this closes the gap between a serialized
+caller-supplied receipt and the content actually used for parsing.
 A future governed computation ABI must freeze reference/search versions, modifications and
 units, FDR calibration, missingness, ambiguity, privacy/consent, validation cohorts, review,
   and safe-abstention semantics before this lane can be promoted.

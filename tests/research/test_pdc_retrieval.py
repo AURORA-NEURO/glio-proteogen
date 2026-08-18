@@ -18,7 +18,14 @@ if TYPE_CHECKING:
 import pytest
 
 from glio_proteogen.research import pdc as pdc_module
-from glio_proteogen.research.pdc import PdcClient, PdcError, PdcFile, PdcStudySnapshot
+from glio_proteogen.research.pdc import (
+    PdcClient,
+    PdcError,
+    PdcFile,
+    PdcSourceReceipt,
+    PdcStudySnapshot,
+    verify_pdc_source_content,
+)
 from glio_proteogen.research.public_proteomics.provenance import SourceReference, sha256_digest
 
 
@@ -149,6 +156,30 @@ def test_successful_retrieval_is_receipt_bound_and_commits_only_verified_bytes()
     assert receipt.observed_media_type == "application/mzml"
     assert receipt.as_dict()["observed_media_type"] == "application/mzml"
     assert receipt.source_reference.sha256 == sha256_digest(payload)
+    assert verify_pdc_source_content(receipt, payload) is receipt
+    assert verify_pdc_source_content(receipt, io.BytesIO(payload)) is receipt
+
+
+def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> None:
+    payload = b"<mzML>verified-content</mzML>"
+    file = _file("memory://PDC000204/content", payload)
+    snapshot, reference = _snapshot_and_reference(file, payload)
+    receipt = PdcSourceReceipt(
+        snapshot=snapshot,
+        file=file,
+        source_reference=reference,
+        observed_sha256=reference.sha256,
+        observed_md5=file.md5 or "",
+        observed_size=len(payload),
+    )
+    with pytest.raises(PdcError, match="SHA-256"):
+        verify_pdc_source_content(receipt, b"<mzML>tampered-content</mzML>")
+    with pytest.raises(PdcError, match="length"):
+        verify_pdc_source_content(receipt, payload[:-1])
+    with pytest.raises(PdcError, match="limit"):
+        verify_pdc_source_content(receipt, payload, max_bytes=len(payload) - 1)
+    with pytest.raises(TypeError, match="bytes"):
+        verify_pdc_source_content(receipt, io.StringIO("not bytes"))  # type: ignore[arg-type]
 
 
 def test_receipt_rejects_tampered_observed_media_type() -> None:

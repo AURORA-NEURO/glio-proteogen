@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import io
 import json
 from dataclasses import replace
 from hashlib import md5, sha256
 
-from glio_proteogen.research import PdcFile, PdcSourceReceipt, PdcStudySnapshot, SourceReference
+from glio_proteogen.research import (
+    PdcFile,
+    PdcSourceReceipt,
+    PdcStudySnapshot,
+    SourceReference,
+    verify_pdc_source_content,
+)
 
 
 def run_pdc_receipt_evaluator() -> dict[str, object]:
@@ -59,9 +66,20 @@ def run_pdc_receipt_evaluator() -> dict[str, object]:
         replace(receipt, observed_media_type="text/plain")
     except ValueError:
         tamper_rejected = True
+    content_verified = (
+        verify_pdc_source_content(receipt, payload) is receipt
+        and verify_pdc_source_content(receipt, io.BytesIO(payload)) is receipt
+    )
+    content_tamper_rejected = False
+    try:
+        verify_pdc_source_content(receipt, payload + b"tampered")
+    except RuntimeError:
+        content_tamper_rejected = True
     outcomes = (
         {"scenario_id": "observed_media_bound", "passed": media_bound},
         {"scenario_id": "media_tamper_rejected", "passed": tamper_rejected},
+        {"scenario_id": "source_content_verified", "passed": content_verified},
+        {"scenario_id": "source_content_tamper_rejected", "passed": content_tamper_rejected},
     )
     return {
         "passed": all(bool(item["passed"]) for item in outcomes),
