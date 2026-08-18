@@ -208,3 +208,13 @@ normalization target is retained alongside raw and normalized peptide projection
 replay can distinguish source signal from scaling. Protein-group primary intensity remains
 the median of positive unique-peptide values; shared signal is visible but cannot create a
 resolved group estimate.
+
+The receipt also records descriptive signal-quality diagnostics: positive-signal fraction,
+median absolute deviation (MAD), Tukey-hinge interquartile range (IQR), and MAD/median robust
+CV when at least two positive peptide signals are available. A singleton is marked
+`single_positive_signal`, while an empty projection is marked `no_positive_signal`; dispersion
+is `null` when it is not defined. Protein-group projections carry the corresponding positive
+unique-peptide count, MAD, IQR, and `unique_*` quality status. These fields expose measurement
+support and heterogeneity for review and replay. They are not confidence intervals, calibrated
+error bars, abundance uncertainty, or evidence of biological effect, and they never impute an
+absent signal.

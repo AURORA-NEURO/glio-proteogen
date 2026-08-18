@@ -24,15 +24,19 @@ def test_locked_research_pipeline_evaluator() -> None:
     receipt = cast("dict[str, object]", target["quantification_receipt"])
     assert receipt["measurement_unit"] == "median_scaled_matched_ion_intensity"
     assert receipt["raw_positive_median"] == 20.0
+    assert receipt["signal_quality"] == "single_positive_signal"
+    assert receipt["raw_positive_mad"] is None
+    assert receipt["positive_signal_fraction"] == 1.0
     assert receipt["missing_peptides"] == 0
     diagnostics = cast("dict[str, object]", target["search_diagnostics"])
     assert diagnostics["max_fragment_error_da"] == pytest.approx(0.0005254659999991418)
-    generated = cast("dict[str, object]", report["generated_search_space"])
-    assert generated["passed"] is True
-    receipt = cast("dict[str, object]", generated["search_space_receipt"])
-    assert receipt["decoy_strategy"] == "reverse_protein"
-    assert receipt["generated_decoy_entries"] == 1
-    assert receipt["collision_peptides"] == 0
+    multi = next(
+        item for item in outcomes if item["scenario_id"] == "multi_peptide_quantification"
+    )
+    multi_receipt = cast("dict[str, object]", multi["quantification_receipt"])
+    assert multi_receipt["signal_quality"] == "descriptive_positive_signal"
+    assert multi_receipt["raw_positive_mad"] == 7.5
+    assert multi_receipt["raw_positive_iqr"] == 15.0
 
 
 def test_research_pipeline_benchmark_is_deterministic() -> None:
