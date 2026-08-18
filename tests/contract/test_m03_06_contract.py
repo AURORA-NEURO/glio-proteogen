@@ -98,7 +98,7 @@ def canonical_result(
 
 
 def _payload(value: object) -> dict[str, Any]:
-    return cast("dict[str, Any]", value.model_dump(mode="python"))
+    return cast("dict[str, Any]", value.model_dump(mode="python"))  # type: ignore[attr-defined]
 
 
 def _resigned_ledger(
