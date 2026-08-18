@@ -50,15 +50,15 @@
     "reproducible_two_builds": true,
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3841212,
+      "bytes": 3841359,
       "members": 1989,
-      "sha256": "b8bcbe9e6b95be3fcccefeb30981ece2c4607c4cd112f9c0385782252025fa5e"
+      "sha256": "81be39468c25813699673b044e6c0fe167d62a5fdb149a179df5296abe307c64"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4458498,
-      "members": 4605,
-      "sha256": "7a22c874af436e96252e30fca0c3cb5b2f49ff184a87f4cb312777859f6acf37"
+      "bytes": 4459474,
+      "members": 4607,
+      "sha256": "6c7ffa4de559200dd717eb10d6ef1ea7d245ad8c90dd951b4cf1e120c82cbcd8"
     },
     "isolated_import": true
   }
