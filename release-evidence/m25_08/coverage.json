@@ -1,13 +1,15 @@
 {
   "branch_enabled": true,
   "branches": 86,
-  "covered_branches": 77,
-  "coverage_percent": 96.76,
+  "covered_branches": 75,
+  "coverage_percent": 95.50072568940493,
   "fail_under": 95.0,
-  "missing_lines": 13,
+  "missing_lines": 20,
   "module_id": "GLIO-PROTEOGEN-M25-08",
-  "partial_branches": 9,
+  "partial_branches": 11,
   "passed": true,
-  "statements": 592,
-  "covered_statements": 579
+  "statements": 603,
+  "covered_statements": 583,
+  "scope": "M25-08 contract and production module source",
+  "focused_tests": 57
 }
