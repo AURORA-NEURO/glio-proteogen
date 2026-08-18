@@ -38,10 +38,16 @@ one deterministic, auditable path:
 The caller supplies two to 32 independently replayable `ResearchCohortSample` records,
 with opaque sample/cohort/replicate identifiers. Every child run must use the same FASTA
 digest and search/digestion/quantification configuration; incompatible search spaces are
-rejected before a matrix is emitted. External PDC declarations and response digests are
-retained per child in the cohort configuration and remain bound through the child result
-digests, so a file rename, response change, or source substitution cannot replay as the
-same cohort.
+rejected before a matrix is emitted. External PDC samples can carry a `PdcSourceReceipt`,
+which binds the exact selected file to a captured `PdcStudySnapshot`, observed
+SHA-256/MD5/size, and the content-addressed `SourceReference`; a caller-provided response
+hash alone is not a catalog attestation. The cohort `provenance_policy` is explicit:
+`homogeneous` (the default) rejects local/PDC mixing and requires one study/response for
+catalog-bound runs, `local_only` rejects catalog receipts, `external_same_study` requires a
+receipt for every sample with one study/response, and `mixed_declared` is the opt-in escape
+hatch whose mixed source identities remain fully recorded. Receipt fields are retained per
+child and remain bound through child result digests, so a file rename, response change, or
+source substitution cannot replay as the same cohort.
 
 The result is a deterministic sample-by-protein-group matrix. Groups are the union of
 reportable child groups; an absent or non-quantifiable child cell is represented as JSON

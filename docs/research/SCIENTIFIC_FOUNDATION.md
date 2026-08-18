@@ -10,8 +10,9 @@ The foundation provides real computational primitives that can be wired into a f
 C03/C04 computation contract:
 
 - `PdcClient` retrieves bounded public NCI Proteomic Data Commons metadata over the documented open
-  GraphQL endpoint. It records the study URL, file metadata, and response SHA-256; it never fetches
-  raw cohort data implicitly.
+  GraphQL endpoint. It records the study URL, file metadata, and response SHA-256; its explicit
+  `download_file_with_receipt` path additionally binds one caller-requested download to the exact
+  captured catalog file and observed SHA-256/MD5/size. It never fetches raw cohort data implicitly.
 - `parse_mzml` decodes bounded m/z and intensity arrays from local mzML or gzip-compressed mzML.
 - `read_fasta` and `digest_trypsin` build an explicit search-space peptide index.
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. It is an auditable
@@ -43,7 +44,8 @@ C03/C04 computation contract:
 The checked-in external record is public PDC000204 metadata for the CPTAC GBM Discovery Study. It
 contains file counts and one representative processed-mzML file declaration, not patient records or
 redistributed raw spectra. The representative file is 193,963,708 bytes and is fetched only by an
-explicit caller action. Public cohort evidence is therefore provenance-bound but not issuer-authenticated.
+explicit caller action. Public cohort evidence is catalog-attested when a `PdcSourceReceipt` is
+present; the receipt proves byte/catalog identity but not issuer truth, consent, or clinical validity.
 
 ## Production boundary
 
