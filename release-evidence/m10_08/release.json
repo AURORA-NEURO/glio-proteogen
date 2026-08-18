@@ -1,0 +1,13 @@
+{
+  "module": "GLIO-PROTEOGEN-M10-08",
+  "base_commit": "8cc38ba128b11dcf3997357b066c2619ea15eb20",
+  "branch": "audit/m10-08-depth-hardening",
+  "authority": {
+    "dossier_sha256": "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+    "exact_lines": "3584-3627"
+  },
+  "provisional_abi": true,
+  "owner_confirmation_pending": true,
+  "commit_chain": ["979d2ddc", "71d6a70e", "490d94f7"],
+  "safety_boundary": "caller-attributed evidence only; no identity, consent, kinase, treatment, or all-omics inference"
+}
