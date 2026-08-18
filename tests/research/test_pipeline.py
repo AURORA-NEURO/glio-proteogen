@@ -77,6 +77,10 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.fdr_summary.target_winners == 1
     assert result.fdr_summary.decoy_winners == 0
     assert result.fdr_summary.accepted_targets == 1
+    assert result.protein_group_fdr_summary is not None
+    assert result.protein_group_fdr_summary.accepted_targets == 1
+    assert result.protein_group_candidates[0].acceptance == "accepted"
+    assert result.protein_group_candidates[0].q_value == 0.0
     fdr_summary = result.as_dict()["fdr_summary"]
     assert isinstance(fdr_summary, dict)
     assert fdr_summary["method"] == "winner-per-spectrum-target-decoy-collision-abstain-1"
@@ -105,6 +109,10 @@ def test_pipeline_preserves_decoy_rejection_and_ms2_boundary() -> None:
     assert len(result.psms) == 1
     assert result.psms[0].decoy
     assert result.accepted_psms == ()
+    assert result.protein_group_candidates[0].status == "decoy"
+    assert result.protein_group_candidates[0].acceptance == "rejected"
+    assert result.protein_group_fdr_summary is not None
+    assert result.protein_group_fdr_summary.decoy_candidates == 1
     ms1 = ResearchRunRequest(
         sample_id="ms1",
         mzml_source=_mzml(ms_level=1),
@@ -133,6 +141,9 @@ def test_pipeline_abstains_on_target_decoy_sequence_collision() -> None:
     assert result.accepted_psms == ()
     assert result.fdr_summary is not None
     assert result.fdr_summary.collision_winners == 1
+    assert result.protein_group_candidates[0].acceptance == "abstained"
+    assert result.protein_group_fdr_summary is not None
+    assert result.protein_group_fdr_summary.collision_candidates == 1
     assert result.protein_group_quantifications == ()
 
 

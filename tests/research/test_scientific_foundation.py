@@ -23,6 +23,7 @@ from glio_proteogen.research import (
     SearchParameters,
     aggregate_evidence,
     digest_trypsin,
+    infer_protein_group_candidates,
     infer_protein_groups,
     median_normalize,
     parse_mzml,
@@ -559,6 +560,46 @@ def test_protein_components_are_non_overlapping() -> None:
     disjoint = infer_protein_groups({"ONLY_A": ("A",), "ONLY_B": ("B",)})
     assert len(disjoint) == 2
     assert {group.accessions for group in disjoint} == {("A",), ("B",)}
+
+
+def test_protein_group_fdr_retains_decoy_competition_and_is_permutation_stable() -> None:
+    target = Psm("target", "PEPTIDER", ("P1",), 1.0, 3, decoy=False)
+    decoy = Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 2.0, 3, decoy=True)
+    forward, summary = infer_protein_group_candidates((target, decoy), q_value_threshold=0.01)
+    reverse, reverse_summary = infer_protein_group_candidates(
+        (decoy, target), q_value_threshold=0.01
+    )
+    assert forward == reverse
+    assert summary == reverse_summary
+    assert summary.decoy_candidates == 1
+    assert summary.target_candidates == 1
+    assert summary.accepted_targets == 0
+    assert tuple(item.acceptance for item in forward) == ("rejected", "rejected")
+    assert all(item.q_value is None for item in forward if item.status == "decoy")
+    assert next(item for item in forward if item.status == "target").q_value == 1.0
+
+
+def test_protein_group_fdr_abstains_mixed_collision_and_allows_decoy_only_rejection() -> None:
+    collision = Psm(
+        "collision",
+        "PEPTIDER",
+        ("P1", "DECOY_P1"),
+        4.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    candidates, summary = infer_protein_group_candidates((collision,), q_value_threshold=0.01)
+    assert summary.collision_candidates == 1
+    assert candidates[0].status == "collision"
+    assert candidates[0].acceptance == "abstained"
+    assert candidates[0].q_value is None
+    decoy = Psm("decoy", "PEPTIDER", ("DECOY_P1",), 4.0, 3, decoy=True)
+    decoy_candidates, decoy_summary = infer_protein_group_candidates(
+        (decoy,), q_value_threshold=0.01
+    )
+    assert decoy_summary.decoy_candidates == 1
+    assert decoy_candidates[0].acceptance == "rejected"
 
 
 class _FakeResponse:

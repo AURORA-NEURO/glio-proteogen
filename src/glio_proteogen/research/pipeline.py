@@ -19,7 +19,12 @@ from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence
 from .fasta import digest_trypsin, read_fasta
 from .mzml import parse_mzml
 from .pdc import PdcFile
-from .protein import ProteinGroup, infer_protein_groups
+from .protein import (
+    ProteinGroup,
+    ProteinGroupCandidate,
+    ProteinGroupFdrSummary,
+    infer_protein_group_candidates,
+)
 from .public_proteomics.provenance import SourceReference
 from .quantification import ProteinGroupQuant, quantify_matched_ions, quantify_protein_groups
 from .search import (
@@ -124,6 +129,8 @@ class ResearchRunResult:
     fdr_summary: FdrSummary | None = None
     search_diagnostics: tuple[tuple[str, object], ...] = ()
     protein_group_quantifications: tuple[ProteinGroupQuant, ...] = ()
+    protein_group_candidates: tuple[ProteinGroupCandidate, ...] = ()
+    protein_group_fdr_summary: ProteinGroupFdrSummary | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -147,6 +154,12 @@ class ResearchRunResult:
             "protein_group_quantifications": [
                 item.as_dict() for item in self.protein_group_quantifications
             ],
+            "protein_group_candidates": [item.as_dict() for item in self.protein_group_candidates],
+            "protein_group_fdr_summary": (
+                self.protein_group_fdr_summary.as_dict()
+                if self.protein_group_fdr_summary is not None
+                else None
+            ),
             "protein_groups": [_group_dict(item) for item in self.protein_groups],
             "configuration": dict(self.configuration),
             "evidence_records": [
@@ -321,11 +334,6 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             and item.q_value <= request.q_value_threshold
         )
     )
-    quantified = quantify_matched_ions(
-        request.sample_id,
-        ((item.peptide, item.matched_intensity) for item in accepted),
-    )
-    peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified)
     fragment_errors = tuple(item.mean_fragment_error_da for item in scored)
     precursor_errors = tuple(
         item.precursor_error_ppm for item in scored if item.precursor_error_ppm is not None
@@ -343,13 +351,33 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             }.items()
         )
     )
-    peptide_to_proteins: dict[str, set[str]] = {}
-    for item in accepted:
-        peptide_to_proteins.setdefault(item.peptide, set()).update(item.protein_accessions)
-    groups = infer_protein_groups(
-        {peptide: tuple(sorted(proteins)) for peptide, proteins in peptide_to_proteins.items()}
+    group_candidates, protein_group_fdr_summary = infer_protein_group_candidates(
+        scored, q_value_threshold=request.q_value_threshold
     )
-    counts = tuple(sorted(Counter(item.peptide for item in accepted).items()))
+    accepted_group_candidates = tuple(
+        item for item in group_candidates if item.acceptance == "accepted"
+    )
+    groups = tuple(
+        ProteinGroup(item.accessions, item.unique_peptides, item.shared_peptides)
+        for item in accepted_group_candidates
+    )
+    reportable_accession_sets = tuple(
+        frozenset(item.accessions) for item in accepted_group_candidates
+    )
+    reportable_psms = tuple(
+        item
+        for item in accepted
+        if any(
+            frozenset(item.protein_accessions) <= accessions
+            for accessions in reportable_accession_sets
+        )
+    )
+    quantified = quantify_matched_ions(
+        request.sample_id,
+        ((item.peptide, item.matched_intensity) for item in reportable_psms),
+    )
+    peptide_intensities = tuple((item.peptide, item.intensity) for item in quantified)
+    counts = tuple(sorted(Counter(item.peptide for item in reportable_psms).items()))
     protein_group_quantifications = quantify_protein_groups(
         groups,
         dict(peptide_intensities),
@@ -420,6 +448,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "quantified_peptides": len(peptide_intensities),
                 "quantification_unit": "median_scaled_matched_ion_intensity",
                 "fdr_summary": fdr_summary.as_dict(),
+                "protein_group_fdr_summary": protein_group_fdr_summary.as_dict(),
+                "protein_group_candidates": [item.as_dict() for item in group_candidates],
+                "group_filtered_psms": len(reportable_psms),
                 "search_diagnostics": dict(search_diagnostics),
                 "protein_group_quantifications": [
                     item.as_dict() for item in protein_group_quantifications
@@ -450,6 +481,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "peptide_spectral_counts": [list(item) for item in counts],
         "peptide_intensities": [list(item) for item in peptide_intensities],
         "fdr_summary": fdr_summary.as_dict(),
+        "protein_group_fdr_summary": protein_group_fdr_summary.as_dict(),
+        "protein_group_candidates": [item.as_dict() for item in group_candidates],
         "search_diagnostics": dict(search_diagnostics),
         "protein_group_quantifications": [item.as_dict() for item in protein_group_quantifications],
         "protein_groups": [_group_dict(item) for item in groups],
@@ -487,6 +520,8 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         fdr_summary=fdr_summary,
         search_diagnostics=search_diagnostics,
         protein_group_quantifications=protein_group_quantifications,
+        protein_group_candidates=group_candidates,
+        protein_group_fdr_summary=protein_group_fdr_summary,
     )
 
 

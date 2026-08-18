@@ -303,6 +303,18 @@ def run_evaluator() -> dict[str, object]:
             and result.fdr_summary.decoy_winners == scenario.expected_decoy_winners
             and result.fdr_summary.collision_winners == scenario.expected_collision_winners
             and result.fdr_summary.accepted_targets == scenario.expected_accepted
+            and result.protein_group_fdr_summary is not None
+            and result.protein_group_fdr_summary.as_dict() == expected["expected_group_fdr"]
+            and [
+                {
+                    "accessions": list(item.accessions),
+                    "acceptance": item.acceptance,
+                    "q_value": item.q_value,
+                    "status": item.status,
+                }
+                for item in result.protein_group_candidates
+            ]
+            == expected["expected_group_candidates"]
             and len(result.peptide_intensities) == scenario.expected_quantified_peptides
             and tuple(
                 (
@@ -335,6 +347,20 @@ def run_evaluator() -> dict[str, object]:
                 "accepted_psms": len(result.accepted_psms),
                 "groups": [list(group.accessions) for group in result.protein_groups],
                 "fdr_summary": result.fdr_summary.as_dict() if result.fdr_summary else None,
+                "protein_group_fdr_summary": (
+                    result.protein_group_fdr_summary.as_dict()
+                    if result.protein_group_fdr_summary
+                    else None
+                ),
+                "protein_group_candidates": [
+                    {
+                        "accessions": list(item.accessions),
+                        "acceptance": item.acceptance,
+                        "q_value": item.q_value,
+                        "status": item.status,
+                    }
+                    for item in result.protein_group_candidates
+                ],
                 "quantified_peptides": len(result.peptide_intensities),
                 "protein_group_quantifications": [
                     item.as_dict() for item in result.protein_group_quantifications
