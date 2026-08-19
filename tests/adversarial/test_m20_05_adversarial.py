@@ -183,6 +183,30 @@ def test_plugin_rejects_bad_submission_and_json() -> None:
         plugin.validate(WorkflowPresentationSubmission(request=b"[]"))
 
 
+def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> None:
+    typed = build_request()
+    plugin = M2005Plugin(M2005Service())
+    other = M2005Plugin(M2005Service())
+    token = plugin.validate(WorkflowPresentationSubmission(typed))
+    forged = type(token)(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_item = token.request.review_items[0].model_copy(
+        update={"title": "forged review item"}
+    )
+    object.__setattr__(
+        token.request,
+        "review_items",
+        (changed_item, *token.request.review_items[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
 def test_public_wrapper_plugin_replay_and_evaluator_entrypoints(capsys: Any) -> None:
     request = build_request()
     result = present_protein_subtype_human_review_workspace(request)

@@ -12,8 +12,8 @@ from glio_proteogen.contracts.m20_05 import (
     M2005_MAX_CANONICAL_REQUEST_BYTES,
     PresentProteinSubtypeHumanReviewWorkspaceRequest,
     ProteinSubtypeHumanReviewWorkspaceResult,
+    canonical_request_bytes,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -47,16 +47,12 @@ class WorkflowPresentationSubmission:
     request: object
 
 
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM2005Request:
-    """Opaque, instance-bound token for one validated request snapshot."""
+    """Opaque capability proving strict M20-05 request validation."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
-
-    def __init__(
-        self, request: PresentProteinSubtypeHumanReviewWorkspaceRequest, seal: object
-    ) -> None:
-        self.request = request
-        self._seal = seal
+    request: PresentProteinSubtypeHumanReviewWorkspaceRequest
+    _seal: object
 
 
 _TOKENS: Final[
@@ -65,6 +61,20 @@ _TOKENS: Final[
         tuple[object, PresentProteinSubtypeHumanReviewWorkspaceRequest, bytes],
     ]
 ] = WeakKeyDictionary()
+
+
+def _token_is_issued(token: ValidatedM2005Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -103,23 +113,18 @@ class M2005Plugin(
             preflight_m2005_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
         validated = self._service.validate_request(candidate)
-        token = ValidatedM2005Request(validated, self._seal)
-        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        token = ValidatedM2005Request(request=validated, _seal=self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_request_bytes(validated))
         return token
 
     def run(self, request: ValidatedM2005Request) -> ProteinSubtypeHumanReviewWorkspaceResult:
-        if not isinstance(request, ValidatedM2005Request):
-            raise _InvalidExecutionTokenError
-        snapshot = _TOKENS.get(request)
         if (
-            snapshot is None
-            or snapshot[0] is not self._seal
+            type(request) is not ValidatedM2005Request
             or request._seal is not self._seal
-            or snapshot[1] is not request.request
-            or snapshot[2] != canonical_json_bytes(request.request)
+            or not _token_is_issued(request, self._seal)
         ):
             raise _InvalidExecutionTokenError
-        return self._service.present(snapshot[1])
+        return self._service.present(request.request)
 
     def replay(
         self,
