@@ -47,6 +47,7 @@ from glio_proteogen.research import (
     target_decoy_qvalues,
     verify_evidence_bundle,
 )
+from glio_proteogen.research import search as search_module
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "research" / "pdc000204_snapshot.json"
 HEX_DIGEST_LENGTH = 64
@@ -855,6 +856,31 @@ def test_search_requires_precursor_and_matches_each_peak_once() -> None:
         )
         is None
     )
+
+
+def test_fragment_assignment_maximizes_cardinality_before_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Overlapping windows must not let greedy order erase a valid ion."""
+
+    def fake_fragments(
+        peptide: str, *, allowed_modifications: tuple[str, ...] = ()
+    ) -> tuple[tuple[float, ...], tuple[float, ...]]:
+        del peptide, allowed_modifications
+        return (100.0,), (99.98,)
+
+    monkeypatch.setattr(search_module, "_fragments", fake_fragments)
+    psm = search_spectrum(
+        "assignment",
+        100.0,
+        {"PEPTIDE": ("P1",)},
+        (99.995, 100.015),
+        (7.0, 11.0),
+        parameters=SearchParameters(fragment_tolerance_da=0.03, min_matched_ions=2),
+    )
+    assert psm is not None
+    assert psm.matched_ions == 2
+    assert psm.matched_intensity == pytest.approx(18.0)
 
 
 def test_target_decoy_competition_is_per_spectrum_and_decoys_have_no_qvalue() -> None:
