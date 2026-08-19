@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m12_06 import (
     BiomarkerPanelPerturbationSensitivityResult,
     SimulateBiomarkerPanelPerturbationRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import MAX_JSON_BYTES, strict_json_loads
 from glio_proteogen.modules.c11_protein_native_subtype.m12_06_perturbation_sensitivity_simulator.engine import (  # noqa: E501
@@ -46,6 +47,9 @@ class ValidatedM1206Request:
     """Opaque capability proving strict validation and control preflight."""
 
     request: SimulateBiomarkerPanelPerturbationRequest
+    _seal: object
+    _request_bytes: bytes
+    _request_identity: int
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -58,10 +62,11 @@ class M1206Plugin(
 ):
     """Expose M12-06 through the common plugin boundary."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M1206Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -72,11 +77,30 @@ class M1206Plugin(
             decoded = strict_json_loads(candidate, max_bytes=MAX_JSON_BYTES)
             preflight_m1206_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM1206Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        return ValidatedM1206Request(
+            request=validated,
+            _seal=self._seal,
+            _request_bytes=canonical_json_bytes(validated),
+            _request_identity=id(validated),
+        )
 
     def run(self, request: ValidatedM1206Request) -> BiomarkerPanelPerturbationSensitivityResult:
         if not isinstance(request, ValidatedM1206Request):
             raise _InvalidExecutionTokenError
+        if request._seal is not self._seal:
+            raise _InvalidExecutionTokenError
+        if type(request.request) is not SimulateBiomarkerPanelPerturbationRequest:
+            raise _InvalidExecutionTokenError
+        if type(request._request_bytes) is not bytes or type(request._request_identity) is not int:
+            raise _InvalidExecutionTokenError
+        if id(request.request) != request._request_identity:
+            raise _InvalidExecutionTokenError
+        try:
+            if canonical_json_bytes(request.request) != request._request_bytes:
+                raise _InvalidExecutionTokenError
+        except (TypeError, ValueError) as exc:
+            raise _InvalidExecutionTokenError from exc
         return self._service.execute(request.request)
 
 

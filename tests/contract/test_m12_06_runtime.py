@@ -234,6 +234,15 @@ def test_plugin_validates_once_and_rejects_unissued_token() -> None:
     assert plugin.run(token).status is SimulatorStatus.SIMULATED
     with pytest.raises(TypeError):
         plugin.run(request)  # type: ignore[arg-type]
+    object.__setattr__(token.request, "request_id", "request.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+    replacement = plugin.validate(request)
+    object.__setattr__(replacement, "request", request.model_copy(deep=True))
+    with pytest.raises(TypeError):
+        plugin.run(replacement)
+    with pytest.raises(TypeError):
+        M1206Plugin(M1206Service()).run(plugin.validate(request))
 
 
 def test_fastapi_schema_and_simulate() -> None:
