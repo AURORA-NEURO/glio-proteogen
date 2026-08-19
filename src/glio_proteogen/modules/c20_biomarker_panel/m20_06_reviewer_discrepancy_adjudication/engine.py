@@ -29,7 +29,7 @@ from glio_proteogen.contracts.m20_06.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
@@ -383,7 +383,18 @@ class M2006Engine:
             raise M2006ReplayError("M20-06 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2006ReplayError("M20-06 result payload digest mismatch")  # noqa: TRY003
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        try:
+            validated = ProteinSubtypeAdjudicationResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.adjudicate(validated.request)
+        except M2006ReplayError:
+            raise
+        except Exception as error:
+            raise M2006ReplayError("M20-06 replay result validation failed") from error  # noqa: TRY003
+        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
+            raise M2006ReplayError("M20-06 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def adjudicate_protein_subtype_discrepancy_queue(
