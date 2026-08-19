@@ -209,6 +209,14 @@ def test_forged_plugin_token_cannot_bypass_seal() -> None:
         plugin.run(cast("Any", object()))
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2508Plugin()
+    token = plugin.validate(build_request())
+    object.__setattr__(token.request, "request_id", "m2508.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_strict_json_rejects_duplicate_keys() -> None:
     with pytest.raises(StrictJsonError):
         strict_json_loads(b'{"request_id":"a","request_id":"b"}')

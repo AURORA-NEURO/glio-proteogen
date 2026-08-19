@@ -119,6 +119,14 @@ def test_plugin_token_is_opaque_and_service_is_deterministic() -> None:
         other_plugin.run(token)
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2008Plugin()
+    token = plugin.validate(_request())
+    object.__setattr__(token.request, "request_id", "m2008.tampered")
+    with pytest.raises(M2008TokenError):
+        plugin.run(token)
+
+
 def test_tampered_result_digest_is_rejected() -> None:
     engine = M2008TranslationMonitoringEngine()
     result = engine.infer(_request())

@@ -22,15 +22,14 @@ from .service import M2508Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeEvidenceGateRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteotypeEvidenceGateResult)
-_SEAL: Final = object()
-
-
 @dataclass(frozen=True, slots=True)
 class ValidatedM2508Request:
     """Opaque request token issued by the strict parser."""
 
     request: AdjudicateProteotypeEvidenceGateRequest
     _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class M2508Plugin:
@@ -38,6 +37,7 @@ class M2508Plugin:
 
     def __init__(self, service: M2508Service | None = None) -> None:
         self._service = service or M2508Service(M2508Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -65,10 +65,22 @@ class M2508Plugin:
         else:
             preflight_m2508_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2508Request(request=typed, _seal=_SEAL)
+        return ValidatedM2508Request(
+            request=typed,
+            _seal=self._seal,
+            _request_identity=id(typed),
+            _request_bytes=canonical_json_bytes(typed.model_dump(mode="json")),
+        )
 
     def run(self, request: ValidatedM2508Request) -> ProteotypeEvidenceGateResult:
-        if not isinstance(request, ValidatedM2508Request) or request._seal is not _SEAL:
+        if (
+            not isinstance(request, ValidatedM2508Request)
+            or request._seal is not self._seal
+            or type(request.request) is not AdjudicateProteotypeEvidenceGateRequest
+            or id(request.request) != request._request_identity
+        ):
+            raise TypeError
+        if canonical_json_bytes(request.request.model_dump(mode="json")) != request._request_bytes:
             raise TypeError
         return self._service._execute_validated(request.request)
 

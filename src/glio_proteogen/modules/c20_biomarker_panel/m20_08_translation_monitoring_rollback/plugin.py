@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m20_08 import (
     MonitorProteinSubtypeTranslationHealthRequest,
     ProteinSubtypeTranslationHealthResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .service import M2008Service
 
@@ -22,12 +23,17 @@ _TOKENS: WeakKeyDictionary[ValidatedM2008Request, object] = WeakKeyDictionary()
 class ValidatedM2008Request:
     """Opaque token coupling one validated request to this plugin instance."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
     def __init__(
-        self, request: MonitorProteinSubtypeTranslationHealthRequest, seal: object
+        self,
+        request: MonitorProteinSubtypeTranslationHealthRequest,
+        seal: object,
+        request_bytes: bytes = b"",
     ) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = request_bytes
         self._seal = seal
 
 
@@ -71,7 +77,11 @@ class M2008Plugin:
 
     def validate(self, request: object) -> ValidatedM2008Request:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        token = ValidatedM2008Request(validated, self._seal)
+        token = ValidatedM2008Request(
+            validated,
+            self._seal,
+            canonical_json_bytes(validated.model_dump(mode="json")),
+        )
         _TOKENS[token] = self._seal
         return token
 
@@ -81,7 +91,13 @@ class M2008Plugin:
     def run(self, token: ValidatedM2008Request) -> ProteinSubtypeTranslationHealthResult:
         if not isinstance(token, ValidatedM2008Request) or _TOKENS.get(token) is not self._seal:
             raise M2008TokenError
-        if token._seal is not self._seal:
+        if (
+            token._seal is not self._seal
+            or type(token.request) is not MonitorProteinSubtypeTranslationHealthRequest
+            or id(token.request) != token._request_identity
+        ):
+            raise M2008TokenError
+        if canonical_json_bytes(token.request.model_dump(mode="json")) != token._request_bytes:
             raise M2008TokenError
         return self._service._engine.infer(token.request)
 
