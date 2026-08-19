@@ -7,7 +7,12 @@ from collections.abc import Iterator, Mapping
 
 import pytest
 
-from glio_proteogen.contracts.m23_05 import CoverageStatus, EquityStatus, EvaluationStatus
+from glio_proteogen.contracts.m23_05 import (
+    CoverageStatus,
+    EquityStatus,
+    EvaluationStatus,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
     M2305AuthorizationError,
@@ -88,6 +93,21 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2305ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_replay_rejects_self_rehashed_nested_report_tampering() -> None:
+    service = M2305Service()
+    result = service.evaluate(_request())
+    assert result.report is not None
+    forged_report = result.report.model_copy(
+        update={
+            "configuration": result.report.configuration.model_copy(update={"version": "9.9.9"})
+        }
+    )
+    forged = result.model_copy(update={"report": forged_report})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2305ReplayError, match="deterministic replay"):
+        service.replay(forged)
 
 
 def test_authorization_fails_closed_before_material_traversal() -> None:

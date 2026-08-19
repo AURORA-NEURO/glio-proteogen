@@ -158,6 +158,14 @@ class M2305EquityEngine:
         self,
         result: VariantPeptideSubgroupEvaluationResult,
     ) -> VariantPeptideSubgroupEvaluationResult:
+        """Validate and regenerate the complete subgroup evaluation.
+
+        A result digest establishes only self-consistency.  Replay must also
+        establish that findings, report, provenance, and evidence are the
+        deterministic output for the bound request; otherwise a caller can
+        mutate a nested field and recompute the digest.
+        """
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2305ReplayError("M23-05 result request digest mismatch")  # noqa: TRY003
         if result.result_id != result_identifier(result.request):
