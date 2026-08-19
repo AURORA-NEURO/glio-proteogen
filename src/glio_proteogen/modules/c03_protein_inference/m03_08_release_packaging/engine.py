@@ -991,7 +991,7 @@ def _control_records(context: ExecutionContext) -> tuple[ControlDecisionRecord, 
     )
 
 
-def _provenance(  # noqa: PLR0913 - exact release receipt inputs.
+def _provenance(  # noqa: PLR0913, PLR0917 - exact release receipt inputs.
     request: BuildProteinInferenceReleaseRequest,
     manifest: ProteinInferenceReproducibilityManifest,
     request_hash: str,
