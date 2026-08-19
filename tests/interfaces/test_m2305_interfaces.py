@@ -8,7 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m23_05 import CoverageStatus
+from glio_proteogen.contracts.m23_05 import (
+    M2305_MAX_CANONICAL_REQUEST_BYTES,
+    M2305_MAX_CANONICAL_RESULT_BYTES,
+    CoverageStatus,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
@@ -161,3 +165,14 @@ def test_typer_sanitizes_bad_inputs_and_replay_failures(
 
     monkeypatch.setattr(cli_module, "_SERVICE", ReplayFailure())
     assert runner.invoke(cli_app, ["verify", str(result_path)]).exit_code != 0
+
+
+def test_typer_rejects_oversized_request_and_result_before_parsing(tmp_path: Path) -> None:
+    runner = CliRunner()
+    oversized_request = tmp_path / "oversized-request.json"
+    oversized_request.write_bytes(b"{" + b"x" * M2305_MAX_CANONICAL_REQUEST_BYTES)
+    assert runner.invoke(cli_app, ["validate", str(oversized_request)]).exit_code != 0
+
+    oversized_result = tmp_path / "oversized-result.json"
+    oversized_result.write_bytes(b"{" + b"x" * M2305_MAX_CANONICAL_RESULT_BYTES)
+    assert runner.invoke(cli_app, ["verify", str(oversized_result)]).exit_code != 0
