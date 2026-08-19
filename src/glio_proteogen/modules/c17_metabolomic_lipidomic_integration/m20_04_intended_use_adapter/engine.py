@@ -25,7 +25,7 @@ from glio_proteogen.contracts.m20_04.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
@@ -406,7 +406,18 @@ class M2004Engine:
             raise M2004ReplayError("M20-04 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2004ReplayError("M20-04 result payload digest mismatch")  # noqa: TRY003
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        try:
+            validated = ProteinSubtypeIntendedUseAdapterResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.adapt(validated.request)
+        except M2004ReplayError:
+            raise
+        except Exception as error:
+            raise M2004ReplayError("M20-04 replay result validation failed") from error  # noqa: TRY003
+        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
+            raise M2004ReplayError("M20-04 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def adapt_protein_subtype_intended_use(candidate: object) -> ProteinSubtypeIntendedUseAdapterResult:

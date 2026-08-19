@@ -31,7 +31,7 @@ from glio_proteogen.contracts.m20_01.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
@@ -401,7 +401,18 @@ class M2001Engine:
             raise M2001ReplayError("M20-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2001ReplayError("M20-01 result payload digest mismatch")  # noqa: TRY003
-        return result
+        try:
+            validated = ProteinSubtypeUpstreamResolutionResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+            expected = self.resolve(validated.request)
+        except M2001ReplayError:
+            raise
+        except Exception as error:
+            raise M2001ReplayError("M20-01 replay result validation failed") from error  # noqa: TRY003
+        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
+            raise M2001ReplayError("M20-01 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def resolve_protein_subtype_upstream_contracts(
