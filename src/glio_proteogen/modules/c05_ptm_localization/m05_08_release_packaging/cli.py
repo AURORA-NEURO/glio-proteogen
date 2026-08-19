@@ -9,11 +9,17 @@ from __future__ import annotations
 import base64
 import binascii
 import json
-from pathlib import Path  # noqa: TC003 - Typer resolves this runtime annotation.
+import sys
+from pathlib import Path
 from typing import Annotated, Final
 
 import typer
 from pydantic import TypeAdapter, ValidationError
+
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[4]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
 
 from glio_proteogen.adapters.limits import read_bounded
 from glio_proteogen.contracts.m05_08 import (

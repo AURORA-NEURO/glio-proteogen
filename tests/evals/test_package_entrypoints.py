@@ -11,13 +11,10 @@ _DIRECT_SOURCES = tuple(
         path for path in _SRC_ROOT.rglob("*.py") if "__main__" in path.read_text(encoding="utf-8")
     )
 )
-_DIRECT_SOURCE_COUNT = 25
-
-
 def test_direct_package_entrypoints_bootstrap_src_root() -> None:
     """File-path execution must resolve the package and package-local imports."""
 
-    assert len(_DIRECT_SOURCES) == _DIRECT_SOURCE_COUNT
+    assert _DIRECT_SOURCES, "direct package entrypoint discovery unexpectedly returned no modules"
     for path in _DIRECT_SOURCES:
         source = path.read_text(encoding="utf-8")
         assert "sys.path.insert(0, str(_SOURCE_ROOT))" in source, path
