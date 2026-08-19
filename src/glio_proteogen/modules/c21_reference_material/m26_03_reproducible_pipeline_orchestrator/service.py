@@ -16,7 +16,7 @@ from glio_proteogen.contracts.m26_03 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2603Engine
+from .engine import M2603Engine, preflight_m2603_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(ExecuteProteinSubtypeWorkflowRequest)
 _RESULT_ADAPTER = TypeAdapter(ProteinSubtypeExecutionResult)
@@ -31,8 +31,10 @@ class M2603Service:
     def validate_request(self, candidate: object) -> ExecuteProteinSubtypeWorkflowRequest:
         if isinstance(candidate, (bytes, bytearray, str)):
             decoded = strict_json_loads(candidate, max_bytes=M2603_MAX_CANONICAL_REQUEST_BYTES)
+            preflight_m2603_authorization(decoded)
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         if isinstance(candidate, Mapping):
+            preflight_m2603_authorization(candidate)
             return _REQUEST_ADAPTER.validate_json(
                 canonical_json_bytes(dict(candidate)), strict=True
             )

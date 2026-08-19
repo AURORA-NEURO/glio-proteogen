@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
-from evals.m26_03.fixture import build_request
+from evals.m26_03.fixture import build_request, denied_request
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_03 import (
@@ -117,6 +117,15 @@ def test_strict_json_rejects_duplicate_keys_and_non_object_inputs() -> None:
         service.validate_request(b"[]")
     with pytest.raises((StrictJsonError, ValueError)):
         service.validate_request(b"null")
+
+
+def test_service_validation_fails_closed_for_denied_json_and_mapping() -> None:
+    denied = denied_request()
+    service = M2603Service()
+    with pytest.raises(M2603AuthorizationError):
+        service.validate_request(denied.model_dump(mode="json"))
+    with pytest.raises(M2603AuthorizationError):
+        service.validate_request(denied.model_dump_json())
 
 
 def test_unknown_request_fields_are_not_traversed_or_echoed() -> None:
