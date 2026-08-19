@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m22_03 import (
     BenchmarkStatus,
     ProteinRnaDiscordanceInternalBenchmarkResult,
     RunProteinRnaDiscordanceInternalBenchmarkRequest,
+    ValidationStatus,
     canonical_request_digest,
     result_identifier,
     result_payload_digest,
@@ -89,17 +90,27 @@ class M2203BenchmarkEngine:
             canonical_json_bytes(validated.model_dump(mode="json")), strict=True
         )
         request_digest = canonical_request_digest(canonical)
-        dossier = BenchmarkDossier(
-            dossier_id="m2203.dossier." + request_digest.removeprefix("sha256:"),
-            version=canonical.split.version,
-            split=canonical.split,
-            baselines=canonical.baseline_runs,
-            ablations=canonical.ablations,
-            comparisons=canonical.comparisons,
-            metrics=tuple(
-                metric for baseline in canonical.baseline_runs for metric in baseline.metrics
-            ),
-            evidence=_evidence(canonical),
+        not_evaluable = _contains_not_evaluable(canonical)
+        dossier = None
+        if not not_evaluable:
+            dossier = BenchmarkDossier(
+                dossier_id="m2203.dossier." + request_digest.removeprefix("sha256:"),
+                version=canonical.split.version,
+                split=canonical.split,
+                baselines=canonical.baseline_runs,
+                ablations=canonical.ablations,
+                comparisons=canonical.comparisons,
+                metrics=tuple(
+                    metric for baseline in canonical.baseline_runs for metric in baseline.metrics
+                ),
+                evidence=_evidence(canonical),
+            )
+        findings = ()
+        abstention_reason = (
+            "At least one benchmark metric, ablation, or comparison is not evaluable; "
+            "M22-03 abstains without converting missing evidence to a negative finding."
+            if not_evaluable
+            else None
         )
         payload: dict[str, Any] = {
             "output_type": "protein_rna_discordance_internal_benchmark",
@@ -108,18 +119,18 @@ class M2203BenchmarkEngine:
             "request_digest": request_digest,
             "result_digest": "sha256:" + ("0" * 64),
             "request": canonical,
-            "status": BenchmarkStatus.COMPLETED,
+            "status": BenchmarkStatus.ABSTAINED if not_evaluable else BenchmarkStatus.COMPLETED,
             "dossier": dossier,
-            "findings": (),
-            "abstention_reason": None,
+            "findings": findings,
+            "abstention_reason": abstention_reason,
             "parent_target": "protein-RNA discordance",
             "emits_parent": False,
-            "support_decision": _support(),
+            "support_decision": _review_support() if not_evaluable else _support(),
             "uncertainty": _uncertainty(),
             "provenance": _provenance(canonical, request_digest),
             "evidence": _evidence(canonical),
             "limitations": _LIMITATIONS,
-            "human_review_required": False,
+            "human_review_required": not_evaluable,
         }
         provisional = ProteinRnaDiscordanceInternalBenchmarkResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
@@ -221,6 +232,20 @@ def _state_value(candidate: object) -> object:
     return getattr(actual, "value", actual)
 
 
+def _contains_not_evaluable(
+    request: RunProteinRnaDiscordanceInternalBenchmarkRequest,
+) -> bool:
+    return (
+        any(
+            metric.status is ValidationStatus.NOT_EVALUABLE
+            for baseline in request.baseline_runs
+            for metric in baseline.metrics
+        )
+        or any(item.status is ValidationStatus.NOT_EVALUABLE for item in request.ablations)
+        or any(item.status is ValidationStatus.NOT_EVALUABLE for item in request.comparisons)
+    )
+
+
 def _support() -> SupportDecision:
     return SupportDecision(
         status=SupportStatus.SUPPORTED,
@@ -228,6 +253,17 @@ def _support() -> SupportDecision:
         rationale=(
             "Caller-declared locked split, simple and mature baselines, ablations, and "
             "compute-matched comparisons satisfy the provisional M22-03 boundary."
+        ),
+    )
+
+
+def _review_support() -> SupportDecision:
+    return SupportDecision(
+        status=SupportStatus.REVIEW_REQUIRED,
+        reason_code="benchmark_not_evaluable",
+        rationale=(
+            "At least one caller-declared benchmark component is not evaluable; "
+            "the result abstains without converting missing evidence to a finding."
         ),
     )
 

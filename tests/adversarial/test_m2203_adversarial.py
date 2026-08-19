@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m22_03 import (
     BenchmarkFinding,
     BenchmarkFindingCode,
     BenchmarkStatus,
+    ValidationStatus,
     canonical_request_digest,
     normalized_request,
     result_identifier,
@@ -117,6 +118,21 @@ def test_result_replay_closure_rejects_each_identity_invariant() -> None:
     )
     with pytest.raises(ValidationError, match="finding ids"):
         _result_update(result, findings=(finding, finding))
+
+
+def test_not_evaluable_inputs_abstain_without_dossier() -> None:
+    request = _request()
+    metric = request.baseline_runs[0].metrics[0].model_copy(
+        update={"status": ValidationStatus.NOT_EVALUABLE}
+    )
+    baseline = request.baseline_runs[0].model_copy(update={"metrics": (metric,)})
+    abstained = M2203BenchmarkEngine().generate(
+        request.model_copy(update={"baseline_runs": (baseline, *request.baseline_runs[1:])})
+    )
+    assert abstained.status is BenchmarkStatus.ABSTAINED
+    assert abstained.dossier is None
+    assert abstained.findings == ()
+    assert M2203BenchmarkEngine().replay(abstained).result_digest == abstained.result_digest
 
 
 def test_result_replay_rejects_self_rehashed_dossier_mutation() -> None:
