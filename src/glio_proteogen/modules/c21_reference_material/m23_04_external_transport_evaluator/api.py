@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m23_04 import (
     M2304_MAX_CANONICAL_REQUEST_BYTES,
+    M2304_MAX_CANONICAL_RESULT_BYTES,
     EvaluateVariantPeptideExternalTransportRequest,
     VariantPeptideExternalTransportResult,
     contract_json_schema,
@@ -49,7 +50,7 @@ def _parse_request(body: bytes) -> EvaluateVariantPeptideExternalTransportReques
 
 def _parse_object(body: bytes) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body)
+        value = strict_json_loads(body, max_bytes=M2304_MAX_CANONICAL_RESULT_BYTES)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
