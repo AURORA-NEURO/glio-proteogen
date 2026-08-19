@@ -137,9 +137,18 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int = M1107_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
+def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
+    """Read one request using the currently configured byte ceiling.
+
+    Resolve the default at call time so tests, embedders, and policy wiring can
+    adjust the module limit without silently bypassing the intended boundary.
+    """
+
+    effective_max_bytes = (
+        M1107_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
+    )
     try:
-        body = read_bounded(path, max_bytes)
+        body = read_bounded(path, effective_max_bytes)
     except (OSError, RequestBodyTooLargeError) as error:
         raise _CliParameterError("read") from error
     return body
