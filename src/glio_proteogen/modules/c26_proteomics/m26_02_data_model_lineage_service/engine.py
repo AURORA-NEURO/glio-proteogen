@@ -245,7 +245,34 @@ def _graph_findings(
             findings.append(_finding("missing_root", "replay bundle references a missing root"))
         elif root in parent_ids:
             findings.append(_finding("broken_link", "replay root has an incoming lineage link"))
+    reachable = _reachable_nodes(graph, bundle.root_node_ids, node_ids)
+    if reachable != node_ids:
+        findings.append(
+            _finding(
+                "broken_link",
+                "lineage graph contains nodes unreachable from replay roots",
+            )
+        )
     return findings
+
+
+def _reachable_nodes(
+    graph: LineageGraph,
+    roots: tuple[str, ...],
+    node_ids: set[str],
+) -> set[str]:
+    children: dict[str, set[str]] = {node_id: set() for node_id in node_ids}
+    for edge in graph.edges:
+        children[edge.parent_node_id].add(edge.child_node_id)
+    reachable = {root for root in roots if root in node_ids}
+    frontier = list(reachable)
+    while frontier:
+        current = frontier.pop()
+        for child in children[current]:
+            if child not in reachable:
+                reachable.add(child)
+                frontier.append(child)
+    return reachable
 
 
 def _finding(code: str, message: str) -> LineageFinding:

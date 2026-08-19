@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m26_02 import (
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
     LineageRelation,
+    graph_payload_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
@@ -125,6 +126,41 @@ def test_branching_cycle_is_not_hidden_by_a_second_parent_edge() -> None:
     result = M2602LineageService().execute(request.model_copy(update={"edges": cycle_edges}))
     assert result.status.value == "abstained"
     assert any(item.code.value == "broken_link" for item in result.findings)
+
+
+def test_disconnected_lineage_component_cannot_be_marked_built() -> None:
+    request = _request()
+    edges = (
+        *request.edges[:-1],
+        request.edges[-1].model_copy(
+            update={"parent_node_id": "node-1", "child_node_id": "node-2"}
+        ),
+    )
+    graph_digest = graph_payload_digest(
+        {
+            "graph_id": request.graph_id,
+            "version": request.graph_version,
+            "nodes": request.nodes,
+            "edges": edges,
+            "graph_digest": request.reproducibility_bundle.graph_digest,
+            "locked": True,
+            "evidence": (),
+        }
+    )
+    candidate = request.model_copy(
+        update={
+            "edges": edges,
+            "reproducibility_bundle": request.reproducibility_bundle.model_copy(
+                update={"graph_digest": graph_digest}
+            ),
+        }
+    )
+    result = M2602LineageService().execute(candidate)
+    assert result.status.value == "abstained"
+    assert any(
+        item.code.value == "broken_link" and "unreachable from replay roots" in item.message
+        for item in result.findings
+    )
 
 
 def test_duplicate_node_ids_are_rejected_before_engine() -> None:
