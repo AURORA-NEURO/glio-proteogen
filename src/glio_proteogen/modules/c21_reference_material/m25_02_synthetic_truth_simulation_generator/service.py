@@ -8,9 +8,12 @@ from typing import Final
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m25_02 import (
+    M2502_MAX_CANONICAL_REQUEST_BYTES,
     GenerateProteotypeSyntheticTruthRequest,
     ProteotypeSyntheticTruthResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 
 from .engine import (
     M2502AuthorizationError,
@@ -32,7 +35,8 @@ class M2502Service:
     def validate_request(self, request: object) -> GenerateProteotypeSyntheticTruthRequest:
         try:
             if isinstance(request, bytes | bytearray | str):
-                typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
+                decoded = strict_json_loads(request, max_bytes=M2502_MAX_CANONICAL_REQUEST_BYTES)
+                typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
             else:
                 typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
         except Exception as error:

@@ -7,9 +7,12 @@ from typing import Final
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m25_05 import (
+    M2505_MAX_CANONICAL_REQUEST_BYTES,
     EvaluateProteotypeSubgroupEquityRequest,
     ProteotypeSubgroupEvaluationResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 
 from .engine import M2505SubgroupEquityEngine, preflight_m2505_authorization
 
@@ -26,7 +29,8 @@ class M2505Service:
 
     def validate_request(self, request: object) -> EvaluateProteotypeSubgroupEquityRequest:
         if isinstance(request, bytes | bytearray | str):
-            typed = _REQUEST_ADAPTER.validate_json(request, strict=True)
+            decoded = strict_json_loads(request, max_bytes=M2505_MAX_CANONICAL_REQUEST_BYTES)
+            typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
             preflight_m2505_authorization(typed)
         else:
             preflight_m2505_authorization(request)
