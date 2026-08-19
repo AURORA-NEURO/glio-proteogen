@@ -386,10 +386,38 @@ class ComplexActivityPipelineResult(FrozenModel):
                 raise ValueError("result package must bind the execution record")
             if package.package_id != package_id_for_request_digest(self.request_digest):
                 raise ValueError("result package id must be derived from the request digest")
+            if package.version != M2703_CONTRACT_VERSION:
+                raise ValueError("result package version must bind the contract")
             if package.environment_digest != execution.environment_digest:
                 raise ValueError("result package must bind execution environment")
             if execution.output_digest is None:
                 raise ValueError("executed record requires output digest")
+            expected_artifact = ArtifactReference(
+                artifact_id="m2703.result." + self.request_digest.removeprefix("sha256:"),
+                version=M2703_CONTRACT_VERSION,
+                digest=execution.output_digest,
+                media_type=M2703_OUTPUT_MEDIA_TYPE,
+            )
+            if package.artifact_references != (expected_artifact, *self.request.source_artifacts):
+                raise ValueError("result package artifacts must bind the request and output")
+            expected_manifest = sha256_digest(
+                {
+                    "upstream": self.request.upstream_result,
+                    "sources": self.request.source_artifacts,
+                    "workflow": self.request.workflow,
+                }
+            )
+            if package.manifest_digest != expected_manifest:
+                raise ValueError("result package manifest must bind request content")
+            expected_reproducibility = sha256_digest(
+                {
+                    "manifest": expected_manifest,
+                    "environment": execution.environment_digest,
+                    "output": execution.output_digest,
+                }
+            )
+            if package.reproducibility_digest != expected_reproducibility:
+                raise ValueError("result package reproducibility must bind execution output")
             if self.human_review_required:
                 raise ValueError("supported executed result cannot require human review")
         elif (

@@ -565,6 +565,28 @@ def test_result_closure_rejects_mismatched_bindings() -> None:
 
 
 @pytest.mark.parametrize(
+    "field", ["manifest_digest", "reproducibility_digest", "artifact_references"]
+)
+def test_result_closure_rejects_self_rehashed_package_projection_forgery(field: str) -> None:
+    result = M2703Engine().execute(_request())
+    assert result.result_package is not None
+    package = result.result_package
+    forged_values: dict[str, object] = {
+        "manifest_digest": "sha256:" + "f" * 64,
+        "reproducibility_digest": "sha256:" + "e" * 64,
+        "artifact_references": (
+            package.artifact_references[0].model_copy(update={"artifact_id": "forged-artifact"}),
+            *package.artifact_references[1:],
+        ),
+    }
+    forged_package = package.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"result_package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="result package"):
+        ComplexActivityPipelineResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
+@pytest.mark.parametrize(
     "field",
     [
         "activity_id",
