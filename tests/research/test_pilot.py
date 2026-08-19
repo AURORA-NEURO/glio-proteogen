@@ -19,6 +19,7 @@ from glio_proteogen.research import (
     run_pilot,
     verify_pilot_replay,
 )
+from glio_proteogen.research.public_proteomics.provenance import sha256_digest
 
 _ROOT = Path(__file__).parents[2]
 _METADATA = _ROOT / "research" / "fixtures" / "pdc" / "pdc000204.metadata.json"
@@ -188,6 +189,34 @@ def test_replay_detects_tampered_receipt() -> None:
     )
     with pytest.raises(PilotError, match="replay"):
         verify_pilot_replay(request, changed_parameters)
+
+
+def test_replay_binds_full_psm_measurement_and_collision_projection() -> None:
+    request = _request(_mzml_with_ms2())
+    result = run_pilot(request)
+    original = result.matched_psms[0]
+    tampered_psm = replace(
+        original,
+        matched_intensity=original.matched_intensity + 1.0,
+        mean_fragment_error_da=original.mean_fragment_error_da + 0.01,
+        precursor_error_ppm=1.0,
+        target_decoy_collision=True,
+    )
+    tampered = replace(result, matched_psms=(tampered_psm,), result_digest="")
+    payload = tampered.as_dict()
+    payload.pop("result_digest")
+    tampered = replace(tampered, result_digest=sha256_digest(payload))
+    with pytest.raises(PilotError, match="replay"):
+        verify_pilot_replay(request, tampered)
+
+
+def test_replay_binds_resource_limits_even_when_output_is_unchanged() -> None:
+    request = _request(_mzml_with_ms2())
+    result = run_pilot(request)
+    changed_limits = replace(request, limits=PilotLimits(max_psms=1, max_spectra=1))
+    assert run_pilot(changed_limits).as_dict() != result.as_dict()
+    with pytest.raises(PilotError, match="replay"):
+        verify_pilot_replay(changed_limits, result)
 
 
 def test_checked_in_pilot_evidence_and_package_receipt_are_closed() -> None:
