@@ -15,6 +15,7 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adju
     M2006Plugin,
     M2006ReplayError,
     M2006Service,
+    ValidatedM2006Request,
 )
 from tests.contract.test_m20_06_adversarial import _assignment, _entry, _request
 
@@ -61,6 +62,31 @@ def test_plugin_requires_submission_and_preserves_parse_once_boundary() -> None:
         plugin.validate(request)
     with pytest.raises(TypeError, match="validated request"):
         plugin.run(request)  # type: ignore[arg-type]
+
+
+def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> None:
+    request = _request()
+    service = M2006Service()
+    plugin = M2006Plugin(service)
+    other = M2006Plugin(service)
+    token = plugin.validate(AdjudicationSubmission(request))
+    forged = ValidatedM2006Request(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request"):
+        other.run(token)
+
+    changed_entry = token.request.entries[0].model_copy(
+        update={"description": "forged discrepancy description"}
+    )
+    object.__setattr__(
+        token.request,
+        "entries",
+        (changed_entry, *token.request.entries[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(token)
 
 
 def test_service_replay_rejects_tampered_payload() -> None:
