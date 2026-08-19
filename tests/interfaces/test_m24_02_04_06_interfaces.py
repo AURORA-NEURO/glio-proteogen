@@ -6,6 +6,7 @@ import json
 from http import HTTPStatus
 from typing import Any
 
+import pytest
 from evals.m24_02.fixture import request as request_02
 from evals.m24_04.fixture import request as request_04
 from evals.m24_06.fixture import request as request_06
@@ -96,6 +97,21 @@ def test_plugins_require_opaque_submission_and_preserve_replay() -> None:
         token = plugin.validate(wrapper(json.dumps(request.model_dump(mode="json"))))
         result = plugin.run(token)
         assert plugin.replay(result).result_digest == result.result_digest
+
+
+def test_m2402_plugin_tokens_are_instance_and_snapshot_bound() -> None:
+    first = m2402.M2402Plugin(m2402.M2402Service())
+    second = m2402.M2402Plugin(m2402.M2402Service())
+    token = first.validate(m2402.SyntheticTruthSubmission(request_02().model_dump_json()))
+    assert first.run(token).result_digest.startswith("sha256:")
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+    forged = m2402.ValidatedM2402Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+    token.request = token.request.model_copy(update={"request_id": "forged"})
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(token)
 
 
 def test_api_and_cli_reject_malformed_inputs_without_leaking_details(tmp_path: Any) -> None:
