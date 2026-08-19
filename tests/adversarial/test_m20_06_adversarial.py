@@ -77,6 +77,7 @@ def test_service_denies_unsafe_context_and_replay_tampering() -> None:
     with pytest.raises(M2006AuthorizationError):
         service.adjudicate(request.model_copy(update={"context": context}))
     result = service.adjudicate(request)
+    assert result.record is not None
     with pytest.raises(M2006ReplayError, match="payload digest"):
         service.replay(
             result.model_copy(
