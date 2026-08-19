@@ -24,7 +24,7 @@ from glio_proteogen.contracts.m26_04 import (
     contract_json_schema,
 )
 from glio_proteogen.contracts.m26_04.canonical import canonical_request_digest
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
     GatewaySubmission,
@@ -429,6 +429,26 @@ def test_api_malformed_and_tampered_envelopes_are_sanitized() -> None:
     tampered = client.post("/v1/modules/M26-04/verify", json=result)
     assert tampered.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "m2604.forged" not in tampered.text
+
+
+def test_api_replay_uses_result_size_ceiling_not_request_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    result = M2604GatewayEngine().publish(request).model_dump(mode="json")
+    body = canonical_json_bytes({"result": result})
+    monkeypatch.setattr(api, "M2604_MAX_CANONICAL_REQUEST_BYTES", len(body) - 1)
+    monkeypatch.setattr(api, "M2604_MAX_CANONICAL_RESULT_BYTES", len(body))
+
+    with TestClient(api.create_app()) as client:
+        verified = client.post(
+            "/v1/modules/M26-04/verify",
+            content=body,
+            headers={"content-type": "application/json"},
+        )
+
+    assert verified.status_code == HTTPStatus.OK
+    assert verified.json()["verified"] is True
 
 
 def test_cli_rejects_duplicate_json_and_preserves_existing_output(tmp_path: Path) -> None:

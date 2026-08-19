@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m27_04 import (
@@ -17,7 +18,9 @@ from glio_proteogen.contracts.m27_04 import (
     PublishComplexActivityAccessSurfaceRequest,
 )
 from glio_proteogen.contracts.m27_04.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError
+from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import api
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,
     M2704ReplayError,
@@ -115,6 +118,26 @@ def test_replay_rejects_forged_payload_and_plugin_metadata_is_closed() -> None:
     assert descriptor.treatment_recommendation is False
     assert descriptor.identity_inference is False
     assert descriptor.consent_inference is False
+
+
+def test_api_replay_uses_result_size_ceiling_not_request_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    result = M2704GatewayEngine().publish(request).model_dump(mode="json")
+    body = canonical_json_bytes({"result": result})
+    monkeypatch.setattr(api, "M2704_MAX_CANONICAL_REQUEST_BYTES", len(body) - 1)
+    monkeypatch.setattr(api, "M2704_MAX_CANONICAL_RESULT_BYTES", len(body))
+
+    with TestClient(api.create_app()) as client:
+        verified = client.post(
+            "/v1/modules/M27-04/verify",
+            content=body,
+            headers={"content-type": "application/json"},
+        )
+
+    assert verified.status_code == 200
+    assert verified.json()["verified"] is True
 
 
 def test_contract_rejects_invalid_terminal_job_outcomes() -> None:
