@@ -348,7 +348,15 @@ class M0702RepresentationEngine:
                 verified=False,
                 reason=RepresentationReplayReason.INVALID_RESULT,
             )
-        deterministic_verified = typed.result_digest == result_payload_digest(typed)
+        digest_verified = typed.result_digest == result_payload_digest(typed)
+        try:
+            replayed = self.construct(typed.request)
+        except Exception:  # noqa: BLE001 - verification fails closed on replay errors.
+            deterministic_verified = False
+        else:
+            deterministic_verified = digest_verified and (
+                replayed.result.model_dump(mode="json") == typed.model_dump(mode="json")
+            )
         expected_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected_bytes
         if canonical_bytes is not None and (
