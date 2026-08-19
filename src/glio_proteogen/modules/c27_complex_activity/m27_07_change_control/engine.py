@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m27_07 import (
     ComparisonStatus,
     ComplexActivityChangeControlResult,
     ControlComplexActivityChangeRequest,
+    M2707_MAX_EVIDENCE,
     MetricComparison,
     PromotionState,
     SafeFailureReport,
@@ -109,6 +110,15 @@ def preflight_change_control_authorization(request: ControlComplexActivityChange
     ids = tuple(item.artifact_id for item in request.source_artifacts)
     if len(ids) != len(set(ids)):
         raise ChangeControlAuthorizationError("source artifact ids must be unique")
+    digests = tuple(item.digest for item in request.source_artifacts)
+    if len(digests) != len(set(digests)):
+        raise ChangeControlAuthorizationError("source artifact digests must be unique")
+    evidence_digests = {
+        getattr(request.context.references, role.value).evidence.digest for role in _CONTROL_ROLES
+    }
+    evidence_digests.update(digests)
+    if len(evidence_digests) > M2707_MAX_EVIDENCE:
+        raise ChangeControlAuthorizationError("change evidence exceeds the result budget")
 
 
 def _uncertainty() -> UncertaintyProfile:
@@ -128,7 +138,7 @@ def _uncertainty() -> UncertaintyProfile:
 
 def _evidence(request: ControlComplexActivityChangeRequest) -> tuple[EvidenceReference, ...]:
     refs = request.context.references
-    return tuple(
+    controls = tuple(
         EvidenceReference(
             reference=getattr(refs, role.value).evidence,
             role="evidence",
@@ -136,6 +146,22 @@ def _evidence(request: ControlComplexActivityChangeRequest) -> tuple[EvidenceRef
         )
         for role in _CONTROL_ROLES
     )
+    source = tuple(
+        EvidenceReference(
+            reference=artifact,
+            role="evidence",
+            claim="caller-declared change-control input artifact",
+        )
+        for artifact in request.source_artifacts
+    )
+    seen: set[str] = set()
+    unique: list[EvidenceReference] = []
+    for item in (*controls, *source):
+        if item.reference.digest in seen:
+            continue
+        seen.add(item.reference.digest)
+        unique.append(item)
+    return tuple(unique)
 
 
 def _provenance(
@@ -153,6 +179,7 @@ def _provenance(
             request.upstream_result.digest,
             request.champion_digest,
             request.challenger_digest,
+            *(artifact.digest for artifact in request.source_artifacts),
         ),
         configuration_digest=refs.approved_configuration.evidence.digest,
         consent_decision_id=refs.consent.decision_id,
