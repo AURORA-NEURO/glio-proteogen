@@ -92,6 +92,26 @@ def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     assert service.descriptor["module_id"] == "GLIO-PROTEOGEN-M21-07"
 
 
+def test_plugin_rejects_cross_instance_and_nested_request_mutation() -> None:
+    request = _request()
+    service = M2107Service()
+    plugin = M2107Plugin(service)
+    other = M2107Plugin(service)
+    token = plugin.validate(request)
+
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_metric = token.request.metrics[0].model_copy(update={"observed_value": 0.1})
+    object.__setattr__(
+        token.request,
+        "metrics",
+        (changed_metric, *token.request.metrics[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
 def test_replay_rejects_tampering_and_public_entry_point_is_deterministic() -> None:
     request = _request()
     result = evaluate_complex_activity_human_factors(request)

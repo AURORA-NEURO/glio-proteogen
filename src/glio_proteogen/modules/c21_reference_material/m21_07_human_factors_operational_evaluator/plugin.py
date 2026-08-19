@@ -12,11 +12,15 @@ from glio_proteogen.contracts.m21_07 import (
     ComplexActivityHumanFactorsResult,
     EvaluateComplexActivityHumanFactorsRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .service import M2107Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateComplexActivityHumanFactorsRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM2107Request, object] = WeakKeyDictionary()
+_TOKENS: WeakKeyDictionary[
+    ValidatedM2107Request,
+    tuple[object, EvaluateComplexActivityHumanFactorsRequest, bytes],
+] = WeakKeyDictionary()
 
 
 class ValidatedM2107Request:
@@ -27,6 +31,24 @@ class ValidatedM2107Request:
     def __init__(self, request: EvaluateComplexActivityHumanFactorsRequest, seal: object) -> None:
         self.request = request
         self._seal = seal
+
+
+def _canonical_request_bytes(request: EvaluateComplexActivityHumanFactorsRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="json"))
+
+
+def _token_is_issued(token: ValidatedM2107Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class M2107TokenError(TypeError):
@@ -69,16 +91,18 @@ class M2107Plugin:
     def validate(self, request: object) -> ValidatedM2107Request:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         token = ValidatedM2107Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
         return token
 
     def validate_request(self, request: object) -> EvaluateComplexActivityHumanFactorsRequest:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def run(self, token: ValidatedM2107Request) -> ComplexActivityHumanFactorsResult:
-        if not isinstance(token, ValidatedM2107Request) or _TOKENS.get(token) is not self._seal:
-            raise M2107TokenError
-        if token._seal is not self._seal:
+        if (
+            type(token) is not ValidatedM2107Request
+            or token._seal is not self._seal
+            or not _token_is_issued(token, self._seal)
+        ):
             raise M2107TokenError
         return self._service._engine.evaluate(token.request)
 
