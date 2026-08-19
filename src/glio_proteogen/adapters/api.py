@@ -2649,7 +2649,11 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         description="Research-use-only preanalytic contracts and bounded evidence processing.",
         lifespan=lifespan,
     )
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=MAX_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=MAX_REQUEST_BYTES,
+        result_max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
