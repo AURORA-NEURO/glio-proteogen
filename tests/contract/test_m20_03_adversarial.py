@@ -45,6 +45,8 @@ from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_03_fusion_
     M2003Plugin,
     M2003ReplayError,
     M2003Service,
+    M2003TokenError,
+    ValidatedM2003Request,
 )
 
 _HIGH_RELIABILITY_THRESHOLD = 0.8
@@ -307,3 +309,25 @@ def test_service_plugin_parity_and_descriptor_boundaries() -> None:
     assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M20-03"
     assert plugin.descriptor.parent_target == "protein subtype"
     assert plugin.run(request) == service.fuse(request)
+
+
+def test_plugin_capability_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = M2003Plugin()
+    other = M2003Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token) == plugin.run(request)
+
+    forged = ValidatedM2003Request(request=token.request, _seal=token._seal)
+    with pytest.raises(M2003TokenError):
+        plugin.run(forged)
+    with pytest.raises(M2003TokenError):
+        other.run(token)
+
+    changed_configuration = token.request.configuration.model_copy(
+        update={"reliability_threshold": 0.1}
+    )
+    object.__setattr__(token.request, "configuration", changed_configuration)
+    with pytest.raises(M2003TokenError):
+        plugin.run(token)
