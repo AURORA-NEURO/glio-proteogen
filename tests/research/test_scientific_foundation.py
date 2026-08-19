@@ -29,6 +29,7 @@ from glio_proteogen.research import (
     ProteinGroup,
     Psm,
     PsmCompetition,
+    QuantificationPolicy,
     QuantificationReceipt,
     SearchParameters,
     SourceReference,
@@ -326,6 +327,29 @@ def test_matched_ion_quantification_rejects_invalid_observations(
 ) -> None:
     with pytest.raises(ValueError):
         quantify_matched_ions("sample-1", (observation,))
+
+
+def test_matched_ion_quantification_bounds_iterators_and_universe_identity() -> None:
+    policy = QuantificationPolicy(max_input_observations=2)
+    with pytest.raises(ValueError, match="observations exceed"):
+        quantify_matched_ions(
+            "sample-1",
+            ((f"P{index}", 1.0) for index in range(3)),
+            policy=policy,
+        )
+    with pytest.raises(ValueError, match="peptide universe exceed"):
+        quantify_matched_ions(
+            "sample-1",
+            (),
+            policy=policy,
+            peptide_universe=(f"P{index}" for index in range(3)),
+        )
+    with pytest.raises(ValueError, match="unique"):
+        quantify_matched_ions(
+            "sample-1",
+            (),
+            peptide_universe=("P", "P"),
+        )
 
 
 def test_evidence_aggregation_is_order_stable_and_explicitly_limited() -> None:
