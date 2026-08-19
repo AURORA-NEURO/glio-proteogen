@@ -29,6 +29,7 @@ from glio_proteogen.modules.c21_reference_material.m21_01_reference_truth_benchm
     M2101ReplayError,
     M2101Service,
     ReferenceTruthSubmission,
+    ValidatedM2101Request,
     cli_app,
     create_app,
     preflight_m2101_authorization,
@@ -332,6 +333,26 @@ def test_plugin_rejects_unwrapped_request_and_bad_json() -> None:
         plugin.validate(build_request())
     with pytest.raises((ValueError, TypeError)):
         plugin.validate(ReferenceTruthSubmission(request=b"[]"))
+
+
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = build_request()
+    plugin = M2101Plugin(M2101Service())
+    other = M2101Plugin(M2101Service())
+    token = plugin.validate(ReferenceTruthSubmission(request=request))
+
+    assert plugin.run(token).status.value == "curated"
+
+    forged = ValidatedM2101Request(request=token.request, _seal=token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_endpoint = token.request.endpoint.model_copy(update={"name": "forged endpoint"})
+    object.__setattr__(token.request, "endpoint", changed_endpoint)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
 
 
 def test_api_sanitizes_invalid_json_and_unknown_schema() -> None:

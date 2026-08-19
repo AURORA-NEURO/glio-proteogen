@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m21_01 import (
     ComplexActivityReferenceTruthResult,
     CurateComplexActivityReferenceTruthRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -46,11 +48,38 @@ class ReferenceTruthSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM2101Request:
     """Opaque capability proving strict M21-01 request validation."""
 
     request: CurateComplexActivityReferenceTruthRequest
+    _seal: object
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2101Request,
+        tuple[object, CurateComplexActivityReferenceTruthRequest, bytes],
+    ]
+] = WeakKeyDictionary()
+
+
+def _canonical_request_bytes(request: CurateComplexActivityReferenceTruthRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="python"))
+
+
+def _token_is_issued(token: ValidatedM2101Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -66,10 +95,11 @@ class _InvalidSubmissionError(TypeError):
 class M2101Plugin(ModulePlugin[object, ValidatedM2101Request, ComplexActivityReferenceTruthResult]):
     """Expose M21-01 through validate-then-run without an authority bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2101Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -85,10 +115,17 @@ class M2101Plugin(ModulePlugin[object, ValidatedM2101Request, ComplexActivityRef
             )
             preflight_m2101_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2101Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2101Request(request=validated, _seal=self._seal)
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        return token
 
     def run(self, request: ValidatedM2101Request) -> ComplexActivityReferenceTruthResult:
-        if not isinstance(request, ValidatedM2101Request):
+        if (
+            type(request) is not ValidatedM2101Request
+            or request._seal is not self._seal
+            or not _token_is_issued(request, self._seal)
+        ):
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 
