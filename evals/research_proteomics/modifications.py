@@ -112,6 +112,13 @@ def _receipt_binds_rules() -> dict[str, object]:
             verify_search_space_receipt(receipt) == receipt
             and receipt.modification_rules == ("UNIMOD:35",)
             and receipt.modified_target_peptides > receipt.target_peptides
+            and receipt.modified_target_decoy_overlap_peptides > 0
+            and receipt.modified_peptide_count
+            == (
+                receipt.modified_target_peptides
+                + receipt.modified_decoy_peptides
+                - receipt.modified_target_decoy_overlap_peptides
+            )
         ),
     }
 

@@ -187,7 +187,7 @@ def test_receipt_verifier_closes_every_structural_control_boundary() -> None:
         (
             {
                 "modification_rules": ("invalid-rule",),
-                "version": "search-space-receipt-2-modifications",
+                "version": "search-space-receipt-3-modification-overlap",
                 "max_variable_modifications": 1,
             },
             "modification rules",
@@ -195,7 +195,7 @@ def test_receipt_verifier_closes_every_structural_control_boundary() -> None:
         (
             {
                 "modification_rules": ("UNIMOD:35",),
-                "version": "search-space-receipt-2-modifications",
+                "version": "search-space-receipt-3-modification-overlap",
                 "max_variable_modifications": 0,
             },
             "modification controls",
@@ -205,6 +205,29 @@ def test_receipt_verifier_closes_every_structural_control_boundary() -> None:
     for changes, message in cases:
         with pytest.raises((TypeError, ValueError), match=message):
             verify_search_space_receipt(_rehashed(receipt, **changes))
+
+
+def test_modified_receipt_rejects_self_rehashed_collision_and_unique_count_tampering() -> None:
+    entries = (FastaEntry("P1", "MSTPEPTIDER"), FastaEntry("DECOY_P1", "MSTPEPTIDER"))
+    receipt = build_search_space_receipt(
+        b">P1\nMSTPEPTIDER\n>DECOY_P1\nMSTPEPTIDER\n",
+        entries,
+        min_peptide_length=7,
+        max_peptide_length=20,
+        modification_rules=("UNIMOD:35",),
+        max_variable_modifications=1,
+    )
+    with pytest.raises(ValueError, match="modified overlap count"):
+        verify_search_space_receipt(
+            _rehashed(
+                receipt,
+                modified_target_decoy_overlap_peptides=receipt.modified_target_peptides + 1,
+            )
+        )
+    with pytest.raises(ValueError, match="modified peptide count"):
+        verify_search_space_receipt(
+            _rehashed(receipt, modified_peptide_count=receipt.modified_peptide_count + 1)
+        )
 
 
 def test_pipeline_result_and_evidence_bind_search_space_receipt() -> None:
