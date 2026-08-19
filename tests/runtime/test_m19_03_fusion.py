@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m19_03 import (
     FusionFindingCode,
     FusionStatus,
     ReliabilityBand,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
@@ -114,6 +115,15 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(M1903ReplayError, match="payload digest"):
+        M1903Engine().replay(tampered)
+
+
+def test_digest_valid_semantic_tamper_is_rejected_by_deterministic_replay() -> None:
+    result = M1903Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M1903ReplayError, match="deterministic replay"):
         M1903Engine().replay(tampered)
 
 

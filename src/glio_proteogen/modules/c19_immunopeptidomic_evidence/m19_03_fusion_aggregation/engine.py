@@ -396,7 +396,11 @@ class M1903Engine:
             raise M1903ReplayError("M19-03 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1903ReplayError("M19-03 result payload digest mismatch")  # noqa: TRY003
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = self.adapt(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1903ReplayError("M19-03 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def fuse_proteotype_evidence(candidate: object) -> ProteotypeIntegratedEvidenceResult:
