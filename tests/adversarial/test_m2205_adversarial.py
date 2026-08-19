@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m22_05 import (
     CoverageStatus,
     CoverageSummary,
+    EquityStatus,
     EvaluationStatus,
     ProteinRnaDiscordanceSubgroupEvaluationResult,
     canonical_request_digest,
@@ -83,6 +84,50 @@ def test_engine_abstains_for_unsupported_performance_coverage() -> None:
     result = M2205Service().evaluate(_request().model_copy(update={"performance": (performance,)}))
     assert result.status is EvaluationStatus.ABSTAINED
     assert result.report is None
+
+
+def test_engine_abstains_for_equity_and_calibration_gate_failures() -> None:
+    request = _request()
+    below_floor = request.performance[0].model_copy(
+        update={"value": 0.5, "equity_status": EquityStatus.BELOW_FLOOR}
+    )
+    equity_result = M2205Service().evaluate(
+        request.model_copy(update={"performance": (below_floor,)})
+    )
+    assert equity_result.status is EvaluationStatus.ABSTAINED
+    assert equity_result.report is None
+    assert equity_result.findings[0].code.value == "safety_floor_breach"
+    assert M2205Service().replay(equity_result).result_digest == equity_result.result_digest
+
+    failed_calibration = request.calibration[0].model_copy(
+        update={"status": EvaluationStatus.ABSTAINED}
+    )
+    calibration_result = M2205Service().evaluate(
+        request.model_copy(update={"calibration": (failed_calibration,)})
+    )
+    assert calibration_result.status is EvaluationStatus.ABSTAINED
+    assert calibration_result.report is None
+    assert calibration_result.findings[0].code.value == "calibration_failure"
+    assert (
+        M2205Service().replay(calibration_result).result_digest
+        == calibration_result.result_digest
+    )
+
+
+def test_failed_gate_findings_remain_bounded_for_large_requests() -> None:
+    request = _request()
+    failed = request.performance[0].model_copy(
+        update={"value": 0.5, "equity_status": EquityStatus.BELOW_FLOOR}
+    )
+    performance = tuple(
+        failed.model_copy(update={"metric_id": f"performance-{index}"})
+        for index in range(65)
+    )
+
+    result = M2205Service().evaluate(request.model_copy(update={"performance": performance}))
+    assert result.status is EvaluationStatus.ABSTAINED
+    assert len(result.findings) == 1
+    assert M2205Service().replay(result).result_digest == result.result_digest
 
 
 def test_result_digest_request_and_status_closures_reject_tampering() -> None:

@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m22_05 import (
     M2205_CONTRACT_VERSION,
     M2205_MODULE_ID,
     CoverageStatus,
+    EquityStatus,
     EvaluateProteinRnaDiscordanceSubgroupEquityRequest,
     EvaluationStatus,
     ProteinRnaDiscordanceSubgroupEvaluationResult,
@@ -104,25 +105,17 @@ class M2205EquityEngine:
             configuration=canonical.configuration,
             evidence=_evidence(canonical),
         )
-        unsupported = _unsupported_reason(canonical)
+        findings = _findings(canonical)
+        unsupported = _abstention_reason(findings)
         if unsupported is None:
             status = EvaluationStatus.EVALUATED
             output_report: SubgroupEvaluationReport | None = report
-            findings: tuple[SubgroupFinding, ...] = ()
             abstention_reason: str | None = None
             support = _support()
             human_review_required = False
         else:
             status = EvaluationStatus.ABSTAINED
             output_report = None
-            findings = (
-                SubgroupFinding(
-                    finding_id="m2205.finding.coverage",
-                    code=SubgroupFindingCode.COVERAGE_LIMITED,
-                    message=unsupported,
-                    evidence=_evidence(canonical),
-                ),
-            )
             abstention_reason = unsupported
             support = SupportDecision(
                 status=SupportStatus.REVIEW_REQUIRED,
@@ -243,17 +236,61 @@ def _state_value(candidate: object) -> object:
     return getattr(actual, "value", actual)
 
 
-def _unsupported_reason(
+def _findings(
     request: EvaluateProteinRnaDiscordanceSubgroupEquityRequest,
-) -> str | None:
+) -> tuple[SubgroupFinding, ...]:
+    findings: list[SubgroupFinding] = []
     if any(
         item.status in {CoverageStatus.UNSUPPORTED, CoverageStatus.NOT_EVALUABLE}
         for item in request.coverage
+    ) or any(
+        item.coverage_status in {CoverageStatus.UNSUPPORTED, CoverageStatus.NOT_EVALUABLE}
+        for item in request.performance
     ):
-        return "one or more subgroup coverage summaries are unsupported or not evaluable"
-    if any(item.coverage_status is CoverageStatus.UNSUPPORTED for item in request.performance):
-        return "one or more subgroup performance records lack supported coverage"
-    return None
+        findings.append(
+            SubgroupFinding(
+                finding_id="m2205.finding.coverage",
+                code=SubgroupFindingCode.COVERAGE_LIMITED,
+                message="one or more subgroup records are unsupported or not evaluable",
+                evidence=_evidence(request),
+            )
+        )
+    equity_failures = tuple(
+        item for item in request.performance if item.equity_status is not EquityStatus.WITHIN_FLOOR
+    )
+    if equity_failures:
+        findings.append(
+            SubgroupFinding(
+                finding_id="m2205.finding.equity",
+                code=SubgroupFindingCode.SAFETY_FLOOR_BREACH,
+                message=(
+                    f"{len(equity_failures)} subgroup performance records do not have "
+                    "within_floor equity status."
+                ),
+                evidence=_evidence(request),
+            )
+        )
+    calibration_failures = tuple(
+        item for item in request.calibration if item.status is not EvaluationStatus.EVALUATED
+    )
+    if calibration_failures:
+        findings.append(
+            SubgroupFinding(
+                finding_id="m2205.finding.calibration",
+                code=SubgroupFindingCode.CALIBRATION_FAILURE,
+                message=(
+                    f"{len(calibration_failures)} calibration summaries are not evaluated."
+                ),
+                evidence=_evidence(request),
+            )
+        )
+    return tuple(findings)
+
+
+def _abstention_reason(findings: tuple[SubgroupFinding, ...]) -> str | None:
+    if not findings:
+        return None
+    return "; ".join(finding.message for finding in findings)
 
 
 def _support() -> SupportDecision:
