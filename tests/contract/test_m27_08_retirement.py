@@ -3,6 +3,8 @@
 # Contract tests intentionally exercise exact numeric/cardinality boundaries.
 # ruff: noqa: PLR2004
 
+from typing import Any, cast
+
 import pytest
 from evals.m27_08.fixture import build_request
 
@@ -21,8 +23,11 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708S
 def test_all_ten_schemas_are_strict_and_identified() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == 10
-    assert all(value["$schema"].endswith("2020-12/schema") for value in schemas.values())
-    assert all(value["x-glio-contract"]["provisionalAbi"] for value in schemas.values())
+    for value in schemas.values():
+        schema = cast("dict[str, Any]", value)
+        assert str(schema["$schema"]).endswith("2020-12/schema")
+        metadata = cast("dict[str, Any]", schema["x-glio-contract"])
+        assert metadata["provisionalAbi"]
 
 
 def test_request_digest_is_order_sensitive_for_controlled_sequences() -> None:
