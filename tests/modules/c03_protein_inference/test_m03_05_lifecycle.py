@@ -376,6 +376,50 @@ def test_policy_shape_cap_abstains_before_evidence_traversal() -> None:
     }
 
 
+def test_dict_subclass_shape_cap_drops_hostile_ledger_before_validation() -> None:
+    request = _request()
+    policy = request.policy.model_copy(
+        update={"max_sources": request.quality_receipt.source_count - 1}
+    )
+    refs = request.context.references
+    approved = refs.approved_configuration.model_copy(
+        update={
+            "evidence": refs.approved_configuration.evidence.model_copy(
+                update={"digest": configuration_digest(policy)}
+            )
+        }
+    )
+    context = request.context.model_copy(
+        update={"references": refs.model_copy(update={"approved_configuration": approved})}
+    )
+
+    class HostileDict(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise AssertionError
+
+        def copy(self) -> dict[str, object]:
+            raise AssertionError
+
+        def __iter__(self) -> Iterator[str]:
+            raise AssertionError
+
+        def __getitem__(self, key: str) -> object:
+            raise AssertionError(key)
+
+    payload = request.model_dump(mode="python")
+    payload["context"] = context.model_dump(mode="python")
+    payload["policy"] = policy.model_dump(mode="python")
+    payload["evidence_ledger"] = HostileDict()
+    candidate = HostileDict(payload)
+
+    result = detect_protein_inference_artifacts(candidate)
+
+    assert result.disposition is ProteinInferenceArtifactDisposition.ABSTAINED
+    assert result.signal_scores == ()
+    assert result.findings[0].code is ProteinInferenceArtifactFindingCode.UPSTREAM_SHAPE_UNSUPPORTED
+
+
 class _HostileLedger(Mapping[str, object]):
     def __init__(self) -> None:
         self.traversals = 0

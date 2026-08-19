@@ -98,6 +98,9 @@ def preflight_protein_inference_artifact_authorization(candidate: object) -> Non
 
 def _member(candidate: object, field: str) -> object:
     if isinstance(candidate, Mapping):
+        candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+        if dict in candidate_mro:
+            return dict.get(cast("dict[object, object]", candidate), field)
         return candidate.get(field)
     return getattr(candidate, field, None)
 
@@ -109,11 +112,13 @@ def _state(candidate: object) -> object:
 def prepare_artifact_request_candidate(candidate: object) -> object:
     """Drop an untrusted ledger when shallow metadata already proves safe failure."""
 
-    if type(candidate) is not dict:
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if dict not in candidate_mro:
         return candidate
+    mapping = cast("dict[object, object]", candidate)
     try:
-        receipt = candidate.get("quality_receipt")
-        policy = candidate.get("policy")
+        receipt = dict.get(mapping, "quality_receipt")
+        policy = dict.get(mapping, "policy")
         disposition = _state(_member(receipt, "quality_disposition"))
         source_count = _member(receipt, "source_count")
         claim_count = _member(receipt, "claim_count")
@@ -132,7 +137,10 @@ def prepare_artifact_request_candidate(candidate: object) -> object:
     )
     if not known_upstream_failure and not qualified_shape_excess:
         return candidate
-    sanitized = candidate.copy()
+    sanitized = {
+        key: dict.__getitem__(mapping, key)
+        for key in dict.keys(mapping)
+    }
     sanitized["evidence_ledger"] = None
     return sanitized
 
