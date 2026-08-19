@@ -312,6 +312,7 @@ def quantify_matched_ions_with_receipt(
         totals.setdefault(peptide, 0.0)
     declared_universe = set(universe) if peptide_universe is not None else None
     normalized_observations: list[tuple[str, float]] = []
+    observed_peptides: set[str] = set()
     for item in observed:
         if not isinstance(item, tuple) or len(item) != 2:
             raise ValueError("observations must contain (peptide, intensity) tuples")
@@ -323,6 +324,7 @@ def quantify_matched_ions_with_receipt(
         if not isfinite(intensity) or intensity < 0:
             raise ValueError("matched-ion intensity must be finite and non-negative")
         normalized_observations.append((peptide, float(intensity)))
+        observed_peptides.add(peptide)
         totals[peptide] += intensity
     values = tuple(
         PeptideQuant(
@@ -331,7 +333,9 @@ def quantify_matched_ions_with_receipt(
             intensity,
             missing=(intensity <= selected_policy.limit_of_quantification),
             status=(
-                "zero_signal"
+                "not_detected"
+                if peptide not in observed_peptides
+                else "zero_signal"
                 if intensity <= 0
                 else "below_loq"
                 if intensity <= selected_policy.limit_of_quantification

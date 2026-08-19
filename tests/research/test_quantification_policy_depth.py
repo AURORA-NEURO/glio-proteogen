@@ -124,7 +124,7 @@ def test_declared_peptide_universe_preserves_not_detected_states() -> None:
     assert quantified.values[0].missing is False
     assert quantified.values[0].intensity == 12.0
     assert quantified.values[1].missing is True
-    assert quantified.values[1].status == "zero_signal"
+    assert quantified.values[1].status == "not_detected"
     assert quantified.values[1].intensity == 0.0
     assert quantified.receipt.unique_peptides == 2
     assert quantified.receipt.observed_peptides == 1
