@@ -1479,6 +1479,8 @@ class ProteinInferenceArtifactDetectionResult(NonInferenceResultModel):
             raise ValueError("M03-05 human-review flag contradicts disposition")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("M03-05 result digest does not match its payload")
+        if len(canonical_json_bytes(self)) > M0305_MAX_CANONICAL_RESULT_BYTES:
+            raise ValueError("M03-05 result exceeds its canonical byte limit")
         return self
 
 
