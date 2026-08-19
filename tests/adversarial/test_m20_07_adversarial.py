@@ -124,6 +124,14 @@ def test_plugin_rejects_malformed_json_and_unsealed_tokens() -> None:
     assert plugin.run(plugin.validate(_request())).status is ExportStatus.EXPORTED
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2007Plugin()
+    token = plugin.validate(_request())
+    object.__setattr__(token.request, "request_id", "m2007.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_tampered_contract_and_payload_never_replay() -> None:
     engine = M2007Engine()
     result = engine.export(_request())
