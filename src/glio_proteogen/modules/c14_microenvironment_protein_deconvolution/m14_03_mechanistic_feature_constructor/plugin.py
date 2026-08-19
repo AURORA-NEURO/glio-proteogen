@@ -64,9 +64,16 @@ class M1403Plugin(
     def validate(self, request: object) -> ValidatedM1403Request:
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
-            strict_json_loads(serialized, max_bytes=M1403_MAX_CANONICAL_REQUEST_BYTES)
+            parsed = strict_json_loads(
+                serialized,
+                max_bytes=M1403_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            # Check caller controls on the bounded decoded document before
+            # traversing or issuing a token for any nested configuration.
+            preflight_m1403_authorization(parsed)
             typed = ConstructProteinSubtypeMechanisticFeaturesRequest.model_validate_json(
-                serialized
+                serialized,
+                strict=True,
             )
         else:
             preflight_m1403_authorization(request)

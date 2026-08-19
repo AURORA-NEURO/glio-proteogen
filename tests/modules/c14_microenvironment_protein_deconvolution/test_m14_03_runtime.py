@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
+from json import dumps
 from typing import Any
 
 import pytest
@@ -181,6 +182,17 @@ def test_plugin_requires_validated_token_and_supports_strict_json() -> None:
     assert plugin.run(token).status is MechanisticConstructionStatus.CONSTRUCTED
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_plugin_json_preflights_authorization_before_nested_contract_validation() -> None:
+    plugin = m1403.M1403Plugin(m1403.M1403Service())
+    payload = _request(quality=UpstreamDecisionState.REJECTED).model_dump(mode="json")
+    configuration = payload["configuration"]
+    assert isinstance(configuration, dict)
+    configuration["unexpected"] = True
+
+    with pytest.raises(m1403.M1403AuthorizationError):
+        plugin.validate(dumps(payload))
 
 
 def test_unknown_fields_and_wrong_upstream_media_type_reject() -> None:
