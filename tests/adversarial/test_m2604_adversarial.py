@@ -376,6 +376,22 @@ def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
     request = _request()
     token = plugin.validate(GatewaySubmission(request))
     object.__setattr__(token, "request", request.model_copy(deep=True))
+
+    with pytest.raises(M2604TokenError):
+        plugin.run(token)
+
+
+def test_plugin_rejects_nested_request_mutation_after_validation() -> None:
+    plugin = M2604Plugin()
+    token = plugin.validate(GatewaySubmission(_request()))
+    changed_operation = token.request.operations[0].model_copy(
+        update={"name": "forged gateway operation"}
+    )
+    object.__setattr__(
+        token.request,
+        "operations",
+        (changed_operation, *token.request.operations[1:]),
+    )
     with pytest.raises(M2604TokenError):
         plugin.run(token)
 

@@ -20,7 +20,10 @@ from .engine import preflight_m2604_authorization
 from .service import M2604Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(PublishProteinSubtypeAccessSurfaceRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM2604Request, object] = WeakKeyDictionary()
+_TOKENS: WeakKeyDictionary[
+    ValidatedM2604Request,
+    tuple[object, PublishProteinSubtypeAccessSurfaceRequest, bytes],
+] = WeakKeyDictionary()
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +43,24 @@ class ValidatedM2604Request:
         self._request_identity = id(request)
         self._request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
         self._seal = seal
+
+
+def _canonical_request_bytes(request: PublishProteinSubtypeAccessSurfaceRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="json"))
+
+
+def _token_is_issued(token: ValidatedM2604Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class M2604TokenError(TypeError):
@@ -94,16 +115,18 @@ class M2604Plugin:
         else:
             validated = self._service.validate_request(candidate)
         token = ValidatedM2604Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
         return token
 
     def validate_request(self, request: object) -> PublishProteinSubtypeAccessSurfaceRequest:
         return self._service.validate_request(request)
 
     def run(self, token: ValidatedM2604Request) -> ProteinSubtypeAccessSurfaceResult:
-        if not isinstance(token, ValidatedM2604Request) or _TOKENS.get(token) is not self._seal:
-            raise M2604TokenError
-        if token._seal is not self._seal:
+        if (
+            not isinstance(token, ValidatedM2604Request)
+            or token._seal is not self._seal
+            or not _token_is_issued(token, self._seal)
+        ):
             raise M2604TokenError
         if type(token.request) is not PublishProteinSubtypeAccessSurfaceRequest:
             raise M2604TokenError
