@@ -80,6 +80,25 @@ def test_resigned_graph_manifest_tamper_is_rejected() -> None:
         ComplexActivityLineageResult.model_validate(payload, strict=True)
 
 
+@pytest.mark.parametrize(
+    "field", ["activity_id", "actor_id", "generated_at", "input_digests", "configuration_digest"]
+)
+def test_result_contract_rejects_self_rehashed_provenance_forgery(field: str) -> None:
+    result = M2702LineageResolver().resolve(_request())
+    forged_values = {
+        "activity_id": "activity.m2702.forged",
+        "actor_id": "actor.m2702.forged",
+        "generated_at": result.provenance.generated_at.replace(microsecond=1),
+        "input_digests": ("sha256:" + "f" * 64, *result.provenance.input_digests[1:]),
+        "configuration_digest": "sha256:" + "e" * 64,
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="lineage provenance"):
+        ComplexActivityLineageResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_contract_enumerations_and_self_link_are_closed() -> None:
     assert len(tuple(LineageNodeKind)) == _NODE_KIND_COUNT
     assert len(tuple(LineageRelation)) == _RELATION_COUNT

@@ -286,6 +286,43 @@ class ComplexActivityLineageResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityLineageResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_activity_id = f"activity.m2702.{self.request_digest.removeprefix('sha256:')}"
+        provenance_bindings = (
+            (
+                self.provenance.activity_id,
+                expected_activity_id,
+                "lineage provenance activity does not bind the request digest",
+            ),
+            (
+                self.provenance.actor_id,
+                self.request.context.actor_id,
+                "lineage provenance actor does not bind the request context",
+            ),
+            (self.provenance.module_id, M2702_MODULE_ID, "lineage provenance module is not M27-02"),
+            (
+                self.provenance.module_version,
+                M2702_CONTRACT_VERSION,
+                "lineage provenance version is not the contract version",
+            ),
+            (
+                self.provenance.generated_at,
+                self.request.context.occurred_at,
+                "lineage provenance time does not bind the request context",
+            ),
+            (
+                self.provenance.input_digests,
+                tuple(artifact.digest for artifact in self.request.source_artifacts),
+                "lineage provenance inputs do not bind the request",
+            ),
+            (
+                self.provenance.configuration_digest,
+                self.request_digest,
+                "lineage provenance configuration does not bind the request",
+            ),
+        )
+        for actual, expected, message in provenance_bindings:
+            if actual != expected:
+                raise ValueError(message)
         finding_ids = tuple(finding.finding_id for finding in self.findings)
         if len(finding_ids) != len(set(finding_ids)):
             raise ValueError("result finding ids must be unique")
