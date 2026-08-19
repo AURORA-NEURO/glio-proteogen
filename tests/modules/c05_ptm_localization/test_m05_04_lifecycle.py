@@ -112,6 +112,25 @@ def test_json_and_typed_private_admission_boundaries_match(
         m0504_engine._compute_result(cast("Any", object()))
 
 
+def test_json_replay_binds_decoded_candidate_to_serialized_body(
+    m0504_request: ComputePtmLocalizationQualityMetricsRequest,
+) -> None:
+    serialized = canonical_json_bytes(normalized_request(m0504_request))
+    decoded = m0504_request.model_dump(mode="python")
+    alternate = m0504_request.model_copy(
+        update={"supersedes_result_digest": sha256_digest("other")}
+    )
+    alternate_serialized = canonical_json_bytes(normalized_request(alternate))
+
+    with pytest.raises(TypeError, match="serialized request"):
+        m0504_engine._validate_json_request_capability(decoded, alternate_serialized)
+
+    assert (
+        m0504_engine._validate_json_request_capability(decoded, serialized).request
+        == m0504_request
+    )
+
+
 def test_cached_request_is_identity_and_snapshot_bound(
     m0504_request: ComputePtmLocalizationQualityMetricsRequest,
 ) -> None:
