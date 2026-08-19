@@ -32,8 +32,10 @@ one deterministic, auditable path:
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. Collision winners remain
    conservative decoy evidence in the descriptive FDR numerator, so an abstained collision
-   cannot disappear from the error estimate. PSMs are accepted only at the caller-declared
-   q-value threshold.
+   cannot disappear from the error estimate. If the winner table contains no decoy or
+   collision winner, there is no empirical error estimate: target q-values are `null` and
+   peptide/group acceptance abstains. PSMs are accepted only at the caller-declared q-value
+   threshold; an unobserved decoy count is never treated as zero FDR.
 7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in
@@ -160,7 +162,9 @@ group threshold, accepted target groups, descriptive decoy/target ratio, input v
 spectra, duplicate-contender count, a digest of every group contender, and shared-only/ambiguous
 group counts. Accession-derived target/decoy labels are checked against each PSM's declared flags
 before group scoring. Both peptide- and group-level descriptive decoy/target ratios count
-collision evidence conservatively, even though collision records remain non-reportable.
+collision evidence conservatively, even though collision records remain non-reportable. Target-
+only group candidates retain their evidence but have `null` q-values and cannot become accepted
+groups without decoy/collision error evidence.
 Quantification is downstream of both accepted peptide PSMs and accepted target groups;
 a peptide that passes spectrum-level FDR but belongs only to a rejected or abstained
 group cannot create a reported group intensity. The spectrum-level summary records

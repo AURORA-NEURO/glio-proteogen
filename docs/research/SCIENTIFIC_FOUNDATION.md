@@ -43,6 +43,10 @@ C03/C04 computation contract:
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
   target/decoy sequence collisions as conservative abstentions. Collision winners remain
   in the descriptive FDR numerator rather than being silently removed from error evidence.
+  A winner table with no decoy or collision evidence has no empirical error estimate:
+  target q-values are then null and the pipeline/group projection abstains from reporting
+  targets while retaining the candidate and its descriptive receipt. It never treats an
+  unobserved decoy count as a zero FDR estimate.
 - The composed pipeline requires a selected-ion precursor m/z and charge for MS2
   matching and applies a caller-declared integer precursor tolerance bounded to
   0–500 ppm. The tolerance is applied before candidate competition and is bound into

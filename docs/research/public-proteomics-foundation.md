@@ -48,7 +48,8 @@ The receipt records the public-proteomics gate. The additive research pipeline a
 a locked evaluator for target/decoy competition, shared-peptide ambiguity, group-level FDR, and
 replay-bound quantification. Its invariant evaluator rejects accession/decoy flag mismatches,
 checks monotone target q-values and decoy exclusion, treats exact-LOQ signals as missing without
-imputation, and keeps shared-only group signal visible while abstaining from a primary estimate.
+imputation, abstains when no decoy/collision winner supplies empirical error evidence, and keeps
+shared-only group signal visible while abstaining from a primary estimate.
 It does not turn these fixtures into clinical or glioma claims.
 
 ## Promotion gate
