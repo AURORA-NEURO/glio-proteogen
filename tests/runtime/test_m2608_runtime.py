@@ -307,6 +307,14 @@ def test_plugin_token_cannot_cross_plugin_instances() -> None:
         M2608Plugin().run(token)
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2608Plugin()
+    token = plugin.validate(RetirementSubmission(_request()))
+    object.__setattr__(token.request, "request_id", "m2608.tampered")
+    with pytest.raises(M2608TokenError, match="validated"):
+        plugin.run(token)
+
+
 def test_request_rejects_duplicate_source_artifact_ids() -> None:
     request = _request()
     with pytest.raises(ValidationError, match="source artifact identifiers"):
