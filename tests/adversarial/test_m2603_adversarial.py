@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from evals.m26_03.fixture import build_request, denied_request
@@ -25,6 +25,9 @@ from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_
     M2603Service,
     ValidatedM2603Request,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def test_workflow_rejects_duplicate_and_unknown_graph_boundaries() -> None:
@@ -138,6 +141,36 @@ def test_service_validation_fails_closed_for_denied_json_and_mapping() -> None:
         service.validate_request(denied.model_dump(mode="json"))
     with pytest.raises(M2603AuthorizationError):
         service.validate_request(denied.model_dump_json())
+
+
+class _HostileDict(dict[str, object]):
+    def get(self, key: str, default: object = None) -> object:
+        del key, default
+        raise AssertionError
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError
+
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError(key)
+
+
+def test_service_closes_hostile_nested_request_mapping() -> None:
+    request = build_request()
+    payload = request.model_dump(mode="json")
+    payload["workflow"] = _HostileDict(cast("dict[str, object]", payload["workflow"]))
+    candidate = _HostileDict(payload)
+
+    assert M2603Service().validate_request(candidate) == request
+
+
+def test_service_closes_hostile_nested_result_mapping() -> None:
+    service = M2603Service()
+    result = service.execute(build_request())
+    payload = result.model_dump(mode="python")
+    payload["request"] = _HostileDict(cast("dict[str, object]", payload["request"]))
+
+    assert service.verify(payload) == result
 
 
 def test_unknown_request_fields_are_not_traversed_or_echoed() -> None:

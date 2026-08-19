@@ -64,7 +64,7 @@ class M2603Plugin:
             typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         else:
             preflight_m2603_authorization(request)
-            typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+            typed = self._service.validate_request(request)
         request_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         return ValidatedM2603Request(
             request=typed,
