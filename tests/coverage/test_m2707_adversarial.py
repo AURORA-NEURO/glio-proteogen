@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m27_07 import (
     ApprovedChangePackage,
     ChampionChallengerComparison,
     ComparisonStatus,
+    ComplexActivityChangeControlResult,
     MetricComparison,
     PromotionState,
     RevalidationPlan,
@@ -164,6 +165,24 @@ def test_result_replay_rejects_self_rehashed_nested_package_mutation() -> None:
     forged = result.model_copy(update={"approved_change_package": mutated_package})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
     assert service.verify(forged) is False
+
+
+@pytest.mark.parametrize("field", ["activity_id", "actor_id", "generated_at", "input_digests"])
+def test_result_contract_rejects_self_rehashed_provenance_forgery(field: str) -> None:
+    result = M2707Service().execute(build_request())
+    forged_values = {
+        "activity_id": "activity.m2707.forged",
+        "actor_id": "actor.m2707.forged",
+        "generated_at": result.provenance.generated_at.replace(microsecond=1),
+        "input_digests": ("sha256:" + "f" * 64, *result.provenance.input_digests[1:]),
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="change-control provenance"):
+        ComplexActivityChangeControlResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
 
 
 def test_api_rejects_non_object_payload() -> None:

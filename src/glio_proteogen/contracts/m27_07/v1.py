@@ -255,6 +255,26 @@ class ComplexActivityChangeControlResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityChangeControlResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_activity_id = f"activity.m2707.{self.request_digest.removeprefix('sha256:')}"
+        if self.provenance.activity_id != expected_activity_id:
+            raise ValueError("change-control provenance activity does not bind the request digest")
+        if self.provenance.actor_id != self.request.context.actor_id:
+            raise ValueError("change-control provenance actor does not bind the request context")
+        if self.provenance.module_id != M2707_MODULE_ID:
+            raise ValueError("change-control provenance module is not M27-07")
+        if self.provenance.module_version != M2707_CONTRACT_VERSION:
+            raise ValueError("change-control provenance version is not the contract version")
+        if self.provenance.generated_at != self.request.context.occurred_at:
+            raise ValueError("change-control provenance time does not bind the request context")
+        expected_input_digests = (
+            self.request_digest,
+            self.request.upstream_result.digest,
+            self.request.champion_digest,
+            self.request.challenger_digest,
+            *(artifact.digest for artifact in self.request.source_artifacts),
+        )
+        if self.provenance.input_digests != expected_input_digests:
+            raise ValueError("change-control provenance inputs do not bind the request")
         if self.status is ChangeControlStatus.APPROVED:
             if (
                 self.approved_change_package is None
