@@ -88,7 +88,13 @@ from glio_proteogen.adapters.limits import (
     RequestBodyTooLargeError,
     read_bounded,
 )
+from glio_proteogen.adapters.m1901 import m1901_app
+from glio_proteogen.adapters.m1902 import m1902_app
+from glio_proteogen.adapters.m1905 import cli as m1905_app
 from glio_proteogen.adapters.m2001 import m2001_app
+from glio_proteogen.adapters.m2002 import m2002_app
+from glio_proteogen.adapters.m2003 import m2003_app
+from glio_proteogen.adapters.m2004 import m2004_app
 from glio_proteogen.contracts.m01_01.v1 import (
     EvaluateMetadataRequest,
     RegisterProtocolRequest,
@@ -904,6 +910,12 @@ m1701_app = typer.Typer(
 )
 app.add_typer(m1701_app, name="m1701-upstream")
 app.add_typer(m2001_app, name="m2001-upstream")
+app.add_typer(m1901_app, name="m19-01-upstream")
+app.add_typer(m1902_app, name="m19-02-alignment")
+app.add_typer(m1905_app, name="m19-05-presentation")
+app.add_typer(m2002_app, name="m20-02-alignment")
+app.add_typer(m2003_app, name="m20-03-fusion")
+app.add_typer(m2004_app, name="m20-04-intended-use")
 m1704_app = typer.Typer(
     no_args_is_help=True,
     help="M17-04 bounded intended-use policy adaptation.",
