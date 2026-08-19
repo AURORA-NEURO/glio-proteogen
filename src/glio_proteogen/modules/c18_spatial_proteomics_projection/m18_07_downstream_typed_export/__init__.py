@@ -8,7 +8,7 @@ from .engine import (
     export_biomarker_panel_downstream_contract,
     preflight_m1807_authorization,
 )
-from .plugin import M1807Plugin, ValidatedM1807Request
+from .plugin import M1807Plugin, M1807TokenError, ValidatedM1807Request
 from .service import M1807Service
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "M1807Plugin",
     "M1807ReplayError",
     "M1807Service",
+    "M1807TokenError",
     "ValidatedM1807Request",
     "export_biomarker_panel_downstream_contract",
     "preflight_m1807_authorization",

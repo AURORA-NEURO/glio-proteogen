@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -21,22 +21,43 @@ from .service import M1807Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ExportBiomarkerPanelDownstreamContractRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(BiomarkerPanelDownstreamExportResult)
-_SEAL: Final = object()
 
 
-@dataclass(frozen=True, slots=True)
 class ValidatedM1807Request:
-    """Opaque request token issued by the strict parser."""
+    """Opaque token coupling one validated request to one plugin instance."""
 
-    request: ExportBiomarkerPanelDownstreamContractRequest
-    _seal: object
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(
+        self, request: ExportBiomarkerPanelDownstreamContractRequest, _seal: object
+    ) -> None:
+        self.request = request
+        self._seal = _seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1807Request,
+        tuple[object, ExportBiomarkerPanelDownstreamContractRequest, bytes],
+    ]
+] = WeakKeyDictionary()
+
+
+class M1807TokenError(TypeError):
+    """A token was forged, mutated, or issued by another plugin instance."""
+
+    def __init__(self) -> None:
+        super().__init__("M18-07 requires a validated request token")
 
 
 class M1807Plugin:
     """Plugin enforcing validation exactly once before execution."""
 
+    __slots__ = ("_seal", "_service")
+
     def __init__(self, service: M1807Service | None = None) -> None:
         self._service = service or M1807Service(M1807Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -63,12 +84,25 @@ class M1807Plugin:
         else:
             preflight_m1807_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM1807Request(request=typed, _seal=_SEAL)
+        token = ValidatedM1807Request(typed, self._seal)
+        _TOKENS[token] = (self._seal, typed, canonical_json_bytes(typed))
+        return token
 
     def run(self, request: ValidatedM1807Request) -> BiomarkerPanelDownstreamExportResult:
-        if not isinstance(request, ValidatedM1807Request) or request._seal is not _SEAL:
-            raise TypeError
-        return self._service._execute_validated(request.request)
+        if not isinstance(request, ValidatedM1807Request):
+            raise M1807TokenError
+        snapshot = _TOKENS.get(request)
+        if snapshot is None or snapshot[0] is not self._seal or request._seal is not self._seal:
+            raise M1807TokenError
+        if snapshot[1] is not request.request:
+            raise M1807TokenError
+        try:
+            current_bytes = canonical_json_bytes(request.request)
+        except (TypeError, ValueError) as error:
+            raise M1807TokenError from error
+        if current_bytes != snapshot[2]:
+            raise M1807TokenError
+        return self._service._execute_validated(snapshot[1])
 
     def verify(
         self,
@@ -80,4 +114,4 @@ class M1807Plugin:
         return self._service.verify(result, replay=replay)
 
 
-__all__ = ["M1807Plugin", "ValidatedM1807Request"]
+__all__ = ["M1807Plugin", "M1807TokenError", "ValidatedM1807Request"]

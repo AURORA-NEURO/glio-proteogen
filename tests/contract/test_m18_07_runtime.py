@@ -25,6 +25,7 @@ from glio_proteogen.modules.c18_spatial_proteomics_projection.m18_07_downstream_
     M1807Plugin,
     M1807ReplayError,
     M1807Service,
+    M1807TokenError,
     ValidatedM1807Request,
 )
 
@@ -298,7 +299,34 @@ def test_plugin_parse_once_seals_request_and_accepts_json() -> None:
     assert plugin.run(json_token).status is ExportStatus.EXPORTED
     assert plugin.verify(plugin.run(token)).status is ExportStatus.EXPORTED
     forged = ValidatedM1807Request(request=token.request, _seal=object())
-    with pytest.raises(TypeError):
+    with pytest.raises(M1807TokenError):
         plugin.run(forged)
     with pytest.raises(StrictJsonError, match="duplicate"):
         plugin.validate('{"request_id":"a","request_id":"b"}')
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_nested_request() -> None:
+    plugin = M1807Plugin(M1807Service())
+    other_plugin = M1807Plugin(M1807Service())
+    token = plugin.validate(_request())
+
+    with pytest.raises(M1807TokenError):
+        other_plugin.run(token)
+
+    forged = ValidatedM1807Request(token.request, token._seal)
+    with pytest.raises(M1807TokenError):
+        plugin.run(forged)
+
+    mutated_request = token.request.model_copy(
+        update={
+            "fields": (
+                token.request.fields[0].model_copy(
+                    update={"documentation": "nested post-validation mutation"}
+                ),
+                *token.request.fields[1:],
+            )
+        }
+    )
+    object.__setattr__(token, "request", mutated_request)
+    with pytest.raises(M1807TokenError):
+        plugin.run(token)
