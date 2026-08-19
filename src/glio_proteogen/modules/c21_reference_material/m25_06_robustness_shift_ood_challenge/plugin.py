@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -47,11 +48,22 @@ class ChallengeSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
 class ValidatedM2506Request:
-    """Opaque capability proving strict M25-06 request validation."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
-    request: ChallengeProteotypeRobustnessRequest
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(self, request: ChallengeProteotypeRobustnessRequest, seal: object) -> None:
+        self.request = request
+        self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2506Request,
+        tuple[object, ChallengeProteotypeRobustnessRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -67,10 +79,11 @@ class _InvalidSubmissionError(TypeError):
 class M2506Plugin(ModulePlugin[object, ValidatedM2506Request, ProteotypeRobustnessChallengeResult]):
     """Expose validate-then-run without an authority or parse bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2506Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -86,7 +99,10 @@ class M2506Plugin(ModulePlugin[object, ValidatedM2506Request, ProteotypeRobustne
         elif isinstance(candidate, Mapping):
             preflight_m2506_authorization(candidate)
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
-        return ValidatedM2506Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2506Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        return token
 
     def run(
         self,
@@ -94,7 +110,16 @@ class M2506Plugin(ModulePlugin[object, ValidatedM2506Request, ProteotypeRobustne
     ) -> ProteotypeRobustnessChallengeResult:
         if not isinstance(request, ValidatedM2506Request):
             raise _InvalidExecutionTokenError
-        return self._service.execute(request.request)
+        snapshot = _TOKENS.get(request)
+        if (
+            snapshot is None
+            or snapshot[0] is not self._seal
+            or request._seal is not self._seal
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_json_bytes(request.request)
+        ):
+            raise _InvalidExecutionTokenError
+        return self._service.execute(snapshot[1])
 
     def replay(
         self,

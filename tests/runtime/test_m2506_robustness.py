@@ -38,6 +38,7 @@ from glio_proteogen.modules.c21_reference_material.m25_06_robustness_shift_ood_c
     M2506ReplayError,
     M2506RobustnessEngine,
     M2506Service,
+    ValidatedM2506Request,
 )
 
 _DIGEST = "sha256:" + "a" * 64
@@ -234,6 +235,30 @@ def test_plugin_requires_submission_and_validated_token() -> None:
     json_token = plugin.validate(ChallengeSubmission(request=request().model_dump_json()))
     assert plugin.run(json_token).result_digest == result.result_digest
     assert plugin.replay(result).result_digest == result.result_digest
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = M2506Plugin(M2506Service())
+    second = M2506Plugin(M2506Service())
+    token = first.validate(ChallengeSubmission(request=request()))
+
+    assert first.run(token).status is RobustnessStatus.EVALUATED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = ValidatedM2506Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(ChallengeSubmission(request=request()))
+    object.__setattr__(mutated.request, "request_id", "request.m2506.forged")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(ChallengeSubmission(request=request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
 
 
 def test_service_accepts_canonical_json_request() -> None:
