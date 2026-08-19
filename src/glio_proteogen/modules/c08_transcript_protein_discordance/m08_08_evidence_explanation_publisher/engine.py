@@ -440,7 +440,15 @@ class M0808EvidenceExplanationPublisher:
             )
         expected = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected
-        deterministic_verified = typed.result_digest == result_payload_digest(typed)
+        digest_verified = typed.result_digest == result_payload_digest(typed)
+        try:
+            replayed = self.publish(typed.request)
+        except Exception:  # noqa: BLE001 - verification fails closed on replay errors.
+            deterministic_verified = False
+        else:
+            deterministic_verified = digest_verified and (
+                replayed.result.model_dump(mode="json") == typed.model_dump(mode="json")
+            )
         verified = content_verified and deterministic_verified
         return PublishTranscriptProteinEvidenceVerification(
             content_verified=content_verified,
