@@ -46,6 +46,7 @@ from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import (
     preflight_protein_inference_harmonization_authorization,
     service,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization import engine as m0306_engine
 from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization.engine import (
     prepare_harmonization_request_candidate,
 )
@@ -276,6 +277,64 @@ def test_candidate_preparation_is_shallow_and_fail_closed(
     prepared_oversized = prepare_harmonization_request_candidate(oversized)
     assert isinstance(prepared_oversized, dict)
     assert prepared_oversized["support_ledger"] is None
+
+
+def test_direct_python_ingress_bounds_nested_request_graph_before_validation(
+    canonical_request: HarmonizeProteinInferenceSupportRequest,
+) -> None:
+    payload = canonical_request.model_dump(mode="python")
+    nested: object = "leaf"
+    for _ in range(m0306_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+    payload["unexpected"] = nested
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0306Service.validate_request(payload)
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        harmonize_protein_inference_support(payload)
+
+
+def test_direct_python_ingress_ignores_hostile_dict_accessors_and_caps_sequences(
+    canonical_request: HarmonizeProteinInferenceSupportRequest,
+) -> None:
+    class HostileList(list[object]):
+        def __iter__(self) -> Iterator[object]:
+            raise AssertionError
+
+        def __getitem__(self, key: int) -> object:
+            raise AssertionError(key)
+
+    class HostileDict(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise AssertionError
+
+        def __iter__(self) -> Iterator[str]:
+            raise AssertionError
+
+        def __getitem__(self, key: str) -> object:
+            raise AssertionError(key)
+
+    payload = canonical_request.model_dump(mode="python")
+    payload["unexpected"] = HostileList([None] * (m0306_engine._MAX_PLAIN_SEQUENCE_ITEMS + 1))
+    candidate = HostileDict(payload)
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0306Service.validate_request(candidate)
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        harmonize_protein_inference_support(candidate)
+
+
+def test_direct_python_ingress_enforces_aggregate_string_budget(
+    canonical_request: HarmonizeProteinInferenceSupportRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(m0306_engine, "_MAX_PLAIN_BYTES", 32)
+    payload = canonical_request.model_dump(mode="python")
+    payload["unexpected"] = "x" * 31
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0306Service.validate_request(payload)
 
 
 def test_plugin_strictly_rejects_unknown_json_members(

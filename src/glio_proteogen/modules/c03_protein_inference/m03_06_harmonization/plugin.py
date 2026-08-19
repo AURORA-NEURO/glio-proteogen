@@ -16,6 +16,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization.engine import (
+    _plain_value,
     preflight_protein_inference_harmonization_authorization,
     prepare_harmonization_request_candidate,
 )
@@ -74,7 +75,9 @@ class M0306Plugin(ModulePlugin[object, ValidatedM0306Request, ProteinInferenceHa
             )
             preflight_protein_inference_harmonization_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(prepare_harmonization_request_candidate(decoded)),
+                canonical_json_bytes(
+                    prepare_harmonization_request_candidate(_plain_value(decoded))
+                ),
                 strict=True,
             )
         return ValidatedM0306Request(request=self._service.validate_request(candidate))

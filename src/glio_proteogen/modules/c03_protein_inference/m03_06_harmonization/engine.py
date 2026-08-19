@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Any, Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m03_05 import ProteinInferenceArtifactDisposition
 from glio_proteogen.contracts.m03_06 import (
     M0306_CONTRACT_VERSION,
+    M0306_MAX_CANONICAL_REQUEST_BYTES,
+    M0306_MAX_OBSERVATIONS,
     M0306_ZERO_DIGEST,
     HarmonizeProteinInferenceSupportRequest,
     ProteinInferenceArtifactEvaluationState,
@@ -37,6 +40,11 @@ from glio_proteogen.modules.c03_protein_inference.m03_06_harmonization.kernel im
 
 _REQUEST_ADAPTER: Final = TypeAdapter(HarmonizeProteinInferenceSupportRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceHarmonizationResult)
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = M0306_MAX_OBSERVATIONS
+_MAX_PLAIN_NODES: Final = 250_000
+_MAX_PLAIN_BYTES: Final = M0306_MAX_CANONICAL_REQUEST_BYTES
 
 
 class ProteinInferenceHarmonizationAuthorizationError(ValueError):
@@ -46,6 +54,11 @@ class ProteinInferenceHarmonizationAuthorizationError(ValueError):
         super().__init__(
             "upstream controls do not authorize protein-inference support harmonization"
         )
+
+
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M03-06 strict request values require bounded built-in containers")
 
 
 class M0306ProteinInferenceHarmonizationEngine:
@@ -64,7 +77,7 @@ class M0306ProteinInferenceHarmonizationEngine:
 
         preflight_protein_inference_harmonization_authorization(request)
         candidate = prepare_harmonization_request_candidate(request)
-        validated = _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+        validated = _REQUEST_ADAPTER.validate_python(_plain_value(candidate), strict=True)
         validated = _REQUEST_ADAPTER.validate_json(
             canonical_json_bytes(normalized_request(validated)),
             strict=True,
@@ -127,6 +140,82 @@ def _member(candidate: object, field: str) -> object:
     if isinstance(candidate, dict):
         return dict.get(candidate, field)
     return getattr(candidate, field, None)
+
+
+def _charge_plain_bytes(budget: list[int], value: str) -> None:
+    """Bound caller-controlled strings before strict request replay."""
+
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+
+
+def _plain_value(  # noqa: C901, PLR0912 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+    _byte_budget: list[int] | None = None,
+) -> object:
+    """Materialize only bounded built-in containers for direct Python ingress."""
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    byte_budget = [_MAX_PLAIN_BYTES] if _byte_budget is None else _byte_budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if BaseModel in candidate_mro:
+        return candidate
+    if dict in candidate_mro:
+        mapping = cast("dict[object, object]", candidate)
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise _InvalidPlainValueError
+        result: dict[str, object] = {}
+        for key in dict.keys(mapping):
+            if type(key) is not str:
+                raise _InvalidPlainValueError
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+        return result
+    if list in candidate_mro:
+        list_values = cast("list[object]", candidate)
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in list.__iter__(list_values)
+        ]
+    if tuple in candidate_mro:
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro or isinstance(candidate, Mapping):
+        raise _InvalidPlainValueError
+    if type(candidate) is str:
+        _charge_plain_bytes(byte_budget, candidate)
+    return candidate
 
 
 def _state(candidate: object) -> object:
