@@ -70,6 +70,25 @@ class _TraversalTrap(Mapping[str, object]):
         self._fail()
 
 
+class _EndlessExtraMapping(Mapping[str, object]):
+    def __init__(self, expected: tuple[str, ...]) -> None:
+        self._expected = expected
+        self.extra_keys_seen = 0
+
+    def __getitem__(self, key: str) -> object:
+        del key
+        raise AssertionError
+
+    def __iter__(self) -> Iterator[str]:
+        yield from self._expected
+        while True:
+            self.extra_keys_seen += 1
+            yield f"unexpected-{self.extra_keys_seen}"
+
+    def __len__(self) -> int:
+        return len(self._expected) + 1
+
+
 class _PrematureTraversalError(AssertionError):
     """A caller-controlled mapping was touched before authorization."""
 
@@ -422,6 +441,34 @@ def test_exact_mapping_sets_are_required(
             DeterministicNonCryptographicVerifier(),
         )
     assert caught.value.code is expected
+
+
+@pytest.mark.parametrize(
+    ("boundary", "expected"),
+    [
+        ("artifacts", ProteinInferenceReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH),
+        ("stages", ProteinInferenceReleaseInputErrorCode.STAGE_MAPPING_MISMATCH),
+    ],
+)
+def test_mapping_key_validation_stops_after_one_extra_key(
+    scenario: Scenario,
+    boundary: str,
+    expected: ProteinInferenceReleaseInputErrorCode,
+) -> None:
+    artifacts: Mapping[str, object] = scenario.artifacts
+    stages: Mapping[str, object] = scenario.stages
+    if boundary == "artifacts":
+        artifacts = _EndlessExtraMapping(tuple(scenario.artifacts))
+    else:
+        stages = _EndlessExtraMapping(tuple(scenario.stages))
+
+    with pytest.raises(ProteinInferenceReleaseInputError) as caught:
+        build_protein_inference_release_manifest(scenario.request, artifacts, stages)
+
+    assert caught.value.code is expected
+    mapping = artifacts if boundary == "artifacts" else stages
+    assert isinstance(mapping, _EndlessExtraMapping)
+    assert mapping.extra_keys_seen == 1
 
 
 @pytest.mark.parametrize("content", [bytearray(b"x"), _BytesSubclass(b"x")])

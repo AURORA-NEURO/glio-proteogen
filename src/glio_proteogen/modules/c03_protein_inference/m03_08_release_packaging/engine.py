@@ -377,16 +377,11 @@ def _validate_caller_bytes(
     supplied: Mapping[str, object],
 ) -> dict[str, bytes]:
     expected_paths = {item.path for item in request.artifacts}
-    try:
-        actual_paths = set(supplied.keys())
-    except Exception as error:
-        raise ProteinInferenceReleaseInputError(
-            ProteinInferenceReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH
-        ) from error
-    if actual_paths != expected_paths:
-        raise ProteinInferenceReleaseInputError(
-            ProteinInferenceReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH
-        )
+    _bounded_mapping_keys(
+        supplied,
+        expected_paths,
+        ProteinInferenceReleaseInputErrorCode.ARTIFACT_MAPPING_MISMATCH,
+    )
     result: dict[str, bytes] = {}
     for artifact in sorted(request.artifacts, key=lambda item: item.path):
         try:
@@ -447,16 +442,11 @@ def _validate_stage_results(
     caller_bytes: Mapping[str, bytes],
     supplied: Mapping[str, object],
 ) -> dict[str, StageResult]:
-    try:
-        modules = set(supplied.keys())
-    except Exception as error:
-        raise ProteinInferenceReleaseInputError(
-            ProteinInferenceReleaseInputErrorCode.STAGE_MAPPING_MISMATCH
-        ) from error
-    if modules != set(_STAGE_MODULES):
-        raise ProteinInferenceReleaseInputError(
-            ProteinInferenceReleaseInputErrorCode.STAGE_MAPPING_MISMATCH
-        )
+    _bounded_mapping_keys(
+        supplied,
+        set(_STAGE_MODULES),
+        ProteinInferenceReleaseInputErrorCode.STAGE_MAPPING_MISMATCH,
+    )
     artifact_by_role = {item.role: item for item in request.artifacts}
     results: dict[str, StageResult] = {}
     for module in _STAGE_MODULES:
@@ -489,6 +479,35 @@ def _validate_stage_results(
             )
         results[module] = parsed
     return results
+
+
+def _bounded_mapping_keys(
+    supplied: Mapping[str, object],
+    expected: set[str],
+    error_code: ProteinInferenceReleaseInputErrorCode,
+) -> set[str]:
+    """Prove exact key-set equality without exhausting a caller iterator."""
+
+    actual: set[str] = set()
+    try:
+        iterator = iter(supplied)
+        for _ in range(len(expected) + 1):
+            try:
+                key = next(iterator)
+            except StopIteration:
+                break
+            if type(key) is not str or key in actual:
+                raise ProteinInferenceReleaseInputError(error_code)  # noqa: TRY301
+            actual.add(key)
+            if len(actual) > len(expected):
+                raise ProteinInferenceReleaseInputError(error_code)  # noqa: TRY301
+    except ProteinInferenceReleaseInputError:
+        raise
+    except Exception as error:
+        raise ProteinInferenceReleaseInputError(error_code) from error
+    if actual != expected:
+        raise ProteinInferenceReleaseInputError(error_code)
+    return actual
 
 
 def _stage_adapter(module: StageModule) -> TypeAdapter[object]:
@@ -972,7 +991,7 @@ def _control_records(context: ExecutionContext) -> tuple[ControlDecisionRecord, 
     )
 
 
-def _provenance(  # noqa: PLR0913,PLR0917 - exact release receipt inputs.
+def _provenance(  # noqa: PLR0913 - exact release receipt inputs.
     request: BuildProteinInferenceReleaseRequest,
     manifest: ProteinInferenceReproducibilityManifest,
     request_hash: str,
