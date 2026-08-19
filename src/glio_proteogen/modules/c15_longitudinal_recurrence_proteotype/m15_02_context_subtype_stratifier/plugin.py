@@ -61,9 +61,14 @@ class M1502Plugin(
     def validate(self, request: object) -> ValidatedM1502Request:
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
-            strict_json_loads(serialized, max_bytes=M1502_MAX_CANONICAL_REQUEST_BYTES)
+            parsed = strict_json_loads(
+                serialized,
+                max_bytes=M1502_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            # Apply caller-control authorization before traversing nested
+            # attributes or exposing contract-validation details.
+            preflight_m1502_authorization(parsed)
             typed = StratifyContextAndSubtypeRequest.model_validate_json(serialized, strict=True)
-            preflight_m1502_authorization(typed)
         else:
             preflight_m1502_authorization(request)
             typed = self._service.validate_request(request)

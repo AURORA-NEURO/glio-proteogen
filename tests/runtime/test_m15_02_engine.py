@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from json import dumps
 
 import pytest
 
@@ -223,6 +224,22 @@ def test_plugin_json_and_verify_paths_are_strict() -> None:
     validated = plugin.validate(_request().model_dump_json())
     result = plugin.run(validated)
     assert plugin.verify(result).result_id == result.result_id
+
+
+def test_plugin_json_preflights_authorization_before_nested_contract_validation() -> None:
+    plugin = m1502.M1502Plugin(m1502.M1502Service())
+    payload = _request().model_dump(mode="json")
+    references = payload["context"]["references"]
+    assert isinstance(references, dict)
+    consent = references["consent"]
+    assert isinstance(consent, dict)
+    consent["state"] = "withheld"
+    attributes = payload["attributes"]
+    assert isinstance(attributes, list)
+    attributes[0]["unexpected"] = "mask-authorization"
+
+    with pytest.raises(m1502.M1502AuthorizationError):
+        plugin.validate(dumps(payload))
 
 
 def test_replay_detects_digest_valid_but_semantically_tampered_result() -> None:
