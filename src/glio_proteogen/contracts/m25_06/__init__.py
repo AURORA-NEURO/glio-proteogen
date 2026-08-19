@@ -7,8 +7,15 @@ from glio_proteogen.contracts.m25_06.schema import (
     contract_json_schema,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m25_06.canonical import (
+    canonical_request_digest,
+    result_identifier,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m25_06.v1 import (
     M2506_CONTRACT_VERSION,
+    M2506_DOSSIER_SHA256,
+    M2506_DOSSIER_SLICE,
     M2506_GATE,
     M2506_M2505_INPUT_MEDIA_TYPE,
     M2506_MAX_CANONICAL_REQUEST_BYTES,
@@ -24,6 +31,7 @@ from glio_proteogen.contracts.m25_06.v1 import (
     M2506_OWNER,
     M2506_PARENT,
     M2506_PROVISIONAL_ABI,
+    M2506_REQUIRED_CHALLENGE_KINDS,
     M2506_SAFETY_CLASS,
     ChallengeDisposition,
     ChallengeFinding,
@@ -44,6 +52,8 @@ from glio_proteogen.contracts.m25_06.v1 import (
 __all__ = [
     "CONTRACT_VERSION",
     "M2506_CONTRACT_VERSION",
+    "M2506_DOSSIER_SHA256",
+    "M2506_DOSSIER_SLICE",
     "M2506_GATE",
     "M2506_M2505_INPUT_MEDIA_TYPE",
     "M2506_MAX_CANONICAL_REQUEST_BYTES",
@@ -59,6 +69,7 @@ __all__ = [
     "M2506_OWNER",
     "M2506_PARENT",
     "M2506_PROVISIONAL_ABI",
+    "M2506_REQUIRED_CHALLENGE_KINDS",
     "M2506_SAFETY_CLASS",
     "SCHEMA_ID_PREFIX",
     "ChallengeDisposition",
@@ -76,6 +87,9 @@ __all__ = [
     "RobustnessStatus",
     "RobustnessSurface",
     "SafeFailureReport",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "result_identifier",
+    "result_payload_digest",
 ]
