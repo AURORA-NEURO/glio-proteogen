@@ -202,6 +202,8 @@ def test_engine_denies_hostile_mapping_before_request_validation() -> None:
 
     with pytest.raises(LineageAuthorizationError):
         M2602LineageEngine().build(ExplodingMapping())  # type: ignore[arg-type]
+    with pytest.raises(LineageAuthorizationError):
+        build_lineage_graph(ExplodingMapping())
 
 
 def test_plugin_parse_once_and_raw_tamper_are_closed() -> None:

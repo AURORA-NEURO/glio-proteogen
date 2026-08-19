@@ -74,7 +74,7 @@ def test_fastapi_enforces_contract_request_and_result_byte_caps() -> None:
 def test_fastapi_validation_authorization_and_route_errors() -> None:
     client = TestClient(create_m2602_app())
     invalid = client.post("/m26-02/validate", content=b'{"request_id":"only"}')
-    assert invalid.status_code == _HTTP_UNPROCESSABLE
+    assert invalid.status_code == _HTTP_FORBIDDEN
     denied = _request().model_copy(
         update={
             "context": _request().context.model_copy(
@@ -95,6 +95,12 @@ def test_fastapi_validation_authorization_and_route_errors() -> None:
         content=json.dumps(denied.model_dump(mode="json")).encode(),
     )
     assert denied_response.status_code == _HTTP_FORBIDDEN
+    denied_incomplete = denied.model_dump(mode="json")
+    del denied_incomplete["nodes"]
+    denied_incomplete_response = client.post(
+        "/m26-02/validate", content=json.dumps(denied_incomplete).encode()
+    )
+    assert denied_incomplete_response.status_code == _HTTP_FORBIDDEN
     unknown_schema = client.get("/m26-02/schema/unknown")
     assert unknown_schema.status_code == _HTTP_NOT_FOUND
     invalid_verify = client.post("/m26-02/verify", content=b"not-json")

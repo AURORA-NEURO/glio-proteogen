@@ -18,6 +18,9 @@ from glio_proteogen.contracts.m26_02 import (
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import sanitized_validation_errors, strict_json_loads
+from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.engine import (
+    preflight_lineage_authorization,
+)
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.service import (
     M2602LineageService,
 )
@@ -40,7 +43,8 @@ def _read(path: Path, *, max_bytes: int) -> bytes:
 
 def _validated_request(path: Path) -> BuildProteinSubtypeLineageRequest:
     raw = _read(path, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
-    strict_json_loads(raw)
+    decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+    preflight_lineage_authorization(decoded)
     return _REQUEST_ADAPTER.validate_json(raw, strict=True)
 
 

@@ -24,6 +24,7 @@ from glio_proteogen.kernel.strict_json import (
 )
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.engine import (
     LineageAuthorizationError,
+    preflight_lineage_authorization,
 )
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.service import (
     M2602LineageService,
@@ -41,7 +42,8 @@ def _validated_payload(
     raw: bytes, service: M2602LineageService
 ) -> BuildProteinSubtypeLineageRequest:
     try:
-        strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+        decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+        preflight_lineage_authorization(decoded)
         validated = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         return service.validate_request(validated)
     except StrictJsonError as error:

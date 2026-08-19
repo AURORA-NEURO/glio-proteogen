@@ -151,7 +151,9 @@ class M2602LineageEngine:
 def build_lineage_graph(request: object) -> ProteinSubtypeLineageResult:
     """Public stateless entry point for the M26-02 service."""
 
-    return M2602LineageEngine().build(_REQUEST_ADAPTER.validate_python(request, strict=True))
+    preflight_lineage_authorization(request)
+    validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
+    return M2602LineageEngine().build(validated)
 
 
 def preflight_lineage_authorization(candidate: object) -> None:
