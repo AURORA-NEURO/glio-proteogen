@@ -166,6 +166,14 @@ def test_plugin_rejects_invalid_submission_and_seal_tamper() -> None:
         plugin.run(token)
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2705Plugin()
+    token = plugin.validate(TelemetrySubmission(build_request()))
+    object.__setattr__(token.request, "request_id", "m2705.tampered")
+    with pytest.raises(M2705TokenError, match=r"validated"):
+        plugin.run(token)
+
+
 def test_replay_rejects_digest_and_request_identity_tampering() -> None:
     service = M2705Service()
     result = service.emit(build_request())

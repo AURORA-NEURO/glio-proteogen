@@ -32,10 +32,14 @@ class TelemetrySubmission:
 class ValidatedM2705Request:
     """Opaque capability proving strict M27-05 request validation."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
-    def __init__(self, request: EmitProteomicsTelemetryRequest, seal: object) -> None:
+    def __init__(
+        self, request: EmitProteomicsTelemetryRequest, seal: object, request_bytes: bytes
+    ) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = request_bytes
         self._seal = seal
 
 
@@ -82,14 +86,27 @@ class M2705Plugin:
                 canonical_json_bytes(decoded), strict=True
             )
         validated = self._service.validate_request(candidate)
-        token = ValidatedM2705Request(validated, self._seal)
+        if type(validated) is not EmitProteomicsTelemetryRequest:
+            raise M2705TokenError
+        request_bytes = canonical_json_bytes(validated.model_dump(mode="json"))
+        token = ValidatedM2705Request(validated, self._seal, request_bytes)
         _TOKENS[token] = self._seal
         return token
 
     def run(self, token: ValidatedM2705Request) -> ProteomicsTelemetryResult:
         if not isinstance(token, ValidatedM2705Request) or _TOKENS.get(token) is not self._seal:
             raise M2705TokenError
-        if token._seal is not self._seal:
+        if (
+            token._seal is not self._seal
+            or type(token.request) is not EmitProteomicsTelemetryRequest
+            or id(token.request) != token._request_identity
+        ):
+            raise M2705TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request.model_dump(mode="json"))
+        except Exception as error:
+            raise M2705TokenError from error
+        if current_bytes != token._request_bytes:
             raise M2705TokenError
         return self._service.emit(token.request)
 
