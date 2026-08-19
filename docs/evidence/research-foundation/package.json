@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-    "base_commit": "f611e746",
-    "pipeline_commit": "bd446613",
+    "base_commit": "1f2f56c7",
+    "pipeline_commit": "57e1c81f",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -66,33 +66,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "690c79acb752a0f0adc2e5b7ea20b06ea586b559f85a1d2e02286eef7c21dd71",
+    "fixture_sha256": "3a52137ff5399abd840715ba9cb21d36e675c48ffad335132d588ff7ce284461",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-      "focused_tests": 352,
+      "focused_tests": 356,
     "coverage": {
-      "statements": 3347,
+      "statements": 3362,
       "missed_statements": 104,
-      "branches": 1300,
+      "branches": 1304,
       "partial_branches": 96,
-      "percent": 95.57,
+      "percent": 95.59,
       "fail_under": 95
     },
       "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-        "bytes": 3876987,
+        "bytes": 3877919,
         "members": 1991,
-        "sha256": "61c8854763107ad6c9143ef4678eafb5eabd8c1fad07229570e7a7a17cbc40b3"
+        "sha256": "a7ce4a09d898f4d28d11d7a4a3185fbc48fe892aaaa7f760725edd81a15d0e1f"
       },
       "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 4554849,
+        "bytes": 4556223,
         "members": 4658,
-        "sha256": "6d4caae0498bb9c83575ff66b686fe3521207b800b06589635ad8ca42bd088af"
+        "sha256": "6ca20f3cf2c510510d1e267a7e32b2022761927b2556bfd5a1f2d8b464caa1c1"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-        "wheel": "61c8854763107ad6c9143ef4678eafb5eabd8c1fad07229570e7a7a17cbc40b3",
-        "sdist": "6d4caae0498bb9c83575ff66b686fe3521207b800b06589635ad8ca42bd088af"
+        "wheel": "a7ce4a09d898f4d28d11d7a4a3185fbc48fe892aaaa7f760725edd81a15d0e1f",
+        "sdist": "6ca20f3cf2c510510d1e267a7e32b2022761927b2556bfd5a1f2d8b464caa1c1"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

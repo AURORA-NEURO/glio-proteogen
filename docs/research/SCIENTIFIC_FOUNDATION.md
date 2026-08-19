@@ -33,7 +33,8 @@ C03/C04 computation contract:
 - `parse_modified_peptide` and `expand_peptide_map` provide a bounded residue-local catalogue
   (`UNIMOD:4`, `UNIMOD:21`, and `UNIMOD:35`). Declared modification deltas participate in both
   precursor and fragment masses; unknown, undeclared, terminal, and residue-incompatible forms
-  abstain. Variable-modification rules, site limits, and target/decoy variant counts are bound in
+  abstain. Variable-modification rules, site limits, target/decoy variant counts, modified
+  target/decoy overlap, and unique variant-space size are bound in
   the search-space receipt and run configuration. This is a constrained research surface, not a
   full ProForma implementation or a production PTM/localization claim.
 - `search_spectrum_candidates` retains every compatible candidate for one spectrum and

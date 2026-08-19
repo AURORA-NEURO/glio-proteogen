@@ -13,7 +13,7 @@ from .modifications import expand_peptide, normalize_modification_rules
 
 _DECOY_PREFIX = "DECOY_"
 _BASE_VERSION = "search-space-receipt-1"
-_MODIFICATION_VERSION = "search-space-receipt-2-modifications"
+_MODIFICATION_VERSION = "search-space-receipt-3-modification-overlap"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _PAIR_STATUSES = frozenset({"cleavage_compatible", "cleavage_mismatch"})
 
@@ -74,6 +74,8 @@ class SearchSpaceReceipt:
     max_variable_modifications: int = 0
     modified_target_peptides: int = 0
     modified_decoy_peptides: int = 0
+    modified_target_decoy_overlap_peptides: int = 0
+    modified_peptide_count: int = 0
 
     @property
     def target_entries(self) -> int:
@@ -115,6 +117,10 @@ class SearchSpaceReceipt:
                     "max_variable_modifications": self.max_variable_modifications,
                     "modification_rules": list(self.modification_rules),
                     "modified_decoy_peptides": self.modified_decoy_peptides,
+                    "modified_target_decoy_overlap_peptides": (
+                        self.modified_target_decoy_overlap_peptides
+                    ),
+                    "modified_peptide_count": self.modified_peptide_count,
                     "modified_target_peptides": self.modified_target_peptides,
                 }
             )
@@ -230,6 +236,8 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
     modified_decoy_peptide_set = {
         peptide for accession in decoys for peptide in modified_digests[accession]
     }
+    modified_target_decoy_overlap = len(modified_target_peptide_set & modified_decoy_peptide_set)
+    modified_peptide_count = len(modified_target_peptide_set | modified_decoy_peptide_set)
     pairs: list[DecoyPair] = []
     unmatched_targets = 0
     unmatched_decoys = 0
@@ -296,6 +304,8 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
                 "max_variable_modifications": max_variable_modifications,
                 "modification_rules": list(modification_rules),
                 "modified_decoy_peptides": len(modified_decoy_peptide_set),
+                "modified_target_decoy_overlap_peptides": modified_target_decoy_overlap,
+                "modified_peptide_count": modified_peptide_count,
                 "modified_target_peptides": len(modified_target_peptide_set),
             }
         )
@@ -339,6 +349,10 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
         max_variable_modifications=max_variable_modifications,
         modified_target_peptides=len(modified_target_peptide_set),
         modified_decoy_peptides=len(modified_decoy_peptide_set),
+        modified_target_decoy_overlap_peptides=(
+            modified_target_decoy_overlap if modification_rules else 0
+        ),
+        modified_peptide_count=modified_peptide_count if modification_rules else 0,
     )
 
 
@@ -421,6 +435,11 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
     _validate_nonnegative_int(receipt.cleavage_compatible_pairs, "compatible pair count")
     _validate_nonnegative_int(receipt.modified_target_peptides, "modified target peptide count")
     _validate_nonnegative_int(receipt.modified_decoy_peptides, "modified decoy peptide count")
+    _validate_nonnegative_int(
+        receipt.modified_target_decoy_overlap_peptides,
+        "modified target/decoy overlap count",
+    )
+    _validate_nonnegative_int(receipt.modified_peptide_count, "modified search-space peptide count")
     _validate_nonnegative_int(receipt.declared_decoy_entries, "declared decoy entry count")
     _validate_nonnegative_int(receipt.generated_decoy_entries, "generated decoy entry count")
     _validate_nonnegative_int(receipt.peptide_count, "search-space peptide count")
@@ -456,7 +475,23 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
             or not 1 <= receipt.max_variable_modifications <= 3
         ):
             raise ValueError("search-space modification controls are inconsistent")
-    elif receipt.version != _BASE_VERSION or receipt.max_variable_modifications != 0:
+        if receipt.modified_target_decoy_overlap_peptides > min(
+            receipt.modified_target_peptides,
+            receipt.modified_decoy_peptides,
+        ):
+            raise ValueError("search-space modified overlap count is inconsistent")
+        if receipt.modified_peptide_count != (
+            receipt.modified_target_peptides
+            + receipt.modified_decoy_peptides
+            - receipt.modified_target_decoy_overlap_peptides
+        ):
+            raise ValueError("search-space modified peptide count is inconsistent")
+    elif (
+        receipt.version != _BASE_VERSION
+        or receipt.max_variable_modifications != 0
+        or receipt.modified_target_decoy_overlap_peptides != 0
+        or receipt.modified_peptide_count != 0
+    ):
         raise ValueError("search-space modification controls are inconsistent")
     if receipt.digest and receipt.digest != receipt.search_space_digest:
         raise ValueError("search-space digest alias is invalid")

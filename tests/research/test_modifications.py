@@ -239,6 +239,27 @@ def test_search_space_receipt_binds_modification_rules_and_variant_counts() -> N
     assert receipt.modification_rules == ("UNIMOD:35",)
     assert receipt.modified_target_peptides > receipt.target_peptides
     assert receipt.modified_decoy_peptides > receipt.decoy_peptides
+    assert receipt.modified_target_decoy_overlap_peptides > receipt.target_decoy_overlap_peptides
+    assert receipt.modified_peptide_count == (
+        receipt.modified_target_peptides
+        + receipt.modified_decoy_peptides
+        - receipt.modified_target_decoy_overlap_peptides
+    )
+    assert verify_search_space_receipt(receipt) == receipt
+
+
+def test_search_space_receipt_binds_modified_collision_and_unique_count() -> None:
+    entries = (FastaEntry("P1", "MSTPEPTIDER"), FastaEntry("DECOY_P1", "MSTPEPTIDER"))
+    receipt = build_search_space_receipt(
+        b">P1\nMSTPEPTIDER\n>DECOY_P1\nMSTPEPTIDER\n",
+        entries,
+        min_peptide_length=7,
+        max_peptide_length=20,
+        modification_rules=("UNIMOD:35",),
+        max_variable_modifications=1,
+    )
+    assert receipt.modified_target_decoy_overlap_peptides == receipt.modified_target_peptides
+    assert receipt.modified_peptide_count == receipt.modified_target_peptides
     assert verify_search_space_receipt(receipt) == receipt
 
 
