@@ -103,10 +103,7 @@ class M1903Plugin:
         request: FuseProteotypeEvidenceRequest | ValidatedM1903Request,
     ) -> ProteotypeIntegratedEvidenceResult:
         if type(request) is ValidatedM1903Request:
-            if (
-                request._seal is not self._seal
-                or not _token_is_issued(request, self._seal)
-            ):
+            if request._seal is not self._seal or not _token_is_issued(request, self._seal):
                 raise _InvalidExecutionTokenError
             return self._engine.adapt(request.request)
         return self._engine.adapt(request)
