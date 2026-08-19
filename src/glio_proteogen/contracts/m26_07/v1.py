@@ -178,12 +178,18 @@ class ChangePackage(FrozenModel):
         actual = {item.revalidation_id for item in self.revalidations if item.passed}
         if not required <= actual:
             raise ValueError("change package lacks passing required revalidation")
+        if any(not item.passed for item in self.revalidations):
+            raise ValueError("approved change package cannot contain failed revalidation")
         if any(item.proposal_id != self.proposal.proposal_id for item in self.revalidations):
             raise ValueError("revalidation belongs to a different proposal")
         if any(item.proposal_id != self.proposal.proposal_id for item in self.comparisons):
             raise ValueError("comparison belongs to a different proposal")
         if any(not item.no_regression for item in self.comparisons):
             raise ValueError("critical regression prevents change promotion")
+        if self.version != self.proposal.proposed_version:
+            raise ValueError("change package version must match proposed version")
+        if self.rollback_point.target_version != self.proposal.current_version:
+            raise ValueError("rollback point must target current version")
         if (
             self.rollout_stage in {RolloutStage.CANARY, RolloutStage.STAGED, RolloutStage.FULL}
             and self.approved_by is None
@@ -231,6 +237,8 @@ class ControlProteinSubtypeChangeRequest(FrozenModel):
             raise ValueError("request comparison belongs to a different proposal")
         if any(not item.no_regression for item in self.comparisons):
             raise ValueError("critical regression prevents promotion")
+        if self.rollback_point.target_version != self.proposal.current_version:
+            raise ValueError("rollback point must target current version")
         return self
 
 

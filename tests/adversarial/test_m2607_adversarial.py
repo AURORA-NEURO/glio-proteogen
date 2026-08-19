@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m26_07 import (
     ControlProteinSubtypeChangeRequest,
     ProteinSubtypeChangeControlResult,
     RevalidationRecord,
+    RollbackPoint,
     RolloutStage,
     ShadowComparison,
     canonical_request_digest,
@@ -196,20 +197,33 @@ def test_contract_gate_variants_are_all_rejected() -> None:
         revalidations: tuple[RevalidationRecord, ...] = (passed,),
         comparisons: tuple[ShadowComparison, ...] = request.comparisons,
         rollout_stage: RolloutStage = RolloutStage.SHADOW,
+        version: str = "1.1.0",
+        rollback_point: RollbackPoint = request.rollback_point,
     ) -> ChangePackage:
         return ChangePackage(
             package_id="package.m2607.invalid",
-            version="1.1.0",
+            version=version,
             proposal=request.proposal,
             revalidations=revalidations,
             comparisons=comparisons,
             rollout_stage=rollout_stage,
-            rollback_point=request.rollback_point,
+            rollback_point=rollback_point,
             package_digest="sha256:" + "a" * 64,
         )
 
     with pytest.raises(ValidationError, match="passing required"):
         package(revalidations=(failed,))
+    optional_failed = passed.model_copy(
+        update={"revalidation_id": "revalidation.optional", "passed": False}
+    )
+    with pytest.raises(ValidationError, match="failed revalidation"):
+        package(revalidations=(passed, optional_failed))
+    with pytest.raises(ValidationError, match="proposed version"):
+        package(version="1.2.0")
+    with pytest.raises(ValidationError, match="rollback point"):
+        package(
+            rollback_point=request.rollback_point.model_copy(update={"target_version": "0.9.0"})
+        )
     with pytest.raises(ValidationError, match="different proposal"):
         package(revalidations=(wrong_revalidation,))
     with pytest.raises(ValidationError, match="different proposal"):
@@ -238,6 +252,15 @@ def test_contract_gate_variants_are_all_rejected() -> None:
         ControlProteinSubtypeChangeRequest.model_validate(
             request.model_dump(mode="python")
             | {"comparisons": (regression.model_dump(mode="python"),)}
+        )
+    with pytest.raises(ValidationError, match="rollback point"):
+        ControlProteinSubtypeChangeRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "rollback_point": request.rollback_point.model_copy(
+                    update={"target_version": "0.9.0"}
+                ).model_dump(mode="python")
+            }
         )
 
 
