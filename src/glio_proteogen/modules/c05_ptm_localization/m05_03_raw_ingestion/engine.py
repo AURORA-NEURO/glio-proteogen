@@ -323,13 +323,28 @@ def _validate_json_request(
 ) -> IngestPtmLocalizationRawInputsRequest:
     """Validate a once-decoded external JSON request through the sealed replay path."""
 
-    size = len(serialized.encode("utf-8")) if type(serialized) is str else len(serialized)
+    if type(serialized) is str:
+        serialized_bytes = serialized.encode("utf-8")
+    elif type(serialized) is bytes:
+        serialized_bytes = serialized
+    elif type(serialized) is bytearray:
+        serialized_bytes = bytes(serialized)
+    else:
+        raise _InvalidSerializedRequestError
+    size = len(serialized_bytes)
     if size > _contracts().M0503_MAX_CANONICAL_REQUEST_BYTES:
         raise _InvalidSerializedRequestError
     try:
         contracts = _contracts()
         preflight_ptm_localization_raw_input_authorization(candidate)
         _validate_outer_request_shape(candidate, contracts)
+        # The plugin deliberately decodes once, so do not parse the external body a second
+        # time here.  Still bind the body bytes to that decoded value.  Surrounding JSON
+        # whitespace is allowed for the existing exact-byte-limit boundary, but a different
+        # object, key order, duplicate-normalized body, or unrelated serialized request must
+        # never be silently replaced by the caller-supplied candidate.
+        if serialized_bytes.strip() != canonical_json_bytes(_plain_value(candidate)):
+            raise _InvalidSerializedRequestError
         adapter: TypeAdapter[Any] = TypeAdapter(contracts.IngestPtmLocalizationRawInputsRequest)
         canonical = adapter.validate_json(
             canonical_json_bytes(_plain_value(candidate)), strict=True
