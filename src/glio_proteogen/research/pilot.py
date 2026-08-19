@@ -102,6 +102,16 @@ class PilotLimits:
         if not 0 < self.max_psms <= self.max_spectra:
             raise PilotError("pilot PSM cap is outside the bounded range")
 
+    def as_dict(self) -> dict[str, int]:
+        """Return the resource policy that is bound into a pilot receipt."""
+
+        return {
+            "max_input_bytes": self.max_input_bytes,
+            "max_peptides": self.max_peptides,
+            "max_psms": self.max_psms,
+            "max_spectra": self.max_spectra,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class PilotRequest:
@@ -173,6 +183,7 @@ class PilotResult:
     mzml_digest: str
     policy: PilotPolicy
     parameters: SearchParameters
+    limits: PilotLimits
     limitations: tuple[str, ...]
     result_digest: str
 
@@ -187,22 +198,12 @@ def _result_payload(result: PilotResult) -> dict[str, object]:
         "abstention_reason": result.abstention_reason,
         "fasta_digest": result.fasta_digest,
         "limitations": list(result.limitations),
-        "matched_psms": [
-            {
-                "decoy": psm.decoy,
-                "matched_ions": psm.matched_ions,
-                "peptide": psm.peptide,
-                "protein_accessions": list(psm.protein_accessions),
-                "q_value": psm.q_value,
-                "score": psm.score,
-                "spectrum_id": psm.spectrum_id,
-            }
-            for psm in result.matched_psms
-        ],
+        "matched_psms": [_psm_payload(psm) for psm in result.matched_psms],
         "metadata_digest": result.metadata_digest,
         "ms2_spectra": result.ms2_spectra,
         "mzml_digest": result.mzml_digest,
         "policy": result.policy.as_dict(),
+        "limits": result.limits.as_dict(),
         "parameters": {
             "allowed_modifications": list(result.parameters.allowed_modifications),
             "decoy_prefix": result.parameters.decoy_prefix,
@@ -229,6 +230,29 @@ def _result_payload(result: PilotResult) -> dict[str, object]:
         "study_id": result.study_id,
         "source_manifest_digest": result.source_manifest_digest,
         "evidence_digest": result.evidence_digest,
+    }
+
+
+def _psm_payload(psm: Psm) -> dict[str, object]:
+    """Project every scored PSM field into the replay digest.
+
+    The pilot remains research-only, but omitting measurement/error fields from
+    the receipt would allow a caller to mutate the scientific evidence while
+    retaining the same digest.  Keep this projection in lockstep with ``Psm``.
+    """
+
+    return {
+        "decoy": psm.decoy,
+        "matched_intensity": psm.matched_intensity,
+        "matched_ions": psm.matched_ions,
+        "mean_fragment_error_da": psm.mean_fragment_error_da,
+        "peptide": psm.peptide,
+        "precursor_error_ppm": psm.precursor_error_ppm,
+        "protein_accessions": list(psm.protein_accessions),
+        "q_value": psm.q_value,
+        "score": psm.score,
+        "spectrum_id": psm.spectrum_id,
+        "target_decoy_collision": psm.target_decoy_collision,
     }
 
 
@@ -319,6 +343,7 @@ def _abstained(
             mzml_digest=sha256_digest(request.mzml_bytes),
             policy=request.policy,
             parameters=request.parameters,
+            limits=request.limits,
             limitations=_NO_CLAIMS,
             result_digest="",
         )
@@ -429,6 +454,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             mzml_digest=sha256_digest(request.mzml_bytes),
             policy=request.policy,
             parameters=request.parameters,
+            limits=request.limits,
             limitations=_NO_CLAIMS,
             result_digest="",
         )
