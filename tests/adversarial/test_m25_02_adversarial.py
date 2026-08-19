@@ -22,7 +22,7 @@ from glio_proteogen.contracts.m25_02 import (
     result_identifier,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
 from glio_proteogen.modules.c21_reference_material import (
@@ -128,17 +128,40 @@ def test_result_replay_rejects_recomputed_digest_for_forged_corpus() -> None:
     service = m2402.M2502Service()
     result = service.generate(_request())
     assert result.corpus is not None
+    assert result.manifest is not None
     forged_case = result.corpus.cases[0].model_copy(update={"truth_values": ("forged",) * 3})
+    forged_cases = (forged_case, *result.corpus.cases[1:])
+    forged_manifest = result.manifest.model_copy(
+        update={
+            "reproducibility_digest": sha256_digest(
+                {"cases": forged_cases, "configuration": result.manifest.configuration}
+            )
+        }
+    )
     forged_corpus = result.corpus.model_copy(
-        update={"cases": (forged_case, *result.corpus.cases[1:])}
+        update={"cases": forged_cases, "manifest": forged_manifest}
     )
     payload = result.model_dump(mode="python")
     payload["corpus"] = forged_corpus
+    payload["manifest"] = forged_manifest
     provisional = ProteotypeSyntheticTruthResult.model_construct(**payload)
     payload["result_digest"] = result_payload_digest(provisional)
     forged = ProteotypeSyntheticTruthResult.model_validate(payload, strict=True)
     with pytest.raises(m2402.M2502ReplayError, match="output mismatch"):
         service.verify_replay(forged)
+
+
+def test_contract_rejects_self_rehashed_stale_reproducibility_digest() -> None:
+    result = m2402.M2502Service().generate(_request())
+    assert result.corpus is not None
+    assert result.manifest is not None
+    stale = result.manifest.model_copy(update={"reproducibility_digest": "sha256:" + "f" * 64})
+
+    with pytest.raises(ValidationError, match="reproducibility digest"):
+        SyntheticTruthCorpus.model_validate(
+            result.corpus.model_copy(update={"manifest": stale}).model_dump(mode="python"),
+            strict=True,
+        )
 
 
 def test_contract_rejects_corpus_and_manifest_case_drift() -> None:

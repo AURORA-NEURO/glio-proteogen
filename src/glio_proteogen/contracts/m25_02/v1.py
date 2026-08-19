@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m25_02.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -159,6 +160,11 @@ class SyntheticTruthCorpus(FrozenModel):
             raise ValueError("manifest must enumerate every corpus case")
         if self.manifest.configuration.version != self.version:
             raise ValueError("manifest configuration version must match corpus version")
+        expected_digest = sha256_digest(
+            {"cases": self.cases, "configuration": self.manifest.configuration}
+        )
+        if self.manifest.reproducibility_digest != expected_digest:
+            raise ValueError("manifest reproducibility digest must bind cases and configuration")
         return self
 
 

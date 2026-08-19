@@ -174,7 +174,7 @@ def test_configuration_and_corpus_manifest_closure_are_explicit() -> None:
         version="1.0.0",
         configuration=_configuration(),
         case_ids=(case.case_id,),
-        reproducibility_digest=sha256_digest("manifest"),
+        reproducibility_digest=sha256_digest({"cases": (case,), "configuration": _configuration()}),
         fixture_summary=("normal",),
         evidence=(_evidence("manifest"),),
     )
