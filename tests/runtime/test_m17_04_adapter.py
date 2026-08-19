@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m17_04 import (
     IntendedUseKind,
     IntendedUseRegistration,
     PolicyDecisionStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -242,4 +243,13 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(m1704.M1704ReplayError, match="payload digest"):
+        m1704.M1704Engine().replay(tampered)
+
+
+def test_digest_valid_semantic_tamper_is_rejected_by_deterministic_replay() -> None:
+    result = m1704.M1704Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1704.M1704ReplayError, match="deterministic replay"):
         m1704.M1704Engine().replay(tampered)
