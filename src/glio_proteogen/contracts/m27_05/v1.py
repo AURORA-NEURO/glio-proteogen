@@ -255,6 +255,8 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_bound(self) -> EmitProteomicsTelemetryRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("request id must bind execution context")
         if not self.upstream_result.media_type:
             raise ValueError("request must bind a non-empty upstream media type")
         if len(set(self.requested_metrics)) != len(self.requested_metrics):
@@ -262,6 +264,12 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
         dashboard_ids = tuple(item.dashboard_id for item in self.dashboard_definitions)
         if len(dashboard_ids) != len(set(dashboard_ids)):
             raise ValueError("dashboard ids must be unique")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        source_digests = tuple(item.digest for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)) or len(source_digests) != len(
+            set(source_digests)
+        ):
+            raise ValueError("source artifacts must have unique ids and digests")
         return self
 
 

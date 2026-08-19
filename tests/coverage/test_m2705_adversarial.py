@@ -298,6 +298,36 @@ def test_service_mapping_and_bytes_replay() -> None:
     assert service.replay(result.model_dump_json()) == result
 
 
+def test_request_closes_context_and_source_reference_identity() -> None:
+    request = build_request()
+    context_drift = request.context.model_copy(update={"request_id": "m2705.request.forged"})
+    with pytest.raises(ValueError, match="request id must bind"):
+        EmitProteomicsTelemetryRequest.model_validate(
+            request.model_copy(update={"context": context_drift}).model_dump(mode="python"),
+            strict=True,
+        )
+    duplicate_id = request.source_artifacts[1].model_copy(
+        update={"artifact_id": request.source_artifacts[0].artifact_id}
+    )
+    with pytest.raises(ValueError, match="unique ids and digests"):
+        EmitProteomicsTelemetryRequest.model_validate(
+            request.model_copy(
+                update={"source_artifacts": (request.source_artifacts[0], duplicate_id)}
+            ).model_dump(mode="python"),
+            strict=True,
+        )
+    duplicate_digest = request.source_artifacts[1].model_copy(
+        update={"digest": request.source_artifacts[0].digest}
+    )
+    with pytest.raises(ValueError, match="unique ids and digests"):
+        EmitProteomicsTelemetryRequest.model_validate(
+            request.model_copy(
+                update={"source_artifacts": (request.source_artifacts[0], duplicate_digest)}
+            ).model_dump(mode="python"),
+            strict=True,
+        )
+
+
 def test_contract_rejects_duplicate_dashboard_and_metric_ids() -> None:
     request = build_request()
     with pytest.raises(ValueError, match=r".+"):
