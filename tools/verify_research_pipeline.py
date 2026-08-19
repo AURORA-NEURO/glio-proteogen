@@ -46,13 +46,26 @@ _EXPECTED_COHORT_SCENARIOS = (
     "pdc_manifest_receipt_identity",
 )
 _RESEARCH_MEMBERS = (
-    "glio_proteogen/research/pipeline.py",
-    "glio_proteogen/research/pdc.py",
-    "glio_proteogen/research/public_proteomics/provenance.py",
-    "glio_proteogen/research/search.py",
-    "glio_proteogen/research/protein.py",
+    "glio_proteogen/research/__init__.py",
     "glio_proteogen/research/cohort.py",
     "glio_proteogen/research/cohort_provenance.py",
+    "glio_proteogen/research/evidence.py",
+    "glio_proteogen/research/evidence_aggregation.py",
+    "glio_proteogen/research/fasta.py",
+    "glio_proteogen/research/modifications.py",
+    "glio_proteogen/research/mzml.py",
+    "glio_proteogen/research/pdc.py",
+    "glio_proteogen/research/pilot.py",
+    "glio_proteogen/research/pipeline.py",
+    "glio_proteogen/research/protein.py",
+    "glio_proteogen/research/quantification.py",
+    "glio_proteogen/research/search.py",
+    "glio_proteogen/research/search_space.py",
+    "glio_proteogen/research/public_proteomics/__init__.py",
+    "glio_proteogen/research/public_proteomics/aggregate.py",
+    "glio_proteogen/research/public_proteomics/formats.py",
+    "glio_proteogen/research/public_proteomics/pdc.py",
+    "glio_proteogen/research/public_proteomics/provenance.py",
 )
 _EXPECTED_SOURCE_DATE_EPOCH = 315532800
 

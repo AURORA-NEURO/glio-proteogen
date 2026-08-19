@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import pytest
 from tools.verify_research_pipeline import (
+    _RESEARCH_MEMBERS,
     VerificationError,
     _require_installed_research_runtime,
     _verify_benchmark_record,
@@ -195,16 +196,24 @@ def test_research_benchmark_recomputes_nearest_rank_p95() -> None:
 def test_research_package_verifier_binds_artifact_size_hash_and_members(tmp_path: Path) -> None:
     artifact = tmp_path / "research.whl"
     with ZipFile(artifact, "w") as archive:
-        archive.writestr("glio_proteogen/research/pipeline.py", "")
-        archive.writestr("glio_proteogen/research/search.py", "")
-        archive.writestr("glio_proteogen/research/protein.py", "")
-        archive.writestr("glio_proteogen/research/cohort.py", "")
-        archive.writestr("glio_proteogen/research/cohort_provenance.py", "")
-        archive.writestr("glio_proteogen/research/pdc.py", "")
-        archive.writestr("glio_proteogen/research/public_proteomics/provenance.py", "")
+        for member in _RESEARCH_MEMBERS:
+            archive.writestr(member, "")
     digest = sha256(artifact.read_bytes()).hexdigest()
     receipt = {"filename": artifact.name, "bytes": artifact.stat().st_size, "sha256": digest}
     _verify_package(artifact, receipt)
     artifact.write_bytes(artifact.read_bytes() + b"tamper")
     with pytest.raises(VerificationError, match=r"size|SHA-256"):
+        _verify_package(artifact, receipt)
+
+
+def test_research_package_verifier_rejects_missing_executable_module(tmp_path: Path) -> None:
+    artifact = tmp_path / "research.whl"
+    omitted = "glio_proteogen/research/search_space.py"
+    with ZipFile(artifact, "w") as archive:
+        for member in _RESEARCH_MEMBERS:
+            if member != omitted:
+                archive.writestr(member, "")
+    digest = sha256(artifact.read_bytes()).hexdigest()
+    receipt = {"filename": artifact.name, "bytes": artifact.stat().st_size, "sha256": digest}
+    with pytest.raises(VerificationError, match=r"search_space\.py"):
         _verify_package(artifact, receipt)
