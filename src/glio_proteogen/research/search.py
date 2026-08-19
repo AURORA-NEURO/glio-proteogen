@@ -240,8 +240,22 @@ def _precursor_mz(
     return (neutral_mass + (charge * _PROTON)) / charge
 
 
-def _competition_sort_key(value: Psm) -> tuple[float, bool, str, tuple[str, ...]]:
-    return (value.score, not value.decoy, value.peptide, value.protein_accessions)
+def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+    """Order candidates conservatively when scores are exactly tied.
+
+    Equal target/decoy evidence cannot support a target preference. Collision
+    candidates sort first as explicit abstention evidence, then pure decoys
+    sort ahead of targets. This ordering is shared by candidate receipts and
+    winner selection so replay cannot silently change tie policy.
+    """
+
+    return (
+        value.score,
+        value.target_decoy_collision,
+        value.decoy,
+        value.peptide,
+        value.protein_accessions,
+    )
 
 
 def _candidate_payload(value: Psm) -> dict[str, object]:
@@ -388,17 +402,7 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
         if not isfinite(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         current = winners.get(psm.spectrum_id)
-        if current is None or (
-            psm.score,
-            not psm.decoy,
-            psm.peptide,
-            psm.protein_accessions,
-        ) > (
-            current.score,
-            not current.decoy,
-            current.peptide,
-            current.protein_accessions,
-        ):
+        if current is None or _competition_sort_key(psm) > _competition_sort_key(current):
             winners[psm.spectrum_id] = psm
     ordered = sorted(
         winners.values(), key=lambda value: (-value.score, value.spectrum_id, value.peptide)
@@ -451,7 +455,7 @@ def summarize_target_decoy(
     )
     accepted_q_values = tuple(item.q_value for item in accepted if item.q_value is not None)
     return FdrSummary(
-        method="winner-per-spectrum-target-decoy-collision-abstain-3",
+        method="winner-per-spectrum-target-decoy-collision-abstain-ties-4",
         spectrum_winners=len(scored),
         target_winners=target_winners,
         decoy_winners=decoy_winners,

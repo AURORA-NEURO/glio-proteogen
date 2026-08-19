@@ -198,7 +198,9 @@ def infer_protein_group_candidates(
         candidates,
         key=lambda item: (
             -item.score,
-            {"target": 0, "decoy": 1, "collision": 2}[item.status],
+            # Equal-score decoy/collision evidence must be processed before a
+            # target, otherwise the target receives an artificially low q-value.
+            {"collision": 0, "decoy": 1, "target": 2}[item.status],
             item.accessions,
         ),
     )
@@ -254,7 +256,7 @@ def infer_protein_group_candidates(
         if item.acceptance == "accepted" and item.q_value is not None
     )
     summary = ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         candidates=len(finalized),
         target_candidates=sum(item.status == "target" for item in finalized),
         decoy_candidates=sum(item.status == "decoy" for item in finalized),
@@ -281,12 +283,17 @@ def infer_protein_group_candidates(
 
 
 def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
-    """Order group contenders with target and non-collision evidence first on ties."""
+    """Order group contenders conservatively on exact score ties.
+
+    A collision is unresolved evidence and therefore outranks a pure target;
+    a pure decoy outranks a target at equal score. This prevents group FDR
+    from converting indistinguishable target/decoy evidence into acceptance.
+    """
 
     return (
         value.score,
-        not value.target_decoy_collision,
-        not value.decoy,
+        value.target_decoy_collision,
+        value.decoy,
         value.peptide,
         value.protein_accessions,
     )
