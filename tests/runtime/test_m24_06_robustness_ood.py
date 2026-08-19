@@ -11,11 +11,14 @@ from glio_proteogen.contracts.m24_06 import (
     M2406_M2405_INPUT_MEDIA_TYPE,
     ChallengeBiomarkerPanelRobustnessRequest,
     ChallengeDisposition,
+    ChallengeFindingCode,
     ChallengeKind,
     ChallengeScenario,
     ChallengeSeverity,
+    OODBand,
     RobustnessConfiguration,
     RobustnessStatus,
+    RobustnessSurface,
 )
 from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material import (
@@ -80,6 +83,36 @@ def test_unsupported_challenge_abstains_with_safe_failure() -> None:
     assert result.safe_failure_report is not None
     assert result.safe_failure_report.abstained is True
     assert result.findings
+
+
+def test_ood_threshold_cannot_emit_supported_surface() -> None:
+    typed = request()
+    configuration = typed.configuration.model_copy(update={"ood_threshold": 0.8})
+    result = m2406.M2406Service().evaluate(
+        typed.model_copy(update={"configuration": configuration})
+    )
+
+    assert result.status is RobustnessStatus.ABSTAINED
+    assert result.robustness_surface is None
+    assert any(item.code is ChallengeFindingCode.OOD_STATE for item in result.findings)
+
+
+def test_surface_rejects_ood_band_inconsistent_with_within_disposition() -> None:
+    result = m2406.M2406Service().evaluate(request())
+    assert result.robustness_surface is not None
+    observation = result.robustness_surface.observations[-1].model_copy(
+        update={"ood_band": OODBand.OUT_OF_DOMAIN}
+    )
+    forged = result.robustness_surface.model_copy(
+        update={
+            "observations": (
+                *result.robustness_surface.observations[:-1],
+                observation,
+            )
+        }
+    )
+    with pytest.raises(ValueError, match="supported OOD bands"):
+        RobustnessSurface.model_validate(forged)
 
 
 def test_replay_rejects_self_rehashed_safe_failure_and_denied_control() -> None:

@@ -184,6 +184,23 @@ class RobustnessSurface(FrozenModel):
         allowed = set(scenario_ids)
         if any(item.scenario_id not in allowed for item in self.observations):
             raise ValueError("observation references an unknown scenario")
+        if {item.scenario_id for item in self.observations} != allowed:
+            raise ValueError("robustness surface requires one observation for every scenario")
+        scenario_by_id = {scenario.scenario_id: scenario for scenario in self.scenarios}
+        for observation in self.observations:
+            scenario = scenario_by_id[observation.scenario_id]
+            if observation.disposition is not scenario.expected_disposition:
+                raise ValueError("observation disposition must match scenario expectation")
+            if observation.disposition is ChallengeDisposition.WITHIN_ENVELOPE and (
+                observation.ood_band not in {OODBand.IN_DOMAIN, OODBand.BORDERLINE}
+                or not observation.within_envelope
+            ):
+                raise ValueError("within-envelope observations must remain in supported OOD bands")
+            if observation.disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED and (
+                observation.ood_band not in {OODBand.OUT_OF_DOMAIN, OODBand.NOT_EVALUABLE}
+                or observation.within_envelope
+            ):
+                raise ValueError("unsupported observations must be OOD or not evaluable")
         return self
 
 

@@ -126,6 +126,21 @@ def _findings(
         for kind in sorted(required - present, key=lambda value: value.value)
     )
     for scenario in request.scenarios:
+        if (
+            scenario.expected_disposition is ChallengeDisposition.WITHIN_ENVELOPE
+            and _score(scenario.kind, scenario.severity) > request.configuration.ood_threshold
+        ):
+            findings.append(
+                ChallengeFinding(
+                    finding_id=f"m2406.ood.{scenario.scenario_id}",
+                    code=ChallengeFindingCode.OOD_STATE,
+                    message=(
+                        f"{scenario.kind.value} exceeds the configured OOD threshold and "
+                        "cannot be treated as within the robustness envelope."
+                    ),
+                    evidence=evidence(request.source_artifacts, "OOD threshold evidence."),
+                )
+            )
         if scenario.expected_disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED:
             code = ChallengeFindingCode.UNSUPPORTED_PERTURBATION
             message = f"{scenario.kind.value} is explicitly unsupported and must abstain."
