@@ -254,15 +254,40 @@ class ComplexActivitySecurityAccessResult(FrozenModel):
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.status is SecurityAssessmentStatus.EVALUATED:
+            decision = self.access_decision
+            audit = self.audit_event
+            posture = self.security_posture
             if (
-                self.access_decision is None
-                or self.audit_event is None
-                or self.security_posture is None
+                decision is None
+                or audit is None
+                or posture is None
                 or self.safe_failure_report is not None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires supported security records")
+            bindings = (
+                (
+                    "access decision id",
+                    decision.decision_id,
+                    f"m2706.access.{self.request.request_id}",
+                ),
+                ("access principal", decision.principal, self.request.principal),
+                ("access resource", decision.resource, self.request.resource),
+                ("access action", decision.action, self.request.action),
+                ("access policy version", decision.policy_version, self.request.policy_version),
+                ("audit event id", audit.event_id, f"m2706.audit.{self.request.request_id}"),
+                ("audit timestamp", audit.timestamp, self.request.context.occurred_at),
+                ("audit principal", audit.principal, self.request.principal),
+                ("audit resource", audit.resource, self.request.resource),
+                ("audit action", audit.action, self.request.action),
+                ("audit decision state", audit.decision_state, decision.state),
+                ("audit event type", audit.event_type, "access_decision"),
+                ("posture id", posture.posture_id, f"m2706.posture.{self.request.request_id}"),
+            )
+            for label, actual, expected in bindings:
+                if actual != expected:
+                    raise ValueError(f"evaluated result {label} does not bind the request")
         elif (
             self.access_decision is not None
             or self.audit_event is not None

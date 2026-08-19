@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m27_06 import (
     SecurityPostureRecord,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_06.canonical import result_payload_digest
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
     M2706AuthorizationError,
     M2706Plugin,
@@ -290,6 +291,37 @@ def test_posture_and_result_projection_closures() -> None:
     forged = result.model_copy(update={"access_decision": None})
     with pytest.raises(ValueError, match=r".+"):
         ComplexActivitySecurityAccessResult.model_validate(forged, strict=True)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["decision_principal", "audit_resource", "decision_id", "audit_state", "posture_id"],
+)
+def test_result_contract_rejects_self_rehashed_record_forgery(field: str) -> None:
+    result = M2706Service().emit(build_request())
+    assert result.access_decision is not None
+    assert result.audit_event is not None
+    assert result.security_posture is not None
+    if field == "decision_principal":
+        decision = result.access_decision.model_copy(update={"principal": "principal:forged"})
+        forged = result.model_copy(update={"access_decision": decision})
+    elif field == "audit_resource":
+        audit = result.audit_event.model_copy(update={"resource": "dataset:forged"})
+        forged = result.model_copy(update={"audit_event": audit})
+    elif field == "decision_id":
+        decision = result.access_decision.model_copy(update={"decision_id": "m2706.access.forged"})
+        forged = result.model_copy(update={"access_decision": decision})
+    elif field == "audit_state":
+        audit = result.audit_event.model_copy(update={"decision_state": AccessDecisionState.DENY})
+        forged = result.model_copy(update={"audit_event": audit})
+    else:
+        posture = result.security_posture.model_copy(update={"posture_id": "m2706.posture.forged"})
+        forged = result.model_copy(update={"security_posture": posture})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="evaluated result"):
+        ComplexActivitySecurityAccessResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
 
 
 def test_api_parse_and_validate_error_paths() -> None:
