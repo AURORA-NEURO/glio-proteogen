@@ -18,6 +18,8 @@ from glio_proteogen.contracts.m27_07.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -251,6 +253,55 @@ class ComplexActivityChangeControlResult(FrozenModel):
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: bool = False
 
+    def _provenance_policy_is_closed(self) -> None:
+        references = self.request.context.references
+        expected_controls = tuple(
+            ControlDecisionRecord(
+                role=role,
+                decision_id=reference.decision_id,
+                state=reference.state.value,
+                policy_version=reference.policy_version,
+                evidence_digest=reference.evidence.digest,
+                subject_digest=getattr(reference, "binding_digest", None),
+            )
+            for role, reference in (
+                (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
+                (ControlRole.IDENTITY_LINEAGE, references.identity_lineage),
+                (ControlRole.PROVENANCE, references.provenance),
+                (ControlRole.CONSENT, references.consent),
+                (ControlRole.QUALITY, references.quality),
+                (ControlRole.SUPPORT, references.support),
+                (ControlRole.INTENDED_USE, references.intended_use),
+            )
+        )
+        bindings = (
+            (
+                self.provenance.configuration_digest,
+                references.approved_configuration.evidence.digest,
+                "configuration",
+            ),
+            (
+                self.provenance.consent_decision_id,
+                references.consent.decision_id,
+                "consent decision",
+            ),
+            (self.provenance.consent_state, references.consent.state, "consent state"),
+            (
+                self.provenance.consent_policy_version,
+                references.consent.policy_version,
+                "consent policy version",
+            ),
+            (
+                self.provenance.consent_evidence_digest,
+                references.consent.evidence.digest,
+                "consent evidence",
+            ),
+            (self.provenance.control_decisions, expected_controls, "control decisions"),
+        )
+        for actual, expected, label in bindings:
+            if actual != expected:
+                raise ValueError(f"change-control provenance {label} does not bind the request")
+
     @model_validator(mode="after")
     def result_is_closed(self) -> ComplexActivityChangeControlResult:
         if self.request_digest != canonical_request_digest(self.request):
@@ -275,6 +326,7 @@ class ComplexActivityChangeControlResult(FrozenModel):
         )
         if self.provenance.input_digests != expected_input_digests:
             raise ValueError("change-control provenance inputs do not bind the request")
+        self._provenance_policy_is_closed()
         if self.status is ChangeControlStatus.APPROVED:
             if (
                 self.approved_change_package is None
