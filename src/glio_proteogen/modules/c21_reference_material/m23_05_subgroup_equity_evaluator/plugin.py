@@ -52,9 +52,7 @@ class ValidatedM2305Request:
 
     __slots__ = ("__weakref__", "_seal", "request")
 
-    def __init__(
-        self, request: EvaluateVariantPeptideSubgroupEquityRequest, seal: object
-    ) -> None:
+    def __init__(self, request: EvaluateVariantPeptideSubgroupEquityRequest, seal: object) -> None:
         self.request = request
         self._seal = seal
 

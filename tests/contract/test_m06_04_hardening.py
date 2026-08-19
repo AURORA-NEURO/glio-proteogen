@@ -156,7 +156,7 @@ def _request(
     schema: FormalProteinStateSchema | None = None,
     family: ProbabilisticEstimatorFamily = ProbabilisticEstimatorFamily.MECHANISM_GUIDED,
     optimizer: str = M0604_PROXY_OPTIMIZER,
-):
+) -> dict[str, object]:
     selected_schema = schema or _schema()
     selected_value = value or FormalStateFeatureValue(
         feature_id="protein.abundance",
