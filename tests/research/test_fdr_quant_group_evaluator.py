@@ -62,6 +62,17 @@ def test_group_rejects_nonfinite_score_before_winner_selection() -> None:
         infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
 
 
+def test_group_fdr_rejects_malformed_target_before_decoy_calibration() -> None:
+    malformed_target = Psm("scan=target", "PEPTIDER", ("P1 ",), 5.0, 3, decoy=False)
+    valid_decoy = Psm(
+        "scan=decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True
+    )
+    with pytest.raises(ValueError, match="accessions"):
+        infer_protein_group_candidates(
+            (malformed_target, valid_decoy), q_value_threshold=0.01
+        )
+
+
 @pytest.mark.parametrize(
     ("psm", "message"),
     [

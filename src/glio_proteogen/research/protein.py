@@ -8,6 +8,8 @@ from hashlib import sha256
 from math import isfinite
 from typing import TYPE_CHECKING
 
+from .search import _validate_target_decoy_psm
+
 if TYPE_CHECKING:
     from .search import Psm
 
@@ -338,21 +340,11 @@ def _prepare_group_psms(
 
 
 def _validate_group_psm(psm: Psm, *, decoy_prefix: str) -> None:
-    if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
-        raise ValueError("PSM spectrum_id must be a non-empty string")
-    if not isinstance(psm.protein_accessions, tuple) or not psm.protein_accessions:
-        raise ValueError("PSM must declare at least one protein accession")
-    if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
-        raise ValueError("PSM protein accessions must be non-empty strings")
-    if not isfinite(psm.score) or psm.score < 0:
-        raise ValueError("PSM scores must be finite and non-negative")
-    derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
-    derived_collision = (
-        any(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
-        and not derived_decoy
-    )
-    if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
-        raise ValueError("PSM target/decoy flags do not match protein accessions")
+    # Group FDR is a separate public boundary, so it must not admit a PSM
+    # that peptide FDR would reject. In particular, malformed identifiers or
+    # non-finite measurements could otherwise become an accepted target when a
+    # valid lower-scoring decoy supplies the only error evidence.
+    _validate_target_decoy_psm(psm, decoy_prefix=decoy_prefix)
 
 
 def _validate_decoy_prefix(value: str) -> None:
