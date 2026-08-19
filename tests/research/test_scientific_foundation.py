@@ -283,7 +283,7 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     )
     receipt = quantified.receipt
     assert isinstance(receipt, QuantificationReceipt)
-    assert receipt.version == "matched-ion-median-3"
+    assert receipt.version == "matched-ion-median-4"
     assert receipt.measurement_unit == "median_scaled_matched_ion_intensity"
     assert receipt.normalization_method == "sample_median_scaled"
     assert receipt.missingness_policy == "zero_signal_is_missing_no_imputation"
@@ -302,6 +302,8 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     assert receipt.normalization_target == 30.0
     assert receipt.normalized_total_signal == 60.0
     assert receipt.scale_factor == 1.0
+    assert receipt.max_input_observations == 100_000
+    assert len(receipt.observation_digest) == 64
     assert receipt.raw_peptide_signals == (
         ("MISSING", 0.0, True),
         ("OTHER", 20.0, False),
