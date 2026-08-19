@@ -67,6 +67,18 @@ def test_plugin_rejects_reconstructed_token() -> None:
         raise AssertionError("reconstructed capability must be rejected")
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2708Plugin()
+    token = plugin.validate(RetirementSubmission(build_request()))
+    object.__setattr__(token.request, "request_id", "m2708.tampered")
+    try:
+        plugin.run(token)
+    except ValueError as error:
+        assert "capability" in str(error)
+    else:
+        raise AssertionError("nested request mutation must invalidate the capability")
+
+
 def test_json_execute_is_deterministic() -> None:
     service = M2708Service()
     request = build_request()
