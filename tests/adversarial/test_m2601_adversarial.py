@@ -59,6 +59,14 @@ def test_plugin_rejects_unwrapped_submission_and_forged_token() -> None:
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2601Plugin()
+    token = plugin.validate(RegistrySubmission(_request()))
+    object.__setattr__(token.request, "request_id", "m2601.tampered")
+    with pytest.raises(M2601TokenError, match="validated"):
+        plugin.run(token)
+
+
 def test_service_fails_closed_on_unknown_and_hostile_control_mappings() -> None:
     with pytest.raises(M2601AuthorizationError):
         M2601Service().validate_request({"context": {"references": {}}})

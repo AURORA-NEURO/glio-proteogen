@@ -32,10 +32,14 @@ class RegistrySubmission:
 class ValidatedM2601Request:
     """Opaque capability proving strict M26-01 validation."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
-    def __init__(self, request: RegisterProteinSubtypeRegistryRequest, seal: object) -> None:
+    def __init__(
+        self, request: RegisterProteinSubtypeRegistryRequest, seal: object, request_bytes: bytes
+    ) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = request_bytes
         self._seal = seal
 
 
@@ -84,7 +88,10 @@ class M2601Plugin:
             decoded = strict_json_loads(candidate, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         validated = self._service.validate_request(candidate)
-        token = ValidatedM2601Request(validated, self._seal)
+        if type(validated) is not RegisterProteinSubtypeRegistryRequest:
+            raise M2601TokenError
+        request_bytes = canonical_json_bytes(validated.model_dump(mode="json"))
+        token = ValidatedM2601Request(validated, self._seal, request_bytes)
         _TOKENS[token] = self._seal
         return token
 
@@ -94,7 +101,17 @@ class M2601Plugin:
     def run(self, token: ValidatedM2601Request) -> ProteinSubtypeRegistryResult:
         if not isinstance(token, ValidatedM2601Request) or _TOKENS.get(token) is not self._seal:
             raise M2601TokenError
-        if token._seal is not self._seal:
+        if (
+            token._seal is not self._seal
+            or type(token.request) is not RegisterProteinSubtypeRegistryRequest
+            or id(token.request) != token._request_identity
+        ):
+            raise M2601TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request.model_dump(mode="json"))
+        except Exception as error:
+            raise M2601TokenError from error
+        if current_bytes != token._request_bytes:
             raise M2601TokenError
         return self._service.register(token.request)
 
