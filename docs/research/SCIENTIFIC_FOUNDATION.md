@@ -42,7 +42,9 @@ C03/C04 computation contract:
   over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
   receipt, so a changed lower-scoring contender cannot silently replay as the same result.
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
-  target/decoy sequence collisions as conservative abstentions. Collision winners remain
+  target/decoy sequence collisions as conservative abstentions. Equal-score collision and
+  decoy winners are ordered before targets even across different spectra, so lexical spectrum
+  IDs cannot manufacture a zero q-value. Collision winners remain
   in the descriptive FDR numerator rather than being silently removed from error evidence.
   A winner table with no decoy or collision evidence has no empirical error estimate:
   target q-values are then null and the pipeline/group projection abstains from reporting
