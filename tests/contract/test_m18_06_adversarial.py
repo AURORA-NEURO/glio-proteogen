@@ -11,7 +11,10 @@ from glio_proteogen.contracts.m18_06 import (
     BiomarkerPanelAdjudicationResult,
     QueueResultStatus,
 )
-from glio_proteogen.contracts.m18_06.canonical import canonical_request_digest
+from glio_proteogen.contracts.m18_06.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.modules.c18_spatial_proteomics_projection.m18_06_reviewer_adjudication import (
     M1806AuthorizationError,
     M1806Engine,
@@ -123,6 +126,15 @@ def test_preflight_rejects_missing_controls_and_replay_rejects_request_tamper() 
     result = M1806Engine().adapt(_request())
     tampered = result.model_copy(update={"request_digest": _ZERO_DIGEST})
     with pytest.raises(M1806ReplayError, match="request digest"):
+        M1806Engine().replay(tampered)
+
+
+def test_replay_rejects_semantic_tamper_with_recomputed_digest() -> None:
+    result = M1806Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": False})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M1806ReplayError, match="deterministic replay"):
         M1806Engine().replay(tampered)
 
 

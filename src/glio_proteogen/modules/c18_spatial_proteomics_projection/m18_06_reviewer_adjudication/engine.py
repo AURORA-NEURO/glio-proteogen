@@ -386,6 +386,9 @@ class M1806Engine:
             raise M1806ReplayError("M18-06 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1806ReplayError("M18-06 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adapt(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1806ReplayError("M18-06 deterministic replay mismatch")  # noqa: TRY003
         return result
 
 
