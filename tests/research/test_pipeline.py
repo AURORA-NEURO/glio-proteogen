@@ -631,6 +631,44 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
         )
 
 
+def test_pipeline_rejects_receipt_content_tampering_when_catalog_omits_md5() -> None:
+    """Receipt claims remain content-bound even without a catalog MD5."""
+
+    payload = _mzml()
+    pdc_file = PdcFile(
+        "PDC000204",
+        "catalog-no-md5.mzML",
+        "processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        None,
+        "https://pdc.cancer.gov/files/catalog-no-md5.mzML",
+    )
+    source = SourceReference(
+        "pdc:catalog-no-md5",
+        pdc_file.location,
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "public metadata-bound research fixture",
+    )
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "processed", 1),),
+        (pdc_file,),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "b" * 64,
+    )
+    request = ResearchRunRequest("receipt-md5-binding", payload, b">P1\nMPEPTIDER\n")
+    bound = bind_pdc_mzml_source(request, pdc_file, source, pdc_snapshot=snapshot)
+    assert bound.external_pdc_receipt is not None
+    forged_receipt = replace(bound.external_pdc_receipt, observed_md5="0" * 32)
+    with pytest.raises(ValueError, match="does not match supplied mzML bytes"):
+        replace(bound, external_pdc_receipt=forged_receipt)
+
+
 def test_pipeline_rejects_receipt_field_replacement_and_malformed_response_hash() -> None:
     payload = _mzml()
     pdc_file = PdcFile(

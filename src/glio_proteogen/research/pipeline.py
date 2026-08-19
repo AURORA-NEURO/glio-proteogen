@@ -19,7 +19,7 @@ from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify
 from .fasta import build_search_space, read_fasta
 from .modifications import expand_peptide_map, normalize_modification_rules
 from .mzml import parse_mzml
-from .pdc import PdcFile, PdcSourceReceipt, PdcStudySnapshot
+from .pdc import PdcError, PdcFile, PdcSourceReceipt, PdcStudySnapshot, verify_pdc_source_content
 from .protein import (
     ProteinGroup,
     ProteinGroupCandidate,
@@ -135,6 +135,16 @@ class ResearchRunRequest:
                 self.external_pdc_receipt.response_sha256,
             }:
                 raise ValueError("external response hash does not match its PDC receipt")
+            try:
+                verify_pdc_source_content(
+                    self.external_pdc_receipt,
+                    mzml_bytes,
+                    max_bytes=self.max_bytes,
+                )
+            except PdcError as error:
+                raise ValueError(
+                    "external PDC receipt does not match supplied mzML bytes"
+                ) from error
         if self.external_pdc_response_sha256 is not None and (
             type(self.external_pdc_response_sha256) is not str
             or len(self.external_pdc_response_sha256) != 64
