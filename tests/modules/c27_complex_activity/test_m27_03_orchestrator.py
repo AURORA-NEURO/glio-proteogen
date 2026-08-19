@@ -30,6 +30,7 @@ from glio_proteogen.contracts.m27_03.canonical import (
     execution_id_for_request_digest,
     package_id_for_request_digest,
     result_id_for_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -561,3 +562,34 @@ def test_result_closure_rejects_mismatched_bindings() -> None:
                 }
             )
         )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "activity_id",
+        "actor_id",
+        "input_digests",
+        "configuration_digest",
+        "control_decisions",
+    ],
+)
+def test_result_closure_rejects_self_rehashed_provenance_forgery(field: str) -> None:
+    result = M2703Engine().execute(_request())
+    forged_values: dict[str, object] = {
+        "activity_id": "m2703.activity.forged",
+        "actor_id": "forged-actor",
+        "input_digests": (_digest(999), *result.provenance.input_digests[1:]),
+        "configuration_digest": _digest(998),
+        "control_decisions": (
+            result.provenance.control_decisions[0].model_copy(
+                update={"decision_id": "forged-control"}
+            ),
+            *result.provenance.control_decisions[1:],
+        ),
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="provenance"):
+        ComplexActivityPipelineResult.model_validate(forged.model_dump(mode="python"), strict=True)

@@ -22,8 +22,11 @@ from glio_proteogen.contracts.m27_03.canonical import (
     result_id_for_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -293,6 +296,70 @@ class ComplexActivityPipelineResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityPipelineResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        references = self.request.context.references
+        expected_controls = tuple(
+            ControlDecisionRecord(
+                role=role,
+                decision_id=decision.decision_id,
+                state=decision.state.value,
+                policy_version=decision.policy_version,
+                evidence_digest=decision.evidence.digest,
+                subject_digest=getattr(decision, "binding_digest", None),
+            )
+            for role, decision in (
+                (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
+                (ControlRole.IDENTITY_LINEAGE, references.identity_lineage),
+                (ControlRole.PROVENANCE, references.provenance),
+                (ControlRole.CONSENT, references.consent),
+                (ControlRole.QUALITY, references.quality),
+                (ControlRole.SUPPORT, references.support),
+                (ControlRole.INTENDED_USE, references.intended_use),
+            )
+        )
+        provenance_bindings = (
+            (
+                self.provenance.activity_id,
+                "m2703.activity." + self.request_digest.removeprefix("sha256:"),
+                "activity identity",
+            ),
+            (self.provenance.actor_id, self.request.context.actor_id, "actor identity"),
+            (self.provenance.module_id, M2703_MODULE_ID, "module identity"),
+            (self.provenance.module_version, M2703_CONTRACT_VERSION, "module version"),
+            (self.provenance.generated_at, self.request.context.occurred_at, "generated time"),
+            (
+                self.provenance.input_digests,
+                (
+                    self.request.upstream_result.digest,
+                    *(item.digest for item in self.request.source_artifacts),
+                ),
+                "input digests",
+            ),
+            (
+                self.provenance.configuration_digest,
+                sha256_digest({"workflow": self.request.workflow, "policy": self.request.policy}),
+                "configuration digest",
+            ),
+            (
+                self.provenance.consent_decision_id,
+                references.consent.decision_id,
+                "consent decision",
+            ),
+            (self.provenance.consent_state, references.consent.state, "consent state"),
+            (
+                self.provenance.consent_policy_version,
+                references.consent.policy_version,
+                "consent policy version",
+            ),
+            (
+                self.provenance.consent_evidence_digest,
+                references.consent.evidence.digest,
+                "consent evidence",
+            ),
+            (self.provenance.control_decisions, expected_controls, "control decisions"),
+        )
+        for actual, expected, label in provenance_bindings:
+            if actual != expected:
+                raise ValueError(f"provenance {label} does not bind the request")
         if self.result_id != result_id_for_request_digest(self.request_digest):
             raise ValueError("result id must be derived from the request digest")
         if self.status is PipelineStatus.EXECUTED:
