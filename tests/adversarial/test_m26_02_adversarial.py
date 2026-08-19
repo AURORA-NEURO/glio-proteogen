@@ -84,6 +84,28 @@ def test_duplicate_edge_and_unknown_edge_are_rejected() -> None:
         M2602LineageService().execute(unknown)
 
 
+def test_branching_cycle_is_not_hidden_by_a_second_parent_edge() -> None:
+    request = _request()
+    cycle_edges = (
+        *request.edges,
+        LineageEdge(
+            edge_id="edge-cycle",
+            parent_node_id="node-7",
+            child_node_id="node-3",
+            relation=LineageRelation.DERIVED_FROM,
+        ),
+        LineageEdge(
+            edge_id="edge-acyclic-parent",
+            parent_node_id="node-1",
+            child_node_id="node-3",
+            relation=LineageRelation.DERIVED_FROM,
+        ),
+    )
+    result = M2602LineageService().execute(request.model_copy(update={"edges": cycle_edges}))
+    assert result.status.value == "abstained"
+    assert any(item.code.value == "broken_link" for item in result.findings)
+
+
 def test_duplicate_node_ids_are_rejected_before_engine() -> None:
     request = _request()
     candidate = request.model_copy(update={"nodes": (*request.nodes, request.nodes[0])})
