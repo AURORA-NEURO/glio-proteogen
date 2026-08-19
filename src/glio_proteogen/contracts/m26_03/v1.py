@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m26_03.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -292,6 +293,52 @@ class ReproducibleResultPackage(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2603_MAX_EVIDENCE)
 
 
+def _validate_completed_bindings(
+    request: ExecuteProteinSubtypeWorkflowRequest,
+    record: ExecutionRecord,
+    package: ReproducibleResultPackage,
+) -> None:
+    if record.workflow != request.workflow or record.environment != request.environment:
+        raise ValueError("execution record must bind the request workflow and environment")
+    expected_execution_digest = sha256_digest(
+        {
+            "workflow": record.workflow,
+            "environment": record.environment,
+            "attempts": record.attempts,
+        }
+    )
+    if record.execution_digest != expected_execution_digest:
+        raise ValueError("execution record digest does not match its canonical contents")
+    expected_execution_id = "execution." + expected_execution_digest.removeprefix("sha256:")
+    if record.execution_id != expected_execution_id:
+        raise ValueError("execution record id must bind its canonical digest")
+    if package.execution_id != record.execution_id:
+        raise ValueError("reproducible package must bind its execution record")
+    if package.version != request.workflow.version:
+        raise ValueError("reproducible package version must bind the workflow version")
+    if package.package_id != "package." + record.execution_digest.removeprefix("sha256:"):
+        raise ValueError("reproducible package id must bind its execution digest")
+    if package.manifest_artifacts != request.source_artifacts:
+        raise ValueError("reproducible package manifests must bind request artifacts")
+    if (
+        package.result_artifact.artifact_id
+        != "m2603-result." + record.execution_id.removeprefix("execution.")
+        or package.result_artifact.version != M2603_CONTRACT_VERSION
+        or package.result_artifact.digest != record.execution_digest
+        or package.result_artifact.media_type != M2603_OUTPUT_MEDIA_TYPE
+    ):
+        raise ValueError("reproducible package result artifact must bind execution")
+    expected_package_digest = sha256_digest(
+        {
+            "execution_id": record.execution_id,
+            "result": package.result_artifact,
+            "manifest": request.source_artifacts,
+        }
+    )
+    if package.package_digest != expected_package_digest:
+        raise ValueError("reproducible package digest does not match its contents")
+
+
 class PipelineFinding(FrozenModel):
     finding_id: Identifier
     code: PipelineFindingCode
@@ -380,6 +427,9 @@ class ProteinSubtypeExecutionResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("completed result requires supported execution and package")
+            _validate_completed_bindings(
+                self.request, self.execution_record, self.reproducible_package
+            )
         elif (
             self.execution_record is not None
             or self.reproducible_package is not None

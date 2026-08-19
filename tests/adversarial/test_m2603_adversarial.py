@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m26_03 import (
     ExecutionStatus,
     StepStatus,
     WorkflowDefinition,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
@@ -196,6 +197,33 @@ def test_replay_rejects_nested_package_and_request_changes() -> None:
     )
     with pytest.raises(M2603ReplayError):
         engine.verify(result.model_copy(update={"request": changed_request}), replay=False)
+
+
+def test_self_rehashed_package_cannot_detach_from_execution_record() -> None:
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    assert result.reproducible_package is not None
+    detached = result.reproducible_package.model_copy(update={"execution_id": "execution.forged"})
+    forged = result.model_copy(update={"reproducible_package": detached})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2603ReplayError):
+        engine.verify(forged, replay=False)
+
+
+def test_self_rehashed_package_cannot_change_result_artifact_media_type() -> None:
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    assert result.reproducible_package is not None
+    artifact = result.reproducible_package.result_artifact.model_copy(
+        update={"media_type": "application/octet-stream"}
+    )
+    package = result.reproducible_package.model_copy(update={"result_artifact": artifact})
+    forged = result.model_copy(update={"reproducible_package": package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2603ReplayError):
+        engine.verify(forged, replay=False)
 
 
 def test_workflow_definition_still_rejects_self_dependency_directly() -> None:
