@@ -105,10 +105,14 @@ async def adjudicate(request: Request) -> JSONResponse:
 @app.post("/v1/modules/M13-07/verify")
 async def verify(request: Request) -> JSONResponse:
     body = await request.body()
-    if len(body) > M1307_MAX_CANONICAL_REQUEST_BYTES * 2:
+    max_verify_bytes = min(
+        M1307_MAX_CANONICAL_REQUEST_BYTES * 2,
+        M1307_MAX_CANONICAL_RESULT_BYTES,
+    )
+    if len(body) > max_verify_bytes:
         raise HTTPException(status_code=413, detail="verification envelope exceeds byte limit")
     try:
-        decoded = strict_json_loads(body, max_bytes=M1307_MAX_CANONICAL_REQUEST_BYTES * 2)
+        decoded = strict_json_loads(body, max_bytes=max_verify_bytes)
         if not isinstance(decoded, dict):
             raise HTTPException(status_code=422, detail="verification envelope must be an object")
         request_value = decoded.get("request")
@@ -129,9 +133,12 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int) -> bytes:
+def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
+    effective_max_bytes = (
+        M1307_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
+    )
     try:
-        return read_bounded(path, max_bytes)
+        return read_bounded(path, effective_max_bytes)
     except OSError as error:
         raise _CliParameterError("read") from error
     except ValueError as error:
