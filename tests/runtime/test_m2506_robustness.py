@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -237,28 +237,26 @@ def test_plugin_requires_submission_and_validated_token() -> None:
     assert plugin.replay(result).result_digest == result.result_digest
 
 
-def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
-    first = M2506Plugin(M2506Service())
-    second = M2506Plugin(M2506Service())
-    token = first.validate(ChallengeSubmission(request=request()))
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    candidate = request()
+    plugin = M2506Plugin(M2506Service())
+    other = M2506Plugin(M2506Service())
+    token = plugin.validate(ChallengeSubmission(request=candidate))
 
-    assert first.run(token).status is RobustnessStatus.EVALUATED
-    with pytest.raises(TypeError, match="validated request token"):
-        second.run(token)
+    assert plugin.run(token).status is RobustnessStatus.EVALUATED
 
-    forged = ValidatedM2506Request(token.request, object())
+    forged = ValidatedM2506Request(request=token.request, _seal=token._seal)
     with pytest.raises(TypeError, match="validated request token"):
-        first.run(forged)
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
 
-    mutated = first.validate(ChallengeSubmission(request=request()))
-    object.__setattr__(mutated.request, "request_id", "request.m2506.forged")
+    changed_configuration = token.request.configuration.model_copy(
+        update={"ood_threshold": 0.1}
+    )
+    object.__setattr__(token.request, "configuration", changed_configuration)
     with pytest.raises(TypeError, match="validated request token"):
-        first.run(mutated)
-
-    replaced = first.validate(ChallengeSubmission(request=request()))
-    object.__setattr__(replaced, "request", replaced.request.model_copy())
-    with pytest.raises(TypeError, match="validated request token"):
-        first.run(replaced)
+        plugin.run(token)
 
 
 def test_service_accepts_canonical_json_request() -> None:
@@ -267,7 +265,7 @@ def test_service_accepts_canonical_json_request() -> None:
 
 
 def test_schema_has_closed_provisional_boundary() -> None:
-    metadata = cast("dict[str, Any]", contract_json_schema("output")["x-glio-contract"])
+    metadata = contract_json_schema("output")["x-glio-contract"]
     assert metadata["upstreamInputMediaType"] == M2506_M2505_INPUT_MEDIA_TYPE
     assert metadata["kinaseActivity"] is False
     assert metadata["externalContentTraversal"] is False
