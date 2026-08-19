@@ -23,16 +23,37 @@ class RequestBodyTooLargeError(ValueError):
 
 
 class RequestSizeLimitMiddleware:
-    """Reject oversized HTTP requests from headers or streamed bytes before parsing."""
+    """Reject oversized HTTP requests from headers or streamed bytes before parsing.
 
-    def __init__(self, app: AsgiApp, max_bytes: int = MAX_REQUEST_BYTES) -> None:
+    Most JSON endpoints accept a 4 MiB request envelope, while replay/verify
+    endpoints may legitimately receive the independently declared 8 MiB result
+    envelope.  ``result_max_bytes`` widens only paths ending in ``/verify``;
+    ordinary request routes retain the request limit and therefore keep their
+    existing transport behavior.
+    """
+
+    def __init__(
+        self,
+        app: AsgiApp,
+        max_bytes: int = MAX_REQUEST_BYTES,
+        result_max_bytes: int | None = None,
+    ) -> None:
         self._app = app
         self._max_bytes = max_bytes
+        self._result_max_bytes = result_max_bytes
+
+    def _limit_for_scope(self, scope: Scope) -> int:
+        path = scope.get("path", "")
+        if self._result_max_bytes is not None and path.endswith("/verify"):
+            return self._result_max_bytes
+        return self._max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self._app(scope, receive, send)
             return
+
+        max_bytes = self._limit_for_scope(scope)
 
         content_length = dict(scope.get("headers", ())).get(b"content-length")
         if content_length is not None:
@@ -44,7 +65,7 @@ class RequestSizeLimitMiddleware:
             if declared_size < 0:
                 await self._respond(scope, send, 400, "invalid content-length")
                 return
-            if declared_size > self._max_bytes:
+            if declared_size > max_bytes:
                 await self._respond(scope, send, 413, "request body exceeds the byte limit")
                 return
 
@@ -55,7 +76,7 @@ class RequestSizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self._max_bytes:
+                if received > max_bytes:
                     raise RequestBodyTooLargeError
             return message
 

@@ -45,7 +45,11 @@ HTTP_PAYLOAD_TOO_LARGE = 413
 CLI_INVALID_INPUT = 2
 
 
-def _http_scope(*, headers: list[tuple[bytes, bytes]]) -> Scope:
+def _http_scope(
+    *,
+    headers: list[tuple[bytes, bytes]],
+    path: str = "/v1/modules/M01-01/protocols",
+) -> Scope:
     return cast(
         "Scope",
         {
@@ -54,8 +58,8 @@ def _http_scope(*, headers: list[tuple[bytes, bytes]]) -> Scope:
             "http_version": "1.1",
             "method": "POST",
             "scheme": "http",
-            "path": "/v1/modules/M01-01/protocols",
-            "raw_path": b"/v1/modules/M01-01/protocols",
+            "path": path,
+            "raw_path": path.encode("ascii"),
             "query_string": b"",
             "root_path": "",
             "headers": headers,
@@ -69,9 +73,7 @@ def _http_scope(*, headers: list[tuple[bytes, bytes]]) -> Scope:
 def _response(messages: list[Message]) -> tuple[int, dict[str, str]]:
     start = next(message for message in messages if message["type"] == "http.response.start")
     body = b"".join(
-        message.get("body", b"")
-        for message in messages
-        if message["type"] == "http.response.body"
+        message.get("body", b"") for message in messages if message["type"] == "http.response.body"
     )
     return start["status"], json.loads(body)
 
@@ -93,9 +95,7 @@ def test_declared_body_over_four_mib_is_rejected_before_downstream_app() -> None
     async def send(message: Message) -> None:
         messages.append(message)
 
-    scope = _http_scope(
-        headers=[(b"content-length", str(MAX_REQUEST_BYTES + 1).encode("ascii"))]
-    )
+    scope = _http_scope(headers=[(b"content-length", str(MAX_REQUEST_BYTES + 1).encode("ascii"))])
     asyncio.run(RequestSizeLimitMiddleware(downstream)(scope, receive, send))
 
     assert _response(messages) == (
@@ -145,6 +145,77 @@ def test_streamed_body_over_four_mib_is_rejected_before_parser() -> None:
         {"detail": "request body exceeds the byte limit"},
     )
     assert parser_called is False
+
+
+def test_verify_path_can_use_independent_result_transport_ceiling() -> None:
+    downstream_called = False
+    messages: list[Message] = []
+
+    async def downstream(_scope: Scope, _receive: Receive, _send: Send) -> None:
+        nonlocal downstream_called
+        downstream_called = True
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        cast("AsgiApp", downstream),
+        max_bytes=16,
+        result_max_bytes=32,
+    )
+    asyncio.run(
+        middleware(
+            _http_scope(
+                headers=[(b"content-length", b"24")],
+                path="/v1/modules/M03-05/artifacts/verify",
+            ),
+            receive,
+            send,
+        )
+    )
+
+    assert downstream_called is True
+    assert messages == []
+
+
+def test_verify_path_still_rejects_body_above_result_ceiling() -> None:
+    downstream_called = False
+    messages: list[Message] = []
+
+    async def downstream(_scope: Scope, _receive: Receive, _send: Send) -> None:
+        nonlocal downstream_called
+        downstream_called = True
+
+    async def receive() -> Message:
+        raise AssertionError  # pragma: no cover - header rejection must precede receive.
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        cast("AsgiApp", downstream),
+        max_bytes=16,
+        result_max_bytes=32,
+    )
+    asyncio.run(
+        middleware(
+            _http_scope(
+                headers=[(b"content-length", b"33")],
+                path="/v1/modules/M03-05/artifacts/verify",
+            ),
+            receive,
+            send,
+        )
+    )
+
+    assert downstream_called is False
+    assert _response(messages) == (
+        HTTP_PAYLOAD_TOO_LARGE,
+        {"detail": "request body exceeds the byte limit"},
+    )
 
 
 def test_cli_reader_accepts_exact_limit_and_rejects_first_excess_byte(
