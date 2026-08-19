@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -48,12 +49,38 @@ class M1908PluginDescriptor:
     explicit_abstention: bool = True
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM1908Request:
-    """Opaque token that prevents plugin callers from bypassing validation."""
+    """Opaque capability proving strict M19-08 request validation."""
 
     request: MonitorProteotypeTranslationHealthRequest
     _seal: object
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1908Request,
+        tuple[object, MonitorProteotypeTranslationHealthRequest, bytes],
+    ]
+] = WeakKeyDictionary()
+
+
+def _canonical_request_bytes(request: MonitorProteotypeTranslationHealthRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="json"))
+
+
+def _token_is_issued(token: ValidatedM1908Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class M1908TokenError(ValueError):
@@ -80,7 +107,10 @@ class M1908Plugin:
     def validate(self, request: object) -> ValidatedM1908Request:
         """Validate a typed request and return an instance-bound execution token."""
 
-        return ValidatedM1908Request(self._engine.validate_request(request), self._seal)
+        validated = self._engine.validate_request(request)
+        token = ValidatedM1908Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        return token
 
     def validate_json(self, payload: str | bytes) -> ValidatedM1908Request:
         raw = payload.encode() if isinstance(payload, str) else payload
@@ -91,10 +121,17 @@ class M1908Plugin:
         except StrictJsonError as exc:
             raise ValueError("M19-08 request must be valid JSON") from exc  # noqa: TRY003
         parsed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(document), strict=True)
-        return ValidatedM1908Request(self._engine.validate_request(parsed), self._seal)
+        validated = self._engine.validate_request(parsed)
+        token = ValidatedM1908Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        return token
 
     def run(self, request: object) -> ProteotypeTranslationMonitoringResult:
-        if not isinstance(request, ValidatedM1908Request) or request._seal is not self._seal:
+        if (
+            type(request) is not ValidatedM1908Request
+            or request._seal is not self._seal
+            or not _token_is_issued(request, self._seal)
+        ):
             raise M1908TokenError
         return self._engine.infer(request.request)
 

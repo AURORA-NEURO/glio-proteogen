@@ -76,6 +76,30 @@ def test_service_rejects_invalid_json_and_plugin_strict_json_edges() -> None:
     assert result.status is MonitorStatus.MONITORED
 
 
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = m1908.M1908Plugin()
+    other = m1908.M1908Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token).status is MonitorStatus.MONITORED
+
+    forged = m1908.ValidatedM1908Request(request=token.request, _seal=token._seal)
+    with pytest.raises(m1908.M1908TokenError):
+        plugin.run(forged)
+    with pytest.raises(m1908.M1908TokenError):
+        other.run(token)
+
+    changed_telemetry = token.request.telemetry[0].model_copy(update={"observed_value": 99.0})
+    object.__setattr__(
+        token.request,
+        "telemetry",
+        (changed_telemetry, *token.request.telemetry[1:]),
+    )
+    with pytest.raises(m1908.M1908TokenError):
+        plugin.run(token)
+
+
 def test_result_contract_rejects_duplicate_finding_ids_and_codes() -> None:
     engine = m1908.M1908TranslationMonitoringEngine()
     result = engine.infer(_request())
