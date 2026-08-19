@@ -886,6 +886,8 @@ class ProteinInferenceSupportRouteResult(NonInferenceResultModel):
         expected = result_payload_digest(self)
         if self.result_digest != expected:
             raise ValueError("M03-07 result digest does not match its content")
+        if len(canonical_json_bytes(self)) > M0307_MAX_CANONICAL_RESULT_BYTES:
+            raise ValueError("M03-07 result exceeds its canonical byte limit")
         return self
 
 
