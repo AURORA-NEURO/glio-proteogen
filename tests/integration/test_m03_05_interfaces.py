@@ -18,6 +18,7 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as cli_app
 from glio_proteogen.contracts.m03_05 import (
     M0305_MAX_CANONICAL_REQUEST_BYTES,
+    M0305_MAX_CANONICAL_RESULT_BYTES,
     ProteinInferenceArtifactDetectionResult,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
@@ -372,6 +373,26 @@ def test_api_and_cli_distinguish_exact_four_mib_from_first_byte_past_limit(
     assert oversized_cli.exit_code == CLI_USAGE_ERROR
     assert "byte limit" in oversized_cli.output
     assert "Traceback" not in exact_cli.output + oversized_cli.output
+
+
+def test_api_verify_accepts_transport_payloads_above_request_ceiling(
+    tmp_path: Path,
+) -> None:
+    """The declared 8 MiB result ceiling must not be truncated to 4 MiB HTTP-wide."""
+
+    oversized_for_requests = b"{" + b"a" * (M0305_MAX_CANONICAL_RESULT_BYTES // 2) + b"}"
+    assert len(oversized_for_requests) > M0305_MAX_CANONICAL_REQUEST_BYTES
+    assert len(oversized_for_requests) < M0305_MAX_CANONICAL_RESULT_BYTES
+
+    with TestClient(create_app(tmp_path / "result-transport.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M03-05/artifacts/verify",
+            content=oversized_for_requests,
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert response.json()["detail"][0]["type"] == "json_invalid_syntax"
 
 
 def test_api_content_type_is_exact_but_accepts_json_charset(tmp_path: Path) -> None:
