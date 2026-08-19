@@ -14,6 +14,8 @@ DEFAULT_FASTA_MAX_RESIDUES = 100_000_000
 _MAX_FASTA_BYTES = 512 * 1024 * 1024
 _MAX_FASTA_ENTRIES = 2_000_000
 _MAX_FASTA_RESIDUES = 500_000_000
+_MAX_ACCESSION_LENGTH = 256
+_FASTA_ALPHABET = frozenset("ABCDEFGHIKLMNOPQRSTUVWYXZ*")
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +73,58 @@ class SearchSpace:
         return dict(self.peptide_map)
 
 
+def _validate_fasta_entry(entry: FastaEntry) -> None:
+    """Validate direct ``FastaEntry`` values before any digestion work.
+
+    ``read_fasta`` already applies these checks while parsing text, but callers
+    can also construct entries directly.  Allowing those values to bypass the
+    parser made lower-case or control-character accessions produce a different
+    search space from the same FASTA file and could make a receipt describe an
+    input that the bounded parser would reject.
+    """
+
+    if not isinstance(entry, FastaEntry):
+        raise TypeError("search-space entries must be FastaEntry values")
+    if type(entry.accession) is not str or not entry.accession.strip():
+        raise ValueError("FASTA accession must be non-empty")
+    if len(entry.accession) > _MAX_ACCESSION_LENGTH or any(
+        character.isspace() or ord(character) < 33 for character in entry.accession
+    ):
+        raise ValueError("FASTA accession is invalid")
+    if (
+        type(entry.sequence) is not str
+        or not entry.sequence
+        or len(entry.sequence) > _MAX_FASTA_RESIDUES
+        or entry.sequence != entry.sequence.upper()
+        or any(character not in _FASTA_ALPHABET for character in entry.sequence)
+    ):
+        raise ValueError("FASTA sequence is invalid")
+
+
+def _validate_digestion_limits(
+    missed_cleavages: object,
+    min_length: object,
+    max_length: object,
+) -> None:
+    if (
+        type(missed_cleavages) is not int
+        or not 0 <= missed_cleavages <= 3
+        or type(min_length) is not int
+        or type(max_length) is not int
+        or not 1 <= min_length <= max_length <= 200
+    ):
+        raise ValueError("invalid digestion limits")
+
+
+def _validate_decoy_prefix(decoy_prefix: object) -> None:
+    if (
+        type(decoy_prefix) is not str
+        or not 2 <= len(decoy_prefix) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in decoy_prefix)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
+
+
 def _read_fasta_source(source: bytes | str | BinaryIO, max_bytes: int) -> str:
     if type(max_bytes) is not int or not 0 < max_bytes <= _MAX_FASTA_BYTES:
         raise ValueError("FASTA byte limit is outside the bounded range")
@@ -90,7 +144,7 @@ def _read_fasta_source(source: bytes | str | BinaryIO, max_bytes: int) -> str:
         raise ValueError("FASTA source is not valid UTF-8") from error
 
 
-def read_fasta(
+def read_fasta(  # noqa: PLR0915 - bounded parser closes each input boundary
     source: bytes | str | BinaryIO,
     *,
     max_bytes: int = DEFAULT_FASTA_MAX_BYTES,
@@ -121,7 +175,9 @@ def read_fasta(
                 if accession in seen_accessions:
                     raise ValueError("FASTA contains duplicate accessions")
                 seen_accessions.add(accession)
-                entries.append(FastaEntry(accession, "".join(residues)))
+                entry = FastaEntry(accession, "".join(residues))
+                _validate_fasta_entry(entry)
+                entries.append(entry)
                 if len(entries) > max_entries:
                     raise ValueError("FASTA entry count exceeds the research limit")
             header = line[1:].split(None, 1)
@@ -142,7 +198,9 @@ def read_fasta(
         if accession in seen_accessions:
             raise ValueError("FASTA contains duplicate accessions")
         seen_accessions.add(accession)
-        entries.append(FastaEntry(accession, "".join(residues)))
+        entry = FastaEntry(accession, "".join(residues))
+        _validate_fasta_entry(entry)
+        entries.append(entry)
         if len(entries) > max_entries:
             raise ValueError("FASTA entry count exceeds the research limit")
     if not entries:
@@ -171,15 +229,12 @@ def build_search_space(
 
     if decoy_strategy not in {"caller_declared", "reverse_protein"}:
         raise ValueError("unsupported decoy_strategy")
-    if (
-        not isinstance(decoy_prefix, str)
-        or not 1 <= len(decoy_prefix) <= 32
-        or any(character.isspace() or ord(character) < 33 for character in decoy_prefix)
-    ):
-        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
+    _validate_decoy_prefix(decoy_prefix)
     materialized = tuple(entries)
     if not materialized:
         raise ValueError("search space requires at least one FASTA entry")
+    for entry in materialized:
+        _validate_fasta_entry(entry)
     accessions = [entry.accession for entry in materialized]
     if any(not accession for accession in accessions):
         raise ValueError("FASTA accessions must be non-empty")
@@ -276,10 +331,10 @@ def digest_trypsin(
     min_length: int = 7,
     max_length: int = 40,
 ) -> dict[str, tuple[str, ...]]:
-    if not 0 <= missed_cleavages <= 3 or not 1 <= min_length <= max_length <= 200:
-        raise ValueError("invalid digestion limits")
+    _validate_digestion_limits(missed_cleavages, min_length, max_length)
     peptide_map: dict[str, set[str]] = {}
     for entry in entries:
+        _validate_fasta_entry(entry)
         for peptide in digest_entry_trypsin(
             entry,
             missed_cleavages=missed_cleavages,
@@ -307,8 +362,8 @@ def digest_entry_trypsin(
     so search-space provenance cannot silently diverge from the actual search.
     """
 
-    if not 0 <= missed_cleavages <= 3 or not 1 <= min_length <= max_length <= 200:
-        raise ValueError("invalid digestion limits")
+    _validate_digestion_limits(missed_cleavages, min_length, max_length)
+    _validate_fasta_entry(entry)
     cuts = [0]
     for index, residue in enumerate(entry.sequence[:-1], start=1):
         if residue in "KR" and entry.sequence[index] != "P":

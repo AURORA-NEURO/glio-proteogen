@@ -18,6 +18,7 @@ from glio_proteogen.research import (
     run_research_protein_inference,
     verify_search_space_receipt,
 )
+from glio_proteogen.research import modifications as modifications_module
 
 
 def _rehashed(receipt: SearchSpaceReceipt, **changes: Any) -> SearchSpaceReceipt:
@@ -95,6 +96,10 @@ def test_receipt_rejects_duplicate_accessions_and_bad_source() -> None:
         build_search_space_receipt(bytearray(b"fixture"), (entry,))  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="prefix"):
         build_search_space_receipt(b"fixture", (entry,), decoy_prefix=" ")
+    with pytest.raises(ValueError, match="sequence"):
+        build_search_space_receipt(b"fixture", (FastaEntry("P1", "mpeptider"),))
+    with pytest.raises(ValueError, match="accession"):
+        build_search_space_receipt(b"fixture", (FastaEntry("P 1", "MPEPTIDER"),))
 
 
 def test_receipt_rejects_unsupported_generation_and_modification_controls() -> None:
@@ -114,6 +119,66 @@ def test_receipt_rejects_unsupported_generation_and_modification_controls() -> N
         )
     with pytest.raises(ValueError, match="non-empty"):
         build_search_space_receipt(b"fixture", (FastaEntry(" ", "MPEPTIDER"),))
+    with pytest.raises(ValueError, match="digestion limits"):
+        build_search_space_receipt(b"fixture", (entry,), missed_cleavages=True)
+    with pytest.raises(ValueError, match="prefix"):
+        build_search_space_receipt(b"fixture", (entry,), decoy_prefix="D")
+
+
+def test_generated_decoys_are_paired_and_source_bound() -> None:
+    target = FastaEntry("P1", "MPEPTIDER")
+    receipt = build_search_space_receipt(
+        b">P1\nMPEPTIDER\n",
+        (target,),
+        decoy_strategy="reverse_protein",
+        min_peptide_length=7,
+        max_peptide_length=20,
+    )
+    assert receipt.generated_decoy_entries == 1
+    assert receipt.declared_decoy_entries == 0
+    assert receipt.paired_proteins == 1
+    assert receipt.pairs[0].decoy_accession == "DECOY_P1"
+    assert (
+        verify_search_space_receipt(
+            receipt,
+            source_bytes=b">P1\nMPEPTIDER\n",
+            entries=(target,),
+        )
+        == receipt
+    )
+    with pytest.raises(ValueError, match="source bytes"):
+        verify_search_space_receipt(receipt, source_bytes=b">P1\nPEPTIDER\n")
+    with pytest.raises(ValueError, match="source-bound"):
+        verify_search_space_receipt(receipt, entries=(target,))
+
+
+def test_source_bound_verification_rejects_entry_and_catalogue_tampering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = b">P1\nMSTPEPTIDER\n>DECOY_P1\nMSTPEPTIDER\n"
+    entries = (FastaEntry("P1", "MSTPEPTIDER"), FastaEntry("DECOY_P1", "MSTPEPTIDER"))
+    receipt = build_search_space_receipt(
+        source,
+        entries,
+        min_peptide_length=7,
+        max_peptide_length=20,
+        modification_rules=("UNIMOD:35",),
+        max_variable_modifications=1,
+    )
+    with pytest.raises(ValueError, match="source entries"):
+        verify_search_space_receipt(
+            receipt,
+            source_bytes=source,
+            entries=(FastaEntry("P1", "MSTPEPTIDERA"), FastaEntry("DECOY_P1", "MSTPEPTIDER")),
+        )
+    spec = modifications_module._CATALOGUE["UNIMOD:35"]
+    monkeypatch.setitem(
+        modifications_module._CATALOGUE,
+        "UNIMOD:35",
+        replace(spec, delta_mass=spec.delta_mass + 1.0),
+    )
+    with pytest.raises(ValueError, match="catalogue digest"):
+        verify_search_space_receipt(receipt, source_bytes=source, entries=entries)
 
 
 def test_receipt_verifier_rejects_strategy_and_digest_alias_tampering() -> None:

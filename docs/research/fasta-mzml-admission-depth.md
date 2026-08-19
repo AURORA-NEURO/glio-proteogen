@@ -13,6 +13,14 @@ sequence materialization. Stream return types, malformed UTF-8, empty entries,
 duplicate accessions, and the existing residue alphabet checks remain
 fail-closed.
 
+The same bounded entry validator is applied to direct `FastaEntry` inputs used
+by digestion and search-space construction: accessions are non-empty,
+control-free, and length-limited; sequences are uppercase, non-empty, and
+restricted to the admitted alphabet. Digestion controls reject booleans and
+out-of-range values consistently across both public search-space builders, and
+decoy prefixes use one shared minimum length so a receipt cannot be built that
+its verifier would reject.
+
 ## mzML precursor ambiguity
 
 The parser now examines each `selectedIon` independently. Distinct precursor
