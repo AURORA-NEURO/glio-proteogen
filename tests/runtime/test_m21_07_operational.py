@@ -70,6 +70,12 @@ def test_authorization_is_fail_closed_before_evaluation() -> None:
     with pytest.raises(M2107AuthorizationError):
         M2107Engine().evaluate(request.model_copy(update={"context": context}))
 
+    denied = request.model_copy(update={"context": context})
+    with pytest.raises(M2107AuthorizationError):
+        M2107Service().validate_request(denied)
+    with pytest.raises(M2107AuthorizationError):
+        M2107Plugin().validate(denied)
+
 
 def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     request = _request()
