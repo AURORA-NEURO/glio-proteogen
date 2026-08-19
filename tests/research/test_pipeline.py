@@ -15,6 +15,7 @@ from glio_proteogen.research import (
     EvidenceRecord,
     PdcFile,
     PdcStudySnapshot,
+    QuantificationPolicy,
     ResearchRunRequest,
     SourceReference,
     aggregate_evidence,
@@ -397,6 +398,76 @@ def test_pipeline_snapshots_streams_binds_configuration_and_freezes_evidence() -
         )
     )
     assert changed.result_digest != first.result_digest
+
+
+def test_pipeline_drains_short_reads_before_snapshot_and_replay() -> None:
+    """A stream may legally return short chunks without reaching EOF."""
+
+    class ChunkedBytes:
+        def __init__(self, value: bytes, chunk_size: int) -> None:
+            self._value = value
+            self._chunk_size = chunk_size
+            self._offset = 0
+
+        def read(self, size: int = -1) -> bytes:
+            if self._offset >= len(self._value):
+                return b""
+            end = min(self._offset + self._chunk_size, len(self._value))
+            if size >= 0:
+                end = min(end, self._offset + size)
+            chunk = self._value[self._offset : end]
+            self._offset = end
+            return chunk
+
+    mzml = _mzml()
+    fasta = b">P1\nMPEPTIDER\n"
+    streamed = ResearchRunRequest(
+        "short-reads",
+        ChunkedBytes(mzml, 3),  # type: ignore[arg-type]
+        ChunkedBytes(fasta, 2),  # type: ignore[arg-type]
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    direct = ResearchRunRequest(
+        "short-reads",
+        mzml,
+        fasta,
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    streamed_result = run_research_protein_inference(streamed)
+    direct_result = run_research_protein_inference(direct)
+    assert streamed.mzml_source == mzml
+    assert streamed.fasta_source == fasta
+    assert streamed_result.result_digest == direct_result.result_digest
+    assert replay_research_protein_inference(streamed, streamed_result).result_digest == (
+        streamed_result.result_digest
+    )
+
+
+def test_pipeline_binds_all_declared_controls_even_when_output_is_unchanged() -> None:
+    """No-op policy knobs still belong to the provenance/configuration boundary."""
+
+    base = ResearchRunRequest(
+        "control-binding",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    baseline = run_research_protein_inference(base)
+    changed = run_research_protein_inference(replace(base, max_variable_modifications=1))
+    assert changed.result_digest != baseline.result_digest
+    assert dict(baseline.configuration)["max_variable_modifications"] == 0
+    assert dict(changed.configuration)["max_variable_modifications"] == 1
+    assert dict(baseline.configuration)["variable_modifications"] == []
+    assert dict(baseline.configuration)["modification_version"] == "residue-local-unimod-1"
+    assert dict(baseline.configuration)["quantification_policy"] == QuantificationPolicy().as_dict()
+    with pytest.raises(ValueError, match="replay"):
+        replay_research_protein_inference(replace(base, max_variable_modifications=1), baseline)
 
 
 def test_pipeline_abstains_when_precursor_metadata_is_missing() -> None:
