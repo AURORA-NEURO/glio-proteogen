@@ -8,6 +8,7 @@ the Proteomics standards registry. The ABI is inferred from dossier lines
 from __future__ import annotations
 
 from enum import StrEnum
+from itertools import pairwise
 from typing import Final, Literal
 
 from pydantic import AwareDatetime, Field, model_validator
@@ -16,6 +17,7 @@ from glio_proteogen.contracts.m26_01.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -181,7 +183,7 @@ class RegistryRecord(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2601_MAX_EVIDENCE)
 
     @model_validator(mode="after")
-    def record_is_closed(self) -> RegistryRecord:
+    def record_is_closed(self) -> RegistryRecord:  # noqa: PLR0912
         entry_ids = tuple(item.entry_id for item in self.entries)
         event_ids = tuple(item.event_id for item in self.history)
         known = set(entry_ids)
@@ -195,6 +197,26 @@ class RegistryRecord(FrozenModel):
             raise ValueError("registry history must contain a registration event")
         if {item.entry_id for item in self.history} != known:
             raise ValueError("registry history must cover every registered entry")
+        events_by_entry: dict[str, list[RegistryHistoryEvent]] = {
+            entry_id: [] for entry_id in known
+        }
+        for event in self.history:
+            events_by_entry[event.entry_id].append(event)
+        entries_by_id = {entry.entry_id: entry for entry in self.entries}
+        for entry_id, events in events_by_entry.items():
+            if events[0].event_type is not RegistryEventType.REGISTER:
+                raise ValueError("each registry entry history must begin with a registration event")
+            for previous, current in pairwise(events):
+                if current.event_type is RegistryEventType.REGISTER:
+                    raise ValueError("registry entries cannot be registered more than once")
+                if current.prior_digest != previous.new_digest:
+                    raise ValueError(
+                        "registry history transition prior digest must match predecessor"
+                    )
+                if current.occurred_at < previous.occurred_at:
+                    raise ValueError("registry history events must be chronological per entry")
+            if events[-1].new_digest != sha256_digest(entries_by_id[entry_id]):
+                raise ValueError("registry history must bind the current entry digest")
         return self
 
 

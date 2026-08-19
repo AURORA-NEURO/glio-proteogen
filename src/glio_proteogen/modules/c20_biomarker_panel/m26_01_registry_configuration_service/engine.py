@@ -235,7 +235,6 @@ class M2601RegistryEngine:
         )
         request_digest = canonical_request_digest(canonical)
         evidence = _evidence(canonical)
-        registry = _registry(canonical)
         findings = _findings(canonical)
         abstained = any(
             item.code
@@ -245,13 +244,14 @@ class M2601RegistryEngine:
             }
             for item in findings
         )
+        registry = None if abstained else _registry(canonical)
         payload: dict[str, Any] = {
             "result_id": result_identifier(request_digest),
             "result_digest": _ZERO_DIGEST,
             "request": canonical,
             "request_digest": request_digest,
             "status": RegistryStatus.ABSTAINED if abstained else RegistryStatus.REGISTERED,
-            "registry": None if abstained else registry,
+            "registry": registry,
             "active_configuration": None if abstained else canonical.active_configuration,
             "findings": findings,
             "abstention_reason": (

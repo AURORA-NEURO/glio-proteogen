@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m26_01 import (
     ActiveConfiguration,
     RegistryEntryStatus,
+    RegistryEventType,
     RegistryRecord,
     RegistryStatus,
     canonical_request_digest,
@@ -126,6 +127,54 @@ def test_contract_rejects_duplicate_configuration_ids_and_history_events() -> No
             version=request.registry_version,
             entries=request.entries,
             history=(event, *request.history[1:]),
+            lock_digest=sha256_digest(request.entries),
+        )
+
+
+def test_registry_history_rejects_entry_without_registration() -> None:
+    request = _request()
+    first = request.history[0].model_copy(
+        update={
+            "event_type": RegistryEventType.ACTIVATE,
+            "prior_digest": sha256_digest("unregistered-prior"),
+        }
+    )
+    with pytest.raises(ValidationError, match="begin with a registration"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=(first, *request.history[1:]),
+            lock_digest=sha256_digest(request.entries),
+        )
+
+
+def test_registry_history_rejects_forged_transition_chain_and_current_digest() -> None:
+    request = _request()
+    first = request.history[0]
+    transition = first.model_copy(
+        update={
+            "event_id": "m2601.event.activate.forged",
+            "event_type": RegistryEventType.ACTIVATE,
+            "prior_digest": sha256_digest("wrong-predecessor"),
+        }
+    )
+    with pytest.raises(ValidationError, match="prior digest"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=(first, transition, *request.history[1:]),
+            lock_digest=sha256_digest(request.entries),
+        )
+
+    forged = first.model_copy(update={"new_digest": sha256_digest("forged-entry")})
+    with pytest.raises(ValidationError, match="current entry digest"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=(forged, *request.history[1:]),
             lock_digest=sha256_digest(request.entries),
         )
 
