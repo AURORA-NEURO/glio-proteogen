@@ -21,6 +21,9 @@ from glio_proteogen.contracts.m20_02.canonical import canonical_request_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_02_cross_source_alignment_reconciliation import (  # noqa: E501
     M2002Engine,
+    M2002Plugin,
+    M2002TokenError,
+    ValidatedM2002Request,
 )
 from tests.modules.c17_metabolomic_lipidomic_integration.test_m20_02_engine import (
     _artifact,
@@ -186,3 +189,25 @@ def test_result_contract_rejects_unsafe_aligned_and_abstained_closures() -> None
             ),
             strict=True,
         )
+
+
+def test_plugin_capability_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = M2002Plugin()
+    other = M2002Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token) == plugin.run(request)
+
+    forged = ValidatedM2002Request(request=token.request, _seal=token._seal)
+    with pytest.raises(M2002TokenError):
+        plugin.run(forged)
+    with pytest.raises(M2002TokenError):
+        other.run(token)
+
+    changed_configuration = token.request.configuration.model_copy(
+        update={"required_dimensions": ()}
+    )
+    object.__setattr__(token.request, "configuration", changed_configuration)
+    with pytest.raises(M2002TokenError):
+        plugin.run(token)
