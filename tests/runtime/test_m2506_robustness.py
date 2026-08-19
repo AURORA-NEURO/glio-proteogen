@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -267,7 +267,7 @@ def test_service_accepts_canonical_json_request() -> None:
 
 
 def test_schema_has_closed_provisional_boundary() -> None:
-    metadata = contract_json_schema("output")["x-glio-contract"]
+    metadata = cast("dict[str, Any]", contract_json_schema("output")["x-glio-contract"])
     assert metadata["upstreamInputMediaType"] == M2506_M2505_INPUT_MEDIA_TYPE
     assert metadata["kinaseActivity"] is False
     assert metadata["externalContentTraversal"] is False
