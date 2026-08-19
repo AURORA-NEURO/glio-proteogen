@@ -8,6 +8,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudi
     M1906Engine,
     M1906Plugin,
     M1906ReplayError,
+    M1906TokenError,
 )
 from tests.contract.test_m19_06_provisional import _assignment, _entry, _request
 
@@ -67,9 +68,17 @@ def test_replay_rejects_request_and_result_tampering() -> None:
 
 def test_plugin_descriptor_and_runtime_are_bounded() -> None:
     plugin = M1906Plugin()
-    result = plugin.run(_request())
+    token = plugin.validate(_request())
+    result = plugin.run(token)
     assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M19-06"
     assert plugin.descriptor.parent_target == "proteotype"
     assert plugin.descriptor.kinase_activity is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.replay(result) == result
+    with pytest.raises(M1906TokenError):
+        plugin.run(_request())
+    object.__setattr__(token.request, "request_id", "request.tampered")
+    with pytest.raises(M1906TokenError):
+        plugin.run(token)
+    with pytest.raises(M1906TokenError):
+        M1906Plugin().run(token)

@@ -68,7 +68,7 @@ def test_service_plugin_api_cli_and_function_emit_exact_parity(tmp_path: Path) -
     assert plugin.validate_request(request) == request
     assert service.validate_request(request) == request
     assert expected == M1906Engine().adapt(request) == service.adjudicate(request)
-    assert expected == plugin.run(request)
+    assert expected == plugin.run(plugin.validate(request))
 
     with TestClient(create_app(tmp_path / "api.sqlite3")) as client:
         response = client.post(
