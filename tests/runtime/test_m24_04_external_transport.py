@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m24_04 import (
     TransportConfiguration,
     TransportDimension,
     TransportEvaluation,
+    TransportFindingCode,
     TransportStatus,
     TransportValidation,
 )
@@ -127,6 +128,22 @@ def test_domain_narrowing_abstains_without_report() -> None:
     assert result.report is None
     assert result.support_decision.status.value == "review_required"
     assert result.findings
+
+
+def test_configured_calibration_floor_abstains_below_global_threshold() -> None:
+    typed = request()
+    configuration = typed.configuration.model_copy(update={"minimum_calibration_floor": 0.96})
+    result = m2404.M2404Service().evaluate(
+        typed.model_copy(update={"configuration": configuration})
+    )
+
+    assert result.status is EvaluationStatus.ABSTAINED
+    assert result.report is None
+    assert len(result.findings) == len(tuple(TransportDimension))
+    assert {finding.code for finding in result.findings} == {
+        TransportFindingCode.CALIBRATION_FLOOR_FAILED
+    }
+    assert m2404.M2404Service().verify_replay(result).result_digest == result.result_digest
 
 
 def test_replay_rejects_self_rehashed_evaluation_and_denied_control() -> None:

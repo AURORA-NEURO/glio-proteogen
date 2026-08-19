@@ -108,6 +108,19 @@ def _findings(
                     evidence=evidence(request.source_artifacts, M2404_EVIDENCE_CLAIM),
                 )
             )
+        elif evaluation.metric_value < request.configuration.minimum_calibration_floor:
+            findings.append(
+                TransportFinding(
+                    finding_id=f"m2404.floor.{dimension.value}",
+                    code=TransportFindingCode.CALIBRATION_FLOOR_FAILED,
+                    message=(
+                        f"{dimension.value} metric {evaluation.metric_value:.6g} is below "
+                        "the configured minimum calibration floor "
+                        f"{request.configuration.minimum_calibration_floor:.6g}."
+                    ),
+                    evidence=evidence(request.source_artifacts, M2404_EVIDENCE_CLAIM),
+                )
+            )
     return tuple(findings)
 
 
@@ -139,7 +152,7 @@ class M2404ExternalTransportEvaluator:
                 narrowed_dimensions=(),
                 rationale=(
                     "Every configured transport dimension has independent validation and "
-                    "meets its caller-declared calibration floor."
+                    "meets the configured minimum calibration floor."
                 ),
                 evidence=evidence(canonical.source_artifacts, M2404_EVIDENCE_CLAIM),
             )
