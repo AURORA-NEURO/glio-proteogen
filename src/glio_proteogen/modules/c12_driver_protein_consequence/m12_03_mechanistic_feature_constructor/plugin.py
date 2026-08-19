@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m12_03 import (
     BiomarkerPanelMechanisticFeatureResult,
     ConstructBiomarkerPanelMechanisticFeaturesRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -44,6 +45,8 @@ class ValidatedM1203Request:
     request: ConstructBiomarkerPanelMechanisticFeaturesRequest
     request_digest: str
     _seal: object
+    _request_bytes: bytes
+    _request_identity: int
 
 
 class InvalidM1203ExecutionTokenError(TypeError):
@@ -56,10 +59,11 @@ class M1203Plugin(
 ):
     """Grant one exact execution capability after strict replay validation."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M1203Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -80,11 +84,32 @@ class M1203Plugin(
         return ValidatedM1203Request(
             request=typed,
             request_digest=request_digest_for(typed),
-            _seal=_TOKEN_SEAL,
+            _seal=self._seal,
+            _request_bytes=canonical_json_bytes(typed),
+            _request_identity=id(typed),
         )
 
     def run(self, request: ValidatedM1203Request) -> BiomarkerPanelMechanisticFeatureResult:
-        if type(request) is not ValidatedM1203Request or request._seal is not _TOKEN_SEAL:
+        if type(request) is not ValidatedM1203Request or request._seal is not self._seal:
+            raise InvalidM1203ExecutionTokenError
+        if type(request.request) is not ConstructBiomarkerPanelMechanisticFeaturesRequest:
+            raise InvalidM1203ExecutionTokenError
+        if type(request.request_digest) is not str or type(request._request_bytes) is not bytes:
+            raise InvalidM1203ExecutionTokenError
+        if (
+            type(request._request_identity) is not int
+            or id(request.request) != request._request_identity
+        ):
+            raise InvalidM1203ExecutionTokenError
+        try:
+            if (
+                canonical_json_bytes(request.request) != request._request_bytes
+                or request_digest_for(request.request) != request.request_digest
+            ):
+                raise InvalidM1203ExecutionTokenError
+        except (TypeError, ValueError) as exc:
+            raise InvalidM1203ExecutionTokenError from exc
+        if request._seal is not self._seal:
             raise InvalidM1203ExecutionTokenError
         return self._service.execute(request.request)
 

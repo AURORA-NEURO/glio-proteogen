@@ -212,6 +212,15 @@ def test_plugin_rejects_forged_capability_and_accepts_json() -> None:
     assert plugin.run(token).status.value == "constructed"
     with pytest.raises(TypeError, match="validated request"):
         plugin.run(object())  # type: ignore[arg-type]
+    object.__setattr__(token.request, "request_id", "request.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+    replacement = plugin.validate(request())
+    object.__setattr__(replacement, "request", request().model_copy(deep=True))
+    with pytest.raises(TypeError):
+        plugin.run(replacement)
+    with pytest.raises(TypeError):
+        M1203Plugin(M1203Service()).run(plugin.validate(request()))
 
 
 def test_fastapi_construct_verify_and_schema_are_sanitized() -> None:
@@ -534,7 +543,7 @@ def test_dict_replay_mapping_and_service_validation_paths() -> None:
         construct_mechanistic_features(normalized)
     with pytest.raises(MechanisticFeatureValidationError):
         _plain_value(UserDict({"request": "mapping"}))
-    assert _plain_value(request().feature_inputs[0])["feature_id"] == "feature.pathway"
+    assert _plain_value(request().feature_inputs[0])["feature_id"] == "feature.pathway"  # type: ignore[index]
     service = M1203Service()
     assert service.validate_request(request()).request_id == request().request_id
 
