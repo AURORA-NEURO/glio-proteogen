@@ -189,6 +189,7 @@ class LineageGraph(FrozenModel):
         parents: dict[str, set[str]] = {node_id: set() for node_id in known}
         for edge in self.edges:
             parents[edge.child_node_id].add(edge.parent_node_id)
+
         def visit(current: str, seen: set[str], visiting: set[str]) -> None:
             if current in visiting:
                 raise ValueError("lineage graph cannot contain a directed cycle")

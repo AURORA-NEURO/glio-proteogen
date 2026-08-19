@@ -74,9 +74,7 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
     async def validate(request: Request) -> JSONResponse:
         raw = await request.body()
         validated = _validated_payload(raw, active_service)
-        return JSONResponse(
-            {"valid": True, "requestDigest": canonical_request_digest(validated)}
-        )
+        return JSONResponse({"valid": True, "requestDigest": canonical_request_digest(validated)})
 
     @app.post("/m26-02/construct")
     async def construct(request: Request) -> JSONResponse:

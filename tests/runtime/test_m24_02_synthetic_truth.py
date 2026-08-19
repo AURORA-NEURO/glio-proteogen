@@ -77,9 +77,13 @@ def test_denied_control_and_invalid_upstream_fail_closed() -> None:
         update={"state": UpstreamDecisionState.REJECTED}
     )
     denied = typed.model_copy(
-        update={"context": typed.context.model_copy(
-            update={"references": typed.context.references.model_copy(update={"support": support})}
-        )}
+        update={
+            "context": typed.context.model_copy(
+                update={
+                    "references": typed.context.references.model_copy(update={"support": support})
+                }
+            )
+        }
     )
     with pytest.raises(m2402.AuthorizationError):
         m2402.M2402Service().evaluate(denied)
