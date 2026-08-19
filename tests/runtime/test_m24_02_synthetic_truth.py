@@ -86,7 +86,7 @@ def test_denied_control_and_invalid_upstream_fail_closed() -> None:
     bad = typed.model_copy(
         update={"upstream_result": typed.upstream_result.model_copy(update={"media_type": "bad"})}
     )
-    with pytest.raises(ValueError, match="upstream result media type"):
+    with pytest.raises(ValueError, match="bind the provisional M24-01 sensitivity result"):
         m2402.M2402Service().evaluate(bad)
 
 
