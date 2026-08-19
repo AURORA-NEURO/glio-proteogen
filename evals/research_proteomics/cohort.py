@@ -34,11 +34,19 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from evals.research_proteomics.run import (
         Scenario,
+        build_cohort_no_match_request,
+        build_cohort_supported_request,
         build_scenario_request,
         scenarios,
     )
 else:
-    from .run import Scenario, build_scenario_request, scenarios
+    from .run import (
+        Scenario,
+        build_cohort_no_match_request,
+        build_cohort_supported_request,
+        build_scenario_request,
+        scenarios,
+    )
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -80,6 +88,20 @@ def _locked_ids() -> tuple[str, ...]:
 
 
 def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortSample:
+    if scenario_id == "target_supported":
+        return ResearchCohortSample(
+            sample_id=sample_id,
+            request=build_cohort_supported_request(sample_id),
+            cohort_label="locked-cohort",
+            replicate_label=replicate,
+        )
+    if scenario_id == "no_match":
+        return ResearchCohortSample(
+            sample_id=sample_id,
+            request=build_cohort_no_match_request(sample_id),
+            cohort_label="locked-cohort",
+            replicate_label=replicate,
+        )
     scenario = next(item for item in scenarios() if item.scenario_id == scenario_id)
     return ResearchCohortSample(
         sample_id=sample_id,
@@ -89,7 +111,7 @@ def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortS
     )
 
 
-def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
+def _label_normalization_case() -> ResearchCohortResult:
     """Exercise cross-run normalization with deliberately scaled synthetic outputs."""
 
     values = {
@@ -98,11 +120,11 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
         "control-a": (100.0, 300.0),
         "control-b": (200.0, 600.0),
     }
-    base_request = replace(build_scenario_request(target), sample_id="normalization-template")
+    base_request = build_cohort_supported_request("normalization-template")
     base = run_research_protein_inference(base_request)
     sample_requests = {
         sample_id: replace(
-            build_scenario_request(target),
+            build_cohort_supported_request(sample_id),
             sample_id=sample_id,
             mzml_source=b"<!--"
             + sample_id.encode()
@@ -168,7 +190,11 @@ def _label_normalization_case(target: Scenario) -> ResearchCohortResult:
 
 
 def _pdc_sample(scenario: Scenario, sample_id: str, replicate: str) -> ResearchCohortSample:
-    request: ResearchRunRequest = replace(build_scenario_request(scenario), sample_id=sample_id)
+    request: ResearchRunRequest
+    if scenario.scenario_id == "target_supported":
+        request = build_cohort_supported_request(sample_id)
+    else:
+        request = replace(build_scenario_request(scenario), sample_id=sample_id)
     mzml = request.mzml_source
     if not isinstance(mzml, bytes):
         raise TypeError
@@ -296,7 +322,7 @@ def run_evaluator() -> dict[str, object]:
             "projection": _projection(missing),
         }
     )
-    normalized = _label_normalization_case(target)
+    normalized = _label_normalization_case()
     outcomes.append(
         {
             "id": "label_normalization",

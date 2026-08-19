@@ -132,7 +132,9 @@ class FdrSummary:
 
     The summary is descriptive evidence, not a calibrated probability or a
     clinical confidence score.  Decoys are retained in the winner table and
-    are never promoted to accepted targets by the pipeline.
+    are never promoted to accepted targets by the pipeline.  A target-only
+    winner table has no empirical error evidence, so its target q-values are
+    intentionally absent rather than reported as zero.
     """
 
     method: str
@@ -401,6 +403,7 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
     ordered = sorted(
         winners.values(), key=lambda value: (-value.score, value.spectrum_id, value.peptide)
     )
+    has_decoy_evidence = any(psm.decoy or psm.target_decoy_collision for psm in ordered)
     decoys = 0
     targets = 0
     raw: list[tuple[Psm, float]] = []
@@ -415,7 +418,11 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
         output.append(
             replace(
                 psm,
-                q_value=None if psm.decoy or psm.target_decoy_collision else running,
+                q_value=(
+                    None
+                    if psm.decoy or psm.target_decoy_collision or not has_decoy_evidence
+                    else running
+                ),
             )
         )
     return tuple(reversed(output))
@@ -444,7 +451,7 @@ def summarize_target_decoy(
     )
     accepted_q_values = tuple(item.q_value for item in accepted if item.q_value is not None)
     return FdrSummary(
-        method="winner-per-spectrum-target-decoy-collision-abstain-2",
+        method="winner-per-spectrum-target-decoy-collision-abstain-3",
         spectrum_winners=len(scored),
         target_winners=target_winners,
         decoy_winners=decoy_winners,

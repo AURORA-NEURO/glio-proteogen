@@ -69,7 +69,7 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.ms2_spectra_seen == 1
     assert result.search_space_peptides == 1
     assert len(result.psms) == 1
-    assert len(result.accepted_psms) == 1
+    assert len(result.accepted_psms) == 0
     assert result.psms[0].matched_intensity == 20.0
     assert result.psms[0].mean_fragment_error_da == pytest.approx(0.000525466)
     assert result.psms[0].precursor_error_ppm == pytest.approx(0.0)
@@ -84,24 +84,23 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.fdr_summary is not None
     assert result.fdr_summary.target_winners == 1
     assert result.fdr_summary.decoy_winners == 0
-    assert result.fdr_summary.accepted_targets == 1
+    assert result.fdr_summary.accepted_targets == 0
     assert result.protein_group_fdr_summary is not None
-    assert result.protein_group_fdr_summary.accepted_targets == 1
-    assert result.protein_group_candidates[0].acceptance == "accepted"
-    assert result.protein_group_candidates[0].q_value == 0.0
+    assert result.protein_group_fdr_summary.accepted_targets == 0
+    assert result.protein_group_candidates[0].acceptance == "rejected"
+    assert result.protein_group_candidates[0].q_value is None
     fdr_summary = result.as_dict()["fdr_summary"]
     assert isinstance(fdr_summary, dict)
-    assert fdr_summary["method"] == "winner-per-spectrum-target-decoy-collision-abstain-2"
+    assert fdr_summary["method"] == "winner-per-spectrum-target-decoy-collision-abstain-3"
     assert fdr_summary["collision_winners"] == 0
-    assert result.peptide_spectral_counts == (("MPEPTIDER", 1),)
-    assert result.peptide_intensities == (("MPEPTIDER", 20.0),)
-    assert result.protein_groups[0].accessions == ("P1",)
-    assert result.protein_group_quantifications[0].status == "quantified"
-    assert result.protein_group_quantifications[0].primary_intensity == 20.0
+    assert result.peptide_spectral_counts == ()
+    assert result.peptide_intensities == ()
+    assert result.protein_groups == ()
+    assert result.protein_group_quantifications == ()
     assert result.quantification_receipt is not None
-    assert result.quantification_receipt.raw_positive_median == 20.0
-    assert result.quantification_receipt.signal_quality == "single_positive_signal"
-    assert result.quantification_receipt.positive_signal_fraction == 1.0
+    assert result.quantification_receipt.raw_positive_median is None
+    assert result.quantification_receipt.signal_quality == "no_positive_signal"
+    assert result.quantification_receipt.positive_signal_fraction == 0.0
     assert result.quantification_receipt.raw_positive_mad is None
     assert result.quantification_receipt.measurement_unit == ("median_scaled_matched_ion_intensity")
     assert len(result.result_digest) == 64

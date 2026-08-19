@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-from evals.research_proteomics.run import build_scenario_request, scenarios
+from evals.research_proteomics.run import (
+    build_cohort_no_match_request,
+    build_cohort_supported_request,
+    build_scenario_request,
+    scenarios,
+)
 
 from glio_proteogen.research import (
     CohortQcPolicy,
@@ -17,6 +22,20 @@ from glio_proteogen.research import (
 
 
 def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortSample:
+    if scenario_id == "target_supported":
+        return ResearchCohortSample(
+            sample_id=sample_id,
+            request=build_cohort_supported_request(sample_id),
+            cohort_label="qc-cohort",
+            replicate_label=replicate,
+        )
+    if scenario_id == "no_match":
+        return ResearchCohortSample(
+            sample_id=sample_id,
+            request=build_cohort_no_match_request(sample_id),
+            cohort_label="qc-cohort",
+            replicate_label=replicate,
+        )
     scenario = next(item for item in scenarios() if item.scenario_id == scenario_id)
     request = replace(build_scenario_request(scenario), sample_id=sample_id)
     return ResearchCohortSample(sample_id, request, "qc-cohort", replicate)

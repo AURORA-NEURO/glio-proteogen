@@ -202,6 +202,7 @@ def infer_protein_group_candidates(
             item.accessions,
         ),
     )
+    has_decoy_evidence = any(candidate.status in {"decoy", "collision"} for candidate in ordered)
     decoys = 0
     targets = 0
     raw: list[tuple[ProteinGroupCandidate, float | None]] = []
@@ -220,7 +221,7 @@ def infer_protein_group_candidates(
     for candidate, value in reversed(raw):
         if value is not None:
             running = min(running, value)
-        q_value = None if candidate.status != "target" else running
+        q_value = None if candidate.status != "target" or not has_decoy_evidence else running
         acceptance = (
             "accepted"
             if (
@@ -253,7 +254,7 @@ def infer_protein_group_candidates(
         if item.acceptance == "accepted" and item.q_value is not None
     )
     summary = ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-3",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-4",
         candidates=len(finalized),
         target_candidates=sum(item.status == "target" for item in finalized),
         decoy_candidates=sum(item.status == "decoy" for item in finalized),

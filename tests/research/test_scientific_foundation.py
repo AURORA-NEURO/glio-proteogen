@@ -121,7 +121,7 @@ def test_digest_search_target_decoy_and_protein_ambiguity() -> None:
     assert psm.mean_fragment_error_da == pytest.approx(0.030468466)
     assert psm.precursor_error_ppm == pytest.approx(0.0)
     qvalues = target_decoy_qvalues((psm,))
-    assert qvalues[0].q_value == 0.0
+    assert qvalues[0].q_value is None
     groups = infer_protein_groups({"MPEPTIDER": ("P1",), "MPEPTIDE": ("P1", "P2")})
     assert groups[0].accessions == ("P1", "P2")
     assert groups[0].shared_peptides == ("MPEPTIDE",)
@@ -214,7 +214,7 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
     decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
     summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
-    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-2"
+    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-3"
     assert summary.spectrum_winners == 2
     assert summary.target_winners == 1
     assert summary.decoy_winners == 1
@@ -234,6 +234,17 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     assert collision_summary.decoy_to_target_ratio == 1.0
     with pytest.raises(ValueError, match="between zero and one"):
         summarize_target_decoy((target,), q_value_threshold=1.1)
+
+
+def test_target_only_fdr_abstains_without_decoy_error_evidence() -> None:
+    target = Psm("target-only", "PEPTIDER", ("P1",), 4.0, 3, decoy=False)
+    scored = target_decoy_qvalues((target,))
+    summary = summarize_target_decoy(scored, q_value_threshold=0.01)
+    assert scored[0].q_value is None
+    assert summary.target_winners == 1
+    assert summary.decoy_winners == 0
+    assert summary.accepted_targets == 0
+    assert summary.max_accepted_q_value is None
 
 
 def test_median_quantification_preserves_missingness() -> None:
@@ -723,7 +734,7 @@ def test_target_tie_prefers_target_winner() -> None:
     scored = target_decoy_qvalues((decoy, target))
     assert len(scored) == 1
     assert scored[0].decoy is False
-    assert scored[0].q_value == 0.0
+    assert scored[0].q_value is None
     lower = replace(target, score=0.5)
     assert len(target_decoy_qvalues((target, lower))) == 1
     with pytest.raises(ValueError):
