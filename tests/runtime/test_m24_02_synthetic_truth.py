@@ -14,10 +14,13 @@ from glio_proteogen.contracts.m24_02 import (
     GenerationConfiguration,
     GenerationStatus,
 )
+from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material import (
     m24_02_synthetic_truth_generator as m2402,
 )
-from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionState
+
+
+_EXPECTED_CASES = 5
 
 
 def request() -> GenerateBiomarkerPanelSyntheticTruthRequest:
@@ -48,7 +51,7 @@ def test_generation_is_deterministic_and_replay_bound() -> None:
     second = service.evaluate(json.dumps(request().model_dump(mode="json"), sort_keys=True))
     assert first.status is GenerationStatus.GENERATED
     assert first.corpus is not None
-    assert len(first.corpus.cases) == 5
+    assert len(first.corpus.cases) == _EXPECTED_CASES
     assert first.result_digest == second.result_digest
     assert service.verify_replay(first).result_digest == first.result_digest
 
@@ -84,7 +87,7 @@ def test_denied_control_and_invalid_upstream_fail_closed() -> None:
     bad = typed.model_copy(
         update={"upstream_result": typed.upstream_result.model_copy(update={"media_type": "bad"})}
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="upstream result media type"):
         m2402.M2402Service().evaluate(bad)
 
 
