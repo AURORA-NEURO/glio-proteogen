@@ -523,6 +523,13 @@ def test_plain_materialization_bounds_hostile_depth_and_container_size(
         m0404_engine._plain_value(["item"] * 250_001)
 
 
+def test_plain_materialization_bounds_scalar_and_aggregate_string_bytes() -> None:
+    with pytest.raises(TypeError):
+        m0404_engine._plain_value("x" * (m0404_engine._MAX_PLAIN_BYTES + 1))
+    with pytest.raises(TypeError):
+        m0404_engine._plain_value(["x" * 30_000] * 200)
+
+
 def test_preflight_sanitizes_exception_but_propagates_baseexception(
     canonical_request: ComputeProteoformQualityMetricsRequest,
     monkeypatch: pytest.MonkeyPatch,
