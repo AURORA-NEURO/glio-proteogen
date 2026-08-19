@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Any, Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m20_03 import (
     M2003_CONTRACT_VERSION,
     M2003_EVIDENCE_CLAIM,
+    M2003_MAX_CANONICAL_REQUEST_BYTES,
     M2003_MAX_EVIDENCE,
     M2003_MODULE_ID,
     DisagreementStatus,
@@ -57,6 +58,10 @@ _CONTROL_STATES: Final = {
 _FORBIDDEN_TERMS: Final = frozenset(
     {"all-omics", "kinase", "treatment", "identity inference", "diagnosis"}
 )
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 512
+_MAX_PLAIN_NODES: Final = 250_000
 
 
 class M2003AuthorizationError(ValueError):
@@ -69,6 +74,9 @@ class M2003ReplayError(ValueError):
 
 def _member(value: object, name: str) -> object:
     if isinstance(value, Mapping):
+        candidate_mro = type.__getattribute__(type(value), "__mro__")
+        if dict in candidate_mro:
+            return dict.get(cast("dict[object, object]", value), name)
         return value.get(name)
     return getattr(value, name, None)
 
@@ -76,19 +84,105 @@ def _member(value: object, name: str) -> object:
 def preflight_m2003_authorization(candidate: object) -> None:
     """Require all seven caller-declared controls before fusion traversal."""
 
-    references = _member(_member(candidate, "context"), "references")
-    if references is None:
+    try:
+        references = _member(_member(candidate, "context"), "references")
+        if references is None:
+            raise M2003AuthorizationError(  # noqa: TRY003, TRY301
+                "M20-03 requires all seven upstream controls"
+            )
+        for name, expected in _CONTROL_STATES.items():
+            decision = _member(references, name)
+            actual = _member(decision, "state")
+            actual_value = getattr(actual, "value", actual)
+            if actual_value != expected:
+                raise M2003AuthorizationError(  # noqa: TRY003, TRY301
+                    f"M20-03 control {name} must be {expected}; received {actual_value}"
+                )
+    except M2003AuthorizationError:
+        raise
+    except Exception:  # noqa: BLE001 - hostile accessors collapse to safe denial.
         raise M2003AuthorizationError(  # noqa: TRY003
             "M20-03 requires all seven upstream controls"
-        )
-    for name, expected in _CONTROL_STATES.items():
-        decision = _member(references, name)
-        actual = _member(decision, "state")
-        actual_value = getattr(actual, "value", actual)
-        if actual_value != expected:
-            raise M2003AuthorizationError(  # noqa: TRY003
-                f"M20-03 control {name} must be {expected}; received {actual_value}"
+        ) from None
+
+
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M20-03 strict requests require bounded built-in containers")
+
+
+def _charge_plain_bytes(budget: list[int], value: str) -> None:
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+
+
+def _plain_value(  # noqa: C901, PLR0912 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+    _byte_budget: list[int] | None = None,
+) -> object:
+    """Materialize only bounded built-in containers for direct M20-03 ingress."""
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    byte_budget = [M2003_MAX_CANONICAL_REQUEST_BYTES] if _byte_budget is None else _byte_budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if BaseModel in candidate_mro:
+        return candidate
+    if dict in candidate_mro:
+        mapping = cast("dict[object, object]", candidate)
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise _InvalidPlainValueError
+        result: dict[str, object] = {}
+        for key in dict.keys(mapping):
+            if type(key) is not str:
+                raise _InvalidPlainValueError
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
             )
+        return result
+    if list in candidate_mro:
+        list_values = cast("list[object]", candidate)
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in list.__iter__(list_values)
+        ]
+    if tuple in candidate_mro:
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro or isinstance(candidate, Mapping):
+        raise _InvalidPlainValueError
+    if type(candidate) is str:
+        _charge_plain_bytes(byte_budget, candidate)
+    return candidate
 
 
 def _uncertainty() -> UncertaintyProfile:
@@ -284,7 +378,7 @@ class M2003Engine:
 
     def validate_request(self, candidate: object) -> FuseProteinSubtypeEvidenceRequest:
         preflight_m2003_authorization(candidate)
-        return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+        return _REQUEST_ADAPTER.validate_python(_plain_value(candidate), strict=True)
 
     def fuse(self, candidate: object) -> ProteinSubtypeIntegratedEvidenceResult:
         request = self.validate_request(candidate)

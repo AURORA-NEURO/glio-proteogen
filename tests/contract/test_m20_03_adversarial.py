@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -216,6 +217,46 @@ def test_control_denial_precedes_source_traversal() -> None:
     )
     with pytest.raises(M2003AuthorizationError, match="consent"):
         M2003Engine().fuse(request.model_copy(update={"context": context}))
+
+
+class _HostileRequestDict(dict[str, object]):
+    def get(self, key: str, default: object = None) -> object:
+        del key, default
+        raise AssertionError
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError
+
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError(key)
+
+
+class _UnreadableAuthorizationMapping(Mapping[str, object]):
+    def get(self, key: str, default: object = None) -> object:
+        del key, default
+        raise RuntimeError
+
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError(key)
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError
+
+    def __len__(self) -> int:
+        raise AssertionError
+
+
+def test_direct_fusion_closes_dict_subclasses_before_strict_validation() -> None:
+    request = _request()
+    expected = M2003Engine().fuse(request)
+    candidate = _HostileRequestDict(request.model_dump(mode="python"))
+
+    assert M2003Engine().fuse(candidate) == expected
+
+
+def test_authorization_fail_closed_on_hostile_mapping_accessors() -> None:
+    with pytest.raises(M2003AuthorizationError, match="all seven upstream controls"):
+        M2003Engine().fuse(_UnreadableAuthorizationMapping())
 
 
 def test_upstream_media_type_is_strict() -> None:
