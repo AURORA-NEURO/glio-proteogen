@@ -12,11 +12,11 @@ from glio_proteogen.contracts.m18_08 import (
     BiomarkerPanelTranslationMonitoringResult,
     MonitorBiomarkerPanelTranslationHealthRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .service import M1808Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(MonitorBiomarkerPanelTranslationHealthRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM1808Request, object] = WeakKeyDictionary()
 
 
 class ValidatedM1808Request:
@@ -29,6 +29,14 @@ class ValidatedM1808Request:
     ) -> None:
         self.request = request
         self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1808Request,
+        tuple[object, MonitorBiomarkerPanelTranslationHealthRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class M1808TokenError(TypeError):
@@ -71,7 +79,7 @@ class M1808Plugin:
     def validate(self, request: object) -> ValidatedM1808Request:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         token = ValidatedM1808Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
         return token
 
     def validate_request(self, request: object) -> MonitorBiomarkerPanelTranslationHealthRequest:
@@ -80,11 +88,20 @@ class M1808Plugin:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def run(self, token: ValidatedM1808Request) -> BiomarkerPanelTranslationMonitoringResult:
-        if not isinstance(token, ValidatedM1808Request) or _TOKENS.get(token) is not self._seal:
+        if not isinstance(token, ValidatedM1808Request):
             raise M1808TokenError
-        if token._seal is not self._seal:
+        snapshot = _TOKENS.get(token)
+        if snapshot is None or snapshot[0] is not self._seal or token._seal is not self._seal:
             raise M1808TokenError
-        return self._service._engine.infer(token.request)
+        if snapshot[1] is not token.request:
+            raise M1808TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request)
+        except (TypeError, ValueError) as error:
+            raise M1808TokenError from error
+        if current_bytes != snapshot[2]:
+            raise M1808TokenError
+        return self._service._engine.infer(snapshot[1])
 
     def verify(self, result: object) -> BiomarkerPanelTranslationMonitoringResult:
         return self._service.verify(result)

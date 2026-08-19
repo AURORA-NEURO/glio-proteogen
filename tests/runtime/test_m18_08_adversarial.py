@@ -107,6 +107,26 @@ def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
     assert first.verify(result) == first.replay(result) == result
 
 
+def test_plugin_rejects_request_replacement_and_nested_mutation() -> None:
+    plugin = m1808.M1808Plugin()
+    token = plugin.validate(_request())
+
+    original_request = token.request
+    token.request = _request(telemetry_status=ObservationStatus.FAIL)
+    with pytest.raises(m1808.M1808TokenError):
+        plugin.run(token)
+    token.request = original_request
+
+    observation = token.request.telemetry[0]
+    original_status = observation.status
+    object.__setattr__(observation, "status", ObservationStatus.FAIL)
+    try:
+        with pytest.raises(m1808.M1808TokenError):
+            plugin.run(token)
+    finally:
+        object.__setattr__(observation, "status", original_status)
+
+
 def test_contract_rejects_duplicate_ids_and_unknown_evidence() -> None:
     request = _request()
     duplicate = request.model_copy(
