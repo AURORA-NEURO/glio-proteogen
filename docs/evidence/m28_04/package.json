@@ -10,15 +10,15 @@
     "unsafe_paths": []
   },
   "sdist": {
-    "bytes": 4662379,
+    "bytes": 4665576,
     "filename": "glio_proteogen-0.1.0.tar.gz",
     "members": 4741,
-    "sha256": "85c483e24664628efbac638e0a481f77de09ea19c3d1c86114cfb987e28964b8"
+    "sha256": "904806f81ff21dc10b35170c8bc41d1d829a1ea52cdb105862bfe80ae2268005"
   },
   "wheel": {
-    "bytes": 3968347,
+    "bytes": 3970801,
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
     "members": 2023,
-    "sha256": "e551d1e6dbd62e0e24de2d89244b835f905b0e2ac5c391dcc1785fb604a21069"
+    "sha256": "d16d006a723e07925459365b569c04ba4b61ca102e3db307974d5cc18d45b15c"
   }
 }
