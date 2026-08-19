@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from glio_proteogen.contracts.m19_04 import IntendedUseKind, PolicyDecisionStatus
+from glio_proteogen.contracts.m19_04 import (
+    AdapterFindingCode,
+    IntendedUseKind,
+    PolicyDecisionStatus,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_adapter import (
     M1904AuthorizationError,
@@ -90,3 +95,19 @@ def test_replay_rejects_unvalidated_mapping_and_model_tampering() -> None:
 
     with pytest.raises(M1904ReplayError, match="result digest"):
         engine.replay(result.model_copy(update={"human_review_required": True}))
+
+
+def test_replay_rejects_self_rehashed_policy_mutation() -> None:
+    engine = M1904Engine()
+    result = engine.adapt(_supported_request())
+    forged_policy = result.policy_decision.model_copy(
+        update={
+            "reason_code": AdapterFindingCode.CLAIM_EXCEEDS_CEILING,
+            "rationale": "Forged policy rationale.",
+        }
+    )
+    forged = result.model_copy(update={"policy_decision": forged_policy})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M1904ReplayError, match="deterministic replay"):
+        engine.replay(forged)
