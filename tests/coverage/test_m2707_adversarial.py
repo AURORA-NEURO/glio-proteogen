@@ -106,6 +106,14 @@ def test_plugin_rejects_copied_token() -> None:
         plugin.run(type(token)(request=token.request, request_digest=token.request_digest))
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2707Plugin()
+    token = plugin.validate(ChangeControlSubmission(build_request()))
+    object.__setattr__(token.request, "request_id", "m2707.tampered")
+    with pytest.raises(ValueError, match="capability"):
+        plugin.run(token)
+
+
 def test_plugin_rejects_mutated_request() -> None:
     plugin = M2707Plugin()
     request = build_request()
