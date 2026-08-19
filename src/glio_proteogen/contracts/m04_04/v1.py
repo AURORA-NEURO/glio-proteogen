@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final, Literal, cast
@@ -93,6 +94,11 @@ M0404_MAX_EVIDENCE: Final = 45
 M0404_LIMITATION_COUNT: Final = 3
 _M0404_ZERO_DIGEST: Final = "sha256:" + ("0" * 64)
 M0404_EVIDENCE_CLAIM: Final = "Caller-declared content-addressed M04-04 aggregate quality evidence."
+_MAX_RAW_INPUT_CANONICAL_BYTES: Final = M0404_MAX_CANONICAL_REQUEST_BYTES
+_MAX_RAW_INPUT_DEPTH: Final = 64
+_MAX_RAW_INPUT_DICT_ITEMS: Final = 512
+_MAX_RAW_INPUT_SEQUENCE_ITEMS: Final = 250_000
+_MAX_RAW_INPUT_NODES: Final = 250_000
 
 _VALIDATION_CAPABILITY_SEAL: Final = object()
 _RAW_CAPABILITY_CONTEXT_KEY: Final = "_m0404_raw_input_replay_capability"
@@ -1053,30 +1059,101 @@ def _raw_input_value(candidate: object) -> object:
     raise TypeError("M04-04 sealed validation requires an exact model or built-in dict family")
 
 
-def _materialize_raw_input_value(candidate: object) -> object:
+def _charge_raw_input_bytes(budget: list[int], value: str) -> None:
+    """Charge UTF-8 payload and JSON quoting before canonical serialization.
+
+    The raw M04-03 envelope is nested inside an M04-04 request.  Its final
+    request-size validator runs after replay, so charging scalar strings while
+    materializing prevents a large caller-supplied value from being copied and
+    serialized before the 4 MiB boundary can reject it.
+    """
+
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise TypeError("M04-04 raw-input replay exceeds its canonical byte budget")
+
+
+def _materialize_raw_input_value(  # noqa: PLR0912 - explicit hostile-value shape firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _byte_budget: list[int] | None = None,
+    _node_budget: list[int] | None = None,
+) -> object:
+    budget = (
+        [_MAX_RAW_INPUT_CANONICAL_BYTES] if _byte_budget is None else _byte_budget
+    )
+    nodes = [_MAX_RAW_INPUT_NODES] if _node_budget is None else _node_budget
+    if _depth > _MAX_RAW_INPUT_DEPTH:
+        raise TypeError("M04-04 raw-input replay exceeds its nesting depth")
+    nodes[0] -= 1
+    if nodes[0] < 0:
+        raise TypeError("M04-04 raw-input replay exceeds its node budget")
     candidate_mro = type.__getattribute__(type(candidate), "__mro__")
     if BaseModel in candidate_mro:
         storage = cast("dict[object, object]", object.__getattribute__(candidate, "__dict__"))
         if type(storage) is not dict or any(type(key) is not str for key in dict.keys(storage)):
             raise TypeError("M04-04 raw-input model storage must have exact string keys")
-        return {
-            key: _materialize_raw_input_value(dict.__getitem__(storage, key))
-            for key in dict.keys(storage)
-        }
+        if dict.__len__(storage) > _MAX_RAW_INPUT_DICT_ITEMS:
+            raise TypeError("M04-04 raw-input replay exceeds its object-item budget")
+        result: dict[str, object] = {}
+        for key in dict.keys(storage):
+            key = cast("str", key)
+            _charge_raw_input_bytes(budget, key)
+            result[key] = _materialize_raw_input_value(
+                dict.__getitem__(storage, key),
+                _depth=_depth + 1,
+                _byte_budget=budget,
+                _node_budget=nodes,
+            )
+        return result
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
         if any(type(key) is not str for key in dict.keys(mapping)):
             raise TypeError("M04-04 raw-input objects must have exact string keys")
-        return {
-            key: _materialize_raw_input_value(dict.__getitem__(mapping, key))
-            for key in dict.keys(mapping)
-        }
+        if dict.__len__(mapping) > _MAX_RAW_INPUT_DICT_ITEMS:
+            raise TypeError("M04-04 raw-input replay exceeds its object-item budget")
+        result = {}
+        for key in dict.keys(mapping):
+            key = cast("str", key)
+            _charge_raw_input_bytes(budget, key)
+            result[key] = _materialize_raw_input_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _byte_budget=budget,
+                _node_budget=nodes,
+            )
+        return result
     if list in candidate_mro:
         list_values = cast("list[object]", candidate)
-        return [_materialize_raw_input_value(item) for item in list.__iter__(list_values)]
+        if list.__len__(list_values) > _MAX_RAW_INPUT_SEQUENCE_ITEMS:
+            raise TypeError("M04-04 raw-input replay exceeds its sequence-item budget")
+        return [
+            _materialize_raw_input_value(
+                item,
+                _depth=_depth + 1,
+                _byte_budget=budget,
+                _node_budget=nodes,
+            )
+            for item in list.__iter__(list_values)
+        ]
     if tuple in candidate_mro:
         tuple_values = cast("tuple[object, ...]", candidate)
-        return tuple(_materialize_raw_input_value(item) for item in tuple.__iter__(tuple_values))
+        if tuple.__len__(tuple_values) > _MAX_RAW_INPUT_SEQUENCE_ITEMS:
+            raise TypeError("M04-04 raw-input replay exceeds its sequence-item budget")
+        return tuple(
+            _materialize_raw_input_value(
+                item,
+                _depth=_depth + 1,
+                _byte_budget=budget,
+                _node_budget=nodes,
+            )
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro:
+        raise TypeError("M04-04 raw-input replay requires built-in containers")
+    if type(candidate) is str:
+        _charge_raw_input_bytes(budget, candidate)
     return candidate
 
 

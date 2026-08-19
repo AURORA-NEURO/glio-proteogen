@@ -1,5 +1,6 @@
 """Focused public canonical wrapper coverage for M04-04."""
 
+from collections.abc import Iterator, Mapping
 from datetime import timedelta
 
 import pytest
@@ -150,6 +151,35 @@ def test_sealed_json_and_recursive_raw_materialization_fail_closed(
             {"raw_input_result": {}},
             capability,
         )
+
+
+def test_raw_materialization_bounds_scalar_bytes_and_total_nodes(
+    quality_request: ComputeProteoformQualityMetricsRequest,
+) -> None:
+    with pytest.raises(TypeError, match="canonical byte budget"):
+        _materialize_raw_input_value({"payload": "x" * (4 * 1024 * 1024)})
+    with pytest.raises(TypeError, match=r"node budget|sequence-item budget"):
+        _materialize_raw_input_value([None] * 250_001)
+
+    payload = quality_request.model_dump(mode="python", exclude_none=False)
+    raw = payload["raw_input_result"]
+    assert isinstance(raw, dict)
+    raw["result_id"] = "result.m0403." + "x" * (4 * 1024 * 1024)
+    with pytest.raises((TypeError, ValidationError), match=r"canonical byte budget|raw-input"):
+        _validate_request(quality_request, raw_input_result=raw)
+
+    class HostileMapping(Mapping[str, object]):
+        def __getitem__(self, key: str) -> object:
+            raise AssertionError(key)
+
+        def __iter__(self) -> Iterator[str]:
+            raise AssertionError
+
+        def __len__(self) -> int:
+            raise AssertionError
+
+    with pytest.raises(TypeError, match="built-in containers"):
+        _materialize_raw_input_value(HostileMapping())
 
 
 def test_safe_upstream_defensive_helpers_never_require_a_ledger() -> None:
