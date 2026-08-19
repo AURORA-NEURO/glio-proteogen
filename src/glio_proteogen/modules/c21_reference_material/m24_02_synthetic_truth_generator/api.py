@@ -47,6 +47,8 @@ def _parse_request(body: bytes) -> GenerateBiomarkerPanelSyntheticTruthRequest:
 def _parse_result(body: bytes) -> BiomarkerPanelSyntheticTruthResult:
     try:
         candidate = strict_json_loads(body, max_bytes=M2402_MAX_CANONICAL_RESULT_BYTES)
+        if isinstance(candidate, dict) and "result" in candidate:
+            candidate = candidate["result"]
         return _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
     except (StrictJsonError, ValueError, ValidationError) as error:
         raise HTTPException(status_code=422, detail="replay envelope is invalid") from error

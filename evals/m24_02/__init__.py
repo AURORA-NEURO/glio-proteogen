@@ -1,3 +1,1 @@
-"""Evaluation fixtures reserved for the provisional M24-02 generator."""
-
-__all__: list[str] = []
+"""Locked evaluator package for provisional M24-02."""
