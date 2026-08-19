@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m23_07 import (
     OperationalStatus,
     result_payload_digest,
 )
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c21_reference_material import (
     m23_07_human_factors_operational_evaluator as m2307,
 )
@@ -30,6 +31,19 @@ def test_strict_service_rejects_unknown_fields() -> None:
     payload["unexpected"] = "must be rejected"
     with pytest.raises(ValidationError):
         m2307.M2307Service().validate_request(payload)
+
+
+def test_service_json_boundary_rejects_duplicate_keys_before_model_validation() -> None:
+    request = build_request()
+    body = request.model_dump_json()
+    duplicate = body.replace(
+        f'"request_id":"{request.request_id}"',
+        f'"request_id":"forged","request_id":"{request.request_id}"',
+        1,
+    )
+
+    with pytest.raises(StrictJsonError, match="duplicate JSON object key"):
+        m2307.M2307Service().validate_request(duplicate)
 
 
 def test_plugin_rejects_non_object_json_and_unvalidated_execution() -> None:
