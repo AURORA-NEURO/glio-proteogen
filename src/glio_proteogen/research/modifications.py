@@ -10,8 +10,10 @@ turning unknown annotations into arbitrary mass deltas.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from hashlib import sha256
 from itertools import product
 from math import isfinite
 
@@ -50,12 +52,38 @@ _CATALOGUE: dict[str, ModificationSpec] = {
     "UNIMOD:35": ModificationSpec("UNIMOD:35", "Oxidation", 15.994915, ("M",)),
 }
 _TOKEN = re.compile(r"UNIMOD:[0-9]+\Z")
+MODIFICATION_CATALOGUE_VERSION = "research-unimod-catalogue-1"
+_MAX_PEPTIDE_RESIDUES = 200
 
 
 def supported_modifications() -> tuple[ModificationSpec, ...]:
     """Return the immutable, deterministic catalogue exposed by this lane."""
 
     return tuple(_CATALOGUE[key] for key in sorted(_CATALOGUE))
+
+
+def modification_catalogue_digest() -> str:
+    """Return the content digest of the active research mass catalogue.
+
+    Rule identifiers alone are not enough to reproduce a mass search: a changed
+    delta or residue compatibility map would alter precursor and fragment masses
+    while leaving the caller's rule list unchanged.  The digest is deliberately
+    computed from the live catalogue so a forged or stale receipt cannot pass
+    after an in-process catalogue mutation.
+    """
+
+    payload = [
+        {
+            "delta_mass": spec.delta_mass,
+            "identifier": spec.identifier,
+            "name": spec.name,
+            "residues": list(spec.residues),
+        }
+        for spec in supported_modifications()
+    ]
+    return sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def normalize_modification_rules(values: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:
@@ -102,6 +130,8 @@ def parse_modified_peptide(
         if residue not in _RESIDUE_MASS:
             raise ValueError("peptide contains an unsupported residue or modification syntax")
         position = len(sequence)
+        if position >= _MAX_PEPTIDE_RESIDUES:
+            raise ValueError("peptide exceeds the research residue limit")
         sequence.append(residue)
         masses.append(_RESIDUE_MASS[residue])
         index += 1

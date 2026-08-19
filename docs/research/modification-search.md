@@ -45,3 +45,10 @@ the computation performed, not a calibrated probability of peptide identity.
 The supported surface remains deliberately narrower than a full ProForma/UniMod
 implementation. Future expansion requires an owner-approved catalogue,
 localization semantics, validation fixtures, and a frozen computation ABI.
+
+The search-space receipt also records `research-unimod-catalogue-1` and its
+SHA-256 content digest. This binds the actual delta masses and residue
+compatibility map, not merely the caller's rule names; a catalogue mutation
+cannot replay as the same modified search. Direct modification parsing is
+bounded to 200 residues before expansion so malformed or adversarially large
+annotations fail closed.

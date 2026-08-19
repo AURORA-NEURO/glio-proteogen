@@ -151,6 +151,8 @@ def test_expansion_is_deterministic_and_bounded() -> None:
         allowed_modifications=("UNIMOD:35",),
         max_variable_modifications=1,
     ) == (already_modified,)
+    with pytest.raises(ValueError, match="residue limit"):
+        parse_modified_peptide("M" * 201)
 
 
 def test_expansion_preserves_accession_ambiguity() -> None:
