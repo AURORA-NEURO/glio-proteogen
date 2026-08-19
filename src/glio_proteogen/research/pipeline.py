@@ -231,6 +231,11 @@ def bind_pdc_mzml_source(
             observed_sha256=observed_sha,
             observed_md5=md5(snapshot, usedforsecurity=False).hexdigest(),
             observed_size=len(snapshot),
+            observed_media_type=(
+                "application/gzip"
+                if pdc_file.file_format.lower() == "mzml.gz"
+                else "application/mzml"
+            ),
         )
         pdc_response_sha256 = pdc_snapshot.response_sha256
     return replace(
