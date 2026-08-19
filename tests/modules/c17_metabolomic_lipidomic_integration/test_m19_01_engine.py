@@ -151,3 +151,29 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
         plugin.validate_json(b'{"a":1,"a":2}')
     with pytest.raises(ValueError, match="size limit"):
         plugin.validate_json(b"{" + b" " * (4 * 1024 * 1024) + b"}")
+
+
+def test_plugin_capability_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = m1901.M1901Plugin()
+    other = m1901.M1901Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token) == plugin.run(request)
+
+    forged = m1901.ValidatedM1901Request(request=token.request, _seal=token._seal)
+    with pytest.raises(m1901.M1901TokenError):
+        plugin.run(forged)
+    with pytest.raises(m1901.M1901TokenError):
+        other.run(token)
+
+    changed_candidate = token.request.candidates[0].model_copy(
+        update={"compatibility_reason": "forged after validation"}
+    )
+    object.__setattr__(
+        token.request,
+        "candidates",
+        (changed_candidate, *token.request.candidates[1:]),
+    )
+    with pytest.raises(m1901.M1901TokenError):
+        plugin.run(token)
