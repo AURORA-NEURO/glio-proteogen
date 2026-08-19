@@ -10,6 +10,8 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_07_downstream_type
     M1907AuthorizationError,
     M1907Engine,
     M1907Plugin,
+    M1907TokenError,
+    ValidatedM1907Request,
 )
 
 from .test_m19_07_deep import _field, _request
@@ -57,6 +59,30 @@ def test_plugin_issues_opaque_token_and_rejects_raw_run() -> None:
     assert plugin.verify(canonical_json_bytes(result.model_dump(mode="json"))) == result
     with pytest.raises(TypeError):
         plugin.run(request)  # type: ignore[arg-type]
+
+
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = M1907Plugin()
+    other = M1907Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token).status is ExportStatus.EXPORTED
+
+    forged = ValidatedM1907Request(request=token.request, _seal=token._seal)
+    with pytest.raises(M1907TokenError):
+        plugin.run(forged)
+    with pytest.raises(M1907TokenError):
+        other.run(token)
+
+    changed_field = token.request.fields[0].model_copy(update={"documentation": "forged"})
+    object.__setattr__(
+        token.request,
+        "fields",
+        (changed_field, *token.request.fields[1:]),
+    )
+    with pytest.raises(M1907TokenError):
+        plugin.run(token)
 
 
 def test_verify_rejects_tampered_digest() -> None:

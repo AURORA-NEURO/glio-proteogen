@@ -9,7 +9,7 @@ from .engine import (
     export_proteotype_downstream_contract,
     preflight_m1907_authorization,
 )
-from .plugin import M1907Plugin, ValidatedM1907Request
+from .plugin import M1907Plugin, M1907TokenError, ValidatedM1907Request
 from .service import M1907Service
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "M1907Plugin",
     "M1907ReplayError",
     "M1907Service",
+    "M1907TokenError",
     "ValidatedM1907Request",
     "create_m1907_app",
     "export_proteotype_downstream_contract",
