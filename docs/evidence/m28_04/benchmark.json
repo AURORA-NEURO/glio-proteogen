@@ -1,15 +1,15 @@
 {
   "iterations": 10,
-  "maximum_ns": 2663800,
+  "maximum_ns": 2570500,
   "mean_budget_ns": 500000000,
-  "mean_ns": 2113360.0,
-  "median_ns": 2035800.0,
+  "mean_ns": 2188900.0,
+  "median_ns": 2171500.0,
   "module_id": "GLIO-PROTEOGEN-M28-04",
   "p95_budget_ns": 750000000,
-  "p95_ns": 2663800,
+  "p95_ns": 2570500,
   "passed": true,
   "request_digest": "sha256:f3a681830908eaf1ab86163b4c002d5a287dd9363ff3cd8710503c9af8fd9c22",
-  "result_digest": "sha256:3131ed00f09f6d2b7837390dd0d8fa4356f70af708846cbcd047e0452da7377e",
+  "result_digest": "sha256:834c5e1361c6c7ad18a00484f6f88509473002364113ed8b5217b737a851f697",
   "source": "evals/m28_04/benchmark.py",
   "workload": "caller_declared_protein_rna_discordance_gateway_request"
 }

@@ -1,5 +1,5 @@
 {
-  "build_command": "python -m build --wheel --sdist --outdir .m2804-build --no-isolation",
+  "build_command": "SOURCE_DATE_EPOCH=315532800 uv build --out-dir .m2804-build --no-sources",
   "isolated_import": true,
   "module_id": "GLIO-PROTEOGEN-M28-04",
   "release_verifier": "passed",
@@ -10,15 +10,15 @@
     "unsafe_paths": []
   },
   "sdist": {
-    "bytes": 3662416,
+    "bytes": 4581588,
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "members": 4145,
-    "sha256": "1a24f6be85f34eb37071bde5d46626223a241b734da2c4dc5370c7120c702fbf"
+    "members": 4664,
+    "sha256": "a63bf5f1b815be51805e475183944d7f4692b909a39c929aab3d1f9f2c5e6cb3"
   },
   "wheel": {
-    "bytes": 3339607,
+    "bytes": 3892856,
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "members": 1810,
-    "sha256": "2bdfe6ab232fe4ca0fb69fef928db3a23a4073e4f29d17bbd10e44859eb93684"
+    "members": 1992,
+    "sha256": "e3a283e7cfd2fc1218fd26c5df3f19847bb7eb91d57e8b9e009ff2778f812cf1"
   }
 }

@@ -16,21 +16,21 @@ SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 EVIDENCE_ROOT = Path(__file__).parents[1] / "docs" / "evidence" / "m28_04"
 EXPECTED_CHECKS = 10
 EXPECTED_ITERATIONS = 10
-EXPECTED_FOCUSED_TESTS = 35
+EXPECTED_FOCUSED_TESTS = 45
 EXPECTED_WEIGHTED_COVERED = 963
 EXPECTED_WEIGHTED_TOTAL = 1011
 EXPECTED_PACKAGE = {
     "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-        "bytes": 3339607,
-        "members": 1810,
-        "sha256": "2bdfe6ab232fe4ca0fb69fef928db3a23a4073e4f29d17bbd10e44859eb93684",
+        "bytes": 3892856,
+        "members": 1992,
+        "sha256": "e3a283e7cfd2fc1218fd26c5df3f19847bb7eb91d57e8b9e009ff2778f812cf1",
     },
     "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 3662416,
-        "members": 4145,
-        "sha256": "1a24f6be85f34eb37071bde5d46626223a241b734da2c4dc5370c7120c702fbf",
+        "bytes": 4581588,
+        "members": 4664,
+        "sha256": "a63bf5f1b815be51805e475183944d7f4692b909a39c929aab3d1f9f2c5e6cb3",
     },
 }
 
