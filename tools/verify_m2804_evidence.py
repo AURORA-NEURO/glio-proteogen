@@ -22,15 +22,15 @@ EXPECTED_WEIGHTED_TOTAL = 1100
 EXPECTED_PACKAGE = {
     "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-        "bytes": 3958125,
+        "bytes": 3958238,
         "members": 2023,
-        "sha256": "c027238262d1ca5ec37100ca5f846b959295587ae60a2798c39aa45a97413a05",
+        "sha256": "a7282df58d17a4c6e3bfc4316c3633162797e49fcbeca183546ef54e10511236",
     },
     "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 4648931,
+        "bytes": 4649565,
         "members": 4741,
-        "sha256": "57718f56110a4c573edb10bd8c70b14ab40308b443f68ae08c4e9941f5da2647",
+        "sha256": "deae50d9ed701598731eea9378f6c59105e146829170035c20ecd4bca42c87f1",
     },
 }
 
