@@ -111,6 +111,31 @@ def test_service_and_plugin_enforce_validate_then_run() -> None:
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> None:
+    request = _request()
+    service = M2208Service()
+    plugin = M2208Plugin(service)
+    other = M2208Plugin(service)
+    token = plugin.validate(EvidenceGateSubmission(request))
+    forged = ValidatedM2208Request(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_benchmark = token.request.benchmarks[0].model_copy(
+        update={"name": "forged benchmark"}
+    )
+    object.__setattr__(
+        token.request,
+        "benchmarks",
+        (changed_benchmark, *token.request.benchmarks[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
 def test_replay_rejects_tampered_digest_and_identifier() -> None:
     result = M2208EvidenceGateEngine().adjudicate(_request())
     tampered_digest = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
