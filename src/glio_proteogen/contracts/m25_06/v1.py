@@ -132,9 +132,7 @@ class RobustnessObservation(FrozenModel):
     ood_score: float = Field(ge=0.0, le=1.0)
     ood_band: OODBand
     disposition: ChallengeDisposition
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2506_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2506_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def envelope_bounds_are_ordered(self) -> RobustnessObservation:
@@ -172,16 +170,12 @@ class RobustnessConfiguration(FrozenModel):
 class RobustnessSurface(FrozenModel):
     surface_id: Identifier
     version: SemanticVersion
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2506_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2506_MAX_SCENARIOS)
     observations: tuple[RobustnessObservation, ...] = Field(
         min_length=1, max_length=M2506_MAX_OBSERVATIONS
     )
     configuration: RobustnessConfiguration
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2506_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2506_MAX_EVIDENCE)
 
     @model_validator(mode="after")
     def surface_is_closed(self) -> RobustnessSurface:
@@ -209,9 +203,7 @@ class SafeFailureReport(FrozenModel):
     action: NonEmptyStr
     abstained: Literal[True] = True
     recovery_note: NonEmptyStr
-    evidence: tuple[EvidenceReference, ...] = Field(
-        min_length=1, max_length=M2506_MAX_EVIDENCE
-    )
+    evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2506_MAX_EVIDENCE)
 
 
 class ChallengeFinding(FrozenModel):
@@ -229,9 +221,7 @@ class ChallengeProteotypeRobustnessRequest(FrozenModel):
     request_id: Identifier
     context: ExecutionContext
     upstream_result: ArtifactReference
-    scenarios: tuple[ChallengeScenario, ...] = Field(
-        min_length=1, max_length=M2506_MAX_SCENARIOS
-    )
+    scenarios: tuple[ChallengeScenario, ...] = Field(min_length=1, max_length=M2506_MAX_SCENARIOS)
     configuration: RobustnessConfiguration
     source_artifacts: tuple[ArtifactReference, ...] = Field(
         min_length=1, max_length=M2506_MAX_EVIDENCE
@@ -326,13 +316,13 @@ __all__ = [
     "M2506_MAX_FINDINGS",
     "M2506_MAX_OBSERVATIONS",
     "M2506_MAX_SCENARIOS",
-    "M2506_REQUIRED_CHALLENGE_KINDS",
     "M2506_MODULE_ID",
     "M2506_OPERATION",
     "M2506_OUTPUT_MEDIA_TYPE",
     "M2506_OWNER",
     "M2506_PARENT",
     "M2506_PROVISIONAL_ABI",
+    "M2506_REQUIRED_CHALLENGE_KINDS",
     "M2506_SAFETY_CLASS",
     "ChallengeDisposition",
     "ChallengeFinding",
