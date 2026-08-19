@@ -4,11 +4,12 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Final, NoReturn
 
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m27_07 import (
+    M2707_MAX_EVIDENCE,
     ApprovedChangePackage,
     ChampionChallengerComparison,
     ChangeControlStatus,
@@ -17,7 +18,6 @@ from glio_proteogen.contracts.m27_07 import (
     ComparisonStatus,
     ComplexActivityChangeControlResult,
     ControlComplexActivityChangeRequest,
-    M2707_MAX_EVIDENCE,
     MetricComparison,
     PromotionState,
     SafeFailureReport,
@@ -107,17 +107,20 @@ def preflight_change_control_authorization(request: ControlComplexActivityChange
             continue
         if state != "accepted":
             raise ChangeControlAuthorizationError("required control is not accepted")
+    _validate_source_artifacts(request)
+
+
+def _validate_source_artifacts(request: ControlComplexActivityChangeRequest) -> None:
     ids = tuple(item.artifact_id for item in request.source_artifacts)
     if len(ids) != len(set(ids)):
         raise ChangeControlAuthorizationError("source artifact ids must be unique")
     digests = tuple(item.digest for item in request.source_artifacts)
     if len(digests) != len(set(digests)):
         raise ChangeControlAuthorizationError("source artifact digests must be unique")
-    evidence_digests = {
+    control_digests = {
         getattr(request.context.references, role.value).evidence.digest for role in _CONTROL_ROLES
     }
-    evidence_digests.update(digests)
-    if len(evidence_digests) > M2707_MAX_EVIDENCE:
+    if len(control_digests | set(digests)) > M2707_MAX_EVIDENCE:
         raise ChangeControlAuthorizationError("change evidence exceeds the result budget")
 
 
@@ -205,6 +208,10 @@ def _limitation() -> tuple[Limitation, ...]:
             statement="No protein, proteoform, isoform, or glioma-biology inference is emitted.",
         ),
     )
+
+
+def _raise_replay(message: str) -> NoReturn:
+    raise ChangeControlReplayError(message)
 
 
 class M2707ChangeControlEngine:
@@ -335,12 +342,12 @@ class M2707ChangeControlEngine:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
             if validated.request_digest != canonical_request_digest(validated.request):
-                raise ChangeControlReplayError("request digest mismatch")
+                _raise_replay("request digest mismatch")
             if validated.result_digest != result_payload_digest(validated):
-                raise ChangeControlReplayError("result digest mismatch")
+                _raise_replay("result digest mismatch")
             expected = self.evaluate(validated.request)
             if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise ChangeControlReplayError("deterministic replay mismatch")
+                _raise_replay("deterministic replay mismatch")
         except ChangeControlReplayError:
             raise
         except Exception as error:
