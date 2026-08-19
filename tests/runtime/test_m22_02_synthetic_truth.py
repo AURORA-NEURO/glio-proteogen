@@ -16,8 +16,11 @@ from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202AuthorizationError,
+    M2202Plugin,
     M2202ReplayError,
     M2202Service,
+    SyntheticTruthSubmission,
+    ValidatedM2202Request,
     generate_protein_rna_discordance_synthetic_truth,
     preflight_m2202_authorization,
 )
@@ -110,3 +113,25 @@ def test_hostile_mapping_fails_closed() -> None:
 
     with pytest.raises(M2202AuthorizationError):
         preflight_m2202_authorization(HostileMapping())
+
+
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    candidate = _request()
+    plugin = M2202Plugin(M2202Service())
+    other = M2202Plugin(M2202Service())
+    token = plugin.validate(SyntheticTruthSubmission(request=candidate))
+
+    assert plugin.run(token).status is GenerationStatus.GENERATED
+
+    forged = ValidatedM2202Request(request=token.request, _seal=token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_configuration = token.request.configuration.model_copy(
+        update={"seed": 99}
+    )
+    object.__setattr__(token.request, "configuration", changed_configuration)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
