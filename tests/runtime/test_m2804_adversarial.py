@@ -104,3 +104,28 @@ def test_result_rejects_unbound_control_provenance() -> None:
     payload["provenance"]["control_decisions"][0]["decision_id"] = "m2804.forged"
     with pytest.raises(ValidationError, match="control is not request-bound"):
         type(result).model_validate_json(canonical_json_bytes(payload))
+
+
+def test_result_rejects_provenance_metadata_drift() -> None:
+    result = M2804GatewayEngine().publish(_request())
+    cases = (
+        ("module_id", "GLIO-PROTEOGEN-M28-05", "module does not match"),
+        ("module_version", "0.2.0", "version does not match"),
+        ("activity_id", "m2804.activity.forged", "activity does not bind"),
+        ("consent_decision_id", "m2804.forged", "consent decision is not"),
+        ("consent_state", "revoked", "consent state is not"),
+        ("consent_policy_version", "2.0.0", "consent policy is not"),
+        ("consent_evidence_digest", "sha256:" + "f" * 64, "consent evidence is not"),
+    )
+    for field, value, message in cases:
+        payload = result.model_dump(mode="json")
+        payload["provenance"][field] = value
+        with pytest.raises(ValidationError, match=message):
+            type(result).model_validate_json(canonical_json_bytes(payload))
+
+    payload = result.model_dump(mode="json")
+    for record in payload["provenance"]["control_decisions"]:
+        if record["role"] == "identity_lineage":
+            record["subject_digest"] = "sha256:" + "f" * 64
+    with pytest.raises(ValidationError, match="identity control is not"):
+        type(result).model_validate_json(canonical_json_bytes(payload))

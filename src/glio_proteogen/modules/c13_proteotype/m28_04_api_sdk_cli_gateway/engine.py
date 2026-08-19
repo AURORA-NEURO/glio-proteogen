@@ -42,7 +42,6 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionState,
 )
-from glio_proteogen.kernel.strict_json import strict_json_loads
 
 _REQUEST_ADAPTER: Final = TypeAdapter(PublishProteinRnaDiscordanceAccessSurfaceRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaDiscordanceAccessSurfaceResult)
@@ -110,9 +109,6 @@ def preflight_m2804_authorization(candidate: object) -> None:
 
 
 def _validate_request(candidate: object) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
-    if isinstance(candidate, (bytes, bytearray, str)):
-        decoded = strict_json_loads(candidate, max_bytes=M2804_MAX_CANONICAL_REQUEST_BYTES)
-        return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if type(candidate) is dict:
         return _REQUEST_ADAPTER.validate_json(_bounded_mapping_bytes(candidate), strict=True)
     if isinstance(candidate, PublishProteinRnaDiscordanceAccessSurfaceRequest):
@@ -365,12 +361,6 @@ class M2804GatewayEngine:
     def replay(self, result: object) -> ProteinRnaDiscordanceAccessSurfaceResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-            if validated.request_digest != canonical_request_digest(validated.request):
-                raise M2804ReplayError  # noqa: TRY301
-            if validated.result_id != result_identifier(validated.request_digest):
-                raise M2804ReplayError  # noqa: TRY301
-            if validated.result_digest != result_payload_digest(validated):
-                raise M2804ReplayError  # noqa: TRY301
             expected = self.publish(validated.request)
             if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
                 raise M2804ReplayError  # noqa: TRY301

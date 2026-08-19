@@ -205,6 +205,11 @@ def test_engine_rejects_hostile_types_and_service_descriptor() -> None:
     assert publish_protein_rna_discordance_access_surface(request) == result
 
 
+def test_preflight_rejects_non_mapping_nested_references() -> None:
+    with pytest.raises(M2804AuthorizationError):
+        M2804GatewayEngine().publish({"context": {"references": 1}})
+
+
 def test_plugin_rejects_forged_and_wrong_tokens() -> None:
     plugin = M2804Plugin()
     with pytest.raises(M2804TokenError):
@@ -217,6 +222,7 @@ def test_plugin_rejects_forged_and_wrong_tokens() -> None:
     token._seal = object()
     with pytest.raises(M2804TokenError):
         plugin.run(token)
+    assert plugin.replay(M2804GatewayEngine().publish(_request())).status.value == "published"
 
 
 def test_each_finding_path_abstains() -> None:

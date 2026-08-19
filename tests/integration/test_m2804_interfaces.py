@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -14,6 +15,7 @@ from glio_proteogen.contracts.m28_04 import (
     M2804_MAX_CANONICAL_RESULT_BYTES,
     AuthorizationDecision,
     contract_json_schemas,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.api import create_app
@@ -35,6 +37,7 @@ def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
         validated = client.post("/v1/modules/M28-04/validate", json=payload)
         published = client.post("/v1/modules/M28-04/publish", json=payload)
         verified = client.post("/v1/modules/M28-04/verify", json=published.json())
+        malformed_verify = client.post("/v1/modules/M28-04/verify", content=b"not-json")
         malformed = client.post("/v1/modules/M28-04/publish", content=b"{not-json")
         unknown = client.get("/v1/modules/M28-04/schemas/unknown")
 
@@ -46,6 +49,7 @@ def test_api_schema_validate_publish_verify_and_sanitized_errors() -> None:
     assert published.status_code == HTTP_OK
     assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
+    assert malformed_verify.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert "Traceback" not in malformed.text
     assert unknown.status_code == HTTP_NOT_FOUND
@@ -195,3 +199,42 @@ def test_cli_bounded_reader_avoids_unbounded_path_read_bytes(tmp_path: Path) -> 
     path.write_bytes(b"{}")
     with patch.object(Path, "read_bytes", side_effect=AssertionError("unbounded read")):
         assert _read_bounded(path, max_bytes=2) == b"{}"
+
+
+def test_cli_bounded_reader_rejects_missing_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="cannot be read"):
+        _read_bounded(tmp_path / "missing.json", max_bytes=2)
+
+
+def test_cli_sanitizes_service_rejection_and_replay_mismatch(tmp_path: Path) -> None:
+    request = _request()
+    rejected = request.context.references.support.model_copy(
+        update={"state": UpstreamDecisionState.REJECTED}
+    )
+    rejected_request = request.model_copy(
+        update={
+            "context": request.context.model_copy(
+                update={
+                    "references": request.context.references.model_copy(
+                        update={"support": rejected}
+                    )
+                }
+            )
+        }
+    )
+    rejected_path = tmp_path / "rejected.json"
+    rejected_path.write_text(rejected_request.model_dump_json(), encoding="utf-8")
+    runner = CliRunner()
+    rejected_result = runner.invoke(app, ["publish", str(rejected_path)])
+    assert rejected_result.exit_code != 0
+    assert "Traceback" not in rejected_result.output
+
+    result = M2804Client().publish(request)
+    tampered_model = result.model_copy(update={"findings": ()})
+    tampered = tampered_model.model_dump(mode="json")
+    tampered["result_digest"] = result_payload_digest(tampered_model)
+    tampered_path = tmp_path / "tampered.json"
+    tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+    replay_result = runner.invoke(app, ["verify", str(tampered_path)])
+    assert replay_result.exit_code != 0
+    assert "Traceback" not in replay_result.output

@@ -247,6 +247,20 @@ def _validate_gateway_collections(  # noqa: PLR0912, PLR0913
     if len({event.event_id for event in audit_events}) != len(audit_events):
         raise ValueError("audit event ids must be unique")
     idempotency_ids = {record.idempotency_id for record in idempotency_records}
+    if any(auth.operation_id not in operation_ids for auth in authorizations):
+        raise ValueError("authorization references unknown operation")
+    if any(record.operation_id not in operation_ids for record in idempotency_records):
+        raise ValueError("idempotency record references unknown operation")
+    if any(job.operation_id not in operation_ids for job in jobs):
+        raise ValueError("async job references unknown operation")
+    if any(job.idempotency.idempotency_id not in idempotency_ids for job in jobs):
+        raise ValueError("async job references unknown idempotency record")
+    if any(rule.operation_id not in operation_ids for rule in compatibility_rules):
+        raise ValueError("compatibility rule references unknown operation")
+    if any(event.operation_id not in operation_ids for event in audit_events):
+        raise ValueError("audit event references unknown operation")
+    if any(operation.protocol not in configuration.supported_protocols for operation in operations):
+        raise ValueError("operation protocol is not enabled by gateway configuration")
     covered_authorization_operations = {record.operation_id for record in authorizations}
     covered_idempotency_operations = {record.operation_id for record in idempotency_records}
     covered_job_operations = {job.operation_id for job in jobs}
@@ -262,20 +276,6 @@ def _validate_gateway_collections(  # noqa: PLR0912, PLR0913
     for label, covered_operations in coverage:
         if covered_operations != operation_ids:
             raise ValueError(f"every gateway operation requires a bound {label} record")
-    if any(auth.operation_id not in operation_ids for auth in authorizations):
-        raise ValueError("authorization references unknown operation")
-    if any(record.operation_id not in operation_ids for record in idempotency_records):
-        raise ValueError("idempotency record references unknown operation")
-    if any(job.operation_id not in operation_ids for job in jobs):
-        raise ValueError("async job references unknown operation")
-    if any(job.idempotency.idempotency_id not in idempotency_ids for job in jobs):
-        raise ValueError("async job references unknown idempotency record")
-    if any(rule.operation_id not in operation_ids for rule in compatibility_rules):
-        raise ValueError("compatibility rule references unknown operation")
-    if any(event.operation_id not in operation_ids for event in audit_events):
-        raise ValueError("audit event references unknown operation")
-    if any(operation.protocol not in configuration.supported_protocols for operation in operations):
-        raise ValueError("operation protocol is not enabled by gateway configuration")
 
 
 class AccessSurface(FrozenModel):
