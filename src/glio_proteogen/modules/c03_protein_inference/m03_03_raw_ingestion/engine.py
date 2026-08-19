@@ -163,13 +163,17 @@ def prepare_protein_inference_raw_inputs(
     """Close the mapping, then read each source once in canonical declaration order."""
 
     expected = {item.source_id for item in request.sources}
+    if not isinstance(sources, Mapping):
+        raise ProteinInferenceRawIngestionInputError(
+            ProteinInferenceRawIngestionInputErrorCode.SOURCE_SET_MISMATCH
+        )
     try:
-        supplied = set(sources) if isinstance(sources, Mapping) else set()
+        supplied = _bounded_source_ids(sources, expected)
     except Exception:  # noqa: BLE001 - sanitize hostile Mapping implementation failures.
         raise ProteinInferenceRawIngestionInputError(
             ProteinInferenceRawIngestionInputErrorCode.SOURCE_SET_MISMATCH
         ) from None
-    if not isinstance(sources, Mapping) or supplied != expected:
+    if supplied != expected:
         raise ProteinInferenceRawIngestionInputError(
             ProteinInferenceRawIngestionInputErrorCode.SOURCE_SET_MISMATCH
         )
@@ -191,6 +195,33 @@ def prepare_protein_inference_raw_inputs(
             ProteinInferenceRawIngestionInputErrorCode.TOTAL_SOURCE_LIMIT_EXCEEDED
         )
     return MappingProxyType(payloads)
+
+
+def _bounded_source_ids(
+    sources: Mapping[str, RawInputSource],
+    expected: set[str],
+) -> set[str]:
+    """Read only enough mapping keys to prove exact source-set equality.
+
+    The caller owns this mapping, so it may contain an arbitrarily large or
+    non-terminating iterator.  The request contract caps declarations at 64;
+    one additional key is enough to reject an oversized mapping without
+    materializing its entire key set.
+    """
+
+    supplied: set[str] = set()
+    iterator = iter(sources)
+    for _ in range(len(expected) + 1):
+        try:
+            source_id = next(iterator)
+        except StopIteration:
+            break
+        if not isinstance(source_id, str) or source_id in supplied:
+            raise ValueError
+        supplied.add(source_id)
+        if len(supplied) > len(expected):
+            raise ValueError
+    return supplied
 
 
 def _snapshot_source(source: RawInputSource, limit: int) -> bytes:

@@ -32,11 +32,14 @@ from glio_proteogen.modules.c03_protein_inference.m03_03_raw_ingestion import (
     M0303ProteinInferenceRawIngestionEngine,
     M0303Service,
     ProteinInferenceRawIngestionAuthorizationError,
+    ProteinInferenceRawIngestionInputError,
+    ProteinInferenceRawIngestionInputErrorCode,
     ProteinInferenceRawIngestionSubmission,
     ValidatedM0303Request,
     ingest_protein_inference_raw_inputs,
     preflight_protein_inference_raw_ingestion_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_03_raw_ingestion import engine as m0303_engine
 
 
 def test_canonical_capsule_is_metadata_only_and_deterministic() -> None:
@@ -134,6 +137,37 @@ class _UnreadableMapping(Mapping[str, bytes]):
 
     def __len__(self) -> int:
         raise AssertionError(self._MESSAGE)
+
+
+class _EndlessExtraSourceMapping(Mapping[str, bytes]):
+    def __init__(self, expected: tuple[str, ...]) -> None:
+        self._expected = expected
+        self.extra_keys_seen = 0
+
+    def __getitem__(self, key: str) -> bytes:
+        del key
+        raise AssertionError
+
+    def __iter__(self) -> Iterator[str]:
+        yield from self._expected
+        while True:
+            self.extra_keys_seen += 1
+            yield f"unexpected-source-{self.extra_keys_seen}"
+
+    def __len__(self) -> int:
+        return len(self._expected) + 1
+
+
+def test_source_set_validation_stops_after_one_extra_key() -> None:
+    scenario = build_scenario()
+    expected = tuple(item.source_id for item in scenario.request.sources)
+    sources = _EndlessExtraSourceMapping(expected)
+
+    with pytest.raises(ProteinInferenceRawIngestionInputError) as captured:
+        m0303_engine.prepare_protein_inference_raw_inputs(scenario.request, sources)
+
+    assert captured.value.code is ProteinInferenceRawIngestionInputErrorCode.SOURCE_SET_MISMATCH
+    assert sources.extra_keys_seen == 1
 
 
 def test_upstream_shape_safe_failure_has_zero_mapping_traversal() -> None:
