@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from typing import Final
 
+from pydantic import TypeAdapter
+
 from glio_proteogen.contracts.m27_07 import (
     ApprovedChangePackage,
     ChampionChallengerComparison,
@@ -46,6 +48,8 @@ _CONTROL_ROLES: Final = (
     ControlRole.SUPPORT,
     ControlRole.INTENDED_USE,
 )
+
+_RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityChangeControlResult)
 
 
 class ChangeControlAuthorizationError(ValueError):
@@ -293,9 +297,28 @@ class M2707ChangeControlEngine:
     def replay(
         self, result: ComplexActivityChangeControlResult
     ) -> ComplexActivityChangeControlResult:
-        if result.result_digest != result_payload_digest(result):
-            raise ChangeControlReplayError("result digest mismatch")
-        return result
+        """Validate and regenerate the complete result from its bound request.
+
+        A payload digest only proves that the supplied envelope is internally
+        self-consistent.  A caller could mutate a nested package and recompute
+        that digest, so replay must also bind the request digest and compare
+        the deterministic engine output field-for-field.
+        """
+
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+            if validated.request_digest != canonical_request_digest(validated.request):
+                raise ChangeControlReplayError("request digest mismatch")
+            if validated.result_digest != result_payload_digest(validated):
+                raise ChangeControlReplayError("result digest mismatch")
+            expected = self.evaluate(validated.request)
+            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+                raise ChangeControlReplayError("deterministic replay mismatch")
+        except ChangeControlReplayError:
+            raise
+        except Exception as error:
+            raise ChangeControlReplayError("result replay validation failed") from error
+        return validated
 
 
 def control_complex_activity_change(
