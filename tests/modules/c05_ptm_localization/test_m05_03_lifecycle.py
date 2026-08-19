@@ -381,6 +381,18 @@ def test_plugin_json_boundary_decodes_once_and_skips_public_revalidation(
     assert plugin.run(token) == expected
 
 
+def test_json_replay_binds_decoded_candidate_to_serialized_body(scenario: Scenario) -> None:
+    serialized = canonical_json_bytes(scenario.request)
+    decoded = json.loads(serialized)
+
+    # Surrounding JSON whitespace remains accepted at the bounded ingress boundary.
+    assert m0503_engine._validate_json_request(decoded, serialized + b" \n") == scenario.request
+
+    # A mismatched body must not be ignored after the caller supplies a decoded candidate.
+    with pytest.raises(ValueError, match="serialized request"):
+        m0503_engine._validate_json_request(decoded, b"{}")
+
+
 @pytest.mark.parametrize(
     ("control", "denied_state"),
     [
