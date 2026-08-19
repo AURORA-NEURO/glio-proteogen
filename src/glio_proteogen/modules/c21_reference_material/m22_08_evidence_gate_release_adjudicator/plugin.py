@@ -47,12 +47,16 @@ class EvidenceGateSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM2208Request:
-    """Opaque capability proving strict M22-08 request validation."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
-    request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest
-    _seal: object
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(
+        self, request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest, seal: object
+    ) -> None:
+        self.request = request
+        self._seal = seal
 
 
 _TOKENS: Final[
@@ -61,26 +65,6 @@ _TOKENS: Final[
         tuple[object, AdjudicateProteinRnaDiscordanceEvidenceGateRequest, bytes],
     ]
 ] = WeakKeyDictionary()
-
-
-def _canonical_request_bytes(
-    request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest,
-) -> bytes:
-    return canonical_json_bytes(request.model_dump(mode="json"))
-
-
-def _token_is_issued(token: ValidatedM2208Request, seal: object) -> bool:
-    try:
-        snapshot = _TOKENS.get(token)
-        current = _canonical_request_bytes(token.request)
-    except (TypeError, ValueError):
-        return False
-    return (
-        snapshot is not None
-        and snapshot[0] is seal
-        and snapshot[1] is token.request
-        and snapshot[2] == current
-    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -120,18 +104,23 @@ class M2208Plugin(
             preflight_m2208_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
         validated = self._service.validate_request(candidate)
-        token = ValidatedM2208Request(request=validated, _seal=self._seal)
-        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        token = ValidatedM2208Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
         return token
 
     def run(self, request: ValidatedM2208Request) -> ProteinRnaDiscordanceEvidenceGateResult:
+        if type(request) is not ValidatedM2208Request:
+            raise _InvalidExecutionTokenError
+        snapshot = _TOKENS.get(request)
         if (
-            type(request) is not ValidatedM2208Request
+            snapshot is None
+            or snapshot[0] is not self._seal
             or request._seal is not self._seal
-            or not _token_is_issued(request, self._seal)
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_json_bytes(request.request)
         ):
             raise _InvalidExecutionTokenError
-        return self._service.adjudicate(request.request)
+        return self._service.adjudicate(snapshot[1])
 
     def replay(
         self,
