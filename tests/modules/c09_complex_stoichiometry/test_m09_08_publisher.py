@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m09_08 import (
     PublisherSourceKind,
     ReconstructionStep,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
@@ -206,6 +207,24 @@ def test_replay_rejects_tampered_bytes_and_invalid_result() -> None:
     )
     assert not engine.verify(built.result, tampered).verified
     assert engine.verify(object()).reason.value == "invalid_result"
+
+
+def test_self_rehashed_result_cannot_bypass_deterministic_replay() -> None:
+    engine = M0908EvidencePublisher()
+    built = engine.publish(_request())
+    forged = built.result.model_copy(
+        update={
+            "limitations": (
+                *built.result.limitations[:-1],
+                built.result.limitations[-1].model_copy(update={"statement": "forged"}),
+            )
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verification = engine.verify(forged)
+    assert verification.verified is False
+    assert verification.deterministic_verified is False
 
 
 def test_preflight_rejects_withheld_consent() -> None:

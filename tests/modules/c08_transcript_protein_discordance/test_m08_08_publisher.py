@@ -21,6 +21,7 @@ from glio_proteogen.contracts.m08_08 import (
     PublishTranscriptProteinEvidenceResult,
     ReconstructionStatus,
     ReconstructionStep,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -189,6 +190,24 @@ def test_tamper_and_unissued_plugin_token_are_rejected() -> None:
         plugin.run(ValidatedM0808Request(request=request, _seal=object()))
     token = plugin.validate(json.dumps(request.model_dump(mode="json")).encode())
     assert plugin.run(token).result.result_id == "result.request.m08-08"
+
+
+def test_self_rehashed_result_cannot_bypass_deterministic_replay() -> None:
+    engine = M0808EvidenceExplanationPublisher()
+    built = engine.publish(_request("source.1"))
+    forged = built.result.model_copy(
+        update={
+            "limitations": (
+                *built.result.limitations[:-1],
+                built.result.limitations[-1].model_copy(update={"statement": "forged"}),
+            )
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verification = engine.verify(forged)
+    assert verification.verified is False
+    assert verification.deterministic_verified is False
 
 
 def test_public_function_and_invalid_result_replay_boundary() -> None:
