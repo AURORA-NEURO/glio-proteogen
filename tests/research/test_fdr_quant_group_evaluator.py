@@ -55,3 +55,61 @@ def test_group_rejects_nonfinite_score_before_winner_selection() -> None:
     malformed = Psm("scan=1", "PEPTIDER", ("P1",), float("nan"), 3, decoy=False)
     with pytest.raises(ValueError, match="finite and non-negative"):
         infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
+
+
+@pytest.mark.parametrize(
+    ("psm", "message"),
+    [
+        (Psm("scan=1", "PEPTIDER", ("P1",), 5.0, 0, decoy=False), "matched_ions"),
+        (
+            Psm(
+                "scan=1",
+                "PEPTIDER",
+                ("P1",),
+                5.0,
+                3,
+                decoy=False,
+                matched_intensity=float("nan"),
+            ),
+            "matched_intensity",
+        ),
+        (
+            Psm(
+                "scan=1",
+                "PEPTIDER",
+                ("P1",),
+                5.0,
+                3,
+                decoy=False,
+                mean_fragment_error_da=float("inf"),
+            ),
+            "mean_fragment_error_da",
+        ),
+        (
+            Psm(
+                "scan=1",
+                "PEPTIDER",
+                ("P1",),
+                5.0,
+                3,
+                decoy=False,
+                precursor_error_ppm=-1.0,
+            ),
+            "precursor_error_ppm",
+        ),
+        (
+            Psm("scan=1", "PEPTIDER", ("P1",), 5.0, 3, decoy=False, q_value=1.1),
+            "q_value",
+        ),
+    ],
+)
+def test_fdr_rejects_nonfinite_or_out_of_range_psm_measurements(psm: Psm, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        target_decoy_qvalues((psm,))
+
+
+def test_fdr_rejects_unbounded_or_non_opaque_psm_identifiers() -> None:
+    with pytest.raises(ValueError, match="spectrum_id"):
+        target_decoy_qvalues((Psm("scan 1", "PEPTIDER", ("P1",), 5.0, 3, decoy=False),))
+    with pytest.raises(ValueError, match="accessions"):
+        target_decoy_qvalues((Psm("scan=1", "PEPTIDER", ("P1", "P1"), 5.0, 3, decoy=False),))
