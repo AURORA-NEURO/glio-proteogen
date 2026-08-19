@@ -12,7 +12,6 @@ from glio_proteogen.contracts.m18_05 import (
     M1805_MAX_CANONICAL_REQUEST_BYTES,
     BiomarkerPanelReviewWorkspaceResult,
     PresentBiomarkerPanelReviewWorkspaceRequest,
-    canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
@@ -23,7 +22,6 @@ from .engine import _prepare
 if TYPE_CHECKING:
     from .service import M1805Service
 
-_TOKEN_SEAL: Final = object()
 _REQUEST_ADAPTER: Final = TypeAdapter(PresentBiomarkerPanelReviewWorkspaceRequest)
 
 
@@ -33,7 +31,12 @@ class ValidatedM1805Request:
     _seal: object
 
 
-_ISSUED_TOKENS: Final = WeakKeyDictionary[ValidatedM1805Request, tuple[object, str]]()
+_ISSUED_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1805Request,
+        tuple[object, PresentBiomarkerPanelReviewWorkspaceRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -44,10 +47,11 @@ class _InvalidExecutionTokenError(TypeError):
 class M1805Plugin(ModulePlugin[object, ValidatedM1805Request, BiomarkerPanelReviewWorkspaceResult]):
     """Expose M18-05 through validate-then-run token semantics."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M1805Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return self._service.descriptor()
@@ -59,8 +63,8 @@ class M1805Plugin(ModulePlugin[object, ValidatedM1805Request, BiomarkerPanelRevi
             typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
         else:
             typed = self._service.validate_request(_prepare(request))
-        token = ValidatedM1805Request(request=typed, _seal=_TOKEN_SEAL)
-        _ISSUED_TOKENS[token] = (typed, canonical_request_digest(typed))
+        token = ValidatedM1805Request(request=typed, _seal=self._seal)
+        _ISSUED_TOKENS[token] = (self._seal, typed, canonical_json_bytes(typed))
         return token
 
     def run(self, request: ValidatedM1805Request) -> BiomarkerPanelReviewWorkspaceResult:
@@ -70,11 +74,17 @@ class M1805Plugin(ModulePlugin[object, ValidatedM1805Request, BiomarkerPanelRevi
             raise _InvalidExecutionTokenError from error
         if (
             type(request) is not ValidatedM1805Request
-            or request._seal is not _TOKEN_SEAL
+            or request._seal is not self._seal
             or snapshot is None
-            or snapshot[0] is not request.request
-            or snapshot[1] != canonical_request_digest(request.request)
+            or snapshot[0] is not self._seal
+            or snapshot[1] is not request.request
         ):
+            raise _InvalidExecutionTokenError
+        try:
+            current_bytes = canonical_json_bytes(request.request)
+        except (TypeError, ValueError) as error:
+            raise _InvalidExecutionTokenError from error
+        if current_bytes != snapshot[2]:
             raise _InvalidExecutionTokenError
         return self._service._engine.infer(request.request)
 

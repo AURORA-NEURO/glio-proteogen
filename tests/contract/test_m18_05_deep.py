@@ -122,6 +122,7 @@ def test_service_verify_accepts_bytes_mapping_and_typed_result() -> None:
 def test_plugin_requires_issued_parse_once_token() -> None:
     service = M1805Service()
     plugin = M1805Plugin(service)
+    other_plugin = M1805Plugin(M1805Service())
     token = plugin.validate(canonical_json_bytes(build_scenario_request()))
     assert isinstance(token, ValidatedM1805Request)
     assert plugin.run(token).status is WorkspaceStatus.PRESENTED
@@ -134,7 +135,21 @@ def test_plugin_requires_issued_parse_once_token() -> None:
         plugin.run(forged)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
-    object.__setattr__(token, "request", build_scenario_request("unsupported"))
+
+    with pytest.raises(TypeError, match="validated request token"):
+        other_plugin.run(token)
+
+    forged = ValidatedM1805Request(request=token.request, _seal=token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+
+    nested_mutation = token.request.sections[0].model_copy(
+        update={"title": "nested post-validation mutation"}
+    )
+    mutated_request = token.request.model_copy(
+        update={"sections": (nested_mutation, *token.request.sections[1:])}
+    )
+    object.__setattr__(token, "request", mutated_request)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(token)
 
