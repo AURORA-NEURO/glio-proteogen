@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m20_02 import (
     AlignmentStatus,
     AlignProteinSubtypeSourcesRequest,
 )
+from glio_proteogen.contracts.m20_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -181,6 +182,17 @@ def test_replay_rejects_tampered_result() -> None:
         engine.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(M2002ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    engine = M2002Engine()
+    result = engine.resolve(_request())
+    limitation = result.limitations[0].model_copy(update={"statement": "tampered"})
+    tampered = result.model_copy(update={"limitations": (limitation, *result.limitations[1:])})
+    forged = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M2002ReplayError, match="deterministic replay"):
+        engine.replay(forged)
 
 
 def test_preflight_rejects_missing_or_unsafe_control() -> None:
