@@ -6014,28 +6014,28 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      801700,
-      752500,
-      746100,
-      706600,
-      729400,
-      946700,
-      857600,
-      888300,
-      816700,
-      874900
+      770700,
+      1025700,
+      820900,
+      1554000,
+      1938900,
+      1282100,
+      990500,
+      1320200,
+      1858500,
+      920500
     ],
-    "mean_ns": 812050.0,
-    "median_ns": 816700,
-    "p95_ns": 946700,
+    "mean_ns": 1248200.0,
+    "median_ns": 1282100,
+    "p95_ns": 1938900,
     "result_digest": "1e7192cc505f600e0189fa3fdc3b9ae8e02c475c201c425fad23456ced0b296f"
   },
   "coverage": {
-    "statements": 3500,
-    "missed_statements": 113,
-    "branches": 1364,
-    "partial_branches": 105,
-    "percent": 95.39,
+    "statements": 3548,
+    "missed_statements": 121,
+    "branches": 1392,
+    "partial_branches": 113,
+    "percent": 95.14,
     "fail_under": 95
   },
   "precursor_policy_evaluation": {
@@ -6059,8 +6059,8 @@
   "mzidentml_provenance_evaluation": {
     "evaluator": "mzidentml-structural-provenance-v1",
     "passed": true,
-    "declared": 10,
-    "executed": 10,
+    "declared": 12,
+    "executed": 12,
     "checks": {
       "structure_present": true,
       "result_count": true,
@@ -6068,14 +6068,16 @@
       "peptide_evidence_count": true,
       "protein_hypothesis_count": true,
       "pass_threshold_count": true,
+      "spectrum_reference_resolves": true,
+      "protein_reference_resolves": true,
       "identifications_not_imported": true,
       "replay_passes": true,
       "changed_receipt_rejected": true,
       "digest_changes_with_receipt": true
     },
     "baseline_result_digest": "1e7192cc505f600e0189fa3fdc3b9ae8e02c475c201c425fad23456ced0b296f",
-    "bound_result_digest": "b97b0270c8ec40dc82e1449ed40c36c80e332d7eea8c9a67bb9192823dc45ea9",
-    "mzidentml_sha256": "sha256:c77bda79fc6c3adb95cdc311a05e1546eb0de20f0f676f453ff10b4fdc9137c9"
+    "bound_result_digest": "422da9e21c1e931a4b05ccc5632e293874ed8d3123e2ed3adadcbc6bd2e11f7b",
+    "mzidentml_sha256": "sha256:7a9197d8882eeb0cfb341f779cefa93601a5731b16e362d3671bf4cd3d4dc0e6"
   },
   "fdr_quant_group_invariants_evaluation": {
     "evaluator": "fdr-quantification-group-invariants-v1",
