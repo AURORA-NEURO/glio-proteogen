@@ -297,15 +297,29 @@ class ProteomicsTelemetryResult(FrozenModel):
         if self.result_id != expected_result_id:
             raise ValueError("result id does not bind the exact request digest")
         if self.status is TelemetryStatus.EMITTED:
+            stream = self.telemetry_stream
+            alert = self.alert
             if (
-                self.telemetry_stream is None
+                stream is None
                 or not self.dashboards
-                or self.alert is None
+                or alert is None
                 or self.safe_failure_report is not None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("emitted result requires supported telemetry records")
+            if stream.stream_id != f"m2705.stream.{self.request.request_id}":
+                raise ValueError("emitted telemetry stream id does not bind the request")
+            if tuple(sample.metric for sample in stream.samples) != self.request.requested_metrics:
+                raise ValueError("emitted telemetry samples do not bind requested metrics")
+            if self.dashboards != self.request.dashboard_definitions:
+                raise ValueError("emitted dashboards do not bind the request definitions")
+            if stream.evidence != self.evidence:
+                raise ValueError("emitted telemetry evidence does not bind the result evidence")
+            if alert.alert_id != f"m2705.alert.{self.request.request_id}":
+                raise ValueError("emitted alert id does not bind the request")
+            if alert.metric != self.request.requested_metrics[0]:
+                raise ValueError("emitted alert metric does not bind requested metrics")
         elif (
             self.telemetry_stream is not None
             or self.dashboards

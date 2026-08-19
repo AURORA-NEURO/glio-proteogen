@@ -24,11 +24,13 @@ from glio_proteogen.contracts.m27_05 import (
     ProteomicsTelemetryResult,
     TelemetryFinding,
     TelemetryFindingCode,
+    TelemetryMetricKind,
     TelemetrySample,
     TelemetryStream,
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_05.canonical import result_payload_digest
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
     M2705Plugin,
@@ -68,8 +70,7 @@ def test_schema_single_routes_and_api_validation_replay() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert (
-        client.post("/v1/modules/M27-05/verify", content=b"[]").status_code
-        == _HTTP_UNPROCESSABLE
+        client.post("/v1/modules/M27-05/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
 
 
@@ -373,6 +374,33 @@ def test_result_id_and_status_shape_are_closed() -> None:
     payload["safe_failure_report"] = None
     with pytest.raises(ValueError, match=r".+"):
         ProteomicsTelemetryResult.model_validate(payload, strict=True)
+
+
+@pytest.mark.parametrize("field", ["sample_metric", "stream_id", "dashboard", "alert_metric"])
+def test_result_contract_rejects_self_rehashed_telemetry_projection_forgery(field: str) -> None:
+    result = M2705Service().emit(build_request())
+    assert result.telemetry_stream is not None
+    assert result.alert is not None
+    if field == "sample_metric":
+        sample = result.telemetry_stream.samples[0].model_copy(
+            update={"metric": TelemetryMetricKind.DRIFT}
+        )
+        stream = result.telemetry_stream.model_copy(
+            update={"samples": (sample, *result.telemetry_stream.samples[1:])}
+        )
+        forged = result.model_copy(update={"telemetry_stream": stream})
+    elif field == "stream_id":
+        stream = result.telemetry_stream.model_copy(update={"stream_id": "m2705.stream.forged"})
+        forged = result.model_copy(update={"telemetry_stream": stream})
+    elif field == "dashboard":
+        dashboard = result.dashboards[0].model_copy(update={"title": "forged"})
+        forged = result.model_copy(update={"dashboards": (dashboard, *result.dashboards[1:])})
+    else:
+        alert = result.alert.model_copy(update={"metric": TelemetryMetricKind.DRIFT})
+        forged = result.model_copy(update={"alert": alert})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="emitted"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_schema_metadata_is_closed() -> None:
