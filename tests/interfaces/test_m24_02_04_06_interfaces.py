@@ -15,7 +15,11 @@ from typer.testing import CliRunner
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_reference_material import (
     m24_02_synthetic_truth_generator as m2402,
+)
+from glio_proteogen.modules.c21_reference_material import (
     m24_04_external_transport_evaluator as m2404,
+)
+from glio_proteogen.modules.c21_reference_material import (
     m24_06_robustness_ood_challenge as m2406,
 )
 
