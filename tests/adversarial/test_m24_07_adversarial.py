@@ -60,6 +60,30 @@ def test_plugin_rejects_unwrapped_and_unvalidated_execution() -> None:
     assert plugin.run(token).status is EvaluationStatus.EVALUATED
 
 
+def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> None:
+    typed = fixture_request()
+    plugin = m2407.M2407Plugin(m2407.M2407Service())
+    other = m2407.M2407Plugin(m2407.M2407Service())
+    token = plugin.validate(m2407.HumanFactorsSubmission(typed))
+    forged = m2407.ValidatedM2407Request(token.request, object())
+
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_metric = token.request.metrics[0].model_copy(
+        update={"metric_name": "forged operational metric"}
+    )
+    object.__setattr__(
+        token.request,
+        "metrics",
+        (changed_metric, *token.request.metrics[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
 def test_hostile_mapping_fails_closed_before_material_traversal() -> None:
     class ExplodingMapping(dict[str, object]):
         def get(self, key: str, default: object = None) -> object:
