@@ -206,6 +206,20 @@ class BiomarkerPanelSyntheticTruthResult(FrozenModel):
     def result_is_closed(self) -> BiomarkerPanelSyntheticTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        expected_inputs = (
+            self.request.upstream_result.digest,
+            *(artifact.digest for artifact in self.request.source_artifacts),
+        )
+        if self.provenance.module_id != M2402_MODULE_ID:
+            raise ValueError("result provenance module does not bind M24-02")
+        if self.provenance.module_version != M2402_CONTRACT_VERSION:
+            raise ValueError("result provenance version does not bind M24-02")
+        if self.provenance.configuration_digest != canonical_request_digest(
+            self.request.configuration
+        ):
+            raise ValueError("result provenance configuration does not bind the request")
+        if self.provenance.input_digests != expected_inputs:
+            raise ValueError("result provenance inputs do not bind upstream and source artifacts")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None

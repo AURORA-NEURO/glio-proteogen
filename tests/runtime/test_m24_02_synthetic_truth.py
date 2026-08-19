@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m24_02 import (
     GenerateBiomarkerPanelSyntheticTruthRequest,
     GenerationConfiguration,
     GenerationStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material import (
@@ -69,6 +70,29 @@ def test_replay_rejects_self_rehashed_case_tampering() -> None:
     )
     with pytest.raises(m2402.M2402ReplayError):
         service.verify_replay(forged)
+
+
+@pytest.mark.parametrize(
+    "provenance_update",
+    [
+        {"module_id": "GLIO-PROTEOGEN-M24-03"},
+        {"module_version": "9.9.9"},
+        {"configuration_digest": "sha256:" + "f" * 64},
+        {"input_digests": ("sha256:" + "f" * 64,)},
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    provenance_update: dict[str, object],
+) -> None:
+    service = m2402.M2402Service()
+    result = service.evaluate(request())
+    tampered = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update=provenance_update)}
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m2402.M2402ReplayError):
+        service.verify_replay(tampered)
 
 
 def test_denied_control_and_invalid_upstream_fail_closed() -> None:
