@@ -164,10 +164,7 @@ def _provenance(request: AdjudicateProteinSubtypeQueueRequest) -> ProvenanceReco
             (
                 request.upstream_result.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
-                *(
-                    evidence.reference.digest
-                    for evidence in request.configuration.evidence
-                ),
+                *(evidence.reference.digest for evidence in request.configuration.evidence),
                 *(
                     evidence.reference.digest
                     for entry in request.entries

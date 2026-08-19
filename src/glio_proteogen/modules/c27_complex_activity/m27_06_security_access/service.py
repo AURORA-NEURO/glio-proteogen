@@ -67,4 +67,4 @@ class M2706Service:
         }
 
 
-__all__ = ["M2706Service"]
+__all__ = ["M2706Service", "strict_json_loads"]
