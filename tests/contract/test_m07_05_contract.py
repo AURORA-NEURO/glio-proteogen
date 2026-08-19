@@ -1,9 +1,13 @@
 """Lightweight checks for the provisional M07-05 contract spine."""
 
+import pytest
+
 from glio_proteogen.contracts.m07_05 import (
     M0705_MAX_EVIDENCE,
     M0705_OUTPUT_MEDIA_TYPE,
     ProteotypeConstraintAblation,
+    ProteotypeConstraintEvaluation,
+    ProteotypeConstraintEvaluationOutcome,
     ProteotypeConstraintHardness,
     ProteotypeConstraintKind,
     ProteotypeMechanismConstraint,
@@ -55,6 +59,16 @@ def test_soft_constraint_ablation_delta_is_checked() -> None:
         effect_delta=_DELTA,
     )
     assert record.effect_delta == _DELTA
+
+
+def test_non_evaluable_constraint_cannot_carry_numeric_evidence() -> None:
+    with pytest.raises(ValueError, match="cannot carry a numeric result"):
+        ProteotypeConstraintEvaluation(
+            constraint_id="constraint.missing",
+            outcome=ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE,
+            residual=0.0,
+            message="feature artifact is unavailable",
+        )
 
 
 def test_schema_exports_are_provisional_and_bounded() -> None:

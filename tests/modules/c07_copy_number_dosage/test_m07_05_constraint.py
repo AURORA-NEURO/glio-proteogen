@@ -193,6 +193,12 @@ def test_missing_and_duplicate_features_abstain_safely() -> None:
     assert duplicate.result.status.value == "abstained"
     assert not missing.result.estimates
     assert not duplicate.result.estimates
+    assert (
+        missing.result.evaluations[0].outcome
+        is ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE
+    )
+    assert missing.result.evaluations[0].residual is None
+    assert missing.result.evaluations[0].effect_size is None
 
 
 def test_authorization_checks_consent_identity_and_controls() -> None:

@@ -252,14 +252,21 @@ def _build_result(
     if duplicate_features:
         failure_reasons.append("feature artifact identifiers must be unique")
     for constraint in constraints:
-        value = _numeric_value(constraint.constraint_id, request)
-        evaluation = _evaluate_constraint(
-            constraint.constraint_id,
-            constraint.expression,
-            constraint.hardness,
-            value,
-            constraint.weight,
-        )
+        if set(constraint.feature_ids) - available_features:
+            evaluation = ProteotypeConstraintEvaluation(
+                constraint_id=constraint.constraint_id,
+                outcome=ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE,
+                message="constraint references an unavailable feature artifact",
+            )
+        else:
+            value = _numeric_value(constraint.constraint_id, request)
+            evaluation = _evaluate_constraint(
+                constraint.constraint_id,
+                constraint.expression,
+                constraint.hardness,
+                value,
+                constraint.weight,
+            )
         evaluations.append(evaluation)
         if constraint.hardness is ProteotypeConstraintHardness.SOFT:
             with_effect = evaluation.effect_size or 0.0
