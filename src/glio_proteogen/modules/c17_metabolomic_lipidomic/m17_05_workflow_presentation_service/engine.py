@@ -233,11 +233,14 @@ def _ordered_items(
         ViewKind.TASK_SUMMARY: 5,
     }
     if request.policy.default_ordering is OrderingPolicy.UNCERTAINTY_FIRST:
+
         def key(item: ReviewItem) -> tuple[int, int, int]:
             return (view_rank[item.view_kind], status_rank[item.status], item.position)
     else:
+
         def key(item: ReviewItem) -> tuple[int, int, int]:
             return (status_rank[item.status], view_rank[item.view_kind], item.position)
+
     return tuple(sorted(request.review_items, key=key))
 
 
@@ -363,7 +366,9 @@ class M1705WorkflowPresentationEngine:
             "emits_parent": False,
             "support_decision": SupportDecision(
                 status=SupportStatus.SUPPORTED if not review else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1705_workspace_presented" if status is WorkspaceStatus.PRESENTED else "m1705_workspace_abstained",
+                reason_code="m1705_workspace_presented"
+                if status is WorkspaceStatus.PRESENTED
+                else "m1705_workspace_abstained",
                 rationale=(
                     "All required views are present within the caller-declared support envelope."
                     if status is WorkspaceStatus.PRESENTED and not review
@@ -391,6 +396,12 @@ class M1705WorkflowPresentationEngine:
     ) -> VariantPeptideHumanReviewWorkspaceResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1705ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
         except Exception as error:
             raise M1705ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

@@ -91,6 +91,15 @@ def test_replay_and_tamper_detection() -> None:
         engine.verify(tampered)
 
 
+def test_verify_revalidates_model_copy_tampering_without_replay() -> None:
+    engine = M1807Engine()
+    result = engine.export(_request())
+    tampered = result.model_copy(update={"contract": None})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M1807ReplayError):
+        engine.verify(tampered, replay=False)
+
+
 def test_replay_rejects_a_valid_but_different_request() -> None:
     engine = M1807Engine()
     original = engine.export(_request())

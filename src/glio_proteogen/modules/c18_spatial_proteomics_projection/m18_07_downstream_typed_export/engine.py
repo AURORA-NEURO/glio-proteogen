@@ -470,6 +470,12 @@ class M1807Engine:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1807ReplayError("M18-07 result is invalid") from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
+        except Exception as error:
+            raise M1807ReplayError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1807ReplayError("M18-07 result digest mismatch")
         if replay:

@@ -223,6 +223,15 @@ def test_tampered_result_fails_replay() -> None:
         engine.verify(tampered)
 
 
+def test_replay_revalidates_model_copy_tampering_even_without_replay() -> None:
+    engine = M1305LongitudinalEngine()
+    result = engine.infer(_request())
+    tampered = result.model_copy(update={"trajectory": ()})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M1305ReplayVerificationError):
+        engine.verify(tampered, replay=False)
+
+
 def test_plugin_is_strict_parse_once_and_token_bound() -> None:
     request = _request()
     plugin = M1305Plugin(M1305Service())

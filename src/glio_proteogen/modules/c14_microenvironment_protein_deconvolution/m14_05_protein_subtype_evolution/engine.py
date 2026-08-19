@@ -126,8 +126,7 @@ def preflight_m1405_authorization(candidate: object) -> None:
         context = _member(candidate, "context")
         references = _member(context, "references")
         states = {
-            role: _state(_member(_member(references, role), "state"))
-            for role in _EXPECTED_CONTROLS
+            role: _state(_member(_member(references, role), "state")) for role in _EXPECTED_CONTROLS
         }
     except Exception as error:
         raise M1405AuthorizationError from error
@@ -301,9 +300,7 @@ class M1405EvolutionEngine:
 
     __slots__ = ()
 
-    def construct(
-        self, request: object
-    ) -> ProteinSubtypeLongitudinalEvolutionResult:
+    def construct(self, request: object) -> ProteinSubtypeLongitudinalEvolutionResult:
         validated = _as_request(request)
         request_hash = canonical_request_digest(validated)
         evidence = _evidence(validated)
@@ -374,6 +371,12 @@ class M1405EvolutionEngine:
     ) -> ProteinSubtypeLongitudinalEvolutionResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1405ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
         except Exception as error:
             raise M1405ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

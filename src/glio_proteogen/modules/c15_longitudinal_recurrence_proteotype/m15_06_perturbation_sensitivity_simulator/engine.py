@@ -334,6 +334,12 @@ class M1506SensitivitySimulatorEngine:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1506ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
+        except Exception as error:
+            raise M1506ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1506ReplayVerificationError
         if replay:

@@ -213,8 +213,7 @@ def _uncertainty() -> UncertaintyProfile:
         "identification": "Identity, lineage, and subtype are not inferred by this module.",
         "support": "Support reflects caller controls, not external evidence authenticity.",
         "transport": (
-            "Transport across cohorts, assays, platforms, and treatment eras is not "
-            "estimable."
+            "Transport across cohorts, assays, platforms, and treatment eras is not estimable."
         ),
     }
     estimate = {
@@ -383,6 +382,12 @@ class M1502ContextStratifierEngine:
     ) -> LongitudinalRecurrenceContextStratificationResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1502ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
         except Exception as error:
             raise M1502ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

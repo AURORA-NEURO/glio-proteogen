@@ -47,7 +47,9 @@ class M1703AuthorizationError(PermissionError):
     """Caller controls do not authorize component-specific integration."""
 
     def __init__(self) -> None:
-        super().__init__("M17-03 requires accepted controls, resolved identity, and granted consent")
+        super().__init__(
+            "M17-03 requires accepted controls, resolved identity, and granted consent"
+        )
 
 
 class M1703ReplayVerificationError(ValueError):
@@ -152,7 +154,9 @@ def _uncertainty(*, estimable: bool) -> UncertaintyProfile:
     )
 
 
-def _provenance(request: FuseVariantPeptideEvidenceRequest, request_digest: str) -> ProvenanceRecord:
+def _provenance(
+    request: FuseVariantPeptideEvidenceRequest, request_digest: str
+) -> ProvenanceRecord:
     refs = request.context.references
     controls = (
         (ControlRole.APPROVED_CONFIGURATION, refs.approved_configuration),
@@ -198,9 +202,13 @@ def _provenance(request: FuseVariantPeptideEvidenceRequest, request_digest: str)
     )
 
 
-def _classify(request: FuseVariantPeptideEvidenceRequest) -> tuple[FusionStatus, bool, tuple[FusionFindingCode, ...]]:
+def _classify(
+    request: FuseVariantPeptideEvidenceRequest,
+) -> tuple[FusionStatus, bool, tuple[FusionFindingCode, ...]]:
     findings: list[FusionFindingCode] = []
-    if any(item.reliability_band is ReliabilityBand.NOT_EVALUABLE for item in request.contributions):
+    if any(
+        item.reliability_band is ReliabilityBand.NOT_EVALUABLE for item in request.contributions
+    ):
         findings.append(FusionFindingCode.UNSUPPORTED_INPUT)
         findings.append(FusionFindingCode.INPUT_INCOMPLETE)
         return FusionStatus.ABSTAINED, True, tuple(findings)
@@ -211,7 +219,9 @@ def _classify(request: FuseVariantPeptideEvidenceRequest) -> tuple[FusionStatus,
     return FusionStatus.INTEGRATED, bool(findings), tuple(findings)
 
 
-def _findings(codes: tuple[FusionFindingCode, ...], evidence: tuple[EvidenceReference, ...]) -> tuple[FusionFinding, ...]:
+def _findings(
+    codes: tuple[FusionFindingCode, ...], evidence: tuple[EvidenceReference, ...]
+) -> tuple[FusionFinding, ...]:
     return tuple(
         FusionFinding(
             finding_id=f"finding.m1703.{code.value}",
@@ -258,7 +268,9 @@ class M1703FusionAggregationEngine:
         validated = _REQUEST_ADAPTER.validate_python(_prepare(request), strict=True)
         return self._result(validated)
 
-    def _result(self, request: FuseVariantPeptideEvidenceRequest) -> VariantPeptideIntegratedEvidenceResult:
+    def _result(
+        self, request: FuseVariantPeptideEvidenceRequest
+    ) -> VariantPeptideIntegratedEvidenceResult:
         request_hash = canonical_request_digest(request)
         evidence = _evidence(request)
         status, review, codes = _classify(request)
@@ -285,7 +297,9 @@ class M1703FusionAggregationEngine:
             "status": status,
             "integrated_evidence": integrated,
             "findings": _findings(codes, evidence),
-            "abstention_reason": None if status is FusionStatus.INTEGRATED else "Fusion inputs are not safely evaluable.",
+            "abstention_reason": None
+            if status is FusionStatus.INTEGRATED
+            else "Fusion inputs are not safely evaluable.",
             "parent_target": "variant_peptide",
             "emits_parent": False,
             "support_decision": SupportDecision(
@@ -305,9 +319,17 @@ class M1703FusionAggregationEngine:
         payload["result_digest"] = result_payload_digest(constructed)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
 
-    def verify(self, result: object, *, replay: bool = True) -> VariantPeptideIntegratedEvidenceResult:
+    def verify(
+        self, result: object, *, replay: bool = True
+    ) -> VariantPeptideIntegratedEvidenceResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1703ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
         except Exception as error:
             raise M1703ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

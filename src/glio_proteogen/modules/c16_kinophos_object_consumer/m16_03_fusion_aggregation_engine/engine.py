@@ -402,6 +402,12 @@ class M1603FusionEngine:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1603ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
+        except Exception as error:
+            raise M1603ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1603ReplayVerificationError
         expected = self.construct(validated.request).model_dump(mode="json")

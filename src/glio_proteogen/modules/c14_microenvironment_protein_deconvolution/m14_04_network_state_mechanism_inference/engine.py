@@ -372,6 +372,12 @@ class M1404MechanismEngine:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1404ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
+        except Exception as error:
+            raise M1404ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1404ReplayVerificationError
         if replay:

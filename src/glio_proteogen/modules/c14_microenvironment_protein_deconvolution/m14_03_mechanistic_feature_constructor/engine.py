@@ -139,8 +139,7 @@ def preflight_m1403_authorization(candidate: object) -> None:
         context = _member(candidate, "context")
         references = _member(context, "references")
         states = {
-            role: _state(_member(_member(references, role), "state"))
-            for role in _EXPECTED_CONTROLS
+            role: _state(_member(_member(references, role), "state")) for role in _EXPECTED_CONTROLS
         }
     except Exception as error:
         raise M1403AuthorizationError from error
@@ -284,9 +283,7 @@ def _feature_object(
     lineage = tuple(request.source_artifacts)
     features = tuple(
         MechanisticFeature(
-            feature_id=(
-                f"feature.m1403.{request_hash.removeprefix('sha256:')[:12]}.{kind.value}"
-            ),
+            feature_id=(f"feature.m1403.{request_hash.removeprefix('sha256:')[:12]}.{kind.value}"),
             version="0.1.0-provisional",
             kind=kind,
             value_kind=MechanisticValueKind.CATEGORICAL,
@@ -444,6 +441,12 @@ class M1403MechanisticFeatureEngine:
     ) -> ProteinSubtypeMechanisticFeatureResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        except Exception as error:
+            raise M1403ReplayVerificationError from error
+        try:
+            validated = _RESULT_ADAPTER.validate_python(
+                validated.model_dump(mode="python", warnings=False), strict=True
+            )
         except Exception as error:
             raise M1403ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
