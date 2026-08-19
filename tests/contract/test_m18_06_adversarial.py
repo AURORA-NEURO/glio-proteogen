@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m18_06 import (
@@ -45,14 +47,17 @@ def _record_payload() -> dict[str, object]:
 )
 def test_record_validator_rejects_each_incomplete_closure(field: str, message: str) -> None:
     payload = _record_payload()
+    entries = cast("tuple[dict[str, object], ...]", payload["entries"])
+    assignments = cast("tuple[dict[str, object], ...]", payload["assignments"])
+    history = cast("tuple[dict[str, object], ...]", payload["history"])
     if field == "duplicate_entries":
-        payload["entries"] = (payload["entries"][0], payload["entries"][0])
+        payload["entries"] = (entries[0], entries[0])
     elif field == "duplicate_assignments":
-        payload["assignments"] = (payload["assignments"][0], payload["assignments"][0])
+        payload["assignments"] = (assignments[0], assignments[0])
     elif field == "duplicate_history":
-        payload["history"] = (payload["history"][0], payload["history"][0])
+        payload["history"] = (history[0], history[0])
     elif field == "unknown_assignment":
-        assignment = dict(payload["assignments"][0])
+        assignment = dict(assignments[0])
         assignment["discrepancy_id"] = "discrepancy.unknown"
         payload["assignments"] = (assignment,)
     elif field == "resolved_without_summary":
