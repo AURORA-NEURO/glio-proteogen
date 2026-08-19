@@ -11,6 +11,8 @@ C03/C04 computation contract:
 
 - `PdcClient` retrieves bounded public NCI Proteomic Data Commons metadata over the documented open
   GraphQL endpoint. It records the study URL, file metadata, and response SHA-256; its explicit
+  metadata parser also requires the returned `pdc_study_id` to equal the requested catalog ID,
+  so a valid response for another study cannot be archived under the wrong source identity. Its
   `download_file_with_receipt` path additionally binds one caller-requested download to the exact
   captured catalog file and observed SHA-256/MD5/size. The opt-in raw-byte path requires an HTTPS
   PDC delivery host or an exact caller-approved host (loopback HTTP is test-only), bounds timeout

@@ -1,13 +1,13 @@
 {
-  "lane": "research-pdc-receipt-media-depth",
+  "lane": "research-pdc-provenance-and-receipt-depth",
   "scope": "research-only",
   "evaluator": "evals/research_proteomics/pdc_receipt.py",
   "tests": [
     "tests/research/test_pdc_retrieval.py",
     "tests/research/test_pdc_receipt_evaluator.py"
   ],
-  "declared_scenarios": 4,
-  "executed_scenarios": 4,
+  "declared_scenarios": 5,
+  "executed_scenarios": 5,
   "passed": true,
   "receipt_fields": [
     "catalog file declaration",
@@ -15,9 +15,10 @@
     "source reference SHA-256 and size",
     "observed source SHA-256, MD5, and size",
     "observed normalized response media type",
-    "caller-held content SHA-256, MD5, and exact byte-length verification"
+    "caller-held content SHA-256, MD5, and exact byte-length verification",
+    "returned PDC study ID bound to the requested catalog query"
   ],
-  "tamper_policy": "media relabeling and caller-held content hash, length, and limit mismatches are rejected",
+  "tamper_policy": "wrong returned PDC study identity, media relabeling, and caller-held content hash, length, and limit mismatches are rejected",
   "limitations": [
     "HTTP fixture is synthetic and does not attest issuer truth",
     "raw downloads remain explicit caller operations",

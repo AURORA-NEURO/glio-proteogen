@@ -14,6 +14,26 @@ from glio_proteogen.research import (
     SourceReference,
     verify_pdc_source_content,
 )
+from glio_proteogen.research.public_proteomics import PDCError, PDCMetadataClient
+
+
+def _metadata_record(pdc_study_id: str) -> dict[str, object]:
+    return {
+        "study_id": "cfe9f4a2-1797-11ea-9bfa-0a42f3c845fe",
+        "pdc_study_id": pdc_study_id,
+        "study_submitter_id": "fixture study",
+        "project_id": "267d6671-0e78-11e9-a064-0a9c39d33490",
+        "study_name": "fixture study",
+        "study_description": "public fixture metadata",
+        "program_name": "fixture program",
+        "project_name": "fixture project",
+        "disease_type": "caller-declared metadata",
+        "primary_site": "caller-declared metadata",
+        "analytical_fraction": "Proteome",
+        "experiment_type": "TMT11",
+        "cases_count": 2,
+        "aliquots_count": 2,
+    }
 
 
 def run_pdc_receipt_evaluator() -> dict[str, object]:
@@ -75,11 +95,25 @@ def run_pdc_receipt_evaluator() -> dict[str, object]:
         verify_pdc_source_content(receipt, payload + b"tampered")
     except RuntimeError:
         content_tamper_rejected = True
+    valid_metadata = PDCMetadataClient._parse_response(
+        {"data": {"study": [_metadata_record("PDC000204")]}}, "PDC000204"
+    )
+    metadata_tamper_rejected = False
+    try:
+        PDCMetadataClient._parse_response(
+            {"data": {"study": [_metadata_record("PDC000205")]}}, "PDC000204"
+        )
+    except PDCError:
+        metadata_tamper_rejected = True
     outcomes = (
         {"scenario_id": "observed_media_bound", "passed": media_bound},
         {"scenario_id": "media_tamper_rejected", "passed": tamper_rejected},
         {"scenario_id": "source_content_verified", "passed": content_verified},
         {"scenario_id": "source_content_tamper_rejected", "passed": content_tamper_rejected},
+        {
+            "scenario_id": "metadata_catalog_id_bound",
+            "passed": valid_metadata.pdc_study_id == "PDC000204" and metadata_tamper_rejected,
+        },
     )
     return {
         "passed": all(bool(item["passed"]) for item in outcomes),

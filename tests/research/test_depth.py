@@ -70,6 +70,14 @@ def test_pdc_metadata_rejects_missing_text_and_bad_counts() -> None:
         PDCMetadataClient._parse_response({"data": {"study": [None]}}, "PDC000204")
 
 
+def test_pdc_metadata_binds_returned_catalog_id_to_query() -> None:
+    record = json.loads(_FIXTURE.read_text(encoding="utf-8"))["data"]["study"][0]
+    mismatched = dict(record)
+    mismatched["pdc_study_id"] = "PDC000205"
+    with pytest.raises(PDCError, match="does not match requested study"):
+        PDCMetadataClient._parse_response({"data": {"study": [mismatched]}}, "PDC000204")
+
+
 @pytest.mark.parametrize(
     ("payload", "message"),
     [
