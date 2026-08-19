@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Any, Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m03_04 import ProteinInferenceQualityResult
 from glio_proteogen.contracts.m03_06 import ProteinInferenceHarmonizationResult
 from glio_proteogen.contracts.m03_07 import (
     M0307_CONTRACT_VERSION,
+    M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
     M0307_ZERO_DIGEST,
     ProteinInferenceHarmonizationSupportReceipt,
     ProteinInferenceQualitySupportReceipt,
@@ -37,6 +40,14 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 _REQUEST_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceSupportRouteResult)
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 1_024
+_MAX_PLAIN_NODES: Final = 250_000
+_MAX_PLAIN_BYTES: Final = max(
+    M0307_MAX_CANONICAL_REQUEST_BYTES,
+    M0307_MAX_CANONICAL_RESULT_BYTES,
+)
 
 
 class ProteinInferenceSupportAuthorizationError(ValueError):
@@ -62,6 +73,11 @@ class ProteinInferenceSupportReceiptError(ValueError):
         return cls("M03-04 and M03-06 results do not form one M03-07 prerequisite chain")
 
 
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M03-07 strict values require bounded built-in containers")
+
+
 class M0307ProteinInferenceSupportRouterEngine:
     """Produce one immutable replay-closed support-routing result."""
 
@@ -71,7 +87,7 @@ class M0307ProteinInferenceSupportRouterEngine:
         """Authorize, strictly reconstruct, route, and self-validate one request."""
 
         preflight_protein_inference_support_authorization(request)
-        validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        validated = _REQUEST_ADAPTER.validate_python(_plain_value(request), strict=True)
         return _support_route_result(validated)
 
 
@@ -88,6 +104,82 @@ def preflight_protein_inference_support_authorization(candidate: object) -> None
         raise ProteinInferenceSupportAuthorizationError
 
 
+def _charge_plain_bytes(budget: list[int], value: str) -> None:
+    """Bound caller-controlled strings before strict support replay."""
+
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+
+
+def _plain_value(  # noqa: C901, PLR0912 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+    _byte_budget: list[int] | None = None,
+) -> object:
+    """Materialize only bounded built-in containers for direct M03-07 ingress."""
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    byte_budget = [_MAX_PLAIN_BYTES] if _byte_budget is None else _byte_budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if BaseModel in candidate_mro:
+        return candidate
+    if dict in candidate_mro:
+        mapping = cast("dict[object, object]", candidate)
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise _InvalidPlainValueError
+        result: dict[str, object] = {}
+        for key in dict.keys(mapping):
+            if type(key) is not str:
+                raise _InvalidPlainValueError
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+        return result
+    if list in candidate_mro:
+        list_values = cast("list[object]", candidate)
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in list.__iter__(list_values)
+        ]
+    if tuple in candidate_mro:
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro or isinstance(candidate, Mapping):
+        raise _InvalidPlainValueError
+    if type(candidate) is str:
+        _charge_plain_bytes(byte_budget, candidate)
+    return candidate
+
+
 def protein_inference_quality_support_receipt(
     result: object,
 ) -> ProteinInferenceQualitySupportReceipt:
@@ -95,7 +187,7 @@ def protein_inference_quality_support_receipt(
 
     try:
         validated = ProteinInferenceQualityResult.model_validate_json(
-            canonical_json_bytes(result),
+            canonical_json_bytes(_plain_value(result)),
             strict=True,
         )
         return quality_support_receipt(validated)
@@ -110,7 +202,7 @@ def protein_inference_harmonization_support_receipt(
 
     try:
         validated = ProteinInferenceHarmonizationResult.model_validate_json(
-            canonical_json_bytes(result),
+            canonical_json_bytes(_plain_value(result)),
             strict=True,
         )
         return harmonization_support_receipt(validated)
@@ -127,10 +219,10 @@ def protein_inference_support_prerequisites(
     try:
         return ProteinInferenceSupportPrerequisites(
             quality_result=ProteinInferenceQualityResult.model_validate_json(
-                canonical_json_bytes(quality_result), strict=True
+                canonical_json_bytes(_plain_value(quality_result)), strict=True
             ),
             harmonization_result=ProteinInferenceHarmonizationResult.model_validate_json(
-                canonical_json_bytes(harmonization_result), strict=True
+                canonical_json_bytes(_plain_value(harmonization_result)), strict=True
             ),
             quality=protein_inference_quality_support_receipt(quality_result),
             harmonization=protein_inference_harmonization_support_receipt(harmonization_result),

@@ -14,6 +14,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c03_protein_inference.m03_07_support_router.engine import (
     M0307ProteinInferenceSupportRouterEngine,
+    _plain_value,
     preflight_protein_inference_support_authorization,
 )
 
@@ -31,7 +32,7 @@ class _ResultSizeError(ValueError):
 def _bounded_result_bytes(value: object) -> bytes:
     """Canonicalize every result ingress shape under the same byte ceiling."""
 
-    payload = canonical_json_bytes(value)
+    payload = canonical_json_bytes(_plain_value(value))
     if len(payload) > M0307_MAX_CANONICAL_RESULT_BYTES:
         raise _ResultSizeError
     return payload
@@ -51,7 +52,7 @@ class M0307Service:
     @staticmethod
     def validate_request(request: object) -> RouteProteinInferenceSupportRequest:
         preflight_protein_inference_support_authorization(request)
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+        return _REQUEST_ADAPTER.validate_python(_plain_value(request), strict=True)
 
     def execute(self, request: object) -> ProteinInferenceSupportRouteResult:
         return self._engine.route(request)
@@ -70,7 +71,7 @@ class M0307Service:
             return _RESULT_ADAPTER.validate_json(_bounded_result_bytes(decoded), strict=True)
         if isinstance(result, Mapping):
             return _RESULT_ADAPTER.validate_json(
-                _bounded_result_bytes(dict(result)),
+                _bounded_result_bytes(result),
                 strict=True,
             )
         return _RESULT_ADAPTER.validate_json(

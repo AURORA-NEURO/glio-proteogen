@@ -16,6 +16,7 @@ from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c03_protein_inference.m03_07_support_router.engine import (
+    _plain_value,
     preflight_protein_inference_support_authorization,
 )
 
@@ -73,7 +74,7 @@ class M0307Plugin(ModulePlugin[object, ValidatedM0307Request, ProteinInferenceSu
             )
             preflight_protein_inference_support_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(decoded),
+                canonical_json_bytes(_plain_value(decoded)),
                 strict=True,
             )
         return ValidatedM0307Request(request=self._service.validate_request(candidate))

@@ -33,6 +33,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     route_protein_inference_support,
 )
 from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
+    engine as m0307_engine,
+)
+from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     service as m0307_service,
 )
 
@@ -255,3 +258,62 @@ def test_strict_plugin_json_rejects_unknown_members() -> None:
 
     with pytest.raises(ValueError, match="Extra inputs are not permitted"):
         M0307Plugin(M0307Service()).validate(payload)
+
+
+def test_direct_python_request_ingress_bounds_nested_graph_before_validation() -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    nested: object = "leaf"
+    for _ in range(m0307_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+    payload["unexpected"] = nested
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0307Service.validate_request(payload)
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        route_protein_inference_support(payload)
+
+
+def test_direct_python_boundaries_ignore_hostile_accessors_and_cap_sequences() -> None:
+    class HostileList(list[object]):
+        def __iter__(self) -> Iterator[object]:
+            raise AssertionError
+
+        def __getitem__(self, key: int) -> object:
+            raise AssertionError(key)
+
+    class HostileDict(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise AssertionError
+
+        def __iter__(self) -> Iterator[str]:
+            raise AssertionError
+
+        def __getitem__(self, key: str) -> object:
+            raise AssertionError(key)
+
+    payload = build_scenario_request().model_dump(mode="python")
+    payload["unexpected"] = HostileList([None] * (m0307_engine._MAX_PLAIN_SEQUENCE_ITEMS + 1))
+    candidate = HostileDict(payload)
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0307Service.validate_request(candidate)
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        route_protein_inference_support(candidate)
+
+
+def test_receipt_and_result_replay_bound_caller_owned_graphs() -> None:
+    scenario = build_scenario()
+    nested: object = "leaf"
+    for _ in range(m0307_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+
+    quality_payload = scenario.quality_result.model_dump(mode="python")
+    quality_payload["unexpected"] = nested
+    with pytest.raises(ProteinInferenceSupportReceiptError, match="M03-04 result"):
+        protein_inference_quality_support_receipt(quality_payload)
+
+    result_payload = route_protein_inference_support(scenario.request).model_dump(mode="python")
+    result_payload["unexpected"] = nested
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0307Service().verify(result_payload)
