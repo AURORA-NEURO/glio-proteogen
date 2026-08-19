@@ -56,9 +56,11 @@ def _read_request(path: Path) -> EvaluateProteinRnaDiscordanceExternalTransportR
 
 def _read_result(path: Path) -> ProteinRnaDiscordanceExternalTransportResult:
     try:
-        return _RESULT_ADAPTER.validate_json(
-            read_bounded(path, M2204_MAX_CANONICAL_RESULT_BYTES), strict=True
+        parsed = strict_json_loads(
+            read_bounded(path, M2204_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M2204_MAX_CANONICAL_RESULT_BYTES,
         )
+        return _RESULT_ADAPTER.validate_json(canonical_json_bytes(parsed), strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2204CliError("input must be a valid M22-04 result") from error  # noqa: TRY003
 

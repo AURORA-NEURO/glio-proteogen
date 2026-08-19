@@ -120,6 +120,26 @@ def test_typer_validate_and_rejects_tampered_result(tmp_path: Path) -> None:
     assert runner.invoke(cli_app, ["verify", str(tampered)]).exit_code != 0
 
 
+def test_typer_verify_rejects_duplicate_result_members(tmp_path: Path) -> None:
+    request_path = tmp_path / "request.json"
+    request_path.write_bytes(canonical_json_bytes(_request()))
+    runner = CliRunner()
+    evaluated = runner.invoke(cli_app, ["evaluate", str(request_path)])
+    assert evaluated.exit_code == 0, evaluated.stdout
+
+    result = evaluated.stdout.rstrip("\n").encode("utf-8")
+    marker = b'"result_digest":"'
+    start = result.index(marker) + len(marker)
+    end = result.index(b'"', start)
+    digest = result[start:end]
+    duplicate = result[:end] + b'","result_digest":"' + digest + result[end:]
+    result_path = tmp_path / "duplicate-result.json"
+    result_path.write_bytes(duplicate)
+
+    verified = runner.invoke(cli_app, ["verify", str(result_path)])
+    assert verified.exit_code != 0
+
+
 def test_typer_error_paths_and_replay_boolean(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
