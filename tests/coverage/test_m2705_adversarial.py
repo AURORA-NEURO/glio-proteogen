@@ -403,6 +403,31 @@ def test_result_contract_rejects_self_rehashed_telemetry_projection_forgery(fiel
         ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["activity_id", "actor_id", "input_digests", "configuration_digest", "control_decisions"],
+)
+def test_result_contract_rejects_self_rehashed_provenance_forgery(field: str) -> None:
+    result = M2705Service().emit(build_request())
+    forged_values: dict[str, object] = {
+        "activity_id": "m2705.activity.forged",
+        "actor_id": "forged-actor",
+        "input_digests": ("sha256:" + "f" * 64,),
+        "configuration_digest": "sha256:" + "e" * 64,
+        "control_decisions": (
+            result.provenance.control_decisions[0].model_copy(
+                update={"decision_id": "forged-control"}
+            ),
+            *result.provenance.control_decisions[1:],
+        ),
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="provenance"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_schema_metadata_is_closed() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
