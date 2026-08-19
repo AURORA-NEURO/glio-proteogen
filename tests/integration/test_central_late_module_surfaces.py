@@ -1,0 +1,105 @@
+"""Central API/CLI exposure and strict-boundary checks for late lanes."""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+
+from fastapi.testclient import TestClient
+from typer.testing import CliRunner
+
+from glio_proteogen.adapters.api import create_app
+from glio_proteogen.adapters.cli import app as central_cli
+from glio_proteogen.contracts.m20_02 import ProteinSubtypeAlignmentResult
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from tests.modules.c17_metabolomic_lipidomic_integration.test_m20_02_engine import _request
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+_LATE_MODULE_ROUTES = {
+    "/v1/modules/M19-01/resolve",
+    "/v1/modules/M19-01/verify",
+    "/v1/modules/M19-02/align",
+    "/v1/modules/M19-02/verify",
+    "/v1/modules/M19-05/present",
+    "/v1/modules/M19-05/verify",
+    "/v1/modules/M20-02/reconcile",
+    "/v1/modules/M20-02/verify",
+    "/v1/modules/M20-03/fuse",
+    "/v1/modules/M20-03/verify",
+    "/v1/modules/M20-04/adapt",
+    "/v1/modules/M20-04/verify",
+}
+_LATE_CLI_GROUPS = {
+    "m19-01-upstream",
+    "m19-02-alignment",
+    "m19-05-presentation",
+    "m20-02-alignment",
+    "m20-03-fusion",
+    "m20-04-intended-use",
+}
+HTTP_OK = 200
+HTTP_UNPROCESSABLE = 422
+CLI_SUCCESS = 0
+CLI_USAGE_ERROR = 2
+
+
+def test_central_surfaces_register_every_implemented_late_adapter(tmp_path: Path) -> None:
+    api = create_app(tmp_path / "events.sqlite")
+    route_paths = {getattr(route, "path", "") for route in api.routes}
+    assert route_paths >= _LATE_MODULE_ROUTES
+
+    runner = CliRunner()
+    for group in sorted(_LATE_CLI_GROUPS):
+        help_result = runner.invoke(central_cli, [group, "--help"])
+        assert help_result.exit_code == 0, help_result.output
+
+
+def test_central_m2002_api_and_cli_share_one_canonical_result(tmp_path: Path) -> None:
+    request = _request()
+    request_bytes = canonical_json_bytes(request)
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "result.json"
+    request_path.write_bytes(request_bytes)
+
+    with TestClient(create_app(tmp_path / "events.sqlite")) as client:
+        api_result = client.post(
+            "/v1/modules/M20-02/reconcile",
+            content=request_bytes,
+            headers={"content-type": "application/json"},
+        )
+    cli_result = CliRunner().invoke(
+        central_cli,
+        ["m20-02-alignment", "reconcile", str(request_path), "--output", str(result_path)],
+    )
+
+    assert api_result.status_code == HTTP_OK, api_result.text
+    assert cli_result.exit_code == CLI_SUCCESS, cli_result.output
+    assert ProteinSubtypeAlignmentResult.model_validate_json(
+        api_result.content, strict=True
+    ) == ProteinSubtypeAlignmentResult.model_validate_json(result_path.read_bytes(), strict=True)
+
+
+def test_central_late_routes_reject_malformed_json_before_execution(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path / "events.sqlite")) as client:
+        for path in sorted(_LATE_MODULE_ROUTES):
+            response = client.post(
+                path,
+                content=b"{not-json",
+                headers={"content-type": "application/json"},
+            )
+            assert response.status_code == HTTP_UNPROCESSABLE, (path, response.text)
+            assert "Traceback" not in response.text
+
+
+def test_central_late_cli_exports_are_json_and_unknown_schema_is_sanitized() -> None:
+    runner = CliRunner()
+    success = runner.invoke(central_cli, ["m20-03-fusion", "export-schema", "request"])
+    failure = runner.invoke(central_cli, ["m20-03-fusion", "export-schema", "unknown"])
+
+    assert success.exit_code == CLI_SUCCESS, success.output
+    assert json.loads(success.stdout)["x-glio-contract"]["moduleId"] == ("GLIO-PROTEOGEN-M20-03")
+    assert failure.exit_code == CLI_USAGE_ERROR
+    assert "unknown M20-03 schema" in failure.output
