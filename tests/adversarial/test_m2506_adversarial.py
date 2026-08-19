@@ -11,6 +11,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m25_06 import (
     ChallengeDisposition,
+    ChallengeFindingCode,
     ChallengeProteotypeRobustnessRequest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
@@ -84,3 +85,15 @@ def test_safe_abstention_does_not_emit_parent_or_surface() -> None:
     assert result.robustness_surface is None
     assert result.emits_parent is False
     assert result.safe_failure_report is not None
+
+
+def test_ood_threshold_is_enforced_before_evaluated_surface() -> None:
+    request = build_request()
+    request = request.model_copy(
+        update={"configuration": request.configuration.model_copy(update={"ood_threshold": 0.1})}
+    )
+    result = M2506RobustnessEngine().challenge(request)
+    assert result.robustness_surface is None
+    assert result.status.value == "abstained"
+    assert result.human_review_required is True
+    assert any(item.code is ChallengeFindingCode.OOD_STATE for item in result.findings)

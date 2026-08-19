@@ -115,11 +115,8 @@ class M2506RobustnessEngine:
             canonical_json_bytes(validated.model_dump(mode="json")), strict=True
         )
         request_digest = canonical_request_digest(canonical)
-        findings = _findings(canonical.scenarios)
-        can_evaluate = not any(
-            item.expected_disposition is not ChallengeDisposition.WITHIN_ENVELOPE
-            for item in canonical.scenarios
-        )
+        findings = _findings(canonical.scenarios, canonical.configuration.ood_threshold)
+        can_evaluate = not findings
         surface = _surface(canonical, request_digest) if can_evaluate else None
         status = RobustnessStatus.EVALUATED if surface is not None else RobustnessStatus.ABSTAINED
         payload: dict[str, Any] = {
@@ -147,10 +144,7 @@ class M2506RobustnessEngine:
             "provenance": _provenance(canonical),
             "evidence": _evidence(canonical),
             "limitations": _LIMITATIONS,
-            "human_review_required": any(
-                item.expected_disposition is not ChallengeDisposition.WITHIN_ENVELOPE
-                for item in canonical.scenarios
-            ),
+            "human_review_required": not can_evaluate,
         }
         provisional = ProteotypeRobustnessChallengeResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
@@ -229,7 +223,9 @@ def _state_value(candidate: object) -> object:
     return getattr(actual, "value", actual)
 
 
-def _findings(scenarios: tuple[ChallengeScenario, ...]) -> tuple[ChallengeFinding, ...]:
+def _findings(
+    scenarios: tuple[ChallengeScenario, ...], ood_threshold: float
+) -> tuple[ChallengeFinding, ...]:
     findings: list[ChallengeFinding] = []
     for scenario in scenarios:
         if scenario.expected_disposition is ChallengeDisposition.REVIEW_REQUIRED:
@@ -247,6 +243,17 @@ def _findings(scenarios: tuple[ChallengeScenario, ...]) -> tuple[ChallengeFindin
                     finding_id=f"finding.unsupported.{scenario.scenario_id}",
                     code=ChallengeFindingCode.UNSUPPORTED_PERTURBATION,
                     message=f"Challenge {scenario.kind.value} is unsupported and must abstain.",
+                    evidence=scenario.evidence,
+                )
+            )
+        elif _ood_score(scenario) >= ood_threshold:
+            findings.append(
+                ChallengeFinding(
+                    finding_id=f"finding.ood.{scenario.scenario_id}",
+                    code=ChallengeFindingCode.OOD_STATE,
+                    message=(
+                        f"Challenge {scenario.kind.value} reaches the configured OOD threshold."
+                    ),
                     evidence=scenario.evidence,
                 )
             )
@@ -269,7 +276,7 @@ def _surface(
 
 
 def _observation(scenario: ChallengeScenario) -> RobustnessObservation:
-    penalty = _PENALTIES[scenario.kind.value]
+    penalty = _ood_score(scenario)
     return RobustnessObservation(
         observation_id=f"observation.{scenario.scenario_id}",
         scenario_id=scenario.scenario_id,
@@ -279,11 +286,15 @@ def _observation(scenario: ChallengeScenario) -> RobustnessObservation:
         envelope_lower=0.0,
         envelope_upper=1.0,
         within_envelope=True,
-        ood_score=round(min(0.99, penalty), 6),
+        ood_score=penalty,
         ood_band=OODBand.IN_DOMAIN,
         disposition=ChallengeDisposition.WITHIN_ENVELOPE,
         evidence=scenario.evidence,
     )
+
+
+def _ood_score(scenario: ChallengeScenario) -> float:
+    return round(min(0.99, _PENALTIES[scenario.kind.value]), 6)
 
 
 def _safe_failure(
