@@ -249,3 +249,27 @@ def test_tampered_result_digest_is_rejected() -> None:
 
     with pytest.raises(m1803.M1803ReplayError, match="payload digest"):
         m1803.M1803Engine().replay(tampered)
+
+
+def test_plugin_validated_capability_rejects_forged_cross_instance_and_mutated_requests() -> None:
+    request = _request()
+    plugin = m1803.M1803Plugin()
+    other = m1803.M1803Plugin()
+    token = plugin.validate(request)
+    forged = m1803.ValidatedM1803Request(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request"):
+        other.run(token)
+
+    changed_source = token.request.contributions[0].model_copy(
+        update={"claim": "forged source claim"}
+    )
+    object.__setattr__(
+        token.request,
+        "contributions",
+        (changed_source, *token.request.contributions[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(token)

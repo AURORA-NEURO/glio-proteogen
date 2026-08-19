@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
+
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .engine import M1803Engine
 
@@ -38,21 +41,77 @@ class M1803PluginDescriptor:
     explicit_abstention: bool = True
 
 
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class ValidatedM1803Request:
+    """Opaque capability proving one plugin-scoped validated request."""
+
+    request: FuseBiomarkerPanelEvidenceRequest
+    _seal: object
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1803Request,
+        tuple[object, FuseBiomarkerPanelEvidenceRequest, bytes],
+    ]
+] = WeakKeyDictionary()
+
+
+def _canonical_request_bytes(request: FuseBiomarkerPanelEvidenceRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="json"))
+
+
+def _token_is_issued(token: ValidatedM1803Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
+
+
+class _InvalidExecutionTokenError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M18-03 execution requires a validated request token")
+
+
 class M1803Plugin:
     """Expose only component-specific fusion and exact replay."""
 
+    __slots__ = ("_engine", "_seal")
     descriptor: Final = M1803PluginDescriptor()
 
     def __init__(self) -> None:
         self._engine = M1803Engine()
+        self._seal = object()
 
     def validate_request(self, candidate: object) -> FuseBiomarkerPanelEvidenceRequest:
         return self._engine.validate_request(candidate)
 
+    def validate(self, candidate: object) -> ValidatedM1803Request:
+        """Return an instance-scoped capability for parse-once execution."""
+
+        validated = self._engine.validate_request(candidate)
+        token = ValidatedM1803Request(request=validated, _seal=self._seal)
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        return token
+
     def run(
         self,
-        request: FuseBiomarkerPanelEvidenceRequest,
+        request: FuseBiomarkerPanelEvidenceRequest | ValidatedM1803Request,
     ) -> BiomarkerPanelIntegratedEvidenceResult:
+        if type(request) is ValidatedM1803Request:
+            if (
+                request._seal is not self._seal
+                or not _token_is_issued(request, self._seal)
+            ):
+                raise _InvalidExecutionTokenError
+            return self._engine.adapt(request.request)
         return self._engine.adapt(request)
 
     def replay(
@@ -62,4 +121,4 @@ class M1803Plugin:
         return self._engine.replay(result)
 
 
-__all__ = ["M1803Plugin", "M1803PluginDescriptor"]
+__all__ = ["M1803Plugin", "M1803PluginDescriptor", "ValidatedM1803Request"]

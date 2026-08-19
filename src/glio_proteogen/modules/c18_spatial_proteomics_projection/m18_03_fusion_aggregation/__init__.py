@@ -7,7 +7,7 @@ from .engine import (
     fuse_biomarker_panel_evidence,
     preflight_m1803_authorization,
 )
-from .plugin import M1803Plugin, M1803PluginDescriptor
+from .plugin import M1803Plugin, M1803PluginDescriptor, ValidatedM1803Request
 from .service import M1803Service
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "M1803PluginDescriptor",
     "M1803ReplayError",
     "M1803Service",
+    "ValidatedM1803Request",
     "fuse_biomarker_panel_evidence",
     "preflight_m1803_authorization",
 ]
