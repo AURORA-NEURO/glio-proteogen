@@ -88,6 +88,22 @@ def test_service_denies_unsafe_context_and_replay_tampering() -> None:
         )
 
 
+def test_provenance_binds_unlisted_adjudication_evidence_and_replays() -> None:
+    request = _request()
+    entry = request.entries[0]
+    reference = entry.evidence[0].reference.model_copy(
+        update={"artifact_id": "unlisted-m2006-entry-evidence", "digest": "sha256:" + "9" * 64}
+    )
+    changed_entry = entry.model_copy(
+        update={"evidence": (entry.evidence[0].model_copy(update={"reference": reference}),)}
+    )
+    changed = request.model_copy(update={"entries": (changed_entry, *request.entries[1:])})
+    result = M2006Service().adjudicate(changed)
+
+    assert reference.digest in result.provenance.input_digests
+    assert M2006Service().replay(result) == result
+
+
 def test_api_sanitizes_non_object_unknown_schema_and_denial() -> None:
     client = TestClient(create_app(M2006Service()))
     assert client.post("/v1/modules/M20-06/verify", content=b"[").status_code == (
