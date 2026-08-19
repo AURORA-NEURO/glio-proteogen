@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m23_07 import (
     EvaluateVariantPeptideHumanFactorsRequest,
     VariantPeptideHumanFactorsResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -45,11 +47,22 @@ class HumanFactorsEvaluationSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
 class ValidatedM2307Request:
-    """Opaque capability proving strict M23-07 request validation."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
-    request: EvaluateVariantPeptideHumanFactorsRequest
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(self, request: EvaluateVariantPeptideHumanFactorsRequest, seal: object) -> None:
+        self.request = request
+        self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2307Request,
+        tuple[object, EvaluateVariantPeptideHumanFactorsRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -71,10 +84,11 @@ class M2307Plugin(
 ):
     """Expose validate-then-run without an authority or parse bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2307Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -87,12 +101,24 @@ class M2307Plugin(
             decoded = strict_json_loads(candidate, max_bytes=M2307_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2307_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2307Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2307Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        return token
 
     def run(self, request: ValidatedM2307Request) -> VariantPeptideHumanFactorsResult:
         if not isinstance(request, ValidatedM2307Request):
             raise _InvalidExecutionTokenError
-        return self._service.evaluate(request.request)
+        snapshot = _TOKENS.get(request)
+        if (
+            snapshot is None
+            or snapshot[0] is not self._seal
+            or request._seal is not self._seal
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_json_bytes(request.request)
+        ):
+            raise _InvalidExecutionTokenError
+        return self._service.evaluate(snapshot[1])
 
     def replay(
         self,

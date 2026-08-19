@@ -96,6 +96,30 @@ def test_plugin_is_strict_parse_once_and_requires_token() -> None:
         plugin.run(cast("Any", request))
 
 
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = m2307.M2307Plugin(m2307.M2307Service())
+    second = m2307.M2307Plugin(m2307.M2307Service())
+    token = first.validate(m2307.HumanFactorsEvaluationSubmission(_request()))
+
+    assert first.run(token).result_digest.startswith("sha256:")
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = m2307.ValidatedM2307Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(m2307.HumanFactorsEvaluationSubmission(_request()))
+    object.__setattr__(mutated.request, "request_id", "request.m2307.forged")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(m2307.HumanFactorsEvaluationSubmission(_request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
+
+
 def test_typer_export_validate_evaluate_verify_and_no_overwrite(tmp_path: Path) -> None:
     request = _request()
     request_path = tmp_path / "request.json"
