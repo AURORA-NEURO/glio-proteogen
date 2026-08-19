@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m23_08 import (
     M2308_MAX_CANONICAL_REQUEST_BYTES,
     AdjudicateVariantPeptideEvidenceGateRequest,
     VariantPeptideEvidenceGateResult,
+    canonical_request_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
@@ -19,7 +20,10 @@ from glio_proteogen.kernel.strict_json import strict_json_loads
 from .service import M2308Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdjudicateVariantPeptideEvidenceGateRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM2308Request, object] = WeakKeyDictionary()
+_TOKENS: WeakKeyDictionary[
+    ValidatedM2308Request,
+    tuple[object, AdjudicateVariantPeptideEvidenceGateRequest, str],
+] = WeakKeyDictionary()
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +41,16 @@ class ValidatedM2308Request:
     def __init__(self, request: AdjudicateVariantPeptideEvidenceGateRequest, seal: object) -> None:
         self.request = request
         self._seal = seal
+
+
+def _token_is_issued(token: ValidatedM2308Request, seal: object) -> bool:
+    snapshot = _TOKENS.get(token)
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == canonical_request_digest(token.request)
+    )
 
 
 class M2308TokenError(TypeError):
@@ -88,16 +102,18 @@ class M2308Plugin:
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         validated = self._service.validate_request(candidate)
         token = ValidatedM2308Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, canonical_request_digest(validated))
         return token
 
     def validate_request(self, request: object) -> AdjudicateVariantPeptideEvidenceGateRequest:
         return self._service.validate_request(request)
 
     def run(self, token: ValidatedM2308Request) -> VariantPeptideEvidenceGateResult:
-        if not isinstance(token, ValidatedM2308Request) or _TOKENS.get(token) is not self._seal:
-            raise M2308TokenError
-        if token._seal is not self._seal:
+        if (
+            not isinstance(token, ValidatedM2308Request)
+            or token._seal is not self._seal
+            or not _token_is_issued(token, self._seal)
+        ):
             raise M2308TokenError
         return self._service.adjudicate(token.request)
 

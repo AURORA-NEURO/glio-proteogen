@@ -24,6 +24,7 @@ from glio_proteogen.modules.c21_reference_material.m23_08_evidence_gate_release_
     M2308ReplayError,
     M2308Service,
     M2308TokenError,
+    ValidatedM2308Request,
     adjudicate_variant_peptide_evidence_gate,
 )
 from tests.contract.test_m2308_deep import _request
@@ -116,6 +117,34 @@ def test_plugin_requires_capability_token_and_supports_string_submission() -> No
     assert plugin.replay(result.model_dump(mode="json")) == result
     with pytest.raises(M2308TokenError):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_plugin_rejects_forged_and_cross_instance_tokens() -> None:
+    plugin = M2308Plugin()
+    other_plugin = M2308Plugin()
+    token = plugin.validate(EvidenceGateSubmission(_request()))
+    forged = ValidatedM2308Request(token.request, object())
+
+    with pytest.raises(M2308TokenError):
+        plugin.run(forged)
+    with pytest.raises(M2308TokenError):
+        other_plugin.run(token)
+
+
+def test_plugin_rejects_nested_request_mutation_after_validation() -> None:
+    plugin = M2308Plugin()
+    token = plugin.validate(EvidenceGateSubmission(_request()))
+    changed_requirement = token.request.requirements[0].model_copy(
+        update={"statement": "forged nested requirement"}
+    )
+    object.__setattr__(
+        token.request,
+        "requirements",
+        (changed_requirement, *token.request.requirements[1:]),
+    )
+
+    with pytest.raises(M2308TokenError):
+        plugin.run(token)
 
 
 def test_replay_rejects_tampered_result_and_tampered_request() -> None:
