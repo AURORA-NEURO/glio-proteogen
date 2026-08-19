@@ -8,6 +8,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m27_06 import (
     M2706_MAX_CANONICAL_REQUEST_BYTES,
+    M2706_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivitySecurityAccessResult,
     EvaluateComplexActivitySecurityAccessRequest,
 )
@@ -43,7 +44,7 @@ class M2706Service:
 
     def replay(self, result: object) -> ComplexActivitySecurityAccessResult:
         if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result)
+            decoded = strict_json_loads(result, max_bytes=M2706_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         elif isinstance(result, Mapping):
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)

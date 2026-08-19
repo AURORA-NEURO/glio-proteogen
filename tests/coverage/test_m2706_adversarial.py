@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m27_06 import (
+    M2706_MAX_CANONICAL_RESULT_BYTES,
     AccessDecision,
     AccessDecisionState,
     ComplexActivitySecurityAccessResult,
@@ -30,7 +31,13 @@ from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
     SecuritySubmission,
     create_app,
 )
+from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
+    api as api_module,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import cli as cli_module
+from glio_proteogen.modules.c27_complex_activity.m27_06_security_access import (
+    service as service_module,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_06_security_access.cli import (
     M2706CliError,
     app,
@@ -63,6 +70,34 @@ def test_schema_routes_and_api_replay() -> None:
     assert (
         client.post("/v1/modules/M27-06/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
+
+
+def test_api_replay_uses_declared_result_byte_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[int] = []
+
+    def record_parser(body: bytes, *, max_bytes: int) -> dict[str, object]:
+        del body
+        seen.append(max_bytes)
+        return {}
+
+    monkeypatch.setattr(api_module, "strict_json_loads", record_parser)
+    response = TestClient(create_app()).post("/v1/modules/M27-06/verify", content=b"{}")
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert seen == [M2706_MAX_CANONICAL_RESULT_BYTES]
+
+
+def test_service_replay_uses_declared_result_byte_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    original = service_module.strict_json_loads
+    seen: list[int] = []
+
+    def record_parser(body: bytes | bytearray | str, *, max_bytes: int) -> object:
+        seen.append(max_bytes)
+        return original(body, max_bytes=max_bytes)
+
+    monkeypatch.setattr(service_module, "strict_json_loads", record_parser)
+    result = M2706Service().emit(build_request())
+    assert M2706Service().replay(result.model_dump_json()) == result
+    assert seen == [M2706_MAX_CANONICAL_RESULT_BYTES]
 
 
 def test_api_emit_denied_control_is_sanitized() -> None:
