@@ -68,31 +68,31 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "abb4afae8836d6e9ae20303165cb310087f71edbdf0eac70600ef285c9059e2f",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 371,
+    "focused_tests": 379,
       "coverage": {
-      "statements": 3548,
-      "missed_statements": 121,
-      "branches": 1392,
-      "partial_branches": 113,
-      "percent": 95.14,
+      "statements": 3565,
+      "missed_statements": 122,
+      "branches": 1400,
+      "partial_branches": 112,
+      "percent": 95.16616314199396,
       "fail_under": 95
     },
       "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3952504,
+        "bytes": 3953008,
       "members": 2023,
-      "sha256": "4e939613c9b2b680e89c5ec9cf38785ce9597e6bbdc41a0e99c80a62b6cc3306"
+        "sha256": "90488ef67f0a26570ae1baaaf85be8bb13945132125fd65fc9c5a2bfd62edff2"
       },
       "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4640818,
+        "bytes": 4642062,
       "members": 4741,
-      "sha256": "041b430e49b666caf58d1ecbce1fa94f8e9e476dc52b128e7ed4e8778ba04359"
+        "sha256": "7fc479b23a6828566cf048cf50bd73106cf6c2cf3a1fc02d414a850bec561deb"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "4e939613c9b2b680e89c5ec9cf38785ce9597e6bbdc41a0e99c80a62b6cc3306",
-      "sdist": "041b430e49b666caf58d1ecbce1fa94f8e9e476dc52b128e7ed4e8778ba04359"
+      "wheel": "90488ef67f0a26570ae1baaaf85be8bb13945132125fd65fc9c5a2bfd62edff2",
+      "sdist": "7fc479b23a6828566cf048cf50bd73106cf6c2cf3a1fc02d414a850bec561deb"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
