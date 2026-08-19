@@ -361,13 +361,50 @@ def _provenance(
         )
         for role, decision in controls
     )
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(
+                    evidence.reference.digest
+                    for evidence in request.configuration.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for requirement in request.requirements
+                    for evidence in requirement.evidence
+                ),
+                *(benchmark.report_artifact.digest for benchmark in request.benchmarks),
+                *(
+                    evidence.reference.digest
+                    for benchmark in request.benchmarks
+                    for evidence in benchmark.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for risk in request.residual_risks
+                    for evidence in risk.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for approval in request.approvals
+                    for evidence in approval.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for obligation in request.post_release_obligations
+                    for evidence in obligation.evidence
+                ),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id="m2208.activity." + request_digest.removeprefix("sha256:"),
         actor_id=request.context.actor_id,
         module_id=M2208_MODULE_ID,
         module_version=M2208_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(
             {
                 "configuration": request.configuration,

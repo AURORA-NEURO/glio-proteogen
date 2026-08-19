@@ -69,6 +69,28 @@ def test_service_fails_closed_on_unknown_control_mapping() -> None:
         service.validate_request({"context": {"references": {}}})
 
 
+def test_provenance_binds_unlisted_gate_evidence_and_replays() -> None:
+    request = _request()
+    requirement = request.requirements[0]
+    reference = requirement.evidence[0].reference.model_copy(
+        update={"artifact_id": "m2208.unlisted-requirement", "digest": "sha256:" + "9" * 64}
+    )
+    changed_requirement = requirement.model_copy(
+        update={
+            "evidence": (
+                requirement.evidence[0].model_copy(update={"reference": reference}),
+            )
+        }
+    )
+    changed = request.model_copy(
+        update={"requirements": (changed_requirement, *request.requirements[1:])}
+    )
+    result = M2208EvidenceGateEngine().adjudicate(changed)
+
+    assert reference.digest in result.provenance.input_digests
+    assert M2208EvidenceGateEngine().replay(result) == result
+
+
 def test_contract_rejects_duplicate_requirement_id_and_unlocked_config() -> None:
     request = _request()
     duplicate = request.requirements[0].model_copy(
