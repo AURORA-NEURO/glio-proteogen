@@ -111,6 +111,28 @@ def test_compute_match_tolerance_is_enforced() -> None:
         ComputeMatchedComparison.model_validate(comparison.model_dump(mode="python"))
 
 
+@pytest.mark.parametrize(
+    ("candidate_value", "direction"),
+    [(0.70, "higher"), (0.90, "lower")],
+)
+def test_passing_metric_cannot_exceed_directional_tolerance(
+    candidate_value: float,
+    direction: str,
+) -> None:
+    request = build_request()
+    baseline = request.baseline_runs[0]
+    forged_metric = baseline.metrics[0].model_copy(
+        update={"candidate_value": candidate_value, "lower_is_better": direction == "lower"}
+    )
+    forged_baseline = baseline.model_copy(update={"metrics": (forged_metric,)})
+    forged_request = request.model_copy(update={"baseline_runs": (forged_baseline,)})
+
+    with pytest.raises(ValidationError, match="directional tolerance"):
+        RunProteotypeInternalBenchmarkRequest.model_validate(
+            forged_request.model_dump(mode="python"), strict=True
+        )
+
+
 def test_request_duplicate_ablation_ids_are_rejected() -> None:
     request = build_request()
     data = request.model_dump(mode="python")

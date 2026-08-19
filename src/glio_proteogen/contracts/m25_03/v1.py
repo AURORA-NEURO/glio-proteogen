@@ -97,6 +97,17 @@ class BenchmarkMetric(FrozenModel):
     status: ValidationStatus
     evidence: tuple[EvidenceReference, ...] = Field(min_length=1, max_length=M2503_MAX_EVIDENCE)
 
+    @model_validator(mode="after")
+    def status_matches_directional_tolerance(self) -> BenchmarkMetric:
+        within_tolerance = (
+            self.candidate_value <= self.baseline_value + self.tolerance
+            if self.lower_is_better
+            else self.candidate_value >= self.baseline_value - self.tolerance
+        )
+        if self.status is ValidationStatus.PASS and not within_tolerance:
+            raise ValueError("passing benchmark metric must satisfy declared directional tolerance")
+        return self
+
 
 class BaselineRun(FrozenModel):
     run_id: Identifier
