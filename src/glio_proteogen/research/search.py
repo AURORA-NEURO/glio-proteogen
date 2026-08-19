@@ -356,13 +356,11 @@ def _assign_fragment_peaks(
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
     def better(
-        candidate_count: int,
-        candidate_error: float,
-        candidate_action: str,
-        current_count: int,
-        current_error: float,
-        current_action: str,
+        candidate: tuple[int, float, str],
+        current: tuple[int, float, str],
     ) -> bool:
+        candidate_count, candidate_error, candidate_action = candidate
+        current_count, current_error, current_action = current
         if candidate_count != current_count:
             return candidate_count > current_count
         if candidate_error != current_error:
@@ -383,12 +381,8 @@ def _assign_fragment_peaks(
             skip_observed_count = counts[theoretical_index][observed_index + 1]
             skip_observed_error = errors[theoretical_index][observed_index + 1]
             if better(
-                skip_observed_count,
-                skip_observed_error,
-                "o",
-                best_count,
-                best_error,
-                best_action,
+                (skip_observed_count, skip_observed_error, "o"),
+                (best_count, best_error, best_action),
             ):
                 best_count, best_error, best_action = (
                     skip_observed_count,
@@ -402,12 +396,8 @@ def _assign_fragment_peaks(
                 match_count = 1 + counts[theoretical_index + 1][observed_index + 1]
                 match_error = error + errors[theoretical_index + 1][observed_index + 1]
                 if better(
-                    match_count,
-                    match_error,
-                    "m",
-                    best_count,
-                    best_error,
-                    best_action,
+                    (match_count, match_error, "m"),
+                    (best_count, best_error, best_action),
                 ):
                     best_count, best_error, best_action = match_count, match_error, "m"
             counts[theoretical_index][observed_index] = best_count
