@@ -1,5 +1,11 @@
 """Provisional M24-02 synthetic truth contract exports."""
 
+from glio_proteogen.contracts.m24_02.canonical import (
+    canonical_request_digest,
+    normalized_request,
+    normalized_result_payload,
+    result_payload_digest,
+)
 from glio_proteogen.contracts.m24_02.schema import (
     CONTRACT_VERSION,
     SCHEMA_ID_PREFIX,
@@ -70,6 +76,10 @@ __all__ = [
     "SyntheticTruthCase",
     "SyntheticTruthCorpus",
     "TruthRepresentation",
+    "canonical_request_digest",
     "contract_json_schema",
     "contract_json_schemas",
+    "normalized_request",
+    "normalized_result_payload",
+    "result_payload_digest",
 ]
