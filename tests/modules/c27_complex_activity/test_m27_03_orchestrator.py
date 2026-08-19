@@ -263,6 +263,18 @@ def test_plugin_requires_opaque_validation_token_and_service_parses_json_once() 
     assert service.verify(result.model_dump_json()).result_digest == result.result_digest
 
 
+def test_plugin_rejects_foreign_token_and_nested_request_mutation() -> None:
+    request = _request()
+    first = M2703Plugin()
+    second = M2703Plugin()
+    token = first.validate(request)
+    with pytest.raises(TypeError, match="validated"):
+        second.run(token)
+    object.__setattr__(token.request, "request_id", "m2703.tampered")
+    with pytest.raises(TypeError, match="validated"):
+        first.run(token)
+
+
 def test_tampered_result_is_rejected_by_replay() -> None:
     result = M2703Engine().execute(_request())
     tampered = result.model_copy(update={"result_id": "m2703.result." + "f" * 64})

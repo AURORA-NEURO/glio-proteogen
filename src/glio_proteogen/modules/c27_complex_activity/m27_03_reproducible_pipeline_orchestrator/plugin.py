@@ -25,15 +25,14 @@ from .service import M2703Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(OrchestrateComplexActivityPipelineRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityPipelineResult)
-_SEAL: Final = object()
-
-
 @dataclass(frozen=True, slots=True)
 class ValidatedM2703Request:
     """Opaque request token issued by strict validation."""
 
     request: OrchestrateComplexActivityPipelineRequest
     _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class M2703Plugin:
@@ -41,6 +40,7 @@ class M2703Plugin:
 
     def __init__(self, service: M2703Service | None = None) -> None:
         self._service = service or M2703Service(M2703Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -68,10 +68,27 @@ class M2703Plugin:
             typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(request), strict=True)
         else:
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2703Request(request=typed, _seal=_SEAL)
+        request_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
+        return ValidatedM2703Request(
+            request=typed,
+            _seal=self._seal,
+            _request_identity=id(typed),
+            _request_bytes=request_bytes,
+        )
 
     def run(self, request: ValidatedM2703Request) -> ComplexActivityPipelineResult:
-        if not isinstance(request, ValidatedM2703Request) or request._seal is not _SEAL:
+        if (
+            not isinstance(request, ValidatedM2703Request)
+            or request._seal is not self._seal
+            or type(request.request) is not OrchestrateComplexActivityPipelineRequest
+            or id(request.request) != request._request_identity
+        ):
+            raise TypeError("M27-03 run requires a validated request token")
+        try:
+            current_bytes = canonical_json_bytes(request.request.model_dump(mode="json"))
+        except Exception as error:
+            raise TypeError("M27-03 run requires a validated request token") from error
+        if current_bytes != request._request_bytes:
             raise TypeError("M27-03 run requires a validated request token")
         return self._service._execute_validated(request.request)
 
