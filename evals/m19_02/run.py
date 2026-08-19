@@ -249,7 +249,7 @@ def evaluate() -> EvaluationReport:
     )
     plugin = m1902.M1902Plugin()
     plugin_result = plugin.run(
-        plugin.validate_json(canonical_json_bytes(_scenario("strict_plugin")))
+        plugin.validate(plugin.validate_json(canonical_json_bytes(_scenario("strict_plugin"))))
     )
     plugin_parity = plugin_result == results["strict_plugin"]
     checks.append(

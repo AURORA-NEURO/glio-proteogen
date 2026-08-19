@@ -7,7 +7,12 @@ from .engine import (
     align_proteotype_sources,
     preflight_m1902_authorization,
 )
-from .plugin import M1902Plugin, M1902PluginDescriptor
+from .plugin import (
+    M1902Plugin,
+    M1902PluginDescriptor,
+    M1902TokenError,
+    ValidatedM1902Request,
+)
 from .service import M1902Service
 
 __all__ = [
@@ -17,6 +22,8 @@ __all__ = [
     "M1902PluginDescriptor",
     "M1902ReplayError",
     "M1902Service",
+    "M1902TokenError",
+    "ValidatedM1902Request",
     "align_proteotype_sources",
     "preflight_m1902_authorization",
 ]

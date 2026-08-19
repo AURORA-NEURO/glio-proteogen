@@ -114,8 +114,21 @@ def test_plugin_descriptor_and_strict_json_boundary() -> None:
     assert descriptor.unsupported_to_negative is False
     request = _request()
     parsed = plugin.validate_json(canonical_json_bytes(request))
-    result = plugin.run(parsed)
+    token = plugin.validate(parsed)
+    result = plugin.run(token)
     assert plugin.replay(result) == result
+    with pytest.raises(m1902.M1902TokenError):
+        plugin.run(parsed)
+    object.__setattr__(token.request, "request_id", "request.tampered")
+    with pytest.raises(m1902.M1902TokenError):
+        plugin.run(token)
+    other = m1902.M1902Plugin()
+    with pytest.raises(m1902.M1902TokenError):
+        other.run(token)
+    replacement = plugin.validate(parsed)
+    object.__setattr__(replacement, "request", parsed.model_copy(deep=True))
+    with pytest.raises(m1902.M1902TokenError):
+        plugin.run(replacement)
     with pytest.raises(ValueError, match="valid JSON"):
         plugin.validate_json(b"not-json")
     with pytest.raises(ValueError, match="valid JSON"):
