@@ -131,6 +131,40 @@ def test_estimates_and_replays_deterministically() -> None:
     assert result.emits_parent is False
 
 
+@pytest.mark.parametrize("field", ["preprocessing", "tuning", "features"])
+def test_recomputation_binds_locked_inputs_and_rejects_rehashed_forgery(field: str) -> None:
+    request = _request()
+    result = estimate_protein_rna_discordance_baseline(request)
+    if field == "preprocessing":
+        preprocessing = request.configuration.preprocessing[0].model_copy(
+            update={"parameters_digest": _artifact("preprocess-mutated").digest}
+        )
+        configuration = request.configuration.model_copy(update={"preprocessing": (preprocessing,)})
+        mutated_request = request.model_copy(update={"configuration": configuration})
+    elif field == "tuning":
+        tuning = request.configuration.tuning.model_copy(
+            update={"benchmark_artifact": _artifact("benchmark-mutated")}
+        )
+        configuration = request.configuration.model_copy(update={"tuning": tuning})
+        mutated_request = request.model_copy(update={"configuration": configuration})
+    else:
+        mutated_request = request.model_copy(
+            update={"source_artifacts": (_artifact("source-mutated"),)}
+        )
+
+    recomputed = estimate_protein_rna_discordance_baseline(mutated_request)
+    forged = result.model_copy(
+        update={
+            "request": mutated_request,
+            "request_digest": canonical_request_digest(mutated_request),
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert recomputed.estimates != result.estimates
+    assert verify_result_replay(forged) is False
+
+
 @pytest.mark.parametrize(
     ("family", "kind"),
     [

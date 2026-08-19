@@ -8,7 +8,6 @@ the locked configuration are not evaluable.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from typing import Any, Final, cast
 
@@ -314,6 +313,26 @@ def _diagnostics(
     )
 
 
+def _feature_parameters(
+    request: EstimateProteinRnaDiscordanceBaselineRequest,
+    feature_id: str,
+    index: int,
+) -> tuple[float, float]:
+    """Derive stable fixture parameters from every opaque estimator input."""
+
+    seed = sha256_digest(
+        {
+            "feature_id": feature_id,
+            "feature_index": index,
+            "formal_state_result": request.formal_state_result,
+            "configuration": request.configuration,
+            "source_artifacts": request.source_artifacts,
+        }
+    ).removeprefix("sha256:")
+    fraction = int(seed[:16], 16) / float(0xFFFFFFFFFFFFFFFF)
+    return round(fraction * 0.2 - 0.1, 6), round(0.9 + fraction * 0.1, 6)
+
+
 def _estimates(
     request: EstimateProteinRnaDiscordanceBaselineRequest,
 ) -> tuple[BaselineEstimate, ...]:
@@ -328,7 +347,7 @@ def _estimates(
     family = request.configuration.estimator_family
     estimates: list[BaselineEstimate] = []
     for index, feature_id in enumerate(request.configuration.target_feature_ids):
-        center = round(math.sin(index + 1) * 0.1, 6)
+        center, support_score = _feature_parameters(request, feature_id, index)
         if family is BaselineEstimatorFamily.RULE_BASED:
             estimates.append(
                 BaselineEstimate(
@@ -336,7 +355,7 @@ def _estimates(
                     kind=BaselineEstimateKind.CATEGORICAL,
                     unit="baseline_class",
                     category="supported_baseline",
-                    support_score=0.95,
+                    support_score=support_score,
                     evidence=_evidence(request),
                 )
             )
@@ -347,7 +366,7 @@ def _estimates(
                     kind=BaselineEstimateKind.SCALAR,
                     unit="normalized_effect",
                     estimate_value=center,
-                    support_score=0.95,
+                    support_score=support_score,
                     evidence=_evidence(request),
                 )
             )
@@ -360,7 +379,7 @@ def _estimates(
                     estimate_value=center,
                     lower_bound=round(center - 0.05, 6),
                     upper_bound=round(center + 0.05, 6),
-                    support_score=0.95,
+                    support_score=support_score,
                     evidence=_evidence(request),
                 )
             )
