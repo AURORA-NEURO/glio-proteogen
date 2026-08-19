@@ -273,6 +273,110 @@ def _candidate_payload(value: Psm) -> dict[str, object]:
     }
 
 
+def _assign_fragment_peaks(
+    theoretical: tuple[float, ...],
+    observed_mz: tuple[float, ...],
+    tolerance_da: float,
+) -> tuple[tuple[int, int], ...]:
+    """Select a deterministic maximum-cardinality peak assignment.
+
+    Fragment-ion windows can overlap.  A nearest-peak greedy pass can consume
+    the only peak available to a later ion and undercount a valid spectrum.  On
+    the one-dimensional m/z axis, an optimal assignment can be chosen without
+    crossing edges after sorting both sides, so a bounded suffix dynamic
+    program is sufficient.  The objective is maximum matched-ion count first,
+    then minimum total absolute error; stable index ordering resolves exact
+    ties.  The returned indices refer to the caller's original sequences.
+    """
+
+    ordered_theoretical = tuple(sorted(enumerate(theoretical), key=lambda item: (item[1], item[0])))
+    ordered_observed = tuple(sorted(enumerate(observed_mz), key=lambda item: (item[1], item[0])))
+    theoretical_count = len(ordered_theoretical)
+    observed_count = len(ordered_observed)
+    counts = [[0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
+    errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
+    actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
+
+    def better(
+        candidate_count: int,
+        candidate_error: float,
+        candidate_action: str,
+        current_count: int,
+        current_error: float,
+        current_action: str,
+    ) -> bool:
+        if candidate_count != current_count:
+            return candidate_count > current_count
+        if candidate_error != current_error:
+            return candidate_error < current_error
+        # Prefer a match, then skipping an observed peak, then skipping an ion.
+        # This only resolves equivalent optima and keeps replay stable.
+        return {"m": 0, "o": 1, "t": 2}[candidate_action] < {
+            "m": 0,
+            "o": 1,
+            "t": 2,
+        }[current_action]
+
+    for theoretical_index in range(theoretical_count - 1, -1, -1):
+        for observed_index in range(observed_count - 1, -1, -1):
+            best_count = counts[theoretical_index + 1][observed_index]
+            best_error = errors[theoretical_index + 1][observed_index]
+            best_action = "t"
+            skip_observed_count = counts[theoretical_index][observed_index + 1]
+            skip_observed_error = errors[theoretical_index][observed_index + 1]
+            if better(
+                skip_observed_count,
+                skip_observed_error,
+                "o",
+                best_count,
+                best_error,
+                best_action,
+            ):
+                best_count, best_error, best_action = (
+                    skip_observed_count,
+                    skip_observed_error,
+                    "o",
+                )
+            theoretical_value = ordered_theoretical[theoretical_index][1]
+            observed_value = ordered_observed[observed_index][1]
+            error = abs(observed_value - theoretical_value)
+            if error <= tolerance_da:
+                match_count = 1 + counts[theoretical_index + 1][observed_index + 1]
+                match_error = error + errors[theoretical_index + 1][observed_index + 1]
+                if better(
+                    match_count,
+                    match_error,
+                    "m",
+                    best_count,
+                    best_error,
+                    best_action,
+                ):
+                    best_count, best_error, best_action = match_count, match_error, "m"
+            counts[theoretical_index][observed_index] = best_count
+            errors[theoretical_index][observed_index] = best_error
+            actions[theoretical_index][observed_index] = best_action
+
+    assignments: list[tuple[int, int]] = []
+    theoretical_index = 0
+    observed_index = 0
+    while theoretical_index < theoretical_count and observed_index < observed_count:
+        action = actions[theoretical_index][observed_index]
+        if action == "m":
+            assignments.append(
+                (
+                    ordered_theoretical[theoretical_index][0],
+                    ordered_observed[observed_index][0],
+                )
+            )
+            theoretical_index += 1
+            observed_index += 1
+        elif action == "o":
+            observed_index += 1
+        else:
+            theoretical_index += 1
+    return tuple(assignments)
+
+
 def search_spectrum_candidates(
     spectrum_id: str,
     precursor_mz: float,
@@ -326,26 +430,18 @@ def search_spectrum_candidates(
                 continue
         fragments = _fragments(peptide, allowed_modifications=parameters.allowed_modifications)
         theoretical = fragments[0] + fragments[1]
-        matched = 0
+        assignments = _assign_fragment_peaks(theoretical, mz, parameters.fragment_tolerance_da)
+        matched = len(assignments)
         intensity_score = 0.0
         matched_intensity = 0.0
         fragment_errors: list[float] = []
-        used_indices: set[int] = set()
-        for value in theoretical:
-            peak_candidates = [
-                (index, observed)
-                for index, observed in enumerate(mz)
-                if index not in used_indices
-                and abs(observed - value) <= parameters.fragment_tolerance_da
-            ]
-            if peak_candidates:
-                index, observed = min(peak_candidates, key=lambda item: abs(item[1] - value))
-                used_indices.add(index)
-                matched += 1
-                matched_intensity += intensity[index]
-                error = abs(observed - value)
-                fragment_errors.append(error)
-                intensity_score += intensity[index] / (1.0 + error)
+        for theoretical_index, observed_index in assignments:
+            theoretical_value = theoretical[theoretical_index]
+            observed = mz[observed_index]
+            matched_intensity += intensity[observed_index]
+            error = abs(observed - theoretical_value)
+            fragment_errors.append(error)
+            intensity_score += intensity[observed_index] / (1.0 + error)
         if matched < parameters.min_matched_ions:
             continue
         candidate = Psm(
