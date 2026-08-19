@@ -445,13 +445,11 @@ def test_direct_python_quality_ingress_bounds_nested_and_sequence_graphs() -> No
         def __iter__(self) -> Iterator[object]:
             raise AssertionError
 
-        def __getitem__(self, key: int) -> object:
+        def __getitem__(self, key: int) -> object:  # type: ignore[override]
             raise AssertionError(key)
 
     oversized = build_scenario_request().model_dump(mode="python")
-    oversized["unexpected"] = HostileList(
-        [None] * (m0304_engine._MAX_PLAIN_SEQUENCE_ITEMS + 1)
-    )
+    oversized["unexpected"] = HostileList([None] * (m0304_engine._MAX_PLAIN_SEQUENCE_ITEMS + 1))
     with pytest.raises(TypeError, match="bounded built-in containers"):
         M0304Service.validate_request(oversized)
 
