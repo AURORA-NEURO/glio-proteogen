@@ -258,6 +258,7 @@ def quantify_matched_ions(
     observations: Iterable[tuple[str, float]],
     *,
     policy: QuantificationPolicy | None = None,
+    peptide_universe: Iterable[str] | None = None,
 ) -> tuple[PeptideQuant, ...]:
     """Aggregate matched-fragment signal and return median-scaled peptide values.
 
@@ -269,7 +270,12 @@ def quantify_matched_ions(
     negative or an imputed positive measurement.
     """
 
-    return quantify_matched_ions_with_receipt(sample_id, observations, policy=policy).values
+    return quantify_matched_ions_with_receipt(
+        sample_id,
+        observations,
+        policy=policy,
+        peptide_universe=peptide_universe,
+    ).values
 
 
 def quantify_matched_ions_with_receipt(
@@ -277,6 +283,7 @@ def quantify_matched_ions_with_receipt(
     observations: Iterable[tuple[str, float]],
     *,
     policy: QuantificationPolicy | None = None,
+    peptide_universe: Iterable[str] | None = None,
 ) -> PeptideQuantification:
     """Quantify matched-ion signal and return a complete scale/missingness receipt."""
 
@@ -296,6 +303,14 @@ def quantify_matched_ions_with_receipt(
     if len(observed) > selected_policy.max_input_observations:
         raise ValueError("observations exceed max_input_observations")
     totals: dict[str, float] = defaultdict(float)
+    universe = tuple(peptide_universe) if peptide_universe is not None else ()
+    if len(universe) > selected_policy.max_input_observations:
+        raise ValueError("peptide universe exceeds max_input_observations")
+    for peptide in universe:
+        if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
+            raise ValueError("peptide universe values must be bounded non-empty strings")
+        totals.setdefault(peptide, 0.0)
+    declared_universe = set(universe) if peptide_universe is not None else None
     normalized_observations: list[tuple[str, float]] = []
     for item in observed:
         if not isinstance(item, tuple) or len(item) != 2:
@@ -303,6 +318,8 @@ def quantify_matched_ions_with_receipt(
         peptide, intensity = item
         if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
             raise ValueError("peptide must be a bounded non-empty string")
+        if declared_universe is not None and peptide not in declared_universe:
+            raise ValueError("observation is outside the declared peptide universe")
         if not isfinite(intensity) or intensity < 0:
             raise ValueError("matched-ion intensity must be finite and non-negative")
         normalized_observations.append((peptide, float(intensity)))
