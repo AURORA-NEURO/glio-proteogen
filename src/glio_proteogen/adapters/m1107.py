@@ -148,9 +148,7 @@ def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
     adjust the module limit without silently bypassing the intended boundary.
     """
 
-    effective_max_bytes = (
-        M1107_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
-    )
+    effective_max_bytes = M1107_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
     try:
         body = read_bounded(path, effective_max_bytes)
     except (OSError, RequestBodyTooLargeError) as error:

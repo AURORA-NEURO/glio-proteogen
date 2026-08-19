@@ -134,9 +134,7 @@ async def verify(request: Request) -> JSONResponse:
 
 
 def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
-    effective_max_bytes = (
-        M1307_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
-    )
+    effective_max_bytes = M1307_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
     try:
         return read_bounded(path, effective_max_bytes)
     except OSError as error:

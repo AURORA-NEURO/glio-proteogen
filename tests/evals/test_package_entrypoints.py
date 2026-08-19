@@ -11,6 +11,8 @@ _DIRECT_SOURCES = tuple(
         path for path in _SRC_ROOT.rglob("*.py") if "__main__" in path.read_text(encoding="utf-8")
     )
 )
+
+
 def test_direct_package_entrypoints_bootstrap_src_root() -> None:
     """File-path execution must resolve the package and package-local imports."""
 

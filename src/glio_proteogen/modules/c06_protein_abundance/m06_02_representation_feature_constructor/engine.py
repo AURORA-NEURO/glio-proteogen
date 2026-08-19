@@ -112,10 +112,7 @@ def preflight_representation_authorization(request: object) -> None:
     try:
         context = _member(request, "context")
         refs = _member(context, "references")
-        states = {
-            role: _state(_member(_member(refs, role), "state"))
-            for role in expected
-        }
+        states = {role: _state(_member(_member(refs, role), "state")) for role in expected}
     except Exception:  # noqa: BLE001 - hostile objects fail closed.
         raise RepresentationAuthorizationError from None
     if states != expected:
@@ -154,13 +151,11 @@ def _control_decisions(
 
 def _provenance(request: BuildProteinRepresentationRequest) -> ProvenanceRecord:
     refs = request.context.references
-    digests = {
-        item.digest for item in request.source_artifacts
-    } | {
-        item.source_digest for item in request.features
-    } | {
-        digest for step in request.lineage for digest in step.input_digests
-    }
+    digests = (
+        {item.digest for item in request.source_artifacts}
+        | {item.source_digest for item in request.features}
+        | {digest for step in request.lineage for digest in step.input_digests}
+    )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
         actor_id=request.context.actor_id,
@@ -235,9 +230,9 @@ def _masks(request: BuildProteinRepresentationRequest) -> tuple[RepresentationMa
     return tuple(sorted(by_feature.values(), key=lambda item: item.feature_id))
 
 
-def _support_status(request: BuildProteinRepresentationRequest) -> tuple[
-    RepresentationConstructorStatus, SupportStatus, str
-]:
+def _support_status(
+    request: BuildProteinRepresentationRequest,
+) -> tuple[RepresentationConstructorStatus, SupportStatus, str]:
     states = {feature.state for feature in request.features}
     if RepresentationObservationState.UNSUPPORTED in states:
         return (

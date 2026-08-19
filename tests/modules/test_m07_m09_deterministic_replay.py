@@ -72,9 +72,7 @@ def test_self_rehashed_limitations_cannot_bypass_semantic_replay(
     request = request_factory()
     engine = engine_factory()
     build_method = next(
-        getattr(engine, name)
-        for name in ("construct", "build")
-        if hasattr(engine, name)
+        getattr(engine, name) for name in ("construct", "build") if hasattr(engine, name)
     )
     built = build_method(request)
     result = built.result

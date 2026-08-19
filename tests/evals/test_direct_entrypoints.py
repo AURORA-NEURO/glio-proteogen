@@ -10,6 +10,8 @@ _DIRECT_ENTRYPOINTS = tuple(
     sorted((*_EVALS_ROOT.glob("m*/benchmark.py"), *_EVALS_ROOT.glob("m*/run.py")))
 )
 _BOOTSTRAP = "sys.path.insert(0, str("
+
+
 def test_all_evaluator_entrypoints_bootstrap_repository_root() -> None:
     """Every script must work when launched by file path from the repository root."""
 
@@ -20,7 +22,7 @@ def test_all_evaluator_entrypoints_bootstrap_repository_root() -> None:
         assert "Path(__file__)" in source, path
         assert (
             '__package__ in {None, ""}' in source
-            or "__package__ in (None, \"\")" in source
+            or '__package__ in (None, "")' in source
             or "if not __package__" in source
         ), path
         assert not re.search(r"^from " + r"\.", source, re.MULTILINE), path

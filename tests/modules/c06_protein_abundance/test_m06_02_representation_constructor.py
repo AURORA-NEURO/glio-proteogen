@@ -239,9 +239,7 @@ def test_strict_request_boundary_rejects_untyped_object() -> None:
 def test_plugin_parse_once_validate_token_and_safe_execution() -> None:
     request = _request()
     plugin = M0602Plugin()
-    submission = RepresentationSubmission(
-        canonical_json_bytes(request.model_dump(mode="json"))
-    )
+    submission = RepresentationSubmission(canonical_json_bytes(request.model_dump(mode="json")))
 
     validated = plugin.validate(submission)
     built = plugin.run(validated)
