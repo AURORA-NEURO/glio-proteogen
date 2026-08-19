@@ -23,6 +23,7 @@ from glio_proteogen.modules.c21_reference_material.m25_04_external_transport_eva
     M2504ReplayError,
     M2504Service,
     TransportSubmission,
+    ValidatedM2504Request,
 )
 from glio_proteogen.modules.c21_reference_material.m25_04_external_transport_evaluator.cli import (
     app,
@@ -123,6 +124,30 @@ def test_plugin_requires_submission_and_validated_token() -> None:
         plugin.run(build_request())  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="transport submission"):
         plugin.validate(build_request())
+
+
+def test_plugin_binds_tokens_to_instance_and_exact_request_snapshot() -> None:
+    service = M2504Service()
+    plugin = M2504Plugin(service)
+    other_plugin = M2504Plugin(service)
+    token = plugin.validate(TransportSubmission(build_request().model_dump_json()))
+    forged = ValidatedM2504Request(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request"):
+        other_plugin.run(token)
+
+    changed_evaluation = token.request.evaluations[0].model_copy(
+        update={"metric_value": 0.99}
+    )
+    object.__setattr__(
+        token.request,
+        "evaluations",
+        (changed_evaluation, *token.request.evaluations[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(token)
 
 
 def test_plugin_rejects_duplicate_json_keys() -> None:
