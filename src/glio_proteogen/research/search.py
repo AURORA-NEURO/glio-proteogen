@@ -187,6 +187,15 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
         raise ValueError("PSM target/decoy flags do not match protein accessions")
 
 
+def _validate_decoy_prefix(value: str) -> None:
+    if (
+        not isinstance(value, str)
+        or not 1 <= len(value) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in value)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
+
+
 _MASS = {
     "A": 71.037114,
     "R": 156.101111,
@@ -492,6 +501,7 @@ def search_spectrum(
 
 
 def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -> tuple[Psm, ...]:
+    _validate_decoy_prefix(decoy_prefix)
     winners: dict[str, Psm] = {}
     for psm in psms:
         _validate_target_decoy_psm(psm, decoy_prefix=decoy_prefix)

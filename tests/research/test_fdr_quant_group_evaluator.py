@@ -30,6 +30,13 @@ def test_fdr_rejects_empty_accession_evidence() -> None:
         target_decoy_qvalues((malformed,))
 
 
+@pytest.mark.parametrize("decoy_prefix", ["", "bad prefix", "\t", "x" * 33])
+def test_fdr_rejects_invalid_decoy_prefix_before_classification(decoy_prefix: str) -> None:
+    target = Psm("scan=1", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    with pytest.raises(ValueError, match="decoy_prefix"):
+        target_decoy_qvalues((target,), decoy_prefix=decoy_prefix)
+
+
 def test_collision_class_must_match_mixed_accessions() -> None:
     malformed = Psm(
         "scan=1",
