@@ -32,6 +32,24 @@ and unmatched-protein closure, non-negative bounded counts, and overlap bounds
 before accepting either digest. Recomputing an outer digest is therefore not
 enough to turn a structurally invalid receipt into accepted evidence.
 
+For an independent replay, `verify_search_space_receipt` can additionally bind
+the receipt to the original immutable FASTA bytes and parsed `FastaEntry`
+values. That mode checks the source hash, reparses the source, rebuilds every
+digestion/decoy/modification control, and compares the resulting canonical
+receipt. A receipt-only verification remains available when source material is
+not present, but it must not be described as source replay.
+
+## Modification catalogue binding
+
+Variable-modification receipts record both the canonical rule identifiers and
+the version/digest of the active research mass catalogue. Changing a delta
+mass, residue compatibility map, or catalogue metadata therefore invalidates
+old modified-search receipts instead of silently changing precursor or
+fragment masses under the same rule list. Modified peptides also have a hard
+residue ceiling before expansion, and direct `FastaEntry` values use the same
+uppercase alphabet, accession, and digestion-control validation as bounded
+FASTA parsing.
+
 This remains a research-only receipt. It does not infer protein identity,
 calibrate FDR, validate a search engine, authenticate a public data provider,
 or support clinical, glioma, mechanism, proteoform, or isoform claims. A future
