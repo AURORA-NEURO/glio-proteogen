@@ -15,7 +15,7 @@ from glio_proteogen.research import Psm, infer_protein_group_candidates, target_
 def test_fdr_quant_group_invariants_evaluator_is_green() -> None:
     report = run_fdr_quant_group_invariants_evaluator()
     assert report["passed"] is True
-    assert report["declared"] == report["executed"] == 10
+    assert report["declared"] == report["executed"] == 12
 
 
 def test_fdr_rejects_inconsistent_accession_class_before_competition() -> None:

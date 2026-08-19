@@ -91,7 +91,7 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.protein_group_candidates[0].q_value is None
     fdr_summary = result.as_dict()["fdr_summary"]
     assert isinstance(fdr_summary, dict)
-    assert fdr_summary["method"] == "winner-per-spectrum-target-decoy-collision-abstain-3"
+    assert fdr_summary["method"] == "winner-per-spectrum-target-decoy-collision-abstain-ties-4"
     assert fdr_summary["collision_winners"] == 0
     assert result.peptide_spectral_counts == ()
     assert result.peptide_intensities == ()

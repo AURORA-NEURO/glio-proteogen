@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-    "base_commit": "043e0676",
-    "pipeline_commit": "2dd7c719",
+    "base_commit": "f611e746",
+    "pipeline_commit": "bd446613",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -66,9 +66,9 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "ff54dbb59c9d51df6713762006735764677b4e797e10497ea8693918fa292684",
+    "fixture_sha256": "690c79acb752a0f0adc2e5b7ea20b06ea586b559f85a1d2e02286eef7c21dd71",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-      "focused_tests": 350,
+      "focused_tests": 352,
     "coverage": {
       "statements": 3347,
       "missed_statements": 104,
@@ -79,20 +79,20 @@
     },
       "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-        "bytes": 3876684,
+        "bytes": 3876987,
         "members": 1991,
-        "sha256": "bb801b1a004627e2eefbde5e4f0ed5968d4401c1e7aa3176f414e9f967ae5ebc"
+        "sha256": "61c8854763107ad6c9143ef4678eafb5eabd8c1fad07229570e7a7a17cbc40b3"
       },
       "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 4553528,
+        "bytes": 4554849,
         "members": 4658,
-        "sha256": "6f8f85b468f03e4d19dae2f17f3331b8165fb15bacdfe87ffa839c08a43ac9b9"
+        "sha256": "6d4caae0498bb9c83575ff66b686fe3521207b800b06589635ad8ca42bd088af"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-        "wheel": "bb801b1a004627e2eefbde5e4f0ed5968d4401c1e7aa3176f414e9f967ae5ebc",
-        "sdist": "6f8f85b468f03e4d19dae2f17f3331b8165fb15bacdfe87ffa839c08a43ac9b9"
+        "wheel": "61c8854763107ad6c9143ef4678eafb5eabd8c1fad07229570e7a7a17cbc40b3",
+        "sdist": "6d4caae0498bb9c83575ff66b686fe3521207b800b06589635ad8ca42bd088af"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

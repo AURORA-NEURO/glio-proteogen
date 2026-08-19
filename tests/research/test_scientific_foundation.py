@@ -214,7 +214,7 @@ def test_target_decoy_summary_is_explicit_and_threshold_bound() -> None:
     target = Psm("scan=1", "MPEPTIDER", ("P1",), 4.0, 3, decoy=False)
     decoy = Psm("scan=2", "MPEPTIDER", ("DECOY_P1",), 3.0, 3, decoy=True)
     summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
-    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-3"
+    assert summary.method == "winner-per-spectrum-target-decoy-collision-abstain-ties-4"
     assert summary.spectrum_winners == 2
     assert summary.target_winners == 1
     assert summary.decoy_winners == 1
@@ -720,7 +720,7 @@ def test_search_parameter_and_peak_validation() -> None:
     )
 
 
-def test_target_tie_prefers_target_winner() -> None:
+def test_exact_target_decoy_tie_favors_decoy_winner() -> None:
     target = search_spectrum(
         "tie",
         1087.508837466,
@@ -733,12 +733,59 @@ def test_target_tie_prefers_target_winner() -> None:
     decoy = replace(target, protein_accessions=("DECOY_P1",), decoy=True)
     scored = target_decoy_qvalues((decoy, target))
     assert len(scored) == 1
-    assert scored[0].decoy is False
+    assert scored[0].decoy is True
     assert scored[0].q_value is None
     lower = replace(target, score=0.5)
     assert len(target_decoy_qvalues((target, lower))) == 1
     with pytest.raises(ValueError):
         target_decoy_qvalues((replace(target, score=math.nan),))
+
+
+def test_many_exact_target_decoy_ties_cannot_create_zero_fdr_targets() -> None:
+    tied: list[Psm] = []
+    for index in range(101):
+        tied.extend(
+            (
+                Psm(
+                    f"tie-{index}",
+                    "PEPTIDER",
+                    (f"P{index}",),
+                    10.0,
+                    3,
+                    decoy=False,
+                ),
+                Psm(
+                    f"tie-{index}",
+                    "DECOY_PEPTIDER",
+                    (f"DECOY_P{index}",),
+                    10.0,
+                    3,
+                    decoy=True,
+                ),
+            )
+        )
+    tied.append(Psm("lower-decoy", "DECOY_LOW", ("DECOY_LOW",), 1.0, 3, decoy=True))
+
+    scored = target_decoy_qvalues(tuple(tied))
+
+    assert len(scored) == 102
+    assert all(item.decoy for item in scored[:101])
+    assert all(item.q_value is None for item in scored if item.decoy)
+    assert not any(
+        not item.decoy and item.q_value is not None and item.q_value <= 0.01 for item in scored
+    )
+
+
+def test_protein_group_exact_tie_is_decoy_first_for_fdr() -> None:
+    target = Psm("group-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False)
+    decoy = Psm("group-decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 10.0, 3, decoy=True)
+
+    candidates, summary = infer_protein_group_candidates((target, decoy), q_value_threshold=0.01)
+
+    target_candidate = next(item for item in candidates if item.status == "target")
+    assert target_candidate.q_value == 1.0
+    assert target_candidate.acceptance == "rejected"
+    assert summary.accepted_targets == 0
 
 
 def test_search_requires_precursor_and_matches_each_peak_once() -> None:

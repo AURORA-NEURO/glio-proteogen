@@ -21,6 +21,9 @@ _EXPECTED_WINNERS = 3
 _EXPECTED_BELOW_LOQ = 2
 _EXPECTED_MISSING = 3
 _EXPECTED_TOTAL_SIGNAL = 8.0
+_TIED_SPECTRA = 101
+_TIED_WINNERS = _TIED_SPECTRA + 1
+_TIE_Q_VALUE_THRESHOLD = 0.01
 
 
 def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
@@ -61,6 +64,37 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
     collision_groups, collision_group_summary = infer_protein_group_candidates(
         (collision, target_low), q_value_threshold=0.01
     )
+    tie_psms: list[Psm] = []
+    for index in range(_TIED_SPECTRA):
+        tie_psms.extend(
+            (
+                Psm(
+                    f"tie-{index}",
+                    "PEPTIDER",
+                    (f"P{index}",),
+                    10.0,
+                    3,
+                    decoy=False,
+                ),
+                Psm(
+                    f"tie-{index}",
+                    "DECOY_PEPTIDER",
+                    (f"DECOY_P{index}",),
+                    10.0,
+                    3,
+                    decoy=True,
+                ),
+            )
+        )
+    tie_psms.append(Psm("lower-decoy", "DECOY_LOW", ("DECOY_LOW",), 1.0, 3, decoy=True))
+    tied_scored = target_decoy_qvalues(tuple(tie_psms))
+    tie_group_candidates, tie_group_summary = infer_protein_group_candidates(
+        (
+            Psm("group-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False),
+            Psm("group-decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 10.0, 3, decoy=True),
+        ),
+        q_value_threshold=_TIE_Q_VALUE_THRESHOLD,
+    )
     scenario = scenarios()[0]
     request = build_scenario_request(scenario)
     source_sha256 = {
@@ -83,6 +117,21 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
         "collision_counts_as_group_fdr_decoy": (
             collision_group_summary.decoy_to_target_ratio == 1.0
             and next(item for item in collision_groups if item.status == "target").q_value == 1.0
+        ),
+        "exact_ties_abstain_spectrum_fdr": (
+            len(tied_scored) == _TIED_WINNERS
+            and all(item.decoy for item in tied_scored[:_TIED_SPECTRA])
+            and not any(
+                not item.decoy
+                and item.q_value is not None
+                and item.q_value <= _TIE_Q_VALUE_THRESHOLD
+                for item in tied_scored
+            )
+        ),
+        "exact_ties_abstain_group_fdr": (
+            tie_group_summary.accepted_targets == 0
+            and next(item for item in tie_group_candidates if item.status == "target").q_value
+            == 1.0
         ),
         "exact_loq_is_missing": (
             quantification.receipt.below_loq_peptides == _EXPECTED_BELOW_LOQ
