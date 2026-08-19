@@ -25,7 +25,6 @@ from glio_proteogen.contracts.m27_02 import (
     graph_payload_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
@@ -66,6 +65,13 @@ class M2702AuthorizationError(ValueError):
         super().__init__(_AUTHORIZATION_MESSAGE)
 
 
+class M2702ValidatedRequestError(TypeError):
+    """A private validated-execution seam received a non-exact model."""
+
+    def __init__(self) -> None:
+        super().__init__("M27-02 validated execution requires the exact request model")
+
+
 def preflight_m2702_authorization(candidate: object) -> None:
     """Check all seven caller-declared controls before reading lineage material."""
 
@@ -94,9 +100,13 @@ class M2702LineageResolver:
     def resolve(self, request: object) -> ComplexActivityLineageResult:
         preflight_m2702_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(_plain_value(request), strict=True)
-        canonical = _REQUEST_ADAPTER.validate_json(
-            canonical_json_bytes(validated.model_dump(mode="json")), strict=True
-        )
+        return self._resolve_validated(validated)
+
+    def _resolve_validated(
+        self, canonical: ResolveComplexActivityLineageRequest
+    ) -> ComplexActivityLineageResult:
+        if type(canonical) is not ResolveComplexActivityLineageRequest:
+            raise M2702ValidatedRequestError
         request_hash = canonical_request_digest(canonical)
         graph, findings = _derive_graph(canonical, request_hash)
         evidence = _evidence_for(canonical.source_artifacts)

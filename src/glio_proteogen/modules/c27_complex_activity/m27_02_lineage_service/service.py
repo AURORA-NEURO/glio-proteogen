@@ -31,7 +31,10 @@ class M2702Service:
         return _REQUEST_ADAPTER.validate_python(_plain_value(request), strict=True)
 
     def execute(self, request: object) -> ComplexActivityLineageResult:
-        return self._resolver.resolve(request)
+        if type(request) is ResolveComplexActivityLineageRequest:
+            preflight_m2702_authorization(request)
+            return self._resolver._resolve_validated(request)
+        return self._resolver.resolve(self.validate_request(request))
 
 
 __all__ = ["M2702Service"]

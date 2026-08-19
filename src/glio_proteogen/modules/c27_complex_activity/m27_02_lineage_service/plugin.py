@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final, cast
 
 from pydantic import TypeAdapter
@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m27_02 import (
     ComplexActivityLineageResult,
     ResolveComplexActivityLineageRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service.engine import (
@@ -44,6 +45,16 @@ class ValidatedM2702Request:
     """Opaque capability proving strict M27-02 request validation."""
 
     request: ResolveComplexActivityLineageRequest
+    _request_identity: int = field(init=False, repr=False)
+    _request_bytes: bytes = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_request_identity", id(self.request))
+        object.__setattr__(
+            self,
+            "_request_bytes",
+            canonical_json_bytes(self.request.model_dump(mode="json")),
+        )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -72,10 +83,24 @@ class M2702Plugin(ModulePlugin[object, ValidatedM2702Request, ComplexActivityLin
             )
             preflight_m2702_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
-        return ValidatedM2702Request(request=self._service.validate_request(candidate))
+            preflight_m2702_authorization(candidate)
+            validated = candidate
+        else:
+            validated = self._service.validate_request(candidate)
+        return ValidatedM2702Request(request=validated)
 
     def run(self, request: ValidatedM2702Request) -> ComplexActivityLineageResult:
         if type(request) is not ValidatedM2702Request:
+            raise _InvalidExecutionTokenError
+        if type(request.request) is not ResolveComplexActivityLineageRequest:
+            raise _InvalidExecutionTokenError
+        if id(request.request) != request._request_identity:
+            raise _InvalidExecutionTokenError
+        try:
+            current_bytes = canonical_json_bytes(request.request.model_dump(mode="json"))
+        except Exception as error:
+            raise _InvalidExecutionTokenError from error
+        if current_bytes != request._request_bytes:
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 

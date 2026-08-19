@@ -53,6 +53,15 @@ def test_plugin_rejects_duplicate_json_keys_before_validation() -> None:
         plugin.validate(b'{"request_id":"one","request_id":"two"}')
 
 
+def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
+    request = _request()
+    plugin = M2702Plugin(M2702Service())
+    token = plugin.validate(request)
+    object.__setattr__(token, "request", request.model_copy(deep=True))
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
+
+
 def test_resigned_graph_manifest_tamper_is_rejected() -> None:
     result = M2702LineageResolver().resolve(_request())
     assert result.lineage_graph is not None
