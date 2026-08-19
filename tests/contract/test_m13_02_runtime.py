@@ -37,6 +37,7 @@ from glio_proteogen.modules.c11_protein_native_subtype.m13_02_context_subtype_st
     M1302AuthorizationError,
     M1302Plugin,
     M1302Service,
+    ValidatedM1302Request,
     compute_proteotype_context,
     preflight_context_authorization,
     verify_context_result,
@@ -213,6 +214,37 @@ def test_plugin_strict_json_boundary_and_execution_token() -> None:
     duplicate = payload[:-1] + ',"request_id":"tampered"}'
     with pytest.raises(StrictJsonError):  # strict JSON duplicate-key boundary
         plugin.validate(duplicate)
+
+
+def test_plugin_token_snapshot_rejects_nested_mutation_forgery_and_cross_instance_replay() -> None:
+    request = _request()
+    plugin = M1302Plugin(M1302Service())
+    token = plugin.validate(request)
+
+    forged = ValidatedM1302Request(request=token.request, _seal=object())
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+
+    other_plugin = M1302Plugin(M1302Service())
+    with pytest.raises(TypeError, match="validated request token"):
+        other_plugin.run(token)
+
+    original_request = token.request
+    object.__setattr__(token, "request", original_request.model_copy())
+    try:
+        with pytest.raises(TypeError, match="validated request token"):
+            plugin.run(token)
+    finally:
+        object.__setattr__(token, "request", original_request)
+
+    observation = token.request.observations[0]
+    original_status = observation.status
+    object.__setattr__(observation, "status", ContextObservationStatus.CONFLICTED)
+    try:
+        with pytest.raises(TypeError, match="validated request token"):
+            plugin.run(token)
+    finally:
+        object.__setattr__(observation, "status", original_status)
 
 
 def test_result_tamper_fails_replay_verification() -> None:
