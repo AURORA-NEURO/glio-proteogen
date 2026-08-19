@@ -16,6 +16,7 @@ from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluato
 )
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator.plugin import (
     M2105Plugin,
+    M2105TokenError,
     ValidatedM2105Request,
 )
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator.service import (
@@ -29,6 +30,7 @@ __all__ = [
     "M2105Plugin",
     "M2105ReplayError",
     "M2105Service",
+    "M2105TokenError",
     "ValidatedM2105Request",
     "cli_app",
     "create_app",

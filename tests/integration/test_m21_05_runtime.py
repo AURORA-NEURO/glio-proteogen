@@ -15,6 +15,8 @@ from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluato
     M2105Plugin,
     M2105ReplayError,
     M2105Service,
+    M2105TokenError,
+    ValidatedM2105Request,
 )
 from tests.contract.test_m21_05_adversarial import (
     _request,
@@ -143,6 +145,30 @@ def test_service_validates_and_plugin_parse_once_requires_sealed_token() -> None
         plugin.run(cast("Any", request))
     with pytest.raises((TypeError, ValueError)):
         plugin.validate(object())
+
+
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = M2105Plugin()
+    other = M2105Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token).status is EvaluationStatus.EVALUATED
+
+    forged = ValidatedM2105Request(request=token.request, _seal=token._seal)
+    with pytest.raises(M2105TokenError):
+        plugin.run(forged)
+    with pytest.raises(M2105TokenError):
+        other.run(token)
+
+    changed_performance = token.request.performance[0].model_copy(update={"value": 0.1})
+    object.__setattr__(
+        token.request,
+        "performance",
+        (changed_performance, *token.request.performance[1:]),
+    )
+    with pytest.raises(M2105TokenError):
+        plugin.run(token)
 
 
 def test_replay_rejects_payload_and_request_tampering() -> None:
