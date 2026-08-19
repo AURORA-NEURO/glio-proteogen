@@ -8,6 +8,7 @@ from glio_proteogen.contracts.m21_07 import (
     EvaluationStatus,
     OperationalDimension,
     OperationalFindingCode,
+    OperationalMetric,
     OperationalStatus,
 )
 from glio_proteogen.kernel.models import ConsentState
@@ -24,7 +25,7 @@ from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operatio
 from tests.contract.test_m21_07_hardening import _metric, _request
 
 
-def _metrics(status: OperationalStatus) -> tuple:
+def _metrics(status: OperationalStatus) -> tuple[OperationalMetric, ...]:
     return tuple(_metric(dimension, status) for dimension in OperationalDimension)
 
 

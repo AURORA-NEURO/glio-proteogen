@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -172,7 +173,7 @@ def test_authority_and_schema_metadata_are_explicit() -> None:
         == "sha256:" + "0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
     )
     assert M2107_DOSSIER_SLICE.endswith(":7500-7540")
-    metadata = contract_json_schema("request")["x-glio-contract"]
+    metadata = cast("dict[str, Any]", contract_json_schema("request")["x-glio-contract"])
     assert metadata["dossierSha256"] == M2107_DOSSIER_SHA256
     assert metadata["upstreamInputMediaType"] == M2107_M2106_INPUT_MEDIA_TYPE
 
