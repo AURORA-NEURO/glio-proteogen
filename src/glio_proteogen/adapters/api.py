@@ -266,6 +266,7 @@ from glio_proteogen.contracts.m04_02.schema import (
 )
 from glio_proteogen.contracts.m04_02.v1 import (
     M0402_MAX_CANONICAL_REQUEST_BYTES,
+    M0402_MAX_CANONICAL_RESULT_BYTES,
     ProteoformIdentityLineageResolution,
     ReconcileProteoformIdentityLineageRequest,
 )
@@ -1035,6 +1036,7 @@ _M0307_SUPPORT_ADAPTER: Final = TypeAdapter(RouteProteinInferenceSupportRequest)
 _M0307_RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceSupportRouteResult)
 _M0401_PROTOCOL_ADAPTER: Final = TypeAdapter(EvaluateProteoformProtocolRequest)
 _M0402_LINEAGE_ADAPTER: Final = TypeAdapter(ReconcileProteoformIdentityLineageRequest)
+_M0402_RESULT_ADAPTER: Final = TypeAdapter(ProteoformIdentityLineageResolution)
 _M0404_QUALITY_ADAPTER: Final = TypeAdapter(ComputeProteoformQualityMetricsRequest)
 _M0601_FORMAL_STATE_ADAPTER: Final = TypeAdapter(ValidateFormalProteinStateRequest)
 _M0603_BASELINE_ADAPTER: Final = TypeAdapter(EstimateProteinAbundanceBaselineRequest)
@@ -1628,6 +1630,15 @@ def _proteoform_lineage_request_body() -> dict[str, object]:
     }
 
 
+def _proteoform_lineage_result_body() -> dict[str, object]:
+    return {
+        "requestBody": {
+            "required": True,
+            "content": {"application/json": {"schema": m0402_contract_json_schema("output")}},
+        }
+    }
+
+
 def _proteoform_quality_request_body() -> dict[str, object]:
     return {
         "requestBody": {
@@ -2151,6 +2162,16 @@ async def _proteoform_lineage_body(
         _M0402_LINEAGE_ADAPTER,
         preflight_proteoform_identity_lineage_authorization,
         M0402_MAX_CANONICAL_REQUEST_BYTES,
+    )
+
+
+async def _proteoform_lineage_result_body_parser(
+    request: Request,
+) -> ProteoformIdentityLineageResolution:
+    return await _strict_json_body(
+        request,
+        _M0402_RESULT_ADAPTER,
+        max_bytes=M0402_MAX_CANONICAL_RESULT_BYTES,
     )
 
 
@@ -3671,6 +3692,20 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         ],
     ) -> ProteoformIdentityLineageResolution:
         return proteoform_lineage_service.execute(request)
+
+    @app.post(
+        "/v1/modules/M04-02/identity-lineage-reconciliation/verify",
+        response_model=ProteoformIdentityLineageResolution,
+        tags=["M04-02"],
+        openapi_extra=_proteoform_lineage_result_body(),
+    )
+    def verify_proteoform_identity_lineage(
+        result: Annotated[
+            ProteoformIdentityLineageResolution,
+            Depends(_proteoform_lineage_result_body_parser),
+        ],
+    ) -> ProteoformIdentityLineageResolution:
+        return proteoform_lineage_service.verify(result)
 
     @app.post(
         "/v1/modules/M03-07/support-route",

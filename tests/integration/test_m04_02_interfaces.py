@@ -148,6 +148,55 @@ def test_library_engine_service_plugin_api_and_cli_emit_exact_parity(
     )
 
 
+def test_api_cli_and_service_replay_verify_the_exact_result_and_reject_tampering(
+    tmp_path: Path,
+    canonical_request: ReconcileProteoformIdentityLineageRequest,
+) -> None:
+    result = M0402Service().execute(canonical_request)
+    result_path = tmp_path / "lineage-result.json"
+    result_path.write_bytes(canonical_json_bytes(result))
+
+    with TestClient(create_app(tmp_path / "verify.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M04-02/identity-lineage-reconciliation/verify",
+            content=result_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    cli = CliRunner().invoke(
+        cli_app,
+        ["proteoform-lineage", "verify", str(result_path)],
+    )
+
+    assert response.status_code == HTTP_OK, response.text
+    assert cli.exit_code == 0, cli.output
+    assert (
+        ProteoformIdentityLineageResolution.model_validate_json(response.content, strict=True)
+        == result
+    )
+    assert (
+        ProteoformIdentityLineageResolution.model_validate_json(cli.stdout, strict=True) == result
+    )
+
+    tampered = result.model_dump(mode="json")
+    tampered["result_digest"] = "sha256:" + ("f" * 64)
+    tampered_path = tmp_path / "tampered-result.json"
+    tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+    with TestClient(create_app(tmp_path / "tampered.sqlite3")) as client:
+        rejected = client.post(
+            "/v1/modules/M04-02/identity-lineage-reconciliation/verify",
+            content=tampered_path.read_bytes(),
+            headers={"content-type": "application/json"},
+        )
+    rejected_cli = CliRunner().invoke(
+        cli_app,
+        ["proteoform-lineage", "verify", str(tampered_path)],
+    )
+
+    assert rejected.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert rejected_cli.exit_code == CLI_USAGE_ERROR
+    assert "Traceback" not in rejected_cli.output
+
+
 @pytest.mark.parametrize(("control", "state"), DENIED_CONTROLS)
 def test_api_and_cli_deny_each_control_before_lineage_validation(
     tmp_path: Path,

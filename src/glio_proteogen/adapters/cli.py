@@ -192,6 +192,8 @@ from glio_proteogen.contracts.m04_01 import (
 )
 from glio_proteogen.contracts.m04_02 import (
     M0402_MAX_CANONICAL_REQUEST_BYTES,
+    M0402_MAX_CANONICAL_RESULT_BYTES,
+    ProteoformIdentityLineageResolution,
     ReconcileProteoformIdentityLineageRequest,
 )
 from glio_proteogen.contracts.m04_03 import (
@@ -4763,6 +4765,18 @@ def reconcile_proteoform_lineage(request: RequestArgument) -> None:
         M0402_MAX_CANONICAL_REQUEST_BYTES,
     )
     _emit(M0402Service().execute(parsed))
+
+
+@proteoform_lineage_app.command("verify")
+def verify_proteoform_lineage(result: RequestArgument) -> None:
+    """Replay-verify one canonical proteoform identity-lineage result."""
+
+    parsed = _load_request(
+        result,
+        TypeAdapter(ProteoformIdentityLineageResolution),
+        max_bytes=M0402_MAX_CANONICAL_RESULT_BYTES,
+    )
+    _emit(M0402Service().verify(parsed))
 
 
 @proteoform_raw_app.command("export-schema")
