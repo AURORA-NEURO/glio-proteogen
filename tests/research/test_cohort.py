@@ -335,6 +335,16 @@ def test_cohort_provenance_policy_rejects_mixed_and_binds_external_catalog() -> 
     assert all(isinstance(item, dict) and item["external_pdc_receipt"] for item in provenance)
 
 
+def test_rejected_provenance_policy_precedes_raw_mzml_traversal() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    local = _sample("target_supported", "local-invalid", "r1")
+    invalid_request = replace(local.request, mzml_source=b"not mzML")
+    invalid_local = replace(local, request=invalid_request)
+    external = _pdc_sample(target, "external-valid", "r2")
+    with pytest.raises(ValueError, match="mix local"):
+        run_research_cohort(ResearchCohortRequest((invalid_local, external)))
+
+
 def test_cohort_provenance_policy_rejects_different_catalog_response() -> None:
     target = next(item for item in scenarios() if item.scenario_id == "target_supported")
     first = _pdc_sample(target, "pdc-a", "r1")
