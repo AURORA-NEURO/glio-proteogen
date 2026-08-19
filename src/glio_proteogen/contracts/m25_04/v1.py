@@ -34,12 +34,12 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
-# PROVISIONAL ABI: inferred solely from dossier lines 8744-8786.
+# PROVISIONAL ABI: inferred solely from dossier lines 8808-8848.
 M2504_MODULE_ID: Final = "GLIO-PROTEOGEN-M25-04"
 M2504_DOSSIER_SHA256: Final = (
     "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181"
 )
-M2504_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8744-8786"
+M2504_DOSSIER_SLICE: Final = "GLIO-PROTEOGEN_240_Module_Dossier.md:8808-8848"
 M2504_OPERATION: Final = "evaluate_proteotype_external_transport"
 M2504_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2504_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m25-04+json"
