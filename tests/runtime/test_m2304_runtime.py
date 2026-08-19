@@ -126,6 +126,21 @@ def test_plugin_token_is_parse_once_and_instance_bound() -> None:
         second.run(token)
 
 
+def test_plugin_rejects_nested_request_mutation_after_validation() -> None:
+    plugin = M2304Plugin()
+    token = plugin.validate(_request())
+    changed_evaluation = token.request.evaluations[0].model_copy(
+        update={"metric_value": token.request.evaluations[0].metric_value + 0.01}
+    )
+    object.__setattr__(
+        token.request,
+        "evaluations",
+        (changed_evaluation, *token.request.evaluations[1:]),
+    )
+    with pytest.raises(M2304TokenError):
+        plugin.run(token)
+
+
 def test_plugin_rejects_forged_token() -> None:
     service = M2304Service()
     plugin = M2304Plugin(service)

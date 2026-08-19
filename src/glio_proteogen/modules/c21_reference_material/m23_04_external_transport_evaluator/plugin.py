@@ -11,12 +11,16 @@ from pydantic import TypeAdapter
 from glio_proteogen.contracts.m23_04 import (
     EvaluateVariantPeptideExternalTransportRequest,
     VariantPeptideExternalTransportResult,
+    canonical_request_digest,
 )
 
 from .service import M2304Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateVariantPeptideExternalTransportRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM2304Request, object] = WeakKeyDictionary()
+_TOKENS: WeakKeyDictionary[
+    ValidatedM2304Request,
+    tuple[object, EvaluateVariantPeptideExternalTransportRequest, str],
+] = WeakKeyDictionary()
 
 
 class ValidatedM2304Request:
@@ -29,6 +33,16 @@ class ValidatedM2304Request:
     ) -> None:
         self.request = request
         self._seal = seal
+
+
+def _token_is_issued(token: ValidatedM2304Request, seal: object) -> bool:
+    snapshot = _TOKENS.get(token)
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == canonical_request_digest(token.request)
+    )
 
 
 class M2304TokenError(TypeError):
@@ -73,16 +87,18 @@ class M2304Plugin:
     def validate(self, request: object) -> ValidatedM2304Request:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         token = ValidatedM2304Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, canonical_request_digest(validated))
         return token
 
     def validate_request(self, request: object) -> EvaluateVariantPeptideExternalTransportRequest:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def run(self, token: ValidatedM2304Request) -> VariantPeptideExternalTransportResult:
-        if not isinstance(token, ValidatedM2304Request) or _TOKENS.get(token) is not self._seal:
-            raise M2304TokenError
-        if token._seal is not self._seal:
+        if (
+            not isinstance(token, ValidatedM2304Request)
+            or token._seal is not self._seal
+            or not _token_is_issued(token, self._seal)
+        ):
             raise M2304TokenError
         return self._service._engine.evaluate(token.request)
 
