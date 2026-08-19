@@ -50,6 +50,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import 
     preflight_protein_inference_quality_authorization,
 )
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
+    engine as m0304_engine,
+)
+from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
     service as m0304_service,
 )
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics.kernel import (
@@ -404,6 +407,65 @@ def test_preflight_sanitizes_exception_but_never_base_exception() -> None:
     assert "private hostile" not in str(captured.value)
     with pytest.raises(_ProtectedTraversal):
         preflight_protein_inference_quality_authorization(_BaseExceptionMapping())
+
+
+def test_authorized_dict_subclass_replays_without_accessor_dispatch() -> None:
+    request = build_scenario_request()
+
+    class HostileDict(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise AssertionError
+
+        def __iter__(self) -> Iterator[str]:
+            raise AssertionError
+
+        def __getitem__(self, key: str) -> object:
+            raise AssertionError(key)
+
+    candidate = HostileDict(request.model_dump(mode="python"))
+    assert compute_protein_inference_quality(candidate) == compute_protein_inference_quality(
+        request
+    )
+
+
+def test_direct_python_quality_ingress_bounds_nested_and_sequence_graphs() -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    nested: object = "leaf"
+    for _ in range(m0304_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+    payload["unexpected"] = nested
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0304Service.validate_request(payload)
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        compute_protein_inference_quality(payload)
+
+    class HostileList(list[object]):
+        def __iter__(self) -> Iterator[object]:
+            raise AssertionError
+
+        def __getitem__(self, key: int) -> object:
+            raise AssertionError(key)
+
+    oversized = build_scenario_request().model_dump(mode="python")
+    oversized["unexpected"] = HostileList(
+        [None] * (m0304_engine._MAX_PLAIN_SEQUENCE_ITEMS + 1)
+    )
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0304Service.validate_request(oversized)
+
+
+def test_quality_result_replay_bounds_caller_owned_graph() -> None:
+    result = compute_protein_inference_quality(build_scenario_request())
+    payload = result.model_dump(mode="python")
+    nested: object = "leaf"
+    for _ in range(m0304_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+    payload["unexpected"] = nested
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0304Service().verify(payload)
 
 
 def test_plugin_typed_and_strict_json_paths_match_and_reject_forged_capability() -> None:
