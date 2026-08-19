@@ -253,9 +253,7 @@ def _observation_digest(observations: tuple[tuple[str, float], ...]) -> str:
     ).hexdigest()
 
 
-def _materialize_bounded[T](
-    values: Iterable[T], *, limit: int, label: str
-) -> tuple[T, ...]:
+def _materialize_bounded[T](values: Iterable[T], *, limit: int, label: str) -> tuple[T, ...]:
     """Materialize an iterable without allowing an unbounded producer to run."""
 
     materialized: list[T] = []

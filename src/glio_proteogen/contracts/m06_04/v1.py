@@ -223,10 +223,8 @@ class EstimateProteinAbundanceProbabilisticRequest(FrozenModel):
                 if item is not None
             )
             if any(
-                (definition.domain_lower is not None
-                and item < definition.domain_lower)
-                or (definition.domain_upper is not None
-                and item > definition.domain_upper)
+                (definition.domain_lower is not None and item < definition.domain_lower)
+                or (definition.domain_upper is not None and item > definition.domain_upper)
                 for item in numeric_values
             ):
                 raise ValueError("probabilistic feature value is outside the schema domain")
