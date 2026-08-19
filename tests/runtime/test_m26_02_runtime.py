@@ -194,6 +194,16 @@ def test_denied_control_fails_before_graph_traversal() -> None:
         M2602LineageService().execute(payload)
 
 
+def test_engine_denies_hostile_mapping_before_request_validation() -> None:
+    class ExplodingMapping(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            del key, default
+            raise RuntimeError("hostile mapping")  # noqa: TRY003
+
+    with pytest.raises(LineageAuthorizationError):
+        M2602LineageEngine().build(ExplodingMapping())  # type: ignore[arg-type]
+
+
 def test_plugin_parse_once_and_raw_tamper_are_closed() -> None:
     request = _request()
     plugin = M2602LineagePlugin(M2602LineageService())

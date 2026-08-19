@@ -6,7 +6,11 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m26_02 import canonical_request_digest
+from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
+    canonical_request_digest,
+)
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.api import (
     create_m2602_app,
@@ -53,6 +57,18 @@ def test_fastapi_duplicate_keys_are_sanitized_and_rejected() -> None:
     assert response.status_code == _HTTP_BAD_REQUEST
     assert response.json()["detail"]["type"] == "json_duplicate_key"
     assert "request_id" not in response.text
+
+
+def test_fastapi_enforces_contract_request_and_result_byte_caps() -> None:
+    client = TestClient(create_m2602_app())
+    oversized_request = b"{" + b" " * M2602_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    oversized_result = b"{" + b" " * M2602_MAX_CANONICAL_RESULT_BYTES + b"}"
+    request_response = client.post("/m26-02/validate", content=oversized_request)
+    result_response = client.post("/m26-02/verify", content=oversized_result)
+    assert request_response.status_code == _HTTP_BAD_REQUEST
+    assert result_response.status_code == _HTTP_BAD_REQUEST
+    assert request_response.json()["detail"]["type"] == "json_too_large"
+    assert result_response.json()["detail"]["type"] == "json_too_large"
 
 
 def test_fastapi_validation_authorization_and_route_errors() -> None:

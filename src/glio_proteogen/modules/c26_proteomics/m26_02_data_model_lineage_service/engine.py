@@ -105,6 +105,7 @@ class M2602LineageEngine:
     __slots__ = ()
 
     def build(self, request: BuildProteinSubtypeLineageRequest) -> ProteinSubtypeLineageResult:
+        preflight_lineage_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         preflight_lineage_authorization(validated)
         request_hash = canonical_request_digest(validated)
@@ -155,19 +156,23 @@ def build_lineage_graph(request: object) -> ProteinSubtypeLineageResult:
 
 def preflight_lineage_authorization(candidate: object) -> None:
     """Fail closed on all seven controls before reading graph or evidence payloads."""
-
-    if isinstance(candidate, BuildProteinSubtypeLineageRequest):
-        context: object = candidate.context
-    elif isinstance(candidate, Mapping):
-        context = candidate.get("context")
-    else:
-        raise LineageAuthorizationError
-    references = _member(context, "references")
-    for role, expected in _EXPECTED_STATES.items():
-        value = _member(_member(references, role.value), "state")
-        value = getattr(value, "value", value)
-        if value != expected:
-            raise LineageAuthorizationError
+    try:
+        if isinstance(candidate, BuildProteinSubtypeLineageRequest):
+            context: object = candidate.context
+        elif isinstance(candidate, Mapping):
+            context = candidate.get("context")
+        else:
+            raise LineageAuthorizationError  # noqa: TRY301
+        references = _member(context, "references")
+        for role, expected in _EXPECTED_STATES.items():
+            value = _member(_member(references, role.value), "state")
+            value = getattr(value, "value", value)
+            if value != expected:
+                raise LineageAuthorizationError  # noqa: TRY301
+    except LineageAuthorizationError:
+        raise
+    except Exception as error:
+        raise LineageAuthorizationError from error
 
 
 def _member(candidate: object, name: str) -> object:

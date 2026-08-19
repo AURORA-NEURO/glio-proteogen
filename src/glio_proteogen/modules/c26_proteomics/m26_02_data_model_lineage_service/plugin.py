@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Final
 from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
     BuildProteinSubtypeLineageRequest,
     ProteinSubtypeLineageResult,
 )
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
-from glio_proteogen.kernel.strict_json import MAX_JSON_BYTES, strict_json_loads
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.engine import (
     preflight_lineage_authorization,
 )
@@ -68,7 +69,7 @@ class M2602LineagePlugin(ModulePlugin[object, ValidatedM2602Request, ProteinSubt
     def validate(self, request: object) -> ValidatedM2602Request:
         if isinstance(request, bytes | bytearray | str):
             raw = request
-            decoded = strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+            decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
             preflight_lineage_authorization(decoded)
             validated = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         else:

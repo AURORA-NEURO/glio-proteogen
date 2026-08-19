@@ -9,13 +9,14 @@ from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     ProteinSubtypeLineageResult,
     canonical_request_digest,
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import (
-    MAX_JSON_BYTES,
     StrictJsonError,
     sanitized_validation_errors,
     strict_json_error_detail,
@@ -40,7 +41,7 @@ def _validated_payload(
     raw: bytes, service: M2602LineageService
 ) -> BuildProteinSubtypeLineageRequest:
     try:
-        strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+        strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         return service.validate_request(validated)
     except StrictJsonError as error:
@@ -86,7 +87,7 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
     async def verify(request: Request) -> JSONResponse:
         raw = await request.body()
         try:
-            decoded = strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+            decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
             del decoded
             result = _RESULT_ADAPTER.validate_json(raw, strict=True)
             verified = active_service.verify(result)
