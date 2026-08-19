@@ -157,3 +157,27 @@ def test_replay_rejects_self_rehashed_evaluation_and_denied_control() -> None:
     )
     with pytest.raises(m2404.AuthorizationError):
         service.evaluate(denied)
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = m2404.M2404Plugin(m2404.M2404Service())
+    second = m2404.M2404Plugin(m2404.M2404Service())
+    token = first.validate(m2404.ExternalTransportSubmission(request()))
+
+    assert first.run(token).status is EvaluationStatus.EVALUATED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = m2404.ValidatedM2404Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(m2404.ExternalTransportSubmission(request()))
+    object.__setattr__(mutated.request, "request_id", "m2404.forged.request")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(m2404.ExternalTransportSubmission(request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
