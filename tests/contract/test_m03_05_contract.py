@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from glio_proteogen.contracts.m03_04 import ProteinInferenceQualityDisposition
 from glio_proteogen.contracts.m03_05 import (
+    M0305_MAX_CANONICAL_RESULT_BYTES,
     DetectProteinInferenceArtifactsRequest,
     ProteinInferenceArtifactDetectionResult,
     ProteinInferenceArtifactEvidenceLedger,
@@ -30,6 +31,7 @@ from glio_proteogen.contracts.m03_05 import (
     artifact_quality_receipt_digest,
     configuration_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection import (
     detect_protein_inference_artifacts,
@@ -378,9 +380,24 @@ def test_result_relational_replay_rejects_every_material_tamper() -> None:
         ("contamination_flags", "contamination flags"),
         ("findings", "findings"),
     ):
-        update: dict[str, object] = {field: ()}
+        field_update: dict[str, object] = {field: ()}
         with pytest.raises(ValidationError, match=message):
             ProteinInferenceArtifactDetectionResult.model_validate(
-                suspected.model_copy(update=update),
+                suspected.model_copy(update=field_update),
                 strict=True,
             )
+
+
+def test_result_replay_enforces_canonical_byte_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = detect_protein_inference_artifacts(build_m0305_request())
+    result_bytes = canonical_json_bytes(result)
+    assert len(result_bytes) <= M0305_MAX_CANONICAL_RESULT_BYTES
+    monkeypatch.setattr(
+        "glio_proteogen.contracts.m03_05.v1.M0305_MAX_CANONICAL_RESULT_BYTES",
+        len(result_bytes) - 1,
+    )
+
+    with pytest.raises(ValidationError, match="canonical byte limit"):
+        ProteinInferenceArtifactDetectionResult.model_validate_json(result_bytes, strict=True)
