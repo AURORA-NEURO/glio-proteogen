@@ -776,6 +776,18 @@ def test_many_exact_target_decoy_ties_cannot_create_zero_fdr_targets() -> None:
     )
 
 
+def test_cross_spectrum_equal_target_decoy_tie_cannot_create_zero_fdr_target() -> None:
+    target = Psm("scan-a-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False)
+    decoy = Psm("scan-z-decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 10.0, 3, decoy=True)
+
+    scored = target_decoy_qvalues((target, decoy))
+    target_winner = next(item for item in scored if not item.decoy)
+    assert target_winner.q_value == 1.0
+    summary = summarize_target_decoy((target, decoy), q_value_threshold=0.01)
+    assert summary.accepted_targets == 0
+    assert summary.decoy_to_target_ratio == 1.0
+
+
 def test_protein_group_exact_tie_is_decoy_first_for_fdr() -> None:
     target = Psm("group-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False)
     decoy = Psm("group-decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 10.0, 3, decoy=True)

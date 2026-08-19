@@ -88,6 +88,12 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
         )
     tie_psms.append(Psm("lower-decoy", "DECOY_LOW", ("DECOY_LOW",), 1.0, 3, decoy=True))
     tied_scored = target_decoy_qvalues(tuple(tie_psms))
+    cross_spectrum_tie = target_decoy_qvalues(
+        (
+            Psm("scan-a-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False),
+            Psm("scan-z-decoy", "DECOY_PEPTIDER", ("DECOY_P1",), 10.0, 3, decoy=True),
+        )
+    )
     tie_group_candidates, tie_group_summary = infer_protein_group_candidates(
         (
             Psm("group-target", "PEPTIDER", ("P1",), 10.0, 3, decoy=False),
@@ -126,6 +132,15 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
                 and item.q_value is not None
                 and item.q_value <= _TIE_Q_VALUE_THRESHOLD
                 for item in tied_scored
+            )
+        ),
+        "cross_spectrum_ties_abstain_spectrum_fdr": (
+            next(item for item in cross_spectrum_tie if not item.decoy).q_value == 1.0
+            and not any(
+                not item.decoy
+                and item.q_value is not None
+                and item.q_value <= _TIE_Q_VALUE_THRESHOLD
+                for item in cross_spectrum_tie
             )
         ),
         "exact_ties_abstain_group_fdr": (
