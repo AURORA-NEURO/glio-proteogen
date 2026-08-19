@@ -24,6 +24,8 @@ from glio_proteogen.modules.c21_reference_material import (
 )
 
 _HTTP_OK = HTTPStatus.OK
+_HTTP_NOT_FOUND = HTTPStatus.NOT_FOUND
+_HTTP_UNPROCESSABLE = HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def _api_parity(
@@ -94,3 +96,33 @@ def test_plugins_require_opaque_submission_and_preserve_replay() -> None:
         token = plugin.validate(wrapper(json.dumps(request.model_dump(mode="json"))))
         result = plugin.run(token)
         assert plugin.replay(result).result_digest == result.result_digest
+
+
+def test_api_and_cli_reject_malformed_inputs_without_leaking_details(tmp_path: Any) -> None:
+    modules = (
+        (m2402, request_02(), "/v1/modules/M24-02", "generate"),
+        (m2404, request_04(), "/v1/modules/M24-04", "evaluate"),
+        (m2406, request_06(), "/v1/modules/M24-06", "challenge"),
+    )
+    runner = CliRunner()
+    for index, (module, _request, route, command) in enumerate(modules):
+        client = TestClient(module.create_app())
+        assert client.get(route + "/schemas/unknown").status_code == _HTTP_NOT_FOUND
+        invalid = client.post(route + "/validate", content=b"[]")
+        assert invalid.status_code == _HTTP_UNPROCESSABLE
+        assert "traceback" not in invalid.text.lower()
+        assert (
+            client.post(route + "/verify", json={"forged": True}).status_code == _HTTP_UNPROCESSABLE
+        )
+        duplicate = client.post(
+            route + "/validate", content=b'{"request_id":"safe","request_id":"forged"}'
+        )
+        assert duplicate.status_code == _HTTP_UNPROCESSABLE
+        request_path = tmp_path / f"bad-request-{index}.json"
+        request_path.write_bytes(b"[]")
+        assert runner.invoke(module.cli_app, ["export-schema", "unknown"]).exit_code != 0
+        assert runner.invoke(module.cli_app, ["validate", str(request_path)]).exit_code != 0
+        assert runner.invoke(module.cli_app, [command, str(request_path)]).exit_code != 0
+        result_path = tmp_path / f"bad-result-{index}.json"
+        result_path.write_bytes(b"{}")
+        assert runner.invoke(module.cli_app, ["verify", str(result_path)]).exit_code != 0

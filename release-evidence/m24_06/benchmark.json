@@ -1,0 +1,12 @@
+{
+  "module_id": "M24-06",
+  "iterations": 10,
+  "mean_ns": 3262250.0,
+  "median_ns": 3201750.0,
+  "p95_ns": 4137200.0,
+  "min_ns": 2875600.0,
+  "max_ns": 4137200.0,
+  "passed": true,
+  "mean_budget_ns": 500000000,
+  "p95_budget_ns": 750000000
+}

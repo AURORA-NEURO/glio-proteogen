@@ -1,0 +1,12 @@
+{
+  "module_id": "M24-04",
+  "branch_enabled": true,
+  "coverage_percent": 87.0,
+  "statements": 283,
+  "covered_statements": 247,
+  "branches": 42,
+  "covered_branches": 29,
+  "partial_branches": 15,
+  "passed": true,
+  "scope": "focused M24-02/04/06 runtime, interface, adversarial and contract tests"
+}

@@ -1,0 +1,11 @@
+{
+  "module_id": "M24-02",
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8360-8400",
+  "provisional_abi": true,
+  "scenario_count": 5,
+  "scenario_ids": ["generated", "five_cases", "replay_verified", "self_rehashed_tamper_rejected", "denied_control_rejected"],
+  "scenarios": {"generated": true, "five_cases": true, "replay_verified": true, "self_rehashed_tamper_rejected": true, "denied_control_rejected": true},
+  "passed": true,
+  "supported_result_digest": "sha256:e786fd1858424f64c97f29b3a0d553324b091cb2d5b1164540ace1ac95656422"
+}
