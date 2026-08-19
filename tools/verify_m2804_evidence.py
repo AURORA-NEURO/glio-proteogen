@@ -28,9 +28,9 @@ EXPECTED_PACKAGE = {
     },
     "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 4649565,
+        "bytes": 4649576,
         "members": 4741,
-        "sha256": "deae50d9ed701598731eea9378f6c59105e146829170035c20ecd4bca42c87f1",
+        "sha256": "9a3c2d9b84eefaa9a9d9f7555fd71710b4e4fb70d52e640a4979ee251e95ee6e",
     },
 }
 
