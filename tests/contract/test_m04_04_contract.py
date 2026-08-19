@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m04_01 import ProteoformApplicability
 from glio_proteogen.contracts.m04_03 import ProteoformRawInputRole
 from glio_proteogen.contracts.m04_04 import (
     M0404_COMPUTED_METRIC_COUNT,
+    M0404_MAX_CANONICAL_RESULT_BYTES,
     M0404_MAX_EVIDENCE,
     M0404_RATE_SCALE,
     ComputeProteoformQualityMetricsRequest,
@@ -162,6 +163,21 @@ def test_canonical_full_replay_is_exact(
     )
     assert result.result_digest == result_payload_digest(result)
     assert ProteoformQualityResult.model_validate_json(canonical_json_bytes(result)) == result
+
+
+def test_result_replay_enforces_canonical_byte_ceiling(
+    result: ProteoformQualityResult,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid digest cannot bypass the public result resource boundary."""
+
+    assert len(canonical_json_bytes(result)) <= M0404_MAX_CANONICAL_RESULT_BYTES
+    monkeypatch.setattr(
+        "glio_proteogen.contracts.m04_04.v1.M0404_MAX_CANONICAL_RESULT_BYTES",
+        len(canonical_json_bytes(result)) - 1,
+    )
+    with pytest.raises(ValidationError, match="byte ceiling"):
+        ProteoformQualityResult.model_validate_json(canonical_json_bytes(result))
 
 
 def test_public_helpers_replay_every_result_region(
