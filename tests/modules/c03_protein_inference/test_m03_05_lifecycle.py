@@ -50,6 +50,7 @@ from glio_proteogen.modules.c03_protein_inference.m03_05_artifact_detection impo
     ProteinInferenceArtifactAuthorizationError,
     detect_protein_inference_artifacts,
     preflight_protein_inference_artifact_authorization,
+    service,
 )
 
 _PEPTIDE_UNIT_ID = f"unit.{sha256_digest({'unit': 'peptide'}).removeprefix('sha256:')}"
@@ -424,6 +425,20 @@ def test_plugin_strict_bytes_token_and_descriptor_boundary() -> None:
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M03-05"
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(request)  # type: ignore[arg-type]
+
+
+def test_service_verify_enforces_result_limit_for_all_ingress_shapes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = detect_protein_inference_artifacts(_request())
+    result_size = len(canonical_json_bytes(result))
+    monkeypatch.setattr(service, "M0305_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    service_instance = M0305Service()
+
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        service_instance.verify(result)
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        service_instance.verify(result.model_dump(mode="python"))
 
 
 def test_profile_mismatch_is_typed_abstention() -> None:
