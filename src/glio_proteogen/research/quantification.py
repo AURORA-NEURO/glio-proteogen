@@ -35,6 +35,7 @@ class QuantificationPolicy:
     normalization_method: str = "sample_median_scaled_v1"
     missingness_policy: str = "zero_or_below_loq_is_missing_no_imputation_v1"
     limit_of_quantification: float = 0.0
+    max_input_observations: int = 100_000
 
     def __post_init__(self) -> None:
         if self.measurement_unit != "matched_ion_intensity_arbitrary":
@@ -49,6 +50,11 @@ class QuantificationPolicy:
             or self.limit_of_quantification < 0
         ):
             raise ValueError("limit_of_quantification must be finite and non-negative")
+        if (
+            type(self.max_input_observations) is not int
+            or not 1 <= self.max_input_observations <= 1_000_000
+        ):
+            raise ValueError("max_input_observations must be between one and one million")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -56,6 +62,7 @@ class QuantificationPolicy:
             "measurement_unit": self.measurement_unit,
             "missingness_policy": self.missingness_policy,
             "normalization_method": self.normalization_method,
+            "max_input_observations": self.max_input_observations,
         }
 
 
@@ -89,6 +96,8 @@ class QuantificationReceipt:
     raw_positive_mad: float | None = None
     raw_positive_iqr: float | None = None
     raw_robust_cv: float | None = None
+    observation_digest: str = ""
+    max_input_observations: int = 100_000
     positive_signal_fraction: float = 0.0
     signal_quality: str = "no_positive_signal"
     limit_of_quantification: float = 0.0
@@ -117,6 +126,8 @@ class QuantificationReceipt:
             "raw_total_signal": self.raw_total_signal,
             "sample_id": self.sample_id,
             "scale_factor": self.scale_factor,
+            "observation_digest": self.observation_digest,
+            "max_input_observations": self.max_input_observations,
             "positive_signal_fraction": self.positive_signal_fraction,
             "signal_quality": self.signal_quality,
             "unique_peptides": self.unique_peptides,
@@ -233,6 +244,15 @@ def _signal_quality(positive_count: int, *, unique: bool = False) -> str:
     return f"{prefix}descriptive_positive_signal"
 
 
+def _observation_digest(observations: tuple[tuple[str, float], ...]) -> str:
+    """Bind the order-independent observation multiset used for aggregation."""
+
+    payload = [[peptide, intensity] for peptide, intensity in sorted(observations)]
+    return sha256(
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    ).hexdigest()
+
+
 def quantify_matched_ions(
     sample_id: str,
     observations: Iterable[tuple[str, float]],
@@ -273,12 +293,19 @@ def quantify_matched_ions_with_receipt(
     ):
         raise ValueError("sample_id must be a bounded non-empty string")
     observed = tuple(observations)
+    if len(observed) > selected_policy.max_input_observations:
+        raise ValueError("observations exceed max_input_observations")
     totals: dict[str, float] = defaultdict(float)
-    for peptide, intensity in observed:
+    normalized_observations: list[tuple[str, float]] = []
+    for item in observed:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise ValueError("observations must contain (peptide, intensity) tuples")
+        peptide, intensity = item
         if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
             raise ValueError("peptide must be a bounded non-empty string")
         if not isfinite(intensity) or intensity < 0:
             raise ValueError("matched-ion intensity must be finite and non-negative")
+        normalized_observations.append((peptide, float(intensity)))
         totals[peptide] += intensity
     values = tuple(
         PeptideQuant(
@@ -305,9 +332,9 @@ def quantify_matched_ions_with_receipt(
     receipt = QuantificationReceipt(
         sample_id=sample_id,
         version=(
-            "matched-ion-median-3"
+            "matched-ion-median-4"
             if selected_policy == QuantificationPolicy()
-            else "matched-ion-median-4"
+            else "matched-ion-median-5"
         ),
         measurement_unit=(
             "median_scaled_matched_ion_intensity"
@@ -352,6 +379,8 @@ def quantify_matched_ions_with_receipt(
         quantifiable_peptides=positive_count,
         raw_peptide_statuses=tuple((item.peptide, item.status) for item in values),
         normalized_peptide_statuses=tuple((item.peptide, item.status) for item in normalized),
+        observation_digest=_observation_digest(tuple(normalized_observations)),
+        max_input_observations=selected_policy.max_input_observations,
     )
     return PeptideQuantification(normalized, receipt)
 
