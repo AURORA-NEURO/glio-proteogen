@@ -1190,6 +1190,14 @@ def _validate_json_request_with_raw_capability(
     context = {_RAW_CAPABILITY_CONTEXT_KEY: raw_capability}
     adapter = TypeAdapter(ComputePtmLocalizationQualityMetricsRequest)
     validated = adapter.validate_json(serialized, strict=True, context=context)
+    # The plugin decodes once before this helper is called.  Bind that decoded object to the
+    # request body that was actually validated so a caller cannot pair one candidate with a
+    # different serialized request and silently receive the latter's capability.
+    decoded_mapping = cast("dict[str, object]", decoded)
+    if canonical_json_bytes(normalized_request(decoded_mapping)) != canonical_json_bytes(
+        normalized_request(validated)
+    ):
+        raise TypeError("serialized request does not match decoded request")
     canonical = adapter.validate_json(
         canonical_json_bytes(normalized_request(validated)),
         strict=True,
