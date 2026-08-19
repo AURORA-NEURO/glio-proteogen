@@ -64,13 +64,27 @@ def verify_evaluation(evaluation: Path, fixture: Path) -> dict[str, object]:
     _require(report, "passed", True)
     _require(report, "fixture_digest", _fixture_digest(fixture))
     cases = report.get("case_ids")
-    if not isinstance(cases, list) or len(cases) != CASE_COUNT or len(set(cases)) != CASE_COUNT:
+    if (
+        not isinstance(cases, list)
+        or any(not isinstance(case_id, str) or not case_id for case_id in cases)
+        or len(cases) != CASE_COUNT
+        or len(set(cases)) != CASE_COUNT
+    ):
         raise M2608ReleaseVerificationError("evaluation case IDs are incomplete or duplicated")
     checks = report.get("checks")
     if not isinstance(checks, list) or len(checks) != CASE_COUNT:
         raise M2608ReleaseVerificationError("evaluation checks are incomplete")
     if any(not isinstance(item, dict) or item.get("passed") is not True for item in checks):
         raise M2608ReleaseVerificationError("evaluation contains a failed case")
+    check_names = [item.get("name") for item in checks]
+    if (
+        any(not isinstance(name, str) or not name for name in check_names)
+        or len(set(check_names)) != CASE_COUNT
+        or set(check_names) != set(cases)
+    ):
+        raise M2608ReleaseVerificationError(
+            "evaluation checks must exactly cover each case ID once"
+        )
     return report
 
 

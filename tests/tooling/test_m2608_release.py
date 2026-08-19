@@ -72,6 +72,27 @@ def test_m2608_release_rejects_unlocked_build_epoch(tmp_path: Path) -> None:
         verify_release(EVIDENCE / "evaluation.json", EVIDENCE / "benchmark.json", package, FIXTURE)
 
 
+def test_m2608_release_rejects_duplicate_evaluation_checks(tmp_path: Path) -> None:
+    payload = json.loads((EVIDENCE / "evaluation.json").read_text(encoding="utf-8"))
+    checks = payload["checks"]
+    checks[1]["name"] = checks[0]["name"]
+    evaluation = tmp_path / "evaluation.json"
+    evaluation.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="exactly cover"):
+        verify_release(evaluation, EVIDENCE / "benchmark.json", EVIDENCE / "package.json", FIXTURE)
+
+
+def test_m2608_release_rejects_unknown_evaluation_check(tmp_path: Path) -> None:
+    payload = json.loads((EVIDENCE / "evaluation.json").read_text(encoding="utf-8"))
+    payload["checks"][-1]["name"] = "unlisted_case"
+    evaluation = tmp_path / "evaluation.json"
+    evaluation.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(M2608ReleaseVerificationError, match="exactly cover"):
+        verify_release(evaluation, EVIDENCE / "benchmark.json", EVIDENCE / "package.json", FIXTURE)
+
+
 def test_m2608_release_binds_receipt_to_artifact_bytes(tmp_path: Path) -> None:
     wheel = tmp_path / "glio_proteogen-0.1.0-py3-none-any.whl"
     sdist = tmp_path / "glio_proteogen-0.1.0.tar.gz"
