@@ -1139,6 +1139,8 @@ class ProteinInferenceQualityResult(NonInferenceResultModel):
             raise ValueError("M03-04 human-review flag contradicts quality disposition")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("M03-04 result digest does not match its payload")
+        if len(canonical_json_bytes(self)) > M0304_MAX_CANONICAL_RESULT_BYTES:
+            raise ValueError("M03-04 result exceeds its canonical byte limit")
         return self
 
 

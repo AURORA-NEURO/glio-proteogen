@@ -21,6 +21,22 @@ _REQUEST_ADAPTER: Final = TypeAdapter(ComputeProteinInferenceQualityRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinInferenceQualityResult)
 
 
+class _ResultSizeError(ValueError):
+    """Raised when canonical result content exceeds the frozen M03-04 ceiling."""
+
+    def __init__(self) -> None:
+        super().__init__("M03-04 result exceeds its canonical byte limit")
+
+
+def _bounded_result_bytes(value: object) -> bytes:
+    """Canonicalize every result ingress shape under the same byte ceiling."""
+
+    payload = canonical_json_bytes(value)
+    if len(payload) > M0304_MAX_CANONICAL_RESULT_BYTES:
+        raise _ResultSizeError
+    return payload
+
+
 class M0304Service:
     """Authorize and strictly validate one metadata-only quality request."""
 
@@ -50,14 +66,14 @@ class M0304Service:
 
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M0304_MAX_CANONICAL_RESULT_BYTES)
-            return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
+            return _RESULT_ADAPTER.validate_json(_bounded_result_bytes(decoded), strict=True)
         if isinstance(result, Mapping):
             return _RESULT_ADAPTER.validate_json(
-                canonical_json_bytes(dict(result)),
+                _bounded_result_bytes(dict(result)),
                 strict=True,
             )
         return _RESULT_ADAPTER.validate_json(
-            canonical_json_bytes(result),
+            _bounded_result_bytes(result),
             strict=True,
         )
 

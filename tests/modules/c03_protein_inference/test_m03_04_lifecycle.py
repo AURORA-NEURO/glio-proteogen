@@ -10,6 +10,7 @@ from evals.m03_04.run import build_scenario_request
 from glio_proteogen.contracts.m03_01 import ProteinInferenceApplicability
 from glio_proteogen.contracts.m03_03 import ProteinInferenceAdmissionDisposition
 from glio_proteogen.contracts.m03_04 import (
+    M0304_MAX_CANONICAL_RESULT_BYTES,
     M0304_METRIC_COUNT,
     ComputeProteinInferenceQualityRequest,
     ProteinInferenceAssayQualityProfile,
@@ -31,6 +32,7 @@ from glio_proteogen.contracts.m03_04 import (
     raw_quality_receipt_digest,
     result_payload_digest,
 )
+from glio_proteogen.contracts.m03_04 import v1 as m0304_contract
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ConsentState,
@@ -47,6 +49,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import 
     compute_protein_inference_quality,
     preflight_protein_inference_quality_authorization,
 )
+from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
+    service as m0304_service,
+)
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics.kernel import (
     compute_quality_metrics,
     matching_quality_profile,
@@ -56,6 +61,24 @@ from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics.kernel 
 
 _EXPECTED_CENSORED_GROUPS = 4
 _UNSET = object()
+
+
+def test_result_ceiling_applies_after_canonicalization_to_every_ingress_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = compute_protein_inference_quality(build_scenario_request())
+    result_size = len(canonical_json_bytes(result))
+    assert result_size <= M0304_MAX_CANONICAL_RESULT_BYTES
+    monkeypatch.setattr(m0304_service, "M0304_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    service = M0304Service()
+
+    for value in (result, result.model_dump(mode="python")):
+        with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+            service.verify(value)
+
+    monkeypatch.setattr(m0304_contract, "M0304_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        type(result).model_validate_json(canonical_json_bytes(result), strict=True)
 
 
 def test_canonical_quality_profile_is_exact_private_and_deterministic() -> None:
