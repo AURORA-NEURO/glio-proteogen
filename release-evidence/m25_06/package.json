@@ -4,14 +4,14 @@
   "passed": true,
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "sha256": "d1d1ba4981faf7333cd9151c02fbef6564aedd2dc08111fa8d5d46dd80cd2bca",
-    "size_bytes": 4679543
+    "sha256": "085c825214e659e6b72d4c03680cfe9ee168d9baa37dd940c265ca64387c793b",
+    "size_bytes": 4681335
   },
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
     "member_count": 2023,
-    "sha256": "3ea843006013effd53eb0cae19cab286963c5ccd1dd88d2c86e85ea1c45edf79",
-    "size_bytes": 3978036
+    "sha256": "6e419e11177f0861b680753e5c5581902d3166d02e776a673ab41e1f8dff6f4d",
+    "size_bytes": 3979383
   },
   "build_tool": "uv build with hatchling 1.31.0 backend",
   "isolated_target": ".m2506-install-final"
