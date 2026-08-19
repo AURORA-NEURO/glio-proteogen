@@ -335,10 +335,26 @@ def _read_bytes(source: bytes | bytearray | str | BinaryIO, max_bytes: int) -> b
         if len(value) > max_bytes:
             raise ValueError("research input exceeds the byte limit")
         return value
-    value = source.read(max_bytes + 1)
-    if len(value) > max_bytes:
-        raise ValueError("research input exceeds the byte limit")
-    return bytes(value)
+    # ``BinaryIO.read(n)`` is allowed to return fewer than ``n`` bytes without
+    # indicating EOF (notably for sockets, throttled downloads, and custom
+    # provenance streams).  A single read therefore creates a subtle replay
+    # hazard: the first snapshot can truncate the source while a later caller
+    # supplies the complete bytes.  Drain in bounded chunks and reject text or
+    # non-byte streams before they can enter the content-addressed pipeline.
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        remaining = max_bytes - total
+        value = source.read(min(65_536, remaining + 1))
+        if value in (b"", ""):
+            break
+        if not isinstance(value, (bytes, bytearray)):
+            raise TypeError("research BinaryIO must yield bytes")
+        total += len(value)
+        if total > max_bytes:
+            raise ValueError("research input exceeds the byte limit")
+        chunks.append(bytes(value))
+    return b"".join(chunks)
 
 
 def _psm_dict(value: Psm) -> dict[str, object]:
@@ -652,6 +668,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "quantification_quality_version": "matched-ion-descriptive-dispersion-1",
         "quantification_unit": "median_scaled_matched_ion_intensity",
         "quantification_receipt_version": quantified.receipt.version,
+        "quantification_policy": request.quantification_policy.as_dict(),
         "protein_group_quantification_version": "unique-peptide-median-v1",
         "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
         "require_precursor_mz": True,
@@ -681,16 +698,13 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             else None
         ),
     }
-    if request.variable_modifications:
-        configuration_payload.update(
-            {
-                "modification_version": _MODIFICATION_VERSION,
-                "variable_modifications": list(request.variable_modifications),
-                "max_variable_modifications": request.max_variable_modifications,
-            }
-        )
-    if request.quantification_policy != QuantificationPolicy():
-        configuration_payload["quantification_policy"] = request.quantification_policy.as_dict()
+    configuration_payload.update(
+        {
+            "modification_version": _MODIFICATION_VERSION,
+            "variable_modifications": list(request.variable_modifications),
+            "max_variable_modifications": request.max_variable_modifications,
+        }
+    )
     if mzidentml_structure is not None:
         configuration_payload.update(
             {
