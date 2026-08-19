@@ -10,6 +10,7 @@ from .engine import (
 from .plugin import (
     M1904Plugin,
     M1904PluginDescriptor,
+    ValidatedM1904Request,
 )
 from .service import (
     M1904Service,
@@ -22,6 +23,7 @@ __all__ = [
     "M1904PluginDescriptor",
     "M1904ReplayError",
     "M1904Service",
+    "ValidatedM1904Request",
     "adapt_proteotype_intended_use",
     "preflight_m1904_authorization",
 ]

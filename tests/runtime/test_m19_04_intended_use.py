@@ -163,6 +163,31 @@ def test_plugin_descriptor_and_strict_validation_parity() -> None:
         plugin.validate_request({"request_id": "bad"})
 
 
+def test_plugin_capability_and_direct_run_snapshots_are_instance_bound() -> None:
+    request = _supported_request()
+    first = m1904.M1904Plugin()
+    second = m1904.M1904Plugin()
+
+    token = first.validate(request)
+    assert first.run(token).status is AdapterStatus.ADAPTED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = m1904.ValidatedM1904Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    replaced = first.validate(request)
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
+
+    validated = first.validate_request(_supported_request())
+    object.__setattr__(validated.registration, "audience", "forged audience")
+    with pytest.raises(TypeError, match="unchanged validated request"):
+        first.run(validated)
+
+
 def test_request_mapping_rejects_coercion_and_wrong_upstream_media_type() -> None:
     request = _supported_request()
     candidate = request.model_dump(mode="python")
