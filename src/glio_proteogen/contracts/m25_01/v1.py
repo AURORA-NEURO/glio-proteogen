@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m25_01.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -256,6 +257,19 @@ class ProteotypeReferenceTruthResult(FrozenModel):
     def result_is_closed(self) -> ProteotypeReferenceTruthResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        if self.provenance.module_id != M2501_MODULE_ID:
+            raise ValueError("provenance module id must identify M25-01")
+        if self.provenance.module_version != M2501_CONTRACT_VERSION:
+            raise ValueError("provenance version must match the M25-01 contract")
+        configuration_digest = sha256_digest(self.request.configuration)
+        if self.provenance.configuration_digest != configuration_digest:
+            raise ValueError("provenance must bind the exact request configuration")
+        required_inputs = {
+            configuration_digest,
+            *(artifact.digest for artifact in self.request.source_artifacts),
+        }
+        if not required_inputs <= set(self.provenance.input_digests):
+            raise ValueError("provenance must bind configuration and source artifacts")
         if self.status is CurationStatus.CURATED:
             if (
                 self.package is None

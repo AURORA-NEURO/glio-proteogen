@@ -277,6 +277,19 @@ def test_replay_rejects_self_rehashed_semantic_regions() -> None:
             service.verify_replay(forged)
 
 
+def test_replay_rejects_provenance_missing_configuration_binding() -> None:
+    service = M2501Service()
+    result = service.execute(build_request())
+    source_digests = tuple(artifact.digest for artifact in result.request.source_artifacts)
+    forged_provenance = result.provenance.model_copy(update={"input_digests": source_digests})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = ProteotypeReferenceTruthResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    with pytest.raises(M2501ReplayError):
+        service.verify_replay(forged)
+
+
 def test_plugin_rejects_unwrapped_request_and_duplicate_json_keys() -> None:
     plugin = M2501Plugin(M2501Service())
     with pytest.raises(TypeError, match="reference-truth submission"):
