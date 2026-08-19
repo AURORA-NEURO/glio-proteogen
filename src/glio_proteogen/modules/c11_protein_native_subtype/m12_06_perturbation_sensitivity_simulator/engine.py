@@ -365,13 +365,22 @@ def verify_m1206_result(
     request: object,
     result: object,
 ) -> BiomarkerPanelPerturbationSensitivityResult:
-    """Strictly replay a result against the exact request digest and payload."""
+    """Strictly replay a result against the exact request and full payload.
+
+    Request-digest equality alone permits a caller to alter a result projection
+    (for example material assumptions) and recompute its envelope digest.  The
+    simulator is deterministic, so compare the complete re-execution result as
+    well as the request binding.
+    """
 
     preflight_m1206_authorization(request)
     validated_request = _REQUEST_ADAPTER.validate_python(request, strict=True)
     validated_result = _RESULT_ADAPTER.validate_python(result, strict=True)
     expected_request_digest = canonical_request_digest(validated_request)
     if validated_result.request_digest != expected_request_digest:
+        raise M1206ReplayError
+    expected_result = _simulate_validated(validated_request)
+    if expected_result.model_dump(mode="json") != validated_result.model_dump(mode="json"):
         raise M1206ReplayError
     return validated_result
 

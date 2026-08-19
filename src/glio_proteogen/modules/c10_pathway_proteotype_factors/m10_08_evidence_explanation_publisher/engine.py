@@ -319,7 +319,13 @@ def _request_digest(request: PublishProteinRnaEvidenceRequest) -> str:
 
 
 def verify_publication_result(result: object) -> bool:
-    """Verify strict model closure and the canonical result digest."""
+    """Verify strict closure and deterministic replay from the embedded request.
+
+    A result digest proves only that the envelope is internally self-consistent.
+    It does not prove that the publisher would derive the same bundle, findings,
+    or explanation from the request.  Re-run the pure publisher after strict
+    validation so a caller cannot resign a semantically altered result.
+    """
 
     try:
         if type(result) is ProteinRnaEvidencePublicationResult:
@@ -328,7 +334,10 @@ def verify_publication_result(result: object) -> bool:
             typed = ProteinRnaEvidencePublicationResult.model_validate(result, strict=True)
         else:
             return False
-        return typed.result_digest == result_payload_digest(typed)
+        if typed.result_digest != result_payload_digest(typed):
+            return False
+        expected = publish_protein_rna_evidence(typed.request)
+        return expected.model_dump(mode="json") == typed.model_dump(mode="json")
     except (TypeError, ValueError, ValidationError):
         return False
 

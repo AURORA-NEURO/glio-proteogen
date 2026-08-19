@@ -379,7 +379,13 @@ def _input_digests(request: AssembleVariantPeptideMechanismDossierRequest) -> tu
 
 
 def verify_mechanism_dossier_result(result: object) -> bool:
-    """Verify strict model closure and the canonical replay digest."""
+    """Verify strict closure and deterministic replay from the embedded request.
+
+    The canonical result digest is necessary but insufficient: several dossier
+    projections are intentionally caller-declared and therefore cannot all be
+    reconstructed by the contract validator alone.  Reassemble the dossier and
+    compare the complete JSON projection to reject a freshly re-signed forgery.
+    """
 
     try:
         typed = (
@@ -387,7 +393,10 @@ def verify_mechanism_dossier_result(result: object) -> bool:
             if type(result) is VariantPeptideMechanismDossierResult
             else VariantPeptideMechanismDossierResult.model_validate(result, strict=True)
         )
-        return typed.result_digest == result_payload_digest(typed)
+        if typed.result_digest != result_payload_digest(typed):
+            return False
+        expected = assemble_mechanism_dossier(typed.request)
+        return expected.model_dump(mode="json") == typed.model_dump(mode="json")
     except (TypeError, ValueError, ValidationError):
         return False
 
