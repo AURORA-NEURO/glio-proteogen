@@ -250,3 +250,27 @@ def test_tampered_result_digest_is_rejected() -> None:
 
     with pytest.raises(m1806.M1806ReplayError, match="payload digest"):
         m1806.M1806Engine().replay(tampered)
+
+
+def test_plugin_capability_and_direct_run_snapshots_are_instance_bound() -> None:
+    first = m1806.M1806Plugin()
+    second = m1806.M1806Plugin()
+    token = first.validate(_request())
+
+    assert first.run(token).status is QueueResultStatus.RECORDED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = m1806.ValidatedM1806Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    replaced = first.validate(_request())
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
+
+    validated = first.validate_request(_request())
+    object.__setattr__(validated.entries[0], "description", "forged discrepancy")
+    with pytest.raises(TypeError, match="unchanged validated request"):
+        first.run(validated)

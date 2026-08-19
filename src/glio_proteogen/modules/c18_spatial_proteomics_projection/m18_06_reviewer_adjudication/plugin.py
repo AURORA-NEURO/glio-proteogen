@@ -4,14 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
+
+from glio_proteogen.contracts.m18_06 import AdjudicateBiomarkerPanelQueueRequest
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .engine import M1806Engine
 
 if TYPE_CHECKING:
     from glio_proteogen.contracts.m18_06 import (
-        AdjudicateBiomarkerPanelQueueRequest,
         BiomarkerPanelAdjudicationResult,
     )
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
+class ValidatedM1806Request:
+    """Opaque, instance-bound capability for one validated request snapshot."""
+
+    request: AdjudicateBiomarkerPanelQueueRequest
+    _seal: object
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM1806Request, tuple[object, AdjudicateBiomarkerPanelQueueRequest, bytes]
+    ]
+] = WeakKeyDictionary()
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,15 +63,47 @@ class M1806Plugin:
 
     def __init__(self) -> None:
         self._engine = M1806Engine()
+        self._seal = object()
+        self._validated: dict[int, tuple[AdjudicateBiomarkerPanelQueueRequest, bytes]] = {}
 
     def validate_request(self, candidate: object) -> AdjudicateBiomarkerPanelQueueRequest:
-        return self._engine.validate_request(candidate)
+        validated = self._engine.validate_request(candidate)
+        self._validated[id(validated)] = (validated, canonical_json_bytes(validated))
+        return validated
+
+    def validate(self, candidate: object) -> ValidatedM1806Request:
+        """Issue an instance-bound capability while retaining ``validate_request`` ABI."""
+
+        validated = self.validate_request(candidate)
+        token = ValidatedM1806Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        return token
 
     def run(
         self,
-        request: AdjudicateBiomarkerPanelQueueRequest,
+        request: object,
     ) -> BiomarkerPanelAdjudicationResult:
-        return self._engine.adapt(request)
+        if type(request) is ValidatedM1806Request:
+            snapshot = _TOKENS.get(request)
+            if (
+                snapshot is None
+                or snapshot[0] is not self._seal
+                or request._seal is not self._seal
+                or snapshot[1] is not request.request
+                or snapshot[2] != canonical_json_bytes(request.request)
+            ):
+                raise TypeError("M18-06 execution requires a validated request token")  # noqa: TRY003
+            return self._engine.adapt(snapshot[1])
+        if isinstance(request, AdjudicateBiomarkerPanelQueueRequest):
+            record = self._validated.get(id(request))
+            if record is None or record[0] is not request:
+                validated = self.validate_request(request)
+                record = (validated, canonical_json_bytes(validated))
+            if record[1] != canonical_json_bytes(request):
+                raise TypeError("M18-06 execution requires an unchanged validated request")  # noqa: TRY003
+            return self._engine.adapt(record[0])
+        validated = self.validate_request(request)
+        return self._engine.adapt(validated)
 
     def replay(
         self,
@@ -62,4 +112,4 @@ class M1806Plugin:
         return self._engine.replay(result)
 
 
-__all__ = ["M1806Plugin", "M1806PluginDescriptor"]
+__all__ = ["M1806Plugin", "M1806PluginDescriptor", "ValidatedM1806Request"]
