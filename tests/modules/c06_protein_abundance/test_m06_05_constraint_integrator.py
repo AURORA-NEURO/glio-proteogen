@@ -264,6 +264,15 @@ def test_authorization_rejects_withheld_consent_and_unresolved_identity() -> Non
             M0605MechanismConstraintEngine().integrate(denied)
 
 
+def test_mapping_request_cannot_bypass_authorization() -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    payload["context"]["references"]["consent"]["state"] = ConsentState.WITHHELD
+
+    with pytest.raises(ConstraintIntegrationAuthorizationError):
+        M0605MechanismConstraintEngine().integrate(payload)
+
+
 def test_result_digest_and_canonical_bytes_are_closed() -> None:
     built = M0605MechanismConstraintEngine().integrate(_request())
     assert built.result.result_digest == result_payload_digest(built.result)

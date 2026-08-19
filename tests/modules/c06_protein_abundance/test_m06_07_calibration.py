@@ -479,6 +479,15 @@ def test_authorization_and_built_result_fail_closed() -> None:
         BuiltCalibration(built.result, built.canonical_bytes + b" ")
 
 
+def test_mapping_request_cannot_bypass_authorization() -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    payload["context"]["references"]["consent"]["state"] = ConsentState.WITHHELD
+
+    with pytest.raises(CalibrationAuthorizationError):
+        M0607CalibrationEngine().calibrate(payload)
+
+
 def test_authorization_checks_identity_and_all_upstream_controls() -> None:
     request = _request()
     refs = request.context.references

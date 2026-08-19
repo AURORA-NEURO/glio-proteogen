@@ -222,6 +222,15 @@ def test_authorization_rejects_withheld_consent_unresolved_identity_and_controls
             engine.construct(denied)
 
 
+def test_mapping_request_cannot_bypass_authorization() -> None:
+    request = _request()
+    payload = request.model_dump(mode="python")
+    payload["context"]["references"]["consent"]["state"] = ConsentState.WITHHELD
+
+    with pytest.raises(RepresentationAuthorizationError):
+        M0602RepresentationEngine().construct(payload)
+
+
 def test_strict_request_boundary_rejects_untyped_object() -> None:
     with pytest.raises((TypeError, ValueError)):
         M0602RepresentationEngine().construct(object())
