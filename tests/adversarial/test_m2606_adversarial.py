@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m26_06 import (
+    AccessDecisionState,
     ControlStatus,
     ProteomicsSecurityAccessResult,
     SecurityAssessmentStatus,
@@ -211,3 +212,31 @@ def test_self_rehashed_result_identity_and_auth_failure_are_rejected_safely() ->
     )
     with pytest.raises(M2606ReplayError, match="replay verification failed"):
         M2606SecurityService.verify(forged)
+
+
+def test_self_rehashed_evaluated_decision_cannot_change_subject_or_audit_binding() -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    assert result.access_decision is not None
+    assert result.audit_event is not None
+
+    forged_decision = _self_rehashed(
+        result,
+        {
+            "access_decision": result.access_decision.model_copy(
+                update={"resource": "resource.forged"}
+            )
+        },
+    )
+    with pytest.raises(ValidationError, match="access decision must bind"):
+        ProteomicsSecurityAccessResult.model_validate(forged_decision.model_dump(mode="python"))
+
+    forged_audit = _self_rehashed(
+        result,
+        {
+            "audit_event": result.audit_event.model_copy(
+                update={"decision_state": AccessDecisionState.DENY}
+            )
+        },
+    )
+    with pytest.raises(ValidationError, match="audit event must bind"):
+        ProteomicsSecurityAccessResult.model_validate(forged_audit.model_dump(mode="python"))

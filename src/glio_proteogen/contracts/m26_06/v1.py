@@ -297,6 +297,23 @@ class ProteomicsSecurityAccessResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires supported security records")
+            expected_suffix = self.request_digest.removeprefix("sha256:")
+            if (
+                self.access_decision.principal != self.request.principal
+                or self.access_decision.resource != self.request.resource
+                or self.access_decision.action != self.request.action
+                or self.access_decision.policy_version != self.request.policy_version
+                or self.access_decision.decision_id != "decision.m2606." + expected_suffix
+            ):
+                raise ValueError("access decision must bind the evaluated request")
+            if (
+                self.audit_event.principal != self.request.principal
+                or self.audit_event.resource != self.request.resource
+                or self.audit_event.action != self.request.action
+                or self.audit_event.decision_state is not self.access_decision.state
+                or self.audit_event.event_id != "audit.m2606." + expected_suffix
+            ):
+                raise ValueError("audit event must bind the access decision and request")
         elif (
             self.access_decision is not None
             or self.audit_event is not None
