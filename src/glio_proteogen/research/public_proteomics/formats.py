@@ -324,7 +324,9 @@ def bind_mzidentml_references(
         if _local_name(element.tag) == "SpectrumIdentificationResult"
         and element.attrib.get("spectrumID") is not None
     )
-    unknown_spectra = tuple(value for value in spectrum_references if value not in spectrum_catalogue)
+    unknown_spectra = tuple(
+        value for value in spectrum_references if value not in spectrum_catalogue
+    )
     if unknown_spectra:
         raise FormatError("mzIdentML spectrumID does not resolve to supplied mzML")
     if len(spectrum_references) != len(set(spectrum_references)):
@@ -341,7 +343,9 @@ def bind_mzidentml_references(
         if accession is None:
             raise FormatError("mzIdentML PeptideEvidence has an unresolved DBSequence_ref")
         protein_references.append(accession)
-    unknown_proteins = tuple(value for value in protein_references if value not in protein_catalogue)
+    unknown_proteins = tuple(
+        value for value in protein_references if value not in protein_catalogue
+    )
     if unknown_proteins:
         raise FormatError("mzIdentML protein reference does not resolve to supplied FASTA")
 

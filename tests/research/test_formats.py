@@ -75,7 +75,7 @@ def test_mzidentml_reference_binding_rejects_unrelated_inputs() -> None:
         b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
         b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=missing"/>'
-        b'</AnalysisData></MzIdentML>'
+        b"</AnalysisData></MzIdentML>"
     )
     summary = extract_mzidentml_structure(data)
     with pytest.raises(FormatError, match="spectrumID"):
