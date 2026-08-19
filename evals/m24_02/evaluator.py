@@ -20,10 +20,11 @@ def run_matrix() -> dict[str, Any]:
     baseline = request()
     supported = service.evaluate(baseline)
     replay = service.verify_replay(supported)
-    changed = supported.corpus.cases[0].model_copy(update={"truth_values": ("9.999999",)})  # type: ignore[union-attr]
-    forged_corpus = supported.corpus.model_copy(
-        update={"cases": (changed, *supported.corpus.cases[1:])}  # type: ignore[union-attr]
-    )
+    corpus = supported.corpus
+    if corpus is None:
+        raise AssertionError
+    changed = corpus.cases[0].model_copy(update={"truth_values": ("9.999999",)})
+    forged_corpus = corpus.model_copy(update={"cases": (changed, *corpus.cases[1:])})
     forged = supported.model_copy(update={"corpus": forged_corpus})
     forged = type(forged).model_construct(
         **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
