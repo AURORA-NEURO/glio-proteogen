@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m25_04 import (
     EvaluateProteotypeExternalTransportRequest,
     ProteotypeExternalTransportResult,
+    TransportFindingCode,
     TransportStatus,
     result_payload_digest,
 )
@@ -108,6 +109,19 @@ def test_result_finding_ids_are_unique() -> None:
         ProteotypeExternalTransportResult.model_validate(duplicate.model_dump(mode="python"))
 
 
+def test_configured_calibration_floor_cannot_be_bypassed_by_lower_local_floors() -> None:
+    request = build_request()
+    configuration = request.configuration.model_copy(update={"minimum_calibration_floor": 0.96})
+    result = M2504Service().execute(request.model_copy(update={"configuration": configuration}))
+
+    assert result.status.value == "abstained"
+    assert result.report is None
+    assert {item.code for item in result.findings} == {
+        TransportFindingCode.CALIBRATION_FLOOR_FAILED
+    }
+    assert M2504Service().verify_replay(result).result_digest == result.result_digest
+
+
 def test_hostile_mapping_preflight_fails_closed() -> None:
     with pytest.raises(M2504AuthorizationError):
         M2504Service().execute({"context": {"references": {}}})
@@ -138,9 +152,7 @@ def test_plugin_binds_tokens_to_instance_and_exact_request_snapshot() -> None:
     with pytest.raises(TypeError, match="validated request"):
         other_plugin.run(token)
 
-    changed_evaluation = token.request.evaluations[0].model_copy(
-        update={"metric_value": 0.99}
-    )
+    changed_evaluation = token.request.evaluations[0].model_copy(update={"metric_value": 0.99})
     object.__setattr__(
         token.request,
         "evaluations",

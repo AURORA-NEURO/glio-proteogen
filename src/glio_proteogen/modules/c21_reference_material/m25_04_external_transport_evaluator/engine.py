@@ -100,7 +100,14 @@ class M2504TransportEngine:
         report = (
             None
             if (
-                any(item.code is TransportFindingCode.EVALUATION_INCOMPLETE for item in findings)
+                any(
+                    item.code
+                    in {
+                        TransportFindingCode.EVALUATION_INCOMPLETE,
+                        TransportFindingCode.CALIBRATION_FLOOR_FAILED,
+                    }
+                    for item in findings
+                )
                 or not any(
                     item.status is TransportStatus.SUPPORTED for item in canonical.evaluations
                 )
@@ -229,6 +236,19 @@ def _findings(
                     finding_id=f"finding.incomplete.{evaluation.evaluation_id}",
                     code=TransportFindingCode.EVALUATION_INCOMPLETE,
                     message=f"Transport dimension {evaluation.dimension.value} is not evaluable.",
+                    evidence=evidence,
+                )
+            )
+        elif evaluation.metric_value < request.configuration.minimum_calibration_floor:
+            findings.append(
+                TransportFinding(
+                    finding_id=f"finding.floor.{evaluation.evaluation_id}",
+                    code=TransportFindingCode.CALIBRATION_FLOOR_FAILED,
+                    message=(
+                        f"Transport dimension {evaluation.dimension.value} metric "
+                        f"{evaluation.metric_value:.6g} is below the configured minimum "
+                        f"calibration floor {request.configuration.minimum_calibration_floor:.6g}."
+                    ),
                     evidence=evidence,
                 )
             )
