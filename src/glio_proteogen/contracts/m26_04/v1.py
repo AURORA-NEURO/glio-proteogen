@@ -158,6 +158,8 @@ class AsyncJobRecord(FrozenModel):
 
     @model_validator(mode="after")
     def terminal_job_has_outcome(self) -> AsyncJobRecord:
+        if self.idempotency.operation_id != self.operation_id:
+            raise ValueError("async job idempotency must bind its operation")
         terminal = {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.ABSTAINED, JobStatus.CANCELLED}
         if self.status is JobStatus.SUCCEEDED and self.result_artifact is None:
             raise ValueError("succeeded async job requires a result artifact")
@@ -259,6 +261,8 @@ class AccessSurface(FrozenModel):
             raise ValueError("compatibility rule references unknown operation")
         if any(event.operation_id not in operation_ids for event in self.audit_events):
             raise ValueError("audit event references unknown operation")
+        if any(job.idempotency not in self.idempotency_records for job in self.jobs):
+            raise ValueError("every async job idempotency record must be declared")
         if any(
             operation.protocol not in self.configuration.supported_protocols
             for operation in self.operations
@@ -322,6 +326,8 @@ class PublishProteinSubtypeAccessSurfaceRequest(FrozenModel):
             raise ValueError("gateway material references an unknown operation")
         if {item.operation_id for item in self.authorizations} != known:
             raise ValueError("every gateway operation requires authorization")
+        if any(job.idempotency not in self.idempotency_records for job in self.jobs):
+            raise ValueError("every async job idempotency record must be declared")
         source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source artifacts must have unique artifact IDs")

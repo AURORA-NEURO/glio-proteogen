@@ -157,6 +157,31 @@ def test_terminal_async_job_invariants_are_fail_closed() -> None:
         )
 
 
+def test_async_job_idempotency_cannot_cross_operation_or_registry() -> None:
+    request = _request()
+    foreign = request.idempotency_records[0].model_copy(
+        update={"operation_id": "m2604.operation.foreign"}
+    )
+    forged_job = request.jobs[0].model_copy(update={"idempotency": foreign})
+
+    with pytest.raises(ValidationError, match="idempotency must bind"):
+        AsyncJobRecord.model_validate(forged_job.model_dump(mode="python"))
+    with pytest.raises(ValidationError, match="idempotency must bind"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(
+            request.model_copy(update={"jobs": (forged_job,)}).model_dump(mode="python")
+        )
+
+    detached = request.idempotency_records[0].model_copy(
+        update={"idempotency_id": "m2604.idempotency.detached"}
+    )
+    with pytest.raises(ValidationError, match="idempotency record must be declared"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(
+            request.model_copy(update={"idempotency_records": (detached,)}).model_dump(
+                mode="python"
+            )
+        )
+
+
 def test_configuration_and_surface_reference_closure_is_exhaustive() -> None:
     request = _request()
     with pytest.raises(ValidationError, match="supported gateway protocols"):
@@ -190,13 +215,19 @@ def test_configuration_and_surface_reference_closure_is_exhaustive() -> None:
                 ),
             }
         )
+    foreign_job = request.jobs[0].model_copy(
+        update={
+            "operation_id": "m2604.operation.other",
+            "idempotency": request.jobs[0].idempotency.model_copy(
+                update={"operation_id": "m2604.operation.other"}
+            ),
+        }
+    )
     with pytest.raises(ValidationError, match="async job references"):
         AccessSurface.model_validate(
             {
                 **surface_kwargs,
-                "jobs": (
-                    request.jobs[0].model_copy(update={"operation_id": "m2604.operation.other"}),
-                ),
+                "jobs": (foreign_job,),
             }
         )
     with pytest.raises(ValidationError, match="idempotency record references"):
