@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m11_08 import (
     ValidationRoute,
     ValidationRouteStatus,
 )
+from glio_proteogen.contracts.m11_08.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -272,6 +273,20 @@ def test_replay_tamper_is_rejected_and_plugin_requires_capability() -> None:
     assert plugin.run(token).result_digest == result.result_digest
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_replay_rejects_resigned_dossier_projection() -> None:
+    result = assemble_mechanism_dossier(request())
+    assert result.dossier is not None
+    forged_dossier = result.dossier.model_copy(update={"reviewer_id": "reviewer.forged"})
+    payload = result.model_dump(mode="python")
+    payload["dossier"] = forged_dossier
+    # model_construct mirrors an attacker that can re-sign the outer envelope;
+    # the verifier must still derive the dossier from the embedded request.
+    forged = type(result).model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(forged)
+    resigned = type(result).model_construct(**payload)
+    assert not verify_mechanism_dossier_result(resigned)
 
 
 def test_authorization_preflight_does_not_traverse_opaque_source() -> None:
