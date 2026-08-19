@@ -1,5 +1,7 @@
 """Focused schema and deterministic-fixture smoke for provisional M24-02."""
 
+from typing import Any, cast
+
 from jsonschema import Draft202012Validator
 
 from glio_proteogen.contracts.m24_02 import (
@@ -30,7 +32,7 @@ def test_provisional_schemas_require_reproducible_truth_controls() -> None:
     )
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
-        metadata = schema["x-glio-contract"]
+        metadata = cast("dict[str, Any]", cast("dict[str, Any]", schema)["x-glio-contract"])
         assert metadata["provisionalAbi"] is True
         assert metadata["analyticallyKnownFixturesRequired"] is True
         assert metadata["semiSyntheticFixturesRequired"] is True
@@ -40,7 +42,9 @@ def test_provisional_schemas_require_reproducible_truth_controls() -> None:
         assert metadata["unsupportedToNegative"] is False
         assert metadata["parentTarget"] == "biomarker panel"
         assert metadata["upstreamInputMediaType"] == M2402_M2401_INPUT_MEDIA_TYPE
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M2402_OUTPUT_MEDIA_TYPE
+    output_schema = cast("dict[str, Any]", schemas["output"])
+    output_metadata = cast("dict[str, Any]", output_schema["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M2402_OUTPUT_MEDIA_TYPE
     assert M2402_PROVISIONAL_ABI is True
 
 
