@@ -21,7 +21,10 @@ from typing import Final, cast
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
-from glio_proteogen.contracts.m06_01.v1 import FormalStateMissingness
+from glio_proteogen.contracts.m06_01.v1 import (
+    FormalStateFeatureValueKind,
+    FormalStateMissingness,
+)
 from glio_proteogen.contracts.m06_04 import (
     M0604_CONTRACT_VERSION,
     M0604_EVIDENCE_CLAIM,
@@ -352,16 +355,24 @@ def _limitations() -> tuple[Limitation, ...]:
     )
 
 
-def _numeric_value(value: object) -> tuple[float, PosteriorEstimateKind] | None:
+def _numeric_value(
+    value: object,
+    value_kind: FormalStateFeatureValueKind,
+) -> tuple[float, PosteriorEstimateKind] | None:
     state = getattr(value, "state", None)
     if state is not FormalStateMissingness.OBSERVED:
         return None
     scalar = getattr(value, "scalar_value", None)
-    if scalar is not None:
+    if value_kind is FormalStateFeatureValueKind.SCALAR and scalar is not None:
         return (scalar, PosteriorEstimateKind.SCALAR) if isfinite(scalar) else None
     lower = getattr(value, "interval_lower", None)
     upper = getattr(value, "interval_upper", None)
-    if lower is None or upper is None or not all(isfinite(item) for item in (lower, upper)):
+    if (
+        value_kind is not FormalStateFeatureValueKind.INTERVAL
+        or lower is None
+        or upper is None
+        or not all(isfinite(item) for item in (lower, upper))
+    ):
         return None
     return ((lower + upper) / 2.0, PosteriorEstimateKind.INTERVAL)
 
@@ -372,7 +383,7 @@ def _estimates(
     definitions = {item.feature_id: item for item in request.state_schema.features}
     estimates: list[PosteriorEstimate] = []
     for value in request.feature_values:
-        numeric = _numeric_value(value)
+        numeric = _numeric_value(value, definitions[value.feature_id].value_kind)
         if numeric is None:
             return None
         center, kind = numeric

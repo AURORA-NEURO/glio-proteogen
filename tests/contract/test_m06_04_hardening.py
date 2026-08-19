@@ -235,6 +235,16 @@ def test_missing_feature_is_explicitly_abstained() -> None:
 
 
 def test_interval_feature_preserves_ordered_bounds() -> None:
+    schema = _schema()
+    schema = schema.model_copy(
+        update={
+            "features": (
+                schema.features[0].model_copy(
+                    update={"value_kind": FormalStateFeatureValueKind.INTERVAL}
+                ),
+            )
+        }
+    )
     value = FormalStateFeatureValue(
         feature_id="protein.abundance",
         state=FormalStateMissingness.OBSERVED,
@@ -242,7 +252,7 @@ def test_interval_feature_preserves_ordered_bounds() -> None:
         interval_lower=_INTERVAL_LOWER,
         interval_upper=_INTERVAL_UPPER,
     )
-    result = M0604ProbabilisticEstimatorEngine().estimate(_request(value=value))
+    result = M0604ProbabilisticEstimatorEngine().estimate(_request(schema=schema, value=value))
 
     assert result.status.value == "estimated"
     assert result.estimates[0].estimate_value == _PROXY_VALUE
@@ -262,6 +272,21 @@ def test_categorical_feature_abstains_without_numeric_proxy() -> None:
 
     assert result.status.value == "abstained"
     assert not result.estimates
+
+
+def test_numeric_value_for_categorical_feature_abstains_safely() -> None:
+    schema = _schema(category=True)
+    value = FormalStateFeatureValue(
+        feature_id="protein.abundance",
+        state=FormalStateMissingness.OBSERVED,
+        unit="class",
+        scalar_value=_PROXY_VALUE,
+    )
+    result = M0604ProbabilisticEstimatorEngine().estimate(_request(schema=schema, value=value))
+
+    assert result.status.value == "abstained"
+    assert result.estimates == ()
+    assert result.support_decision.status.value == "review_required"
 
 
 def test_denied_consent_fails_before_estimation() -> None:
