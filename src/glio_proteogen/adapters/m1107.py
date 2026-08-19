@@ -113,10 +113,14 @@ async def adjudicate(request: Request) -> JSONResponse:
 @app.post("/v1/modules/M11-07/verify")
 async def verify(request: Request) -> JSONResponse:
     body = await request.body()
-    if len(body) > M1107_MAX_CANONICAL_RESULT_BYTES:
+    max_verify_bytes = min(
+        M1107_MAX_CANONICAL_REQUEST_BYTES,
+        M1107_MAX_CANONICAL_RESULT_BYTES,
+    )
+    if len(body) > max_verify_bytes:
         raise HTTPException(status_code=413, detail="verification envelope exceeds byte limit")
     try:
-        decoded = strict_json_loads(body, max_bytes=M1107_MAX_CANONICAL_RESULT_BYTES)
+        decoded = strict_json_loads(body, max_bytes=max_verify_bytes)
         if not isinstance(decoded, dict):
             raise HTTPException(status_code=422, detail="verification envelope must be an object")
         request_value = decoded.get("request")
