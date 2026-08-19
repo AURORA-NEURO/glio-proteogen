@@ -66,7 +66,11 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
+<<<<<<< HEAD
     "fixture_sha256": "26a84f097cf768be888c936ba1568ba2d575dd1b0065ec140b25453cf319f3fb",
+=======
+    "fixture_sha256": "60c1ba901b9e6075a19bbd43b70b1bb94d6feb52077f7096f57df1297583d28d",
+>>>>>>> f7ace65c (evidence: refresh research replay receipts after control binding)
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
       "focused_tests": 362,
       "coverage": {
