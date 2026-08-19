@@ -15,8 +15,11 @@ from glio_proteogen.contracts.m22_01 import (
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchmark_curator import (
     M2201AuthorizationError,
+    M2201Plugin,
     M2201ReplayError,
     M2201Service,
+    ReferenceTruthSubmission,
+    ValidatedM2201Request,
     curate_protein_rna_discordance_reference_truth,
     preflight_m2201_authorization,
 )
@@ -113,3 +116,29 @@ def test_hostile_mapping_fails_closed() -> None:
 
     with pytest.raises(M2201AuthorizationError):
         preflight_m2201_authorization(HostileMapping())
+
+
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = M2201Plugin(M2201Service())
+    other = M2201Plugin(M2201Service())
+    token = plugin.validate(ReferenceTruthSubmission(request=request))
+
+    assert plugin.run(token).status is CurationStatus.CURATED
+
+    forged = ValidatedM2201Request(request=token.request, _seal=token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    changed_reference = token.request.references[0].model_copy(
+        update={"expected_label": "forged"}
+    )
+    object.__setattr__(
+        token.request,
+        "references",
+        (changed_reference, *token.request.references[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
