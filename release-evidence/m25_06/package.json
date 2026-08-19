@@ -1,0 +1,18 @@
+{
+  "isolated_import": true,
+  "module_id": "GLIO-PROTEOGEN-M25-06",
+  "passed": true,
+  "sdist": {
+    "filename": "glio_proteogen-0.1.0.tar.gz",
+    "sha256": "b9f2b027335ce2492bf5c116892e2d601f5aafb990ed5e865f278346f2c9a059",
+    "size_bytes": 4611033
+  },
+  "wheel": {
+    "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+    "member_count": 2004,
+    "sha256": "ec0526e8767ba5914a6d7497f835c0842ebd985797f74862fdce3fb9e5494445",
+    "size_bytes": 3916508
+  },
+  "build_tool": "uv build with hatchling 1.31.0 backend",
+  "isolated_target": ".m2506-install-final"
+}

@@ -1,0 +1,15 @@
+{
+  "adversarial_case_count": 8,
+  "adversarial_passed_count": 8,
+  "dossier_sha256": "sha256:0a6b200cbe073db13a4bcf315edc23ab97edfe6f500bc7ea2785f5e1c70da181",
+  "dossier_slice": "GLIO-PROTEOGEN_240_Module_Dossier.md:8896-8936",
+  "fixture": "m25_06_robustness_v1",
+  "fixture_digest": "sha256:80cdbcf0d31aaceb662bd6decfce45aee9c9cd3853b31b6032893cf3f0a0327d",
+  "module": "M25-06",
+  "module_id": "GLIO-PROTEOGEN-M25-06",
+  "parent_target": "proteotype",
+  "passed": true,
+  "scenario_count": 8,
+  "supported_result_digest": "sha256:4918aff2858dae6a0159885a7fc8f6e01506487efda9703760ce14d696396d91",
+  "upstream_dependency": "M25-05 caller-declared media only"
+}
