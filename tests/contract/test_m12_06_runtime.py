@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m12_06 import (
     SimulatorConfiguration,
     SimulatorStatus,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -210,6 +211,18 @@ def test_result_tamper_is_rejected() -> None:
     tampered = result.model_copy(update={"result_id": "tampered"})
     with pytest.raises((ValueError, M1206ReplayError)):
         M1206Service().verify(request, tampered)
+
+
+def test_replay_rejects_resigned_material_assumptions() -> None:
+    request = _request()
+    result = M1206Service().execute(request)
+    payload = result.model_dump(mode="python")
+    payload["material_assumptions"] = ("forged assumption",)
+    forged = type(result).model_construct(**payload)
+    payload["result_digest"] = result_payload_digest(forged)
+    resigned = type(result).model_construct(**payload)
+    with pytest.raises(M1206ReplayError):
+        M1206Service().verify(request, resigned)
 
 
 def test_plugin_validates_once_and_rejects_unissued_token() -> None:

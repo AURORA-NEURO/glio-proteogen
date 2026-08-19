@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m10_08.canonical import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m10_08.v1 import (
+    PublisherFindingCode,
     ProteinRnaEvidencePublicationResult,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors import (
@@ -92,6 +93,18 @@ def test_replay_rejects_nested_bundle_provenance_drift() -> None:
         ProteinRnaEvidencePublicationResult.model_validate(
             _rehashed_result(result, bundle=forged_bundle), strict=True
         )
+
+
+def test_result_verifier_replays_findings_instead_of_trusting_a_resigned_digest() -> None:
+    result = m1008_runtime.publish_protein_rna_evidence(_request())
+    forged = _rehashed_result(
+        result,
+        findings=(
+            PublisherFindingCode.UPSTREAM_ABSTAINED,
+            PublisherFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+        ),
+    )
+    assert not m1008_runtime.verify_publication_result(forged)
 
 
 def test_model_canonicalization_still_accepts_trusted_pydantic_models() -> None:
