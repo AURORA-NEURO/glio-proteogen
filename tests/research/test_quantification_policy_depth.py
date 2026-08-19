@@ -113,6 +113,33 @@ def test_observation_limit_is_enforced_before_materialization() -> None:
         )
 
 
+def test_declared_peptide_universe_preserves_not_detected_states() -> None:
+    quantified = quantify_matched_ions_with_receipt(
+        "sample-universe",
+        (("P1", 12.0),),
+        peptide_universe=("P2", "P1", "P2"),
+        policy=QuantificationPolicy(normalization_method="none_v1"),
+    )
+    assert tuple(item.peptide for item in quantified.values) == ("P1", "P2")
+    assert quantified.values[0].missing is False
+    assert quantified.values[0].intensity == 12.0
+    assert quantified.values[1].missing is True
+    assert quantified.values[1].status == "zero_signal"
+    assert quantified.values[1].intensity == 0.0
+    assert quantified.receipt.unique_peptides == 2
+    assert quantified.receipt.observed_peptides == 1
+    assert quantified.receipt.missing_peptides == 1
+
+
+def test_declared_peptide_universe_rejects_unbound_observations() -> None:
+    with pytest.raises(ValueError, match="outside"):
+        quantify_matched_ions_with_receipt(
+            "sample-universe",
+            (("P3", 1.0),),
+            peptide_universe=("P1", "P2"),
+        )
+
+
 def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None:
     policy = QuantificationPolicy(
         normalization_method="none_v1",
