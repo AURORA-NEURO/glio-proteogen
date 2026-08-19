@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m28_04 import (
     ProteinRnaDiscordanceAccessSurfaceResult,
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
 )
+from glio_proteogen.contracts.m28_04.canonical import canonical_request_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -32,13 +33,20 @@ class GatewaySubmission:
 class ValidatedM2804Request:
     """Opaque capability proving strict M28-04 validation."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request", "_request_digest", "_seal")
 
     def __init__(
         self, request: PublishProteinRnaDiscordanceAccessSurfaceRequest, seal: object
     ) -> None:
-        self.request = request
+        self._request = request
+        self._request_digest = canonical_request_digest(request)
         self._seal = seal
+
+    @property
+    def request(self) -> PublishProteinRnaDiscordanceAccessSurfaceRequest:
+        """Return the immutable request bound when this capability was issued."""
+
+        return self._request
 
 
 class M2804TokenError(TypeError):
@@ -100,6 +108,8 @@ class M2804Plugin:
         if not isinstance(token, ValidatedM2804Request) or _TOKENS.get(token) is not self._seal:
             raise M2804TokenError
         if token._seal is not self._seal:
+            raise M2804TokenError
+        if canonical_request_digest(token.request) != token._request_digest:
             raise M2804TokenError
         return self._service.publish(token.request)
 

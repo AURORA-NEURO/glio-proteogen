@@ -9,6 +9,7 @@ from pydantic import BaseModel, TypeAdapter
 from glio_proteogen.contracts.m28_04 import (
     M2804_CONTRACT_VERSION,
     M2804_MAX_CANONICAL_REQUEST_BYTES,
+    M2804_MAX_EVIDENCE,
     M2804_MODULE_ID,
     AccessSurface,
     AuthorizationDecision,
@@ -25,6 +26,7 @@ from glio_proteogen.contracts.m28_04 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
+    ArtifactReference,
     ConsentState,
     ControlDecisionRecord,
     ControlRole,
@@ -118,6 +120,27 @@ def _validate_request(candidate: object) -> PublishProteinRnaDiscordanceAccessSu
     raise TypeError from None
 
 
+def _input_artifacts(
+    request: PublishProteinRnaDiscordanceAccessSurfaceRequest,
+) -> tuple[ArtifactReference, ...]:
+    """Return the named modality inputs and source ledger without duplicates."""
+
+    candidates = (
+        request.mass_spectrometry_proteome,
+        request.genome_transcriptome,
+        request.ptm_annotations,
+        *request.source_artifacts,
+    )
+    seen: set[tuple[str, str]] = set()
+    unique: list[ArtifactReference] = []
+    for artifact in candidates:
+        key = (artifact.artifact_id, artifact.digest)
+        if key not in seen:
+            seen.add(key)
+            unique.append(artifact)
+    return tuple(unique)
+
+
 def _evidence(
     request: PublishProteinRnaDiscordanceAccessSurfaceRequest,
 ) -> tuple[EvidenceReference, ...]:
@@ -125,9 +148,9 @@ def _evidence(
         EvidenceReference(
             reference=artifact,
             role="evidence",
-            claim="Caller-declared M28-04 gateway source artifact.",
+            claim="Caller-declared M28-04 gateway input artifact.",
         )
-        for artifact in request.source_artifacts
+        for artifact in _input_artifacts(request)[:M2804_MAX_EVIDENCE]
     )
 
 
@@ -258,7 +281,7 @@ def _provenance(
         module_id=M2804_MODULE_ID,
         module_version=M2804_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(artifact.digest for artifact in _input_artifacts(request)),
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,

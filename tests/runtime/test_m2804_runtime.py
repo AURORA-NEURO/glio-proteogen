@@ -50,6 +50,7 @@ from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway import (
     M2804Plugin,
     M2804ReplayError,
     M2804Service,
+    M2804TokenError,
 )
 
 
@@ -210,6 +211,26 @@ def test_published_surface_is_deterministic_and_replayable() -> None:
     assert engine.replay(first) == first
 
 
+def test_published_result_binds_named_input_artifacts() -> None:
+    request = _request()
+    result = M2804GatewayEngine().publish(request)
+    expected = {
+        request.mass_spectrometry_proteome.artifact_id,
+        request.genome_transcriptome.artifact_id,
+        request.ptm_annotations.artifact_id,
+    }
+    evidence_ids = {item.reference.artifact_id for item in result.evidence}
+    assert expected <= evidence_ids
+    assert result.provenance.input_digests[:3] == tuple(
+        artifact.digest
+        for artifact in (
+            request.mass_spectrometry_proteome,
+            request.genome_transcriptome,
+            request.ptm_annotations,
+        )
+    )
+
+
 def test_denied_operation_abstains_without_surface() -> None:
     request = _request()
     denied = request.authorizations[0].model_copy(update={"decision": AuthorizationDecision.DENY})
@@ -280,3 +301,11 @@ def test_plugin_requires_sealed_token_and_matches_service() -> None:
     assert plugin.run(token) == M2804Service().publish(request.model_dump_json())
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_plugin_token_binds_the_validated_request() -> None:
+    plugin = M2804Plugin()
+    token = plugin.validate(GatewaySubmission(_request().model_dump_json()))
+    object.__setattr__(token, "_request", _request("m2804.request.forged"))
+    with pytest.raises(M2804TokenError):
+        plugin.run(token)
