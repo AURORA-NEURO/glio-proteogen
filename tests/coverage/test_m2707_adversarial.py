@@ -82,6 +82,14 @@ def test_duplicate_source_artifacts_are_denied() -> None:
         M2707ChangeControlEngine().evaluate(request)
 
 
+def test_source_artifacts_are_bound_to_evidence_and_provenance() -> None:
+    result = M2707Service().execute(build_request())
+    source_digests = {item.digest for item in result.request.source_artifacts}
+    evidence_digests = {item.reference.digest for item in result.evidence}
+    assert source_digests <= evidence_digests
+    assert source_digests <= set(result.provenance.input_digests)
+
+
 def test_identity_unresolved_is_denied() -> None:
     request = build_request()
     object.__setattr__(
