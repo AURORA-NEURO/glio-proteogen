@@ -30,7 +30,7 @@ EXPECTED_PACKAGE = {
         "filename": "glio_proteogen-0.1.0.tar.gz",
         "bytes": 4684224,
         "members": 4741,
-        "sha256": "a102f934437d1393d9e8b430e791e94aa328863c87e7df7b47fba99109dcd9d",
+        "sha256": "a102f934437d1393d9e8b430e791e94aa328863c87e7df7b47fba99109dcd9d6",
     },
 }
 
