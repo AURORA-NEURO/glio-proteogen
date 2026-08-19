@@ -52,7 +52,7 @@ from .search_space import (
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
-_SEARCH_VERSION = "fragment-search-2-candidate-audit"
+_SEARCH_VERSION = "fragment-search-3-candidate-audit-decoy-abstention"
 _DIGESTION_VERSION = "trypsin-digest-1"
 _MODIFICATION_VERSION = "residue-local-unimod-1"
 
