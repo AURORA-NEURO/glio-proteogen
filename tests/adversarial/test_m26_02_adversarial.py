@@ -145,6 +145,18 @@ def test_plugin_rejects_duplicate_keys_and_unvalidated_tokens() -> None:
         plugin.validate(object())
 
 
+def test_plugin_rejects_foreign_token_and_nested_request_mutation() -> None:
+    request = _request()
+    first = M2602LineagePlugin(M2602LineageService())
+    second = M2602LineagePlugin(M2602LineageService())
+    token = first.validate(request)
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+    object.__setattr__(token.request, "request_id", "m2602.tampered")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(token)
+
+
 def test_replay_rejects_graph_tampering() -> None:
     service = M2602LineageService()
     result = service.execute(_request())
