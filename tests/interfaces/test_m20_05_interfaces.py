@@ -79,6 +79,30 @@ def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
         plugin.run(cast("Any", request))
 
 
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = M2005Plugin(M2005Service())
+    second = M2005Plugin(M2005Service())
+    token = first.validate(WorkflowPresentationSubmission(_request()))
+
+    assert first.run(token).status.value == "presented"
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = type(token)(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(WorkflowPresentationSubmission(_request()))
+    object.__setattr__(mutated.request, "request_id", "request.m2005.forged")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(WorkflowPresentationSubmission(_request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
+
+
 def test_typer_export_validate_present_verify_and_no_overwrite(tmp_path: Any) -> None:
     request = _request()
     request_path = tmp_path / "request.json"

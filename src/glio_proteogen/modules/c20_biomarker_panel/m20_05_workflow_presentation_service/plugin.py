@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m20_05 import (
     PresentProteinSubtypeHumanReviewWorkspaceRequest,
     ProteinSubtypeHumanReviewWorkspaceResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -45,11 +47,24 @@ class WorkflowPresentationSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
 class ValidatedM2005Request:
-    """Opaque capability proving strict M20-05 request validation."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
-    request: PresentProteinSubtypeHumanReviewWorkspaceRequest
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(
+        self, request: PresentProteinSubtypeHumanReviewWorkspaceRequest, seal: object
+    ) -> None:
+        self.request = request
+        self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2005Request,
+        tuple[object, PresentProteinSubtypeHumanReviewWorkspaceRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -67,10 +82,11 @@ class M2005Plugin(
 ):
     """Expose M20-05 through validate-then-run without an authority bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2005Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -86,12 +102,24 @@ class M2005Plugin(
             )
             preflight_m2005_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2005Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2005Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        return token
 
     def run(self, request: ValidatedM2005Request) -> ProteinSubtypeHumanReviewWorkspaceResult:
         if not isinstance(request, ValidatedM2005Request):
             raise _InvalidExecutionTokenError
-        return self._service.present(request.request)
+        snapshot = _TOKENS.get(request)
+        if (
+            snapshot is None
+            or snapshot[0] is not self._seal
+            or request._seal is not self._seal
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_json_bytes(request.request)
+        ):
+            raise _InvalidExecutionTokenError
+        return self._service.present(snapshot[1])
 
     def replay(
         self,
