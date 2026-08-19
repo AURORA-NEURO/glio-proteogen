@@ -41,4 +41,3 @@ Authority records:
 - M24-02: dossier slice 8360-8400, Scientific engineering, G1/S3.
 - M24-04: dossier slice 8448-8488, Bioinformatics, G3/S3.
 - M24-06: dossier slice 8536-8576, Quality engineering, G3/S3.
-
