@@ -485,6 +485,45 @@ def test_service_verify_enforces_result_limit_for_all_ingress_shapes(
         service_instance.verify(result.model_dump(mode="python"))
 
 
+class _UnreadableReplayMapping(Mapping[str, object]):
+    def __init__(self) -> None:
+        self.traversals = 0
+
+    def __getitem__(self, key: str) -> object:
+        self.traversals += 1
+        raise AssertionError(key)
+
+    def __iter__(self) -> Iterator[str]:
+        self.traversals += 1
+        raise AssertionError
+
+    def __len__(self) -> int:
+        self.traversals += 1
+        raise AssertionError
+
+
+class _ReplayHostileDict(dict[str, object]):
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError
+
+
+def test_replay_rejects_untrusted_mapping_without_traversal() -> None:
+    mapping = _UnreadableReplayMapping()
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0305Service().verify(mapping)
+
+    assert mapping.traversals == 0
+
+
+def test_replay_closes_nested_dict_subclass_before_canonicalization() -> None:
+    result = detect_protein_inference_artifacts(_request())
+    payload = result.model_dump(mode="python")
+    payload["request"] = _ReplayHostileDict(cast("dict[str, object]", payload["request"]))
+
+    assert M0305Service().verify(payload) == result
+
+
 def test_profile_mismatch_is_typed_abstention() -> None:
     request = _request()
     profile = request.policy.profiles[0].model_copy(
