@@ -222,10 +222,7 @@ def _state_value(candidate: object) -> object:
 
 
 def _requires_abstention(request: ChallengeComplexActivityRobustnessRequest) -> bool:
-    return any(
-        scenario.expected_disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED
-        for scenario in request.scenarios
-    )
+    return bool(_abstention_findings(request))
 
 
 def _surface(request: ChallengeComplexActivityRobustnessRequest) -> RobustnessSurface:
@@ -248,6 +245,7 @@ def _observation(
     scenario: ChallengeScenario,
 ) -> RobustnessObservation:
     within = scenario.expected_disposition is ChallengeDisposition.WITHIN_ENVELOPE
+    score = _ood_score(scenario)
     return RobustnessObservation(
         observation_id=f"m2106.observation.{index}",
         scenario_id=scenario.scenario_id,
@@ -257,8 +255,8 @@ def _observation(
         envelope_lower=0.0,
         envelope_upper=1.0,
         within_envelope=within,
-        ood_score=0.1 if within else 0.75,
-        ood_band=OODBand.IN_DOMAIN if within else OODBand.BORDERLINE,
+        ood_score=score,
+        ood_band=_ood_band(score, request.configuration.ood_threshold),
         disposition=scenario.expected_disposition,
         evidence=scenario.evidence or _evidence(request),
     )
@@ -268,6 +266,10 @@ def _abstained_payload(
     request: ChallengeComplexActivityRobustnessRequest,
     request_digest: str,
 ) -> dict[str, Any]:
+    findings = _abstention_findings(request)
+    unsupported = any(
+        finding.code is ChallengeFindingCode.UNSUPPORTED_PERTURBATION for finding in findings
+    )
     return {
         "output_type": "complex_activity_robustness_challenge",
         "result_id": result_identifier(request),
@@ -285,24 +287,21 @@ def _abstained_payload(
             recovery_note="Provide a reviewed supported challenge declaration before evaluation.",
             evidence=_evidence(request),
         ),
-        "findings": (
-            ChallengeFinding(
-                finding_id="m2106.finding.unsupported",
-                code=ChallengeFindingCode.UNSUPPORTED_PERTURBATION,
-                message="At least one declared perturbation is outside the supported surface.",
-                evidence=_evidence(request),
-            ),
-        ),
+        "findings": findings,
         "abstention_reason": (
             "At least one declared challenge is unsupported by the provisional ABI."
+            if unsupported
+            else "At least one within-envelope challenge exceeds the configured OOD threshold."
         ),
         "parent_target": "complex activity",
         "emits_parent": False,
         "support_decision": SupportDecision(
-            status=SupportStatus.UNSUPPORTED,
-            reason_code="unsupported_challenge",
+            status=SupportStatus.UNSUPPORTED if unsupported else SupportStatus.REVIEW_REQUIRED,
+            reason_code=("unsupported_challenge" if unsupported else "ood_threshold_exceeded"),
             rationale=(
                 "Unsupported perturbations are explicitly abstained and are not negative findings."
+                if unsupported
+                else "Within-envelope claims cannot be emitted above the configured OOD threshold."
             ),
         ),
         "uncertainty": _uncertainty(),
@@ -311,6 +310,51 @@ def _abstained_payload(
         "limitations": _LIMITATIONS,
         "human_review_required": True,
     }
+
+
+def _ood_score(scenario: ChallengeScenario) -> float:
+    return 0.1 if scenario.expected_disposition is ChallengeDisposition.WITHIN_ENVELOPE else 0.75
+
+
+def _ood_band(score: float, threshold: float) -> OODBand:
+    if score > threshold:
+        return OODBand.OUT_OF_DOMAIN
+    if score >= threshold * 0.75:
+        return OODBand.BORDERLINE
+    return OODBand.IN_DOMAIN
+
+
+def _abstention_findings(
+    request: ChallengeComplexActivityRobustnessRequest,
+) -> tuple[ChallengeFinding, ...]:
+    findings: list[ChallengeFinding] = []
+    unsupported = any(
+        scenario.expected_disposition is ChallengeDisposition.ABSTAIN_UNSUPPORTED
+        for scenario in request.scenarios
+    )
+    if unsupported:
+        findings.append(
+            ChallengeFinding(
+                finding_id="m2106.finding.unsupported",
+                code=ChallengeFindingCode.UNSUPPORTED_PERTURBATION,
+                message="At least one declared perturbation is outside the supported surface.",
+                evidence=_evidence(request),
+            )
+        )
+    findings.extend(
+        ChallengeFinding(
+            finding_id="m2106.finding.ood." + scenario.scenario_id,
+            code=ChallengeFindingCode.OOD_STATE,
+            message="A within-envelope declaration exceeds the configured OOD threshold.",
+            evidence=scenario.evidence or _evidence(request),
+        )
+        for scenario in request.scenarios
+        if (
+            scenario.expected_disposition is ChallengeDisposition.WITHIN_ENVELOPE
+            and _ood_score(scenario) > request.configuration.ood_threshold
+        )
+    )
+    return tuple(findings)
 
 
 def _findings(request: ChallengeComplexActivityRobustnessRequest) -> tuple[ChallengeFinding, ...]:

@@ -10,6 +10,8 @@ import pytest
 from glio_proteogen.contracts.m21_06 import (
     ChallengeComplexActivityRobustnessRequest,
     ChallengeDisposition,
+    ChallengeFindingCode,
+    OODBand,
     RobustnessStatus,
 )
 from glio_proteogen.kernel.models import ConsentState
@@ -53,6 +55,35 @@ def test_engine_evaluates_supported_surface_and_replays() -> None:
     assert len(result.robustness_surface.observations) == _SCENARIO_COUNT
     replay = engine.replay(result)
     assert replay.result_digest == result.result_digest
+
+
+def test_ood_threshold_controls_bands_and_safe_abstention() -> None:
+    engine = M2106Engine()
+    base = _supported_request()
+    lowered = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(update={"ood_threshold": 0.7})
+        }
+    )
+    evaluated = engine.generate(lowered)
+    assert evaluated.status is RobustnessStatus.EVALUATED
+    assert evaluated.robustness_surface is not None
+    assert any(
+        observation.ood_band is OODBand.OUT_OF_DOMAIN
+        for observation in evaluated.robustness_surface.observations
+        if observation.disposition is ChallengeDisposition.REVIEW_REQUIRED
+    )
+
+    strict = lowered.model_copy(
+        update={
+            "configuration": lowered.configuration.model_copy(update={"ood_threshold": 0.05})
+        }
+    )
+    abstained = engine.generate(strict)
+    assert abstained.status is RobustnessStatus.ABSTAINED
+    assert abstained.robustness_surface is None
+    assert any(item.code is ChallengeFindingCode.OOD_STATE for item in abstained.findings)
+    assert engine.replay(abstained).result_digest == abstained.result_digest
 
 
 def test_replay_rejects_tampered_result_digest() -> None:

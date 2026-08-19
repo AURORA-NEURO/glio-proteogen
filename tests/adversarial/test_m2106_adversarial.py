@@ -415,6 +415,18 @@ def test_abstention_requires_safe_failure_and_safe_support_status() -> None:
     assert abstained.safe_failure_report is not None
 
 
+def test_strict_ood_threshold_abstains_before_invalid_surface() -> None:
+    request = _request().model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(update={"ood_threshold": 0.05})
+        }
+    )
+    result = M2106Engine().generate(request)
+    assert result.status is RobustnessStatus.ABSTAINED
+    assert result.robustness_surface is None
+    assert any(item.code is ChallengeFindingCode.OOD_STATE for item in result.findings)
+
+
 def test_observation_and_configuration_bounds_are_fail_closed() -> None:
     request = _request()
     observation = _surface(request).observations[0].model_dump(mode="python")
