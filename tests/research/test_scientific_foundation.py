@@ -12,7 +12,10 @@ import zlib
 from dataclasses import replace
 from hashlib import md5, sha256
 from pathlib import Path
-from typing import BinaryIO, Self, cast
+from typing import TYPE_CHECKING, BinaryIO, Self, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import pytest
 
@@ -437,6 +440,36 @@ def test_evidence_quality_and_record_shape_edge_paths() -> None:
     altered = replace(record, payload=object())  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="mapping"):
         _ = altered.payload_jsonable
+
+
+def test_evidence_freeze_rejects_hostile_container_subclasses_without_access() -> None:
+    touched = False
+
+    class HostileDict(dict[str, object]):
+        def items(self) -> object:  # type: ignore[override]
+            nonlocal touched
+            touched = True
+            raise AssertionError
+
+    class HostileList(list[object]):
+        def __iter__(self) -> Iterator[object]:
+            nonlocal touched
+            touched = True
+            raise AssertionError
+
+    with pytest.raises(TypeError, match="built-in"):
+        EvidenceRecord.create("hostile-map", "source", "kind", HostileDict(value=1))
+    with pytest.raises(TypeError, match="built-in"):
+        EvidenceRecord.create("hostile-list", "source", "kind", {"items": HostileList([1])})
+    numeric_key_payload: object = {1: "value"}
+    with pytest.raises(TypeError, match="strings"):
+        EvidenceRecord.create(
+            "numeric-key",
+            "source",
+            "kind",
+            cast("dict[str, object]", numeric_key_payload),
+        )
+    assert touched is False
 
 
 @pytest.mark.parametrize("source", [b"", b">P1\n", b"P1\nACDEFGH"])

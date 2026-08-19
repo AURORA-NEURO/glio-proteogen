@@ -8,15 +8,24 @@ from dataclasses import dataclass
 from hashlib import sha256
 from math import isfinite
 from types import MappingProxyType
+from typing import cast
 
 _QUALITY_STATUSES = frozenset({"computed", "verified", "declared", "abstained", "ungraded"})
 
 
 def _freeze(value: object) -> object:
-    if isinstance(value, Mapping):
-        return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
-    if isinstance(value, (list, tuple)):
-        return tuple(_freeze(item) for item in value)
+    if type(value) is dict:
+        if any(type(key) is not str for key in value):
+            raise TypeError("evidence payload mapping keys must be strings")
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if type(value) is list:
+        list_items = cast("list[object]", value)
+        return tuple(_freeze(item) for item in list_items)
+    if type(value) is tuple:
+        tuple_items = cast("tuple[object, ...]", value)
+        return tuple(_freeze(item) for item in tuple_items)
+    if isinstance(value, (Mapping, list, tuple)):
+        raise TypeError("evidence payload containers must use built-in types")
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     raise TypeError("evidence payload contains an unsupported value")
