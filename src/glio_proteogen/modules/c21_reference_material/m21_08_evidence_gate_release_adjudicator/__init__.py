@@ -10,7 +10,7 @@ from .engine import (
     adjudicate_complex_activity_evidence_gate,
     preflight_m2108_authorization,
 )
-from .plugin import M2108Plugin, ValidatedM2108Request
+from .plugin import M2108Plugin, M2108TokenError, ValidatedM2108Request
 from .service import M2108Service
 
 __all__ = [
@@ -20,6 +20,7 @@ __all__ = [
     "M2108Plugin",
     "M2108ReplayError",
     "M2108Service",
+    "M2108TokenError",
     "ValidatedM2108Request",
     "adjudicate_complex_activity_evidence_gate",
     "cli_app",

@@ -19,6 +19,8 @@ from glio_proteogen.modules.c21_reference_material.m21_08_evidence_gate_release_
     M2108Plugin,
     M2108ReplayError,
     M2108Service,
+    M2108TokenError,
+    ValidatedM2108Request,
     adjudicate_complex_activity_evidence_gate,
 )
 from tests.adversarial.test_m2108_adversarial import _request
@@ -113,12 +115,27 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
         plugin.run(cast("Any", object()))
 
 
-def test_plugin_rejects_nested_request_mutation() -> None:
+def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> None:
     request = _request()
     plugin = M2108Plugin()
+    other = M2108Plugin()
     token = plugin.validate(request)
-    object.__setattr__(token.request, "request_id", "m2108.tampered")
-    with pytest.raises(TypeError):
+
+    assert plugin.run(token).status is GateRunStatus.ADJUDICATED
+
+    forged = ValidatedM2108Request(request=token.request, _seal=token._seal)
+    with pytest.raises(M2108TokenError):
+        plugin.run(forged)
+    with pytest.raises(M2108TokenError):
+        other.run(token)
+
+    changed_requirement = token.request.requirements[0].model_copy(update={"satisfied": False})
+    object.__setattr__(
+        token.request,
+        "requirements",
+        (changed_requirement, *token.request.requirements[1:]),
+    )
+    with pytest.raises(M2108TokenError):
         plugin.run(token)
 
 
