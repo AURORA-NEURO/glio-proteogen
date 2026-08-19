@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from http import HTTPStatus
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -136,7 +138,7 @@ def test_api_replay_uses_result_size_ceiling_not_request_ceiling(
             headers={"content-type": "application/json"},
         )
 
-    assert verified.status_code == 200
+    assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
 
 
