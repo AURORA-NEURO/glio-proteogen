@@ -246,3 +246,27 @@ def test_replay_rejects_tampering() -> None:
     result = M2204Engine().evaluate(_request())
     with pytest.raises(M2204ReplayError):
         M2204Engine().replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = M2204Plugin()
+    second = M2204Plugin()
+    token = first.validate(_request())
+
+    assert first.run(token).status is EvaluationStatus.EVALUATED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = ValidatedM2204Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(_request())
+    object.__setattr__(mutated.request, "request_id", "request.m2204.forged")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(_request())
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)

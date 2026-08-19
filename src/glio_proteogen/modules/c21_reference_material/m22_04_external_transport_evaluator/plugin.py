@@ -12,15 +12,15 @@ from glio_proteogen.contracts.m22_04 import (
     EvaluateProteinRnaDiscordanceExternalTransportRequest,
     ProteinRnaDiscordanceExternalTransportResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 
 from .service import M2204Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateProteinRnaDiscordanceExternalTransportRequest)
-_TOKENS: WeakKeyDictionary[ValidatedM2204Request, object] = WeakKeyDictionary()
 
 
 class ValidatedM2204Request:
-    """Opaque token coupling one validated request to one plugin instance."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
     __slots__ = ("__weakref__", "_seal", "request")
 
@@ -29,6 +29,14 @@ class ValidatedM2204Request:
     ) -> None:
         self.request = request
         self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2204Request,
+        tuple[object, EvaluateProteinRnaDiscordanceExternalTransportRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class M2204TokenError(TypeError):
@@ -74,7 +82,7 @@ class M2204Plugin:
     def validate(self, request: object) -> ValidatedM2204Request:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         token = ValidatedM2204Request(validated, self._seal)
-        _TOKENS[token] = self._seal
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
         return token
 
     def validate_request(
@@ -83,11 +91,18 @@ class M2204Plugin:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def run(self, token: ValidatedM2204Request) -> ProteinRnaDiscordanceExternalTransportResult:
-        if not isinstance(token, ValidatedM2204Request) or _TOKENS.get(token) is not self._seal:
+        if not isinstance(token, ValidatedM2204Request):
             raise M2204TokenError
-        if token._seal is not self._seal:
+        snapshot = _TOKENS.get(token)
+        if (
+            snapshot is None
+            or snapshot[0] is not self._seal
+            or token._seal is not self._seal
+            or snapshot[1] is not token.request
+            or snapshot[2] != canonical_json_bytes(token.request)
+        ):
             raise M2204TokenError
-        return self._service._engine.evaluate(token.request)
+        return self._service._engine.evaluate(snapshot[1])
 
     def replay(self, result: object) -> ProteinRnaDiscordanceExternalTransportResult:
         return self._service.replay(result)
