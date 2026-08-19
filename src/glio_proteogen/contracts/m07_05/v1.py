@@ -145,15 +145,23 @@ class ProteotypeConstraintEvaluation(FrozenModel):
     @model_validator(mode="after")
     def evaluation_shape_is_closed(self) -> ProteotypeConstraintEvaluation:
         has_numeric_result = self.residual is not None or self.effect_size is not None
-        if self.outcome in {
-            ProteotypeConstraintEvaluationOutcome.SATISFIED,
-            ProteotypeConstraintEvaluationOutcome.VIOLATED,
-        } and not has_numeric_result:
+        if (
+            self.outcome
+            in {
+                ProteotypeConstraintEvaluationOutcome.SATISFIED,
+                ProteotypeConstraintEvaluationOutcome.VIOLATED,
+            }
+            and not has_numeric_result
+        ):
             raise ValueError("satisfied or violated evaluation requires a numeric result")
-        if self.outcome in {
-            ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE,
-            ProteotypeConstraintEvaluationOutcome.ABSTAINED,
-        } and has_numeric_result:
+        if (
+            self.outcome
+            in {
+                ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE,
+                ProteotypeConstraintEvaluationOutcome.ABSTAINED,
+            }
+            and has_numeric_result
+        ):
             raise ValueError("non-evaluable evaluation cannot carry a numeric result")
         return self
 

@@ -194,8 +194,7 @@ def test_missing_and_duplicate_features_abstain_safely() -> None:
     assert not missing.result.estimates
     assert not duplicate.result.estimates
     assert (
-        missing.result.evaluations[0].outcome
-        is ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE
+        missing.result.evaluations[0].outcome is ProteotypeConstraintEvaluationOutcome.NOT_EVALUABLE
     )
     assert missing.result.evaluations[0].residual is None
     assert missing.result.evaluations[0].effect_size is None
