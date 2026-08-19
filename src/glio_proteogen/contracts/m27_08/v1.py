@@ -14,6 +14,8 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
+    package_id_for_request_digest,
+    result_id_for_request_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -273,6 +275,8 @@ class ComplexActivityRetirementResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityRetirementResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_id_for_request_digest(self.request_digest):
+            raise ValueError("result id must be derived from the request digest")
         if self.status is RetirementRunStatus.EXECUTED:
             if (
                 self.package is None
@@ -280,6 +284,30 @@ class ComplexActivityRetirementResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("executed result requires a supported retirement package")
+            package = self.package
+            if package is None:
+                raise ValueError("executed result requires a supported retirement package")
+            if package.package_id != package_id_for_request_digest(self.request_digest):
+                raise ValueError(
+                    "executed result package id must be derived from the request digest"
+                )
+            package_bindings = (
+                ("criteria", package.criteria, self.request.criteria, "request"),
+                ("migrations", package.migrations, self.request.migrations, "request"),
+                (
+                    "preserved evidence",
+                    package.preserved_evidence,
+                    self.request.preserved_evidence,
+                    "request",
+                ),
+                ("communications", package.communications, self.request.communications, "request"),
+                ("archive", package.archive, self.request.archive, "request"),
+                ("configuration", package.configuration, self.request.configuration, "request"),
+                ("evidence", package.evidence, self.evidence, "result evidence"),
+            )
+            for field, package_value, expected_value, target in package_bindings:
+                if package_value != expected_value:
+                    raise ValueError(f"executed result package {field} must match {target}")
         elif (
             self.package is not None
             or self.abstention_reason is None

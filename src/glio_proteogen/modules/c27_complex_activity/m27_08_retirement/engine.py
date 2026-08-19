@@ -18,6 +18,8 @@ from glio_proteogen.contracts.m27_08 import (
 )
 from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
+    package_id_for_request_digest,
+    result_id_for_request_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -251,7 +253,7 @@ class M2708RetirementEngine:
         )
         if not failed:
             package = RetirementPackage(
-                package_id=f"package.m2708.{digest.removeprefix('sha256:')[:16]}",
+                package_id=package_id_for_request_digest(digest),
                 version="1.0.0",
                 status=RetirementStatus.EXECUTED,
                 criteria=request.criteria,
@@ -263,7 +265,7 @@ class M2708RetirementEngine:
                 evidence=evidence,
             )
         candidate = ComplexActivityRetirementResult.model_construct(
-            result_id=f"result.m2708.{digest.removeprefix('sha256:')}",
+            result_id=result_id_for_request_digest(digest),
             result_version="0.1.0-provisional",
             request_digest=digest,
             result_digest="sha256:" + "0" * 64,

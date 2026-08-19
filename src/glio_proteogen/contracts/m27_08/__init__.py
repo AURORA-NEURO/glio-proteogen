@@ -4,6 +4,8 @@ from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
     normalized_request,
     normalized_result_payload,
+    package_id_for_request_digest,
+    result_id_for_request_digest,
     result_payload_digest,
 )
 from glio_proteogen.contracts.m27_08.schema import (
@@ -24,5 +26,7 @@ __all__ = [
     "contract_json_schemas",
     "normalized_request",
     "normalized_result_payload",
+    "package_id_for_request_digest",
+    "result_id_for_request_digest",
     "result_payload_digest",
 ]
