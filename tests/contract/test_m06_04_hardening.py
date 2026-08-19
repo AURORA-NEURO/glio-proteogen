@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -291,7 +292,7 @@ def test_numeric_value_for_categorical_feature_abstains_safely() -> None:
 
 def test_denied_consent_fails_before_estimation() -> None:
     request = _request()
-    context = request["context"]
+    context = cast("ExecutionContext", request["context"])
     references = context.references.model_copy(
         update={
             "consent": context.references.consent.model_copy(
@@ -308,7 +309,7 @@ def test_denied_consent_fails_before_estimation() -> None:
 
 def test_unresolved_identity_fails_before_estimation() -> None:
     request = _request()
-    context = request["context"]
+    context = cast("ExecutionContext", request["context"])
     references = context.references.model_copy(
         update={
             "identity_lineage": context.references.identity_lineage.model_copy(
