@@ -6,12 +6,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Any, Final, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m27_03 import (
     M2703_CONTRACT_VERSION,
+    M2703_MAX_CANONICAL_REQUEST_BYTES,
     M2703_MODULE_ID,
     ComplexActivityPipelineResult,
     ExecutionRecord,
@@ -60,6 +61,10 @@ _EXPECTED_CONTROLS: Final = {
     "support": UpstreamDecisionState.ACCEPTED.value,
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
+_MAX_PLAIN_DEPTH: Final = 64
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_SEQUENCE_ITEMS: Final = 512
+_MAX_PLAIN_NODES: Final = 250_000
 
 
 class M2703AuthorizationError(ValueError):
@@ -76,6 +81,9 @@ class M2703ReplayError(ValueError):
 
 def _member(candidate: object, name: str) -> object:
     if isinstance(candidate, Mapping):
+        candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+        if dict in candidate_mro:
+            return dict.get(cast("dict[object, object]", candidate), name)
         return candidate.get(name)
     return getattr(candidate, name, None)
 
@@ -101,6 +109,86 @@ def preflight_m2703_authorization(candidate: object) -> None:
         raise M2703AuthorizationError("M27-03 controls are malformed") from error
     if not authorized:
         raise M2703AuthorizationError("M27-03 requires all seven accepted controls")
+
+
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M27-03 values require bounded built-in containers")
+
+
+def _charge_plain_bytes(budget: list[int], value: str) -> None:
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+
+
+def _plain_value(  # noqa: C901, PLR0912 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    max_bytes: int = M2703_MAX_CANONICAL_REQUEST_BYTES,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+    _byte_budget: list[int] | None = None,
+) -> object:
+    """Materialize only bounded built-in containers for direct replay ingress."""
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    byte_budget = [max_bytes] if _byte_budget is None else _byte_budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+    candidate_mro = type.__getattribute__(type(candidate), "__mro__")
+    if BaseModel in candidate_mro:
+        return candidate
+    if dict in candidate_mro:
+        mapping = cast("dict[object, object]", candidate)
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS:
+            raise _InvalidPlainValueError
+        result: dict[str, object] = {}
+        for key in dict.keys(mapping):
+            if type(key) is not str:
+                raise _InvalidPlainValueError
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+        return result
+    if list in candidate_mro:
+        list_values = cast("list[object]", candidate)
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in list.__iter__(list_values)
+        ]
+    if tuple in candidate_mro:
+        tuple_values = cast("tuple[object, ...]", candidate)
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
+            for item in tuple.__iter__(tuple_values)
+        )
+    if Mapping in candidate_mro or isinstance(candidate, Mapping):
+        raise _InvalidPlainValueError
+    if type(candidate) is str:
+        _charge_plain_bytes(byte_budget, candidate)
+    return candidate
 
 
 def _evidence(request: OrchestrateComplexActivityPipelineRequest) -> tuple[EvidenceReference, ...]:
@@ -312,7 +400,7 @@ class M2703Engine:
 
     def validate_request(self, candidate: object) -> OrchestrateComplexActivityPipelineRequest:
         try:
-            return _REQUEST_ADAPTER.validate_python(candidate, strict=True)
+            return _REQUEST_ADAPTER.validate_python(_plain_value(candidate), strict=True)
         except Exception as error:
             raise M2703EvaluationError("M27-03 request is invalid") from error
 

@@ -16,7 +16,7 @@ from glio_proteogen.contracts.m27_03 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2703Engine
+from .engine import M2703Engine, _plain_value
 
 _REQUEST_ADAPTER = TypeAdapter(OrchestrateComplexActivityPipelineRequest)
 _RESULT_ADAPTER = TypeAdapter(ComplexActivityPipelineResult)
@@ -34,7 +34,7 @@ class M2703Service:
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         if isinstance(candidate, Mapping):
             return _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(dict(candidate)), strict=True
+                canonical_json_bytes(_plain_value(candidate)), strict=True
             )
         return self._engine.validate_request(candidate)
 
@@ -51,7 +51,12 @@ class M2703Service:
             decoded = strict_json_loads(result, max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         elif isinstance(result, Mapping):
-            typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
+            typed = _RESULT_ADAPTER.validate_json(
+                canonical_json_bytes(
+                    _plain_value(result, max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES)
+                ),
+                strict=True,
+            )
         else:
             typed = cast("ComplexActivityPipelineResult", result)
         return self._engine.verify(typed, replay=replay)

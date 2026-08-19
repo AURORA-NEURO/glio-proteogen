@@ -64,10 +64,8 @@ class M2703Plugin:
         if isinstance(request, (bytes, bytearray, str)):
             decoded = strict_json_loads(request, max_bytes=M2703_MAX_CANONICAL_REQUEST_BYTES)
             typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-        elif isinstance(request, dict):
-            typed = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(request), strict=True)
         else:
-            typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
+            typed = self._service.validate_request(request)
         request_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         return ValidatedM2703Request(
             request=typed,

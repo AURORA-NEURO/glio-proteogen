@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -59,6 +59,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_or
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 
@@ -487,6 +488,36 @@ def test_service_mapping_and_engine_validation_errors() -> None:
         service.verify({"result": "invalid"}, replay=False)
     with pytest.raises(ValueError, match="invalid"):
         M2703Engine().validate_request({"invalid": True})
+
+
+class _HostileDict(dict[str, object]):
+    def get(self, key: str, default: object = None) -> object:
+        del key, default
+        raise AssertionError
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError
+
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError(key)
+
+
+def test_service_closes_hostile_nested_request_mapping() -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    payload["workflow"] = _HostileDict(cast("dict[str, object]", payload["workflow"]))
+    candidate = _HostileDict(payload)
+
+    assert M2703Service().validate_request(candidate) == request
+
+
+def test_service_closes_hostile_nested_result_mapping() -> None:
+    service = M2703Service()
+    result = service.execute(_request())
+    payload = result.model_dump(mode="python")
+    payload["request"] = _HostileDict(cast("dict[str, object]", payload["request"]))
+
+    assert service.verify(payload) == result
 
 
 def test_result_closure_rejects_mismatched_bindings() -> None:
