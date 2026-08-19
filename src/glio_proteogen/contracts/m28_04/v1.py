@@ -246,6 +246,21 @@ def _validate_gateway_collections(  # noqa: PLR0912, PLR0913
     if len({event.event_id for event in audit_events}) != len(audit_events):
         raise ValueError("audit event ids must be unique")
     idempotency_ids = {record.idempotency_id for record in idempotency_records}
+    covered_authorization_operations = {record.operation_id for record in authorizations}
+    covered_idempotency_operations = {record.operation_id for record in idempotency_records}
+    covered_job_operations = {job.operation_id for job in jobs}
+    covered_compatibility_operations = {rule.operation_id for rule in compatibility_rules}
+    covered_audit_operations = {event.operation_id for event in audit_events}
+    coverage = (
+        ("authorization", covered_authorization_operations),
+        ("idempotency", covered_idempotency_operations),
+        ("async job", covered_job_operations),
+        ("compatibility", covered_compatibility_operations),
+        ("audit", covered_audit_operations),
+    )
+    for label, covered_operations in coverage:
+        if covered_operations != operation_ids:
+            raise ValueError(f"every gateway operation requires a bound {label} record")
     if any(auth.operation_id not in operation_ids for auth in authorizations):
         raise ValueError("authorization references unknown operation")
     if any(record.operation_id not in operation_ids for record in idempotency_records):

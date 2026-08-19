@@ -62,6 +62,18 @@ def test_request_rejects_duplicate_operation_and_protocol_mismatch() -> None:
         PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate(payload)
 
 
+def test_request_requires_each_operation_control_record() -> None:
+    request = _request()
+    payload = request.model_dump(mode="json")
+    second = request.operations[0].model_dump(mode="json")
+    second["operation_id"] = "m2804.operation.write"
+    payload["operations"] = [payload["operations"][0], second]
+    with pytest.raises(ValidationError, match="every gateway operation"):
+        PublishProteinRnaDiscordanceAccessSurfaceRequest.model_validate_json(
+            canonical_json_bytes(payload)
+        )
+
+
 def test_queued_job_cannot_carry_an_error_or_result() -> None:
     request = _request()
     with pytest.raises(ValidationError):
