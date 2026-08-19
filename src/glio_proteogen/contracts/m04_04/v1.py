@@ -86,6 +86,7 @@ M0404_MIN_PROFILES: Final = 4
 M0404_MAX_PROFILES: Final = 32
 M0404_MAX_APPROVED_VERSIONS: Final = 32
 M0404_MAX_CANONICAL_REQUEST_BYTES: Final = 4 * 1024 * 1024
+M0404_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 M0404_MAX_FINDINGS: Final = 48
 M0404_MIN_EVIDENCE: Final = 12
 M0404_MAX_EVIDENCE: Final = 45
@@ -2080,6 +2081,8 @@ def _validate_result_replay(
         raise ValueError("M04-04 review flag contradicts disposition")
     if self.result_digest != result_payload_digest(self):
         raise ValueError("M04-04 result digest does not match its canonical payload")
+    if len(canonical_json_bytes(self)) > M0404_MAX_CANONICAL_RESULT_BYTES:
+        raise ValueError("M04-04 result exceeds its canonical byte ceiling")
     return self
 
 
