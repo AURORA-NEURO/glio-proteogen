@@ -45,9 +45,9 @@ def _read_request(path: Path) -> GenerateProteotypeSyntheticTruthRequest:
 
 def _read_result(path: Path) -> ProteotypeSyntheticTruthResult:
     try:
-        return _RESULT_ADAPTER.validate_json(
-            read_bounded(path, M2502_MAX_CANONICAL_RESULT_BYTES), strict=True
-        )
+        data = read_bounded(path, M2502_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2502_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2502CliError("input must be a valid M25-02 result") from error  # noqa: TRY003
 
