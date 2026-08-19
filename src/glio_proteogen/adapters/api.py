@@ -12,6 +12,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters import m1901 as m1901_adapter
+from glio_proteogen.adapters import m1902 as m1902_adapter
+from glio_proteogen.adapters import m1905 as m1905_adapter
+from glio_proteogen.adapters import m2002 as m2002_adapter
+from glio_proteogen.adapters import m2003 as m2003_adapter
+from glio_proteogen.adapters import m2004 as m2004_adapter
 from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES, RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m01_01.schema import (
     ContractName as M0101ContractName,
@@ -2654,6 +2660,18 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         max_bytes=MAX_REQUEST_BYTES,
         result_max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
     )
+    # These provisional lanes ship strict standalone adapters as well as the
+    # central API.  Include their routers here so a caller using the canonical
+    # application does not silently lose an implemented module surface.
+    for adapter in (
+        m1901_adapter,
+        m1902_adapter,
+        m1905_adapter,
+        m2002_adapter,
+        m2003_adapter,
+        m2004_adapter,
+    ):
+        app.include_router(adapter.app.router)
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
