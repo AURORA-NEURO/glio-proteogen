@@ -137,10 +137,7 @@ def prepare_artifact_request_candidate(candidate: object) -> object:
     )
     if not known_upstream_failure and not qualified_shape_excess:
         return candidate
-    sanitized = {
-        key: dict.__getitem__(mapping, key)
-        for key in dict.keys(mapping)
-    }
+    sanitized = {key: dict.__getitem__(mapping, key) for key in dict.keys(mapping)}
     sanitized["evidence_ledger"] = None
     return sanitized
 
