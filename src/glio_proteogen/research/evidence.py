@@ -26,6 +26,8 @@ def _freeze(value: object) -> object:
         return tuple(_freeze(item) for item in tuple_items)
     if isinstance(value, (Mapping, list, tuple)):
         raise TypeError("evidence payload containers must use built-in types")
+    if isinstance(value, float) and not isfinite(value):
+        raise TypeError("evidence payload floats must be finite")
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     raise TypeError("evidence payload contains an unsupported value")

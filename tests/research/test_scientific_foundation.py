@@ -466,6 +466,12 @@ def test_evidence_quality_and_record_shape_edge_paths() -> None:
         _ = altered.payload_jsonable
 
 
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_evidence_payload_rejects_nonfinite_numbers(value: float) -> None:
+    with pytest.raises(TypeError, match="finite"):
+        EvidenceRecord.create("nonfinite", "source", "kind", {"value": value})
+
+
 def test_evidence_freeze_rejects_hostile_container_subclasses_without_access() -> None:
     touched = False
 
