@@ -717,7 +717,7 @@ def _build_label_contrasts(
     return tuple(contrasts)
 
 
-def _build_label_evidence(  # noqa: PLR0915
+def _build_label_evidence(  # noqa: PLR0915, PLR0917
     ordered_samples: tuple[ResearchCohortSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
