@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 from evals.research_proteomics.cohort import _pdc_sample
-from evals.research_proteomics.run import build_scenario_request, scenarios
+from evals.research_proteomics.run import build_cohort_supported_request, scenarios
 
 from glio_proteogen.research import (
     CohortSourceBinding,
@@ -22,8 +22,7 @@ from glio_proteogen.research.public_proteomics.provenance import SourceReference
 
 
 def _sample(sample_id: str, replicate: str) -> ResearchCohortSample:
-    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
-    request = replace(build_scenario_request(target), sample_id=sample_id)
+    request = build_cohort_supported_request(sample_id)
     return ResearchCohortSample(sample_id, request, "fixture", replicate)
 
 

@@ -6,10 +6,11 @@ from dataclasses import replace
 from hashlib import sha256
 
 import pytest
-from evals.research_proteomics.run import build_scenario_request, scenarios
+from evals.research_proteomics.run import build_cohort_supported_request
 
 import glio_proteogen.research.cohort as cohort_module
 from glio_proteogen.research import (
+    CohortSourceManifest,
     ProteinGroup,
     ProteinGroupQuant,
     ResearchCohortRequest,
@@ -17,17 +18,27 @@ from glio_proteogen.research import (
     replay_research_cohort,
     run_research_cohort,
 )
-from glio_proteogen.research import CohortSourceManifest
 from glio_proteogen.research.pipeline import run_research_protein_inference
 
 
+def _source_bytes(sample: ResearchCohortSample) -> bytes:
+    source = sample.request.mzml_source
+    if isinstance(source, bytes):
+        return source
+    if isinstance(source, bytearray):
+        return bytes(source)
+    raise TypeError("normalization fixture requires an in-memory mzML source")  # noqa: TRY003
+
+
 def _sample(sample_id: str, label: str, replicate: str) -> ResearchCohortSample:
-    scenario = next(item for item in scenarios() if item.scenario_id == "target_supported")
-    base = build_scenario_request(scenario)
+    base = build_cohort_supported_request(sample_id)
     request = replace(
         base,
         sample_id=sample_id,
-        mzml_source=b"<!--" + sample_id.encode() + b"-->" + bytes(base.mzml_source),
+        mzml_source=b"<!--"
+        + sample_id.encode()
+        + b"-->"
+        + _source_bytes(ResearchCohortSample(sample_id, base, label, replicate)),
     )
     return ResearchCohortSample(sample_id, request, label, replicate)
 
@@ -71,14 +82,16 @@ def test_within_label_normalization_preserves_raw_and_aligns_replicates(
                 _quant(("P1",), pair[0]),
                 _quant(("P2",), pair[1]),
             ),
-                protein_groups=(
-                    ProteinGroup(("P1",), ("PEPTIDE",), ()),
-                    ProteinGroup(("P2",), ("PEPTIDE2",), ()),
-                ),
-                mzml_sha256=sha256(
-                    bytes(_sample(sample_id, "case" if sample_id.startswith("case") else "control", "r1").request.mzml_source)
-                ).hexdigest(),
-            )
+            protein_groups=(
+                ProteinGroup(("P1",), ("PEPTIDE",), ()),
+                ProteinGroup(("P2",), ("PEPTIDE2",), ()),
+            ),
+            mzml_sha256=sha256(
+                _source_bytes(
+                    _sample(sample_id, "case" if sample_id.startswith("case") else "control", "r1")
+                )
+            ).hexdigest(),
+        )
         for sample_id, pair in values.items()
     }
     monkeypatch.setattr(
@@ -115,12 +128,12 @@ def test_insufficient_label_overlap_abstains_without_imputation(
         sample_id: replace(
             base,
             sample_id=sample_id,
-                protein_group_quantifications=(
-                    _quant((group,), 10.0 if sample_id.endswith("a") else 20.0),
-                ),
-                protein_groups=(ProteinGroup((group,), ("PEPTIDE",), ()),),
-                mzml_sha256=sha256(bytes(_sample(sample_id, "case", "r1").request.mzml_source)).hexdigest(),
-            )
+            protein_group_quantifications=(
+                _quant((group,), 10.0 if sample_id.endswith("a") else 20.0),
+            ),
+            protein_groups=(ProteinGroup((group,), ("PEPTIDE",), ()),),
+            mzml_sha256=sha256(_source_bytes(_sample(sample_id, "case", "r1"))).hexdigest(),
+        )
         for sample_id, group in (("a", "P1"), ("b", "P2"))
     }
     monkeypatch.setattr(

@@ -112,13 +112,13 @@ def scenarios() -> tuple[Scenario, ...]:
             b">P1\nMPEPTIDER\n",
             _mzml(matched=True),
             1,
-            1,
-            (("P1",),),
+            0,
+            (),
             (),
             1,
             0,
-            1,
-            expected_group_quant=((("P1",), "quantified", 20.0),),
+            0,
+            expected_group_quant=(),
         ),
         Scenario(
             "decoy_rejected",
@@ -163,42 +163,39 @@ def scenarios() -> tuple[Scenario, ...]:
             b">P1\nMPEPTIDER\n>P2\nMPEPTIDER\n",
             _mzml(matched=True),
             1,
-            1,
+            0,
             (("P1", "P2"),),
             ("MPEPTIDER",),
             1,
             0,
-            1,
-            expected_group_quant=((("P1", "P2"), "non_quantifiable_shared_only", None),),
+            0,
+            expected_group_quant=((("P1", "P2"), "missing", None),),
         ),
         Scenario(
             "multi_spectrum",
             b">P1\nMPEPTIDER\n",
             _multi_mzml(),
             1,
-            1,
-            (("P1",),),
+            0,
+            (),
             (),
             1,
             0,
-            1,
-            expected_group_quant=((("P1",), "quantified", 20.0),),
+            0,
+            expected_group_quant=(),
         ),
         Scenario(
             "multi_peptide_quantification",
             b">P1\nMPEPTIDER\n>P2\nPEPTIDEK\n",
             _multi_peptide_mzml(),
             2,
-            2,
-            (("P1",), ("P2",)),
+            0,
+            (),
             (),
             2,
             0,
-            2,
-            expected_group_quant=(
-                (("P1",), "quantified", 60.0),
-                (("P2",), "quantified", 45.0),
-            ),
+            0,
+            expected_group_quant=(),
         ),
     )
 
@@ -254,7 +251,7 @@ def _fixture_sha256(locked: tuple[Scenario, ...]) -> str:
         )
         for item in locked
     )
-    if declared != observed or fixture["fixture_version"] != "research-proteomics-3":
+    if declared != observed or fixture["fixture_version"] != "research-proteomics-4":
         raise ValueError
     if any(bool(value) for value in fixture["claims"].values()):
         raise ValueError
@@ -270,6 +267,59 @@ def build_scenario_request(scenario: Scenario) -> ResearchRunRequest:
         min_peptide_length=7,
         max_peptide_length=12,
     )
+
+
+def build_cohort_supported_request(sample_id: str) -> ResearchRunRequest:
+    """Build a positive cohort fixture with explicit empirical decoy evidence.
+
+    The locked ``target_supported`` scenario intentionally remains target-only
+    so the evaluator proves conservative abstention. Cohort demonstrations need
+    a separate two-spectrum fixture: one target winner and one decoy winner,
+    allowing a target q-value to be estimated rather than assuming zero FDR.
+    """
+
+    return ResearchRunRequest(
+        sample_id=sample_id,
+        mzml_source=_cohort_mzml(),
+        fasta_source=b">P1\nMPEPTIDER\n>DECOY_P2\nPEPTIDEK\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+
+
+def build_cohort_no_match_request(sample_id: str) -> ResearchRunRequest:
+    """Build a cohort-negative sample with the same target/decoy search space."""
+
+    return ResearchRunRequest(
+        sample_id=sample_id,
+        mzml_source=_mzml(matched=False),
+        fasta_source=b">P1\nMPEPTIDER\n>DECOY_P2\nPEPTIDEK\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+
+
+def _cohort_mzml() -> bytes:
+    return (
+        "<mzML><run><spectrumList>"
+        + _spectrum(
+            matched=True,
+            precursor_mz=1087.508837466,
+            spectrum_id="scan=1",
+            mz=(132.047761466, 229.100525466, 358.143118466),
+            intensity=(5.0, 5.0, 10.0),
+        )
+        + _spectrum(
+            matched=True,
+            precursor_mz=928.462204466,
+            spectrum_id="scan=2",
+            mz=(98.060040466, 227.102633466, 324.155397466),
+            intensity=(5.0, 15.0, 25.0),
+        )
+        + "</spectrumList></run></mzML>"
+    ).encode()
 
 
 def run_evaluator() -> dict[str, object]:
@@ -404,8 +454,10 @@ def run_evaluator() -> dict[str, object]:
             and generated_receipt.decoy_peptides == 1
             and generated_receipt.peptide_count == _GENERATED_SEARCH_SPACE_PEPTIDES
             and len(generated_receipt.digest) == _DIGEST_LENGTH
-            and bool(generated_result.accepted_psms)
-            and all(not item.decoy for item in generated_result.accepted_psms)
+            and not generated_result.accepted_psms
+            and generated_result.fdr_summary is not None
+            and generated_result.fdr_summary.decoy_winners == 0
+            and generated_result.fdr_summary.accepted_targets == 0
         ),
         "result_digest": generated_result.result_digest,
         "search_space_receipt": (
