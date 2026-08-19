@@ -5998,20 +5998,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      740800,
-      719700,
-      671100,
-      661100,
-      671800,
-      1021000,
-      916800,
-      736200,
-      684300,
-      674200
+      647400,
+      665500,
+      646000,
+      637400,
+      645700,
+      638500,
+      668400,
+      637600,
+      615400,
+      617500
     ],
-    "mean_ns": 749700.0,
-    "median_ns": 719700,
-    "p95_ns": 1021000,
+    "mean_ns": 641940.0,
+    "median_ns": 645700,
+    "p95_ns": 668400,
     "result_digest": "b333b0b7dd4338765227cb21cb1d110a80767ad71120b076533e85d19c8bcd8e"
   },
   "coverage": {
@@ -6064,8 +6064,8 @@
   "fdr_quant_group_invariants_evaluation": {
     "evaluator": "fdr-quantification-group-invariants-v1",
     "passed": true,
-    "declared": 12,
-    "executed": 12,
+    "declared": 13,
+    "executed": 13,
     "checks": {
       "target_decoy_winner_count": true,
       "decoys_have_no_q_value": true,
@@ -6074,6 +6074,7 @@
       "collision_counts_as_peptide_fdr_decoy": true,
       "collision_counts_as_group_fdr_decoy": true,
       "exact_ties_abstain_spectrum_fdr": true,
+      "cross_spectrum_ties_abstain_spectrum_fdr": true,
       "exact_ties_abstain_group_fdr": true,
       "exact_loq_is_missing": true,
       "no_imputation_at_loq": true,
