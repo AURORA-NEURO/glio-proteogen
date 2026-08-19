@@ -38,7 +38,10 @@ MS2 fixture that has no precursor metadata; the run abstains with
 `NO_SUPPORTED_PSM` instead of treating every peptide as precursor-compatible.
 
 `verify_pilot_replay` reruns the same offline bytes and rejects any changed
-payload, search parameters, or digest. The result policy is closed:
+payload, search parameters, resource limits, or digest. The result digest
+includes every scored PSM field, including matched signal, fragment/precursor
+error, and target/decoy collision state; changing those fields cannot preserve
+the receipt by self-rehashing an incomplete projection. The result policy is closed:
 research-only and owner review
 are true, network access and clinical/disease/treatment/mechanistic claims are
 false. Protein-group objects remain exploratory research objects and are not

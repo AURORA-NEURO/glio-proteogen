@@ -1,13 +1,14 @@
 {
   "module_id": "RESEARCH-PUBLIC-PROTEOMICS-PILOT",
   "authority": "additive research foundation; no governed module ABI",
-  "base": "22039db51cc003e5758547b353a872f632673b7a",
+  "base": "660c676b8b0a7ff2859724492b19e64a053b82f0",
   "source_paths": [
     "src/glio_proteogen/research/pilot.py",
     "tests/research/test_pilot.py",
     "tests/research/test_research_pilot_verifier.py",
     "tools/verify_research_pilot.py",
     "docs/research/public-proteomics-pilot.md",
+    "docs/evidence/research_pilot/replay-integrity.md",
     "docs/evidence/research_pilot/package.json"
   ],
   "no_network": true,
