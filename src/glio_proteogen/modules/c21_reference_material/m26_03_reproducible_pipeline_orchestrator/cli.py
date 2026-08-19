@@ -57,9 +57,9 @@ def _read_request(path: Path) -> ExecuteProteinSubtypeWorkflowRequest:
 
 def _read_result(path: Path) -> ProteinSubtypeExecutionResult:
     try:
-        return _RESULT_ADAPTER.validate_json(
-            read_bounded(path, M2603_MAX_CANONICAL_RESULT_BYTES), strict=True
-        )
+        data = read_bounded(path, M2603_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2603_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2603CliError("input must be a valid M26-03 result") from error
 

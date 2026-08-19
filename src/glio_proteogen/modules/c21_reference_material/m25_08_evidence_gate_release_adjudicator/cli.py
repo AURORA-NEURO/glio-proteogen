@@ -57,9 +57,9 @@ def _read_request(path: Path) -> AdjudicateProteotypeEvidenceGateRequest:
 
 def _read_result(path: Path) -> ProteotypeEvidenceGateResult:
     try:
-        return _RESULT_ADAPTER.validate_json(
-            read_bounded(path, M2508_MAX_CANONICAL_RESULT_BYTES), strict=True
-        )
+        data = read_bounded(path, M2508_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2508_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2508CliError("input must be a valid M25-08 result") from error
 

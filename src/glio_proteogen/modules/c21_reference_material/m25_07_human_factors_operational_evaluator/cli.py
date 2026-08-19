@@ -55,9 +55,9 @@ def _read_request(path: Path) -> EvaluateProteotypeHumanFactorsRequest:
 
 def _read_result(path: Path) -> ProteotypeHumanFactorsResult:
     try:
-        return _RESULT_ADAPTER.validate_json(
-            read_bounded(path, M2507_MAX_CANONICAL_RESULT_BYTES), strict=True
-        )
+        data = read_bounded(path, M2507_MAX_CANONICAL_RESULT_BYTES)
+        strict_json_loads(data, max_bytes=M2507_MAX_CANONICAL_RESULT_BYTES)
+        return _RESULT_ADAPTER.validate_json(data, strict=True)
     except (OSError, StrictJsonError, ValueError, ValidationError) as error:
         raise M2507CliError("input must be a valid M25-07 result") from error  # noqa: TRY003
 
