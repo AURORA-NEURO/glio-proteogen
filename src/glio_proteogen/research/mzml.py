@@ -110,14 +110,19 @@ def _payload(source: bytes | bytearray | BinaryIO, max_bytes: int) -> bytes:
     return payload
 
 
-def parse_mzml(
+def parse_mzml(  # noqa: PLR0915 - parser keeps XML state and safety checks together.
     source: bytes | bytearray | BinaryIO,
     *,
     max_bytes: int = 256 * 1024 * 1024,
     max_spectra: int = 100_000,
 ) -> tuple[Spectrum, ...]:
     """Decode bounded m/z and intensity arrays from one mzML document."""
-    if not 0 < max_bytes <= 512 * 1024 * 1024 or not 0 < max_spectra <= 1_000_000:
+    if (
+        type(max_bytes) is not int
+        or type(max_spectra) is not int
+        or not 0 < max_bytes <= 512 * 1024 * 1024
+        or not 0 < max_spectra <= 1_000_000
+    ):
         raise ValueError("research limits are outside supported bounds")
     root = ElementTree.fromstring(_payload(source, max_bytes))
     output: list[Spectrum] = []
@@ -138,6 +143,10 @@ def parse_mzml(
             elif accession == "MS:1000016":
                 value = float(cv.attrib["value"])
                 retention = value * 60.0 if cv.attrib.get("unitName") == "minute" else value
+        if ms_level < 1:
+            raise ValueError("mzML MS level must be positive")
+        if retention is not None and (not math.isfinite(retention) or retention < 0):
+            raise ValueError("mzML retention time must be finite and non-negative")
         selected_ions: set[tuple[float | None, int | None]] = set()
         for selected_ion in element.findall(".//{*}selectedIon"):
             ion_mz: float | None = None
@@ -161,13 +170,25 @@ def parse_mzml(
         arrays = element.findall(".//{*}binaryDataArray")
         mz: tuple[float, ...] = ()
         intensity: tuple[float, ...] = ()
+        seen_mz = False
+        seen_intensity = False
         for array in arrays:
             accessions = {item.attrib.get("accession") for item in array.findall("{*}cvParam")}
             values = _binary_array(array, max_output_bytes=max_bytes)
             if "MS:1000514" in accessions:
+                if seen_mz:
+                    raise ValueError("mzML spectrum declares duplicate m/z arrays")
+                seen_mz = True
                 mz = values
             elif "MS:1000515" in accessions:
+                if seen_intensity:
+                    raise ValueError("mzML spectrum declares duplicate intensity arrays")
+                seen_intensity = True
                 intensity = values
+        if any(not math.isfinite(value) or value <= 0 for value in mz):
+            raise ValueError("mzML m/z values must be finite and positive")
+        if any(not math.isfinite(value) or value < 0 for value in intensity):
+            raise ValueError("mzML intensity values must be finite and non-negative")
         if len(mz) != len(intensity):
             raise ValueError("mzML m/z and intensity arrays differ in length")
         output.append(
