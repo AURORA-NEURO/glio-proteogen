@@ -32,6 +32,9 @@ from glio_proteogen.modules.c04_proteoform_isoform.m04_02_identity_lineage impor
     ProteoformIdentityLineageAuthorizationError,
     reconcile_proteoform_identity_lineage,
 )
+from glio_proteogen.modules.c04_proteoform_isoform.m04_02_identity_lineage import (
+    engine as m0402_engine,
+)
 
 
 class _HostileTraversalError(AssertionError):
@@ -193,6 +196,30 @@ def test_dict_subclass_firewall_and_service_materialization() -> None:
         reconcile_proteoform_identity_lineage(request)
     )
     assert M0402Service.validate_request(constructed) == request
+
+
+def test_plain_materialization_rejects_recursive_and_oversized_values() -> None:
+    deep: object = "leaf"
+    for _ in range(m0402_engine._MAX_PLAIN_DEPTH + 1):
+        deep = {"nested": deep}
+    oversized = ["item"] * (m0402_engine._MAX_PLAIN_SEQUENCE + 1)
+    cyclic: list[object] = []
+    cyclic.append(cyclic)
+
+    for value in (deep, oversized, cyclic):
+        with pytest.raises(TypeError, match="bounded built-in containers"):
+            m0402_engine._plain_value(value)
+
+
+def test_service_rejects_recursive_payload_before_strict_validation() -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    nested: object = "leaf"
+    for _ in range(m0402_engine._MAX_PLAIN_DEPTH + 1):
+        nested = {"nested": nested}
+    payload["artifact_claims"] = nested
+
+    with pytest.raises(TypeError, match="bounded built-in containers"):
+        M0402Service.validate_request(payload)
 
 
 def test_exception_fails_closed_and_baseexception_propagates(

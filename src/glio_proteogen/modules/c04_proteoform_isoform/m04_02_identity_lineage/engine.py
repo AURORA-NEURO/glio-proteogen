@@ -47,6 +47,10 @@ _STATE_TYPES: Final = (
     IdentityLineageState,
     ConsentState,
 )
+_MAX_PLAIN_DEPTH: Final = 72
+_MAX_PLAIN_DICT_ITEMS: Final = 512
+_MAX_PLAIN_NODES: Final = 150_000
+_MAX_PLAIN_SEQUENCE: Final = 4_096
 
 
 class ProteoformIdentityLineageAuthorizationError(ValueError):
@@ -54,6 +58,11 @@ class ProteoformIdentityLineageAuthorizationError(ValueError):
 
     def __init__(self) -> None:
         super().__init__(_AUTHORIZATION_MESSAGE)
+
+
+class _InvalidPlainValueError(TypeError):
+    def __init__(self) -> None:
+        super().__init__("M04-02 strict request values require bounded built-in containers")
 
 
 class M0402ProteoformIdentityLineageReconciler:
@@ -183,23 +192,74 @@ def _state_text(candidate: object) -> object:
     return None
 
 
-def _plain_value(candidate: object) -> object:
+def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
+    candidate: object,
+    *,
+    _depth: int = 0,
+    _budget: list[int] | None = None,
+) -> object:
+    """Copy bounded built-in containers before strict Pydantic validation.
+
+    The request can arrive as a caller-controlled mapping or a model constructed
+    outside Pydantic's normal lifecycle.  Bound traversal before validation so
+    recursive/cyclic values fail as typed input errors instead of exhausting the
+    interpreter or spending unbounded work in this boundary.
+    """
+
+    if _depth > _MAX_PLAIN_DEPTH:
+        raise _InvalidPlainValueError
+    budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
     candidate_mro = type.__getattribute__(type(candidate), "__mro__")
     if BaseModel in candidate_mro:
         storage = cast(
             "dict[object, object]",
             object.__getattribute__(candidate, "__dict__"),
         )
-        return {key: _plain_value(dict.__getitem__(storage, key)) for key in dict.keys(storage)}
+        if dict.__len__(storage) > _MAX_PLAIN_DICT_ITEMS or any(
+            type(key) is not str for key in dict.keys(storage)
+        ):
+            raise _InvalidPlainValueError
+        return {
+            key: _plain_value(
+                dict.__getitem__(storage, key),
+                _depth=_depth + 1,
+                _budget=budget,
+            )
+            for key in dict.keys(storage)
+        }
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
-        return {key: _plain_value(dict.__getitem__(mapping, key)) for key in dict.keys(mapping)}
+        if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS or any(
+            type(key) is not str for key in dict.keys(mapping)
+        ):
+            raise _InvalidPlainValueError
+        return {
+            key: _plain_value(
+                dict.__getitem__(mapping, key),
+                _depth=_depth + 1,
+                _budget=budget,
+            )
+            for key in dict.keys(mapping)
+        }
     if list in candidate_mro:
         list_values = cast("list[object]", candidate)
-        return [_plain_value(item) for item in list.__iter__(list_values)]
+        if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE:
+            raise _InvalidPlainValueError
+        return [
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in list.__iter__(list_values)
+        ]
     if tuple in candidate_mro:
         tuple_values = cast("tuple[object, ...]", candidate)
-        return tuple(_plain_value(item) for item in tuple.__iter__(tuple_values))
+        if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE:
+            raise _InvalidPlainValueError
+        return tuple(
+            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            for item in tuple.__iter__(tuple_values)
+        )
     return candidate
 
 
