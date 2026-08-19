@@ -80,7 +80,7 @@ def _artifact(name: str, media_type: str = "application/json") -> ArtifactRefere
     )
 
 
-def _context() -> ExecutionContext:
+def _context(request_id: str = "request.context") -> ExecutionContext:
     accepted = UpstreamDecisionReference(
         decision_id="decision.accepted",
         state=UpstreamDecisionState.ACCEPTED,
@@ -88,7 +88,7 @@ def _context() -> ExecutionContext:
         evidence=_artifact("control"),
     )
     return ExecutionContext(
-        request_id="request.context",
+        request_id=request_id,
         actor_id="actor.synthetic",
         occurred_at=_WHEN,
         references=ContextReferences(
@@ -123,7 +123,7 @@ def _upstream(*, supported: bool) -> CopyNumberDosageUncertaintyDecompositionRes
     )
     upstream_request = DecomposeCopyNumberDosageUncertaintyRequest(
         request_id="request.upstream",
-        context=_context(),
+        context=_context("request.upstream"),
         constraint_result=_artifact("constraint", M0706_CONSTRAINT_MEDIA_TYPE),
         policy=policy,
         source_artifacts=(_artifact("upstream"),),
