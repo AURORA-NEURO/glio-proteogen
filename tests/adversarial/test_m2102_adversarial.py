@@ -13,7 +13,10 @@ from glio_proteogen.contracts.m21_02 import (
     GenerateComplexActivitySyntheticTruthRequest,
     GenerationStatus,
 )
-from glio_proteogen.contracts.m21_02.canonical import result_payload_digest
+from glio_proteogen.contracts.m21_02.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2102AuthorizationError,
@@ -105,3 +108,17 @@ def test_replay_rejects_self_rehashed_corpus_mutation() -> None:
     )
     with pytest.raises(M2102ReplayError, match="deterministic replay"):
         service.replay(forged)
+
+
+def test_provenance_binds_request_identity_for_generation_shape_changes() -> None:
+    service = M2102Service()
+    baseline = service.generate(build_request())
+    alternate_request = build_request().model_copy(update={"requested_case_count": 9})
+    alternate = service.generate(alternate_request)
+
+    assert baseline.request_digest == canonical_request_digest(baseline.request)
+    assert alternate.request_digest == canonical_request_digest(alternate.request)
+    assert baseline.request_digest in baseline.provenance.input_digests
+    assert alternate.request_digest in alternate.provenance.input_digests
+    assert baseline.request_digest != alternate.request_digest
+    assert baseline.provenance.input_digests != alternate.provenance.input_digests
