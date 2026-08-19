@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m23_05 import (
     EvaluateVariantPeptideSubgroupEquityRequest,
     VariantPeptideSubgroupEvaluationResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -45,11 +47,24 @@ class EquityEvaluationSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
 class ValidatedM2305Request:
-    """Opaque capability proving strict M23-05 request validation."""
+    """Opaque, instance-bound capability for one validated request snapshot."""
 
-    request: EvaluateVariantPeptideSubgroupEquityRequest
+    __slots__ = ("__weakref__", "_seal", "request")
+
+    def __init__(
+        self, request: EvaluateVariantPeptideSubgroupEquityRequest, seal: object
+    ) -> None:
+        self.request = request
+        self._seal = seal
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2305Request,
+        tuple[object, EvaluateVariantPeptideSubgroupEquityRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -71,10 +86,11 @@ class M2305Plugin(
 ):
     """Expose validate-then-run without an authority or parse bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2305Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -87,12 +103,28 @@ class M2305Plugin(
             decoded = strict_json_loads(candidate, max_bytes=M2305_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2305_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2305Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2305Request(validated, self._seal)
+        _TOKENS[token] = (self._seal, validated, canonical_json_bytes(validated))
+        return token
 
     def run(self, request: ValidatedM2305Request) -> VariantPeptideSubgroupEvaluationResult:
-        if not isinstance(request, ValidatedM2305Request):
+        if type(request) is not ValidatedM2305Request:
             raise _InvalidExecutionTokenError
-        return self._service.evaluate(request.request)
+        snapshot = _TOKENS.get(request)
+        try:
+            current = canonical_json_bytes(request.request)
+        except (TypeError, ValueError):
+            raise _InvalidExecutionTokenError from None
+        if (
+            snapshot is None
+            or snapshot[0] is not self._seal
+            or request._seal is not self._seal
+            or snapshot[1] is not request.request
+            or snapshot[2] != current
+        ):
+            raise _InvalidExecutionTokenError
+        return self._service.evaluate(snapshot[1])
 
     def replay(
         self,

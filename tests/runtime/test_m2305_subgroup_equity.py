@@ -15,9 +15,12 @@ from glio_proteogen.contracts.m23_05 import (
 )
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
+    EquityEvaluationSubmission,
     M2305AuthorizationError,
+    M2305Plugin,
     M2305ReplayError,
     M2305Service,
+    ValidatedM2305Request,
     evaluate_variant_peptide_subgroup_equity,
     preflight_m2305_authorization,
 )
@@ -138,3 +141,36 @@ def test_hostile_mapping_fails_closed() -> None:
 
     with pytest.raises(M2305AuthorizationError):
         preflight_m2305_authorization(HostileMapping())
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = M2305Plugin(M2305Service())
+    second = M2305Plugin(M2305Service())
+    token = first.validate(EquityEvaluationSubmission(request=_request()))
+
+    assert first.run(token).status is EvaluationStatus.EVALUATED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = ValidatedM2305Request(token.request, token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(EquityEvaluationSubmission(request=_request()))
+    object.__setattr__(mutated.request, "request_id", "request-forged")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    nested = first.validate(EquityEvaluationSubmission(request=_request()))
+    object.__setattr__(
+        nested.request,
+        "configuration",
+        nested.request.configuration.model_copy(update={"version": "9.9.9"}),
+    )
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(nested)
+
+    replaced = first.validate(EquityEvaluationSubmission(request=_request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
