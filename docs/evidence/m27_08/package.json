@@ -1,7 +1,7 @@
 {
   "module_id": "GLIO-PROTEOGEN-M27-08",
-  "wheel": {"bytes": 3975594, "sha256": "sha256:e7d48aff62cf71082d9a96bd9a3380bf021c10521a95522e4ccd10047323fba7", "members": 2023},
-  "sdist": {"bytes": 4674359, "sha256": "sha256:6d295afa1f913cc8a7f67dd67a8a5b69b7a627cc98b416b91841c5b070acd736", "members": 4741},
+  "wheel": {"bytes": 3976383, "sha256": "sha256:e5b0fcafbb357a0004e80f8d7559cc2c1d26f2374b1a667dc338e1f40fa71e2d", "members": 2023},
+  "sdist": {"bytes": 4675688, "sha256": "sha256:dd5207c10170c6b01204db97d6f2a9f595a0d59dd3d2ac39251ec85c5e552585", "members": 4741},
   "byte_identical_builds": true,
   "isolated_import": true,
   "release_verifier": "passed"
