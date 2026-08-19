@@ -135,6 +135,22 @@ def test_service_denies_unsafe_context_and_replay_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
 
 
+def test_provenance_binds_unlisted_review_evidence_and_replays() -> None:
+    request = build_request()
+    item = request.review_items[0]
+    reference = item.evidence[0].reference.model_copy(
+        update={"artifact_id": "unlisted-review-evidence", "digest": "sha256:" + "9" * 64}
+    )
+    changed_item = item.model_copy(
+        update={"evidence": (item.evidence[0].model_copy(update={"reference": reference}),)}
+    )
+    changed = request.model_copy(update={"review_items": (changed_item, *request.review_items[1:])})
+    result = M2005Service().present(changed)
+
+    assert reference.digest in result.provenance.input_digests
+    assert M2005Service().replay(result) == result
+
+
 def test_api_sanitizes_non_object_unknown_schema_and_denial() -> None:
     client = TestClient(create_app(M2005Service()))
     assert client.post("/v1/modules/M20-05/verify", content=b"[").status_code == _HTTP_UNPROCESSABLE

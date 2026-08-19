@@ -183,6 +183,22 @@ def _provenance(
                 request.aligned_evidence_bundle.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 request.policy.configuration.model_reference.digest,
+                *(
+                    evidence.reference.digest
+                    for evidence in request.policy.configuration.evidence
+                ),
+                *(
+                    evidence.reference.digest
+                    for item in request.review_items
+                    for evidence in item.evidence
+                ),
+                *(item.provenance_artifact.digest for item in request.review_items),
+                *(
+                    artifact.digest
+                    for item in request.review_items
+                    if item.next_action is not None
+                    for artifact in item.next_action.required_evidence
+                ),
             )
         )
     )
