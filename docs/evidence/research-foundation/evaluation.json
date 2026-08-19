@@ -6031,11 +6031,11 @@
     "result_digest": "1e7192cc505f600e0189fa3fdc3b9ae8e02c475c201c425fad23456ced0b296f"
   },
   "coverage": {
-    "statements": 3421,
-    "missed_statements": 105,
-    "branches": 1328,
-    "partial_branches": 97,
-    "percent": 95.62,
+    "statements": 3500,
+    "missed_statements": 113,
+    "branches": 1364,
+    "partial_branches": 105,
+    "percent": 95.39,
     "fail_under": 95
   },
   "precursor_policy_evaluation": {
