@@ -61,6 +61,13 @@ class M2704ReplayError(ValueError):
     """A gateway result failed canonical replay verification."""
 
 
+class M2704ValidatedRequestError(TypeError):
+    """A private validated-execution seam received a non-exact model."""
+
+    def __init__(self) -> None:
+        super().__init__("M27-04 validated execution requires the exact request model")
+
+
 def _member(candidate: object, field: str) -> object:
     if isinstance(candidate, Mapping):
         return candidate.get(field)
@@ -262,7 +269,13 @@ class M2704GatewayEngine:
 
     def publish(self, request: object) -> ComplexActivityAccessSurfaceResult:
         preflight_m2704_authorization(request)
-        canonical = _validate_request(request)
+        return self._publish_validated(_validate_request(request))
+
+    def _publish_validated(
+        self, canonical: PublishComplexActivityAccessSurfaceRequest
+    ) -> ComplexActivityAccessSurfaceResult:
+        if type(canonical) is not PublishComplexActivityAccessSurfaceRequest:
+            raise M2704ValidatedRequestError
         request_digest = canonical_request_digest(canonical)
         evidence = _evidence(canonical)
         findings = _findings(canonical)

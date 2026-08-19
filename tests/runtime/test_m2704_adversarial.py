@@ -82,6 +82,15 @@ def test_plugin_rejects_foreign_and_forged_capabilities() -> None:
         first.run(object())  # type: ignore[arg-type]
 
 
+def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
+    request = _request()
+    plugin = M2704Plugin()
+    token = plugin.validate(GatewaySubmission(request))
+    object.__setattr__(token, "request", request.model_copy(deep=True))
+    with pytest.raises(M2704TokenError):
+        plugin.run(token)
+
+
 def test_service_rejects_duplicate_keys_and_unknown_payload_fields() -> None:
     service = M2704Service()
     with pytest.raises((StrictJsonError, ValueError, ValidationError)):

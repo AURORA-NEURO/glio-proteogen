@@ -39,7 +39,10 @@ class M2704Service:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def publish(self, request: object) -> ComplexActivityAccessSurfaceResult:
-        return self._engine.publish(self.validate_request(request))
+        if type(request) is PublishComplexActivityAccessSurfaceRequest:
+            preflight_m2704_authorization(request)
+            return self._engine._publish_validated(request)
+        return self._engine._publish_validated(self.validate_request(request))
 
     def replay(self, result: object) -> ComplexActivityAccessSurfaceResult:
         if isinstance(result, (bytes, bytearray, str)):
