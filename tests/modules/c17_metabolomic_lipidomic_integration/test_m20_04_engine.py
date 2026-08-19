@@ -111,3 +111,23 @@ def test_service_and_plugin_keep_same_typed_boundary() -> None:
     assert plugin.descriptor.external_content_traversal is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.descriptor.claim_ceiling_required is True
+
+
+def test_plugin_validated_capability_rejects_forged_cross_instance_and_nested_mutation() -> None:
+    request = _request()
+    plugin = m2004.M2004Plugin()
+    other = m2004.M2004Plugin()
+    token = plugin.validate(request)
+
+    assert plugin.run(token) == plugin.run(request)
+
+    forged = m2004.ValidatedM2004Request(request=token.request, _seal=token._seal)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request token"):
+        other.run(token)
+
+    mutated_registration = token.request.registration.model_copy(update={"version": "9.9.9"})
+    object.__setattr__(token.request, "registration", mutated_registration)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(token)
