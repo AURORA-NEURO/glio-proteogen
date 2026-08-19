@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m18_06 import (
     AdjudicationRecordStatus,
     BiomarkerPanelAdjudicationResult,
     QueueResultStatus,
+    ReviewDecision,
 )
 from glio_proteogen.contracts.m18_06.canonical import (
     canonical_request_digest,
@@ -141,6 +142,15 @@ def test_replay_rejects_semantic_tamper_with_recomputed_digest() -> None:
 
     with pytest.raises(M1806ReplayError, match="deterministic replay"):
         M1806Engine().replay(tampered)
+
+
+def test_provenance_binds_each_adjudication_request_digest() -> None:
+    resolved = M1806Engine().adapt(_request())
+    rejected = M1806Engine().adapt(_request(decision=ReviewDecision.REJECT))
+
+    assert resolved.request_digest in resolved.provenance.input_digests
+    assert rejected.request_digest in rejected.provenance.input_digests
+    assert resolved.request_digest != rejected.request_digest
 
 
 def test_canonical_request_accepts_mapping_projection() -> None:

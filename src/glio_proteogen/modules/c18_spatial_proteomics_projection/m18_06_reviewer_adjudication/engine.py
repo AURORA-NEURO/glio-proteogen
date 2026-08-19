@@ -149,7 +149,10 @@ def _control_decisions(
     return tuple(records)
 
 
-def _provenance(request: AdjudicateBiomarkerPanelQueueRequest) -> ProvenanceRecord:
+def _provenance(
+    request: AdjudicateBiomarkerPanelQueueRequest,
+    request_digest: str,
+) -> ProvenanceRecord:
     refs = request.context.references
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
@@ -158,6 +161,7 @@ def _provenance(request: AdjudicateBiomarkerPanelQueueRequest) -> ProvenanceReco
         module_version="0.1.0-provisional",
         generated_at=request.context.occurred_at,
         input_digests=(
+            request_digest,
             request.upstream_result.digest,
             *(artifact.digest for artifact in request.source_artifacts),
         ),
@@ -368,7 +372,7 @@ class M1806Engine:
             "emits_parent": False,
             "support_decision": support,
             "uncertainty": _uncertainty(),
-            "provenance": _provenance(request),
+            "provenance": _provenance(request, request_digest),
             "evidence": evidence,
             "limitations": _limitations(),
             "human_review_required": True,
