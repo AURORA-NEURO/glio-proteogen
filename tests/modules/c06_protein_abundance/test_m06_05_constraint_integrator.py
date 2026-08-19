@@ -214,6 +214,34 @@ def test_replay_accepts_canonical_bytes_and_rejects_tamper() -> None:
     assert rejected.result_digest is None
 
 
+def test_replay_rejects_self_consistent_but_non_deterministic_result() -> None:
+    engine = M0605MechanismConstraintEngine()
+    built = engine.integrate(_request())
+    forged_evaluation = built.result.evaluations[1].model_copy(
+        update={"message": "caller-forged evaluation"}
+    )
+    forged = built.result.model_copy(
+        update={
+            "evaluations": (built.result.evaluations[0], forged_evaluation),
+            "result_digest": "sha256:" + "0" * 64,
+        }
+    )
+    forged = IntegrateProteinAbundanceConstraintsResult.model_validate(
+        forged.model_copy(update={"result_digest": result_payload_digest(forged)}),
+        strict=True,
+    )
+
+    verdict = engine.verify(
+        forged,
+        canonical_json_bytes(forged.model_dump(mode="json")),
+    )
+
+    assert verdict.content_verified is True
+    assert verdict.deterministic_verified is False
+    assert verdict.verified is False
+    assert verdict.result_digest is None
+
+
 def test_replay_rejects_invalid_object_and_non_bytes() -> None:
     engine = M0605MechanismConstraintEngine()
     built = engine.integrate(_request())
