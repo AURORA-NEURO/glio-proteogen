@@ -1,5 +1,7 @@
 """Lightweight checks for the provisional M07-05 contract spine."""
 
+from typing import Any, cast
+
 import pytest
 
 from glio_proteogen.contracts.m07_05 import (
@@ -74,6 +76,8 @@ def test_non_evaluable_constraint_cannot_carry_numeric_evidence() -> None:
 def test_schema_exports_are_provisional_and_bounded() -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == _SCHEMA_COUNT
-    assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert schemas["output"]["x-glio-contract"]["outputMediaType"] == M0705_OUTPUT_MEDIA_TYPE
+    metadata = [cast("dict[str, Any]", schema["x-glio-contract"]) for schema in schemas.values()]
+    assert all(item["provisionalAbi"] for item in metadata)
+    output_metadata = cast("dict[str, Any]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["outputMediaType"] == M0705_OUTPUT_MEDIA_TYPE
     assert M0705_MAX_EVIDENCE > 0
