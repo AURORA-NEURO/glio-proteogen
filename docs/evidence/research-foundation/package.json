@@ -66,7 +66,7 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "3a52137ff5399abd840715ba9cb21d36e675c48ffad335132d588ff7ce284461",
+    "fixture_sha256": "7aefbb05900078b786a3a9ac7f1f6e77bdd6c74fb8a5116c9647bfb95f1db30b",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
       "focused_tests": 356,
     "coverage": {

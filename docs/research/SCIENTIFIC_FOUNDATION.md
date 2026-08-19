@@ -73,11 +73,13 @@ C03/C04 computation contract:
   heterogeneity.
 - The research-only `QuantificationPolicy` closes the remaining scale ambiguity. It permits
   only arbitrary matched-ion intensity, explicitly selects either no normalization or
-  sample-median scaling, and accepts a finite caller-declared limit of quantification (LOQ).
+  sample-median scaling, accepts a finite caller-declared limit of quantification (LOQ), and
+  bounds the materialized observation count. The receipt carries an order-invariant digest of
+  the complete peptide/intensity multiset plus the active observation ceiling.
   A zero or below-LOQ signal is retained in the raw receipt but becomes a null-equivalent
   missing projection with no imputation. Non-default policy fields, below-LOQ counts, and
   per-peptide status vectors are part of the single-run configuration/receipt digest, so a
-  replay cannot silently change units, normalization, or LOQ semantics.
+  replay cannot silently change units, normalization, LOQ semantics, or the input observations.
 - Protein-group quantification now validates the input partition before computing any
   signal: accessions and peptide memberships must be disjoint across groups, and every
   supplied intensity or PSM-count key must belong to that declared partition. Each

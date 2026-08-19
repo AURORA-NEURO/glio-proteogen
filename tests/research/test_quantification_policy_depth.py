@@ -39,6 +39,8 @@ def test_policy_rejects_open_ended_units_and_controls() -> None:
         QuantificationPolicy(missingness_policy="zero_imputed")
     with pytest.raises(ValueError, match="finite"):
         QuantificationPolicy(limit_of_quantification=float("nan"))
+    with pytest.raises(ValueError, match="max_input_observations"):
+        QuantificationPolicy(max_input_observations=0)
 
 
 def test_loq_and_no_normalization_are_explicit_and_non_imputing() -> None:
@@ -63,6 +65,8 @@ def test_loq_and_no_normalization_are_explicit_and_non_imputing() -> None:
     assert receipt.quantifiable_peptides == 2
     assert receipt.limit_of_quantification == 4.0
     assert receipt.normalization_method == "none"
+    assert receipt.max_input_observations == 100_000
+    assert len(receipt.observation_digest) == 64
     assert receipt.as_dict()["raw_peptide_statuses"] == [
         ["P1", "quantified"],
         ["P2", "zero_signal"],
@@ -80,6 +84,33 @@ def test_median_normalize_rejects_unknown_method_and_zeroes_missing_signal() -> 
     assert quantified.values[0].intensity == 0.0
     with pytest.raises(ValueError, match="not supported"):
         median_normalize(quantified.values, method="global_mean")
+
+
+def test_observation_receipt_is_order_invariant_but_value_bound() -> None:
+    first = quantify_matched_ions_with_receipt(
+        "sample",
+        (("P1", 2.0), ("P2", 4.0), ("P1", 3.0)),
+    ).receipt
+    reordered = quantify_matched_ions_with_receipt(
+        "sample",
+        (("P1", 3.0), ("P1", 2.0), ("P2", 4.0)),
+    ).receipt
+    changed = quantify_matched_ions_with_receipt(
+        "sample",
+        (("P1", 2.0), ("P2", 4.0), ("P1", 3.1)),
+    ).receipt
+    assert first.observation_digest == reordered.observation_digest
+    assert first.observation_digest != changed.observation_digest
+
+
+def test_observation_limit_is_enforced_before_materialization() -> None:
+    policy = QuantificationPolicy(max_input_observations=2)
+    with pytest.raises(ValueError, match="max_input_observations"):
+        quantify_matched_ions_with_receipt(
+            "sample",
+            (("P1", 1.0), ("P2", 2.0), ("P3", 3.0)),
+            policy=policy,
+        )
 
 
 def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None:

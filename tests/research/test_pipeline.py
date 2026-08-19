@@ -159,6 +159,28 @@ def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
         replay_research_protein_inference(request, tampered)
 
 
+def test_pipeline_replay_rejects_tampered_observation_receipt() -> None:
+    request = ResearchRunRequest(
+        "observation-receipt-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    assert result.quantification_receipt is not None
+    tampered = replace(
+        result,
+        quantification_receipt=replace(
+            result.quantification_receipt,
+            observation_digest="0" * 64,
+        ),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, tampered)
+
+
 def test_pipeline_replay_rejects_tampered_competition_receipt() -> None:
     request = ResearchRunRequest(
         "competition-tamper",
