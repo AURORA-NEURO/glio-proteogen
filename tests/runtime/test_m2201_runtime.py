@@ -102,7 +102,7 @@ def test_rejected_included_adjudication_abstains_with_lock_finding() -> None:
 
 def test_hostile_mapping_fails_closed() -> None:
     class HostileMapping(Mapping[str, object]):
-        def get(self, _field: str) -> object:
+        def get(self, _field: str) -> object:  # type: ignore[override]
             raise RuntimeError("hostile mapping")  # noqa: TRY003
 
         def __getitem__(self, _key: str) -> object:
@@ -132,9 +132,7 @@ def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> Non
     with pytest.raises(TypeError, match="validated request token"):
         other.run(token)
 
-    changed_reference = token.request.references[0].model_copy(
-        update={"expected_label": "forged"}
-    )
+    changed_reference = token.request.references[0].model_copy(update={"expected_label": "forged"})
     object.__setattr__(
         token.request,
         "references",
