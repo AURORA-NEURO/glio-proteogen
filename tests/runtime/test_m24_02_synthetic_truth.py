@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from evals.m24_07.fixture import artifact, context
+
 from glio_proteogen.contracts.m24_02 import (
     M2402_M2401_INPUT_MEDIA_TYPE,
     FixtureKind,
@@ -18,7 +18,6 @@ from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionStat
 from glio_proteogen.modules.c21_reference_material import (
     m24_02_synthetic_truth_generator as m2402,
 )
-
 
 _EXPECTED_CASES = 5
 
