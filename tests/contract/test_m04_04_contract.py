@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m04_01 import ProteoformApplicability
 from glio_proteogen.contracts.m04_03 import ProteoformRawInputRole
 from glio_proteogen.contracts.m04_04 import (
     M0404_COMPUTED_METRIC_COUNT,
+    M0404_MAX_CANONICAL_REQUEST_BYTES,
     M0404_MAX_CANONICAL_RESULT_BYTES,
     M0404_MAX_EVIDENCE,
     M0404_RATE_SCALE,
@@ -229,6 +230,9 @@ def test_exact_thirteen_schema_inventory() -> None:
         cast("str", value["$schema"]).endswith("2020-12/schema") for value in schemas.values()
     )
     metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert metadata["maxRequestBytes"] == M0404_MAX_CANONICAL_REQUEST_BYTES
+    assert output_metadata["maxResultBytes"] == M0404_MAX_CANONICAL_RESULT_BYTES
     assert metadata["rateScale"] == M0404_RATE_SCALE
     assert metadata["parentTarget"] == "protein_rna_discordance"
     assert metadata["externalContentTraversal"] is False

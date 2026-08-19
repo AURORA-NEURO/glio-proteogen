@@ -14,6 +14,7 @@ from pydantic import BaseModel, ValidationError
 from glio_proteogen.contracts.m04_05 import (
     M0405_DETECTOR_CLASS_COUNT,
     M0405_EVIDENCE_CLAIM,
+    M0405_MAX_CANONICAL_RESULT_BYTES,
     M0405_MAX_EVIDENCE,
     M0405_PARENT,
     M0405_RATE_SCALE,
@@ -126,6 +127,8 @@ def test_exact_schema_inventory_and_authority_metadata() -> None:
     )
     assert all(cast("str", schema["$id"]).endswith(f":{name}") for name, schema in schemas.items())
     metadata = cast("dict[str, object]", schemas["request"]["x-glio-contract"])
+    output_metadata = cast("dict[str, object]", schemas["output"]["x-glio-contract"])
+    assert output_metadata["maxResultBytes"] == M0405_MAX_CANONICAL_RESULT_BYTES
     assert metadata["rateScale"] == M0405_RATE_SCALE
     assert metadata["parentTarget"] == M0405_PARENT
     assert metadata["aggregateEvidenceOnly"] is True
