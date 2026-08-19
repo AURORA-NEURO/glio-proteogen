@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m27_04.canonical import (
     canonical_request_digest,
+    result_identifier,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -338,6 +339,8 @@ class ComplexActivityAccessSurfaceResult(FrozenModel):
     def result_is_closed(self) -> ComplexActivityAccessSurfaceResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.result_id != result_identifier(self.request_digest):
+            raise ValueError("result id does not bind request identity")
         if self.status is GatewayStatus.PUBLISHED:
             if (
                 self.access_surface is None
@@ -391,6 +394,19 @@ def _validate_gateway_components(  # noqa: PLR0912, PLR0913 - explicit graph clo
     _require_unique(tuple(rule.rule_id for rule in compatibility_rules), "compatibility rule")
     _require_unique(tuple(error.error_id for error in errors), "gateway error")
     _require_unique(tuple(event.event_id for event in audit_events), "audit event")
+    authorization_shapes = tuple(
+        (item.operation_id, item.principal_id, item.scope) for item in authorizations
+    )
+    if len(set(authorization_shapes)) != len(authorization_shapes):
+        raise ValueError("authorization bindings must be unique")
+    idempotency_keys = tuple(record.key_digest for record in idempotency_records)
+    if len(set(idempotency_keys)) != len(idempotency_keys):
+        raise ValueError("idempotency keys must be unique")
+    compatibility_shapes = tuple(
+        (rule.operation_id, rule.from_version, rule.to_version) for rule in compatibility_rules
+    )
+    if len(set(compatibility_shapes)) != len(compatibility_shapes):
+        raise ValueError("compatibility transitions must be unique")
     if not authorization_ids:
         raise ValueError("gateway requires authorization records")
     for authorization in authorizations:

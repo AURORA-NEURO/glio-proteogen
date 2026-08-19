@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m27_02 import (
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service.engine import (
     M2702LineageResolver,
+    M2702ReplayError,
     _plain_value,
     preflight_m2702_authorization,
 )
@@ -36,5 +37,22 @@ class M2702Service:
             return self._resolver._resolve_validated(request)
         return self._resolver.resolve(self.validate_request(request))
 
+    def execute_validated(
+        self, request: ResolveComplexActivityLineageRequest
+    ) -> ComplexActivityLineageResult:
+        """Execute a request already parsed by an API/CLI/plugin boundary."""
 
-__all__ = ["M2702Service"]
+        return self._resolver.resolve_validated(request)
+
+    def replay(self, result: object) -> ComplexActivityLineageResult:
+        return self._resolver.replay(result)
+
+    def replay_validated(
+        self, result: ComplexActivityLineageResult
+    ) -> ComplexActivityLineageResult:
+        """Replay a result already parsed by an API/CLI boundary."""
+
+        return self._resolver.replay(result)
+
+
+__all__ = ["M2702ReplayError", "M2702Service"]

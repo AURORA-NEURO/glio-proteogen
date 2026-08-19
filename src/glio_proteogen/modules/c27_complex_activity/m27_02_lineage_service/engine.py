@@ -65,6 +65,10 @@ class M2702AuthorizationError(ValueError):
         super().__init__(_AUTHORIZATION_MESSAGE)
 
 
+class M2702ReplayError(ValueError):
+    """A lineage result failed canonical identity or deterministic replay."""
+
+
 class M2702ValidatedRequestError(TypeError):
     """A private validated-execution seam received a non-exact model."""
 
@@ -101,6 +105,13 @@ class M2702LineageResolver:
         preflight_m2702_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(_plain_value(request), strict=True)
         return self._resolve_validated(validated)
+
+    def resolve_validated(
+        self, request: ResolveComplexActivityLineageRequest
+    ) -> ComplexActivityLineageResult:
+        """Resolve a request already parsed by an API/CLI/service boundary."""
+
+        return self._resolve_validated(request)
 
     def _resolve_validated(
         self, canonical: ResolveComplexActivityLineageRequest
@@ -143,6 +154,29 @@ class M2702LineageResolver:
         }
         payload["result_digest"] = result_payload_digest(payload)
         return _RESULT_ADAPTER.validate_python(payload, strict=True)
+
+    def replay(self, result: object) -> ComplexActivityLineageResult:
+        """Verify one sealed result and replay its exact request deterministically."""
+
+        try:
+            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+            if validated.request_digest != canonical_request_digest(validated.request):
+                raise M2702ReplayError  # noqa: TRY301
+            expected_result_id = (
+                f"result.m2702.{validated.request_digest.removeprefix('sha256:')}"
+            )
+            if validated.result_id != expected_result_id:
+                raise M2702ReplayError  # noqa: TRY301
+            if validated.result_digest != result_payload_digest(validated):
+                raise M2702ReplayError  # noqa: TRY301
+            expected = self.resolve_validated(validated.request)
+            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+                raise M2702ReplayError  # noqa: TRY301
+        except M2702ReplayError:
+            raise
+        except Exception as error:
+            raise M2702ReplayError from error
+        return validated
 
 
 def resolve_complex_activity_lineage(request: object) -> ComplexActivityLineageResult:
@@ -454,6 +488,7 @@ def _plain_value(candidate: object) -> object:
 __all__ = [
     "M2702AuthorizationError",
     "M2702LineageResolver",
+    "M2702ReplayError",
     "preflight_m2702_authorization",
     "resolve_complex_activity_lineage",
 ]

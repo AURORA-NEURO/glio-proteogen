@@ -57,23 +57,30 @@ M2702_MAX_CANONICAL_RESULT_BYTES: Final = 8 * 1024 * 1024
 
 
 def _assert_acyclic(adjacency: dict[str, set[str]], start: str) -> None:
-    """Reject a directed cycle without imposing a single-parent topology."""
+    """Reject a directed cycle without imposing a single-parent topology.
+
+    The graph cap is deliberately generous enough that recursive DFS would be
+    an avoidable denial-of-service boundary.  Keep the traversal iterative so
+    a caller-declared chain at the cap is checked deterministically without
+    depending on the interpreter recursion limit.
+    """
 
     seen: set[str] = set()
     active: set[str] = set()
-
-    def visit(current: str) -> None:
+    stack: list[tuple[str, bool]] = [(start, False)]
+    while stack:
+        current, exiting = stack.pop()
+        if exiting:
+            active.remove(current)
+            seen.add(current)
+            continue
         if current in active:
             raise ValueError("lineage graph cannot contain a directed cycle")
         if current in seen:
-            return
+            continue
         active.add(current)
-        for child in adjacency[current]:
-            visit(child)
-        active.remove(current)
-        seen.add(current)
-
-    visit(start)
+        stack.append((current, True))
+        stack.extend((child, False) for child in adjacency[current])
 
 
 class LineageNodeKind(StrEnum):
@@ -173,6 +180,17 @@ class LineageGraph(FrozenModel):
             raise ValueError("lineage node ids must be unique")
         if len(edge_ids) != len(set(edge_ids)):
             raise ValueError("lineage edge ids must be unique")
+        edge_shapes = tuple(
+            (
+                edge.source_node_id,
+                edge.target_node_id,
+                edge.relation,
+                edge.producing_version,
+            )
+            for edge in self.edges
+        )
+        if len(edge_shapes) != len(set(edge_shapes)):
+            raise ValueError("lineage semantic edges must be unique")
         node_set = set(node_ids)
         if any(
             edge.source_node_id not in node_set or edge.target_node_id not in node_set
@@ -181,10 +199,18 @@ class LineageGraph(FrozenModel):
             raise ValueError("lineage edge references an unknown node")
         if self.reproducibility_bundle.root_node_id not in node_set:
             raise ValueError("bundle root must reference a lineage node")
-        if not set(self.reproducibility_bundle.node_ids).issubset(node_set):
+        bundle_nodes = set(self.reproducibility_bundle.node_ids)
+        if not bundle_nodes.issubset(node_set):
             raise ValueError("bundle references an unknown lineage node")
-        if not set(self.reproducibility_bundle.edge_ids).issubset(set(edge_ids)):
+        if bundle_nodes != node_set:
+            raise ValueError("bundle must enumerate every lineage node")
+        bundle_edges = set(self.reproducibility_bundle.edge_ids)
+        if not bundle_edges.issubset(set(edge_ids)):
             raise ValueError("bundle references an unknown lineage edge")
+        if bundle_edges != set(edge_ids):
+            raise ValueError("bundle must enumerate every lineage edge")
+        if self.reproducibility_bundle.version != self.version:
+            raise ValueError("bundle version must match graph version")
         adjacency: dict[str, set[str]] = {node_id: set() for node_id in node_set}
         for edge in self.edges:
             adjacency[edge.source_node_id].add(edge.target_node_id)
@@ -276,6 +302,17 @@ class ComplexActivityLineageResult(FrozenModel):
                 self.lineage_graph
             ):
                 raise ValueError("resolved result bundle does not bind graph content")
+            if self.lineage_graph.graph_id != (
+                f"graph.m2702.{self.request_digest.removeprefix('sha256:')}"
+            ):
+                raise ValueError("resolved result graph id does not bind request identity")
+            root_node = next(
+                node
+                for node in self.lineage_graph.nodes
+                if node.node_id == self.lineage_graph.reproducibility_bundle.root_node_id
+            )
+            if root_node.digest != self.request_digest:
+                raise ValueError("resolved result root node does not bind request identity")
         elif (
             self.lineage_graph is not None
             or self.safe_failure_report is None
@@ -288,6 +325,8 @@ class ComplexActivityLineageResult(FrozenModel):
             raise ValueError("abstained result requires safe failure and safe status")
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
+        if self.result_id != f"result.m2702.{self.request_digest.removeprefix('sha256:')}":
+            raise ValueError("result id does not bind request identity")
         return self
 
 
