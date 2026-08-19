@@ -274,6 +274,8 @@ class EmitProteomicsTelemetryRequest(FrozenModel):
         sample_ids = tuple(item.sample_id for item in self.samples)
         if len(sample_ids) != len(set(sample_ids)):
             raise ValueError("request telemetry sample ids must be unique")
+        if not {sample.metric for sample in self.samples} <= set(self.requested_metrics):
+            raise ValueError("request samples must contain only requested metrics")
         sample_times = tuple(item.observed_at for item in self.samples)
         if sample_times != tuple(sorted(sample_times)):
             raise ValueError("request telemetry samples must be ordered by observed_at")
@@ -331,8 +333,8 @@ class ProteomicsTelemetryResult(FrozenModel):
             ):
                 raise ValueError("emitted result requires supported telemetry records")
             sample_metrics = {sample.metric for sample in self.telemetry_stream.samples}
-            if not set(self.request.requested_metrics).issubset(sample_metrics):
-                raise ValueError("emitted stream must cover every requested metric")
+            if sample_metrics != set(self.request.requested_metrics):
+                raise ValueError("emitted stream must contain exactly requested metrics")
             if (
                 self.alert.state in {AlertState.OPEN, AlertState.SUPPRESSED}
                 and not self.human_review_required

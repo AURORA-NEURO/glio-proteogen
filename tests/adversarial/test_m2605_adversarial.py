@@ -14,8 +14,10 @@ from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m26_05 import (
     M2605_M2604_INPUT_MEDIA_TYPE,
+    EmitProteomicsTelemetryRequest,
     ProteomicsTelemetryResult,
     TelemetryMetricKind,
+    TelemetryUnit,
 )
 from glio_proteogen.contracts.m26_05.canonical import result_payload_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError, StrictJsonErrorCode
@@ -157,6 +159,43 @@ def test_self_rehashed_telemetry_mutation_is_rejected_by_all_replay_seams() -> N
         M2605ObservabilityService.verify(forged)
     with pytest.raises(M2605ReplayError):
         M2605Plugin().replay(forged)
+
+
+def test_emitted_result_rejects_self_rehashed_unrequested_metric() -> None:
+    result = M2605ObservabilityEngine().emit(_request())
+    assert result.telemetry_stream is not None
+    extra = result.telemetry_stream.samples[-1].model_copy(
+        update={
+            "sample_id": "m2605.unrequested.reviewer-actions",
+            "metric": TelemetryMetricKind.REVIEWER_ACTIONS,
+            "unit": TelemetryUnit.COUNT,
+        }
+    )
+    stream = result.telemetry_stream.model_copy(
+        update={"samples": (*result.telemetry_stream.samples, extra)}
+    )
+    forged = _self_rehashed_result(result, {"telemetry_stream": stream})
+
+    with pytest.raises(ValidationError, match="exactly requested metrics"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"))
+
+
+def test_request_rejects_unrequested_metric_sample() -> None:
+    request = _request()
+    extra = request.samples[-1].model_copy(
+        update={
+            "sample_id": "m2605.unrequested.reviewer-actions",
+            "metric": TelemetryMetricKind.REVIEWER_ACTIONS,
+            "unit": TelemetryUnit.COUNT,
+        }
+    )
+
+    with pytest.raises(ValidationError, match="only requested metrics"):
+        EmitProteomicsTelemetryRequest.model_validate(
+            request.model_copy(update={"samples": (*request.samples, extra)}).model_dump(
+                mode="python"
+            )
+        )
 
 
 def test_api_and_cli_reject_self_rehashed_telemetry_mutation(tmp_path: Path) -> None:
