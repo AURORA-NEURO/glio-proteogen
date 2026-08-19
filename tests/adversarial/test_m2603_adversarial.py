@@ -109,6 +109,18 @@ def test_plugin_token_is_opaque_and_forged_token_is_rejected() -> None:
         plugin.run(forged)
 
 
+def test_plugin_rejects_foreign_token_and_nested_request_mutation() -> None:
+    request = build_request()
+    first = M2603Plugin()
+    second = M2603Plugin()
+    token = first.validate(request)
+    with pytest.raises(TypeError):
+        second.run(token)
+    object.__setattr__(token.request, "request_id", "m2603.tampered")
+    with pytest.raises(TypeError):
+        first.run(token)
+
+
 def test_strict_json_rejects_duplicate_keys_and_non_object_inputs() -> None:
     service = M2603Service()
     with pytest.raises((StrictJsonError, ValueError)):

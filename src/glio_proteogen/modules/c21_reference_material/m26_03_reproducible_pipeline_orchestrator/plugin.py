@@ -22,15 +22,14 @@ from .service import M2603Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ExecuteProteinSubtypeWorkflowRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinSubtypeExecutionResult)
-_SEAL: Final = object()
-
-
 @dataclass(frozen=True, slots=True)
 class ValidatedM2603Request:
     """Opaque request token issued by the strict parser."""
 
     request: ExecuteProteinSubtypeWorkflowRequest
     _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class M2603Plugin:
@@ -38,6 +37,7 @@ class M2603Plugin:
 
     def __init__(self, service: M2603Service | None = None) -> None:
         self._service = service or M2603Service(M2603Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -65,10 +65,27 @@ class M2603Plugin:
         else:
             preflight_m2603_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2603Request(request=typed, _seal=_SEAL)
+        request_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
+        return ValidatedM2603Request(
+            request=typed,
+            _seal=self._seal,
+            _request_identity=id(typed),
+            _request_bytes=request_bytes,
+        )
 
     def run(self, request: ValidatedM2603Request) -> ProteinSubtypeExecutionResult:
-        if not isinstance(request, ValidatedM2603Request) or request._seal is not _SEAL:
+        if (
+            not isinstance(request, ValidatedM2603Request)
+            or request._seal is not self._seal
+            or type(request.request) is not ExecuteProteinSubtypeWorkflowRequest
+            or id(request.request) != request._request_identity
+        ):
+            raise TypeError
+        try:
+            current_bytes = canonical_json_bytes(request.request.model_dump(mode="json"))
+        except Exception as error:
+            raise TypeError from error
+        if current_bytes != request._request_bytes:
             raise TypeError
         return self._service._execute_validated(request.request)
 
