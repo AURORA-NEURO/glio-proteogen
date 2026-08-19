@@ -113,7 +113,7 @@ def publish(
     """Publish the typed API/SDK/CLI access surface."""
 
     try:
-        result = _SERVICE.publish(_read_request(path))
+        result = _SERVICE._publish_validated(_read_request(path))
     except (ValidationError, ValueError, M2604AuthorizationError) as error:
         raise M2604CliError("request was rejected by the M26-04 gateway") from error  # noqa: TRY003
     data = canonical_json_bytes(result)

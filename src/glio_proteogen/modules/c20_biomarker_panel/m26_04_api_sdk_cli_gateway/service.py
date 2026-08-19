@@ -15,7 +15,7 @@ from glio_proteogen.contracts.m26_04 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2604GatewayEngine, preflight_m2604_authorization
+from .engine import M2604GatewayEngine, M2604ValidatedRequestError, preflight_m2604_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(PublishProteinSubtypeAccessSurfaceRequest)
 
@@ -39,7 +39,17 @@ class M2604Service:
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def publish(self, request: object) -> ProteinSubtypeAccessSurfaceResult:
-        return self._engine.publish(self.validate_request(request))
+        return self._publish_validated(self.validate_request(request))
+
+    def _publish_validated(
+        self, request: PublishProteinSubtypeAccessSurfaceRequest
+    ) -> ProteinSubtypeAccessSurfaceResult:
+        """Execute one exact validated request without a second parse."""
+
+        if type(request) is not PublishProteinSubtypeAccessSurfaceRequest:
+            raise M2604ValidatedRequestError
+        preflight_m2604_authorization(request)
+        return self._engine._publish_validated(request)
 
     def replay(self, result: object) -> ProteinSubtypeAccessSurfaceResult:
         if isinstance(result, (bytes, bytearray, str)):

@@ -54,6 +54,30 @@ def test_strict_plugin_rejects_duplicate_json_keys() -> None:
         plugin.validate(GatewaySubmission('{"request_id":"one","request_id":"two"}'))
 
 
+def test_plugin_bytes_validation_is_parse_once_and_runs_validated_seam() -> None:
+    class CountingService(M2604Service):
+        validate_calls = 0
+        validated_publish_calls = 0
+
+        def validate_request(self, request: object) -> PublishProteinSubtypeAccessSurfaceRequest:
+            self.validate_calls += 1
+            return super().validate_request(request)
+
+        def _publish_validated(
+            self, request: PublishProteinSubtypeAccessSurfaceRequest
+        ) -> ProteinSubtypeAccessSurfaceResult:
+            self.validated_publish_calls += 1
+            return super()._publish_validated(request)
+
+    service = CountingService()
+    plugin = M2604Plugin(service)
+    token = plugin.validate(GatewaySubmission(_request().model_dump_json()))
+    result = plugin.run(token)
+    assert result.result_id.startswith("gateway.m2604.")
+    assert service.validate_calls == 0
+    assert service.validated_publish_calls == 1
+
+
 def test_service_rejects_hostile_mapping_before_model_traversal() -> None:
     class HostileMapping(dict[str, object]):
         def get(self, key: str, default: object = None) -> object:
@@ -343,6 +367,15 @@ def test_service_descriptor_and_plugin_capability_seals_are_closed() -> None:
     with pytest.raises(M2604TokenError):
         other.run(token)
     token._seal = object()
+    with pytest.raises(M2604TokenError):
+        plugin.run(token)
+
+
+def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
+    plugin = M2604Plugin()
+    request = _request()
+    token = plugin.validate(GatewaySubmission(request))
+    object.__setattr__(token, "request", request.model_copy(deep=True))
     with pytest.raises(M2604TokenError):
         plugin.run(token)
 

@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_04 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
+from .engine import preflight_m2604_authorization
 from .service import M2604Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(PublishProteinSubtypeAccessSurfaceRequest)
@@ -32,10 +33,12 @@ class GatewaySubmission:
 class ValidatedM2604Request:
     """Opaque capability proving strict M26-04 validation."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
     def __init__(self, request: PublishProteinSubtypeAccessSurfaceRequest, seal: object) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
         self._seal = seal
 
 
@@ -86,7 +89,10 @@ class M2604Plugin:
         if isinstance(candidate, (bytes, bytearray, str)):
             decoded = strict_json_loads(candidate, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-        validated = self._service.validate_request(candidate)
+            preflight_m2604_authorization(candidate)
+            validated = candidate
+        else:
+            validated = self._service.validate_request(candidate)
         token = ValidatedM2604Request(validated, self._seal)
         _TOKENS[token] = self._seal
         return token
@@ -99,7 +105,17 @@ class M2604Plugin:
             raise M2604TokenError
         if token._seal is not self._seal:
             raise M2604TokenError
-        return self._service.publish(token.request)
+        if type(token.request) is not PublishProteinSubtypeAccessSurfaceRequest:
+            raise M2604TokenError
+        if id(token.request) != token._request_identity:
+            raise M2604TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request.model_dump(mode="json"))
+        except Exception as error:
+            raise M2604TokenError from error
+        if current_bytes != token._request_bytes:
+            raise M2604TokenError
+        return self._service._publish_validated(token.request)
 
     def replay(self, result: object) -> ProteinSubtypeAccessSurfaceResult:
         return self._service.replay(result)

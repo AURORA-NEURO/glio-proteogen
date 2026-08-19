@@ -23,7 +23,7 @@ from glio_proteogen.contracts.m26_04 import (
     result_identifier,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ConsentState,
     ControlDecisionRecord,
@@ -58,6 +58,13 @@ class M2604AuthorizationError(ValueError):
 
 class M2604ReplayError(ValueError):
     """A gateway result failed canonical replay verification."""
+
+
+class M2604ValidatedRequestError(TypeError):
+    """A private validated-execution seam received a non-exact model."""
+
+    def __init__(self) -> None:
+        super().__init__("M26-04 validated execution requires the exact request model")
 
 
 def _member(candidate: object, field: str) -> object:
@@ -262,9 +269,23 @@ class M2604GatewayEngine:
     def publish(self, request: object) -> ProteinSubtypeAccessSurfaceResult:
         preflight_m2604_authorization(request)
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        canonical = _REQUEST_ADAPTER.validate_json(
-            canonical_json_bytes(validated.model_dump(mode="json")), strict=True
-        )
+        return self._publish_validated(validated)
+
+    def _publish_validated(
+        self, request: PublishProteinSubtypeAccessSurfaceRequest
+    ) -> ProteinSubtypeAccessSurfaceResult:
+        """Publish an already strict-validated request without reparsing it.
+
+        This is intentionally a narrow internal seam for adapters that have
+        already performed the byte-boundary parse and authorization preflight.
+        Public callers continue through :meth:`publish`, while the service and
+        sealed plugin can now prove parse-once execution rather than validating
+        the same model a second time.
+        """
+
+        if type(request) is not PublishProteinSubtypeAccessSurfaceRequest:
+            raise M2604ValidatedRequestError
+        canonical = request
         request_digest = canonical_request_digest(canonical)
         evidence = _evidence(canonical)
         findings = _findings(canonical)

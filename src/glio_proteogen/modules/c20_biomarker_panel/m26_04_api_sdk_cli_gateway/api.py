@@ -92,7 +92,7 @@ def create_app(service: M2604Service | None = None) -> FastAPI:
     async def publish(request: Request) -> dict[str, object]:
         payload = _parse_request(await request.body())
         try:
-            result = boundary.publish(payload)
+            result = boundary._publish_validated(payload)
         except (ValidationError, ValueError, M2604AuthorizationError) as error:
             raise _invalid_request(error) from error
         return cast("dict[str, object]", result.model_dump(mode="json"))
