@@ -248,6 +248,9 @@ class AccessSurface(FrozenModel):
             raise ValueError("gateway operation ids must be unique")
         if any(auth.operation_id not in operation_ids for auth in self.authorizations):
             raise ValueError("authorization references unknown operation")
+        authorized_operation_ids = {auth.operation_id for auth in self.authorizations}
+        if authorized_operation_ids != operation_ids:
+            raise ValueError("every gateway operation requires authorization")
         if any(job.operation_id not in operation_ids for job in self.jobs):
             raise ValueError("async job references unknown operation")
         if any(record.operation_id not in operation_ids for record in self.idempotency_records):
@@ -317,6 +320,8 @@ class PublishProteinSubtypeAccessSurfaceRequest(FrozenModel):
         )
         if any(item.operation_id not in known for group in references for item in group):
             raise ValueError("gateway material references an unknown operation")
+        if {item.operation_id for item in self.authorizations} != known:
+            raise ValueError("every gateway operation requires authorization")
         source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source artifacts must have unique artifact IDs")
