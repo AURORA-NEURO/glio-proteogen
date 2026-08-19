@@ -404,8 +404,19 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
         current = winners.get(psm.spectrum_id)
         if current is None or _competition_sort_key(psm) > _competition_sort_key(current):
             winners[psm.spectrum_id] = psm
+    # Equal-score winners from different spectra are still indistinguishable
+    # target/decoy evidence.  Process collision and pure-decoy winners before
+    # targets so a lexical spectrum ID cannot manufacture a zero q-value.
     ordered = sorted(
-        winners.values(), key=lambda value: (-value.score, value.spectrum_id, value.peptide)
+        winners.values(),
+        key=lambda value: (
+            -value.score,
+            -int(value.target_decoy_collision),
+            -int(value.decoy),
+            value.spectrum_id,
+            value.peptide,
+            value.protein_accessions,
+        ),
     )
     has_decoy_evidence = any(psm.decoy or psm.target_decoy_collision for psm in ordered)
     decoys = 0
