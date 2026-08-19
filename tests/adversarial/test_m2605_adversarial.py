@@ -71,6 +71,14 @@ def test_plugin_rejects_oversized_and_cross_plugin_tokens() -> None:
     assert isinstance(object_submission, ValidatedM2605Request)
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2605Plugin()
+    token = plugin.validate(TelemetrySubmission(_request()))
+    object.__setattr__(token.request, "request_id", "m2605.tampered")
+    with pytest.raises(TypeError, match="validated"):
+        plugin.run(token)
+
+
 def test_preflight_fails_closed_for_hostile_mapping() -> None:
     class HostileMapping:
         @property

@@ -130,6 +130,14 @@ def test_plugin_strict_json_decode_is_called_once(monkeypatch: pytest.MonkeyPatc
     assert calls == 1
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    plugin = M2607Plugin()
+    token = plugin.validate(RollbackSubmission(_request()))
+    object.__setattr__(token.request, "request_id", "m2607.tampered")
+    with pytest.raises(TypeError, match="validated"):
+        plugin.run(token)
+
+
 def test_api_covers_schema_lookup_and_sanitized_parse_errors() -> None:
     request = _request()
     rejected = request.context.references.support.model_copy(

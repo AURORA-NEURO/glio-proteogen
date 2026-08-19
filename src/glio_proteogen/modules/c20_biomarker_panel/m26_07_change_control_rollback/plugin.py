@@ -30,10 +30,17 @@ class RollbackSubmission:
 
 
 class ValidatedM2607Request:
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
-    def __init__(self, request: ControlProteinSubtypeChangeRequest, seal: object) -> None:
+    def __init__(
+        self,
+        request: ControlProteinSubtypeChangeRequest,
+        seal: object,
+        request_bytes: bytes = b"",
+    ) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = request_bytes
         self._seal = seal
 
 
@@ -80,14 +87,27 @@ class M2607Plugin:
             decoded = strict_json_loads(candidate, max_bytes=M2607_MAX_CANONICAL_REQUEST_BYTES)
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         validated = self._service.validate_request(candidate)
-        token = ValidatedM2607Request(validated, self._seal)
+        if type(validated) is not ControlProteinSubtypeChangeRequest:
+            raise M2607TokenError
+        request_bytes = canonical_json_bytes(validated.model_dump(mode="json"))
+        token = ValidatedM2607Request(validated, self._seal, request_bytes)
         _TOKENS[token] = self._seal
         return token
 
     def run(self, token: ValidatedM2607Request) -> ProteinSubtypeChangeControlResult:
         if not isinstance(token, ValidatedM2607Request) or _TOKENS.get(token) is not self._seal:
             raise M2607TokenError
-        if token._seal is not self._seal:
+        if (
+            token._seal is not self._seal
+            or type(token.request) is not ControlProteinSubtypeChangeRequest
+            or id(token.request) != token._request_identity
+        ):
+            raise M2607TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request.model_dump(mode="json"))
+        except Exception as error:
+            raise M2607TokenError from error
+        if current_bytes != token._request_bytes:
             raise M2607TokenError
         return self._service.control(token.request)
 
