@@ -113,6 +113,15 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
         plugin.run(cast("Any", object()))
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    request = _request()
+    plugin = M2108Plugin()
+    token = plugin.validate(request)
+    object.__setattr__(token.request, "request_id", "m2108.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_replay_rejects_payload_and_request_tampering() -> None:
     engine = M2108Engine()
     result = engine.evaluate(_request())

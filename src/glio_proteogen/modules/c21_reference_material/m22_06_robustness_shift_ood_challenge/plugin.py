@@ -21,15 +21,14 @@ from .service import M2206Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ChallengeProteinRnaDiscordanceRobustnessRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaDiscordanceRobustnessChallengeResult)
-_SEAL: Final = object()
-
-
 @dataclass(frozen=True, slots=True)
 class ValidatedM2206Request:
     """Opaque request token issued by the strict parser."""
 
     request: ChallengeProteinRnaDiscordanceRobustnessRequest
     _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class M2206Plugin:
@@ -37,6 +36,7 @@ class M2206Plugin:
 
     def __init__(self, service: M2206Service | None = None) -> None:
         self._service = service or M2206Service(M2206Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -64,10 +64,22 @@ class M2206Plugin:
         else:
             preflight_m2206_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2206Request(request=typed, _seal=_SEAL)
+        return ValidatedM2206Request(
+            request=typed,
+            _seal=self._seal,
+            _request_identity=id(typed),
+            _request_bytes=canonical_json_bytes(typed.model_dump(mode="json")),
+        )
 
     def run(self, request: ValidatedM2206Request) -> ProteinRnaDiscordanceRobustnessChallengeResult:
-        if not isinstance(request, ValidatedM2206Request) or request._seal is not _SEAL:
+        if (
+            not isinstance(request, ValidatedM2206Request)
+            or request._seal is not self._seal
+            or type(request.request) is not ChallengeProteinRnaDiscordanceRobustnessRequest
+            or id(request.request) != request._request_identity
+        ):
+            raise TypeError
+        if canonical_json_bytes(request.request.model_dump(mode="json")) != request._request_bytes:
             raise TypeError
         return self._service._execute_validated(request.request)
 

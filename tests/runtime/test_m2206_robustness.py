@@ -88,6 +88,15 @@ def test_service_plugin_replay_and_public_entrypoint_parity() -> None:
     assert public == result
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    request = _request()
+    plugin = M2206Plugin()
+    token = plugin.validate(request)
+    object.__setattr__(token.request, "request_id", "m2206.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_replay_rejects_tampered_payload() -> None:
     engine = M2206Engine()
     result = engine.evaluate(_request())

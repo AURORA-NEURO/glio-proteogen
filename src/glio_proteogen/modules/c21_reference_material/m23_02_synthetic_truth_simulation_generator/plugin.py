@@ -21,15 +21,14 @@ from .service import M2302Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(GenerateVariantPeptideSyntheticTruthRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(VariantPeptideSyntheticTruthResult)
-_SEAL: Final = object()
-
-
 @dataclass(frozen=True, slots=True)
 class ValidatedM2302Request:
     """Opaque request token issued by the strict parser."""
 
     request: GenerateVariantPeptideSyntheticTruthRequest
     _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class M2302Plugin:
@@ -37,6 +36,7 @@ class M2302Plugin:
 
     def __init__(self, service: M2302Service | None = None) -> None:
         self._service = service or M2302Service(M2302Engine())
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return ModuleDescriptor(
@@ -64,10 +64,22 @@ class M2302Plugin:
         else:
             preflight_m2302_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2302Request(request=typed, _seal=_SEAL)
+        return ValidatedM2302Request(
+            request=typed,
+            _seal=self._seal,
+            _request_identity=id(typed),
+            _request_bytes=canonical_json_bytes(typed.model_dump(mode="json")),
+        )
 
     def run(self, request: ValidatedM2302Request) -> VariantPeptideSyntheticTruthResult:
-        if not isinstance(request, ValidatedM2302Request) or request._seal is not _SEAL:
+        if (
+            not isinstance(request, ValidatedM2302Request)
+            or request._seal is not self._seal
+            or type(request.request) is not GenerateVariantPeptideSyntheticTruthRequest
+            or id(request.request) != request._request_identity
+        ):
+            raise TypeError
+        if canonical_json_bytes(request.request.model_dump(mode="json")) != request._request_bytes:
             raise TypeError
         return self._service.execute(request.request)
 

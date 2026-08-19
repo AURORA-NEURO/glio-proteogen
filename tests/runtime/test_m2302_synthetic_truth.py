@@ -71,6 +71,15 @@ def test_plugin_rejects_forged_token() -> None:
         plugin.run(forged)
 
 
+def test_plugin_rejects_nested_request_mutation() -> None:
+    request = _request()
+    plugin = m2302.M2302Plugin()
+    token = plugin.validate(request)
+    object.__setattr__(token.request, "request_id", "m2302.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_replay_rejects_tampered_case_payload() -> None:
     result = m2302.M2302Engine().generate(_request())
     tampered = result.model_dump(mode="python")
