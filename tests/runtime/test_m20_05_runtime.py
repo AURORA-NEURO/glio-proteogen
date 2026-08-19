@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m20_05 import ReviewItemStatus, WorkspaceStatus
+from glio_proteogen.contracts.m20_05.canonical import result_payload_digest
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
     M2005AuthorizationError,
     M2005ReplayError,
@@ -80,6 +81,17 @@ def test_replay_rejects_tampered_request_or_result_digest() -> None:
                 }
             )
         )
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = M2005Service()
+    result = service.present(_request())
+    limitation = result.limitations[0].model_copy(update={"statement": "tampered"})
+    tampered = result.model_copy(update={"limitations": (limitation, *result.limitations[1:])})
+    forged = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M2005ReplayError, match="deterministic replay"):
+        service.replay(forged)
 
 
 def test_service_requires_typed_request() -> None:

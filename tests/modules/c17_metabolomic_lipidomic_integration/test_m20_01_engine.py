@@ -8,6 +8,7 @@ from glio_proteogen.contracts.m20_01 import (
     CompatibilityStatus,
     ResolverStatus,
 )
+from glio_proteogen.contracts.m20_01.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_01_upstream_contract_resolver import (  # noqa: E501
     M2001AuthorizationError,
@@ -103,6 +104,17 @@ def test_replay_rejects_tampered_request_identity_and_digest() -> None:
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     with pytest.raises(M2001ReplayError, match="request digest"):
         engine.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    engine = M2001Engine()
+    result = engine.resolve(_request())
+    limitation = result.limitations[0].model_copy(update={"statement": "tampered"})
+    tampered = result.model_copy(update={"limitations": (limitation, *result.limitations[1:])})
+    forged = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M2001ReplayError, match="deterministic replay"):
+        engine.replay(forged)
 
 
 def test_plugin_descriptor_is_sealed_to_safe_m20_01_boundary() -> None:
