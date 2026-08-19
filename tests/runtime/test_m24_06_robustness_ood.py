@@ -108,3 +108,27 @@ def test_replay_rejects_self_rehashed_safe_failure_and_denied_control() -> None:
     )
     with pytest.raises(m2406.AuthorizationError):
         service.evaluate(request().model_copy(update={"context": denied_context}))
+
+
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = m2406.M2406Plugin(m2406.M2406Service())
+    second = m2406.M2406Plugin(m2406.M2406Service())
+    token = first.validate(m2406.RobustnessSubmission(request()))
+
+    assert first.run(token).status is RobustnessStatus.EVALUATED
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = m2406.ValidatedM2406Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(m2406.RobustnessSubmission(request()))
+    object.__setattr__(mutated.request, "request_id", "m2406.forged.request")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(m2406.RobustnessSubmission(request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
