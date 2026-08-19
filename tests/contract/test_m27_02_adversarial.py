@@ -16,7 +16,10 @@ from glio_proteogen.contracts.m27_02 import (
     ResolveComplexActivityLineageRequest,
     result_payload_digest,
 )
-from glio_proteogen.contracts.m27_02.canonical import graph_payload_digest
+from glio_proteogen.contracts.m27_02.canonical import (
+    canonical_request_digest,
+    graph_payload_digest,
+)
 from glio_proteogen.kernel.models import EvidenceReference
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
@@ -45,6 +48,23 @@ def test_request_rejects_non_m2701_upstream_media_type() -> None:
             ),
             strict=True,
         )
+
+
+def test_result_rejects_self_rehashed_context_identity_drift() -> None:
+    result = M2702LineageResolver().resolve(_request())
+    mutated_context = result.request.context.model_copy(
+        update={"request_id": "request.m2702.context-forged"}
+    )
+    mutated_request = result.request.model_copy(update={"context": mutated_context})
+    forged = result.model_copy(
+        update={
+            "request": mutated_request,
+            "request_digest": canonical_request_digest(mutated_request),
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="request id must bind execution context"):
+        ComplexActivityLineageResult.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_plugin_rejects_duplicate_json_keys_before_validation() -> None:
