@@ -9,6 +9,7 @@ demonstrated. No model weights, private data, or signer authority live here.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -84,24 +85,40 @@ class BuiltProteinRepresentation:
             raise RepresentationInputError("result_noncanonical")
 
 
-def preflight_representation_authorization(request: object) -> None:
-    """Apply shared consent, identity, and accepted-control gates when typed."""
+def _member(value: object, field: str) -> object:
+    if isinstance(value, Mapping):
+        return value.get(field)
+    return getattr(value, field, None)
 
-    if not isinstance(request, BuildProteinRepresentationRequest):
+
+def _state(value: object) -> object:
+    return getattr(value, "value", value)
+
+
+def preflight_representation_authorization(request: object) -> None:
+    """Apply authorization before strict validation for typed or mapping requests."""
+
+    if not isinstance(request, (BuildProteinRepresentationRequest, Mapping)):
         return
-    refs = request.context.references
-    if refs.consent.state is not ConsentState.GRANTED:
-        raise RepresentationAuthorizationError
-    if refs.identity_lineage.state is not IdentityLineageState.RESOLVED:
-        raise RepresentationAuthorizationError
-    controls = (
-        refs.approved_configuration,
-        refs.provenance,
-        refs.quality,
-        refs.support,
-        refs.intended_use,
-    )
-    if any(item.state is not UpstreamDecisionState.ACCEPTED for item in controls):
+    expected = {
+        "approved_configuration": UpstreamDecisionState.ACCEPTED.value,
+        "identity_lineage": IdentityLineageState.RESOLVED.value,
+        "provenance": UpstreamDecisionState.ACCEPTED.value,
+        "consent": ConsentState.GRANTED.value,
+        "quality": UpstreamDecisionState.ACCEPTED.value,
+        "support": UpstreamDecisionState.ACCEPTED.value,
+        "intended_use": UpstreamDecisionState.ACCEPTED.value,
+    }
+    try:
+        context = _member(request, "context")
+        refs = _member(context, "references")
+        states = {
+            role: _state(_member(_member(refs, role), "state"))
+            for role in expected
+        }
+    except Exception:  # noqa: BLE001 - hostile objects fail closed.
+        raise RepresentationAuthorizationError from None
+    if states != expected:
         raise RepresentationAuthorizationError
 
 

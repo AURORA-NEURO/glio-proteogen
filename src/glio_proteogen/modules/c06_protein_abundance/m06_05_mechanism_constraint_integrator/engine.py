@@ -9,6 +9,7 @@ and parent-output emission are intentionally absent.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -95,24 +96,40 @@ class BuiltConstraintIntegration:
             raise ConstraintIntegrationInputError("result_noncanonical")
 
 
-def preflight_constraint_integration_authorization(request: object) -> None:
-    """Apply consent, identity, and accepted upstream-control gates."""
+def _member(value: object, field: str) -> object:
+    if isinstance(value, Mapping):
+        return value.get(field)
+    return getattr(value, field, None)
 
-    if not isinstance(request, IntegrateProteinAbundanceConstraintsRequest):
+
+def _state(value: object) -> object:
+    return getattr(value, "value", value)
+
+
+def preflight_constraint_integration_authorization(request: object) -> None:
+    """Apply authorization before strict validation for typed or mapping requests."""
+
+    if not isinstance(request, (IntegrateProteinAbundanceConstraintsRequest, Mapping)):
         return
-    refs = request.context.references
-    if refs.consent.state is not ConsentState.GRANTED:
-        raise ConstraintIntegrationAuthorizationError
-    if refs.identity_lineage.state is not IdentityLineageState.RESOLVED:
-        raise ConstraintIntegrationAuthorizationError
-    controls = (
-        refs.approved_configuration,
-        refs.provenance,
-        refs.quality,
-        refs.support,
-        refs.intended_use,
-    )
-    if any(item.state is not UpstreamDecisionState.ACCEPTED for item in controls):
+    expected = {
+        "approved_configuration": UpstreamDecisionState.ACCEPTED.value,
+        "identity_lineage": IdentityLineageState.RESOLVED.value,
+        "provenance": UpstreamDecisionState.ACCEPTED.value,
+        "consent": ConsentState.GRANTED.value,
+        "quality": UpstreamDecisionState.ACCEPTED.value,
+        "support": UpstreamDecisionState.ACCEPTED.value,
+        "intended_use": UpstreamDecisionState.ACCEPTED.value,
+    }
+    try:
+        context = _member(request, "context")
+        refs = _member(context, "references")
+        states = {
+            role: _state(_member(_member(refs, role), "state"))
+            for role in expected
+        }
+    except Exception:  # noqa: BLE001 - hostile objects fail closed.
+        raise ConstraintIntegrationAuthorizationError from None
+    if states != expected:
         raise ConstraintIntegrationAuthorizationError
 
 
