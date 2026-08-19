@@ -264,6 +264,41 @@ class EvaluateComplexActivityExternalTransportRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: ComplexActivityExternalTransportResult) -> str | None:
+    expected_inputs = tuple(
+        dict.fromkeys(
+            (
+                result.request_digest,
+                result.request.benchmark_package.digest,
+                *(artifact.digest for artifact in result.request.source_artifacts),
+            )
+        )
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2104_MODULE_ID,
+            "result provenance module does not bind M21-04",
+        ),
+        (
+            result.provenance.module_version == M2104_CONTRACT_VERSION,
+            "result provenance version does not bind M21-04",
+        ),
+        (
+            result.provenance.configuration_digest
+            == result.request.context.references.approved_configuration.evidence.digest,
+            "result provenance configuration does not bind the request",
+        ),
+        (
+            result.provenance.input_digests == expected_inputs,
+            "result provenance inputs do not bind upstream and source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ComplexActivityExternalTransportResult(FrozenModel):
     """Transportability result with support-domain narrowing and abstention."""
 
@@ -294,6 +329,9 @@ class ComplexActivityExternalTransportResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request):
             raise ValueError("result id must be deterministically bound to the request")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         evidence_digests = tuple(item.reference.digest for item in self.evidence)
         if len(evidence_digests) != len(set(evidence_digests)):
             raise ValueError("result evidence must be unique")

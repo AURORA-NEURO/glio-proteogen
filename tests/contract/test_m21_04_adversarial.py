@@ -159,6 +159,29 @@ def test_result_digest_identifier_and_request_binding_are_immutable() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "provenance_update",
+    [
+        {"module_id": "GLIO-PROTEOGEN-M21-03"},
+        {"module_version": "9.9.9"},
+        {"configuration_digest": "sha256:" + "f" * 64},
+        {"input_digests": ("sha256:" + "f" * 64,)},
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    provenance_update: dict[str, object],
+) -> None:
+    engine = M2104Engine()
+    result = engine.evaluate(_request())
+    tampered = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update=provenance_update)}
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M2104ReplayError):
+        engine.replay(tampered)
+
+
 def test_result_evidence_and_finding_ids_remain_unique() -> None:
     result = M2104Engine().evaluate(_request())
     adapter = TypeAdapter(ComplexActivityExternalTransportResult)
