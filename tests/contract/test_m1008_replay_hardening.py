@@ -38,10 +38,11 @@ class _DictSubclass(dict[str, Any]):
 
 
 def test_canonical_projection_rejects_hostile_mapping_without_access() -> None:
+    hostile: Any = _HostileMapping()
     with pytest.raises(TypeError, match="exact dicts"):
-        canonical_request_digest(_HostileMapping())
+        canonical_request_digest(hostile)
     with pytest.raises(TypeError, match="exact dicts"):
-        result_payload_digest(_HostileMapping())
+        result_payload_digest(hostile)
 
 
 def test_canonical_projection_rejects_dict_subclass() -> None:
