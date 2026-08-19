@@ -18,6 +18,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregat
     M1903Plugin,
     M1903ReplayError,
     M1903Service,
+    ValidatedM1903Request,
 )
 from tests.contract.test_m19_03_adversarial import _artifact, _evidence, _request
 
@@ -144,3 +145,27 @@ def test_service_and_plugin_use_same_canonical_runtime() -> None:
     assert plugin.descriptor.parent_target == "proteotype"
     assert plugin.run(request) == service_result
     assert plugin.replay(service_result) == service_result
+
+
+def test_plugin_validated_capability_rejects_forged_cross_instance_and_mutated_requests() -> None:
+    request = _request()
+    plugin = M1903Plugin()
+    other = M1903Plugin()
+    token = plugin.validate(request)
+    forged = ValidatedM1903Request(request=token.request, _seal=object())
+
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request"):
+        other.run(token)
+
+    changed_source = token.request.contributions[0].model_copy(
+        update={"claim": "forged source claim"}
+    )
+    object.__setattr__(
+        token.request,
+        "contributions",
+        (changed_source, *token.request.contributions[1:]),
+    )
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(token)
