@@ -282,7 +282,7 @@ def infer_protein_group_candidates(
     return finalized, summary
 
 
-def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
     """Order group contenders conservatively on exact score ties.
 
     A collision is unresolved evidence and therefore outranks a pure target;
@@ -296,6 +296,11 @@ def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[st
         value.decoy,
         value.peptide,
         value.protein_accessions,
+        # Group-level replay receives the same duplicate contender hazard as
+        # peptide-level FDR.  Keep the primary tie policy above, then order the
+        # complete candidate projection so digest and winner selection are
+        # independent of caller iteration order.
+        json.dumps(_psm_payload(value), sort_keys=True, separators=(",", ":")),
     )
 
 

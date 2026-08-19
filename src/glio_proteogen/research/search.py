@@ -292,7 +292,7 @@ def _precursor_mz(
     return (neutral_mass + (charge * _PROTON)) / charge
 
 
-def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
     """Order candidates conservatively when scores are exactly tied.
 
     Equal target/decoy evidence cannot support a target preference. Collision
@@ -307,6 +307,12 @@ def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str
         value.decoy,
         value.peptide,
         value.protein_accessions,
+        # The identity/class fields above preserve the declared tie policy.
+        # Measurements are a final canonical tie-break so duplicate contenders
+        # cannot make direct FDR calls or competition receipts depend on input
+        # iteration order.  This is not a new acceptance preference: it only
+        # orders otherwise indistinguishable candidates for replay.
+        json.dumps(_candidate_payload(value), sort_keys=True, separators=(",", ":")),
     )
 
 
@@ -349,7 +355,7 @@ def _assign_fragment_peaks(
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(  # noqa: PLR0917 - comparator keeps all DP tie-break state explicit.
+    def better(
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
