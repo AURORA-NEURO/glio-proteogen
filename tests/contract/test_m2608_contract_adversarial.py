@@ -23,6 +23,7 @@ from glio_proteogen.contracts.m26_08 import (
     RetireProteinSubtypeServiceRequest,
 )
 from glio_proteogen.contracts.m26_08.canonical import canonical_request_digest
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -119,17 +120,21 @@ def _archive() -> LongTermArchive:
 
 
 def _package(**changes: object) -> RetirementPackage:
-    values: dict[str, object] = {
-        "package_id": "package-1",
-        "version": "0.1.0",
-        "status": RetirementStatus.EXECUTED,
+    contents: dict[str, object] = {
         "criteria": (_criterion(),),
         "migrations": (_migration(),),
         "preserved_evidence": (_preservation(),),
         "communications": (_communication(),),
         "archive": _archive(),
         "configuration": _configuration(),
-        "package_digest": "sha256:" + "e" * 64,
+    }
+    contents.update({key: value for key, value in changes.items() if key in contents})
+    values: dict[str, object] = {
+        "package_id": "package-1",
+        "version": "0.1.0",
+        "status": RetirementStatus.EXECUTED,
+        **contents,
+        "package_digest": sha256_digest(contents),
         "evidence": (_evidence(),),
     }
     values.update(changes)
@@ -145,6 +150,11 @@ def test_executed_package_accepts_closed_evidence_graph() -> None:
     package = _package()
     assert package.status.value == "executed"
     assert package.archive.manifest.artifact_id == "archive-manifest"
+
+
+def test_package_rejects_stale_canonical_digest() -> None:
+    with pytest.raises(ValidationError, match="package digest"):
+        _package(package_digest="sha256:" + "e" * 64)
 
 
 def test_archive_manifest_must_be_preserved() -> None:

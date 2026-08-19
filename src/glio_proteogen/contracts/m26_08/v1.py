@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_08.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -213,6 +214,18 @@ class RetirementPackage(FrozenModel):
             for item in self.migrations
         ):
             raise ValueError("completed migration must change its dependency reference")
+        expected_digest = sha256_digest(
+            {
+                "criteria": self.criteria,
+                "migrations": self.migrations,
+                "preserved_evidence": self.preserved_evidence,
+                "communications": self.communications,
+                "archive": self.archive,
+                "configuration": self.configuration,
+            }
+        )
+        if self.package_digest != expected_digest:
+            raise ValueError("retirement package digest must bind its canonical contents")
         if self.status is RetirementStatus.EXECUTED:
             if any(not item.satisfied for item in self.criteria):
                 raise ValueError("executed package cannot contain unsatisfied criteria")
