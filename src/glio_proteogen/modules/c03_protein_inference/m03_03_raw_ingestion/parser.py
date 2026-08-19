@@ -52,6 +52,10 @@ _KEY_VALUE_PART_COUNT: Final = 2
 
 _IDENTIFIER: Final = re.compile(r"^[a-zA-Z][a-zA-Z0-9._:-]{0,127}$")
 _MZIDENT_ID: Final = re.compile(r"^[A-Za-z_][A-Za-z0-9._-]{0,127}$")
+# mzML ``id`` values are opaque strings rather than XML ``ID`` values.  In particular, the
+# controlled examples use values such as ``scan=1``.  Keep the structural boundary permissive
+# enough for the format while still rejecting whitespace/control data and pathological IDs.
+_MZML_ID: Final = re.compile(r"^[^\s\x00-\x1f\x7f]{1,255}$")
 _FASTA_IDENTIFIER: Final = re.compile(r"^[^\s\x00-\x1f\x7f>]{1,255}$")
 
 
@@ -291,7 +295,9 @@ def _parse_shared_profile(
         _validate_fasta_identifiers(payload)
     metadata: dict[str, object] = {}
     references = 0
-    if raw_format is RawFormat.MZIDENTML:
+    if raw_format is RawFormat.MZML:
+        references = _validate_mzml_references(payload)
+    elif raw_format is RawFormat.MZIDENTML:
         references, metadata = _validate_mzidentml_references(payload)
     elif raw_format in {RawFormat.VCF, RawFormat.GFF3}:
         metadata = _assembly_metadata(payload, raw_format)
@@ -346,6 +352,61 @@ def _mzidentml_index(
                 raise _ParseFailure
             references.append(value)
     return identifiers, references
+
+
+def _validate_mzml_references(payload: bytes) -> int:
+    """Close the local mzML identifier/reference graph without reading scientific values.
+
+    M01-03 proves only that an XML document has an mzML-shaped root.  M03-03 additionally
+    promises identifier/reference closure, so duplicate IDs and dangling ``*Ref`` attributes
+    must be rejected before the source can become an admitted input.  This intentionally does
+    not interpret ``spectrum`` IDs or binary arrays; those remain opaque structural metadata.
+    """
+
+    root = _xml_root(payload)
+    if _local(root.tag) == "indexedmzML":
+        mzml_roots = [child for child in root if _local(child.tag) == "mzML"]
+        if len(mzml_roots) != 1:
+            raise _ParseFailure
+    elif _local(root.tag) != "mzML":
+        raise _ParseFailure
+
+    identifiers, references = _mzml_index(root)
+    if any(value not in identifiers for value in references):
+        raise _DanglingReference
+    return len(references)
+
+
+def _mzml_index(root: Element) -> tuple[set[str], list[str]]:
+    identifiers: set[str] = set()
+    references: list[str] = []
+    for element in root.iter():
+        identifier = element.attrib.get("id")
+        if identifier is not None:
+            _record_mzml_identifier(identifier, identifiers)
+        references.extend(_mzml_reference_values(element))
+    return identifiers, references
+
+
+def _record_mzml_identifier(identifier: str, identifiers: set[str]) -> None:
+    if not _MZML_ID.fullmatch(identifier) or identifier in identifiers:
+        raise _ParseFailure
+    identifiers.add(identifier)
+
+
+def _mzml_reference_values(element: Element) -> tuple[str, ...]:
+    """Return validated local ``*Ref`` values; do not interpret cross-document labels."""
+
+    values: list[str] = []
+    for attribute, value in element.attrib.items():
+        # mzML uses both ``*_ref`` and mixed-case ``*Ref`` spellings.  Restrict the
+        # closure to explicit reference attributes; values such as ``spectrumID`` are
+        # cross-document labels and are intentionally not resolved here.
+        if attribute.casefold().endswith("ref"):
+            if not _MZML_ID.fullmatch(value):
+                raise _ParseFailure
+            values.append(value)
+    return tuple(values)
 
 
 def _validate_mzidentml_references(payload: bytes) -> tuple[int, dict[str, object]]:
