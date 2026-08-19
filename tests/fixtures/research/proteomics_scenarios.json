@@ -1,5 +1,5 @@
 {
-  "fixture_version": "research-proteomics-4",
+  "fixture_version": "research-proteomics-5",
   "scenarios": [
     {
       "id": "target_supported",
@@ -20,7 +20,7 @@
         "competition_digest": "974a32d2bf9338134ffdc48cf3c1a1529a0b2b1a9cd781a734bbcbd8330f86fd",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -39,7 +39,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "0ad4ba05cb74d16f85ee61f4b0fe776476b76baf1d02f736f0b0715c8ec19ea4",
+      "expected_result_digest": "b333b0b7dd4338765227cb21cb1d110a80767ad71120b076533e85d19c8bcd8e",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -115,7 +115,7 @@
         "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -134,7 +134,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "639e5c5702dfa88ca901b1f94c1d6162916e2544df12238c364f831af99cb3a3",
+      "expected_result_digest": "e6ef4de3734a84e09d1cecf69b9fd04e667d00cf29788bf73c729f3c92b90c5b",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -213,7 +213,7 @@
         "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -233,7 +233,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "84d0c2de73c0aade463d86782450f78658934e0432dc8100b7a40b3b247b9923",
+      "expected_result_digest": "4ed54f41f63db043eb826a934d96feeb590c30690959ff7e37f8832591da8d5e",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -310,7 +310,7 @@
         "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "input_psms": 0,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -320,7 +320,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "dc628fc9e481cc4362e3411cbafa5f76f448e988f47fa4b38189f2e66a4d2634",
+      "expected_result_digest": "ddcac60df8933f99eeb0fde43b6db7d884029aa5e8e116f5f8e9d9e48959cda5",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -382,7 +382,7 @@
         "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "input_psms": 0,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -392,7 +392,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "c0b9483cb71cb6c08c2cbb57d156a689adbafa7b09fb08da3baccd7340377dde",
+      "expected_result_digest": "e9764cc2af4ed5e65c209324fd9b464fca7071fc0351c339128f23a33891ec3a",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -459,8 +459,8 @@
             "P1",
             "P2"
           ],
-          "status": "missing",
-          "primary_intensity": null
+          "primary_intensity": null,
+          "status": "missing"
         }
       ],
       "expected_group_fdr": {
@@ -473,7 +473,7 @@
         "competition_digest": "ee21ffc55ede3f68bd48d289f51c616e78119033a3e790be9cc12c4a05746b3b",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 1,
@@ -493,7 +493,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "4a2d691f3df391ecaf9796d91f63af490974d27cf27bc4e1622a743f697f4c2d",
+      "expected_result_digest": "ccccb3e9ea4f06803ad53e99982ba804ad46a9d4555f123ae9b5b4eea30341f0",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -570,7 +570,7 @@
         "competition_digest": "974a32d2bf9338134ffdc48cf3c1a1529a0b2b1a9cd781a734bbcbd8330f86fd",
         "input_psms": 1,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -589,7 +589,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "71248c81300dfbd378bdc9182280679be17898061d7a931e9f362d976288b8f0",
+      "expected_result_digest": "e1a47a5d90a4cc906b2b64cf89cf2cb8469d626021c3305442b105037022645a",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -667,7 +667,7 @@
         "competition_digest": "c008923781fc9285dbf8c4e10b8c5de3c979f5f364515f0e60c29f2446d74881",
         "input_psms": 2,
         "max_accepted_q_value": null,
-        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-4",
+        "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
         "q_value_threshold": 0.01,
         "target_candidates": 2,
         "shared_only_candidates": 0,
@@ -694,7 +694,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "3455c691321dd8761d5f6eefff9d3c4d01a12ea78fc7583ce371fc2e5bbf703c",
+      "expected_result_digest": "98e8f03721b389ac536a4a957f5c05cd240de6703c02b82986f3f8b8d22ccdbe",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
