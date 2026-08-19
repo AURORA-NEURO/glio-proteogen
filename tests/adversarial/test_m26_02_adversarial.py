@@ -62,6 +62,27 @@ def test_missing_upstream_source_is_not_accepted() -> None:
         M2602LineageService().execute(candidate)
 
 
+def test_duplicate_source_identity_or_digest_is_not_accepted() -> None:
+    request = _request()
+    duplicate_id = request.model_copy(
+        update={"source_artifacts": (request.upstream_registry_artifact,) * 2}
+    )
+    with pytest.raises(ValidationError, match="source artifact ids"):
+        M2602LineageService().execute(duplicate_id)
+    duplicate_digest = request.model_copy(
+        update={
+            "source_artifacts": (
+                request.upstream_registry_artifact,
+                request.upstream_registry_artifact.model_copy(
+                    update={"artifact_id": "different-source"}
+                ),
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="source artifact digests"):
+        M2602LineageService().execute(duplicate_digest)
+
+
 def test_duplicate_edge_and_unknown_edge_are_rejected() -> None:
     request = _request()
     duplicate = request.model_copy(update={"edges": (*request.edges, request.edges[0])})

@@ -252,6 +252,12 @@ class BuildProteinSubtypeLineageRequest(FrozenModel):
             raise ValueError("upstream registry artifact must use the declared M26-01 media type")
         if self.upstream_registry_artifact not in self.source_artifacts:
             raise ValueError("upstream registry artifact must be included in source artifacts")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("source artifact ids must be unique")
+        source_digests = tuple(item.digest for item in self.source_artifacts)
+        if len(source_digests) != len(set(source_digests)):
+            raise ValueError("source artifact digests must be unique")
         if len(self.edges) != len({edge.edge_id for edge in self.edges}):
             raise ValueError("request lineage edge ids must be unique")
         return self
