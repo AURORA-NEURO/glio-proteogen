@@ -26,6 +26,7 @@ _MAX_PLAIN_DEPTH: Final = 64
 _MAX_PLAIN_DICT_ITEMS: Final = 512
 _MAX_PLAIN_SEQUENCE_ITEMS: Final = 250_000
 _MAX_PLAIN_NODES: Final = 250_000
+_MAX_PLAIN_BYTES: Final = 4 * 1024 * 1024
 
 
 def _contracts() -> Any:  # noqa: ANN401 - shared private module accessor.
@@ -467,15 +468,25 @@ def _state_text(candidate: object) -> object:
     return None
 
 
-def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
+def _charge_plain_bytes(budget: list[int], value: str) -> None:
+    """Bound caller-controlled UTF-8 strings before strict request replay."""
+
+    budget[0] -= len(value.encode("utf-8")) + 2
+    if budget[0] < 0:
+        raise _InvalidPlainValueError
+
+
+def _plain_value(  # noqa: C901, PLR0912 - exact built-in traversal firewall.
     candidate: object,
     *,
     _depth: int = 0,
     _budget: list[int] | None = None,
+    _byte_budget: list[int] | None = None,
 ) -> object:
     if _depth > _MAX_PLAIN_DEPTH:
         raise _InvalidPlainValueError
     budget = [_MAX_PLAIN_NODES] if _budget is None else _budget
+    byte_budget = [_MAX_PLAIN_BYTES] if _byte_budget is None else _byte_budget
     budget[0] -= 1
     if budget[0] < 0:
         raise _InvalidPlainValueError
@@ -486,34 +497,45 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
             raise _InvalidPlainValueError
         if dict.__len__(storage) > _MAX_PLAIN_DICT_ITEMS:
             raise _InvalidPlainValueError
-        return {
-            key: _plain_value(
+        result: dict[str, object] = {}
+        for key in dict.keys(storage):
+            key = cast("str", key)
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
                 dict.__getitem__(storage, key),
                 _depth=_depth + 1,
                 _budget=budget,
+                _byte_budget=byte_budget,
             )
-            for key in dict.keys(storage)
-        }
+        return result
     if dict in candidate_mro:
         mapping = cast("dict[object, object]", candidate)
         if dict.__len__(mapping) > _MAX_PLAIN_DICT_ITEMS or any(
             type(key) is not str for key in dict.keys(mapping)
         ):
             raise _InvalidPlainValueError
-        return {
-            key: _plain_value(
+        result = {}
+        for key in dict.keys(mapping):
+            key = cast("str", key)
+            _charge_plain_bytes(byte_budget, key)
+            result[key] = _plain_value(
                 dict.__getitem__(mapping, key),
                 _depth=_depth + 1,
                 _budget=budget,
+                _byte_budget=byte_budget,
             )
-            for key in dict.keys(mapping)
-        }
+        return result
     if list in candidate_mro:
         list_values = cast("list[object]", candidate)
         if list.__len__(list_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
             raise _InvalidPlainValueError
         return [
-            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
             for item in list.__iter__(list_values)
         ]
     if tuple in candidate_mro:
@@ -521,11 +543,18 @@ def _plain_value(  # noqa: C901 - exact built-in traversal firewall.
         if tuple.__len__(tuple_values) > _MAX_PLAIN_SEQUENCE_ITEMS:
             raise _InvalidPlainValueError
         return tuple(
-            _plain_value(item, _depth=_depth + 1, _budget=budget)
+            _plain_value(
+                item,
+                _depth=_depth + 1,
+                _budget=budget,
+                _byte_budget=byte_budget,
+            )
             for item in tuple.__iter__(tuple_values)
         )
     if Mapping in candidate_mro:
         raise _InvalidPlainValueError
+    if type(candidate) is str:
+        _charge_plain_bytes(byte_budget, candidate)
     return candidate
 
 
