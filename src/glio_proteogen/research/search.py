@@ -313,7 +313,7 @@ def _assign_fragment_peaks(
         current_count: int,
         current_error: float,
         current_action: str,
-    ) -> bool:
+    ) -> bool:  # noqa: PLR0917 - comparator keeps all DP tie-break state explicit.
         if candidate_count != current_count:
             return candidate_count > current_count
         if candidate_error != current_error:
