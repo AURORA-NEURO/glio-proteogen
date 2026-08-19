@@ -301,7 +301,7 @@ def test_direct_python_ingress_ignores_hostile_dict_accessors_and_caps_sequences
         def __iter__(self) -> Iterator[object]:
             raise AssertionError
 
-        def __getitem__(self, key: int) -> object:
+        def __getitem__(self, key: int) -> object:  # type: ignore[override]
             raise AssertionError(key)
 
     class HostileDict(dict[str, object]):
