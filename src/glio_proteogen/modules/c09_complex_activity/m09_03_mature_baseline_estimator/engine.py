@@ -470,7 +470,17 @@ class M0903BaselineEstimator:
                 return False
             if canonical_bytes != canonical_json_bytes(typed.model_dump(mode="json")):
                 return False
-        return typed.result_digest == result_payload_digest(typed)
+        replay_verified = False
+        if typed.result_digest == result_payload_digest(typed):
+            try:
+                replayed = self.construct(typed.request)
+            except Exception:  # noqa: BLE001 - verification fails closed on replay errors.
+                replay_verified = False
+            else:
+                replay_verified = replayed.result.model_dump(mode="json") == typed.model_dump(
+                    mode="json"
+                )
+        return replay_verified
 
     def execute(self, request: object) -> BuiltM0903Result:
         return self.construct(request)
