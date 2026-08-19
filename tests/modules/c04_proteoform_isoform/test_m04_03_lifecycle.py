@@ -375,6 +375,18 @@ def test_plain_materialization_bounds_hostile_depth_and_container_size(
     with pytest.raises(TypeError, match="exact string keys"):
         m0403_engine._plain_value(["item"] * 250_001)
 
+    oversized = scenario.request.model_dump(mode="python", exclude_none=False)
+    oversized["request_id"] = "request." + "x" * (m0403_engine._MAX_PLAIN_BYTES + 1)
+    with pytest.raises(TypeError):
+        M0403Service.validate_request(oversized)
+
+
+def test_plain_materialization_bounds_scalar_and_aggregate_string_bytes() -> None:
+    with pytest.raises(TypeError):
+        m0403_engine._plain_value("x" * (m0403_engine._MAX_PLAIN_BYTES + 1))
+    with pytest.raises(TypeError):
+        m0403_engine._plain_value(["x" * 30_000] * 200)
+
 
 def test_exception_fails_closed_but_baseexception_propagates(
     scenario: Scenario,
