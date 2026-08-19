@@ -75,6 +75,9 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert result.psms[0].precursor_error_ppm == pytest.approx(0.0)
     assert dict(result.search_diagnostics)["matched_psms"] == 1
     assert dict(result.search_diagnostics)["candidate_psms"] == 1
+    assert dict(result.configuration)["search_version"] == (
+        "fragment-search-5-candidate-audit-decoy-tie-abstention-assignment"
+    )
     assert dict(result.search_diagnostics)["contested_spectra"] == 0
     assert len(result.competition_audit) == 1
     assert result.competition_audit[0].target_candidates == 1
