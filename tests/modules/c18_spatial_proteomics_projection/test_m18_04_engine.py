@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m18_04 import (
     IntendedUseKind,
     IntendedUseRegistration,
     PolicyDecisionStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c18_spatial_proteomics_projection import (
@@ -122,6 +123,15 @@ def test_service_replay_rejects_request_and_payload_tamper() -> None:
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1804.M1804ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"human_review_required": True}))
+
+
+def test_digest_valid_semantic_tamper_is_rejected_by_deterministic_replay() -> None:
+    result = m1804.M1804Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1804.M1804ReplayError, match="deterministic replay"):
+        m1804.M1804Engine().replay(tampered)
 
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:
