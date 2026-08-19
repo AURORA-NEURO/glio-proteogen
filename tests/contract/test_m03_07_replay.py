@@ -7,7 +7,7 @@ from typing import Annotated, Any, cast
 
 import pytest
 from evals.m03_07.run import Scenario, build_scenario
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m03_07 import (

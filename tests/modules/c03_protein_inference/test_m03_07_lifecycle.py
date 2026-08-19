@@ -278,7 +278,7 @@ def test_direct_python_boundaries_ignore_hostile_accessors_and_cap_sequences() -
         def __iter__(self) -> Iterator[object]:
             raise AssertionError
 
-        def __getitem__(self, key: int) -> object:
+        def __getitem__(self, key: int) -> object:  # type: ignore[override]
             raise AssertionError(key)
 
     class HostileDict(dict[str, object]):
