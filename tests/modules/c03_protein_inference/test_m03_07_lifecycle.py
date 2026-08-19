@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m03_07 import (
     ProteinInferenceSupportDisposition,
     normalized_result,
 )
+from glio_proteogen.contracts.m03_07 import v1 as m0307_contract
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c03_protein_inference.m03_04_quality_metrics import (
     compute_protein_inference_quality,
@@ -30,6 +31,9 @@ from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
     protein_inference_quality_support_receipt,
     protein_inference_support_prerequisites,
     route_protein_inference_support,
+)
+from glio_proteogen.modules.c03_protein_inference.m03_07_support_router import (
+    service as m0307_service,
 )
 
 
@@ -103,6 +107,23 @@ def test_engine_service_and_plugin_replay_one_joint_envelope() -> None:
     descriptor = plugin.descriptor()
     assert descriptor.module_id == "GLIO-PROTEOGEN-M03-07"
     assert descriptor.owner == "Scientific engineering"
+
+
+def test_result_ceiling_applies_after_canonicalization_to_every_ingress_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = route_protein_inference_support(build_scenario_request())
+    result_size = len(canonical_json_bytes(result))
+    monkeypatch.setattr(m0307_service, "M0307_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    service = M0307Service()
+
+    for value in (result, result.model_dump(mode="python")):
+        with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+            service.verify(value)
+
+    monkeypatch.setattr(m0307_contract, "M0307_MAX_CANONICAL_RESULT_BYTES", result_size - 1)
+    with pytest.raises(ValueError, match="result exceeds its canonical byte limit"):
+        type(result).model_validate_json(canonical_json_bytes(result), strict=True)
 
 
 def test_plugin_rejects_unvalidated_execution_capability() -> None:
