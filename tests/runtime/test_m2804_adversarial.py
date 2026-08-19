@@ -13,6 +13,9 @@ from glio_proteogen.contracts.m28_04 import (
     PublishProteinRnaDiscordanceAccessSurfaceRequest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.engine import (
+    M2804GatewayEngine,
+)
 from tests.runtime.test_m2804_runtime import _evidence, _request
 
 
@@ -85,3 +88,19 @@ def test_queued_job_cannot_carry_an_error_or_result() -> None:
             error_code="gateway.error",
             evidence=(_evidence(),),
         )
+
+
+def test_result_rejects_unbound_input_provenance() -> None:
+    result = M2804GatewayEngine().publish(_request())
+    payload = result.model_dump(mode="json")
+    payload["provenance"]["input_digests"] = payload["provenance"]["input_digests"][1:]
+    with pytest.raises(ValidationError, match="every declared input artifact"):
+        type(result).model_validate_json(canonical_json_bytes(payload))
+
+
+def test_result_rejects_unbound_control_provenance() -> None:
+    result = M2804GatewayEngine().publish(_request())
+    payload = result.model_dump(mode="json")
+    payload["provenance"]["control_decisions"][0]["decision_id"] = "m2804.forged"
+    with pytest.raises(ValidationError, match="control is not request-bound"):
+        type(result).model_validate_json(canonical_json_bytes(payload))

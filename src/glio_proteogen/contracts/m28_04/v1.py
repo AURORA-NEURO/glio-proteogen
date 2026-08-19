@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m28_04.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlRole,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -388,11 +389,62 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
     human_review_required: Literal[True] = True
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteinRnaDiscordanceAccessSurfaceResult:
+    def result_is_closed(self) -> ProteinRnaDiscordanceAccessSurfaceResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result id does not bind the exact request digest")
+        expected_input_digests = {
+            self.request.mass_spectrometry_proteome.digest,
+            self.request.genome_transcriptome.digest,
+            self.request.ptm_annotations.digest,
+            *(artifact.digest for artifact in self.request.source_artifacts),
+        }
+        if not expected_input_digests <= set(self.provenance.input_digests):
+            raise ValueError("provenance does not bind every declared input artifact")
+        if self.provenance.module_id != M2804_MODULE_ID:
+            raise ValueError("provenance module does not match M28-04")
+        if self.provenance.module_version != M2804_CONTRACT_VERSION:
+            raise ValueError("provenance version does not match M28-04")
+        if self.provenance.activity_id != (
+            "m2804.activity." + self.request_digest.removeprefix("sha256:")
+        ):
+            raise ValueError("provenance activity does not bind the request digest")
+        consent = self.request.context.references.consent
+        if self.provenance.consent_decision_id != consent.decision_id:
+            raise ValueError("provenance consent decision is not request-bound")
+        if self.provenance.consent_state != consent.state:
+            raise ValueError("provenance consent state is not request-bound")
+        if self.provenance.consent_policy_version != consent.policy_version:
+            raise ValueError("provenance consent policy is not request-bound")
+        if self.provenance.consent_evidence_digest != consent.evidence.digest:
+            raise ValueError("provenance consent evidence is not request-bound")
+        control_references = {
+            ControlRole.APPROVED_CONFIGURATION: (
+                self.request.context.references.approved_configuration
+            ),
+            ControlRole.IDENTITY_LINEAGE: self.request.context.references.identity_lineage,
+            ControlRole.PROVENANCE: self.request.context.references.provenance,
+            ControlRole.CONSENT: self.request.context.references.consent,
+            ControlRole.QUALITY: self.request.context.references.quality,
+            ControlRole.SUPPORT: self.request.context.references.support,
+            ControlRole.INTENDED_USE: self.request.context.references.intended_use,
+        }
+        control_records = {record.role: record for record in self.provenance.control_decisions}
+        for role, reference in control_references.items():
+            record = control_records[role]
+            evidence = getattr(reference, "evidence", None)
+            if (
+                record.decision_id != getattr(reference, "decision_id", None)
+                or record.state != getattr(getattr(reference, "state", None), "value", None)
+                or record.policy_version != getattr(reference, "policy_version", None)
+                or record.evidence_digest != getattr(evidence, "digest", None)
+            ):
+                raise ValueError(f"provenance {role.value} control is not request-bound")
+            if role is ControlRole.IDENTITY_LINEAGE and record.subject_digest != getattr(
+                reference, "binding_digest", None
+            ):
+                raise ValueError("provenance identity control is not request-bound")
         if self.status is GatewayStatus.PUBLISHED:
             if (
                 self.access_surface is None
