@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m21_02 import (
     M2102_M2101_INPUT_MEDIA_TYPE,
     GenerationStatus,
 )
+from glio_proteogen.contracts.m21_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2102AuthorizationError,
@@ -49,6 +50,22 @@ def test_replay_rejects_request_and_result_tampering() -> None:
         service.replay(result.model_copy(update={"request_digest": sha256_digest("tampered")}))
     with pytest.raises(M2102ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"result_digest": sha256_digest("tampered")}))
+
+
+def test_replay_rejects_self_rehashed_nested_case_tampering() -> None:
+    service = M2102Service()
+    result = service.generate(build_request())
+    assert result.corpus is not None
+    forged_case = result.corpus.cases[0].model_copy(
+        update={"truth_values": ("truth:forged", "truth:forged-bounded")}
+    )
+    forged_corpus = result.corpus.model_copy(
+        update={"cases": (forged_case, *result.corpus.cases[1:])}
+    )
+    forged = result.model_copy(update={"corpus": forged_corpus})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2102ReplayError, match="deterministic replay"):
+        service.replay(forged)
 
 
 def test_preflight_and_service_fail_closed_before_generation() -> None:

@@ -135,20 +135,28 @@ class M2102Engine:
         self,
         result: ComplexActivitySyntheticTruthResult,
     ) -> ComplexActivitySyntheticTruthResult:
+        """Validate and regenerate the complete synthetic-truth result.
+
+        The payload digest only proves that the submitted envelope is internally
+        consistent.  A caller could otherwise alter a generated case, manifest,
+        or provenance record and rehash the altered payload.  Replay must bind
+        acceptance to the deterministic request-driven generator instead.
+        """
+
         if result.request_digest != canonical_request_digest(result.request):
             raise M2102ReplayError("M21-02 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2102ReplayError("M21-02 result payload digest mismatch")  # noqa: TRY003
         try:
-            validated = ComplexActivitySyntheticTruthResult.model_validate_json(
+            replayed = ComplexActivitySyntheticTruthResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
+            expected = self.generate(replayed.request)
         except Exception as error:
-            raise M2102ReplayError("M21-02 replay result validation failed") from error  # noqa: TRY003
-        expected = self.generate(validated.request)
-        if canonical_json_bytes(expected) != canonical_json_bytes(validated):
-            raise M2102ReplayError("M21-02 deterministic replay mismatch")  # noqa: TRY003
-        return validated
+            raise M2102ReplayError from error
+        if canonical_json_bytes(expected) != canonical_json_bytes(replayed):
+            raise M2102ReplayError("M21-02 deterministic replay output mismatch")  # noqa: TRY003
+        return replayed
 
 
 def generate_complex_activity_synthetic_truth(
