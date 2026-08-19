@@ -157,9 +157,17 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     result = run_research_protein_inference(request)
     config = dict(result.configuration)
     assert config["quantification_policy"] == policy.as_dict()
+    assert config["quantification_unit"] == policy.measurement_unit
     assert result.quantification_receipt is not None
+    assert result.quantification_receipt.measurement_unit == policy.measurement_unit
     assert result.quantification_receipt.limit_of_quantification == 25.0
     assert result.quantification_receipt.below_loq_peptides == 0
+    computed = next(
+        record
+        for record in result.evidence.records
+        if record.evidence_id == "computed:protein-groups"
+    )
+    assert computed.payload_jsonable["quantification_unit"] == policy.measurement_unit
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
     forged = replace(
         result,
@@ -170,3 +178,12 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     )
     with pytest.raises(ValueError, match="digest"):
         replay_research_protein_inference(request, forged)
+    forged_unit = replace(
+        result,
+        quantification_receipt=replace(
+            result.quantification_receipt,
+            measurement_unit="median_scaled_matched_ion_intensity",
+        ),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, forged_unit)
