@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_06 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
+from .engine import preflight_m2606_authorization
 from .service import M2606SecurityService
 
 _REQUEST_ADAPTER: Final[TypeAdapter[EvaluateProteomicsSecurityAccessRequest]] = TypeAdapter(
@@ -34,10 +35,12 @@ class SecuritySubmission:
 class ValidatedM2606Request:
     """Opaque capability proving strict request validation and preflight."""
 
-    __slots__ = ("__weakref__", "_seal", "request")
+    __slots__ = ("__weakref__", "_request_bytes", "_request_identity", "_seal", "request")
 
     def __init__(self, request: EvaluateProteomicsSecurityAccessRequest, seal: object) -> None:
         self.request = request
+        self._request_identity = id(request)
+        self._request_bytes = canonical_json_bytes(request.model_dump(mode="json"))
         self._seal = seal
 
 
@@ -90,7 +93,10 @@ class M2606SecurityPlugin:
         if isinstance(candidate, (bytes, bytearray, str)):
             decoded = strict_json_loads(candidate, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
             candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
-        validated = self._service.validate_request(candidate)
+            preflight_m2606_authorization(candidate)
+            validated = candidate
+        else:
+            validated = self._service.validate_request(candidate)
         token = ValidatedM2606Request(validated, self._seal)
         _TOKENS[token] = self._seal
         return token
@@ -103,7 +109,17 @@ class M2606SecurityPlugin:
             raise M2606TokenError
         if token._seal is not self._seal:
             raise M2606TokenError
-        return self._service.execute(token.request)
+        if type(token.request) is not EvaluateProteomicsSecurityAccessRequest:
+            raise M2606TokenError
+        if id(token.request) != token._request_identity:
+            raise M2606TokenError
+        try:
+            current_bytes = canonical_json_bytes(token.request.model_dump(mode="json"))
+        except Exception as error:
+            raise M2606TokenError from error
+        if current_bytes != token._request_bytes:
+            raise M2606TokenError
+        return self._service._execute_validated(token.request)
 
     def replay(self, result: object) -> ProteomicsSecurityAccessResult:
         return self._service.verify(result)

@@ -113,6 +113,13 @@ class M2606ReplayError(ValueError):
         super().__init__("M26-06 security result replay verification failed")
 
 
+class M2606ValidatedRequestError(TypeError):
+    """A private validated-execution seam received a non-exact model."""
+
+    def __init__(self) -> None:
+        super().__init__("M26-06 validated execution requires the exact request model")
+
+
 def _member(candidate: object, name: str) -> object:
     if isinstance(candidate, Mapping):
         return candidate.get(name)
@@ -466,7 +473,14 @@ class M2606SecurityEngine:
     ) -> ProteomicsSecurityAccessResult:
         validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
         preflight_m2606_authorization(validated)
-        return _build_result(validated)
+        return self._evaluate_validated(validated)
+
+    def _evaluate_validated(
+        self, request: EvaluateProteomicsSecurityAccessRequest
+    ) -> ProteomicsSecurityAccessResult:
+        if type(request) is not EvaluateProteomicsSecurityAccessRequest:
+            raise M2606ValidatedRequestError
+        return _build_result(request)
 
 
 def evaluate_proteomics_security_access(request: object) -> ProteomicsSecurityAccessResult:

@@ -76,6 +76,15 @@ def test_plugin_rejects_forged_submission_and_cross_instance_token() -> None:
         M2606SecurityPlugin().run(token)
 
 
+def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
+    request = _request()
+    plugin = M2606SecurityPlugin()
+    token = plugin.validate(SecuritySubmission(request))
+    object.__setattr__(token, "request", request.model_copy(deep=True))
+    with pytest.raises(M2606TokenError):
+        plugin.run(token)
+
+
 def test_preflight_hostile_mapping_fails_closed() -> None:
     class Hostile:
         def __getattr__(self, name: str) -> object:

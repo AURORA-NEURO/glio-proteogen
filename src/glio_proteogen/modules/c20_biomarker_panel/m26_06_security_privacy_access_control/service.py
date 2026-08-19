@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m26_06 import (
 from .engine import (
     M2606ReplayError,
     M2606SecurityEngine,
+    M2606ValidatedRequestError,
     preflight_m2606_authorization,
     verify_security_access_result,
 )
@@ -41,7 +42,17 @@ class M2606SecurityService:
         return validated
 
     def execute(self, request: object) -> ProteomicsSecurityAccessResult:
-        return self._engine.evaluate(self.validate_request(request))
+        if type(request) is EvaluateProteomicsSecurityAccessRequest:
+            return self._execute_validated(request)
+        return self._execute_validated(self.validate_request(request))
+
+    def _execute_validated(
+        self, request: EvaluateProteomicsSecurityAccessRequest
+    ) -> ProteomicsSecurityAccessResult:
+        if type(request) is not EvaluateProteomicsSecurityAccessRequest:
+            raise M2606ValidatedRequestError
+        preflight_m2606_authorization(request)
+        return self._engine._evaluate_validated(request)
 
     @staticmethod
     def verify(result: object) -> ProteomicsSecurityAccessResult:
