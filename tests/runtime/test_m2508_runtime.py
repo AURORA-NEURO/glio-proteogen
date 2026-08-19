@@ -121,6 +121,30 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
         plugin.validate(object())
 
 
+def test_plugin_tokens_are_instance_bound_and_snapshot_bound() -> None:
+    first = M2508Plugin()
+    second = M2508Plugin()
+    token = first.validate(build_request())
+
+    assert first.run(token).result_digest.startswith("sha256:")
+    with pytest.raises(TypeError):
+        second.run(token)
+
+    forged = ValidatedM2508Request(request=token.request, _seal=object())
+    with pytest.raises(TypeError):
+        first.run(forged)
+
+    replaced = first.validate(build_request())
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError):
+        first.run(replaced)
+
+    mutated = first.validate(build_request())
+    object.__setattr__(mutated.request.requirements[0], "statement", "forged requirement")
+    with pytest.raises(TypeError):
+        first.run(mutated)
+
+
 def test_service_accepts_mapping_and_canonical_json() -> None:
     request = build_request()
     service = M2508Service()

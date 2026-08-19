@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -22,18 +23,28 @@ from .service import M2508Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdjudicateProteotypeEvidenceGateRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteotypeEvidenceGateResult)
-@dataclass(frozen=True, slots=True)
+
+
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM2508Request:
-    """Opaque request token issued by the strict parser."""
+    """Opaque, instance-bound token for one validated request snapshot."""
 
     request: AdjudicateProteotypeEvidenceGateRequest
     _seal: object
-    _request_identity: int = 0
-    _request_bytes: bytes = b""
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2508Request,
+        tuple[object, AdjudicateProteotypeEvidenceGateRequest, bytes],
+    ]
+] = WeakKeyDictionary()
 
 
 class M2508Plugin:
     """Plugin enforcing validation exactly once before adjudication."""
+
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2508Service | None = None) -> None:
         self._service = service or M2508Service(M2508Engine())
@@ -65,24 +76,23 @@ class M2508Plugin:
         else:
             preflight_m2508_authorization(request)
             typed = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2508Request(
-            request=typed,
-            _seal=self._seal,
-            _request_identity=id(typed),
-            _request_bytes=canonical_json_bytes(typed.model_dump(mode="json")),
-        )
+        token = ValidatedM2508Request(request=typed, _seal=self._seal)
+        _TOKENS[token] = (self._seal, typed, canonical_json_bytes(typed))
+        return token
 
     def run(self, request: ValidatedM2508Request) -> ProteotypeEvidenceGateResult:
+        if type(request) is not ValidatedM2508Request:
+            raise TypeError
+        snapshot = _TOKENS.get(request)
         if (
-            not isinstance(request, ValidatedM2508Request)
+            snapshot is None
+            or snapshot[0] is not self._seal
             or request._seal is not self._seal
-            or type(request.request) is not AdjudicateProteotypeEvidenceGateRequest
-            or id(request.request) != request._request_identity
+            or snapshot[1] is not request.request
+            or snapshot[2] != canonical_json_bytes(request.request)
         ):
             raise TypeError
-        if canonical_json_bytes(request.request.model_dump(mode="json")) != request._request_bytes:
-            raise TypeError
-        return self._service._execute_validated(request.request)
+        return self._service._execute_validated(snapshot[1])
 
     def verify(
         self,
