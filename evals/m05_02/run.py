@@ -13,6 +13,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Final, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from pydantic import TypeAdapter, ValidationError
 
 from evals.m05_01.run import build_scenario_request as build_m0501_request
