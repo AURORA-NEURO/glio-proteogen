@@ -717,7 +717,7 @@ def _build_label_contrasts(
     return tuple(contrasts)
 
 
-def _build_label_evidence(  # noqa: PLR0915, PLR0917
+def _build_label_evidence(  # noqa: PLR0915
     ordered_samples: tuple[ResearchCohortSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
@@ -994,13 +994,13 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
 
     ordered_samples = tuple(sorted(request.samples, key=lambda item: item.sample_id))
     _validate_provenance_policy(request, ordered_samples)
-    # Provenance policy is an admission boundary.  Reject mixed, unattested,
-    # or snapshot-incompatible cohorts before parsing or traversing any raw
-    # mzML bytes; otherwise a policy violation could still trigger scientific
-    # computation and source access before the intended safe failure.
+    # Policy and source-manifest validation are admission boundaries. Reject
+    # mixed, unattested, snapshot-incompatible, or byte-mismatched cohorts
+    # before parsing or traversing any raw mzML bytes; otherwise a provenance
+    # violation could still trigger scientific computation before safe failure.
+    source_manifest = _source_manifest(request, ordered_samples)
     child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
     _compatible_configuration(child)
-    source_manifest = _source_manifest(request, ordered_samples)
     sample_ids = tuple(item.sample_id for item in ordered_samples)
     groups = tuple(
         sorted({group.accessions for result in child for group in result.protein_groups})
