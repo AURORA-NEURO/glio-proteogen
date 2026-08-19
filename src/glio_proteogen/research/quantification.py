@@ -261,7 +261,7 @@ def _materialize_bounded[T](
     materialized: list[T] = []
     for index, value in enumerate(values):
         if index >= limit:
-            raise ValueError(f"{label} exceed {limit} items")
+            raise ValueError(f"{label} exceed max_input_observations ({limit})")
         materialized.append(value)
     return tuple(materialized)
 
@@ -327,8 +327,6 @@ def quantify_matched_ions_with_receipt(
         if peptide_universe is not None
         else ()
     )
-    if len(set(universe)) != len(universe):
-        raise ValueError("peptide universe values must be unique")
     for peptide in universe:
         if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
             raise ValueError("peptide universe values must be bounded non-empty strings")

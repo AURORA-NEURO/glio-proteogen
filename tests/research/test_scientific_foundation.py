@@ -344,12 +344,12 @@ def test_matched_ion_quantification_bounds_iterators_and_universe_identity() -> 
             policy=policy,
             peptide_universe=(f"P{index}" for index in range(3)),
         )
-    with pytest.raises(ValueError, match="unique"):
-        quantify_matched_ions(
-            "sample-1",
-            (),
-            peptide_universe=("P", "P"),
-        )
+    quantified = quantify_matched_ions(
+        "sample-1",
+        (),
+        peptide_universe=("P", "P"),
+    )
+    assert tuple(item.peptide for item in quantified) == ("P",)
 
 
 def test_evidence_aggregation_is_order_stable_and_explicitly_limited() -> None:
