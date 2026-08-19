@@ -8,7 +8,7 @@ claims.
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Final
 
 from defusedxml import ElementTree as SafeET
@@ -120,6 +120,10 @@ class MzIdentMlStructure:
     id_digest: str
     byte_length: int
     sha256: str
+    spectrum_reference_count: int = 0
+    spectrum_reference_match_count: int = 0
+    protein_reference_count: int = 0
+    protein_reference_match_count: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -129,7 +133,11 @@ class MzIdentMlStructure:
             "pass_threshold_item_count": self.pass_threshold_item_count,
             "peptide_evidence_count": self.peptide_evidence_count,
             "protein_detection_hypothesis_count": self.protein_detection_hypothesis_count,
+            "protein_reference_count": self.protein_reference_count,
+            "protein_reference_match_count": self.protein_reference_match_count,
             "sha256": self.sha256,
+            "spectrum_reference_count": self.spectrum_reference_count,
+            "spectrum_reference_match_count": self.spectrum_reference_match_count,
             "spectrum_identification_item_count": self.spectrum_identification_item_count,
             "spectrum_identification_result_count": self.spectrum_identification_result_count,
         }
@@ -262,4 +270,85 @@ def extract_mzidentml_structure(data: bytes) -> MzIdentMlStructure:
         id_digest=_digest_ids(ids),
         byte_length=len(data),
         sha256=sha256_digest(data),
+    )
+
+
+def bind_mzidentml_references(
+    data: bytes,
+    structure: MzIdentMlStructure,
+    *,
+    spectrum_ids: Iterable[str],
+    protein_accessions: Iterable[str],
+) -> MzIdentMlStructure:
+    """Bind explicit mzIdentML references to the local mzML/FASTA inputs.
+
+    Structural counting alone cannot establish that an identification artifact
+    belongs to the spectra and sequence catalogue being searched.  This
+    research-only gate follows ``SpectrumIdentificationResult.spectrumID`` and
+    ``PeptideEvidence.dBSequence_ref`` through the local mzIdentML object graph,
+    then rejects an unresolved spectrum or protein reference.  It still does
+    not import PSM scores, pass thresholds, or protein hypotheses into the
+    local computation; it only prevents unrelated identification evidence from
+    being presented as provenance for the run.
+
+    Files that omit either reference type remain valid structural receipts, but
+    every reference that is present must resolve exactly.  This accommodates
+    partial exchange fixtures while closing the dangerous mismatch path.
+    """
+
+    if not isinstance(structure, MzIdentMlStructure):
+        raise TypeError("structure must be an MzIdentMlStructure")
+    known_spectra = tuple(spectrum_ids)
+    known_proteins = tuple(protein_accessions)
+    if any(not isinstance(value, str) or not value for value in (*known_spectra, *known_proteins)):
+        raise FormatError("reference catalogues must contain non-empty strings")
+    spectrum_catalogue = set(known_spectra)
+    protein_catalogue = set(known_proteins)
+    root = _xml_root(data, "MzIdentML")
+
+    db_sequences: dict[str, str] = {}
+    for element in root.iter():
+        if _local_name(element.tag) != "DBSequence":
+            continue
+        identifier = element.attrib.get("id")
+        accession = element.attrib.get("accession")
+        if not identifier or not accession:
+            raise FormatError("mzIdentML DBSequence requires id and accession")
+        if identifier in db_sequences:
+            raise FormatError("mzIdentML DBSequence IDs must be unique")
+        db_sequences[identifier] = accession
+
+    spectrum_references = tuple(
+        element.attrib["spectrumID"]
+        for element in root.iter()
+        if _local_name(element.tag) == "SpectrumIdentificationResult"
+        and element.attrib.get("spectrumID") is not None
+    )
+    unknown_spectra = tuple(value for value in spectrum_references if value not in spectrum_catalogue)
+    if unknown_spectra:
+        raise FormatError("mzIdentML spectrumID does not resolve to supplied mzML")
+    if len(spectrum_references) != len(set(spectrum_references)):
+        raise FormatError("mzIdentML spectrumID references must be unique")
+
+    protein_references: list[str] = []
+    for element in root.iter():
+        if _local_name(element.tag) != "PeptideEvidence":
+            continue
+        db_sequence_ref = element.attrib.get("dBSequence_ref")
+        if db_sequence_ref is None:
+            continue
+        accession = db_sequences.get(db_sequence_ref)
+        if accession is None:
+            raise FormatError("mzIdentML PeptideEvidence has an unresolved DBSequence_ref")
+        protein_references.append(accession)
+    unknown_proteins = tuple(value for value in protein_references if value not in protein_catalogue)
+    if unknown_proteins:
+        raise FormatError("mzIdentML protein reference does not resolve to supplied FASTA")
+
+    return replace(
+        structure,
+        spectrum_reference_count=len(spectrum_references),
+        spectrum_reference_match_count=len(spectrum_references),
+        protein_reference_count=len(protein_references),
+        protein_reference_match_count=len(protein_references),
     )

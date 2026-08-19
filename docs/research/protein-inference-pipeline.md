@@ -13,7 +13,10 @@ one deterministic, auditable path:
    An optional caller-supplied mzIdentML file is structurally parsed separately;
    its bytes, identifiers, identification-result/item counts, peptide-evidence count,
    protein-detection-hypothesis count, and pass-threshold item count become a receipt.
-   The pipeline never imports mzIdentML PSMs or protein hypotheses into its own search
+   When the file includes explicit `spectrumID` or `dBSequence_ref` links, those links
+   are resolved against the supplied mzML spectrum IDs and FASTA accessions; an
+   unrelated or unresolved identification artifact is rejected before search. The
+   pipeline never imports mzIdentML PSMs or protein hypotheses into its own search
    or grouping computation.
 2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
    controls.
@@ -188,11 +191,14 @@ threshold and its digest boundary rather than only checking that a field seriali
 
 `ResearchRunRequest.mzidentml_source` is an explicit, bounded structural-evidence input.
 The parser rejects malformed/unsafe XML and records an exact SHA-256, identifier digest,
-result/item/evidence/hypothesis counts, and pass-threshold item count in the run
-configuration, evidence bundle, result projection, and replay digest. Providing or
-changing this file therefore changes the content-addressed run even when mzML/FASTA
-search output is unchanged. This is provenance of an external identification artifact,
-not acceptance of its PSMs, protein hypotheses, FDR, or biological claims.
+result/item/evidence/hypothesis counts, pass-threshold item count, and resolved
+spectrum/protein-reference counts in the run configuration, evidence bundle, result
+projection, and replay digest. Providing or changing this file therefore changes the
+content-addressed run even when mzML/FASTA search output is unchanged. Explicit
+`spectrumID` and `dBSequence_ref` links must resolve to the exact local mzML/FASTA
+catalogues; partial files that omit those links remain structural-only receipts. This
+is provenance of an external identification artifact, not acceptance of its PSMs,
+protein hypotheses, FDR, or biological claims.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
 each record's quality metadata, the derived quality summary, limitations, and outer digest.

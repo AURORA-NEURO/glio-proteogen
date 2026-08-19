@@ -26,7 +26,11 @@ from .protein import (
     ProteinGroupFdrSummary,
     infer_protein_group_candidates,
 )
-from .public_proteomics.formats import MzIdentMlStructure, extract_mzidentml_structure
+from .public_proteomics.formats import (
+    MzIdentMlStructure,
+    bind_mzidentml_references,
+    extract_mzidentml_structure,
+)
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     ProteinGroupQuant,
@@ -483,6 +487,13 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             raise ValueError("external source reference does not match mzML input bytes")
     spectra = parse_mzml(mzml_bytes, max_bytes=request.max_bytes, max_spectra=request.max_spectra)
     entries = read_fasta(fasta_bytes)
+    if mzidentml_structure is not None and mzidentml_bytes is not None:
+        mzidentml_structure = bind_mzidentml_references(
+            mzidentml_bytes,
+            mzidentml_structure,
+            spectrum_ids=(spectrum.spectrum_id for spectrum in spectra),
+            protein_accessions=(entry.accession for entry in entries),
+        )
     search_space = build_search_space(
         entries,
         decoy_strategy=request.decoy_strategy,

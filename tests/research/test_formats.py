@@ -4,6 +4,7 @@ import pytest
 
 from glio_proteogen.research.public_proteomics import (
     FormatError,
+    bind_mzidentml_references,
     extract_fasta_structure,
     extract_mzidentml_structure,
     extract_mzml_structure,
@@ -67,6 +68,23 @@ def test_mzidentml_counts_identification_structure_without_inference() -> None:
     assert summary.peptide_evidence_count == 1
     assert summary.protein_detection_hypothesis_count == 1
     assert summary.pass_threshold_item_count == 1
+
+
+def test_mzidentml_reference_binding_rejects_unrelated_inputs() -> None:
+    data = (
+        b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
+        b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
+        b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=missing"/>'
+        b'</AnalysisData></MzIdentML>'
+    )
+    summary = extract_mzidentml_structure(data)
+    with pytest.raises(FormatError, match="spectrumID"):
+        bind_mzidentml_references(
+            data,
+            summary,
+            spectrum_ids=("scan=1",),
+            protein_accessions=("P1",),
+        )
 
 
 def test_xml_rejects_dtd_and_wrong_root() -> None:

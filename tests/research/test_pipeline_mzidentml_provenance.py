@@ -17,12 +17,13 @@ from .test_pipeline import _mzml
 _MZIDENTML = b"""\
 <MzIdentML id="fixture">
   <SequenceCollection>
+    <DBSequence id="P1" accession="P1"/>
     <PeptideEvidence id="PE1" peptide_ref="PEP1" dBSequence_ref="P1"/>
     <PeptideEvidence id="PE2" peptide_ref="PEP1" dBSequence_ref="P1"/>
   </SequenceCollection>
   <AnalysisData>
     <SpectrumIdentificationList id="SIL1">
-      <SpectrumIdentificationResult id="SIR1">
+      <SpectrumIdentificationResult id="SIR1" spectrumID="scan=1">
         <SpectrumIdentificationItem id="SII1" passThreshold="true"/>
         <SpectrumIdentificationItem id="SII2" passThreshold="false"/>
       </SpectrumIdentificationResult>
@@ -60,6 +61,10 @@ def test_mzidentml_structure_is_replay_bound_without_inference_import() -> None:
     assert structure.peptide_evidence_count == 2
     assert structure.protein_detection_hypothesis_count == 1
     assert structure.pass_threshold_item_count == 1
+    assert structure.spectrum_reference_count == 1
+    assert structure.spectrum_reference_match_count == 1
+    assert structure.protein_reference_count == 2
+    assert structure.protein_reference_match_count == 2
     assert dict(with_ident.configuration)["mzidentml_sha256"] == structure.sha256
     assert any(
         record.kind == "identification_evidence_structure" for record in with_ident.evidence.records
@@ -76,3 +81,9 @@ def test_mzidentml_mutation_rejects_replay() -> None:
     changed = _MZIDENTML.replace(b'passThreshold="true"', b'passThreshold="false"')
     with pytest.raises(ValueError, match="replay"):
         replay_research_protein_inference(replace(_request(), mzidentml_source=changed), result)
+
+
+def test_mzidentml_unrelated_spectrum_reference_abstains_before_search() -> None:
+    changed = _MZIDENTML.replace(b'spectrumID="scan=1"', b'spectrumID="scan=missing"')
+    with pytest.raises(ValueError, match="spectrumID"):
+        run_research_protein_inference(_request(changed))
