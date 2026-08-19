@@ -35,6 +35,7 @@ from glio_proteogen.kernel.models import (
     SupportDecision,
     SupportStatus,
 )
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 _REQUEST_ADAPTER: Final = TypeAdapter(SimulateComplexActivityPerturbationsRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ComplexActivitySensitivitySimulationResult)
@@ -331,13 +332,7 @@ class M1506SensitivitySimulatorEngine:
         self, result: object, *, replay: bool = True
     ) -> ComplexActivitySensitivitySimulationResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except Exception as error:
-            raise M1506ReplayVerificationError from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1506ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

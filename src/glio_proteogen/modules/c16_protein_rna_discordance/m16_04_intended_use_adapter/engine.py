@@ -40,6 +40,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyEstimate,
     UncertaintyProfile,
 )
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 _REQUEST_ADAPTER: Final = TypeAdapter(AdaptProteinRnaDiscordanceIntendedUseRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinRnaDiscordanceIntendedUseResult)
@@ -370,13 +371,7 @@ class M1604IntendedUseAdapterEngine:
         self, result: object, *, replay: bool = True
     ) -> ProteinRnaDiscordanceIntendedUseResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except Exception as error:
-            raise M1604ReplayVerificationError from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1604ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

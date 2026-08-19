@@ -32,6 +32,7 @@ from glio_proteogen.kernel.models import (
     SupportDecision,
     SupportStatus,
 )
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 _REQUEST_ADAPTER = TypeAdapter(StratifyProteinSubtypeContextRequest)
 _RESULT_ADAPTER = TypeAdapter(ProteinSubtypeContextStratificationResult)
@@ -309,13 +310,7 @@ class M1402ContextStratifier:
         self, result: object, *, replay: bool = True
     ) -> ProteinSubtypeContextStratificationResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except Exception as error:
-            raise M1402ReplayVerificationError from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1402ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

@@ -39,6 +39,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyEstimate,
     UncertaintyProfile,
 )
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 _REQUEST_ADAPTER: Final = TypeAdapter(PresentVariantPeptideHumanReviewWorkspaceRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(VariantPeptideHumanReviewWorkspaceResult)
@@ -395,13 +396,7 @@ class M1705WorkflowPresentationEngine:
         replay: bool = True,
     ) -> VariantPeptideHumanReviewWorkspaceResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except Exception as error:
-            raise M1705ReplayVerificationError from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1705ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

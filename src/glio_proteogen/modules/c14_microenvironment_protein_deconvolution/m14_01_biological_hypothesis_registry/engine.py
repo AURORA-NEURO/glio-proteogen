@@ -31,6 +31,7 @@ from glio_proteogen.contracts.m14_01.canonical import (
 )
 from glio_proteogen.kernel.models import EvidenceReference as KernelEvidenceReference
 from glio_proteogen.kernel.models import Limitation, SupportDecision, SupportStatus
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 _REQUEST_ADAPTER: Final = TypeAdapter(RegisterProteinSubtypeHypothesesRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteinSubtypeHypothesisRegistryResult)
@@ -302,13 +303,7 @@ class M1401HypothesisEngine:
         replay: bool = True,
     ) -> ProteinSubtypeHypothesisRegistryResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except Exception as error:
-            raise M1401ReplayVerificationError from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1401ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):

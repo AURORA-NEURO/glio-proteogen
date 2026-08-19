@@ -43,6 +43,7 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionState,
 )
+from glio_proteogen.kernel.replay import revalidate_replay_result
 
 # ruff: noqa: TRY003
 
@@ -467,15 +468,9 @@ class M1807Engine:
         replay: bool = True,
     ) -> BiomarkerPanelDownstreamExportResult:
         try:
-            validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+            validated = revalidate_replay_result(_RESULT_ADAPTER, result)
         except Exception as error:
             raise M1807ReplayError("M18-07 result is invalid") from error
-        try:
-            validated = _RESULT_ADAPTER.validate_python(
-                validated.model_dump(mode="python", warnings=False), strict=True
-            )
-        except Exception as error:
-            raise M1807ReplayError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1807ReplayError("M18-07 result digest mismatch")
         if replay:
