@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m27_04 import (
     AccessProtocol,
     AsyncJobRecord,
     CompatibilityStatus,
+    ComplexActivityAccessSurfaceResult,
     GatewayConfiguration,
     GatewayFindingCode,
     GatewayStatus,
@@ -19,7 +20,10 @@ from glio_proteogen.contracts.m27_04 import (
     OperationStatus,
     PublishComplexActivityAccessSurfaceRequest,
 )
-from glio_proteogen.contracts.m27_04.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_04.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import api
@@ -264,3 +268,39 @@ def test_replay_checks_each_digest_and_identifier_binding() -> None:
         forged = result.model_copy(update={field: value})
         with pytest.raises(M2704ReplayError):
             engine.replay(forged)
+
+
+@pytest.mark.parametrize(
+    "field", ["surface_id", "operations", "authorizations", "configuration", "evidence"]
+)
+def test_result_contract_rejects_self_rehashed_surface_forgery(field: str) -> None:
+    request = _request()
+    result = M2704GatewayEngine().publish(request)
+    assert result.access_surface is not None
+    surface = result.access_surface
+    if field == "surface_id":
+        forged_surface = surface.model_copy(update={"surface_id": "m2704.surface.forged"})
+    elif field == "operations":
+        operation = surface.operations[0].model_copy(update={"name": "forged operation"})
+        forged_surface = surface.model_copy(
+            update={"operations": (operation, *surface.operations[1:])}
+        )
+    elif field == "authorizations":
+        authorization = surface.authorizations[0].model_copy(
+            update={"principal_id": "principal:forged"}
+        )
+        forged_surface = surface.model_copy(
+            update={"authorizations": (authorization, *surface.authorizations[1:])}
+        )
+    elif field == "configuration":
+        configuration = surface.configuration.model_copy(update={"version": "9.9.9"})
+        forged_surface = surface.model_copy(update={"configuration": configuration})
+    else:
+        evidence = surface.evidence[0].model_copy(update={"claim": "forged evidence"})
+        forged_surface = surface.model_copy(update={"evidence": (evidence, *surface.evidence[1:])})
+    forged = result.model_copy(update={"access_surface": forged_surface})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="published result"):
+        ComplexActivityAccessSurfaceResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )

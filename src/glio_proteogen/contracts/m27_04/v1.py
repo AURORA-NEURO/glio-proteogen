@@ -342,12 +342,41 @@ class ComplexActivityAccessSurfaceResult(FrozenModel):
         if self.result_id != result_identifier(self.request_digest):
             raise ValueError("result id does not bind request identity")
         if self.status is GatewayStatus.PUBLISHED:
+            surface = self.access_surface
             if (
-                self.access_surface is None
+                surface is None
                 or self.abstention_reason is not None
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires a supported access surface")
+            surface_bindings = (
+                (
+                    "surface id",
+                    surface.surface_id,
+                    f"m2704.surface.{self.request.configuration.configuration_id}",
+                ),
+                ("surface version", surface.version, self.request.configuration.version),
+                ("operations", surface.operations, self.request.operations),
+                ("authorizations", surface.authorizations, self.request.authorizations),
+                (
+                    "idempotency records",
+                    surface.idempotency_records,
+                    self.request.idempotency_records,
+                ),
+                ("jobs", surface.jobs, self.request.jobs),
+                (
+                    "compatibility rules",
+                    surface.compatibility_rules,
+                    self.request.compatibility_rules,
+                ),
+                ("errors", surface.errors, self.request.errors),
+                ("audit events", surface.audit_events, self.request.audit_events),
+                ("configuration", surface.configuration, self.request.configuration),
+                ("evidence", surface.evidence, self.evidence),
+            )
+            for label, actual, expected in surface_bindings:
+                if actual != expected:
+                    raise ValueError(f"published result {label} does not bind the request")
         elif (
             self.access_surface is not None
             or self.abstention_reason is None
