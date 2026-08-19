@@ -51,20 +51,22 @@ SECTION_COUNT = 6
 ESTIMATED_PROBABILITY = 0.9
 
 
-def _request_payload(request: object) -> dict[str, object]:
-    return request.model_dump(mode="json")  # type: ignore[union-attr]
+def _request_payload(request: PresentBiomarkerPanelReviewWorkspaceRequest) -> dict[str, object]:
+    return request.model_dump(mode="json")
 
 
 def _validated_request(
-    request: object, **updates: object
+    request: PresentBiomarkerPanelReviewWorkspaceRequest, **updates: object
 ) -> PresentBiomarkerPanelReviewWorkspaceRequest:
-    payload = request.model_dump(mode="python")  # type: ignore[union-attr]
+    payload = request.model_dump(mode="python")
     payload.update(updates)
     return PresentBiomarkerPanelReviewWorkspaceRequest.model_validate(payload, strict=True)
 
 
-def _validated_result(result: object, **updates: object) -> BiomarkerPanelReviewWorkspaceResult:
-    payload = result.model_dump(mode="python")  # type: ignore[union-attr]
+def _validated_result(
+    result: BiomarkerPanelReviewWorkspaceResult, **updates: object
+) -> BiomarkerPanelReviewWorkspaceResult:
+    payload = result.model_dump(mode="python")
     payload.update(updates)
     return BiomarkerPanelReviewWorkspaceResult.model_validate(payload, strict=True)
 

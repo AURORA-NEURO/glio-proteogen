@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -251,9 +251,7 @@ def test_plugin_token_rejects_forged_cross_instance_and_nested_mutation() -> Non
     with pytest.raises(TypeError, match="validated request token"):
         other.run(token)
 
-    changed_configuration = token.request.configuration.model_copy(
-        update={"ood_threshold": 0.1}
-    )
+    changed_configuration = token.request.configuration.model_copy(update={"ood_threshold": 0.1})
     object.__setattr__(token.request, "configuration", changed_configuration)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(token)
@@ -265,7 +263,7 @@ def test_service_accepts_canonical_json_request() -> None:
 
 
 def test_schema_has_closed_provisional_boundary() -> None:
-    metadata = contract_json_schema("output")["x-glio-contract"]
+    metadata = cast("dict[str, Any]", contract_json_schema("output")["x-glio-contract"])
     assert metadata["upstreamInputMediaType"] == M2506_M2505_INPUT_MEDIA_TYPE
     assert metadata["kinaseActivity"] is False
     assert metadata["externalContentTraversal"] is False
