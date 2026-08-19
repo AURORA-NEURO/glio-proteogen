@@ -57,6 +57,18 @@ def test_boundary_markers_abstain_without_negative_finding(marker: str) -> None:
     assert result.abstention_reason
 
 
+@pytest.mark.parametrize("marker", ["identity inference", "treatment recommendation"])
+def test_assignment_rationale_cannot_bypass_boundary_markers(marker: str) -> None:
+    request = _request(
+        assignments=(_assignment().model_copy(update={"rationale": marker}),),
+    )
+    result = m1706.M1706AdjudicationEngine().export(request)
+
+    assert result.status is QueueResultStatus.ABSTAINED
+    assert result.record is None
+    assert result.support_decision.status is SupportStatus.UNSUPPORTED
+
+
 def test_service_replay_and_tamper_are_deterministic() -> None:
     service = m1706.M1706Service()
     request = _request()

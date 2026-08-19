@@ -174,6 +174,9 @@ def _declared(request: AdjudicateVariantPeptideDiscrepancyQueueRequest) -> str:
         *(item.description for item in request.entries),
         *(item.reason_code.value for item in request.entries),
         *(item.reference.artifact_id for entry in request.entries for item in entry.evidence),
+        *(assignment.reviewer_role for assignment in request.assignments),
+        *(assignment.reviewer_token for assignment in request.assignments),
+        *(assignment.rationale for assignment in request.assignments),
         *(item.artifact_id for item in request.source_artifacts),
     ]
     return " ".join(values).casefold()
