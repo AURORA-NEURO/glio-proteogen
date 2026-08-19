@@ -3,6 +3,7 @@
 import pytest
 
 from glio_proteogen.contracts.m19_06 import QueueEntryState, QueueResultStatus, ReviewDecision
+from glio_proteogen.contracts.m19_06.canonical import result_payload_digest
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudication import (
     M1906AuthorizationError,
     M1906Engine,
@@ -64,6 +65,21 @@ def test_replay_rejects_request_and_result_tampering() -> None:
     tampered_result = result.model_copy(update={"result_digest": _ZERO_DIGEST})
     with pytest.raises(M1906ReplayError, match="payload digest"):
         M1906Engine().replay(tampered_result)
+
+
+def test_replay_rejects_semantic_tamper_with_recomputed_digest() -> None:
+    result = M1906Engine().adapt(_request())
+    tampered = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged adjudication rationale"}
+            )
+        }
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M1906ReplayError, match="deterministic replay"):
+        M1906Engine().replay(tampered)
 
 
 def test_plugin_descriptor_and_runtime_are_bounded() -> None:

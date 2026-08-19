@@ -487,11 +487,18 @@ class M1906Engine:
         if result.result_digest != result_payload_digest(result):
             raise M1906ReplayError("M19-06 result payload digest mismatch")  # noqa: TRY003
         try:
-            return ProteotypeAdjudicationResult.model_validate(
+            validated = ProteotypeAdjudicationResult.model_validate(
                 result.model_dump(mode="python"), strict=True
             )
         except ValueError as exc:
             raise M1906ReplayError from exc
+        try:
+            expected = self.adapt(validated.request)
+        except Exception as exc:
+            raise M1906ReplayError("M19-06 deterministic replay failed") from exc  # noqa: TRY003
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1906ReplayError("M19-06 deterministic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def adjudicate_proteotype_queue(candidate: object) -> ProteotypeAdjudicationResult:
