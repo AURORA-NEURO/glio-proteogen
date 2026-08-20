@@ -483,6 +483,12 @@ def test_evidence_quality_and_record_shape_edge_paths() -> None:
         _ = altered.payload_jsonable
 
 
+@pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf])
+def test_evidence_payload_rejects_nonfinite_numbers(value: float) -> None:
+    with pytest.raises(TypeError, match="finite"):
+        EvidenceRecord.create("nonfinite", "source", "kind", {"value": value})
+
+
 @pytest.mark.parametrize("source", [b"", b">P1\n", b"P1\nACDEFGH"])
 def test_fasta_rejects_empty_or_malformed_sources(source: bytes) -> None:
     with pytest.raises(ValueError):

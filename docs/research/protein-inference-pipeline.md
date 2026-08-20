@@ -245,6 +245,8 @@ and outer digest. `verify_evidence_bundle` recomputes each identity-and-payload-
 digest, the ordered outer digest, and all derived quality fields before replay. This keeps a
 forged source/kind/evidence-ID relabeling or completeness/auditability summary from remaining
 invisible merely because the underlying raw records are unchanged.
+Evidence payloads reject non-finite floating-point values before hashing, so NaN or infinite
+measurements cannot enter a permissive JSON digest and masquerade as replayable evidence.
 
 The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy
 sequence collision, no-match safe path, precursor rejection, shared-peptide grouping,

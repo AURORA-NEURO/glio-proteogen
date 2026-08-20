@@ -28,6 +28,8 @@ def _freeze(value: object) -> object:
         return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(item) for item in value)
+    if isinstance(value, float) and not isfinite(value):
+        raise TypeError("evidence payload floats must be finite")
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     raise TypeError("evidence payload contains an unsupported value")
