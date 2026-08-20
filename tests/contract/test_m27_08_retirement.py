@@ -10,6 +10,8 @@ from evals.m27_08.fixture import build_request
 
 from glio_proteogen.contracts.m27_08 import (
     ArchiveStatus,
+    ComplexActivityRetirementResult,
+    RetirementStatus,
     contract_json_schemas,
 )
 from glio_proteogen.contracts.m27_08.canonical import (
@@ -58,6 +60,18 @@ def test_result_replay_rejects_self_rehashed_forged_package() -> None:
     forged = result.model_copy(update={"package": forged_package})
     rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
     assert not M2708Service().verify(rehashed)
+
+
+def test_executed_result_requires_executed_package_status() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.package is not None
+    forged = result.model_copy(
+        update={"package": result.package.model_copy(update={"status": RetirementStatus.PROPOSED})}
+    )
+    payload = forged.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(forged)
+    with pytest.raises(ValueError, match="executed retirement package"):
+        ComplexActivityRetirementResult.model_validate(payload, strict=True)
 
 
 def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:

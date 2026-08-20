@@ -280,6 +280,8 @@ class ComplexActivityRetirementResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("executed result requires a supported retirement package")
+            if self.package.status is not RetirementStatus.EXECUTED:
+                raise ValueError("executed result requires an executed retirement package")
         elif (
             self.package is not None
             or self.abstention_reason is None
