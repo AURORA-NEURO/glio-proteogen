@@ -395,6 +395,23 @@ class ProteinRnaDiscordanceAccessSurfaceResult(FrozenModel):
                 for finding in self.findings
             ):
                 raise ValueError("published result cannot retain blocking gateway findings")
+            expected_surface_id = "m2804.surface." + self.request.configuration.configuration_id
+            surface = self.access_surface
+            if (
+                surface.surface_id != expected_surface_id
+                or surface.version != self.request.configuration.version
+                or surface.operations != self.request.operations
+                or surface.authorizations != self.request.authorizations
+                or surface.idempotency_records != self.request.idempotency_records
+                or surface.jobs != self.request.jobs
+                or surface.compatibility_rules != self.request.compatibility_rules
+                or surface.errors != self.request.errors
+                or surface.audit_events != self.request.audit_events
+                or surface.configuration != self.request.configuration
+            ):
+                raise ValueError(
+                    "published access surface must bind exact request gateway material"
+                )
         elif (
             self.access_surface is not None
             or self.abstention_reason is None

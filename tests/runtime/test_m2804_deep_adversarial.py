@@ -293,3 +293,17 @@ def test_result_envelope_rejects_status_mismatches() -> None:
         type(baseline).model_validate(published)
     assert abstained.status is GatewayStatus.ABSTAINED
     assert abstained.support_decision.status is SupportStatus.REVIEW_REQUIRED
+
+
+def test_rehashed_published_surface_cannot_change_request_media_or_authority() -> None:
+    result = M2804GatewayEngine().publish(_request())
+    assert result.access_surface is not None
+    forged_operation = result.access_surface.operations[0].model_copy(
+        update={"request_media_type": "application/x-forged-request"}
+    )
+    forged_surface = result.access_surface.model_copy(update={"operations": (forged_operation,)})
+    forged = result.model_copy(update={"access_surface": forged_surface})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact request gateway material"):
+        type(result).model_validate(forged.model_dump(mode="python"))
