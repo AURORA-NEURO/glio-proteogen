@@ -133,6 +133,18 @@ def test_export_rejects_granted_consent_not_bound_to_context() -> None:
         M2007Engine().export(forged)
 
 
+def test_provenance_covers_nested_export_evidence() -> None:
+    request = _request()
+    result = M2007Engine().export(request)
+    nested_digests = {
+        request.consent.evidence.digest,
+        *(item.reference.digest for item in request.configuration.evidence),
+        *(item.reference.digest for field in request.fields for item in field.evidence),
+    }
+
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 def test_tampered_contract_and_payload_never_replay() -> None:
     engine = M2007Engine()
     result = engine.export(_request())
