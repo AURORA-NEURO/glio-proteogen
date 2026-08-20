@@ -6,7 +6,12 @@ from __future__ import annotations
 
 import pytest
 
-from glio_proteogen.contracts.m17_06 import QueueEntryState, QueueResultStatus, ReviewDecision
+from glio_proteogen.contracts.m17_06 import (
+    QueueEntryState,
+    QueueResultStatus,
+    ReviewDecision,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
@@ -65,7 +70,14 @@ def test_service_replay_and_tamper_are_deterministic() -> None:
 
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert service.verify(first).result_digest == first.result_digest
-    assert service.verify(first, replay=False).result_digest == first.result_digest
+    with pytest.raises(m1706.M1706ReplayVerificationError):
+        service.verify(first, replay=False)
+    semantic_mutation = first.model_copy(update={"human_review_required": False})
+    semantic_mutation = semantic_mutation.model_copy(
+        update={"result_digest": result_payload_digest(semantic_mutation)}
+    )
+    with pytest.raises(m1706.M1706ReplayVerificationError):
+        service.verify(semantic_mutation)
     with pytest.raises(m1706.M1706ReplayVerificationError):
         service.verify(
             first.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False
