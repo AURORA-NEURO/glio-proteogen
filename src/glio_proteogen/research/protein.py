@@ -360,6 +360,8 @@ def _validate_group_psm(psm: Psm, *, decoy_prefix: str) -> None:
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
+    if type(psm.matched_ions) is not int or psm.matched_ions < 1:
+        raise ValueError("PSM matched_ions must be a positive integer")
     if not _is_finite_real(psm.score) or psm.score < 0:
         raise ValueError("PSM scores must be finite and non-negative")
     derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)

@@ -50,6 +50,14 @@ def test_group_rejects_nonfinite_score_before_winner_selection() -> None:
         infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
 
 
+def test_fdr_boundaries_reject_zero_fragment_evidence() -> None:
+    zero_ion = Psm("scan=zero", "PEPTIDER", ("P1",), 5.0, 0, decoy=False)
+    with pytest.raises(ValueError, match="matched_ions must be a positive integer"):
+        target_decoy_qvalues((zero_ion,))
+    with pytest.raises(ValueError, match="matched_ions must be a positive integer"):
+        infer_protein_group_candidates((zero_ion,), q_value_threshold=0.01)
+
+
 def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:
     candidates, summary = infer_protein_group_candidates(
         (

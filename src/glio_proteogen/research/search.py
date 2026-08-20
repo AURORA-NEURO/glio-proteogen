@@ -217,8 +217,8 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
-    if type(psm.matched_ions) is not int or psm.matched_ions < 0:
-        raise ValueError("PSM matched_ions must be a non-negative integer")
+    if type(psm.matched_ions) is not int or psm.matched_ions < 1:
+        raise ValueError("PSM matched_ions must be a positive integer")
     if type(psm.decoy) is not bool or type(psm.target_decoy_collision) is not bool:
         raise ValueError("PSM target/decoy flags must be boolean")
     if not _is_finite_real(psm.score) or psm.score < 0:
