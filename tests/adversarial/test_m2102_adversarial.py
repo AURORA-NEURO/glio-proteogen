@@ -122,3 +122,26 @@ def test_provenance_binds_request_identity_for_generation_shape_changes() -> Non
     assert alternate.request_digest in alternate.provenance.input_digests
     assert baseline.request_digest != alternate.request_digest
     assert baseline.provenance.input_digests != alternate.provenance.input_digests
+
+
+@pytest.mark.parametrize(
+    "provenance_update",
+    [
+        {"module_id": "GLIO-PROTEOGEN-M21-03"},
+        {"module_version": "9.9.9"},
+        {"configuration_digest": "sha256:" + "f" * 64},
+        {"input_digests": ("sha256:" + "f" * 64,)},
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    provenance_update: dict[str, object],
+) -> None:
+    service = M2102Service()
+    result = service.generate(build_request())
+    tampered = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update=provenance_update)}
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M2102ReplayError):
+        service.replay(tampered)

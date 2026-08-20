@@ -187,6 +187,37 @@ class GenerateComplexActivitySyntheticTruthRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: ComplexActivitySyntheticTruthResult) -> str | None:
+    configuration_digest = canonical_request_digest(result.request.configuration)
+    expected_inputs = (
+        result.request_digest,
+        *(artifact.digest for artifact in result.request.source_artifacts),
+        configuration_digest,
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2102_MODULE_ID,
+            "result provenance module does not bind M21-02",
+        ),
+        (
+            result.provenance.module_version == M2102_CONTRACT_VERSION,
+            "result provenance version does not bind M21-02",
+        ),
+        (
+            result.provenance.configuration_digest == configuration_digest,
+            "result provenance configuration does not bind the request",
+        ),
+        (
+            result.provenance.input_digests == expected_inputs,
+            "result provenance inputs do not bind request and source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ComplexActivitySyntheticTruthResult(FrozenModel):
     """Synthetic-truth corpus with explicit reproducibility and abstention."""
 
@@ -238,6 +269,9 @@ class ComplexActivitySyntheticTruthResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no corpus and safe status")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
