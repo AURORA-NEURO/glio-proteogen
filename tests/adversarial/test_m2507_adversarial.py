@@ -185,6 +185,21 @@ def test_result_finding_ids_and_terminal_states_are_closed() -> None:
         )
 
 
+def test_evaluated_result_rejects_self_rehashed_operational_material_mutation() -> None:
+    result = m2507.M2507Service().execute(build_request())
+    assert result.report is not None
+    forged_metric = result.report.metrics[0].model_copy(update={"metric_name": "forged metric"})
+    forged_report = result.report.model_copy(
+        update={"metrics": (forged_metric, *result.report.metrics[1:])}
+    )
+    forged = result.model_copy(update={"report": forged_report})
+    forged = ProteotypeHumanFactorsResult.model_construct(
+        **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+    )
+    with pytest.raises(ValidationError, match="exact request operational material"):
+        ProteotypeHumanFactorsResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_duplicate_json_and_hostile_preflight_fail_closed() -> None:
     with pytest.raises(StrictJsonError):
         strict_json_loads(b'{"request_id":"one","request_id":"two"}')

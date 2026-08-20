@@ -279,6 +279,13 @@ class ProteotypeHumanFactorsResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported operational report")
+            if (
+                self.report.metrics != self.request.metrics
+                or self.report.fallbacks != self.request.fallbacks
+                or self.report.configuration != self.request.configuration
+                or self.report.version != self.request.configuration.version
+            ):
+                raise ValueError("evaluated report must bind exact request operational material")
         elif (
             self.report is not None
             or self.abstention_reason is None
