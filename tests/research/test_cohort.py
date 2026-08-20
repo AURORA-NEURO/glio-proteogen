@@ -217,7 +217,7 @@ def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
             cohort_label=label,
             request=replace(
                 sample.request,
-                mzml_source=cast(bytes, sample.request.mzml_source).replace(
+                mzml_source=cast("bytes", sample.request.mzml_source).replace(
                     b"</mzML>", f"<!--{sample_id}--></mzML>".encode()
                 ),
             ),
