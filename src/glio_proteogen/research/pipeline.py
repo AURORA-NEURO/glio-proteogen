@@ -546,7 +546,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         )
         if candidates:
             candidate_psms.extend(candidates)
-            competition_audit.append(PsmCompetition.from_candidates(candidates))
+            competition_audit.append(
+                PsmCompetition.from_candidates(candidates, decoy_prefix=request.decoy_prefix)
+            )
     scored = target_decoy_qvalues(tuple(candidate_psms), decoy_prefix=request.decoy_prefix)
     fdr_summary = summarize_target_decoy(
         scored,

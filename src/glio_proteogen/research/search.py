@@ -103,8 +103,24 @@ class PsmCompetition:
     candidate_digest: str
 
     @classmethod
-    def from_candidates(cls, candidates: Iterable[Psm]) -> PsmCompetition:
-        ordered = tuple(sorted(candidates, key=_competition_sort_key, reverse=True))
+    def from_candidates(
+        cls, candidates: Iterable[Psm], *, decoy_prefix: str = "DECOY_"
+    ) -> PsmCompetition:
+        """Build a receipt only after validating every candidate's class.
+
+        ``PsmCompetition`` is also a public research primitive, so callers can
+        reach it without first calling :func:`target_decoy_qvalues`.  Counting
+        caller-supplied ``decoy`` flags here would let a decoy accession be
+        represented as target evidence in an otherwise plausible receipt.  The
+        prefix is explicit for generated/custom decoy namespaces; the pipeline
+        binds the same value in its run configuration.
+        """
+
+        _validate_decoy_prefix(decoy_prefix)
+        materialized = tuple(candidates)
+        for candidate in materialized:
+            _validate_target_decoy_psm(candidate, decoy_prefix=decoy_prefix)
+        ordered = tuple(sorted(materialized, key=_competition_sort_key, reverse=True))
         if not ordered:
             raise ValueError("competition receipt requires at least one candidate")
         spectrum_id = ordered[0].spectrum_id
@@ -187,6 +203,8 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
     membership is derived and checked at the first FDR boundary.
     """
 
+    if not isinstance(psm, Psm):
+        raise TypeError("candidate must be a Psm")
     if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
         raise ValueError("PSM spectrum_id must be a non-empty string")
     if not isinstance(psm.peptide, str) or not psm.peptide:
@@ -195,6 +213,10 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
+    if type(psm.matched_ions) is not int or psm.matched_ions < 0:
+        raise ValueError("PSM matched_ions must be a non-negative integer")
+    if type(psm.decoy) is not bool or type(psm.target_decoy_collision) is not bool:
+        raise ValueError("PSM target/decoy flags must be boolean")
     if not _is_finite_real(psm.score) or psm.score < 0:
         raise ValueError("PSM score must be finite and non-negative")
     if not _is_finite_real(psm.matched_intensity) or psm.matched_intensity < 0:
@@ -214,6 +236,15 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
     )
     if psm.decoy != derived_decoy or psm.target_decoy_collision != derived_collision:
         raise ValueError("PSM target/decoy flags do not match protein accessions")
+
+
+def _validate_decoy_prefix(value: str) -> None:
+    if (
+        type(value) is not str
+        or not 1 <= len(value) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in value)
+    ):
+        raise ValueError("decoy_prefix must be a bounded non-whitespace token")
 
 
 _MASS = {
