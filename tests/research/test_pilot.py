@@ -5,10 +5,12 @@ import json
 import struct
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from tools.verify_research_pilot import verify as verify_pilot_evidence
 
+import glio_proteogen.research.pilot as pilot_module
 from glio_proteogen.research import (
     PilotError,
     PilotLimits,
@@ -20,6 +22,11 @@ from glio_proteogen.research import (
     verify_pilot_replay,
 )
 from glio_proteogen.research.public_proteomics.provenance import sha256_digest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
+    from glio_proteogen.research.search import Psm
 
 _ROOT = Path(__file__).parents[2]
 _METADATA = _ROOT / "research" / "fixtures" / "pdc" / "pdc000204.metadata.json"
@@ -174,6 +181,30 @@ def test_pilot_stops_at_psm_limit() -> None:
     result = run_pilot(request)
     assert result.status == "COMPLETED"
     assert len(result.matched_psms) == 1
+
+
+def test_pilot_forwards_custom_decoy_prefix_to_fdr(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: dict[str, str] = {}
+    original = cast("Callable[..., tuple[Psm, ...]]", pilot_module.__dict__["target_decoy_qvalues"])
+
+    def wrapped(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -> tuple[Psm, ...]:
+        observed["decoy_prefix"] = decoy_prefix
+        return original(psms, decoy_prefix=decoy_prefix)
+
+    monkeypatch.setattr(pilot_module, "target_decoy_qvalues", wrapped)
+    request = replace(
+        _request(_mzml_with_ms2()),
+        parameters=SearchParameters(
+            fragment_tolerance_da=0.2,
+            min_matched_ions=1,
+            decoy_prefix="REV_",
+        ),
+    )
+
+    result = run_pilot(request)
+
+    assert result.status == "COMPLETED"
+    assert observed == {"decoy_prefix": "REV_"}
 
 
 def test_replay_detects_tampered_receipt() -> None:

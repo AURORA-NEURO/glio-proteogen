@@ -186,6 +186,9 @@ The public receipt constructor validates accession-derived target/decoy/collisio
 finite measurement fields before counting candidates; callers using a custom decoy namespace
 must pass that exact prefix. This prevents a forged decoy flag from becoming target evidence
 when the receipt is built outside the full pipeline.
+The bounded pilot forwards `SearchParameters.decoy_prefix` into both winner-level FDR
+and downstream protein-group classification, so a custom decoy namespace cannot silently
+fall back to `DECOY_` during the final scoring pass.
 The
 latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
 group threshold, accepted target groups, descriptive decoy/target ratio, input versus unique
