@@ -68,13 +68,13 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "abb4afae8836d6e9ae20303165cb310087f71edbdf0eac70600ef285c9059e2f",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 381,
+    "focused_tests": 408,
       "coverage": {
-      "statements": 3584,
-      "missed_statements": 123,
-      "branches": 1412,
+      "statements": 3605,
+      "missed_statements": 124,
+      "branches": 1430,
       "partial_branches": 113,
-      "percent": 95.15612489991993,
+      "percent": 95.17378351539226,
       "fail_under": 95
     },
       "wheel": {
