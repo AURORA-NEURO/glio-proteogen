@@ -401,6 +401,13 @@ class M2001Engine:
             raise M2001ReplayError("M20-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2001ReplayError("M20-01 result payload digest mismatch")  # noqa: TRY003
+        # A caller can construct a semantically different model and recompute
+        # ``result_digest``.  Digest self-consistency alone cannot establish
+        # that the result is the deterministic output for its bound request;
+        # regenerate the full result and compare every canonical projection.
+        expected = self.resolve(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M2001ReplayError("M20-01 result semantic replay mismatch")  # noqa: TRY003
         return result
 
 
