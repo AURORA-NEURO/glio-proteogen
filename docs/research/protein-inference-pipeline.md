@@ -194,6 +194,18 @@ declared threshold, maximum accepted q-value, and descriptive decoy/target ratio
 are audit trails for the implemented competition rules, not claims of calibrated error
 control beyond the supplied target/decoy search space.
 
+The standalone `verify_protein_group_fdr_summary` closes the same boundary before
+replay: candidate scores and support counts must be finite and positive, support
+accessions must form a sorted, disjoint partition of the group, and the declared
+identifiability class must agree with that partition. Only a uniquely supported
+target with a q-value at or below the declared threshold can be `accepted`;
+shared-only and partially unique groups remain explicit abstentions. The verifier
+recomputes tie-aware monotone group q-values from score/status ordering and checks
+the input/duplicate-spectrum counts, ambiguity counters, maximum accepted q-value,
+decoy/target ratio, competition digest, and partition digest. This prevents a
+receipt-only relabeling from turning ambiguous evidence into a reportable protein
+group, even when the raw result digest is not available to the caller.
+
 Each PSM also records mean absolute fragment error and precursor ppm error when precursor
 filtering is enabled; aggregate search diagnostics retain the maximum observed errors and
 the caller-declared precursor tolerance so a replay can audit mass-error behavior directly.
