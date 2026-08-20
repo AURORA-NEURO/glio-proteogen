@@ -2730,6 +2730,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     @app.exception_handler(m1906_adjudication.M1906AuthorizationError)
     @app.exception_handler(M1904AuthorizationError)
     @app.exception_handler(M1903AuthorizationError)
+    @app.exception_handler(m1908_monitoring.M1908AuthorizationError)
     @app.exception_handler(m1808_monitoring.M1808AuthorizationError)
     @app.exception_handler(m1806_adjudication.M1806AuthorizationError)
     @app.exception_handler(m1803_fusion.M1803AuthorizationError)

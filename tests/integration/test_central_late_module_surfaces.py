@@ -12,6 +12,7 @@ from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as central_cli
 from glio_proteogen.contracts.m20_02 import ProteinSubtypeAlignmentResult
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from tests.contract.test_m19_08_hardening import _request as m1908_request
 from tests.modules.c17_metabolomic_lipidomic_integration.test_m20_02_engine import _request
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ _LATE_MODULE_ROUTES = {
     "/v1/modules/M19-05/verify",
     "/v1/modules/M19-06/adjudication",
     "/v1/modules/M19-06/adjudication/verify",
+    "/v1/modules/M19-08/translation-health",
     "/v1/modules/M20-01/resolve",
     "/v1/modules/M20-01/verify",
     "/v1/modules/M20-02/reconcile",
@@ -47,12 +49,14 @@ _LATE_CLI_GROUPS = {
     "m1904-intended-use",
     "m19-06-adjudication",
     "m19-05-presentation",
+    "m1908-translation-health",
     "m2001-upstream",
     "m20-02-alignment",
     "m20-03-fusion",
     "m20-04-intended-use",
 }
 HTTP_OK = 200
+HTTP_FORBIDDEN = 403
 HTTP_UNPROCESSABLE = 422
 CLI_SUCCESS = 0
 CLI_USAGE_ERROR = 2
@@ -136,6 +140,23 @@ def test_central_late_routes_reject_malformed_json_before_execution(tmp_path: Pa
             )
             assert response.status_code == HTTP_UNPROCESSABLE, (path, response.text)
             assert "Traceback" not in response.text
+
+
+def test_central_m1908_denied_control_is_sanitized(tmp_path: Path) -> None:
+    """Central transport must preserve M19-08's fail-closed 403 boundary."""
+
+    request = m1908_request().model_dump(mode="json")
+    request["context"]["references"]["consent"]["state"] = "withheld"
+    with TestClient(create_app(tmp_path / "events.sqlite")) as client:
+        response = client.post(
+            "/v1/modules/M19-08/translation-health",
+            content=canonical_json_bytes(request),
+            headers={"content-type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_FORBIDDEN, response.text
+    assert "consent" in response.json()["detail"]
+    assert "Traceback" not in response.text
 
 
 def test_central_late_cli_exports_are_json_and_unknown_schema_is_sanitized() -> None:
