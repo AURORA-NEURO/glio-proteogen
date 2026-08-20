@@ -22,6 +22,12 @@ The research pipeline treats that spectrum as a missing/unsupported precursor
 and abstains before fragment search. Identical repeated selected-ion metadata
 remains valid.
 
+Effective spectrum IDs must also be unique. The downstream target/decoy
+competition is keyed by spectrum identity; accepting two distinct spectra with
+one ID would collapse their contenders into one winner and distort spectral
+counts and FDR evidence. Duplicate IDs therefore fail at mzML admission
+before fragment search.
+
 The search primitive supports precursor charges 1--20. An mzML file may carry a
 larger positive charge value, so parsing preserves that metadata, but the
 pipeline treats it as unsupported precursor evidence and abstains the MS2 before

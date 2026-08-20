@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from glio_proteogen.research import ResearchRunRequest, parse_mzml, run_research_protein_inference
 
 
@@ -24,6 +26,15 @@ def test_parser_does_not_choose_an_arbitrary_selected_ion() -> None:
     assert spectrum.precursor_ambiguous
     assert spectrum.precursor_mz is None
     assert spectrum.precursor_charge is None
+
+
+def test_parser_rejects_duplicate_spectrum_ids_before_fdr() -> None:
+    duplicate = _ambiguous_mzml().replace(
+        b"</spectrum></spectrumList></run></mzML>",
+        b'</spectrum><spectrum id="scan=ambiguous"/></spectrumList></run></mzML>',
+    )
+    with pytest.raises(ValueError, match="spectrum IDs must be unique"):
+        parse_mzml(duplicate)
 
 
 def test_pipeline_abstains_ambiguous_ms2_before_precursor_search() -> None:

@@ -110,6 +110,12 @@ def _payload(source: bytes | bytearray | BinaryIO, max_bytes: int) -> bytes:
     return payload
 
 
+def _finalize_spectra(output: list[Spectrum]) -> tuple[Spectrum, ...]:
+    if len({spectrum.spectrum_id for spectrum in output}) != len(output):
+        raise ValueError("mzML spectrum IDs must be unique")
+    return tuple(output)
+
+
 def parse_mzml(
     source: bytes | bytearray | BinaryIO,
     *,
@@ -182,4 +188,4 @@ def parse_mzml(
                 precursor_ambiguous,
             )
         )
-    return tuple(output)
+    return _finalize_spectra(output)
