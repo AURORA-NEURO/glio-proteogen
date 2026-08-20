@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m18_01 import (
     UpstreamCandidate,
     UpstreamSourceKind,
 )
+from glio_proteogen.contracts.m18_01.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -26,6 +27,7 @@ from glio_proteogen.kernel.models import (
     ExecutionContext,
     IdentityLineageReference,
     IdentityLineageState,
+    Limitation,
     SupportStatus,
     UncertaintyEstimate,
     UncertaintyProfile,
@@ -230,6 +232,22 @@ def test_service_replay_accepts_exact_result_and_rejects_request_or_payload_tamp
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
     with pytest.raises(M1801ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"human_review_required": True}))
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = M1801Service()
+    result = service.resolve(_request())
+    mutated = result.model_copy(
+        update={
+            "limitations": (
+                *result.limitations,
+                Limitation(code="forged", statement="forged semantic state"),
+            )
+        }
+    )
+    mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(M1801ReplayError, match="semantic replay"):
+        service.replay(mutated)
 
 
 def test_strict_request_adapter_rejects_non_model_candidate_mapping() -> None:
