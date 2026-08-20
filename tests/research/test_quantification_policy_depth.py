@@ -57,7 +57,7 @@ def test_quantification_rejects_nonphysical_observation_values(intensity: object
     [
         PeptideQuant("sample", "P1", -1.0),
         PeptideQuant("sample", "P1", float("nan")),
-        PeptideQuant("sample", "P1", intensity=True),  # type: ignore[arg-type]
+        PeptideQuant("sample", "P1", intensity=True),
     ],
 )
 def test_direct_normalization_rejects_invalid_peptide_values(value: PeptideQuant) -> None:
