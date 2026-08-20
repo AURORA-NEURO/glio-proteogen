@@ -184,6 +184,8 @@ def _provenance(
                 request.adjudication_result.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 *(field.value_digest for field in request.fields),
+                *(evidence.reference.digest for evidence in request.configuration.evidence),
+                request.consent.evidence.digest,
             )
         )
     )

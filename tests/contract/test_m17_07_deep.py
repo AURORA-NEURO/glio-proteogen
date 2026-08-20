@@ -76,6 +76,17 @@ def test_runtime_exports_closed_contract_with_seven_uncertainty_dimensions() -> 
     assert result.findings[0].code.value == "provisional_abi_pending_review"
 
 
+def test_provenance_binds_configuration_and_consent_evidence() -> None:
+    request = build_scenario_request()
+    result = M1707DownstreamTypedExportEngine().infer(request)
+
+    expected = {
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+        request.consent.evidence.digest,
+    }
+    assert expected <= set(result.provenance.input_digests)
+
+
 @pytest.mark.parametrize(
     ("scenario", "finding"),
     [
