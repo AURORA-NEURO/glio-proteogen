@@ -742,6 +742,8 @@ def test_search_parameter_and_peak_validation() -> None:
         {"fragment_tolerance_da": math.nan},
         {"min_matched_ions": 0},
         {"precursor_charge": 0},
+        {"fragment_tolerance_da": True},
+        {"min_matched_ions": True},
     ):
         with pytest.raises(ValueError):
             SearchParameters(**kwargs)

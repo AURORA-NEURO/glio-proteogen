@@ -41,3 +41,32 @@ def test_pipeline_abstains_ambiguous_ms2_before_precursor_search() -> None:
     assert result.missing_precursor_ms2 == 1
     assert result.psms == ()
     assert result.accepted_psms == ()
+
+
+def test_pipeline_abstains_precursor_charge_outside_search_limit() -> None:
+    mzml = _ambiguous_mzml().replace(
+        b'<cvParam accession="MS:1000041" value="2"/></selectedIon>'
+        b'<selectedIon><cvParam accession="MS:1000744" value="600.0"/>',
+        b'<cvParam accession="MS:1000041" value="21"/></selectedIon>'
+        b'<selectedIon><cvParam accession="MS:1000744" value="600.0"/>',
+    )
+    # Keep one selected ion so the only abstention reason is the unsupported
+    # charge ceiling, rather than the ambiguity fixture's two-ion condition.
+    mzml = mzml.replace(
+        b'<selectedIon><cvParam accession="MS:1000744" value="600.0"/>'
+        b'<cvParam accession="MS:1000041" value="2"/></selectedIon>',
+        b"",
+    )
+    result = run_research_protein_inference(
+        ResearchRunRequest(
+            sample_id="unsupported-charge",
+            mzml_source=mzml,
+            fasta_source=b">P1\nMPEPTIDER\n",
+            min_matched_ions=1,
+            min_peptide_length=7,
+            max_peptide_length=12,
+        )
+    )
+    assert result.ms2_spectra_seen == 1
+    assert result.missing_precursor_ms2 == 1
+    assert result.psms == ()
