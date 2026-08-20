@@ -68,6 +68,18 @@ def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
     assert not M2708Service().verify(rehashed)
 
 
+def test_upstream_media_type_requires_exact_m27_07_contract_value() -> None:
+    request = build_request()
+    hostile = request.source_artifacts[0].model_copy(
+        update={"media_type": "application/vnd.attacker.m27-07+json"}
+    )
+    forged = request.model_copy(
+        update={"source_artifacts": (hostile, *request.source_artifacts[1:])}
+    )
+    with pytest.raises(ValueError, match="unsupported upstream artifact media type"):
+        M2708Service().execute(forged)
+
+
 def test_abstention_has_no_package_and_requires_review() -> None:
     result = M2708Service().execute(build_request(incomplete=True))
     assert result.status.value == "abstained"

@@ -43,6 +43,7 @@ _CONTROL_ROLES: Final = (
     ControlRole.SUPPORT,
     ControlRole.INTENDED_USE,
 )
+_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 
 _M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 
