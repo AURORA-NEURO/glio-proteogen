@@ -76,6 +76,17 @@ def test_bounds_and_coverage_arithmetic_reject_adversarial_values() -> None:
         )
 
 
+def test_source_artifact_with_reused_id_but_changed_digest_is_rejected() -> None:
+    request = _request()
+    upstream = request.upstream_result
+    forged_source = upstream.model_copy(update={"digest": sha256_digest("forged-upstream")})
+    with pytest.raises(ValidationError, match="exactly bind the upstream result"):
+        _request_update(
+            request,
+            source_artifacts=(forged_source, request.source_artifacts[1]),
+        )
+
+
 def test_engine_abstains_for_unsupported_performance_coverage() -> None:
     performance = (
         _request().performance[0].model_copy(update={"coverage_status": CoverageStatus.UNSUPPORTED})

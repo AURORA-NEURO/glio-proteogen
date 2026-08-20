@@ -240,8 +240,15 @@ class EvaluateProteinRnaDiscordanceSubgroupEquityRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact ids must be unique")
-        if self.upstream_result.artifact_id not in set(artifact_ids):
+        upstream_matches = tuple(
+            artifact
+            for artifact in self.source_artifacts
+            if artifact.artifact_id == self.upstream_result.artifact_id
+        )
+        if not upstream_matches:
             raise ValueError("source artifacts must include the upstream result")
+        if self.upstream_result not in upstream_matches:
+            raise ValueError("source artifacts must exactly bind the upstream result")
         return self
 
 
