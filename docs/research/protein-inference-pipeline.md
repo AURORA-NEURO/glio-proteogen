@@ -273,7 +273,10 @@ discovery, treatment recommendation, identity inference, or consent inference. A
 q-value, spectral count, or protein group is not itself a disease or mechanistic claim.
 
 The public PDC record used by the surrounding foundation is metadata and provenance only;
-raw cohort bytes remain caller-supplied and are not bundled or downloaded implicitly. When
+raw cohort bytes remain caller-supplied and are not bundled or downloaded implicitly. The
+bounded metadata transport drains short reads to EOF before hashing the response, so a legal
+partial network read cannot produce a self-consistent receipt for only a valid JSON prefix.
+When
 the caller explicitly invokes `PdcClient.download_file_with_receipt`, the retriever requires an
 allowlisted HTTPS delivery host (or a caller-approved exact host), validates redirects, timeout,
 response media, declared size, MD5, and SHA-256, and writes only fully verified bytes. The caller

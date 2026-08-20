@@ -31,6 +31,7 @@ PDC_TERMS: Final = (
 _ALLOWED_HOSTS: Final = frozenset({"pdc.cancer.gov", "proteomic.datacommons.cancer.gov"})
 _MAX_TIMEOUT_SECONDS: Final = 60.0
 _MAX_RESPONSE_BYTES: Final = 4 * 1024 * 1024
+_RESPONSE_CHUNK_BYTES: Final = 64 * 1024
 _PDC_ID_LENGTH: Final = 9
 _HTTP_OK: Final = 200
 
@@ -195,7 +196,21 @@ def _default_transport(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
-            body = response.read(max_response_bytes + 1)
+            # A bounded ``read(n)`` may legally return fewer than n bytes before
+            # EOF.  Drain the response so a valid JSON prefix cannot become a
+            # self-consistent but incomplete provenance snapshot.
+            chunks = bytearray()
+            while len(chunks) <= max_response_bytes:
+                limit = min(_RESPONSE_CHUNK_BYTES, max_response_bytes + 1 - len(chunks))
+                chunk = response.read(limit)
+                if not isinstance(chunk, bytes):
+                    raise PDCError("PDC response stream must yield bytes")
+                if not chunk:
+                    break
+                if len(chunk) > limit:
+                    raise PDCError("PDC response stream exceeded the read bound")
+                chunks.extend(chunk)
+            body = bytes(chunks)
             content_type = response.headers.get("Content-Type", "")
             return response.status, body, content_type
     except (urllib.error.URLError, TimeoutError) as error:

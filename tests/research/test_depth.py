@@ -111,6 +111,9 @@ def test_default_pdc_transport_is_bounded_and_translates_network_errors(
         status: ClassVar[int] = 200
         headers: ClassVar[dict[str, str]] = {"Content-Type": "application/json"}
 
+        def __init__(self) -> None:
+            self._served = False
+
         def __enter__(self) -> Self:
             return self
 
@@ -118,6 +121,9 @@ def test_default_pdc_transport_is_bounded_and_translates_network_errors(
             return None
 
         def read(self, limit: int) -> bytes:
+            if self._served:
+                return b""
+            self._served = True
             assert limit == _PDC_CONFIG.max_response_bytes + 1
             return response_body
 
@@ -138,6 +144,48 @@ def test_default_pdc_transport_is_bounded_and_translates_network_errors(
     monkeypatch.setattr(urllib.request, "urlopen", failing_urlopen)
     with pytest.raises(PDCError, match="request failed"):
         PDCMetadataClient(_PDC_CONFIG).fetch("PDC000204")
+
+
+def test_default_pdc_transport_drains_short_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response_body = _FIXTURE.read_bytes()
+
+    class ShortReadResponse:
+        status: ClassVar[int] = 200
+        headers: ClassVar[dict[str, str]] = {"Content-Type": "application/json"}
+
+        def __init__(self) -> None:
+            self._offset = 0
+            self.read_calls = 0
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, limit: int) -> bytes:
+            self.read_calls += 1
+            assert limit > 0
+            chunk = response_body[self._offset : self._offset + min(limit, 7)]
+            self._offset += len(chunk)
+            return chunk
+
+    response = ShortReadResponse()
+
+    def urlopen(_request: urllib.request.Request, *, timeout: float) -> ShortReadResponse:
+        assert timeout == _PDC_CONFIG.timeout_seconds
+        return response
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    snapshot = PDCMetadataClient(_PDC_CONFIG).fetch(
+        "PDC000204", retrieved_at="2026-08-17T00:00:00Z"
+    )
+    assert response.read_calls > 1
+    assert response._offset == len(response_body)
+    assert snapshot.response_bytes == len(response_body)
+    assert snapshot.response_sha256 == sha256_digest(response_body)
 
 
 def test_provenance_rejects_non_json_and_invalid_references(tmp_path: Path) -> None:
