@@ -270,8 +270,10 @@ def _finite_median(values: tuple[float, ...], field: str) -> float:
     return result
 
 
-def _finite_sum(values: Iterable[float], field: str) -> float:
-    total = 0.0
+def _finite_sum(values: Iterable[float], field: str) -> float | int:
+    # Preserve built-in ``sum``'s empty-input integer zero for canonical
+    # receipt/digest compatibility while still rejecting non-finite growth.
+    total: float | int = 0
     for value in values:
         total += value
         if not isfinite(total):
