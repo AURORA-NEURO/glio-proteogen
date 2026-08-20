@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m23_07.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -237,6 +238,40 @@ class EvaluateVariantPeptideHumanFactorsRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: VariantPeptideHumanFactorsResult) -> str | None:
+    request = result.request
+    expected_configuration = sha256_digest(
+        {
+            "configuration": request.configuration,
+            "metrics": request.metrics,
+            "fallbacks": request.fallbacks,
+        }
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2307_MODULE_ID,
+            "result provenance module does not bind M23-07",
+        ),
+        (
+            result.provenance.module_version == M2307_CONTRACT_VERSION,
+            "result provenance version does not bind M23-07",
+        ),
+        (
+            result.provenance.configuration_digest == expected_configuration,
+            "result provenance configuration does not bind operational material",
+        ),
+        (
+            result.provenance.input_digests
+            == tuple(artifact.digest for artifact in request.source_artifacts),
+            "result provenance inputs do not bind source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class VariantPeptideHumanFactorsResult(FrozenModel):
     """Human-factors and operational result with safe abstention."""
 
@@ -281,6 +316,9 @@ class VariantPeptideHumanFactorsResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no report and safe status")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

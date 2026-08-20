@@ -182,6 +182,30 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
         service.replay(forged)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_id", "GLIO-PROTEOGEN-M23-06"),
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    field: str,
+    value: object,
+) -> None:
+    service = m2307.M2307Service()
+    result = service.evaluate(build_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(m2307.M2307ReplayError):
+        service.replay(forged)
+
+
 def test_preflight_and_runtime_wrapper_cover_hostile_and_public_paths() -> None:
     class ExplodingMapping(dict[str, object]):
         def get(self, key: str, default: object = None) -> object:
