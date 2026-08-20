@@ -55,6 +55,7 @@ _MZML_PARSER_VERSION = "mzml-parser-1"
 _SEARCH_VERSION = "fragment-search-6-candidate-audit-decoy-tie-abstention-charge-assignment"
 _DIGESTION_VERSION = "trypsin-digest-1"
 _MODIFICATION_VERSION = "residue-local-unimod-1"
+_MAX_PRECURSOR_CHARGE = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -523,6 +524,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             spectrum.precursor_ambiguous
             or spectrum.precursor_mz is None
             or spectrum.precursor_charge is None
+            or not 1 <= spectrum.precursor_charge <= _MAX_PRECURSOR_CHARGE
         ):
             missing_precursor_count += 1
             continue
