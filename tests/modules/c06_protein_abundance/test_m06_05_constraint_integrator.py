@@ -110,8 +110,11 @@ def _request(
         version="1.0.0",
         value_kind=FormalStateFeatureValueKind.SCALAR,
         unit="normalized-abundance",
-        allowed_missingness=(FormalStateMissingness.OBSERVED, FormalStateMissingness.MISSING,
-                             FormalStateMissingness.UNSUPPORTED),
+        allowed_missingness=(
+            FormalStateMissingness.OBSERVED,
+            FormalStateMissingness.MISSING,
+            FormalStateMissingness.UNSUPPORTED,
+        ),
         domain_lower=0.0,
     )
     schema = FormalProteinStateSchema(

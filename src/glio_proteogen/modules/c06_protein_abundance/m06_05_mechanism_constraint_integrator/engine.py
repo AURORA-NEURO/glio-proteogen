@@ -174,10 +174,13 @@ def _provenance(request: IntegrateProteinAbundanceConstraintsRequest) -> Provena
 def _evidence(
     request: IntegrateProteinAbundanceConstraintsRequest,
 ) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0605_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.constraint_set.evidence
+    return (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0605_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.constraint_set.evidence
+    )
 
 
 def _uncertainty() -> UncertaintyProfile:
@@ -283,8 +286,7 @@ def _build_result(
 ) -> IntegrateProteinAbundanceConstraintsResult:
     values = {item.feature_id: item for item in request.feature_values}
     evaluations = tuple(
-        _evaluate(constraint, values)
-        for constraint in request.constraint_set.constraints
+        _evaluate(constraint, values) for constraint in request.constraint_set.constraints
     )
     hard_non_evaluable = any(
         constraint.hardness is MechanismConstraintHardness.HARD
@@ -302,9 +304,7 @@ def _build_result(
         item.state is not FormalStateMissingness.OBSERVED for item in request.feature_values
     )
     estimates = tuple(
-        estimate
-        for value in request.feature_values
-        if (estimate := _estimate(value)) is not None
+        estimate for value in request.feature_values if (estimate := _estimate(value)) is not None
     )
     status = ConstraintIntegrationStatus.INTEGRATED
     reason: str | None = None
@@ -325,17 +325,13 @@ def _build_result(
         ConstraintAblationRecord(
             constraint_id=constraint.constraint_id,
             with_constraint_effect=(
-                (
-                    constraint.weight if constraint.weight is not None else 0.0
-                )
+                (constraint.weight if constraint.weight is not None else 0.0)
                 if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
                 else 0.0
             ),
             without_constraint_effect=0.0,
             effect_delta=(
-                (
-                    constraint.weight if constraint.weight is not None else 0.0
-                )
+                (constraint.weight if constraint.weight is not None else 0.0)
                 if evaluation.outcome is ConstraintEvaluationOutcome.SATISFIED
                 else 0.0
             ),

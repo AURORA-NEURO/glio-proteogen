@@ -156,10 +156,13 @@ def _provenance(request: CalibrateSelectiveProteinAbundanceRequest) -> Provenanc
 
 
 def _evidence(request: CalibrateSelectiveProteinAbundanceRequest) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0607_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.policy.evidence
+    return (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0607_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.policy.evidence
+    )
 
 
 def _limitations() -> tuple[Limitation, ...]:
@@ -223,18 +226,26 @@ def _build_result(
     upstream_estimates = upstream.request.constraint_result.estimates
     can_calibrate = upstream_supported and quality_ok and bool(upstream_estimates)
     status = CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED
-    reason = None if can_calibrate else (
-        "upstream uncertainty result is not supported for calibration"
-        if not upstream_supported
-        else quality_reason
-        if not quality_ok
-        else "upstream result contains no supported estimates"
+    reason = (
+        None
+        if can_calibrate
+        else (
+            "upstream uncertainty result is not supported for calibration"
+            if not upstream_supported
+            else quality_reason
+            if not quality_ok
+            else "upstream result contains no supported estimates"
+        )
     )
-    support_status = SupportStatus.SUPPORTED if can_calibrate else (
-        SupportStatus.UNSUPPORTED
-        if not upstream_supported
-        and upstream.support_decision.status is SupportStatus.UNSUPPORTED
-        else SupportStatus.REVIEW_REQUIRED
+    support_status = (
+        SupportStatus.SUPPORTED
+        if can_calibrate
+        else (
+            SupportStatus.UNSUPPORTED
+            if not upstream_supported
+            and upstream.support_decision.status is SupportStatus.UNSUPPORTED
+            else SupportStatus.REVIEW_REQUIRED
+        )
     )
     prediction_sets = (
         tuple(
@@ -274,9 +285,7 @@ def _build_result(
     diagnostics = tuple(
         CalibrationDiagnostic(
             diagnostic_id=f"diagnostic.{stratum.stratum_id}",
-            status=CalibrationStatus.CALIBRATED
-            if can_calibrate
-            else CalibrationStatus.ABSTAINED,
+            status=CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED,
             metric_name="coverage_and_calibration_error",
             metric_value=stratum.calibration_error,
             message=(
