@@ -42,7 +42,7 @@ from glio_proteogen.kernel.models import (
 M1401_MODULE_ID: Final = "GLIO-PROTEOGEN-M14-01"
 M1401_OPERATION: Final = "register_protein_subtype_hypotheses"
 M1401_CONTRACT_VERSION: Final = "0.1.0-provisional"
-M1401_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m11-01+json"
+M1401_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m14-01+json"
 M1401_PARENT: Final = "protein_subtype"
 M1401_OWNER: Final = "Clinical science"
 M1401_SAFETY_CLASS: Final = "S2"
