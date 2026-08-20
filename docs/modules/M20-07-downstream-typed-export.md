@@ -21,7 +21,11 @@ Safety and closure rules:
 
 - Seven caller-declared controls are checked fail-closed before field
   evaluation: approved configuration, identity lineage, provenance, consent,
-  quality, support, and intended use.
+  quality, support, and intended use. An export-ready request's granted consent
+  reference must be exactly the same decision, state, policy version, and
+  evidence as the execution-context consent control; a different granted
+  decision is rejected before export. A withheld or otherwise non-granted
+  request remains a safe abstention path.
 - Export fields have unique IDs and names, explicit type/version/owner/
   documentation/value digest, and unique evidence. Ownership, configuration,
   signature, consent, and support are retained in the immutable object.

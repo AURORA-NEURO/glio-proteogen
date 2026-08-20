@@ -4,7 +4,7 @@ GLIO-PROTEOGEN-M20-07,seven-control fail-closed preflight,modules/.../m20_07_dow
 GLIO-PROTEOGEN-M20-07,unique documented typed export fields,contracts/m20_07/v1.py ExportField and request validators,contract and duplicate-field tests,pass
 GLIO-PROTEOGEN-M20-07,immutable ownership and parent boundary,contracts/m20_07/v1.py DownstreamContractObject and ExportOwnershipBinding,contract/runtime ownership tests,pass
 GLIO-PROTEOGEN-M20-07,versioned compatibility and locked configuration,contracts/m20_07/v1.py DownstreamExportConfiguration,compatibility evaluator and contract tests,pass
-GLIO-PROTEOGEN-M20-07,consent-aware support-aware export,engine.py supported/exported and abstention branches,consent support evaluator/adversarial tests,pass
+GLIO-PROTEOGEN-M20-07,consent-aware support-aware export with granted request/context consent binding,contracts/m20_07/v1.py request_is_bound and engine.py supported/exported branches,consent mismatch adversarial test plus support evaluator,pass
 GLIO-PROTEOGEN-M20-07,signature and provenance closure,engine.py SignedContractEnvelope and _provenance,runtime/evaluator assertions,pass
 GLIO-PROTEOGEN-M20-07,safe abstention without unsupported-to-negative conversion,engine.py ExportStatus and ExportFinding,unsupported prohibited missing/consent tests,pass
 GLIO-PROTEOGEN-M20-07,seven uncertainty dimensions,engine.py _uncertainty,runtime/evaluator assertions,pass

@@ -124,6 +124,15 @@ def test_plugin_rejects_malformed_json_and_unsealed_tokens() -> None:
     assert plugin.run(plugin.validate(_request())).status is ExportStatus.EXPORTED
 
 
+def test_export_rejects_granted_consent_not_bound_to_context() -> None:
+    request = _request()
+    forged = request.model_copy(
+        update={"consent": request.consent.model_copy(update={"decision_id": "decision.foreign"})}
+    )
+    with pytest.raises(M2007ExportError, match="request is invalid"):
+        M2007Engine().export(forged)
+
+
 def test_tampered_contract_and_payload_never_replay() -> None:
     engine = M2007Engine()
     result = engine.export(_request())

@@ -245,6 +245,11 @@ class ExportProteinSubtypeDownstreamContractRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("request source artifact ids must be unique")
+        if (
+            self.consent.state is ConsentState.GRANTED
+            and self.consent != self.context.references.consent
+        ):
+            raise ValueError("granted request consent must bind the context consent control")
         return self
 
 
