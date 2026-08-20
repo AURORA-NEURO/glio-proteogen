@@ -153,6 +153,13 @@ def _provenance(request: AdjudicateProteinRnaDiscordanceQueueRequest) -> Provena
     input_digests = (
         request.upstream_result.digest,
         *(artifact.digest for artifact in request.source_artifacts),
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+        *(evidence.reference.digest for entry in request.entries for evidence in entry.evidence),
+        *(
+            evidence.reference.digest
+            for assignment in request.assignments
+            for evidence in assignment.evidence
+        ),
     )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",

@@ -148,6 +148,40 @@ def test_resolved_queue_preserves_history_and_replays() -> None:
     assert M1606Engine().replay(result) == result
 
 
+def test_provenance_binds_nested_queue_evidence() -> None:
+    request = _request()
+
+    def distinct_evidence(name: str, marker: str) -> EvidenceReference:
+        original = request.entries[0].evidence[0]
+        reference = original.reference.model_copy(
+            update={"artifact_id": name, "digest": "sha256:" + marker * 64}
+        )
+        return original.model_copy(update={"reference": reference})
+
+    entry_evidence = distinct_evidence("evidence.nested.entry", "2")
+    assignment_evidence = distinct_evidence("evidence.nested.assignment", "3")
+    configuration_evidence = distinct_evidence("evidence.nested.configuration", "4")
+    request = request.model_copy(
+        update={
+            "entries": (request.entries[0].model_copy(update={"evidence": (entry_evidence,)}),),
+            "assignments": (
+                request.assignments[0].model_copy(update={"evidence": (assignment_evidence,)}),
+            ),
+            "configuration": request.configuration.model_copy(
+                update={"evidence": (configuration_evidence,)}
+            ),
+        }
+    )
+
+    result = M1606Engine().adjudicate(request)
+
+    assert {
+        entry_evidence.reference.digest,
+        assignment_evidence.reference.digest,
+        configuration_evidence.reference.digest,
+    } <= set(result.provenance.input_digests)
+
+
 def test_deferred_review_abstains_without_record() -> None:
     result = M1606Engine().adjudicate(_request(decision=ReviewDecision.DEFER))
     assert result.status.value == "abstained"
