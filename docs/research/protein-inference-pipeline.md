@@ -172,7 +172,9 @@ observed replicate counts, missingness, and the source label QC statuses. Missin
 non-positive cells produce `abstained_missing_or_nonpositive` with no imputation. Labels
 are compared in canonical lexical order as caller metadata; they are never interpreted as
 case/control, disease, treatment, or biological strata, and no p-value or significance
-claim is emitted. The outer bundle digest covers the ordered record identities and each
+claim is emitted. The contrast constructor verifies that difference, ratio, and log2 ratio
+are derived from the recorded medians, so a direct receipt cannot overstate the descriptive
+effect while retaining a valid outer digest. The outer bundle digest covers the ordered record identities and each
 inner digest covers the complete record identity (`evidence_id`, `source`, and `kind`) as
 well as its frozen payload and quality metadata. Relabeling a record while retaining its
 old digest therefore fails replay; an evidence ID is not an interchangeable display label.

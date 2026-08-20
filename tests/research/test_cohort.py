@@ -80,6 +80,8 @@ def _valid_contrast() -> CohortLabelContrast:
         ({"label_a_missingness_rate": 2.0}, "finite fraction"),
         ({"status": "accepted"}, "status"),
         ({"label_a_median": -1.0}, "median fields"),
+        ({"median_ratio": 0.25}, "contrast ratio"),
+        ({"log2_median_ratio": -2.0}, "contrast log2 ratio"),
         ({"log2_median_ratio": float("inf")}, "derived fields"),
         ({"median_difference": 1.0}, "derived from"),
         ({"label_a_median": None}, "two positive"),
@@ -252,12 +254,8 @@ def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
     assert dict(result.configuration)["cohort_contrast_version"] == (
         "caller-label-median-contrast-v1"
     )
-    tampered = replace(
-        result,
-        label_contrasts=(replace(contrast, median_ratio=2.0),),
-    )
-    with pytest.raises(ValueError, match="not reproducible"):
-        aggregate_cohort_evidence(tampered)
+    with pytest.raises(ValueError, match="contrast ratio"):
+        replace(contrast, median_ratio=2.0)
 
 
 def test_cohort_label_contrast_abstains_without_two_positive_medians() -> None:

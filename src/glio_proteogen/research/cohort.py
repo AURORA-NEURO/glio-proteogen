@@ -372,6 +372,12 @@ class CohortLabelContrast:
                 raise ValueError("descriptive contrast requires two positive medians")
             if self.label_a_status != "descriptive" or self.label_b_status != "descriptive":
                 raise ValueError("descriptive contrast requires descriptive label QC")
+            expected_ratio = self.label_a_median / self.label_b_median
+            expected_log_ratio = log2(expected_ratio)
+            if self.median_ratio != expected_ratio:
+                raise ValueError("contrast ratio is not derived from label medians")
+            if self.log2_median_ratio != expected_log_ratio:
+                raise ValueError("contrast log2 ratio is not derived from label medians")
         elif any(
             value is not None
             for value in (self.median_difference, self.median_ratio, self.log2_median_ratio)
