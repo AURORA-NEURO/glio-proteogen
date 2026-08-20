@@ -12,6 +12,8 @@ from evals.research_proteomics.fdr_quant_group_invariants import (
 from glio_proteogen.research import (
     Psm,
     PsmCompetition,
+    ProteinGroupCandidate,
+    ProteinGroupFdrSummary,
     infer_protein_group_candidates,
     infer_protein_groups,
     target_decoy_qvalues,
@@ -247,3 +249,100 @@ def test_protein_group_partition_rejects_malformed_memberships(
 ) -> None:
     with pytest.raises((TypeError, ValueError)):
         infer_protein_groups(mapping)  # type: ignore[arg-type]
+
+
+def _group_receipt() -> tuple[tuple[ProteinGroupCandidate, ...], ProteinGroupFdrSummary]:
+    target = Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    decoy = Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True)
+    return infer_protein_group_candidates((target, decoy), q_value_threshold=0.01)
+
+
+def test_group_receipt_rejects_invalid_partition_shapes_and_statuses() -> None:
+    candidates, summary = _group_receipt()
+    candidate = candidates[0]
+    invalid_candidates = (
+        replace(candidate, accessions=("Z", "A")),
+        replace(candidate, unique_peptides=("PEPTIDEK",), shared_peptides=("PEPTIDEK",)),
+        replace(candidate, status="unknown"),
+        replace(candidate, acceptance="unknown"),
+        replace(candidate, q_value=float("nan")),
+        replace(candidate, evidence_digest="not-a-digest"),
+    )
+    for forged in invalid_candidates:
+        with pytest.raises(ValueError):
+            verify_protein_group_fdr_summary((forged,), summary)
+
+
+def test_group_receipt_rejects_collision_and_shared_only_promotions() -> None:
+    candidates, summary = _group_receipt()
+    candidate = candidates[0]
+    collision = replace(
+        candidate,
+        status="collision",
+        q_value=0.01,
+        acceptance="abstained",
+    )
+    with pytest.raises(ValueError, match="collision"):
+        verify_protein_group_fdr_summary((collision,), summary)
+    shared_only = replace(
+        candidate,
+        identifiability="shared_only_ambiguous",
+        acceptance="accepted",
+    )
+    with pytest.raises(ValueError, match="shared-only"):
+        verify_protein_group_fdr_summary((shared_only,), summary)
+
+
+def test_group_receipt_rejects_order_duplicate_and_summary_count_tampering() -> None:
+    candidates, summary = _group_receipt()
+    target = Psm("target-2", "PEPTIDER2", ("P2",), 3.0, 3, decoy=False)
+    expanded, expanded_summary = infer_protein_group_candidates(
+        (*(
+            Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False),
+            Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True),
+            target,
+        ),),
+        q_value_threshold=0.01,
+    )
+    with pytest.raises(ValueError, match="sorted"):
+        verify_protein_group_fdr_summary(expanded[::-1], expanded_summary)
+    with pytest.raises(ValueError, match="unique"):
+        verify_protein_group_fdr_summary((candidates[0], candidates[0]), summary)
+    for field in ("candidates", "target_candidates", "decoy_candidates", "collision_candidates"):
+        forged = replace(summary, **{field: getattr(summary, field) + 1})
+        with pytest.raises(ValueError):
+            verify_protein_group_fdr_summary(candidates, forged)
+    forged = replace(summary, accepted_targets=summary.accepted_targets + 1)
+    with pytest.raises(ValueError, match="accepted"):
+        verify_protein_group_fdr_summary(candidates, forged)
+    forged = replace(summary, error_candidates=summary.error_candidates + 1)
+    with pytest.raises(ValueError, match="error"):
+        verify_protein_group_fdr_summary(candidates, forged)
+    forged = replace(summary, target_denominator=summary.target_denominator + 1)
+    with pytest.raises(ValueError, match="denominator"):
+        verify_protein_group_fdr_summary(candidates, forged)
+
+
+def test_group_receipt_rejects_status_and_partition_digest_tampering() -> None:
+    candidates, summary = _group_receipt()
+    for status in (
+        "abstained_no_group_candidates",
+        "abstained_no_decoy_evidence",
+        "abstained_no_target_denominator",
+    ):
+        forged = replace(summary, evidence_status=status)
+        with pytest.raises(ValueError, match="status"):
+            verify_protein_group_fdr_summary(candidates, forged)
+    forged = replace(summary, group_partition_digest="0" * 64)
+    with pytest.raises(ValueError, match="partition digest"):
+        verify_protein_group_fdr_summary(candidates, forged)
+    with pytest.raises(TypeError, match="summary"):
+        verify_protein_group_fdr_summary(candidates, object())  # type: ignore[arg-type]
+
+
+def test_group_partition_rejects_non_mapping_and_group_decoy_prefix() -> None:
+    with pytest.raises(TypeError, match="mapping"):
+        infer_protein_groups(None)  # type: ignore[arg-type]
+    target = Psm("target", "PEPTIDER", ("P1",), 1.0, 3, decoy=False)
+    with pytest.raises(ValueError, match="decoy_prefix"):
+        infer_protein_group_candidates((target,), q_value_threshold=0.01, decoy_prefix="bad prefix")

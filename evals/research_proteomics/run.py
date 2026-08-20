@@ -169,7 +169,7 @@ def scenarios() -> tuple[Scenario, ...]:
             1,
             0,
             0,
-            expected_group_quant=((("P1", "P2"), "missing", None),),
+            expected_group_quant=((("P1", "P2"), "abstained_ambiguous_support", None),),
         ),
         Scenario(
             "multi_spectrum",
