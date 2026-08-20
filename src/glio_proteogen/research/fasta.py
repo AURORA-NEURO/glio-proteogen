@@ -79,9 +79,24 @@ def _read_fasta_source(source: bytes | str | BinaryIO, max_bytes: int) -> str:
     elif isinstance(source, str):
         payload = source.encode("utf-8")
     else:
-        payload = source.read(max_bytes + 1)
-        if not isinstance(payload, bytes):
-            raise TypeError("FASTA binary stream must return bytes")
+        # ``BinaryIO.read(n)`` may legally return fewer than ``n`` bytes
+        # before EOF (for example, a throttled or non-seekable source).  A
+        # single bounded read would turn a valid FASTA prefix into a
+        # self-consistent but incomplete search space.
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            remaining = max_bytes - total
+            value = source.read(min(65_536, remaining + 1))
+            if value == b"":
+                break
+            if not isinstance(value, bytes):
+                raise TypeError("FASTA binary stream must return bytes")
+            total += len(value)
+            if total > max_bytes:
+                raise ValueError("FASTA source exceeds the research byte limit")
+            chunks.append(value)
+        payload = b"".join(chunks)
     if len(payload) > max_bytes:
         raise ValueError("FASTA source exceeds the research byte limit")
     try:

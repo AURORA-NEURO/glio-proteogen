@@ -18,8 +18,9 @@ one deterministic, auditable path:
    protein-detection-hypothesis count, and pass-threshold item count become a receipt.
    The pipeline never imports mzIdentML PSMs or protein hypotheses into its own search
    or grouping computation.
-2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
-   controls.
+2. Drain caller-supplied FASTA byte streams to EOF within the bounded byte limit, then
+   digest entries with trypsin and the declared missed-cleavage and peptide-length controls;
+   short reads cannot silently truncate the searched protein space.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
    explicit fragment tolerance and minimum matched-ion threshold. Only strictly
    positive-intensity positions count as observed fragment evidence; zero-signal
