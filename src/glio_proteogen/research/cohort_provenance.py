@@ -99,8 +99,11 @@ class CohortSourceBinding:
         )
         if self.source_kind == "pdc" and any(value is None for value in pdc_values):
             raise ValueError("PDC bindings require file, study, catalog, and receipt identity")
-        if self.source_kind == "local" and any(value is not None for value in pdc_values):
-            raise ValueError("local bindings cannot carry PDC file identity")
+        if self.source_kind == "local" and (
+            any(value is not None for value in pdc_values)
+            or self.metadata_snapshot_digest is not None
+        ):
+            raise ValueError("local bindings cannot carry PDC file or metadata identity")
 
     @classmethod
     def from_request(

@@ -354,6 +354,8 @@ def test_binding_schema_rejects_invalid_optional_digests_and_pdc_local_mix() -> 
         CohortSourceBinding(**base, catalog_response_sha256="not-a-digest")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="local bindings"):
         CohortSourceBinding(**base, pdc_study_id="PDC000204")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="local bindings"):
+        CohortSourceBinding(**base, metadata_snapshot_digest="f" * 64)  # type: ignore[arg-type]
 
 
 def test_manifest_shape_lookup_and_counts_are_closed() -> None:
