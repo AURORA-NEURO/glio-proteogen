@@ -62,6 +62,24 @@ def test_fetches_fixture_with_typed_metadata_and_hashes() -> None:
     assert snapshot.source_reference.sha256 == snapshot.response_sha256
 
 
+def test_rejects_response_for_a_different_requested_study() -> None:
+    response = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    response["data"]["study"][0]["pdc_study_id"] = "PDC000205"
+    response_bytes = json.dumps(response).encode("utf-8")
+    query = PDCMetadataClient.build_query("PDC000204")
+    payload = canonical_json_bytes({"query": query})
+    client = PDCMetadataClient(
+        PDCClientConfig(
+            timeout_seconds=_TEST_TIMEOUT,
+            max_response_bytes=_TEST_RESPONSE_CAP,
+            user_agent="test/research",
+        ),
+        _transport(payload, response_bytes),
+    )
+    with pytest.raises(PDCError, match="does not match the requested study"):
+        client.fetch("PDC000204", retrieved_at="2026-08-17T00:00:00Z")
+
+
 def test_captured_manifest_binds_fixture_and_query() -> None:
     fixture = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     manifest = json.loads(_MANIFEST.read_text(encoding="utf-8"))
