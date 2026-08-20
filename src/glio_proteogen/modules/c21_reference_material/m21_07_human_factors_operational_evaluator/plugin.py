@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final
+from typing import TYPE_CHECKING, Final
 from weakref import WeakKeyDictionary
-
-from pydantic import TypeAdapter
-
-from glio_proteogen.contracts.m21_07 import (
-    ComplexActivityHumanFactorsResult,
-    EvaluateComplexActivityHumanFactorsRequest,
-)
 
 from .service import M2107Service
 
-_REQUEST_ADAPTER: Final = TypeAdapter(EvaluateComplexActivityHumanFactorsRequest)
+if TYPE_CHECKING:
+    from glio_proteogen.contracts.m21_07 import (
+        ComplexActivityHumanFactorsResult,
+        EvaluateComplexActivityHumanFactorsRequest,
+    )
+
 _TOKENS: WeakKeyDictionary[ValidatedM2107Request, object] = WeakKeyDictionary()
 
 
@@ -67,13 +65,13 @@ class M2107Plugin:
         self._seal = object()
 
     def validate(self, request: object) -> ValidatedM2107Request:
-        validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        validated = self._service.validate_request(request)
         token = ValidatedM2107Request(validated, self._seal)
         _TOKENS[token] = self._seal
         return token
 
     def validate_request(self, request: object) -> EvaluateComplexActivityHumanFactorsRequest:
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+        return self._service.validate_request(request)
 
     def run(self, token: ValidatedM2107Request) -> ComplexActivityHumanFactorsResult:
         if not isinstance(token, ValidatedM2107Request) or _TOKENS.get(token) is not self._seal:
