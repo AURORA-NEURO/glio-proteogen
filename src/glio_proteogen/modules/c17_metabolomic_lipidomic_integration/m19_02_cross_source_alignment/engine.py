@@ -300,11 +300,15 @@ class M1902Engine:
         if result.result_digest != result_payload_digest(result):
             raise M1902ReplayError("M19-02 result payload digest mismatch")  # noqa: TRY003
         try:
-            return ProteotypeAlignmentResult.model_validate(
+            validated = ProteotypeAlignmentResult.model_validate(
                 result.model_dump(mode="python"), strict=True
             )
         except ValueError as exc:
             raise M1902ReplayError("M19-02 result validation failed") from exc  # noqa: TRY003
+        expected = self.align(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1902ReplayError("M19-02 result semantic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def align_proteotype_sources(candidate: object) -> ProteotypeAlignmentResult:
