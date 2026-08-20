@@ -9,7 +9,12 @@ from evals.research_proteomics.fdr_quant_group_invariants import (
     run_fdr_quant_group_invariants_evaluator,
 )
 
-from glio_proteogen.research import Psm, infer_protein_group_candidates, target_decoy_qvalues
+from glio_proteogen.research import (
+    Psm,
+    PsmCompetition,
+    infer_protein_group_candidates,
+    target_decoy_qvalues,
+)
 
 
 def test_fdr_quant_group_invariants_evaluator_is_green() -> None:
@@ -73,6 +78,36 @@ def test_fdr_boundaries_reject_ambiguous_accession_identity(
         target_decoy_qvalues((malformed,))
     with pytest.raises(ValueError, match=message):
         infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
+
+
+def test_duplicate_spectrum_contenders_are_permutation_stable() -> None:
+    lower_signal = Psm(
+        "scan=duplicate",
+        "PEPTIDER",
+        ("P1",),
+        5.0,
+        3,
+        decoy=False,
+        matched_intensity=2.0,
+    )
+    higher_signal = replace(lower_signal, matched_intensity=20.0)
+
+    forward = target_decoy_qvalues((lower_signal, higher_signal))
+    reverse = target_decoy_qvalues((higher_signal, lower_signal))
+    assert forward == reverse
+    assert forward[0].matched_intensity == 20.0
+
+    forward_receipt = PsmCompetition.from_candidates((lower_signal, higher_signal))
+    reverse_receipt = PsmCompetition.from_candidates((higher_signal, lower_signal))
+    assert forward_receipt == reverse_receipt
+
+    _, forward_summary = infer_protein_group_candidates(
+        (lower_signal, higher_signal), q_value_threshold=0.01
+    )
+    _, reverse_summary = infer_protein_group_candidates(
+        (higher_signal, lower_signal), q_value_threshold=0.01
+    )
+    assert forward_summary.competition_digest == reverse_summary.competition_digest
 
 
 def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:

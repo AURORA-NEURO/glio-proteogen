@@ -303,7 +303,7 @@ def _group_identifiability(
     return "unique_peptide_supported"
 
 
-def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
     """Order group contenders conservatively on exact score ties.
 
     A collision is unresolved evidence and therefore outranks a pure target;
@@ -317,6 +317,10 @@ def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[st
         value.decoy,
         value.peptide,
         value.protein_accessions,
+        # Group-level replay has the same duplicate-contender hazard as
+        # peptide-level FDR.  Canonicalize the complete projection only after
+        # the declared class and identity tie policy above.
+        json.dumps(_psm_payload(value), sort_keys=True, separators=(",", ":")),
     )
 
 

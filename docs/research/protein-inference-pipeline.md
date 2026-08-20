@@ -34,6 +34,8 @@ one deterministic, auditable path:
    including target/decoy/collision counts, winner/runner-up scores, score margin, and a
    canonical candidate digest. The legacy single-winner projection is derived from this
    receipt; lower-scoring contenders are never silently discarded from replay evidence.
+   Exact-score contenders are canonically ordered by their complete PSM projection after
+   score/class/identity policy, so winner selection and contender digests are permutation-stable.
 6. Perform target/decoy competition and calculate monotone q-values. A spectrum whose
    peptide maps to both target and decoy accessions is recorded as a collision and
    conservatively abstained rather than promoted to either side. Collision winners remain

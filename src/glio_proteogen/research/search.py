@@ -357,7 +357,7 @@ def _precursor_mz(
     return (neutral_mass + (charge * _PROTON)) / charge
 
 
-def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:
+def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
     """Order candidates conservatively when scores are exactly tied.
 
     Equal target/decoy evidence cannot support a target preference. Collision
@@ -372,6 +372,10 @@ def _competition_sort_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str
         value.decoy,
         value.peptide,
         value.protein_accessions,
+        # Preserve the declared score/class/identity policy first, then order
+        # the complete candidate projection so exact duplicate contenders do
+        # not make FDR or competition receipts depend on input order.
+        json.dumps(_candidate_payload(value), sort_keys=True, separators=(",", ":")),
     )
 
 
