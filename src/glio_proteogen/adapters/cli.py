@@ -683,6 +683,9 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904ReplayError,
     M1904Service,
 )
+from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
+    cli_app as m2005_app,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702ReplayError,
     M2702Service,
@@ -917,6 +920,7 @@ app.add_typer(m1905_app, name="m19-05-presentation")
 app.add_typer(m2002_app, name="m20-02-alignment")
 app.add_typer(m2003_app, name="m20-03-fusion")
 app.add_typer(m2004_app, name="m20-04-intended-use")
+app.add_typer(m2005_app, name="m20-05-presentation")
 m1704_app = typer.Typer(
     no_args_is_help=True,
     help="M17-04 bounded intended-use policy adaptation.",

@@ -999,6 +999,9 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904Service,
     preflight_m1904_authorization,
 )
+from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
+    api as m2005_adapter,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
     M2702ReplayError,
@@ -2673,6 +2676,7 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         m2004_adapter,
     ):
         app.include_router(adapter.app.router)
+    app.include_router(m2005_adapter.create_app().router)
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:
