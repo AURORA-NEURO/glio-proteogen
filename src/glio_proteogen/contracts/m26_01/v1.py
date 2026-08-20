@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_01.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -287,6 +288,24 @@ class ProteinSubtypeRegistryResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("registered result requires supported registry and configuration")
+            if self.registry is None or self.active_configuration is None:
+                raise ValueError("registered result requires supported registry and configuration")
+            registry = self.registry
+            configuration = self.active_configuration
+            if (
+                registry.registry_id != self.request.registry_id
+                or registry.version != self.request.registry_version
+                or registry.entries != self.request.entries
+                or registry.history != self.request.history
+            ):
+                raise ValueError("registered registry must bind exact request material")
+            expected_lock_digest = sha256_digest(
+                {"entries": self.request.entries, "history": self.request.history}
+            )
+            if registry.lock_digest != expected_lock_digest:
+                raise ValueError("registered registry lock digest does not bind request material")
+            if configuration != self.request.active_configuration:
+                raise ValueError("registered configuration must bind exact request selection")
         elif (
             self.registry is not None
             or self.active_configuration is not None

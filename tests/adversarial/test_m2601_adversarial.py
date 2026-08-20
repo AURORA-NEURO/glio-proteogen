@@ -212,6 +212,21 @@ def test_replay_checks_each_digest_and_expected_projection() -> None:
         engine.replay(changed)
 
 
+def test_strict_result_validation_rejects_self_rehashed_registry_substitution() -> None:
+    result = M2601RegistryEngine().register(_request())
+    assert result.registry is not None
+    altered_entry = result.registry.entries[0].model_copy(update={"owner": "forged-owner"})
+    forged_registry = result.registry.model_copy(
+        update={"entries": (altered_entry, *result.registry.entries[1:])}
+    )
+    forged = result.model_copy(update={"registry": forged_registry})
+    payload = forged.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="exact request material"):
+        type(result).model_validate(payload, strict=True)
+
+
 def test_result_abstention_and_registry_boundaries_remain_typed() -> None:
     request = _request()
     quarantined = request.entries[0].model_copy(update={"status": RegistryEntryStatus.QUARANTINED})
