@@ -139,7 +139,12 @@ def _snapshot_and_reference(
 
 def test_successful_retrieval_is_receipt_bound_and_commits_only_verified_bytes() -> None:
     payload = b"<mzML>verified</mzML>"
-    with _http_server({"/ok": _Route(200, payload, "application/mzml")}) as base:
+    with _http_server(
+        {
+            "/ok": _Route(200, payload, "application/mzml"),
+            "/ok?rotated-token": _Route(200, payload, "application/mzml"),
+        }
+    ) as base:
         file = _file(f"{base}/ok", payload)
         snapshot, reference = _snapshot_and_reference(file, payload)
         destination = io.BytesIO()
@@ -151,13 +156,35 @@ def test_successful_retrieval_is_receipt_bound_and_commits_only_verified_bytes()
             approved_hosts=("127.0.0.1",),
             timeout_seconds=2,
         )
+        rotated = replace(file, signed_url=f"{base}/ok?rotated-token")
+        rotated_destination = io.BytesIO()
+        rotated_receipt_from_client = PdcClient().download_file_with_receipt(
+            rotated,
+            snapshot,
+            reference,
+            rotated_destination,
+            approved_hosts=("127.0.0.1",),
+            timeout_seconds=2,
+        )
     assert destination.getvalue() == payload
+    assert rotated_destination.getvalue() == payload
     assert receipt.observed_size == len(payload)
     assert receipt.observed_media_type == "application/mzml"
     assert receipt.as_dict()["observed_media_type"] == "application/mzml"
     assert receipt.source_reference.sha256 == sha256_digest(payload)
     assert verify_pdc_source_content(receipt, payload) is receipt
     assert verify_pdc_source_content(receipt, io.BytesIO(payload)) is receipt
+    rotated_receipt = PdcSourceReceipt(
+        snapshot=snapshot,
+        file=rotated,
+        source_reference=reference,
+        observed_sha256=receipt.observed_sha256,
+        observed_md5=receipt.observed_md5,
+        observed_size=receipt.observed_size,
+        observed_media_type=receipt.observed_media_type,
+    )
+    assert rotated_receipt.digest == receipt.digest
+    assert rotated_receipt_from_client.digest == receipt.digest
 
 
 def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> None:

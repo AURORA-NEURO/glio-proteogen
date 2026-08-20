@@ -121,16 +121,20 @@ class ResearchRunRequest:
                 self.external_source_reference,
                 mzml_bytes,
             )
-        if self.external_pdc_receipt is not None:
-            if not isinstance(self.external_pdc_receipt, PdcSourceReceipt):
+        external_pdc_file = self.external_pdc_file
+        external_pdc_receipt = self.external_pdc_receipt
+        if external_pdc_receipt is not None:
+            if not isinstance(external_pdc_receipt, PdcSourceReceipt):
                 raise TypeError("external_pdc_receipt must be a PdcSourceReceipt")
-            if self.external_pdc_file != self.external_pdc_receipt.file:
+            if external_pdc_file is None or _pdc_file_dict(external_pdc_file) != _pdc_file_dict(
+                external_pdc_receipt.file
+            ):
                 raise ValueError("external PDC file does not match its source receipt")
-            if self.external_source_reference != self.external_pdc_receipt.source_reference:
+            if self.external_source_reference != external_pdc_receipt.source_reference:
                 raise ValueError("external source reference does not match its PDC receipt")
             if self.external_pdc_response_sha256 not in {
                 None,
-                self.external_pdc_receipt.response_sha256,
+                external_pdc_receipt.response_sha256,
             }:
                 raise ValueError("external response hash does not match its PDC receipt")
         if self.external_pdc_response_sha256 is not None and (

@@ -60,7 +60,8 @@ uses the URL from the in-memory `PdcFile`, but receipt, snapshot, pipeline
 configuration, and evidence projections retain the stable `signed_url` field as
 `null`; this prevents expiring credentials from being persisted or copied into
 replay artifacts while leaving source identity bound to catalog metadata and
-observed bytes.
+observed bytes. Token rotation for the same catalog declaration is therefore
+accepted without changing the source receipt or replay digest.
 
 ## Captured public record
 

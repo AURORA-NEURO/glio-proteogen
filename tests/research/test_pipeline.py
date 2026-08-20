@@ -620,6 +620,14 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
     receipt = bound.external_pdc_receipt
     assert receipt.response_sha256 == "b" * 64
     assert receipt.digest == bound.external_pdc_receipt.digest
+    rotated_bound = replace(
+        bound,
+        external_pdc_file=replace(
+            pdc_file,
+            signed_url="https://pdc.cancer.gov/download/catalog.mzML?token=rotated",
+        ),
+    )
+    assert rotated_bound.external_pdc_receipt == receipt
     result = run_research_protein_inference(bound)
     configuration = dict(result.configuration)
     assert configuration["external_pdc_file"]["signed_url"] is None
@@ -633,6 +641,7 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
     )
     assert declaration.payload["signed_url"] is None
     assert declaration.payload["receipt"]["file"]["signed_url"] is None
+    assert run_research_protein_inference(rotated_bound).result_digest == result.result_digest
     with pytest.raises(ValueError, match="absent"):
         bind_pdc_mzml_source(
             request,

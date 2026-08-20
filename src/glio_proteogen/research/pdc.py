@@ -125,7 +125,10 @@ class PdcSourceReceipt:
         _validate_catalog_snapshot(self.snapshot)
         if any(not isinstance(item, PdcFile) for item in self.snapshot.files):
             raise TypeError("PDC snapshot files must be PdcFile values")
-        if self.file not in self.snapshot.files:
+        if not any(
+            _file_dict(self.file) == _file_dict(snapshot_file)
+            for snapshot_file in self.snapshot.files
+        ):
             raise ValueError("PDC file is absent from the captured catalog snapshot")
         if any(item.study_id != self.snapshot.study_id for item in self.snapshot.files):
             raise ValueError("PDC snapshot contains a file from a different study")
@@ -574,7 +577,9 @@ class PdcClient:
             raise TypeError("snapshot must be a PdcStudySnapshot")
         if not isinstance(source_reference, SourceReference):
             raise TypeError("source_reference must be a SourceReference")
-        if file not in snapshot.files:
+        if not any(
+            _file_dict(file) == _file_dict(snapshot_file) for snapshot_file in snapshot.files
+        ):
             raise PdcError("PDC file is absent from the captured catalog snapshot")
         total, md5_hex, sha256_hex, observed_media_type = self._download_file(
             file,
