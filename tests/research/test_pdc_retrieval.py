@@ -191,6 +191,34 @@ def test_pdc_file_rejects_boolean_size_metadata() -> None:
         replace(file, file_size=True)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("snapshot_change", "message"),
+    [
+        (
+            lambda snapshot: replace(snapshot, source_url="https://evil.example/PDC000204"),
+            "source URL",
+        ),
+        (lambda snapshot: replace(snapshot, counts=(("Raw", "mzML", True),)), "count rows"),
+    ],
+)
+def test_pdc_receipt_rejects_unbound_catalog_snapshot_projections(
+    snapshot_change: object, message: str
+) -> None:
+    payload = b"<mzML>verified</mzML>"
+    file = _file("memory://PDC000204/content", payload)
+    snapshot, reference = _snapshot_and_reference(file, payload)
+    forged_snapshot = snapshot_change(snapshot)  # type: ignore[operator]
+    with pytest.raises(ValueError, match=message):
+        PdcSourceReceipt(
+            snapshot=forged_snapshot,
+            file=file,
+            source_reference=reference,
+            observed_sha256=reference.sha256,
+            observed_md5=file.md5 or "",
+            observed_size=len(payload),
+        )
+
+
 def test_receipt_rejects_tampered_observed_media_type() -> None:
     payload = b"<mzML>verified</mzML>"
     with _http_server({"/ok": _Route(200, payload, "application/mzML; charset=binary")}) as base:

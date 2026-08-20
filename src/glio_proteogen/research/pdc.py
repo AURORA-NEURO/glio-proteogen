@@ -113,6 +113,7 @@ class PdcSourceReceipt:
             raise TypeError("source_reference must be a SourceReference")
         if self.file.study_id != self.snapshot.study_id:
             raise ValueError("PDC file study does not match the catalog snapshot")
+        _validate_catalog_snapshot(self.snapshot)
         if any(not isinstance(item, PdcFile) for item in self.snapshot.files):
             raise TypeError("PDC snapshot files must be PdcFile values")
         if self.file not in self.snapshot.files:
@@ -189,6 +190,27 @@ class PdcSourceReceipt:
         return sha256(
             json.dumps(self.as_dict(), sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
+
+
+def _validate_catalog_snapshot(snapshot: PdcStudySnapshot) -> None:
+    """Validate catalog projections before they become source evidence."""
+
+    if snapshot.source_url != PDC_STUDY_URL.format(study_id=snapshot.study_id):
+        raise ValueError("PDC snapshot source URL does not match the study")
+    if type(snapshot.counts) is not tuple:
+        raise TypeError("PDC snapshot counts must be a tuple")
+    for count_row in snapshot.counts:
+        if (
+            type(count_row) is not tuple
+            or len(count_row) != 3
+            or type(count_row[0]) is not str
+            or not count_row[0]
+            or type(count_row[1]) is not str
+            or not count_row[1]
+            or type(count_row[2]) is not int
+            or count_row[2] < 0
+        ):
+            raise ValueError("PDC snapshot count rows are malformed")
 
 
 def verify_pdc_source_content(

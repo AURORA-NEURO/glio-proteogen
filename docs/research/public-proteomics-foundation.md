@@ -41,6 +41,10 @@ construction. Boolean values are rejected rather than being treated as `0` or
 `1` through Python's `bool`-is-an-`int` relationship, preserving the exact-size
 source binding used by raw-file receipts.
 
+Raw-file receipts also require the captured catalog snapshot to remain bound to
+the canonical PDC study locator and to contain typed, non-negative count rows;
+forged catalog projections cannot be promoted to source evidence.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint
