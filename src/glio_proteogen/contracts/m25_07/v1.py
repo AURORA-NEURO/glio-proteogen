@@ -222,6 +222,9 @@ class EvaluateProteotypeHumanFactorsRequest(FrozenModel):
         artifacts = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifacts) != len(set(artifacts)):
             raise ValueError("source artifact identifiers must be unique")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if source_by_id.get(self.upstream_result.artifact_id) != self.upstream_result:
+            raise ValueError("source artifacts must retain the exact upstream result identity")
         required = set(self.configuration.required_dimensions)
         metric_dimensions = {item.dimension for item in self.metrics}
         fallback_dimensions = {item.dimension for item in self.fallbacks}

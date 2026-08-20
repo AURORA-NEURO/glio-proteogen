@@ -87,6 +87,27 @@ def test_duplicate_source_artifact_ids_are_rejected() -> None:
         EvaluateProteotypeHumanFactorsRequest.model_validate(data, strict=True)
 
 
+def test_source_artifacts_retain_exact_upstream_identity() -> None:
+    request = build_request()
+    missing = request.model_dump(mode="python")
+    missing["source_artifacts"] = (
+        request.source_artifacts[0].model_copy(update={"artifact_id": "unrelated"}),
+    )
+    with pytest.raises(ValidationError, match="exact upstream result identity"):
+        EvaluateProteotypeHumanFactorsRequest.model_validate(missing, strict=True)
+
+    for field, value in (
+        ("version", "1.0.1"),
+        ("digest", "sha256:" + "f" * 64),
+        ("media_type", "application/vnd.glio-proteogen.m25-06+json; forged"),
+    ):
+        forged = request.source_artifacts[0].model_copy(update={field: value})
+        substituted = request.model_dump(mode="python")
+        substituted["source_artifacts"] = (forged,)
+        with pytest.raises(ValidationError, match="exact upstream result identity"):
+            EvaluateProteotypeHumanFactorsRequest.model_validate(substituted, strict=True)
+
+
 def test_wrong_media_and_context_identity_are_rejected() -> None:
     request = build_request()
     wrong_media = request.model_copy(
@@ -243,9 +264,7 @@ def test_request_required_dimensions_and_result_digest_closures() -> None:
         )
     bad_id = result.model_copy(update={"result_id": "forged"})
     with pytest.raises(ValidationError, match="result id"):
-        ProteotypeHumanFactorsResult.model_validate(
-            bad_id.model_dump(mode="python"), strict=True
-        )
+        ProteotypeHumanFactorsResult.model_validate(bad_id.model_dump(mode="python"), strict=True)
 
 
 def test_service_json_validation_and_cli_replay_errors(tmp_path: Path) -> None:
