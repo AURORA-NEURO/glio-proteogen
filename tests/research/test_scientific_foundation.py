@@ -976,6 +976,47 @@ def test_search_preserves_all_target_decoy_contenders_in_competition_receipt() -
     )
 
 
+def test_competition_receipt_rejects_forged_target_decoy_class() -> None:
+    forged = Psm(
+        "forged-class",
+        "PEPTIDER",
+        ("DECOY_P1",),
+        3.0,
+        2,
+        decoy=False,
+    )
+    with pytest.raises(ValueError, match="flags do not match"):
+        PsmCompetition.from_candidates((forged,))
+
+
+def test_competition_receipt_accepts_explicit_custom_decoy_prefix() -> None:
+    candidate = Psm(
+        "custom-prefix",
+        "PEPTIDER",
+        ("REV_P1",),
+        3.0,
+        2,
+        decoy=True,
+    )
+    receipt = PsmCompetition.from_candidates((candidate,), decoy_prefix="REV_")
+    assert receipt.decoy_candidates == 1
+    assert receipt.target_candidates == 0
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_competition_receipt_rejects_boolean_numeric_fields(value: bool) -> None:  # noqa: FBT001
+    candidate = Psm(
+        "boolean-competition",
+        "PEPTIDER",
+        ("P1",),
+        3.0,
+        value,
+        decoy=False,
+    )
+    with pytest.raises(ValueError, match="matched_ions"):
+        PsmCompetition.from_candidates((candidate,))
+
+
 def test_protein_components_are_non_overlapping() -> None:
     groups = infer_protein_groups({"UNIQUE_A": ("A",), "SHARED": ("A", "B"), "UNIQUE_B": ("B",)})
     assert len(groups) == 1
