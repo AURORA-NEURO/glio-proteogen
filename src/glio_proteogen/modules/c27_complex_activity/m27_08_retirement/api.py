@@ -38,7 +38,14 @@ def create_app() -> FastAPI:
 
     async def body(request: Request, *, max_bytes: int) -> dict[str, Any]:
         try:
-            raw = await request.body()
+            chunks: list[bytes] = []
+            total = 0
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError("request exceeds byte limit")
+                chunks.append(chunk)
+            raw = b"".join(chunks)
             value = strict_json_loads(raw, max_bytes=max_bytes)
             if not isinstance(value, dict):
                 raise ValueError("object required")
