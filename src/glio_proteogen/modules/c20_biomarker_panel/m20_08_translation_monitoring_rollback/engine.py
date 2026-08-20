@@ -177,6 +177,14 @@ def _provenance(
         )
         for role, reference in controls
     )
+    request_artifacts = (
+        request.upstream_result,
+        request.configuration.reference_artifact,
+        *request.source_artifacts,
+        *(item.reference for item in request.configuration.evidence),
+        *(artifact for signal in request.signals for artifact in signal.source_artifacts),
+        *(item.reference for signal in request.signals for item in signal.evidence),
+    )
     return ProvenanceRecord(
         activity_id=f"activity.{request_digest.removeprefix('sha256:')}",
         actor_id=request.context.actor_id,
@@ -187,9 +195,7 @@ def _provenance(
             dict.fromkeys(
                 (
                     request_digest,
-                    request.upstream_result.digest,
-                    request.configuration.reference_artifact.digest,
-                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(artifact.digest for artifact in request_artifacts),
                 )
             )
         ),

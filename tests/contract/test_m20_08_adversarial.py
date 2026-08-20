@@ -21,7 +21,7 @@ from glio_proteogen.contracts.m20_08 import (
 from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_rollback import (
     M2008TranslationMonitoringEngine,
 )
-from tests.contract.test_m20_08_hardening import _artifact, _report, _request, _signal
+from tests.contract.test_m20_08_hardening import _artifact, _evidence, _report, _request, _signal
 
 
 def test_report_cannot_drop_or_repeat_a_signal_assessment() -> None:
@@ -102,6 +102,35 @@ def test_request_requires_retained_upstream_and_unique_sources() -> None:
         type(request).model_validate(
             request.model_copy(update={"source_artifacts": (request.source_artifacts[0],) * 2})
         )
+
+
+def test_provenance_binds_nested_monitoring_input_artifacts() -> None:
+    request = _request()
+    configuration_evidence = _artifact("configuration-nested-evidence")
+    signal_source = _artifact("signal-nested-source")
+    signal_evidence = _artifact("signal-nested-evidence")
+    signal = request.signals[0].model_copy(
+        update={
+            "source_artifacts": (signal_source,),
+            "evidence": (_evidence(signal_evidence),),
+        }
+    )
+    request = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={"evidence": (_evidence(configuration_evidence),)}
+            ),
+            "signals": (signal,),
+        }
+    )
+
+    result = M2008TranslationMonitoringEngine().infer(request)
+
+    assert {
+        configuration_evidence.digest,
+        signal_source.digest,
+        signal_evidence.digest,
+    } <= set(result.provenance.input_digests)
 
 
 def test_result_closure_rejects_digest_identifier_and_state_tampering() -> None:
