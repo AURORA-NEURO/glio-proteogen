@@ -430,19 +430,22 @@ class M1706AdjudicationEngine:
         *,
         replay: bool = True,
     ) -> VariantPeptideAdjudicationResult:
+        if replay is False:
+            raise M1706ReplayVerificationError(
+                "M17-06 verification requires deterministic semantic replay"
+            )
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1706ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1706ReplayVerificationError
-        if replay:
-            try:
-                expected = self.export(validated.request)
-            except Exception as error:
-                raise M1706ReplayVerificationError from error
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M1706ReplayVerificationError
+        try:
+            expected = self.export(validated.request)
+        except Exception as error:
+            raise M1706ReplayVerificationError from error
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1706ReplayVerificationError
         return validated
 
 
