@@ -283,7 +283,7 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="upstream_not_recomputed",
             statement=(
-                "M20-04 binds the M20-03 artifact by media type and does not recompute or "
+                "M20-04 binds the exact M20-03 artifact identity and does not recompute or "
                 "authenticate upstream biology."
             ),
         ),
