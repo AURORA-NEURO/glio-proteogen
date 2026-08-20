@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 
 from glio_proteogen.contracts.m20_06 import QueueEntryState, ReviewDecision
+from glio_proteogen.contracts.m20_06.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import ConsentState
+from glio_proteogen.kernel.models import ConsentState, Limitation
 from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
     AdjudicationSubmission,
     M2006AuthorizationError,
@@ -71,6 +72,22 @@ def test_service_replay_rejects_tampered_payload() -> None:
     tampered = result.model_copy(update={"record": tampered_record})
     with pytest.raises(M2006ReplayError, match="payload digest"):
         service.replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = M2006Service()
+    result = service.adjudicate(_request())
+    mutated = result.model_copy(
+        update={
+            "limitations": (
+                *result.limitations,
+                Limitation(code="forged", statement="forged semantic state"),
+            )
+        }
+    )
+    mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(M2006ReplayError, match="semantic replay"):
+        service.replay(mutated)
 
 
 def test_not_evaluable_queue_abstains_safely() -> None:
