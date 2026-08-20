@@ -84,6 +84,7 @@ def test_unsupported_challenge_abstains_with_safe_failure() -> None:
     assert result.safe_failure_report is not None
     assert result.safe_failure_report.abstained is True
     assert result.findings
+    assert result.human_review_required is True
 
 
 def test_ood_threshold_cannot_emit_supported_surface() -> None:
@@ -96,6 +97,7 @@ def test_ood_threshold_cannot_emit_supported_surface() -> None:
     assert result.status is RobustnessStatus.ABSTAINED
     assert result.robustness_surface is None
     assert any(item.code is ChallengeFindingCode.OOD_STATE for item in result.findings)
+    assert result.human_review_required is True
 
 
 def test_surface_rejects_ood_band_inconsistent_with_within_disposition() -> None:

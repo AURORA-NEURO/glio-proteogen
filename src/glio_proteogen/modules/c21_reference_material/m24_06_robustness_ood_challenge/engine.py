@@ -246,7 +246,7 @@ class M2406RobustnessOODChallenger:
                 "Robustness challenge source evidence.",
             ),
             "limitations": _LIMITATIONS,
-            "human_review_required": False,
+            "human_review_required": not supported,
         }
         provisional = BiomarkerPanelRobustnessChallengeResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
