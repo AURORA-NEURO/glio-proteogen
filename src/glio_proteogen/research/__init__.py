@@ -91,7 +91,11 @@ from .protein import (
     infer_protein_group_candidates,
     infer_protein_groups,
 )
-from .public_proteomics.formats import MzIdentMlStructure, extract_mzidentml_structure
+from .public_proteomics.formats import (
+    MzIdentMlStructure,
+    bind_mzidentml_references,
+    extract_mzidentml_structure,
+)
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     PeptideQuant,
@@ -181,6 +185,7 @@ __all__ = [
     "aggregate_cohort_evidence",
     "aggregate_evidence",
     "aggregate_external_evidence",
+    "bind_mzidentml_references",
     "bind_pdc_mzml_source",
     "build_search_space",
     "build_search_space_receipt",

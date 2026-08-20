@@ -20,8 +20,11 @@ one deterministic, auditable path:
    An optional caller-supplied mzIdentML file is structurally parsed separately;
    its bytes, identifiers, identification-result/item counts, peptide-evidence count,
    protein-detection-hypothesis count, and pass-threshold item count become a receipt.
-   The pipeline never imports mzIdentML PSMs or protein hypotheses into its own search
-   or grouping computation.
+   When explicit `SpectrumIdentificationResult.spectrumID` or
+   `PeptideEvidence.dBSequence_ref` references are present, they must resolve to the
+   searched mzML spectrum IDs and FASTA accessions; the matched-reference counts are
+   also replay-visible. The pipeline never imports mzIdentML PSMs or protein hypotheses
+   into its own search or grouping computation.
 2. Drain caller-supplied FASTA byte streams to EOF within the bounded byte limit, then
    digest entries with trypsin and the declared missed-cleavage and peptide-length controls;
    short reads cannot silently truncate the searched protein space.
@@ -265,11 +268,13 @@ threshold and its digest boundary rather than only checking that a field seriali
 
 `ResearchRunRequest.mzidentml_source` is an explicit, bounded structural-evidence input.
 The parser rejects malformed/unsafe XML and records an exact SHA-256, identifier digest,
-result/item/evidence/hypothesis counts, and pass-threshold item count in the run
-configuration, evidence bundle, result projection, and replay digest. Providing or
-changing this file therefore changes the content-addressed run even when mzML/FASTA
-search output is unchanged. This is provenance of an external identification artifact,
-not acceptance of its PSMs, protein hypotheses, FDR, or biological claims.
+result/item/evidence/hypothesis counts, pass-threshold item count, and any matched
+spectrum/protein reference counts in the run configuration, evidence bundle, result
+projection, and replay digest. Explicit references that resolve outside the searched
+mzML/FASTA inputs are rejected before search. Providing or changing this file therefore
+changes the content-addressed run even when mzML/FASTA search output is unchanged. This
+is provenance of an external identification artifact, not acceptance of its PSMs,
+protein hypotheses, FDR, or biological claims.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
 each record's identity, payload, quality metadata, the derived quality summary, limitations,
