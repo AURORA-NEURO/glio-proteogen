@@ -37,6 +37,9 @@ non-default port. Query parameters are rejected because they can carry bearer
 tokens that must never enter replayable provenance.
 This keeps a caller-constructed snapshot from presenting off-domain metadata as
 an authenticated PDC source in downstream evidence.
+The metadata client's timeout and response-byte cap also require strict numeric
+types; boolean values are rejected rather than coerced through Python's
+`bool`-is-an-`int` relationship.
 
 Raw-file receipts apply the same check to caller-constructed snapshots: every
 file in the captured inventory must belong to the snapshot study, even when the

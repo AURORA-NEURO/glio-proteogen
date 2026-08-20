@@ -77,9 +77,15 @@ class PDCClientConfig:
 
     def __post_init__(self) -> None:
         _validate_pdc_endpoint(self.endpoint)
-        if not 0.0 < self.timeout_seconds <= _MAX_TIMEOUT_SECONDS:
+        if (
+            type(self.timeout_seconds) not in (int, float)
+            or not 0.0 < self.timeout_seconds <= _MAX_TIMEOUT_SECONDS
+        ):
             raise PDCError("timeout must be greater than zero and at most 60 seconds")
-        if not 0 < self.max_response_bytes <= _MAX_RESPONSE_BYTES:
+        if (
+            type(self.max_response_bytes) is not int
+            or not 0 < self.max_response_bytes <= _MAX_RESPONSE_BYTES
+        ):
             raise PDCError("response cap is outside the bounded range")
         if not self.user_agent.strip():
             raise PDCError("user agent is required")
