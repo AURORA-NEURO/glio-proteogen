@@ -373,3 +373,20 @@ def test_result_identity_digest_and_safe_status_are_replay_closed() -> None:
     )
     validated = VariantPeptideSyntheticTruthResult.model_validate(abstained)
     assert validated.status is GenerationStatus.ABSTAINED
+
+
+def test_self_rehashed_corpus_source_mutation_is_rejected() -> None:
+    result = _generated_result()
+    assert result.corpus is not None
+    forged_source = result.corpus.source_artifacts[0].model_copy(
+        update={"digest": sha256_digest("m2302.forged.source")}
+    )
+    forged_corpus = result.corpus.model_copy(
+        update={"source_artifacts": (forged_source, *result.corpus.source_artifacts[1:])}
+    )
+    forged = result.model_copy(update={"corpus": forged_corpus})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request material"):
+        VariantPeptideSyntheticTruthResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )

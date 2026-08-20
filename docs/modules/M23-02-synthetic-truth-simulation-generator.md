@@ -24,7 +24,9 @@ Safety and reproducibility boundaries:
   support, and intended use.
 - The generation seed, requested fixture kinds, requested count, case IDs,
   truth labels, perturbation labels, and manifest digest are deterministic and
-  replay-verifiable. Values are fixtures, not biological measurements.
+  replay-verifiable. Generated corpus source artifacts, manifest/configuration,
+  version, corpus identity, and requested case count are also bound to the
+  exact request before replay. Values are fixtures, not biological measurements.
 - Missing, shifted, and adversarial labels are fixture states, not biological
   negative findings. Denied controls, malformed provenance, unsupported input,
   and media mismatch fail closed.

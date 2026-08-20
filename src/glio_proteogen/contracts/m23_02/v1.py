@@ -251,6 +251,10 @@ class VariantPeptideSyntheticTruthResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request):
             raise ValueError("result identifier must be derived from request digest")
+        if self.provenance.module_id != M2302_MODULE_ID:
+            raise ValueError("provenance module id must identify M23-02")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None
@@ -260,6 +264,17 @@ class VariantPeptideSyntheticTruthResult(FrozenModel):
                 or self.human_review_required
             ):
                 raise ValueError("generated result requires a supported corpus and manifest")
+            if self.corpus.manifest != self.manifest:
+                raise ValueError("result manifest must bind the generated corpus")
+            if (
+                self.corpus.version != self.request.configuration.version
+                or self.corpus.source_artifacts != self.request.source_artifacts
+                or self.manifest.version != self.request.configuration.version
+                or self.manifest.configuration != self.request.configuration
+            ):
+                raise ValueError("generated corpus must bind exact request material")
+            if len(self.corpus.cases) != self.request.requested_case_count:
+                raise ValueError("generated corpus must match requested case count")
         elif (
             self.corpus is not None
             or self.manifest is not None
