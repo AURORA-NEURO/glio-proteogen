@@ -105,6 +105,21 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
         service.replay(tampered)
 
 
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = m1902.M1902Service()
+    result = service.align(_request())
+    mutated = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "forged semantic state"}
+            )
+        }
+    )
+    mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(m1902.M1902ReplayError, match="semantic replay"):
+        service.replay(mutated)
+
+
 def test_plugin_descriptor_and_strict_json_boundary() -> None:
     plugin = m1902.M1902Plugin()
     descriptor = plugin.descriptor
