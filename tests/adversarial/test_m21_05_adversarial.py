@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m21_05 import CoverageStatus
+from glio_proteogen.contracts.m21_05 import CoverageStatus, result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator import (
@@ -154,3 +154,27 @@ def test_replay_rejects_result_ownership_tamper() -> None:
     tampered_request = _request().model_copy(update={"request_id": "request.m2105.other"})
     with pytest.raises(M2105ReplayError):
         engine.verify(result.model_copy(update={"request": tampered_request}), replay=False)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_id", "GLIO-PROTEOGEN-M21-04"),
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_forgery(
+    field: str,
+    value: object,
+) -> None:
+    engine = M2105Engine()
+    result = engine.evaluate(_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2105ReplayError):
+        engine.verify(forged)

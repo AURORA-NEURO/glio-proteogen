@@ -9,6 +9,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m21_05 import (
+    M2105_CONTRACT_VERSION,
     M2105_M2104_INPUT_MEDIA_TYPE,
     M2105_MODULE_ID,
     CalibrationSummary,
@@ -265,9 +266,13 @@ def _provenance(request: EvaluateComplexActivitySubgroupEquityRequest) -> Proven
         activity_id="activity.m2105.synthetic",
         actor_id=request.context.actor_id,
         module_id=M2105_MODULE_ID,
-        module_version="0.1.0-provisional",
+        module_version=M2105_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(request.upstream_result.digest,),
+        input_digests=(
+            canonical_request_digest(request),
+            request.upstream_result.digest,
+            *(artifact.digest for artifact in request.source_artifacts),
+        ),
         configuration_digest=request.configuration.evidence[0].reference.digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -472,3 +477,28 @@ def test_result_replay_digest_rejects_payload_tampering() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
     with pytest.raises(ValidationError, match="result digest"):
         TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(tampered, strict=True)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_id", "GLIO-PROTEOGEN-M21-04"),
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_result_rejects_self_rehashed_provenance_binding_forgery(
+    field: str,
+    value: object,
+) -> None:
+    result = _result()
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="provenance"):
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
+            forged, strict=True
+        )
