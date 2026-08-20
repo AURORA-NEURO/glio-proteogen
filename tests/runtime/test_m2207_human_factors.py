@@ -28,6 +28,20 @@ def test_runtime_evaluates_supported_operational_material_deterministically() ->
     assert engine.replay(first).result_digest == first.result_digest
 
 
+def test_provenance_covers_nested_operational_evidence() -> None:
+    request = _request()
+    result = m2207.M2207OperationalEngine().generate(request)
+    nested_evidence = (
+        *request.configuration.evidence,
+        *(item for metric in request.metrics for item in metric.evidence),
+        *(item for fallback in request.fallbacks for item in fallback.evidence),
+    )
+
+    assert {item.reference.digest for item in nested_evidence} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_runtime_abstains_when_operational_dimension_is_not_evaluable() -> None:
     request = _request().model_dump(mode="python")
     request["metrics"][0]["status"] = OperationalStatus.NOT_EVALUABLE

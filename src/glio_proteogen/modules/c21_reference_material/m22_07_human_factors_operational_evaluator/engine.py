@@ -358,7 +358,24 @@ def _provenance(
         module_id=M2207_MODULE_ID,
         module_version=M2207_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(item.reference.digest for item in request.configuration.evidence),
+                    *(
+                        item.reference.digest
+                        for metric in request.metrics
+                        for item in metric.evidence
+                    ),
+                    *(
+                        item.reference.digest
+                        for fallback in request.fallbacks
+                        for item in fallback.evidence
+                    ),
+                )
+            )
+        ),
         configuration_digest=sha256_digest(
             {
                 "configuration": request.configuration,
