@@ -5,6 +5,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.api impor
     create_app,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.engine import (
+    ChangeControlReplayError,
     M2707ChangeControlEngine,
     control_complex_activity_change,
     preflight_change_control_authorization,
@@ -18,6 +19,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service i
 )
 
 __all__ = [
+    "ChangeControlReplayError",
     "ChangeControlSubmission",
     "M2707ChangeControlEngine",
     "M2707Plugin",
