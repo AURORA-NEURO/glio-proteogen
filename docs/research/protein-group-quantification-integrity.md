@@ -24,11 +24,20 @@ their equivalent estimate semantics while producing different input receipts.
 ## Replay-bound evidence receipt
 
 Every generated `ProteinGroupQuant` now carries an
-`protein-group-quantification-input-1` SHA-256 digest over:
+`protein-group-quantification-input-2` SHA-256 digest over:
 
 - ordered group accession, unique-peptide, and shared-peptide membership;
 - each declared peptide's present-or-missing intensity value; and
-- each declared peptide's present-or-missing PSM count.
+- each declared peptide's present-or-missing PSM count; and
+- whether the group is permitted to emit a primary estimate.
+
+Groups marked `shared_only_ambiguous` or `partially_unique_ambiguous` by group
+FDR remain visible for signal auditing, but the pipeline passes them through an
+explicit abstention boundary. Their unique/shared signal totals are retained;
+`primary_intensity` is null, `status` is
+`abstained_ambiguous_support`, and `abstention_reason` records the closed policy.
+This prevents a partial unique peptide from being misread as a resolved protein
+estimate.
 
 The digest is included in the result projection, so the pipeline's existing
 canonical result digest changes when quantification evidence changes—even when the

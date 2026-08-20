@@ -89,10 +89,12 @@ C03/C04 computation contract:
 - Protein-group quantification now validates the input partition before computing any
   signal: accessions and peptide memberships must be disjoint across groups, and every
   supplied intensity or PSM-count key must belong to that declared partition. Each
-  emitted group carries a deterministic `protein-group-quantification-input-1` digest
+  emitted group carries a deterministic `protein-group-quantification-input-2` digest
   over its group membership plus present-versus-missing intensity/count observations.
   This prevents shared peptides from being double-counted and prevents unreferenced
-  evidence from disappearing silently. It remains matched-ion research signal, not
+  evidence from disappearing silently. Groups with shared-only or partially unique
+  support remain visible but are explicitly abstained from a primary estimate; their
+  signal totals are not promoted to a resolved group value. It remains matched-ion research signal, not
   protein abundance, protein identity, proteoform inference, or clinical evidence.
 - `infer_protein_groups` applies deterministic parsimony and retains shared-peptide ambiguity
   instead of collapsing indistinguishable proteins.
