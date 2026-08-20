@@ -50,7 +50,15 @@ one deterministic, auditable path:
    as null-q collision abstentions. Collision groups still count in the group-FDR numerator,
    while shared-only groups are marked ambiguous before
    quantification. Only target groups passing this second threshold become reportable groups.
-   This is transparent group-FDR evidence, not a calibrated protein probability.
+   The summary explicitly distinguishes empirical target/decoy evidence from
+   `abstained_no_decoy_evidence`, `abstained_no_target_denominator`, and
+   `abstained_no_group_candidates`; a zero numeric ratio is never sufficient to
+   imply an observed zero error rate. Every candidate carries a digest of its
+   supporting PSM projection, and the summary carries a partition digest over
+   accessions, unique/shared membership, status, q-value, and acceptance. These
+   receipts make ambiguity relabeling and candidate-partition substitution
+   replay failures rather than silent metadata changes. This is transparent
+   group-FDR evidence, not a calibrated protein probability.
 8. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral
    counts remain a separate transparent measure. Every run emits a replay-bound

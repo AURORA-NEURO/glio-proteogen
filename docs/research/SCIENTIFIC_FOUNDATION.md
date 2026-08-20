@@ -110,6 +110,12 @@ C03/C04 computation contract:
   Direct target/decoy q-value entry also validates accession-derived class flags before
   competition, preventing a forged decoy from entering the target denominator. This is
   transparent research FDR evidence, not a calibrated protein probability.
+  The group summary now labels whether empirical decoy evidence exists and records
+  separate error and target-denominator counts; `0.0` is retained only as a
+  denominator-safe numeric projection and is never interpreted as observed zero FDR.
+  Candidate evidence digests and a partition digest bind supporting PSMs plus
+  unique/shared memberships, statuses, q-values, and acceptance decisions for
+  explicit replay verification.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
   Each record may additionally carry an `EvidenceQuality` assessment that separates
   byte/computation auditability, observed completeness, and caller-declared independent source
