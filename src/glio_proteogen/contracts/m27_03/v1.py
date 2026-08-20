@@ -282,10 +282,11 @@ class OrchestrateComplexActivityPipelineRequest(FrozenModel):
     def request_is_bound(self) -> OrchestrateComplexActivityPipelineRequest:
         if self.upstream_result.media_type != M2703_M2702_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M27-02 lineage result")
-        ids = tuple(item.artifact_id for item in self.source_artifacts)
-        digests = tuple(item.digest for item in self.source_artifacts)
+        input_artifacts = (self.upstream_result, *self.source_artifacts)
+        ids = tuple(item.artifact_id for item in input_artifacts)
+        digests = tuple(item.digest for item in input_artifacts)
         if len(ids) != len(set(ids)) or len(digests) != len(set(digests)):
-            raise ValueError("source artifacts must have unique ids and digests")
+            raise ValueError("upstream and source artifacts must have unique ids and digests")
         return self
 
 
@@ -459,7 +460,11 @@ class ComplexActivityPipelineResult(FrozenModel):
                 digest=execution.output_digest,
                 media_type=M2703_OUTPUT_MEDIA_TYPE,
             )
-            if package.artifact_references != (expected_artifact, *self.request.source_artifacts):
+            if package.artifact_references != (
+                expected_artifact,
+                self.request.upstream_result,
+                *self.request.source_artifacts,
+            ):
                 raise ValueError("result package artifacts must bind the request and output")
             expected_manifest = sha256_digest(
                 {
