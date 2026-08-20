@@ -22,11 +22,7 @@ class _ReadSpy:
         self.requested.append(size)
         if self.position >= len(self.payload):
             return b""
-        end = (
-            len(self.payload)
-            if size < 0
-            else min(self.position + size, len(self.payload))
-        )
+        end = len(self.payload) if size < 0 else min(self.position + size, len(self.payload))
         value = self.payload[self.position : end]
         self.position = end
         return value

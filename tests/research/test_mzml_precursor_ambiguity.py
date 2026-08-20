@@ -32,8 +32,8 @@ def test_parser_does_not_choose_an_arbitrary_selected_ion() -> None:
 
 
 def test_parser_rejects_a_non_mzml_root_before_search() -> None:
-    wrong_root = _ambiguous_mzml().replace(b"<mzML>", b"<notMzML>").replace(
-        b"</mzML>", b"</notMzML>"
+    wrong_root = (
+        _ambiguous_mzml().replace(b"<mzML>", b"<notMzML>").replace(b"</mzML>", b"</notMzML>")
     )
     with pytest.raises(ValueError, match="root"):
         parse_mzml(wrong_root)
@@ -50,9 +50,7 @@ def test_parser_rejects_duplicate_spectrum_ids_before_fdr() -> None:
 
 @pytest.mark.parametrize("spectrum_id", ["", "  scan=1  ", "scan=1\n"])
 def test_parser_rejects_invalid_explicit_spectrum_ids(spectrum_id: str) -> None:
-    malformed = _ambiguous_mzml().replace(
-        b'id="scan=ambiguous"', f'id="{spectrum_id}"'.encode()
-    )
+    malformed = _ambiguous_mzml().replace(b'id="scan=ambiguous"', f'id="{spectrum_id}"'.encode())
     with pytest.raises(ValueError, match="spectrum IDs"):
         parse_mzml(malformed)
 

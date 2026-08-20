@@ -20,12 +20,26 @@ _NO_CLAIMS: Final[tuple[str, ...]] = (
     "owner-confirmed module ABI and scientific validation are still required",
 )
 _FORMAT_MEDIA_TYPES: Final[dict[str, frozenset[str]]] = {
-    "fasta": frozenset({"application/fasta", "application/octet-stream", "text/plain", "text/x-fasta"}),
+    "fasta": frozenset(
+        {"application/fasta", "application/octet-stream", "text/plain", "text/x-fasta"}
+    ),
     "mzidentml": frozenset(
-        {"application/mzidentml", "application/mzidentml+xml", "application/octet-stream", "application/xml", "text/xml"}
+        {
+            "application/mzidentml",
+            "application/mzidentml+xml",
+            "application/octet-stream",
+            "application/xml",
+            "text/xml",
+        }
     ),
     "mzml": frozenset(
-        {"application/mzml", "application/octet-stream", "application/xml", "application/x-mzml", "text/xml"}
+        {
+            "application/mzml",
+            "application/octet-stream",
+            "application/xml",
+            "application/x-mzml",
+            "text/xml",
+        }
     ),
 }
 
@@ -149,9 +163,8 @@ def aggregate_evidence(
             )
         format_name = values.get("format")
         declared_media_type = reference.media_type.split(";", 1)[0].strip().lower()
-        if (
-            not isinstance(format_name, str)
-            or declared_media_type not in _FORMAT_MEDIA_TYPES.get(format_name, frozenset())
+        if not isinstance(format_name, str) or declared_media_type not in _FORMAT_MEDIA_TYPES.get(
+            format_name, frozenset()
         ):
             raise ValueError(
                 f"local feature source {source_id!r} media type does not match its format"
