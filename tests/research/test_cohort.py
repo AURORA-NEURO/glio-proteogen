@@ -23,7 +23,11 @@ from glio_proteogen.research import (
     replay_research_cohort,
     run_research_cohort,
 )
-from glio_proteogen.research.cohort import _compatible_configuration, _digest
+from glio_proteogen.research.cohort import (
+    _build_evidence_bundle,
+    _compatible_configuration,
+    _digest,
+)
 
 
 def _sample(scenario_id: str, sample_id: str, replicate: str) -> ResearchCohortSample:
@@ -343,6 +347,43 @@ def test_cohort_evidence_bundle_rejects_tampered_outer_or_inner_receipt() -> Non
     )
     with pytest.raises(ValueError, match="not reproducible"):
         aggregate_cohort_evidence(tampered_inner)
+
+
+def test_cohort_evidence_rederives_label_contrasts_from_label_evidence() -> None:
+    samples = (
+        replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
+        replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
+    )
+    result = run_research_cohort(
+        ResearchCohortRequest(samples)
+    )
+    assert len(result.label_contrasts) == 1
+    forged = replace(
+        result,
+        label_contrasts=(replace(result.label_contrasts[0], cohort_label_a="alternate"),),
+    )
+    assert forged.source_manifest is not None
+    forged_bundle = _build_evidence_bundle(
+        sample_ids=forged.sample_ids,
+        group_accessions=forged.group_accessions,
+        matrix=forged.matrix,
+        raw_matrix=forged.raw_matrix,
+        normalized_matrix=forged.normalized_matrix,
+        sample_qc=forged.sample_qc,
+        group_qc=forged.group_qc,
+        sample_scales=forged.sample_scales,
+        label_qc=forged.label_qc,
+        label_group_evidence=forged.label_group_evidence,
+        label_contrasts=forged.label_contrasts,
+        source_manifest=forged.source_manifest,
+        configuration=forged.configuration,
+    )
+    forged = replace(forged, evidence_bundle=forged_bundle)
+    payload = forged.as_dict()
+    payload.pop("result_digest")
+    forged = replace(forged, result_digest=_digest(payload))
+    with pytest.raises(ValueError, match="label contrasts"):
+        aggregate_cohort_evidence(forged)
 
 
 def test_cohort_evidence_bundle_requires_complete_result_shape() -> None:

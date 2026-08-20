@@ -597,6 +597,9 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
     )
     if result.evidence_bundle is None:
         raise ValueError("cohort result has no evidence bundle")
+    expected_contrasts = _build_label_contrasts(result.label_group_evidence)
+    if expected_contrasts != result.label_contrasts:
+        raise ValueError("cohort label contrasts are not reproducible")
     if observed.as_dict() != result.evidence_bundle.as_dict():
         raise ValueError("cohort evidence bundle is not reproducible")
     # The inner bundle can be coherent even when a caller swaps in a complete
