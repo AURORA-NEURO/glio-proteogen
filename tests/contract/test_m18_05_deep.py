@@ -87,6 +87,21 @@ def test_runtime_presents_complete_workspace_with_safe_ordering() -> None:
     assert present_biomarker_panel_review_workspace(build_scenario_request()) == result
 
 
+def test_provenance_binds_nested_workspace_evidence() -> None:
+    request = build_scenario_request()
+    result = M1805WorkflowPresentationEngine().infer(request)
+
+    expected = {
+        *(
+            evidence.reference.digest
+            for section in request.sections
+            for evidence in section.evidence
+        ),
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+    }
+    assert expected <= set(result.provenance.input_digests)
+
+
 def test_runtime_abstains_without_workspace_for_unsupported_inputs() -> None:
     result = M1805WorkflowPresentationEngine().infer(build_scenario_request("unsupported"))
 

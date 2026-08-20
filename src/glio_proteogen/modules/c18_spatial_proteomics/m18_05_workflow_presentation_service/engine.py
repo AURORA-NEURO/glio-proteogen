@@ -181,6 +181,12 @@ def _provenance(
                     for section in request.sections
                     for artifact in section.source_artifacts
                 ),
+                *(
+                    evidence.reference.digest
+                    for section in request.sections
+                    for evidence in section.evidence
+                ),
+                *(evidence.reference.digest for evidence in request.configuration.evidence),
             )
         )
     )
