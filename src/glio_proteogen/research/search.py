@@ -525,7 +525,21 @@ def search_spectrum_candidates(
         return ()
     if any(not _is_finite_real(value) or value < 0 for value in intensity):
         return ()
-    norm = hypot(*intensity) if intensity else 0.0
+    # A zero-intensity m/z slot is not an observed fragment ion.  Keeping it
+    # in the assignment would let an all-zero centroid array satisfy
+    # ``min_matched_ions`` and emit a positive-scoring PSM without any signal.
+    # Preserve the parser's non-negative array semantics, but admit only
+    # strictly positive signal into fragment evidence and scoring.
+    positive_peaks = tuple(
+        (peak_mz, peak_intensity)
+        for peak_mz, peak_intensity in zip(mz, intensity, strict=True)
+        if peak_intensity > 0
+    )
+    if not positive_peaks:
+        return ()
+    mz = tuple(peak_mz for peak_mz, _ in positive_peaks)
+    intensity = tuple(peak_intensity for _, peak_intensity in positive_peaks)
+    norm = hypot(*intensity)
     all_candidates: list[Psm] = []
     for peptide, accessions in peptide_map.items():
         if not peptide:

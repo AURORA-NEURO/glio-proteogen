@@ -21,7 +21,9 @@ one deterministic, auditable path:
 2. Digest FASTA entries with trypsin and the declared missed-cleavage and peptide-length
    controls.
 3. Score theoretical b/y fragments against observed m/z/intensity arrays using the
-   explicit fragment tolerance and minimum matched-ion threshold. Overlapping
+   explicit fragment tolerance and minimum matched-ion threshold. Only strictly
+   positive-intensity positions count as observed fragment evidence; zero-signal
+   m/z slots are ignored and an all-zero spectrum abstains. Overlapping
    tolerance windows use a deterministic maximum-cardinality, minimum-total-error
    one-to-one assignment rather than consuming peaks in theoretical-ion iteration
    order; this prevents a valid later ion from being erased by a greedy match.

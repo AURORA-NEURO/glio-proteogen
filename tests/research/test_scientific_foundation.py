@@ -1719,6 +1719,38 @@ def test_searches_with_two_plus_fragment_ions_when_declared() -> None:
     assert matched[0].matched_ions == 2
 
 
+def test_zero_intensity_fragment_positions_are_not_search_evidence() -> None:
+    """Zero-signal m/z slots cannot manufacture a matched-fragment PSM."""
+
+    peptide = "MPEPTIDER"
+    fragments = search_module._fragments(peptide)
+    observed = (fragments[0][0], fragments[1][0])
+    parameters = SearchParameters(fragment_tolerance_da=0.001, min_matched_ions=1)
+
+    assert (
+        search_spectrum_candidates(
+            "all-zero-signal",
+            1.0,
+            {peptide: ("P1",)},
+            observed,
+            (0.0, 0.0),
+            parameters=parameters,
+        )
+        == ()
+    )
+    positive_only = search_spectrum_candidates(
+        "mixed-signal",
+        1.0,
+        {peptide: ("P1",)},
+        observed,
+        (0.0, 10.0),
+        parameters=parameters,
+    )
+    assert len(positive_only) == 1
+    assert positive_only[0].matched_ions == 1
+    assert positive_only[0].matched_intensity == pytest.approx(10.0)
+
+
 @pytest.mark.parametrize("charges", [(2, 1), (1, 1), (), (0,), (6,)])
 def test_fragment_charges_are_canonical_and_bounded(charges: tuple[int, ...]) -> None:
     with pytest.raises(ValueError, match="fragment_charges"):
