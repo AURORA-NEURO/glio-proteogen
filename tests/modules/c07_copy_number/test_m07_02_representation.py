@@ -336,18 +336,14 @@ def test_contract_lineage_specification_and_feature_shapes_are_closed() -> None:
 def test_request_binding_rejects_wrong_handoff_duplicate_specs_and_source() -> None:
     request = _request()
     with pytest.raises(ValueError, match="M07-01"):
-        request.model_copy(
-            update={"formal_state_result": _artifact("wrong")}
-        ).request_is_bound()  # type: ignore[operator]
+        request.model_copy(update={"formal_state_result": _artifact("wrong")}).request_is_bound()  # type: ignore[operator]
     with pytest.raises(ValueError, match="unique"):
         request.model_copy(
             update={"feature_specs": (request.feature_specs[0],) * 2}
         ).request_is_bound()  # type: ignore[operator]
     with pytest.raises(ValueError, match="duplicated"):
         request.model_copy(
-            update={
-                "source_artifacts": (*request.source_artifacts, request.formal_state_result)
-            }
+            update={"source_artifacts": (*request.source_artifacts, request.formal_state_result)}
         ).request_is_bound()  # type: ignore[operator]
 
 

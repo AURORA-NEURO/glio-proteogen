@@ -247,16 +247,13 @@ def _build_result(
     failure_reasons: list[str] = []
     for spec in request.feature_specs:
         leakage_reason = _leakage_reason(spec)
-        leakage_status = (
-            LeakageCheckStatus.FAILED if leakage_reason else LeakageCheckStatus.PASSED
-        )
+        leakage_status = LeakageCheckStatus.FAILED if leakage_reason else LeakageCheckStatus.PASSED
         checks.append(
             LeakageCheck(
                 check_id=f"leakage.{spec.feature_id}",
                 status=leakage_status,
                 message=(
-                    leakage_reason
-                    or "lineage and transformations pass provisional leakage checks"
+                    leakage_reason or "lineage and transformations pass provisional leakage checks"
                 ),
                 held_out_group=(spec.feature_id if leakage_reason else None),
             )
@@ -293,10 +290,13 @@ def _build_result(
             else reason or "representation construction requires review"
         ),
     )
-    evidence = tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0702_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.policy.evidence
+    evidence = (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0702_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.policy.evidence
+    )
     draft = ProteotypeAnalysisRepresentationResult.model_construct(
         result_id=f"result.{request.request_id}",
         request_digest=canonical_request_digest(request),

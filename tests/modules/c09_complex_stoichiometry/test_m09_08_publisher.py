@@ -214,9 +214,7 @@ def test_replay_rejects_self_rehashed_explanation_mutation() -> None:
     built = engine.publish(_request())
     assert built.result.explanation is not None
     explanation = built.result.explanation
-    forged_explanation = explanation.model_copy(
-        update={"summary": explanation.summary + " forged"}
-    )
+    forged_explanation = explanation.model_copy(update={"summary": explanation.summary + " forged"})
     forged = built.result.model_copy(update={"explanation": forged_explanation})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
