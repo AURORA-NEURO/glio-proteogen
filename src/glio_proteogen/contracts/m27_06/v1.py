@@ -263,6 +263,21 @@ class ComplexActivitySecurityAccessResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires supported security records")
+            if (
+                self.access_decision.principal != self.request.principal
+                or self.access_decision.resource != self.request.resource
+                or self.access_decision.action != self.request.action
+                or self.access_decision.policy_version != self.request.policy_version
+            ):
+                raise ValueError("access decision must bind exact request subject and policy")
+            if (
+                self.audit_event.principal != self.request.principal
+                or self.audit_event.resource != self.request.resource
+                or self.audit_event.action != self.request.action
+                or self.audit_event.timestamp != self.request.context.occurred_at
+                or self.audit_event.decision_state is not self.access_decision.state
+            ):
+                raise ValueError("audit event must bind exact request subject and decision")
         elif (
             self.access_decision is not None
             or self.audit_event is not None
