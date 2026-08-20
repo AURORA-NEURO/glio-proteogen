@@ -46,9 +46,25 @@ CLI_SUCCESS = 0
 CLI_USAGE_ERROR = 2
 
 
+def _route_paths(app: object) -> set[str]:
+    """Collect direct and FastAPI included-router paths."""
+
+    paths: set[str] = set()
+    for route in getattr(app, "routes", ()):
+        path = getattr(route, "path", None)
+        if isinstance(path, str):
+            paths.add(path)
+        included = getattr(route, "original_router", None)
+        for nested in getattr(included, "routes", ()):
+            nested_path = getattr(nested, "path", None)
+            if isinstance(nested_path, str):
+                paths.add(nested_path)
+    return paths
+
+
 def test_central_surfaces_register_every_implemented_late_adapter(tmp_path: Path) -> None:
     api = create_app(tmp_path / "events.sqlite")
-    route_paths = {getattr(route, "path", "") for route in api.routes}
+    route_paths = _route_paths(api)
     assert route_paths >= _LATE_MODULE_ROUTES
 
     runner = CliRunner()
