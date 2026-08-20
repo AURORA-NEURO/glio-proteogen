@@ -540,6 +540,11 @@ def search_spectrum_candidates(
     mz = tuple(peak_mz for peak_mz, _ in positive_peaks)
     intensity = tuple(peak_intensity for _, peak_intensity in positive_peaks)
     norm = hypot(*intensity)
+    if not isfinite(norm) or norm <= 0:
+        # Finite input values can still exceed the representable L2 norm.  Do
+        # not let inf/inf become NaN in a candidate score; this spectrum has
+        # no finite score under the declared scoring policy and abstains.
+        return ()
     all_candidates: list[Psm] = []
     for peptide, accessions in peptide_map.items():
         if not peptide:
@@ -582,15 +587,26 @@ def search_spectrum_candidates(
             intensity_score += intensity[observed_index] / (1.0 + error)
         if matched < parameters.min_matched_ions:
             continue
+        mean_fragment_error = sum(fragment_errors) / len(fragment_errors)
+        score = matched + (intensity_score / norm if norm else 0.0)
+        if (
+            not isfinite(matched_intensity)
+            or not isfinite(mean_fragment_error)
+            or not isfinite(score)
+        ):
+            # The candidate's derived evidence is not representable as a
+            # finite PSM.  Abstain rather than returning a receipt that later
+            # FDR validation must reject as malformed.
+            continue
         candidate = Psm(
             spectrum_id=spectrum_id,
             peptide=peptide,
             protein_accessions=tuple(accessions),
-            score=matched + (intensity_score / norm if norm else 0.0),
+            score=score,
             matched_ions=matched,
             decoy=all(accession.startswith(parameters.decoy_prefix) for accession in accessions),
             matched_intensity=matched_intensity,
-            mean_fragment_error_da=sum(fragment_errors) / len(fragment_errors),
+            mean_fragment_error_da=mean_fragment_error,
             precursor_error_ppm=(
                 abs(precursor_mz - theoretical_precursor) / theoretical_precursor * 1_000_000
                 if parameters.require_precursor_mz

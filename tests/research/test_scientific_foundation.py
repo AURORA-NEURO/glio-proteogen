@@ -862,6 +862,38 @@ def test_search_parameter_and_peak_validation() -> None:
     )
 
 
+def test_search_abstains_when_derived_intensity_overflows() -> None:
+    """Finite peaks must not produce a NaN/Infinity PSM through summation."""
+
+    peptide = "MPEPTIDER"
+    fragments = search_module._fragments(peptide)
+    observed = (fragments[0][0], fragments[1][0])
+    parameters = SearchParameters(fragment_tolerance_da=0.001, min_matched_ions=2)
+
+    assert (
+        search_spectrum_candidates(
+            "overflowing-intensity",
+            1.0,
+            {peptide: ("P1",)},
+            observed,
+            (1.7e308, 1.7e308),
+            parameters=parameters,
+        )
+        == ()
+    )
+    assert (
+        search_spectrum(
+            "overflowing-intensity",
+            1.0,
+            {peptide: ("P1",)},
+            observed,
+            (1.7e308, 1.7e308),
+            parameters=parameters,
+        )
+        is None
+    )
+
+
 def test_public_search_receipts_reject_malformed_psm_and_normalize_controls() -> None:
     """Exercise the public receipt boundary independently of the pipeline."""
 

@@ -32,6 +32,9 @@ one deterministic, auditable path:
    tolerance windows use a deterministic maximum-cardinality, minimum-total-error
    one-to-one assignment rather than consuming peaks in theoretical-ion iteration
    order; this prevents a valid later ion from being erased by a greedy match.
+   Derived L2 normalization, matched-intensity sums, and candidate scores must remain
+   finite; if finite input peaks overflow a derived score, that spectrum/candidate
+   abstains instead of emitting a NaN or infinite PSM that would fail at the FDR boundary.
 4. Apply the caller-declared integer precursor tolerance (0–500 ppm) to the selected
    mzML precursor m/z and charge before fragment candidates enter competition. The
    tolerance, observed precursor error diagnostics, and missing-precursor abstentions
