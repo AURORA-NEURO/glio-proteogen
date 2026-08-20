@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m26_02.canonical import (
     canonical_request_digest,
+    graph_payload_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
@@ -203,6 +204,8 @@ class LineageGraph(FrozenModel):
 
         for node_id in known:
             visit(node_id, set(), set())
+        if self.graph_digest != graph_payload_digest(self):
+            raise ValueError("lineage graph digest does not match its canonical contents")
         return self
 
 

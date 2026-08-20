@@ -212,16 +212,31 @@ def _validated_graph(
     request: BuildProteinSubtypeLineageRequest,
 ) -> tuple[LineageGraph | None, list[LineageFinding]]:
     try:
+        expected_digest = graph_payload_digest(
+            {
+                "graph_id": request.graph_id,
+                "version": request.graph_version,
+                "nodes": request.nodes,
+                "edges": request.edges,
+                "graph_digest": _ZERO_DIGEST,
+                "locked": True,
+                "evidence": (),
+            }
+        )
         graph = LineageGraph(
             graph_id=request.graph_id,
             version=request.graph_version,
             nodes=request.nodes,
             edges=request.edges,
-            graph_digest=request.reproducibility_bundle.graph_digest,
+            graph_digest=expected_digest,
             locked=True,
         )
     except ValidationError:
         return None, [_finding("broken_link", "lineage graph links or kinds are not closed")]
+    if request.reproducibility_bundle.graph_digest != expected_digest:
+        graph = graph.model_copy(
+            update={"graph_digest": request.reproducibility_bundle.graph_digest}
+        )
     return graph, []
 
 

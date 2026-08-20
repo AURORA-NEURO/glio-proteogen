@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m26_02 import (
     M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
+    LineageGraph,
     LineageRelation,
     graph_payload_digest,
     result_payload_digest,
@@ -201,6 +202,14 @@ def test_replay_rejects_graph_tampering() -> None:
     tampered = result.model_copy(update={"lineage_graph": tampered_graph})
     with pytest.raises(ValidationError):
         service.verify(tampered)
+
+
+def test_contract_rejects_stale_graph_digest() -> None:
+    result = M2602LineageService().execute(_request())
+    assert result.lineage_graph is not None
+    forged = result.lineage_graph.model_copy(update={"graph_digest": "sha256:" + "e" * 64})
+    with pytest.raises(ValidationError, match="graph digest"):
+        LineageGraph.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_replay_rejects_self_rehashed_provenance_mutation() -> None:
