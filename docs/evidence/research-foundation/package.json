@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "0ff08fee",
+  "base_commit": "9b7f4608",
   "pipeline_commit": "depth/m20-replay-integration",
   "source_fixture": {
     "study": "PDC000204",
