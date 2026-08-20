@@ -87,6 +87,13 @@ hatch whose mixed source identities remain fully recorded. Receipt fields are re
 child and remain bound through child result digests, so a file rename, response change, or
 source substitution cannot replay as the same cohort.
 
+When a caller has a public PDC metadata response, it may attach the bounded `PDCSnapshot`
+object to each PDC-backed run. This is stronger than declaring a response hash: the snapshot
+validates the allow-listed HTTPS endpoint, canonical query digest, response digest/size, and
+JSON source reference, then derives its digest into the cohort source manifest. A cohort with
+mixed or tampered snapshot digests fails before matrix construction; no metadata label is
+inferred as a disease or biological class.
+
 The result is a deterministic sample-by-protein-group matrix. Groups are the union of
 reportable child groups; an absent or non-quantifiable child cell is represented as JSON
 `null`, never zero or imputed. Per-group QC reports observed/missing counts, missingness
