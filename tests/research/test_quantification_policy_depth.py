@@ -198,3 +198,13 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     )
     with pytest.raises(ValueError, match="digest"):
         replay_research_protein_inference(request, forged)
+
+
+def test_quantification_receipt_rejects_invalid_default_omitted_fields() -> None:
+    quantified = quantify_matched_ions_with_receipt("sample", ())
+    with pytest.raises(ValueError, match="limit_of_quantification"):
+        replace(quantified.receipt, limit_of_quantification=-1.0)
+    with pytest.raises(ValueError, match="below_loq_peptides"):
+        replace(quantified.receipt, below_loq_peptides=-1)
+    with pytest.raises(ValueError, match="quantifiable_peptides"):
+        replace(quantified.receipt, quantifiable_peptides=-1)

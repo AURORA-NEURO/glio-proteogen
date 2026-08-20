@@ -107,6 +107,24 @@ class QuantificationReceipt:
     raw_peptide_statuses: tuple[tuple[str, str], ...] = ()
     normalized_peptide_statuses: tuple[tuple[str, str], ...] = ()
 
+    def __post_init__(self) -> None:
+        # These fields are omitted from the compact default projection for
+        # historical receipt compatibility, so validate them at construction
+        # rather than allowing an invalid value to replay as the same digest.
+        if (
+            type(self.limit_of_quantification) not in (int, float)
+            or isinstance(self.limit_of_quantification, bool)
+            or not isfinite(self.limit_of_quantification)
+            or self.limit_of_quantification < 0
+        ):
+            raise ValueError("receipt limit_of_quantification must be finite and non-negative")
+        for value, field in (
+            (self.below_loq_peptides, "below_loq_peptides"),
+            (self.quantifiable_peptides, "quantifiable_peptides"),
+        ):
+            if type(value) is not int or value < 0:
+                raise ValueError(f"receipt {field} must be a non-negative integer")
+
     def as_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
             "duplicate_observations": self.duplicate_observations,
