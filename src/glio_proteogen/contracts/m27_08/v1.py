@@ -41,6 +41,9 @@ M2708_MODULE_ID: Final = "GLIO-PROTEOGEN-M27-08"
 M2708_OPERATION: Final = "retire_complex_activity_service"
 M2708_CONTRACT_VERSION: Final = "0.1.0-provisional"
 M2708_OUTPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-08+json"
+# Reuse the existing M27-07 output media type as the provisional upstream
+# boundary; do not broaden admission to arbitrary strings containing ``m27-07``.
+M2708_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 M2708_PARENT: Final = "complex activity"
 M2708_OWNER: Final = "Computational biology"
 M2708_SAFETY_CLASS: Final = "S3"
@@ -396,6 +399,7 @@ __all__ = [
     "M2708_CONTRACT_VERSION",
     "M2708_EVIDENCE_CLAIM",
     "M2708_GATE",
+    "M2708_M2707_INPUT_MEDIA_TYPE",
     "M2708_MAX_CANONICAL_REQUEST_BYTES",
     "M2708_MAX_CANONICAL_RESULT_BYTES",
     "M2708_MAX_COMMUNICATIONS",
