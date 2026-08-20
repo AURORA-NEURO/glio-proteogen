@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Final
 
 from glio_proteogen.contracts.m27_08 import (
+    M2708_M2707_INPUT_MEDIA_TYPE,
     ArchiveStatus,
     ComplexActivityRetirementResult,
     MigrationStatus,
@@ -82,7 +83,7 @@ def preflight_retirement_authorization(request: RetireComplexActivityServiceRequ
         request.source_artifacts
     ):
         raise RetirementAuthorizationError("source artifact ids must be unique")
-    if any("m27-07" not in item.media_type for item in request.source_artifacts):
+    if any(item.media_type != M2708_M2707_INPUT_MEDIA_TYPE for item in request.source_artifacts):
         raise RetirementAuthorizationError("unsupported upstream artifact media type")
 
 
