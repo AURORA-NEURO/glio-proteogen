@@ -169,6 +169,9 @@ before group scoring. Both peptide- and group-level descriptive decoy/target rat
 collision evidence conservatively, even though collision records remain non-reportable. Target-
 only group candidates retain their evidence but have `null` q-values and cannot become accepted
 groups without decoy/collision error evidence.
+When the target denominator is zero (decoy-only or collision-only evidence), the descriptive
+decoy/target ratio is `null` rather than `0.0`: the error rate is undefined, not zero. A numeric
+zero is reserved for a positive target denominator with no decoy or collision winners.
 Quantification is downstream of both accepted peptide PSMs and accepted target groups;
 a peptide that passes spectrum-level FDR but belongs only to a rejected or abstained
 group cannot create a reported group intensity. The spectrum-level summary records

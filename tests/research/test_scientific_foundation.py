@@ -246,6 +246,15 @@ def test_target_only_fdr_abstains_without_decoy_error_evidence() -> None:
     assert summary.decoy_winners == 0
     assert summary.accepted_targets == 0
     assert summary.max_accepted_q_value is None
+    assert summary.decoy_to_target_ratio == 0.0
+
+
+def test_decoy_only_fdr_ratio_is_undefined_without_target_denominator() -> None:
+    decoy = Psm("decoy-only", "PEPTIDER", ("DECOY_P1",), 4.0, 3, decoy=True)
+    summary = summarize_target_decoy((decoy,), q_value_threshold=0.01)
+    assert summary.target_winners == 0
+    assert summary.decoy_winners == 1
+    assert summary.decoy_to_target_ratio is None
 
 
 def test_median_quantification_preserves_missingness() -> None:
@@ -975,12 +984,14 @@ def test_protein_group_fdr_abstains_mixed_collision_and_allows_decoy_only_reject
     assert candidates[0].status == "collision"
     assert candidates[0].acceptance == "abstained"
     assert candidates[0].q_value is None
+    assert summary.decoy_to_target_ratio is None
     decoy = Psm("decoy", "PEPTIDER", ("DECOY_P1",), 4.0, 3, decoy=True)
     decoy_candidates, decoy_summary = infer_protein_group_candidates(
         (decoy,), q_value_threshold=0.01
     )
     assert decoy_summary.decoy_candidates == 1
     assert decoy_candidates[0].acceptance == "rejected"
+    assert decoy_summary.decoy_to_target_ratio is None
 
 
 def test_collision_evidence_counts_toward_group_fdr_without_becoming_reportable() -> None:
