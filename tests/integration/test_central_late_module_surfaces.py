@@ -87,9 +87,10 @@ def test_central_surfaces_register_every_implemented_late_adapter(tmp_path: Path
     # FastAPI operations, so assert the actual route table as well as the
     # recursive inventory used for diagnostics.
     direct_paths = {
-        route.path
+        path
         for route in api.routes
-        if isinstance(getattr(route, "path", None), str) and route.path in _LATE_MODULE_ROUTES
+        for path in (getattr(route, "path", None),)
+        if isinstance(path, str) and path in _LATE_MODULE_ROUTES
     }
     assert direct_paths >= _LATE_MODULE_ROUTES
     assert _route_paths(api) >= _LATE_MODULE_ROUTES

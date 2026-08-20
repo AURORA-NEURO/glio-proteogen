@@ -12,7 +12,7 @@ import zlib
 from dataclasses import replace
 from hashlib import md5, sha256
 from pathlib import Path
-from typing import BinaryIO, Self, cast
+from typing import Any, BinaryIO, Self, cast
 
 import pytest
 
@@ -589,7 +589,7 @@ def test_pdc_validates_accession_and_limit() -> None:
     with pytest.raises(ValueError):
         pdc.PdcClient().study_snapshot("PDC000204", limit=129)
     with pytest.raises(ValueError):
-        pdc.PdcClient().study_snapshot("PDC000204", limit=True)  # type: ignore[arg-type]
+        pdc.PdcClient().study_snapshot("PDC000204", limit=True)
 
 
 def test_fasta_stream_and_digest_validation_edges() -> None:
@@ -613,7 +613,7 @@ def test_fasta_stream_and_digest_validation_edges() -> None:
         {"max_length": True},
     ):
         with pytest.raises(ValueError):
-            digest_trypsin(entries, **controls)  # type: ignore[arg-type]
+            digest_trypsin(entries, **cast(Any, controls))
     with pytest.raises(ValueError, match="unsupported"):
         digest_trypsin((FastaEntry("P-invalid", "MPEP?DER"),))
     with pytest.raises(ValueError, match="unsupported"):
@@ -1528,8 +1528,12 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
     assert isinstance(receipt, PdcSourceReceipt)
     assert receipt.response_sha256 == "a" * 64
     assert receipt.observed_size == len(payload)
-    assert receipt.as_dict()["file"]["signed_url"] is None
-    assert receipt.as_dict()["snapshot"]["files"][0]["signed_url"] is None
+    receipt_data = receipt.as_dict()
+    file_data = cast(dict[str, Any], receipt_data["file"])
+    snapshot_data = cast(dict[str, Any], receipt_data["snapshot"])
+    snapshot_files = cast(list[dict[str, Any]], snapshot_data["files"])
+    assert file_data["signed_url"] is None
+    assert snapshot_files[0]["signed_url"] is None
     assert receipt.as_dict()["file"] == {
         **pdc._file_dict(file),
     }
