@@ -31,6 +31,7 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m27_05.canonical import result_payload_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
@@ -378,6 +379,25 @@ def test_result_id_and_status_shape_are_closed() -> None:
     payload["result_id"] = "m2705.result.forged"
     with pytest.raises(ValueError, match=r".+"):
         ProteomicsTelemetryResult.model_validate(payload, strict=True)
+
+
+def test_result_rejects_self_rehashed_output_binding_mutations() -> None:
+    result = M2705Service().emit(build_request())
+
+    forged_dashboard = result.dashboards[0].model_copy(update={"title": "forged dashboard"})
+    forged = result.model_copy(update={"dashboards": (forged_dashboard, *result.dashboards[1:])})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request definitions"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+    assert result.telemetry_stream is not None
+    forged_stream = result.telemetry_stream.model_copy(
+        update={"samples": result.telemetry_stream.samples[:-1]}
+    )
+    forged = result.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="cover every requested metric"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
     payload = result.model_dump(mode="json")
     payload["status"] = "abstained"
     payload["telemetry_stream"] = None

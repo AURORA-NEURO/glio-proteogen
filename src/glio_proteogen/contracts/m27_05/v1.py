@@ -306,6 +306,11 @@ class ProteomicsTelemetryResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("emitted result requires supported telemetry records")
+            sample_metrics = {sample.metric for sample in self.telemetry_stream.samples}
+            if not set(self.request.requested_metrics).issubset(sample_metrics):
+                raise ValueError("emitted stream must cover every requested metric")
+            if self.dashboards != self.request.dashboard_definitions:
+                raise ValueError("emitted dashboards must bind exact request definitions")
         elif (
             self.telemetry_stream is not None
             or self.dashboards
