@@ -336,8 +336,10 @@ def digest_entry_trypsin(
         or not 1 <= min_length <= max_length <= 200
     ):
         raise ValueError("invalid digestion limits")
-    if type(entry.sequence) is not str or not entry.sequence or any(
-        character not in _FASTA_ALPHABET for character in entry.sequence
+    if (
+        type(entry.sequence) is not str
+        or not entry.sequence
+        or any(character not in _FASTA_ALPHABET for character in entry.sequence)
     ):
         raise ValueError("FASTA sequence contains unsupported characters")
     cuts = [0]

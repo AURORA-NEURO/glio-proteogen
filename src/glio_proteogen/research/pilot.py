@@ -93,7 +93,10 @@ class PilotLimits:
     max_psms: int = 10_000
 
     def __post_init__(self) -> None:
-        if type(self.max_input_bytes) is not int or not 0 < self.max_input_bytes <= 512 * 1024 * 1024:
+        if (
+            type(self.max_input_bytes) is not int
+            or not 0 < self.max_input_bytes <= 512 * 1024 * 1024
+        ):
             raise PilotError("pilot input byte cap is outside the bounded range")
         if type(self.max_spectra) is not int or not 0 < self.max_spectra <= 1_000_000:
             raise PilotError("pilot spectrum cap is outside the bounded range")
