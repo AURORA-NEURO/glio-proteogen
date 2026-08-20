@@ -28,6 +28,11 @@ legacy `replay` keyword remains accepted for adapter compatibility, but
 `replay=False` is rejected so a caller cannot turn verification into
 payload-digest-only checking and re-sign a semantic mutation.
 
+Completed results also bind the reproducible package's `execution_id` to the
+embedded execution record. This closes the package boundary before replay: a
+self-rehashed envelope cannot pair a valid package from another execution with
+the current workflow record.
+
 The strict service, FastAPI, Typer, and parse-once plugin adapters share the
 same canonical request/result validators. Release evidence is independently
 checked by `tools/verify_m2603_release.py`.

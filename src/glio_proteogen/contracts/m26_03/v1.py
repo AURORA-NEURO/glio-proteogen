@@ -380,6 +380,8 @@ class ProteinSubtypeExecutionResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("completed result requires supported execution and package")
+            if self.reproducible_package.execution_id != self.execution_record.execution_id:
+                raise ValueError("reproducible package must bind the execution record")
         elif (
             self.execution_record is not None
             or self.reproducible_package is not None

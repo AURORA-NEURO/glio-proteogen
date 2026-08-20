@@ -6,15 +6,17 @@ from typing import Any, cast
 
 import pytest
 from evals.m26_03.fixture import build_request
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_03 import (
     ExecutionAttempt,
     ExecutionRecord,
     ExecutionStatus,
+    ProteinSubtypeExecutionResult,
     StepStatus,
     WorkflowDefinition,
 )
+from glio_proteogen.contracts.m26_03.canonical import result_payload_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     M2603AuthorizationError,
@@ -142,6 +144,17 @@ def test_replay_rejects_nested_package_and_request_changes() -> None:
     )
     with pytest.raises(M2603ReplayError):
         engine.verify(result.model_copy(update={"request": changed_request}), replay=False)
+
+
+def test_completed_result_rejects_self_rehashed_package_from_other_execution() -> None:
+    result = M2603Engine().execute(build_request())
+    assert result.reproducible_package is not None
+    payload = result.model_dump(mode="python")
+    payload["reproducible_package"]["execution_id"] = "execution.unrelated"
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="package must bind the execution record"):
+        TypeAdapter(ProteinSubtypeExecutionResult).validate_python(payload, strict=True)
 
 
 def test_workflow_definition_still_rejects_self_dependency_directly() -> None:
