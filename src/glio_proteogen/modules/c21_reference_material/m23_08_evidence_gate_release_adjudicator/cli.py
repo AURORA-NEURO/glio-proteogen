@@ -127,7 +127,10 @@ def adjudicate(
 def verify(path: Annotated[Path, typer.Argument(exists=True, readable=True)]) -> None:
     """Verify an immutable M23-08 result by canonical replay."""
 
-    result = _read_result(path)
+    try:
+        result = _read_result(path)
+    except M2308CliError as error:
+        raise M2308CliError("result replay is invalid") from error  # noqa: TRY003
     try:
         replay = _SERVICE.replay(result)
     except (TypeError, ValueError, ValidationError) as error:

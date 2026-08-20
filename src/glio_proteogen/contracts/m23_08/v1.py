@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m23_08.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -330,6 +331,15 @@ class VariantPeptideEvidenceGateResult(FrozenModel):
                 != self.request.post_release_obligations
             ):
                 raise ValueError("release obligations must bind the request")
+            expected_signature_digest = sha256_digest(
+                {
+                    "request_digest": self.request_digest,
+                    "decision": self.release_record.decision.value,
+                    "approvals": self.release_record.approvals,
+                }
+            )
+            if self.release_record.signature_digest != expected_signature_digest:
+                raise ValueError("release signature digest does not bind adjudication content")
             if self.findings and not all(item.evidence for item in self.findings):
                 raise ValueError("adjudicated findings must carry evidence")
         elif (

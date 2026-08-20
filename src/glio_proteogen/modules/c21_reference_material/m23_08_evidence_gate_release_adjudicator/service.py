@@ -15,7 +15,7 @@ from glio_proteogen.contracts.m23_08 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2308EvidenceGateEngine, preflight_m2308_authorization
+from .engine import M2308EvidenceGateEngine, M2308ReplayError, preflight_m2308_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(AdjudicateVariantPeptideEvidenceGateRequest)
 
@@ -42,18 +42,23 @@ class M2308Service:
         return self._engine.adjudicate(self.validate_request(request))
 
     def replay(self, result: object) -> VariantPeptideEvidenceGateResult:
-        if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result, max_bytes=M2308_MAX_CANONICAL_RESULT_BYTES)
-            typed = VariantPeptideEvidenceGateResult.model_validate_json(
-                canonical_json_bytes(decoded), strict=True
-            )
-        elif isinstance(result, Mapping):
-            typed = VariantPeptideEvidenceGateResult.model_validate_json(
-                canonical_json_bytes(dict(result)), strict=True
-            )
-        else:
-            typed = VariantPeptideEvidenceGateResult.model_validate(result, strict=True)
-        return self._engine.replay(typed)
+        try:
+            if isinstance(result, (bytes, bytearray, str)):
+                decoded = strict_json_loads(result, max_bytes=M2308_MAX_CANONICAL_RESULT_BYTES)
+                typed = VariantPeptideEvidenceGateResult.model_validate_json(
+                    canonical_json_bytes(decoded), strict=True
+                )
+            elif isinstance(result, Mapping):
+                typed = VariantPeptideEvidenceGateResult.model_validate_json(
+                    canonical_json_bytes(dict(result)), strict=True
+                )
+            else:
+                typed = VariantPeptideEvidenceGateResult.model_validate(result, strict=True)
+            return self._engine.replay(typed)
+        except M2308ReplayError:
+            raise
+        except Exception as error:
+            raise M2308ReplayError from error
 
     @property
     def descriptor(self) -> dict[str, object]:

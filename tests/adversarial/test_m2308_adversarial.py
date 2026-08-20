@@ -204,6 +204,18 @@ def test_replay_rejects_self_rehashed_release_record_mutation() -> None:
         service.replay(tampered)
 
 
+def test_strict_result_validation_rejects_self_rehashed_signature_mutation() -> None:
+    result = M2308EvidenceGateEngine().adjudicate(_request())
+    assert result.release_record is not None
+    release_record = result.release_record.model_copy(
+        update={"signature_digest": "sha256:" + "f" * 64}
+    )
+    forged = _self_rehashed(result, release_record=release_record)
+
+    with pytest.raises(ValidationError, match="signature digest"):
+        type(result).model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_replay_rejects_self_rehashed_finding_and_evidence_mutations() -> None:
     service = M2308Service()
     result = service.adjudicate(_request())

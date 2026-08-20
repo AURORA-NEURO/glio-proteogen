@@ -17,6 +17,11 @@ The M23-08 engine already performs the required ordered replay closure:
 3. Compare the complete canonical JSON result and fail closed on any
    difference.
 
+The contract also recomputes the signed release record's existing
+`signature_digest` from the bound request digest, gate decision, and approval
+records. This prevents a self-rehashed result from carrying a detached release
+signature through strict parsing.
+
 The service, strict plugin, FastAPI verify route, and Typer verify command all
 use this same engine path. Direct digest failures remain distinguishable from
 semantic replay mismatches, and interface errors remain sanitized.
