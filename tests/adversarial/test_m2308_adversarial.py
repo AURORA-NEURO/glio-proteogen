@@ -230,6 +230,39 @@ def test_replay_rejects_self_rehashed_finding_and_evidence_mutations() -> None:
         service.replay(evidence_tampered)
 
 
+def test_result_retains_nested_gate_evidence_and_provenance() -> None:
+    request = _request()
+    result = M2308EvidenceGateEngine().adjudicate(request)
+    references = request.context.references
+    nested_digests = {
+        *(evidence.reference.digest for item in request.requirements for evidence in item.evidence),
+        *(item.report_artifact.digest for item in request.benchmarks),
+        *(evidence.reference.digest for item in request.benchmarks for evidence in item.evidence),
+        *(
+            evidence.reference.digest
+            for item in request.residual_risks
+            for evidence in item.evidence
+        ),
+        *(evidence.reference.digest for item in request.approvals for evidence in item.evidence),
+        *(
+            evidence.reference.digest
+            for item in request.post_release_obligations
+            for evidence in item.evidence
+        ),
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+        references.approved_configuration.evidence.digest,
+        references.identity_lineage.evidence.digest,
+        references.provenance.evidence.digest,
+        references.consent.evidence.digest,
+        references.quality.evidence.digest,
+        references.support.evidence.digest,
+        references.intended_use.evidence.digest,
+    }
+    result_evidence = {evidence.reference.digest for evidence in result.evidence}
+    assert nested_digests <= result_evidence
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 def test_plugin_rejects_self_rehashed_provenance_mutation() -> None:
     service = M2308Service()
     result = service.adjudicate(_request())

@@ -25,6 +25,7 @@ from glio_proteogen.contracts.m23_08 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
+    ArtifactReference,
     ConsentState,
     ControlDecisionRecord,
     ControlRole,
@@ -112,13 +113,44 @@ def _gate_decision(request: AdjudicateVariantPeptideEvidenceGateRequest) -> Gate
 def _evidence(
     request: AdjudicateVariantPeptideEvidenceGateRequest,
 ) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(
-            reference=artifact,
-            role="evidence",
-            claim=M2308_EVIDENCE_CLAIM,
+    references = request.context.references
+    artifacts = list(request.source_artifacts)
+    artifacts.extend(
+        evidence.reference for item in request.requirements for evidence in item.evidence
+    )
+    artifacts.extend(item.report_artifact for item in request.benchmarks)
+    artifacts.extend(
+        evidence.reference for item in request.benchmarks for evidence in item.evidence
+    )
+    artifacts.extend(
+        evidence.reference for item in request.residual_risks for evidence in item.evidence
+    )
+    artifacts.extend(
+        evidence.reference for item in request.approvals for evidence in item.evidence
+    )
+    artifacts.extend(
+        evidence.reference
+        for item in request.post_release_obligations
+        for evidence in item.evidence
+    )
+    artifacts.extend(evidence.reference for evidence in request.configuration.evidence)
+    artifacts.extend(
+        (
+            references.approved_configuration.evidence,
+            references.identity_lineage.evidence,
+            references.provenance.evidence,
+            references.consent.evidence,
+            references.quality.evidence,
+            references.support.evidence,
+            references.intended_use.evidence,
         )
-        for artifact in request.source_artifacts
+    )
+    unique: dict[str, ArtifactReference] = {}
+    for artifact in artifacts:
+        unique.setdefault(artifact.digest, artifact)
+    return tuple(
+        EvidenceReference(reference=artifact, role="evidence", claim=M2308_EVIDENCE_CLAIM)
+        for artifact in tuple(unique.values())[:64]
     )
 
 
@@ -259,13 +291,23 @@ def _provenance(
         )
         for role, decision in controls
     )
+    emitted_evidence = _evidence(request)
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                request_digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in emitted_evidence),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id="m2308.activity." + request_digest.removeprefix("sha256:"),
         actor_id=request.context.actor_id,
         module_id=M2308_MODULE_ID,
         module_version=M2308_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(
             {
                 "configuration": request.configuration,

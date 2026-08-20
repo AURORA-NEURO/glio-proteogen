@@ -35,5 +35,6 @@ finding, evidence reference, or provenance record and recompute the outer
 mutations through service/plugin seams and verifies API/CLI parity.
 
 The complete M23-08 contract/deep/adversarial/runtime/interface/evaluator suite
-passes 45 tests. Existing M23-08 release evidence remains authoritative for
-package, benchmark, coverage, and release-verifier receipts.
+passes 47 tests, including nested gate-evidence and provenance closure. Existing
+M23-08 release evidence remains authoritative for package, benchmark, coverage,
+and release-verifier receipts.
