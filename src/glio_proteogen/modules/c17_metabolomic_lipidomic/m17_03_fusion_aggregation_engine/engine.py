@@ -154,6 +154,23 @@ def _uncertainty(*, estimable: bool) -> UncertaintyProfile:
 
 def _provenance(request: FuseVariantPeptideEvidenceRequest, request_digest: str) -> ProvenanceRecord:
     refs = request.context.references
+    nested_evidence_digests = (
+        *(
+            evidence.reference.digest
+            for contribution in request.contributions
+            for evidence in contribution.evidence
+        ),
+        *(
+            evidence.reference.digest
+            for disagreement in request.disagreements
+            for evidence in disagreement.evidence
+        ),
+        *(
+            evidence.reference.digest
+            for propagation in request.propagation
+            for evidence in propagation.evidence
+        ),
+    )
     controls = (
         (ControlRole.APPROVED_CONFIGURATION, refs.approved_configuration),
         (ControlRole.IDENTITY_LINEAGE, refs.identity_lineage),
@@ -188,6 +205,7 @@ def _provenance(request: FuseVariantPeptideEvidenceRequest, request_digest: str)
             else request.source_artifacts[0].digest,
             *(item.artifact.digest for item in request.contributions),
             *(artifact.digest for artifact in request.source_artifacts),
+            *nested_evidence_digests,
         ),
         configuration_digest=refs.approved_configuration.evidence.digest,
         consent_decision_id=refs.consent.decision_id,

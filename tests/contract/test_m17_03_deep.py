@@ -57,6 +57,40 @@ def test_runtime_statuses_preserve_attribution_disagreement_and_abstention() -> 
     assert unsupported.support_decision.status is SupportStatus.REVIEW_REQUIRED
 
 
+def test_provenance_binds_nested_fusion_evidence() -> None:
+    engine = M1703FusionAggregationEngine()
+    request = build_scenario_request("disagreement")
+    result = engine.infer(request)
+    nested_digests = {
+        evidence.reference.digest
+        for contribution in request.contributions
+        for evidence in contribution.evidence
+    }
+    nested_digests.update(
+        evidence.reference.digest
+        for disagreement in request.disagreements
+        for evidence in disagreement.evidence
+    )
+    nested_digests.update(
+        evidence.reference.digest
+        for propagation in request.propagation
+        for evidence in propagation.evidence
+    )
+    assert nested_digests <= set(result.provenance.input_digests)
+
+    mutated = request.model_copy(
+        update={
+            "propagation": (
+                request.propagation[0].model_copy(
+                    update={"evidence": (_evidence("propagation-mutated", "f"),)}
+                ),
+            )
+        }
+    )
+    mutated_result = engine.infer(mutated)
+    assert mutated_result.provenance.input_digests != result.provenance.input_digests
+
+
 def test_contract_reliability_and_reference_closures_are_adversarial() -> None:
     source = _contribution("source-x", SourceKind.GENOME, 0.8, ReliabilityBand.HIGH)
     with pytest.raises(ValueError, match="high reliability"):
