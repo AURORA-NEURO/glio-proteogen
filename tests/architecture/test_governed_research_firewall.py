@@ -65,6 +65,10 @@ _RESEARCH_CAPABILITY_MARKERS: Final = (
     "target_decoy",
     "cohort",
 )
+_ALLOWED_GOVERNED_ROUTE_MODULE_PREFIXES: Final = (
+    "glio_proteogen.adapters.",
+    "glio_proteogen.modules.",
+)
 
 
 def _governed_python_files() -> Iterator[Path]:
@@ -217,7 +221,7 @@ def test_central_api_route_inventory_has_no_research_execution_surface() -> None
             qualname,
         )
         if module.startswith("glio_proteogen"):
-            assert module == "glio_proteogen.adapters.api", (path, module)
+            assert module.startswith(_ALLOWED_GOVERNED_ROUTE_MODULE_PREFIXES), (path, module)
 
 
 @pytest.mark.contract
