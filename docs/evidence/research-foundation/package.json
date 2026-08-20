@@ -72,11 +72,11 @@
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
     "focused_tests": 384,
     "coverage": {
-      "statements": 3458,
-      "missed_statements": 111,
-      "branches": 1356,
-      "partial_branches": 103,
-      "percent": 95.42999584545076,
+      "statements": 3471,
+      "missed_statements": 115,
+      "branches": 1370,
+      "partial_branches": 107,
+      "percent": 95.2902292914687,
       "fail_under": 95
     },
     "wheel": {
