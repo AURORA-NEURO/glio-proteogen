@@ -13,6 +13,11 @@ The package at `glio_proteogen.research.public_proteomics` provides:
 - structural FASTA, mzML, and mzIdentML summaries using safe XML parsing;
 - deterministic aggregation of source-checked metadata and structural features.
 
+Aggregation also checks that each manifest media type is compatible with the
+structural format being summarized (while retaining `application/octet-stream`
+for caller-declared binary sources). A content hash/length match alone cannot
+justify recording a FASTA summary under an mzML media declaration.
+
 The local parsers do not decode mzML binary measurements, score spectra, assign
 peptides, infer proteins/protein groups/proteoforms/isoforms, estimate abundance,
 or emit glioma-specific or clinical claims. Counts such as `spectrum_count`,

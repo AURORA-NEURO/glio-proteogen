@@ -69,6 +69,25 @@ def test_aggregate_is_manifest_bound_deterministic_and_claim_free() -> None:
     assert "protein" in " ".join(first.limitations)
     assert json.dumps(first.as_dict(), sort_keys=True)
 
+    mismatched_reference = SourceReference(
+        "local:fasta",
+        "memory:fasta",
+        "application/mzml",
+        sha256_digest(fasta),
+        len(fasta),
+        "2026-08-17T00:00:00Z",
+        "test fixture",
+    )
+    mismatched_manifest = SourceManifest(
+        "research-pdc000204-media-mismatch-v1",
+        "2026-08-17T00:00:00Z",
+        "metadata and bounded local structural feature research",
+        (snapshot.source_reference, mismatched_reference),
+        "PDC metadata lookup plus local FASTA structural extraction",
+    )
+    with pytest.raises(ValueError, match="media type"):
+        aggregate_evidence(mismatched_manifest, snapshot, {"local:fasta": fasta_summary})
+
 
 def test_aggregate_accepts_each_supported_local_format() -> None:
     response = _FIXTURE.read_bytes()
