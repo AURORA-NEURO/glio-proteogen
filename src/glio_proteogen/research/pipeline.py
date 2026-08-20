@@ -31,6 +31,7 @@ from .protein import (
     ProteinGroupCandidate,
     ProteinGroupFdrSummary,
     infer_protein_group_candidates,
+    verify_protein_group_fdr_summary,
 )
 from .public_proteomics.formats import (
     MzIdentMlStructure,
@@ -967,6 +968,11 @@ def replay_research_protein_inference(
     ):
         raise ValueError("expected research result digest is invalid")
     verify_evidence_bundle(expected.evidence)
+    if expected.protein_group_fdr_summary is not None:
+        verify_protein_group_fdr_summary(
+            expected.protein_group_candidates,
+            expected.protein_group_fdr_summary,
+        )
     if expected.search_space_receipt is not None:
         verify_search_space_receipt(expected.search_space_receipt)
     observed = run_research_protein_inference(request)
