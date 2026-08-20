@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import json
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters.m1103 import app, m1103_app
+from glio_proteogen.contracts.m11_03 import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c11_protein_native_subtype import (
     m11_03_mechanistic_feature_constructor as m1103,
 )
 from tests.contract.test_m11_03_runtime import _request
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_schema_and_api_construct_verify_are_canonical() -> None:
@@ -35,6 +40,21 @@ def test_schema_and_api_construct_verify_are_canonical() -> None:
     )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json() == {"verified": True}
+    typed_result = m1103.construct_variant_peptide_mechanistic_features(request)
+    mutated = typed_result.model_copy(
+        update={
+            "support_decision": typed_result.support_decision.model_copy(
+                update={"rationale": "caller-rehashed semantic mutation"}
+            )
+        }
+    )
+    forged = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    rejected = client.post(
+        "/v1/modules/M11-03/verify",
+        json={"request": request.model_dump(mode="json"), "result": forged.model_dump(mode="json")},
+    )
+    assert rejected.status_code == HTTPStatus.OK
+    assert rejected.json() == {"verified": False}
 
 
 def test_api_rejects_duplicate_json_and_denied_control() -> None:
@@ -53,7 +73,7 @@ def test_api_rejects_duplicate_json_and_denied_control() -> None:
     assert response.status_code == HTTPStatus.FORBIDDEN
 
 
-def test_cli_construct_verify_and_no_overwrite(tmp_path) -> None:
+def test_cli_construct_verify_and_no_overwrite(tmp_path: Path) -> None:
     request = _request()
     request_path = tmp_path / "request.json"
     result_path = tmp_path / "result.json"
@@ -74,3 +94,26 @@ def test_cli_construct_verify_and_no_overwrite(tmp_path) -> None:
     )
     assert overwrite.exit_code != 0
     assert m1103.M1103Service().execute(request).status.value == "constructed"
+
+
+def test_cli_verify_rejects_self_rehashed_semantic_mutation(tmp_path: Path) -> None:
+    request = _request()
+    result = m1103.construct_variant_peptide_mechanistic_features(request)
+    mutated = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "caller-rehashed semantic mutation"}
+            )
+        }
+    )
+    forged = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    request_path = tmp_path / "request.json"
+    result_path = tmp_path / "forged.json"
+    request_path.write_text(request.model_dump_json(), encoding="utf-8")
+    result_path.write_text(forged.model_dump_json(), encoding="utf-8")
+    rejected = CliRunner().invoke(
+        m1103_app,
+        ["verify", str(request_path), str(result_path)],
+    )
+    assert rejected.exit_code == 1
+    assert json.loads(rejected.stdout) == {"verified": False}
