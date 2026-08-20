@@ -227,15 +227,7 @@ def test_provenance_covers_nested_candidate_and_rule_evidence() -> None:
         ),
         *(artifact.digest for artifact in request.source_artifacts),
         *(item.reference.digest for item in request.configuration.evidence),
-        *(
-            item.reference.digest
-            for rule in request.configuration.rules
-            for item in rule.evidence
-        ),
-        *(
-            item.reference.digest
-            for candidate in request.candidates
-            for item in candidate.evidence
-        ),
+        *(item.reference.digest for rule in request.configuration.rules for item in rule.evidence),
+        *(item.reference.digest for candidate in request.candidates for item in candidate.evidence),
     }
     assert nested_digests <= set(result.provenance.input_digests)
