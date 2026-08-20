@@ -10,9 +10,12 @@ from glio_proteogen.contracts.m19_01 import (
     ResolverFindingCode,
     ResolverStatus,
 )
-from glio_proteogen.contracts.m19_01.canonical import canonical_request_digest
+from glio_proteogen.contracts.m19_01.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import ConsentState, SupportStatus
+from glio_proteogen.kernel.models import ConsentState, Limitation, SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m19_01_upstream_contract_resolver as m1901,
 )
@@ -122,6 +125,22 @@ def test_replay_accepts_exact_result_and_rejects_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
     with pytest.raises(m1901.M1901ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    service = m1901.M1901Service()
+    result = service.resolve(_request())
+    mutated = result.model_copy(
+        update={
+            "limitations": (
+                *result.limitations,
+                Limitation(code="forged", statement="forged semantic state"),
+            )
+        }
+    )
+    mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(m1901.M1901ReplayError, match="semantic replay"):
+        service.replay(mutated)
 
 
 def test_strict_public_wrapper_matches_engine() -> None:
