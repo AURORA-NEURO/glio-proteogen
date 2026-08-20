@@ -88,7 +88,7 @@ def test_replay_rederives_payload_after_digest_rebinding() -> None:
         }
     )
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(M2004ReplayError, match="deterministic replay"):
+    with pytest.raises(M2004ReplayError, match="semantic replay"):
         engine.replay(forged)
 
 
