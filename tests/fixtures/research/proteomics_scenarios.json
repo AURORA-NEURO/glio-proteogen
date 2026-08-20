@@ -39,7 +39,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "22fe20bc8e622ec17ebfc92dc91a1153fc5d015c4348d4316adc7840f3d92a27",
+      "expected_result_digest": "0deca986f856c59af4ce6f5c031818e1a7dfc3d196ce48e85a9bab72943a7725",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -136,7 +136,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "2759fc17f53b7a5c8d25e3fa3319c237c3f1bf39f2f08891942e5b7bc88bbc70",
+      "expected_result_digest": "d90530a12756f158385f77ebbbb0b51961df7a118d0b31c485e98162aaef8ea6",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -237,7 +237,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "40971bd8c96dc6b04614033bdd5c904fd4e8efdeccaa544c4b75e08f4c6a3665",
+      "expected_result_digest": "aa5ed9908cd934c90e0dd4586a6292aed6d04dc28bd72993d1c2b05cd77aaeb0",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -326,7 +326,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "fe92cd148ba2e08a59eed7e504dc11d8a48108685a38dc6762de65323eb48be3",
+      "expected_result_digest": "8be738d5559dafb99ec1be1fea93baf9e411015cc825677000aa235ffb98c9d6",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -400,7 +400,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "81c2c67e54964dea002206587e4ca59ca22807f9ece33c0f2a257e8bfff3db17",
+      "expected_result_digest": "98915099fe9c7f245cdce8ec9c3f634c7bc126d020f01e6131fa09dd970dbdc3",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -503,7 +503,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "8ff38150df7e229d59b6932303e9ea83edd79c20aa915d310ea94a5d40b09633",
+      "expected_result_digest": "86196bfa1d8e5eed3e2f54ab66cf8ed81b999ee2b834e361be7caaa2d9a1304e",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -601,7 +601,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "4232250d635c86525df3ca7ec521238518d4fbdd22dbfcede93675b7def6e72a",
+      "expected_result_digest": "818a37e3866dbc45906efafdb923fa7aac11419ada10337c49bc8faa34937950",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -708,7 +708,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "3754aa2d0aaea6e93c7db90596dfd78e4a52fd35cff86c0d3645043147eca170",
+      "expected_result_digest": "8336fa6d984c11c419a8f4f512e61d952883660f1cd5bede327c6759b61944ed",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
