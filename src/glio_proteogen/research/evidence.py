@@ -11,6 +11,26 @@ from types import MappingProxyType
 from typing import cast
 
 _QUALITY_STATUSES = frozenset({"computed", "verified", "declared", "abstained", "ungraded"})
+_IDENTIFIER_LIMIT = 256
+
+
+def _validate_identifier(value: object, field: str) -> None:
+    """Reject unbounded or ambiguous receipt identity fields.
+
+    Evidence records are replay-addressed by ``evidence_id``, ``source``, and
+    ``kind``.  Accepting empty/whitespace/control-bearing values would allow
+    callers to create receipts that cannot be safely addressed in an archive
+    or compared as source groups.
+    """
+
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > _IDENTIFIER_LIMIT
+        or value != value.strip()
+        or any(character.isspace() or ord(character) < 32 for character in value)
+    ):
+        raise ValueError(f"{field} must be a bounded non-whitespace identifier")
 
 
 def _freeze(value: object) -> object:
@@ -86,6 +106,8 @@ class EvidenceQuality:
             raise ValueError(
                 "scored evidence requires bounded auditability, completeness, and basis"
             )
+        if self.status == "abstained" and self.completeness != 0.0:
+            raise ValueError("abstained evidence must have zero completeness")
         if type(self.independent_sources) is not int or not 0 <= self.independent_sources <= 32:
             raise ValueError("independent_sources is outside the bounded range")
 
@@ -116,11 +138,13 @@ class EvidenceQualitySummary:
     weighted_auditability: float | None
     weighted_completeness: float | None
     weighted_score: float | None
+    quality_source_groups: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
             "abstained_records": self.abstained_records,
             "independent_sources": self.independent_sources,
+            "quality_source_groups": self.quality_source_groups,
             "scored_records": self.scored_records,
             "ungraded_records": self.ungraded_records,
             "weighted_auditability": self.weighted_auditability,
@@ -154,6 +178,11 @@ class EvidenceRecord:
     digest: str
     quality: EvidenceQuality | None = None
 
+    def __post_init__(self) -> None:
+        _validate_identifier(self.evidence_id, "evidence_id")
+        _validate_identifier(self.source, "source")
+        _validate_identifier(self.kind, "kind")
+
     @classmethod
     def create(
         cls,
@@ -164,6 +193,9 @@ class EvidenceRecord:
         *,
         quality: EvidenceQuality | None = None,
     ) -> EvidenceRecord:
+        _validate_identifier(evidence_id, "evidence_id")
+        _validate_identifier(source, "source")
+        _validate_identifier(kind, "kind")
         frozen = _freeze(payload)
         if not isinstance(frozen, Mapping):
             raise TypeError("evidence payload must be a mapping")
@@ -283,22 +315,58 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     independent_sources = max(
         (quality.independent_sources for quality in quality_records), default=0
     )
+    quality_by_source: dict[str, list[EvidenceQuality]] = {}
+    for record in ordered:
+        if record.quality is not None and record.quality.status != "ungraded":
+            quality_by_source.setdefault(record.source, []).append(record.quality)
+    for source, source_quality in quality_by_source.items():
+        if len({quality.independent_sources for quality in source_quality}) > 1:
+            raise ValueError(
+                "quality independent_sources conflict within evidence source " + source
+            )
     if quality_records:
-        weights = tuple(max(quality.independent_sources, 1) for quality in quality_records)
+        # A source may emit several projections (matrix, QC, provenance, and
+        # contrast).  Count its declared independent inputs once, then average
+        # those projections inside the source group.  Weighting every record
+        # independently would let one source inflate its influence merely by
+        # emitting more derived views.
+        grouped_quality = tuple(
+            (
+                source,
+                tuple(source_quality),
+                max(source_quality[0].independent_sources, 1),
+            )
+            for source, source_quality in sorted(quality_by_source.items())
+        )
+        weights = tuple(group[2] for group in grouped_quality)
         denominator = sum(weights)
         weighted_auditability = (
             sum(
-                quality.auditability * weight
-                for quality, weight in zip(quality_records, weights, strict=True)
-                if quality.auditability is not None
+                (
+                    sum(
+                        quality.auditability
+                        for quality in source_quality
+                        if quality.auditability is not None
+                    )
+                    / len(source_quality)
+                )
+                * weight
+                for _, source_quality, weight in grouped_quality
             )
             / denominator
         )
         weighted_completeness = (
             sum(
-                quality.completeness * weight
-                for quality, weight in zip(quality_records, weights, strict=True)
-                if quality.completeness is not None
+                (
+                    sum(
+                        quality.completeness
+                        for quality in source_quality
+                        if quality.completeness is not None
+                    )
+                    / len(source_quality)
+                )
+                * weight
+                for _, source_quality, weight in grouped_quality
             )
             / denominator
         )
@@ -312,6 +380,7 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
             weighted_auditability=weighted_auditability,
             weighted_completeness=weighted_completeness,
             weighted_score=weighted_score,
+            quality_source_groups=len(quality_by_source),
         )
         if quality_records
         else None

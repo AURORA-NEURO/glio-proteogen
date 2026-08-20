@@ -289,7 +289,7 @@ def aggregate_external_evidence(
     quality = EvidenceQuality(
         status=quality_status,
         auditability=1.0,
-        completeness=0.0 if counts["abstained"] else 1.0,
+        completeness=0.0 if status.startswith("abstained_") else 1.0,
         independent_sources=len(independent_source_ids),
         basis="external_receipt_direction_ledger_without_numerical_fusion",
     )
