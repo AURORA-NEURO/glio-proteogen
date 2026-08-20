@@ -47,7 +47,11 @@ presentation. replay_external_evidence recomputes the bundle,
 direction counts, receipt-bound source set, status, and digest and rejects
 changed source hashes, directions, source IDs, or thresholds. EvidenceQuality fields describe
 receipt auditability and completeness only; they are not a measure of biological
-truth.
+truth. When a producer emits multiple quality projections, the quality summary
+averages those projections within the producer and applies that producer's
+declared independent-source weight once. Adding matrix, QC, provenance, or
+contrast views therefore cannot inflate a source's influence by row count;
+conflicting independent-source declarations within one producer are rejected.
 
 The immutable `ExternalEvidenceAggregate` constructor applies the same closure,
 not only `replay_external_evidence`: its bundle must contain exactly the matching

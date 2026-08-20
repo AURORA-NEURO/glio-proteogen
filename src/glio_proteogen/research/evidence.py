@@ -116,11 +116,13 @@ class EvidenceQualitySummary:
     weighted_auditability: float | None
     weighted_completeness: float | None
     weighted_score: float | None
+    quality_source_groups: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
             "abstained_records": self.abstained_records,
             "independent_sources": self.independent_sources,
+            "quality_source_groups": self.quality_source_groups,
             "scored_records": self.scored_records,
             "ungraded_records": self.ungraded_records,
             "weighted_auditability": self.weighted_auditability,
@@ -263,22 +265,58 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     independent_sources = max(
         (quality.independent_sources for quality in quality_records), default=0
     )
+    quality_by_source: dict[str, list[EvidenceQuality]] = {}
+    for record in ordered:
+        if record.quality is not None and record.quality.status != "ungraded":
+            quality_by_source.setdefault(record.source, []).append(record.quality)
+    for source, source_quality in quality_by_source.items():
+        if len({quality.independent_sources for quality in source_quality}) > 1:
+            raise ValueError(
+                "quality independent_sources conflict within evidence source " + source
+            )
     if quality_records:
-        weights = tuple(max(quality.independent_sources, 1) for quality in quality_records)
+        # A producer may emit several projections (matrix, QC, provenance, or
+        # contrast).  Average those projections within the producer and apply
+        # its declared independent-source weight once.  Weighting every record
+        # independently would let one producer inflate its influence merely by
+        # emitting more derived views.
+        grouped_quality = tuple(
+            (
+                source,
+                tuple(source_quality),
+                max(source_quality[0].independent_sources, 1),
+            )
+            for source, source_quality in sorted(quality_by_source.items())
+        )
+        weights = tuple(group[2] for group in grouped_quality)
         denominator = sum(weights)
         weighted_auditability = (
             sum(
-                quality.auditability * weight
-                for quality, weight in zip(quality_records, weights, strict=True)
-                if quality.auditability is not None
+                (
+                    sum(
+                        quality.auditability
+                        for quality in source_quality
+                        if quality.auditability is not None
+                    )
+                    / len(source_quality)
+                )
+                * weight
+                for _, source_quality, weight in grouped_quality
             )
             / denominator
         )
         weighted_completeness = (
             sum(
-                quality.completeness * weight
-                for quality, weight in zip(quality_records, weights, strict=True)
-                if quality.completeness is not None
+                (
+                    sum(
+                        quality.completeness
+                        for quality in source_quality
+                        if quality.completeness is not None
+                    )
+                    / len(source_quality)
+                )
+                * weight
+                for _, source_quality, weight in grouped_quality
             )
             / denominator
         )
@@ -292,6 +330,7 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
             weighted_auditability=weighted_auditability,
             weighted_completeness=weighted_completeness,
             weighted_score=weighted_score,
+            quality_source_groups=len(quality_by_source),
         )
         if quality_records
         else None

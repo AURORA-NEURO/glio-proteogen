@@ -60,6 +60,75 @@ def test_consistent_support_requires_independent_sources_and_preserves_ledger() 
     assert result.digest == aggregate_external_evidence(tuple(reversed(result.observations))).digest
 
 
+def test_quality_weight_is_invariant_to_duplicate_projections_from_one_source() -> None:
+    source_quality = EvidenceQuality(
+        status="computed",
+        auditability=1.0,
+        completeness=1.0,
+        independent_sources=2,
+        basis="deterministic_source_projection",
+    )
+    other_quality = EvidenceQuality(
+        status="computed",
+        auditability=0.0,
+        completeness=1.0,
+        independent_sources=1,
+        basis="deterministic_source_projection",
+    )
+    source_matrix = EvidenceRecord.create(
+        "source-matrix", "producer-a", "matrix", {"rows": 2}, quality=source_quality
+    )
+    source_qc = EvidenceRecord.create(
+        "source-qc", "producer-a", "qc", {"rows": 2}, quality=source_quality
+    )
+    other = EvidenceRecord.create(
+        "other-matrix", "producer-b", "matrix", {"rows": 2}, quality=other_quality
+    )
+
+    baseline = aggregate_evidence((source_matrix, other))
+    with_duplicate_projection = aggregate_evidence((source_matrix, source_qc, other))
+
+    assert baseline.quality_summary is not None
+    assert with_duplicate_projection.quality_summary is not None
+    assert baseline.quality_summary.weighted_auditability == pytest.approx(2 / 3)
+    assert with_duplicate_projection.quality_summary.weighted_auditability == pytest.approx(
+        baseline.quality_summary.weighted_auditability
+    )
+    assert with_duplicate_projection.quality_summary.quality_source_groups == 2
+    assert with_duplicate_projection.quality_summary.scored_records == 3
+
+
+def test_quality_weight_rejects_conflicting_source_independence() -> None:
+    first = EvidenceRecord.create(
+        "source-first",
+        "producer-a",
+        "matrix",
+        {},
+        quality=EvidenceQuality(
+            status="computed",
+            auditability=1.0,
+            completeness=1.0,
+            independent_sources=2,
+            basis="deterministic_source_projection",
+        ),
+    )
+    second = EvidenceRecord.create(
+        "source-second",
+        "producer-a",
+        "qc",
+        {},
+        quality=EvidenceQuality(
+            status="computed",
+            auditability=1.0,
+            completeness=1.0,
+            independent_sources=1,
+            basis="deterministic_source_projection",
+        ),
+    )
+    with pytest.raises(ValueError, match="independent_sources conflict"):
+        aggregate_evidence((first, second))
+
+
 def test_source_order_does_not_change_digest_or_observation_order() -> None:
     first = _observation("e1", "source-a", source_sha256=_HASH_A)
     second = _observation("e2", "source-b", source_sha256=_HASH_B)
