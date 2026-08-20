@@ -32,6 +32,12 @@ and unmatched-protein closure, non-negative bounded counts, and overlap bounds
 before accepting either digest. Recomputing an outer digest is therefore not
 enough to turn a structurally invalid receipt into accepted evidence.
 
+For each accession-matched target/decoy pair, `cleavage_compatible` compares
+the unmodified tryptic product counts. Variable-modification expansion is a
+separate search-space projection recorded by the `modified_*` fields; residue
+eligibility must not turn identical cleavage into a reported cleavage mismatch
+or make the FDR search-space receipt depend on an optional PTM policy.
+
 This remains a research-only receipt. It does not infer protein identity,
 calibrate FDR, validate a search engine, authenticate a public data provider,
 or support clinical, glioma, mechanism, proteoform, or isoform claims. A future

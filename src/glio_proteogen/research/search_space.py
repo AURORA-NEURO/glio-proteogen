@@ -247,8 +247,13 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
         if decoy not in by_accession:
             unmatched_targets += 1
             continue
-        target_count = len(modified_digests[target])
-        decoy_count = len(modified_digests[decoy])
+        # Pair compatibility describes the digestion, not optional variable-
+        # modification expansion. A target and decoy can have identical
+        # cleavage products but different variant counts when only one side
+        # contains an eligible residue. Keeping the base counts here prevents
+        # the FDR search-space receipt from depending on PTM policy.
+        target_count = len(digests[target])
+        decoy_count = len(digests[decoy])
         status = (
             "cleavage_compatible"
             if target_count == decoy_count and target_count > 0

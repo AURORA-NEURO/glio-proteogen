@@ -77,6 +77,28 @@ def test_receipt_marks_cleavage_mismatch_without_dropping_the_pair() -> None:
     assert receipt.pairs[0].status == "cleavage_mismatch"
 
 
+def test_pair_compatibility_is_independent_of_variable_modification_expansion() -> None:
+    """Modification eligibility must not masquerade as cleavage mismatch."""
+
+    entries = (
+        FastaEntry("P1", "MSTPEPTIDER"),
+        FastaEntry("DECOY_P1", "STPEPTIDER"),
+    )
+    receipt = build_search_space_receipt(
+        b">P1\nMSTPEPTIDER\n>DECOY_P1\nSTPEPTIDER\n",
+        entries,
+        min_peptide_length=7,
+        max_peptide_length=20,
+        modification_rules=("UNIMOD:35",),
+        max_variable_modifications=1,
+    )
+
+    assert receipt.pairs[0].target_peptides == receipt.pairs[0].decoy_peptides == 1
+    assert receipt.pairs[0].status == "cleavage_compatible"
+    assert receipt.modified_target_peptides > receipt.modified_decoy_peptides
+    assert verify_search_space_receipt(receipt) == receipt
+
+
 def test_receipt_is_order_stable_and_source_bound() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
     forward = build_search_space_receipt(b"fixture-a", entries)

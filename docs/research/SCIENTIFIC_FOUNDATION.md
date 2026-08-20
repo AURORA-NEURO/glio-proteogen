@@ -40,7 +40,9 @@ C03/C04 computation contract:
   abstain. Variable-modification rules, site limits, target/decoy variant counts, modified
   target/decoy overlap, and unique variant-space size are bound in
   the search-space receipt and run configuration. This is a constrained research surface, not a
-  full ProForma implementation or a production PTM/localization claim.
+  full ProForma implementation or a production PTM/localization claim. Target/decoy pair
+  compatibility is based on unmodified cleavage products; PTM eligibility cannot masquerade as
+  a digestion mismatch in the FDR search-space receipt.
 - `search_spectrum_candidates` retains every compatible candidate for one spectrum and
   `PsmCompetition` binds target/decoy/collision counts, score margin, and a canonical digest
   over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
