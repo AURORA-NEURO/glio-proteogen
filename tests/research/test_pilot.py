@@ -222,6 +222,17 @@ def test_replay_detects_tampered_receipt() -> None:
         verify_pilot_replay(request, changed_parameters)
 
 
+def test_replay_binds_fragment_charge_search_parameter() -> None:
+    request = _request(_mzml_with_ms2())
+    result = run_pilot(request)
+    tampered = replace(
+        result,
+        parameters=replace(result.parameters, fragment_charges=(2,)),
+    )
+    with pytest.raises(PilotError, match="replay"):
+        verify_pilot_replay(request, tampered)
+
+
 def test_replay_binds_full_psm_measurement_and_collision_projection() -> None:
     request = _request(_mzml_with_ms2())
     result = run_pilot(request)

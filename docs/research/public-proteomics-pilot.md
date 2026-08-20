@@ -23,7 +23,7 @@ policy, and result receipt. It then:
 
 - digests the caller-declared FASTA with bounded tryptic rules;
 - decodes only bounded mzML arrays and searches MS2 spectra with explicit
-  fragment tolerance and minimum-ion parameters;
+  fragment charge states, fragment tolerance, and minimum-ion parameters;
 - when `require_precursor_mz` is enabled, uses the parsed mzML precursor m/z
   and charge and abstains rather than opening the search when either is absent
   or incompatible with the declared charge;
@@ -38,7 +38,8 @@ MS2 fixture that has no precursor metadata; the run abstains with
 `NO_SUPPORTED_PSM` instead of treating every peptide as precursor-compatible.
 
 `verify_pilot_replay` reruns the same offline bytes and rejects any changed
-payload, search parameters, resource limits, or digest. The result digest
+payload, complete search-parameter projection (including fragment charge states),
+resource limits, or digest. The result digest
 includes every scored PSM field, including matched signal, fragment/precursor
 error, and target/decoy collision state; changing those fields cannot preserve
 the receipt by self-rehashing an incomplete projection. The result policy is closed:

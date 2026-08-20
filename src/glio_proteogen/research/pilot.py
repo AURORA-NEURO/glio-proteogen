@@ -207,6 +207,7 @@ def _result_payload(result: PilotResult) -> dict[str, object]:
         "parameters": {
             "allowed_modifications": list(result.parameters.allowed_modifications),
             "decoy_prefix": result.parameters.decoy_prefix,
+            "fragment_charges": list(result.parameters.fragment_charges),
             "fragment_tolerance_da": result.parameters.fragment_tolerance_da,
             "max_variable_modifications": result.parameters.max_variable_modifications,
             "min_matched_ions": result.parameters.min_matched_ions,
