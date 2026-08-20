@@ -124,6 +124,12 @@ def test_limits_reject_zero_or_negative_caps(field: str, value: int) -> None:
         PilotLimits(**{field: value})
 
 
+@pytest.mark.parametrize("field", ["max_input_bytes", "max_spectra", "max_peptides", "max_psms"])
+def test_limits_reject_boolean_caps(field: str) -> None:
+    with pytest.raises(PilotError):
+        PilotLimits(**{field: True})  # type: ignore[arg-type]
+
+
 def test_request_rejects_non_bytes_and_oversized_input() -> None:
     with pytest.raises(PilotError, match="metadata_response"):
         PilotRequest(metadata_response="not-bytes", fasta_bytes=b"x", mzml_bytes=b"x")  # type: ignore[arg-type]

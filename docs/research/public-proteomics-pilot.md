@@ -48,6 +48,10 @@ are true, network access and clinical/disease/treatment/mechanistic claims are
 false. Protein-group objects remain exploratory research objects and are not
 production identity assertions.
 
+Each pilot resource ceiling requires a strict integer. Boolean values are
+rejected rather than coerced through Python's `bool`-is-an-`int` relationship,
+so a malformed limit cannot silently become a one-item or one-byte cap.
+
 ## Promotion gate
 
 Promotion requires owner approval of the search-space/reference version,
