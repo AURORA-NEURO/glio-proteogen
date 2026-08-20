@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final
+from weakref import WeakKeyDictionary
 
 from pydantic import TypeAdapter
 
@@ -12,6 +13,7 @@ from glio_proteogen.contracts.m25_07 import (
     EvaluateProteotypeHumanFactorsRequest,
     ProteotypeHumanFactorsResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -44,11 +46,38 @@ class HumanFactorsSubmission:
     request: object
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False, weakref_slot=True)
 class ValidatedM2507Request:
     """Opaque capability proving strict M25-07 request validation."""
 
     request: EvaluateProteotypeHumanFactorsRequest
+    _seal: object
+
+
+_TOKENS: Final[
+    WeakKeyDictionary[
+        ValidatedM2507Request,
+        tuple[object, EvaluateProteotypeHumanFactorsRequest, bytes],
+    ]
+] = WeakKeyDictionary()
+
+
+def _canonical_request_bytes(request: EvaluateProteotypeHumanFactorsRequest) -> bytes:
+    return canonical_json_bytes(request.model_dump(mode="json"))
+
+
+def _token_is_issued(token: ValidatedM2507Request, seal: object) -> bool:
+    try:
+        snapshot = _TOKENS.get(token)
+        current = _canonical_request_bytes(token.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        snapshot is not None
+        and snapshot[0] is seal
+        and snapshot[1] is token.request
+        and snapshot[2] == current
+    )
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -64,10 +93,11 @@ class _InvalidSubmissionError(TypeError):
 class M2507Plugin(ModulePlugin[object, ValidatedM2507Request, ProteotypeHumanFactorsResult]):
     """Expose validate-then-run without an authority or parse bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2507Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -80,13 +110,20 @@ class M2507Plugin(ModulePlugin[object, ValidatedM2507Request, ProteotypeHumanFac
             decoded = strict_json_loads(candidate, max_bytes=M2507_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2507_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2507Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        token = ValidatedM2507Request(request=validated, _seal=self._seal)
+        _TOKENS[token] = (self._seal, validated, _canonical_request_bytes(validated))
+        return token
 
     def run(
         self,
         request: ValidatedM2507Request,
     ) -> ProteotypeHumanFactorsResult:
-        if not isinstance(request, ValidatedM2507Request):
+        if (
+            type(request) is not ValidatedM2507Request
+            or request._seal is not self._seal
+            or not _token_is_issued(request, self._seal)
+        ):
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 

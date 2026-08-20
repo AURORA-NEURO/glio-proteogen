@@ -179,6 +179,27 @@ def test_plugin_rejects_unvalidated_tokens_and_wrappers() -> None:
         plugin.validate(build_request())
 
 
+def test_plugin_rejects_forged_cross_instance_and_nested_mutated_tokens() -> None:
+    plugin = m2507.M2507Plugin(m2507.M2507Service())
+    other = m2507.M2507Plugin(m2507.M2507Service())
+    token = plugin.validate(m2507.HumanFactorsSubmission(build_request()))
+
+    forged = m2507.ValidatedM2507Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(forged)
+    with pytest.raises(TypeError, match="validated request"):
+        other.run(token)
+
+    object.__setattr__(token.request.metrics[0], "metric_name", "forged operational metric")
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(token)
+
+    replaced = plugin.validate(m2507.HumanFactorsSubmission(build_request()))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request"):
+        plugin.run(replaced)
+
+
 def test_cli_abstention_is_nonzero_and_result_has_no_report(tmp_path: Path) -> None:
     request_path = tmp_path / "request.json"
     output_path = tmp_path / "result.json"
@@ -243,9 +264,7 @@ def test_request_required_dimensions_and_result_digest_closures() -> None:
         )
     bad_id = result.model_copy(update={"result_id": "forged"})
     with pytest.raises(ValidationError, match="result id"):
-        ProteotypeHumanFactorsResult.model_validate(
-            bad_id.model_dump(mode="python"), strict=True
-        )
+        ProteotypeHumanFactorsResult.model_validate(bad_id.model_dump(mode="python"), strict=True)
 
 
 def test_service_json_validation_and_cli_replay_errors(tmp_path: Path) -> None:

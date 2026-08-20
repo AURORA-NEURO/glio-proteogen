@@ -8,7 +8,7 @@ from .engine import (
     evaluate_proteotype_human_factors,
     preflight_m2507_authorization,
 )
-from .plugin import HumanFactorsSubmission, M2507Plugin
+from .plugin import HumanFactorsSubmission, M2507Plugin, ValidatedM2507Request
 from .service import M2507Service
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "M2507Plugin",
     "M2507ReplayError",
     "M2507Service",
+    "ValidatedM2507Request",
     "api",
     "cli",
     "evaluate_proteotype_human_factors",
