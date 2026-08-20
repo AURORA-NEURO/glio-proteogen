@@ -310,8 +310,23 @@ class CohortSourceManifest:
 
     def validate_independence(self) -> None:
         by_identity: dict[tuple[str, int], list[CohortSourceBinding]] = {}
+        biological_aliquots: set[str] = set()
+        biological_acquisitions: set[str] = set()
         for binding in self.bindings:
             by_identity.setdefault(binding.source_identity, []).append(binding)
+            if binding.replicate_kind == "biological":
+                if binding.declared_aliquot_id is not None:
+                    if binding.declared_aliquot_id in biological_aliquots:
+                        raise ValueError(
+                            "duplicate declared aliquot identity cannot be used as biological replicates"
+                        )
+                    biological_aliquots.add(binding.declared_aliquot_id)
+                if binding.acquisition_id is not None:
+                    if binding.acquisition_id in biological_acquisitions:
+                        raise ValueError(
+                            "duplicate acquisition identity cannot be used as biological replicates"
+                        )
+                    biological_acquisitions.add(binding.acquisition_id)
         for values in by_identity.values():
             if sum(item.replicate_kind == "biological" for item in values) > 1:
                 raise ValueError(

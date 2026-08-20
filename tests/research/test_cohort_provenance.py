@@ -41,6 +41,40 @@ def test_biological_replicates_cannot_reuse_identical_source_bytes() -> None:
         )
 
 
+def test_biological_replicates_cannot_reuse_declared_aliquot_identity() -> None:
+    samples = (_sample("a", "r1"), _sample("b", "r2"))
+    manifest = _manifest(samples, "biological")
+    first = replace(
+        manifest.for_sample("a"),
+        source_sha256="b" * 64,
+        declared_aliquot_id="aliquot-1",
+    )
+    second = replace(
+        manifest.for_sample("b"),
+        source_sha256="c" * 64,
+        declared_aliquot_id="aliquot-1",
+    )
+    with pytest.raises(ValueError, match="declared aliquot identity"):
+        CohortSourceManifest((first, second)).validate_independence()
+
+
+def test_biological_replicates_cannot_reuse_acquisition_identity() -> None:
+    samples = (_sample("a", "r1"), _sample("b", "r2"))
+    manifest = _manifest(samples, "biological")
+    first = replace(
+        manifest.for_sample("a"),
+        source_sha256="b" * 64,
+        acquisition_id="acquisition-1",
+    )
+    second = replace(
+        manifest.for_sample("b"),
+        source_sha256="c" * 64,
+        acquisition_id="acquisition-1",
+    )
+    with pytest.raises(ValueError, match="acquisition identity"):
+        CohortSourceManifest((first, second)).validate_independence()
+
+
 def test_technical_duplicate_is_visible_but_not_independent_support() -> None:
     samples = (_sample("a", "r1"), _sample("b", "r2"))
     result = run_research_cohort(

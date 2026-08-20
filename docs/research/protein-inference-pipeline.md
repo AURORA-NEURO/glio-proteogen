@@ -98,7 +98,8 @@ bound into the cohort configuration, result digest, and replay evidence; changin
 catalog response, source identity, or replicate declaration therefore cannot replay as the
 same cohort.
 
-Two biological samples may not claim the same source identity. Technical duplicate files
+Two biological samples may not claim the same source identity, declared aliquot identity,
+or acquisition identity when those caller-declared fields are present. Technical duplicate files
 are retained in the matrix and remain auditable, but count neither toward independent
 replicate gates nor within-label normalization support. Unknown independence is safe data
 for audit but abstains from support-dependent normalization and claims. When no manifest
