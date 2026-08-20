@@ -160,6 +160,31 @@ class PDCSnapshot:
     response_bytes: int
     source_reference: SourceReference
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.metadata, PDCStudyMetadata):
+            raise TypeError("metadata must be a PDCStudyMetadata")
+        if not isinstance(self.source_reference, SourceReference):
+            raise TypeError("source_reference must be a SourceReference")
+        parsed_endpoint = urlparse(self.endpoint)
+        if (
+            not self.endpoint
+            or parsed_endpoint.scheme != "https"
+            or parsed_endpoint.hostname not in _ALLOWED_HOSTS
+        ):
+            raise PDCError("PDC metadata endpoint is not allow-listed HTTPS")
+        if self.endpoint != self.source_reference.locator:
+            raise PDCError("PDC metadata endpoint must match its source reference")
+        if self.source_reference.media_type.lower() != "application/json":
+            raise PDCError("PDC metadata source must be application/json")
+        if self.query_sha256 != sha256_digest(self.query):
+            raise PDCError("PDC metadata query digest does not match the query")
+        if self.response_sha256 != self.source_reference.sha256:
+            raise PDCError("PDC metadata response digest does not match its source reference")
+        if type(self.response_bytes) is not int or self.response_bytes <= 0:
+            raise PDCError("PDC metadata response size must be positive")
+        if self.response_bytes != self.source_reference.byte_length:
+            raise PDCError("PDC metadata response size does not match its source reference")
+
     @property
     def digest(self) -> str:
         return sha256_digest(self.as_dict())

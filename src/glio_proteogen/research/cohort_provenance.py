@@ -116,6 +116,20 @@ class CohortSourceBinding:
 
         if not isinstance(request.mzml_source, bytes):
             raise TypeError("ResearchRunRequest must contain snapshotted mzML bytes")
+        request_metadata = request.external_pdc_metadata_snapshot
+        request_metadata_digest = (
+            request_metadata.digest.removeprefix("sha256:")
+            if request_metadata is not None
+            else None
+        )
+        if (
+            request_metadata_digest is not None
+            and metadata_snapshot_digest is not None
+            and metadata_snapshot_digest != request_metadata_digest
+        ):
+            raise ValueError("metadata snapshot digest does not match the request snapshot")
+        if request_metadata_digest is not None:
+            metadata_snapshot_digest = request_metadata_digest
         source_sha256 = sha256(request.mzml_source).hexdigest()
         receipt = request.external_pdc_receipt
         if receipt is None:
@@ -168,6 +182,11 @@ class CohortSourceBinding:
             metadata_digest = metadata_snapshot.digest.removeprefix("sha256:")
         else:
             metadata_digest = None
+        if request.external_pdc_metadata_snapshot is not None:
+            request_digest = request.external_pdc_metadata_snapshot.digest.removeprefix("sha256:")
+            if metadata_digest is not None and metadata_digest != request_digest:
+                raise ValueError("PDC metadata snapshot does not match the request snapshot")
+            metadata_digest = request_digest
         return cls.from_request(
             request,
             replicate_kind=replicate_kind,
@@ -307,6 +326,16 @@ class CohortSourceManifest:
                     raise ValueError("source manifest PDC file does not match the receipt")
                 if binding.pdc_study_id != receipt.file.study_id:
                     raise ValueError("source manifest PDC study does not match the receipt")
+                request_metadata = request.external_pdc_metadata_snapshot
+                request_metadata_digest = (
+                    request_metadata.digest.removeprefix("sha256:")
+                    if request_metadata is not None
+                    else None
+                )
+                if binding.metadata_snapshot_digest != request_metadata_digest:
+                    raise ValueError("source manifest metadata snapshot does not match the request")
+            elif binding.metadata_snapshot_digest is not None:
+                raise ValueError("source manifest metadata snapshot requires a request snapshot")
 
     def validate_independence(self) -> None:
         by_identity: dict[tuple[str, int], list[CohortSourceBinding]] = {}

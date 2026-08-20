@@ -117,8 +117,8 @@ class PdcSourceReceipt:
             raise ValueError("observed source hash is not a SHA-256")
         if not _HEX32.fullmatch(self.observed_md5.lower()):
             raise ValueError("observed source MD5 is malformed")
-        if type(self.observed_size) is not int or self.observed_size < 0:
-            raise ValueError("observed source size is invalid")
+        if type(self.observed_size) is not int or self.observed_size <= 0:
+            raise ValueError("observed source size must be positive")
         observed_media = self.observed_media_type.split(";", 1)[0].strip().lower()
         try:
             allowed_media_types = _media_types(self.file.file_format)
@@ -562,6 +562,8 @@ class PdcClient:
             raise PdcError("PDC file has no signed download URL")
         allowed_hosts = _approved_hosts(approved_hosts)
         _validate_download_url(file.signed_url, allowed_hosts)
+        if type(file.file_size) is not int or file.file_size <= 0:
+            raise PdcError("PDC file declaration must have a positive byte size")
         if file.file_size > max_bytes:
             raise PdcError("PDC file exceeds the caller download limit")
         request = Request(  # noqa: S310 - HTTPS host allowlist validated above

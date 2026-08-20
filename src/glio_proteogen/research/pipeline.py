@@ -38,6 +38,7 @@ from .public_proteomics.formats import (
     bind_mzidentml_references,
     extract_mzidentml_structure,
 )
+from .public_proteomics.pdc import PDCSnapshot
 from .public_proteomics.provenance import SourceReference
 from .quantification import (
     ProteinGroupQuant,
@@ -96,6 +97,7 @@ class ResearchRunRequest:
     quantification_policy: QuantificationPolicy = field(default_factory=QuantificationPolicy)
     precursor_tolerance_ppm: int = 20
     mzidentml_source: bytes | bytearray | BinaryIO | None = None
+    external_pdc_metadata_snapshot: PDCSnapshot | None = None
 
     def __post_init__(self) -> None:
         # Snapshot streams at the boundary so a replay is byte-stable even when the
@@ -119,6 +121,16 @@ class ResearchRunRequest:
         )
         if not isinstance(self.quantification_policy, QuantificationPolicy):
             raise TypeError("quantification_policy must be a QuantificationPolicy")
+        if self.external_pdc_metadata_snapshot is not None:
+            if not isinstance(self.external_pdc_metadata_snapshot, PDCSnapshot):
+                raise TypeError("external_pdc_metadata_snapshot must be a PDCSnapshot")
+            if self.external_pdc_file is None:
+                raise ValueError("external PDC metadata snapshot requires an external PDC file")
+            if (
+                self.external_pdc_metadata_snapshot.metadata.pdc_study_id
+                != self.external_pdc_file.study_id
+            ):
+                raise ValueError("external PDC metadata snapshot study does not match the file")
         if (
             type(self.max_variable_modifications) is not int
             or not 0 <= self.max_variable_modifications <= 3
@@ -199,6 +211,7 @@ def bind_pdc_mzml_source(
     *,
     pdc_response_sha256: str | None = None,
     pdc_snapshot: PdcStudySnapshot | None = None,
+    pdc_metadata_snapshot: PDCSnapshot | None = None,
 ) -> ResearchRunRequest:
     """Bind caller-downloaded PDC mzML bytes to immutable provenance metadata.
 
@@ -214,6 +227,12 @@ def bind_pdc_mzml_source(
         raise TypeError("source_reference must be a SourceReference")
     if pdc_snapshot is not None and not isinstance(pdc_snapshot, PdcStudySnapshot):
         raise TypeError("pdc_snapshot must be a PdcStudySnapshot")
+    if pdc_metadata_snapshot is not None and not isinstance(pdc_metadata_snapshot, PDCSnapshot):
+        raise TypeError("pdc_metadata_snapshot must be a PDCSnapshot")
+    if pdc_metadata_snapshot is not None and (
+        pdc_metadata_snapshot.metadata.pdc_study_id != pdc_file.study_id
+    ):
+        raise ValueError("PDC metadata snapshot study does not match the file declaration")
     if pdc_file.file_format is None or pdc_file.file_format.lower() not in {"mzml", "mzml.gz"}:
         raise ValueError("PDC source must declare mzML format")
     if source_reference.locator != pdc_file.location:
@@ -254,6 +273,7 @@ def bind_pdc_mzml_source(
         external_pdc_file=pdc_file,
         external_pdc_response_sha256=pdc_response_sha256,
         external_pdc_receipt=receipt,
+        external_pdc_metadata_snapshot=pdc_metadata_snapshot,
     )
 
 
@@ -750,6 +770,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             if request.external_pdc_receipt is not None
             else None
         ),
+        "external_pdc_metadata_snapshot": (
+            request.external_pdc_metadata_snapshot.as_dict()
+            if request.external_pdc_metadata_snapshot is not None
+            else None
+        ),
     }
     configuration_payload.update(
         {
@@ -877,6 +902,16 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                         else None
                     ),
                 },
+            )
+        )
+    if request.external_pdc_metadata_snapshot is not None:
+        metadata_snapshot = request.external_pdc_metadata_snapshot
+        evidence_records.append(
+            EvidenceRecord.create(
+                "input:external-pdc-metadata",
+                metadata_snapshot.source_reference.source_id,
+                "external_pdc_metadata_snapshot",
+                metadata_snapshot.as_dict(),
             )
         )
     if mzidentml_structure is not None:

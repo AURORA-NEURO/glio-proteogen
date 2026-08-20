@@ -604,6 +604,7 @@ def _compatible_configuration(results: tuple[ResearchRunResult, ...]) -> None:
             "external_pdc_file",
             "external_pdc_response_sha256",
             "external_pdc_receipt",
+            "external_pdc_metadata_snapshot",
             "cohort_provenance_policy",
         }
     }
@@ -619,6 +620,7 @@ def _compatible_configuration(results: tuple[ResearchRunResult, ...]) -> None:
                 "external_pdc_file",
                 "external_pdc_response_sha256",
                 "external_pdc_receipt",
+                "external_pdc_metadata_snapshot",
                 "cohort_provenance_policy",
             }
         }
@@ -634,6 +636,7 @@ def _source_provenance(result: ResearchRunResult) -> dict[str, object]:
         "external_pdc_file": configuration.get("external_pdc_file"),
         "external_pdc_response_sha256": configuration.get("external_pdc_response_sha256"),
         "external_pdc_receipt": configuration.get("external_pdc_receipt"),
+        "external_pdc_metadata_snapshot": configuration.get("external_pdc_metadata_snapshot"),
         "mzml_sha256": result.mzml_sha256,
         "fasta_sha256": result.fasta_sha256,
     }
@@ -935,6 +938,16 @@ def _validate_provenance_policy(
     def validate_metadata_snapshots() -> None:
         """Reject cohorts that silently combine metadata snapshot versions."""
 
+        request_digests = {
+            sample.request.external_pdc_metadata_snapshot.digest.removeprefix("sha256:")
+            for sample in samples
+            if sample.request.external_pdc_metadata_snapshot is not None
+        }
+        request_missing = any(
+            sample.request.external_pdc_metadata_snapshot is None for sample in samples
+        )
+        if request_digests and (request_missing or len(request_digests) > 1):
+            raise ValueError("cohort metadata snapshot digests must be identical or all absent")
         if request.source_manifest is None:
             return
         digests = {
