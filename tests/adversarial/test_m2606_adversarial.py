@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m26_06 import (
     ProteomicsSecurityAccessResult,
     SecurityAssessmentStatus,
     SecurityControlKind,
+    SecurityPostureStatus,
 )
 from glio_proteogen.contracts.m26_06.canonical import (
     canonical_request_digest,
@@ -234,3 +235,36 @@ def test_self_rehashed_result_identity_and_auth_failure_are_rejected_safely() ->
     )
     with pytest.raises(M2606ReplayError, match="replay verification failed"):
         M2606SecurityService.verify(forged)
+
+
+@pytest.mark.parametrize("mutation", ["control", "status", "rationale", "evidence"])
+def test_self_rehashed_posture_cannot_escape_request_control_declarations(
+    mutation: str,
+) -> None:
+    result = M2606SecurityEngine().evaluate(_request())
+    assert result.security_posture is not None
+    controls = result.security_posture.controls
+    if mutation == "control":
+        forged_controls = (
+            controls[0].model_copy(update={"control": controls[1].control}),
+            controls[1].model_copy(update={"control": controls[0].control}),
+            *controls[2:],
+        )
+    else:
+        original = controls[0]
+        updates: dict[str, object] = {
+            "status": ControlStatus.FAILED,
+            "rationale": "Forged control assessment.",
+            "evidence": (original.evidence[0].model_copy(update={"claim": "forged"}),),
+        }
+        forged_controls = (
+            original.model_copy(update={mutation: updates[mutation]}),
+            *controls[1:],
+        )
+    posture_updates: dict[str, object] = {"controls": forged_controls}
+    if mutation == "status":
+        posture_updates["status"] = SecurityPostureStatus.CRITICAL
+    forged_posture = result.security_posture.model_copy(update=posture_updates)
+    forged = _self_rehashed(result, {"security_posture": forged_posture})
+    with pytest.raises(ValidationError, match="exact request control declarations"):
+        ProteomicsSecurityAccessResult.model_validate(forged.model_dump(mode="python"))

@@ -287,6 +287,55 @@ class ProteomicsSecurityAccessResult(FrozenModel):
     def result_is_closed(self) -> ProteomicsSecurityAccessResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
+        if self.security_posture is None:
+            raise ValueError("security result requires a posture for every assessment status")
+        consent_reference_bound = (
+            self.request.consent_reference is not None
+            and self.request.consent_reference == self.request.context.references.consent.evidence
+        )
+        expected_posture_status = (
+            SecurityPostureStatus.COMPLIANT
+            if (
+                {item.status for item in self.request.control_declarations}
+                == {ControlStatus.PASSED}
+                and consent_reference_bound
+            )
+            else (
+                SecurityPostureStatus.CRITICAL
+                if any(
+                    item.status is ControlStatus.FAILED
+                    for item in self.request.control_declarations
+                )
+                else SecurityPostureStatus.NOT_EVALUABLE
+            )
+        )
+        expected_posture_controls = tuple(
+            SecurityControlCheck(
+                control=declaration.control,
+                status=(
+                    declaration.status
+                    if declaration.control is not SecurityControlKind.CONSENT
+                    or consent_reference_bound
+                    else ControlStatus.REVIEW_REQUIRED
+                ),
+                rationale=(
+                    declaration.rationale
+                    if declaration.control is not SecurityControlKind.CONSENT
+                    or consent_reference_bound
+                    else "Explicit consent artifact is missing or does not match context evidence."
+                ),
+                evidence=declaration.evidence,
+            )
+            for declaration in self.request.control_declarations
+        )
+        if (
+            self.security_posture.posture_id
+            != "posture.m2606." + self.request_digest.removeprefix("sha256:")
+            or self.security_posture.version != M2606_CONTRACT_VERSION
+            or self.security_posture.status is not expected_posture_status
+            or self.security_posture.controls != expected_posture_controls
+        ):
+            raise ValueError("security posture must bind exact request control declarations")
         if self.status is SecurityAssessmentStatus.EVALUATED:
             if (
                 self.access_decision is None
