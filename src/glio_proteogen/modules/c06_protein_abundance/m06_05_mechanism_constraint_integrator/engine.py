@@ -421,7 +421,6 @@ class M0605MechanismConstraintEngine:
                 verified=False,
                 reason=ConstraintIntegrationReplayReason.INVALID_RESULT,
             )
-        deterministic_verified = typed.result_digest == result_payload_digest(typed)
         expected_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected_bytes
         if canonical_bytes is not None and (
@@ -429,6 +428,14 @@ class M0605MechanismConstraintEngine:
             or len(canonical_bytes) > M0605_MAX_CANONICAL_RESULT_BYTES
         ):
             content_verified = False
+        try:
+            replayed = self.integrate(typed.request)
+        except Exception:  # noqa: BLE001 - verification fails closed on replay errors.
+            deterministic_verified = False
+        else:
+            deterministic_verified = typed.result_digest == result_payload_digest(typed) and (
+                replayed.result.model_dump(mode="json") == typed.model_dump(mode="json")
+            )
         verified = content_verified and deterministic_verified
         return IntegrateProteinAbundanceConstraintsVerification(
             content_verified=content_verified,
