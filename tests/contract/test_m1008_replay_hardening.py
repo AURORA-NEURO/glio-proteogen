@@ -11,8 +11,8 @@ from glio_proteogen.contracts.m10_08.canonical import (
     result_payload_digest,
 )
 from glio_proteogen.contracts.m10_08.v1 import (
-    PublisherFindingCode,
     ProteinRnaEvidencePublicationResult,
+    PublisherFindingCode,
 )
 from glio_proteogen.modules.c10_pathway_proteotype_factors import (
     m10_08_evidence_explanation_publisher as m1008_runtime,
