@@ -204,6 +204,10 @@ def test_supported_execution_closes_environment_checkpoint_and_package() -> None
     assert result.execution_record.status is ExecutionStatus.SUCCEEDED
     assert set(result.execution_record.completed_node_ids) == {"entry", "exit"}
     assert result.result_package.execution_id == result.execution_record.execution_id
+    assert result.result_package.artifact_references[1:] == (
+        request.upstream_result,
+        *request.source_artifacts,
+    )
     assert M2703Engine().verify(result).result_digest == result.result_digest
 
 
@@ -250,6 +254,14 @@ def test_request_rejects_duplicate_source_identity() -> None:
         OrchestrateComplexActivityPipelineRequest.model_validate(
             request.model_dump(mode="python")
             | {"source_artifacts": (request.source_artifacts[0], request.source_artifacts[0])}
+        )
+
+
+def test_request_rejects_upstream_source_identity_collision() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="upstream and source artifacts"):
+        OrchestrateComplexActivityPipelineRequest.model_validate(
+            request.model_dump(mode="python") | {"source_artifacts": (request.upstream_result,)}
         )
 
 
