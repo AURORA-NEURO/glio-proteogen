@@ -11,7 +11,11 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m21_05 import CoverageStatus
+from glio_proteogen.contracts.m21_05 import (
+    CoverageStatus,
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator import (
@@ -170,3 +174,26 @@ def test_replay_rejects_result_ownership_tamper() -> None:
     tampered_request = _request().model_copy(update={"request_id": "request.m2105.other"})
     with pytest.raises(M2105ReplayError):
         engine.verify(result.model_copy(update={"request": tampered_request}), replay=False)
+
+
+def test_replay_false_cannot_bypass_self_rehashed_semantic_mutation() -> None:
+    engine = M2105Engine()
+    result = engine.evaluate(_request())
+    request_id = "request.m2105.self-rehashed"
+    changed_request = result.request.model_copy(
+        update={
+            "request_id": request_id,
+            "context": result.request.context.model_copy(update={"request_id": request_id}),
+        }
+    )
+    request_digest = canonical_request_digest(changed_request)
+    forged = result.model_copy(
+        update={
+            "request": changed_request,
+            "request_digest": request_digest,
+            "result_id": f"result.{request_digest.removeprefix('sha256:')}",
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2105ReplayError, match="deterministic replay"):
+        engine.verify(forged, replay=False)

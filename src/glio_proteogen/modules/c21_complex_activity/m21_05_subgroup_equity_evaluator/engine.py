@@ -464,16 +464,19 @@ class M2105Engine:
         *,
         replay: bool = True,
     ) -> ComplexActivitySubgroupEvaluationResult:
+        # ``replay`` is retained for provisional caller compatibility, but it
+        # can never disable deterministic re-evaluation of a result. Digest
+        # validation alone would accept a self-rehashed semantic mutation.
+        del replay
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M2105ReplayError("M21-05 result is invalid") from error
         if validated.result_digest != result_payload_digest(validated):
             raise M2105ReplayError("M21-05 result digest mismatch")
-        if replay:
-            expected = self.evaluate(validated.request)
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M2105ReplayError("M21-05 deterministic replay mismatch")
+        expected = self.evaluate(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2105ReplayError("M21-05 deterministic replay mismatch")
         return validated
 
 

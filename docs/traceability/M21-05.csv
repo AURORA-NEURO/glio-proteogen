@@ -7,7 +7,7 @@ GLIO-PROTEOGEN-M21-05,calibration and coverage safety,engine.py _findings,covera
 GLIO-PROTEOGEN-M21-05,safe abstention without unsupported-to-negative conversion,engine.py EvaluationStatus and SupportDecision,unsupported limited floor and denial tests,pass
 GLIO-PROTEOGEN-M21-05,seven uncertainty dimensions,engine.py _uncertainty,runtime/evaluator assertions,pass
 GLIO-PROTEOGEN-M21-05,provenance and seven-control evidence closure,engine.py _provenance and _evidence,runtime result assertions,pass
-GLIO-PROTEOGEN-M21-05,canonical request/result replay and tamper rejection,contracts/m21_05/canonical.py and engine.py verify,replay payload ownership and API tests,pass
+GLIO-PROTEOGEN-M21-05,canonical request/result replay and tamper rejection,contracts/m21_05/canonical.py and engine.py verify,replay payload ownership self-rehashed semantic mutation and API tests,pass
 GLIO-PROTEOGEN-M21-05,strict parse-once plugin,modules/.../plugin.py,plugin token malformed-input parity tests,pass
 GLIO-PROTEOGEN-M21-05,FastAPI and Typer sanitized interfaces,modules/.../api.py and cli.py,interface lifecycle/error/no-overwrite tests,pass
 GLIO-PROTEOGEN-M21-05,evaluator fixture and locked benchmark,evals/m21_05 and tests/fixtures/m21_05,9 cases and 25 iterations,pass
