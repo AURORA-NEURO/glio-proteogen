@@ -15,6 +15,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m20_02 import (
     M2002_CONTRACT_VERSION,
+    M2002_MAX_EVIDENCE,
     M2002_MODULE_ID,
     AlignedEvidenceBundle,
     AlignmentFinding,
@@ -153,16 +154,32 @@ def _control_decisions(
 
 def _provenance(request: AlignProteinSubtypeSourcesRequest) -> ProvenanceRecord:
     refs = request.context.references
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                request.upstream_result.digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in request.configuration.evidence),
+                *(
+                    item.reference.digest
+                    for observation in request.observations
+                    for item in observation.evidence
+                ),
+                *(
+                    item.reference.digest
+                    for discrepancy in request.discrepancies
+                    for item in discrepancy.evidence
+                ),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
         actor_id=request.context.actor_id,
         module_id=M2002_MODULE_ID,
         module_version=M2002_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            request.upstream_result.digest,
-            *(artifact.digest for artifact in request.source_artifacts),
-        ),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
@@ -175,19 +192,26 @@ def _provenance(request: AlignProteinSubtypeSourcesRequest) -> ProvenanceRecord:
 def _evidence(request: AlignProteinSubtypeSourcesRequest) -> tuple[EvidenceReference, ...]:
     seen: set[str] = set()
     values: list[EvidenceReference] = []
-    for artifact in (request.upstream_result, *request.source_artifacts):
-        if artifact.digest not in seen:
-            seen.add(artifact.digest)
-            values.append(
-                EvidenceReference(
-                    reference=artifact,
-                    role="evidence",
-                    claim=(
-                        "Caller-declared M20-02 alignment input; issuer authority is not "
-                        "authenticated."
-                    ),
-                )
+    candidates = (
+        *(
+            EvidenceReference(
+                reference=artifact,
+                role="evidence",
+                claim=(
+                    "Caller-declared M20-02 alignment input; issuer authority is not "
+                    "authenticated."
+                ),
             )
+            for artifact in (request.upstream_result, *request.source_artifacts)
+        ),
+        *request.configuration.evidence,
+        *(item for observation in request.observations for item in observation.evidence),
+        *(item for discrepancy in request.discrepancies for item in discrepancy.evidence),
+    )
+    for evidence in candidates:
+        if evidence.reference.digest not in seen and len(values) < M2002_MAX_EVIDENCE:
+            seen.add(evidence.reference.digest)
+            values.append(evidence)
     return tuple(values)
 
 

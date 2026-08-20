@@ -85,6 +85,41 @@ def test_observation_duplicate_sources_are_rejected() -> None:
         )
 
 
+def test_provenance_and_evidence_cover_nested_alignment_inputs() -> None:
+    base = _request()
+    nested_observation = base.observations[0].model_copy(
+        update={"evidence": (_evidence("nested-observation"),)}
+    )
+    discrepancy = DiscrepancyMapEntry(
+        discrepancy_id="discrepancy.nested",
+        dimension=AlignmentDimension.REFERENCE,
+        source_ids=("artifact.source-a", "artifact.source-b"),
+        severity=DiscrepancySeverity.ROUTINE,
+        description="Caller-declared routine discrepancy with explicit resolution.",
+        resolution="accepted under locked reference policy",
+        evidence=(_evidence("nested-discrepancy"),),
+    )
+    request = base.model_copy(
+        update={
+            "configuration": base.configuration.model_copy(
+                update={"evidence": (_evidence("nested-configuration"),)}
+            ),
+            "observations": (nested_observation, *base.observations[1:]),
+            "discrepancies": (discrepancy,),
+        }
+    )
+
+    result = M2002Engine().resolve(request)
+    nested_digests = {
+        request.configuration.evidence[0].reference.digest,
+        request.observations[0].evidence[0].reference.digest,
+        request.discrepancies[0].evidence[0].reference.digest,
+    }
+
+    assert nested_digests <= set(result.provenance.input_digests)
+    assert nested_digests <= {item.reference.digest for item in result.evidence}
+
+
 def test_conflict_and_not_evaluable_states_never_emit_supported_status() -> None:
     for state in (
         AlignmentObservationStatus.CONFLICTED,
