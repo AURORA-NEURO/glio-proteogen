@@ -15,7 +15,13 @@ import re
 from dataclasses import dataclass
 from hashlib import sha256
 
-from .evidence import EvidenceBundle, EvidenceQuality, EvidenceRecord, aggregate_evidence
+from .evidence import (
+    EvidenceBundle,
+    EvidenceQuality,
+    EvidenceRecord,
+    aggregate_evidence,
+    verify_evidence_bundle,
+)
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _DIRECTIONS = frozenset({"supports", "contradicts", "inconclusive", "abstained"})
@@ -136,6 +142,142 @@ class ExternalEvidenceObservation:
         return sha256(_canonical(self.as_dict())).hexdigest()
 
 
+def _derive_observation_projection(
+    observations: tuple[ExternalEvidenceObservation, ...],
+) -> tuple[
+    tuple[ExternalEvidenceObservation, ...],
+    dict[tuple[str, int], set[str]],
+    dict[tuple[str, int], set[str]],
+    tuple[str, ...],
+    dict[str, int],
+]:
+    """Derive the canonical observation projection used by construction/replay.
+
+    Keeping this projection shared by the public aggregator and the immutable
+    aggregate constructor prevents a caller from constructing a structurally
+    valid object whose counts, status, or source representatives disagree with
+    its observation ledger.
+    """
+
+    if type(observations) is not tuple or not 1 <= len(observations) <= MAX_OBSERVATIONS:
+        raise ValueError("observations must be a bounded tuple")
+    if any(not isinstance(item, ExternalEvidenceObservation) for item in observations):
+        raise TypeError("observations must contain ExternalEvidenceObservation values")
+    ordered = tuple(sorted(observations, key=lambda item: item.evidence_id))
+    if len({item.evidence_id for item in ordered}) != len(ordered):
+        raise ValueError("evidence IDs must be unique")
+    if len({item.claim_id for item in ordered}) != 1:
+        raise ValueError("all observations must address one claim")
+
+    source_id_identities: dict[str, set[tuple[str, int]]] = {}
+    source_directions: dict[tuple[str, int], set[str]] = {}
+    identity_sources: dict[tuple[str, int], set[str]] = {}
+    for item in ordered:
+        identity = _source_identity(item)
+        source_id_identities.setdefault(item.source_id, set()).add(identity)
+        source_directions.setdefault(identity, set()).add(item.direction)
+        identity_sources.setdefault(identity, set()).add(item.source_id)
+    if any(len(identities) > 1 for identities in source_id_identities.values()):
+        raise ValueError("source IDs must bind one receipt identity")
+
+    independent_source_ids = tuple(
+        sorted(min(source_ids) for source_ids in identity_sources.values())
+    )
+    counts = {
+        direction: sum(item.direction == direction for item in ordered) for direction in _DIRECTIONS
+    }
+    return ordered, source_directions, identity_sources, independent_source_ids, counts
+
+
+def _aggregate_limitations(
+    identity_sources: dict[tuple[str, int], set[str]], status: str
+) -> tuple[str, ...]:
+    limitations: tuple[str, ...] = (
+        "External directions are caller-declared and issuer truth is not authenticated.",
+        "Independent source count is bound to source SHA-256 and byte size; it is a provenance gate, not statistical power or biological confidence.",
+        "This research aggregation performs no numerical fusion and emits no clinical or disease claim.",
+    )
+    if any(len(source_ids) > 1 for source_ids in identity_sources.values()):
+        limitations = (
+            *limitations,
+            "Multiple source IDs share one receipt identity and count as one independent source.",
+        )
+    if status in {
+        "abstained_observation",
+        "abstained_source_conflict",
+        "abstained_insufficient_independence",
+    }:
+        limitations = (*limitations, f"Aggregation status is {status}.")
+    return limitations
+
+
+def _aggregate_digest(
+    *,
+    claim_id: str,
+    observations: tuple[ExternalEvidenceObservation, ...],
+    counts: dict[str, int],
+    evidence_bundle: EvidenceBundle,
+    independent_source_ids: tuple[str, ...],
+    minimum_independent_sources: int,
+    status: str,
+) -> str:
+    payload = {
+        "claim_id": claim_id,
+        "counts": counts,
+        "evidence_bundle_digest": evidence_bundle.digest,
+        "independent_source_ids": independent_source_ids,
+        "minimum_independent_sources": minimum_independent_sources,
+        "observation_digests": [item.digest for item in observations],
+        "status": status,
+    }
+    return sha256(_canonical(payload)).hexdigest()
+
+
+def _validate_ledger_projection(
+    *,
+    claim_id: str,
+    observations: tuple[ExternalEvidenceObservation, ...],
+    status: str,
+    independent_source_count: int,
+    evidence_bundle: EvidenceBundle,
+) -> int:
+    """Validate that an aggregate carries its own matching ledger receipt."""
+
+    verify_evidence_bundle(evidence_bundle)
+    if len(evidence_bundle.records) != 1:
+        raise ValueError("external aggregate evidence bundle must contain one ledger record")
+    record = evidence_bundle.records[0]
+    expected_payload: dict[str, object] = {
+        "claim_id": claim_id,
+        "minimum_independent_sources": None,
+        "observations": [item.as_dict() for item in observations],
+        "status": status,
+    }
+    if (
+        record.evidence_id != "external-evidence-ledger"
+        or record.source != "claim:" + claim_id
+        or record.kind != "external.evidence.ledger.v1"
+    ):
+        raise ValueError("external aggregate evidence bundle is not the claim ledger")
+    payload = record.payload_jsonable
+    minimum = payload.get("minimum_independent_sources")
+    if type(minimum) is not int or not 1 <= minimum <= 32:
+        raise ValueError("external aggregate ledger has an invalid independence threshold")
+    expected_payload["minimum_independent_sources"] = minimum
+    if payload != expected_payload:
+        raise ValueError("external aggregate ledger does not match observations")
+    expected_quality = EvidenceQuality(
+        status="abstained" if status.startswith("abstained_") else "computed",
+        auditability=1.0,
+        completeness=0.0 if status.startswith("abstained_") else 1.0,
+        independent_sources=independent_source_count,
+        basis="external_receipt_direction_ledger_without_numerical_fusion",
+    )
+    if record.quality != expected_quality:
+        raise ValueError("external aggregate ledger quality does not match projection")
+    return minimum
+
+
 @dataclass(frozen=True, slots=True)
 class ExternalEvidenceAggregate:
     """Replay-bound descriptive aggregation with no numerical pooling."""
@@ -156,8 +298,10 @@ class ExternalEvidenceAggregate:
         _opaque(self.claim_id, "claim_id")
         if self.status not in _AGGREGATE_STATUSES:
             raise ValueError("aggregate status is not supported")
-        if not self.observations:
+        if type(self.observations) is not tuple or not self.observations:
             raise ValueError("aggregate requires observations")
+        if any(not isinstance(item, ExternalEvidenceObservation) for item in self.observations):
+            raise TypeError("observations must contain ExternalEvidenceObservation values")
         if tuple(sorted(self.observations, key=lambda item: item.evidence_id)) != self.observations:
             raise ValueError("observations must be canonically ordered")
         if tuple(sorted(self.independent_source_ids)) != self.independent_source_ids:
@@ -185,6 +329,50 @@ class ExternalEvidenceAggregate:
             raise ValueError("aggregate digest must be a lowercase SHA-256")
         if not self.limitations or any(not item for item in self.limitations):
             raise ValueError("aggregate limitations must be non-empty")
+        (
+            ordered,
+            source_directions,
+            identity_sources,
+            independent_source_ids,
+            counts,
+        ) = _derive_observation_projection(self.observations)
+        if any(item.claim_id != self.claim_id for item in ordered):
+            raise ValueError("aggregate claim does not match observations")
+        if self.independent_source_ids != independent_source_ids:
+            raise ValueError("aggregate independent sources do not match receipt identities")
+        expected_counts = {
+            "support_count": counts["supports"],
+            "contradiction_count": counts["contradicts"],
+            "inconclusive_count": counts["inconclusive"],
+            "abstained_count": counts["abstained"],
+        }
+        if any(getattr(self, field) != value for field, value in expected_counts.items()):
+            raise ValueError("aggregate direction counts do not match observations")
+        minimum = _validate_ledger_projection(
+            claim_id=self.claim_id,
+            observations=ordered,
+            status=self.status,
+            independent_source_count=len(independent_source_ids),
+            evidence_bundle=self.evidence_bundle,
+        )
+        expected_status = _status(
+            ordered, source_directions, len(independent_source_ids), minimum
+        )
+        if self.status != expected_status:
+            raise ValueError("aggregate status does not match observations")
+        if self.limitations != _aggregate_limitations(identity_sources, self.status):
+            raise ValueError("aggregate limitations do not match observations")
+        expected_digest = _aggregate_digest(
+            claim_id=self.claim_id,
+            observations=ordered,
+            counts=counts,
+            evidence_bundle=self.evidence_bundle,
+            independent_source_ids=independent_source_ids,
+            minimum_independent_sources=minimum,
+            status=self.status,
+        )
+        if self.digest != expected_digest:
+            raise ValueError("aggregate digest does not match evidence projection")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -237,59 +425,24 @@ def aggregate_external_evidence(
     not a claim of statistical power or biological validity.
     """
 
-    if type(observations) is not tuple or not 1 <= len(observations) <= MAX_OBSERVATIONS:
-        raise ValueError("observations must be a bounded tuple")
     if type(minimum_independent_sources) is not int or not 1 <= minimum_independent_sources <= 32:
         raise ValueError("minimum independent source count is outside the bounded range")
-    if any(not isinstance(item, ExternalEvidenceObservation) for item in observations):
-        raise TypeError("observations must contain ExternalEvidenceObservation values")
-    ordered = tuple(sorted(observations, key=lambda item: item.evidence_id))
-    if len({item.evidence_id for item in ordered}) != len(ordered):
-        raise ValueError("evidence IDs must be unique")
-    claim_ids = {item.claim_id for item in ordered}
-    if len(claim_ids) != 1:
-        raise ValueError("all observations must address one claim")
-    source_id_identities: dict[str, set[tuple[str, int]]] = {}
-    source_directions: dict[tuple[str, int], set[str]] = {}
-    for item in ordered:
-        identity = _source_identity(item)
-        source_id_identities.setdefault(item.source_id, set()).add(identity)
-        source_directions.setdefault(identity, set()).add(item.direction)
-    if any(len(identities) > 1 for identities in source_id_identities.values()):
-        raise ValueError("source IDs must bind one receipt identity")
-    identity_sources: dict[tuple[str, int], set[str]] = {}
-    for item in ordered:
-        identity_sources.setdefault(_source_identity(item), set()).add(item.source_id)
-    independent_source_ids = tuple(
-        sorted(min(source_ids) for source_ids in identity_sources.values())
-    )
+    (
+        ordered,
+        source_directions,
+        identity_sources,
+        independent_source_ids,
+        counts,
+    ) = _derive_observation_projection(observations)
     status = _status(
         ordered, source_directions, len(independent_source_ids), minimum_independent_sources
     )
-    counts = {
-        direction: sum(item.direction == direction for item in ordered) for direction in _DIRECTIONS
-    }
-    limitations: tuple[str, ...] = (
-        "External directions are caller-declared and issuer truth is not authenticated.",
-        "Independent source count is bound to source SHA-256 and byte size; it is a provenance gate, not statistical power or biological confidence.",
-        "This research aggregation performs no numerical fusion and emits no clinical or disease claim.",
-    )
-    if any(len(source_ids) > 1 for source_ids in identity_sources.values()):
-        limitations = (
-            *limitations,
-            "Multiple source IDs share one receipt identity and count as one independent source.",
-        )
-    if status in {
-        "abstained_observation",
-        "abstained_source_conflict",
-        "abstained_insufficient_independence",
-    }:
-        limitations = (*limitations, f"Aggregation status is {status}.")
+    limitations = _aggregate_limitations(identity_sources, status)
     quality_status = "abstained" if status.startswith("abstained_") else "computed"
     quality = EvidenceQuality(
         status=quality_status,
         auditability=1.0,
-        completeness=0.0 if counts["abstained"] else 1.0,
+        completeness=0.0 if status.startswith("abstained_") else 1.0,
         independent_sources=len(independent_source_ids),
         basis="external_receipt_direction_ledger_without_numerical_fusion",
     )
@@ -306,16 +459,15 @@ def aggregate_external_evidence(
         quality=quality,
     )
     bundle = aggregate_evidence((ledger,))
-    payload = {
-        "claim_id": ordered[0].claim_id,
-        "counts": counts,
-        "evidence_bundle_digest": bundle.digest,
-        "independent_source_ids": independent_source_ids,
-        "minimum_independent_sources": minimum_independent_sources,
-        "observation_digests": [item.digest for item in ordered],
-        "status": status,
-    }
-    digest = sha256(_canonical(payload)).hexdigest()
+    digest = _aggregate_digest(
+        claim_id=ordered[0].claim_id,
+        observations=ordered,
+        counts=counts,
+        evidence_bundle=bundle,
+        independent_source_ids=independent_source_ids,
+        minimum_independent_sources=minimum_independent_sources,
+        status=status,
+    )
     return ExternalEvidenceAggregate(
         claim_id=ordered[0].claim_id,
         observations=ordered,

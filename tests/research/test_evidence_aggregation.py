@@ -9,8 +9,11 @@ from typing import Any, cast
 import pytest
 
 from glio_proteogen.research import (
+    EvidenceQuality,
+    EvidenceRecord,
     ExternalEvidenceAggregate,
     ExternalEvidenceObservation,
+    aggregate_evidence,
     aggregate_external_evidence,
     replay_external_evidence,
 )
@@ -154,6 +157,8 @@ def test_receipt_alias_direction_conflict_abstains_before_support_summary() -> N
     assert result.independent_source_ids == ("alias-a", "independent")
     assert result.support_count == 2
     assert result.contradiction_count == 1
+    assert result.evidence_bundle.quality_summary is not None
+    assert result.evidence_bundle.quality_summary.weighted_completeness == 0.0
 
 
 def test_same_source_direction_conflict_abstains_before_independence_gate() -> None:
@@ -325,3 +330,56 @@ def test_external_aggregate_constructor_is_closed_for_count_and_bundle_shape() -
     values["inconclusive_count"] = 1
     with pytest.raises(ValueError, match="counts"):
         ExternalEvidenceAggregate(**values)  # type: ignore[arg-type]
+
+
+def test_aggregate_constructor_rejects_valid_but_unrelated_receipts() -> None:
+    observations = (_observation("e1", "source-a"), _observation("e2", "source-b"))
+    result = aggregate_external_evidence(observations)
+    unrelated = aggregate_external_evidence(
+        (
+            _observation("e1", "source-a", source_sha256=_HASH_A),
+            _observation("e2", "source-b", source_sha256=_HASH_B),
+        )
+    )
+
+    # Both bundles are individually valid content-addressed receipts.  The
+    # aggregate must still reject attaching the unrelated ledger to this
+    # observation projection; replay is not the only safe construction path.
+    with pytest.raises(ValueError, match="ledger does not match"):
+        replace(result, evidence_bundle=unrelated.evidence_bundle)
+    with pytest.raises(ValueError, match="digest does not match"):
+        replace(result, digest="b" * 64)
+    with pytest.raises(ValueError, match="counts"):
+        replace(result, support_count=1, contradiction_count=1)
+
+
+def test_aggregate_constructor_rejects_status_not_derived_from_ledger() -> None:
+    result = aggregate_external_evidence(
+        (_observation("e1", "source-a"), _observation("e2", "source-b"))
+    )
+    forged_ledger = EvidenceRecord.create(
+        "external-evidence-ledger",
+        "claim:caller-claim-1",
+        "external.evidence.ledger.v1",
+        {
+            "claim_id": "caller-claim-1",
+            "minimum_independent_sources": 2,
+            "observations": [item.as_dict() for item in result.observations],
+            "status": "consistent_contradiction",
+        },
+        quality=EvidenceQuality(
+            status="computed",
+            auditability=1.0,
+            completeness=1.0,
+            independent_sources=2,
+            basis="external_receipt_direction_ledger_without_numerical_fusion",
+        ),
+    )
+    forged_bundle = aggregate_evidence((forged_ledger,))
+    with pytest.raises(ValueError, match="status does not match"):
+        replace(
+            result,
+            status="consistent_contradiction",
+            evidence_bundle=forged_bundle,
+            digest="0" * 64,
+        )

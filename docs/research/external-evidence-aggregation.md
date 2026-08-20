@@ -49,6 +49,13 @@ changed source hashes, directions, source IDs, or thresholds. EvidenceQuality fi
 receipt auditability and completeness only; they are not a measure of biological
 truth.
 
+The immutable `ExternalEvidenceAggregate` constructor applies the same closure,
+not only `replay_external_evidence`: its bundle must contain exactly the matching
+claim ledger, threshold, observations, status, and quality projection, while its
+counts, source representatives, limitations, and outer digest must all be
+re-derived from those observations. This prevents a valid receipt from one claim
+or source set being attached to another aggregate by direct object construction.
+
 This remains outside governed M03/M04 execution routes. Promotion would require
 an owner-approved ABI covering licensed cohort inputs, source/catalogue identity,
 consent and privacy boundaries, allowed claims, validation datasets, and review
