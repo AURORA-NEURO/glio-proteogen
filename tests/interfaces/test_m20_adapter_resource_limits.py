@@ -190,6 +190,32 @@ def test_m20_fastapi_transport_rejects_oversized_request_before_route_parsing(
     assert response.json() == {"detail": "request body exceeds the byte limit"}
 
 
+@pytest.mark.parametrize(
+    ("app", "path", "limit"),
+    [
+        (m2001.app, "/v1/modules/M20-01/resolve", M2001_MAX_CANONICAL_REQUEST_BYTES),
+        (m2002.app, "/v1/modules/M20-02/reconcile", M2002_MAX_CANONICAL_REQUEST_BYTES),
+        (m2003.app, "/v1/modules/M20-03/fuse", M2003_MAX_CANONICAL_REQUEST_BYTES),
+        (m2004.app, "/v1/modules/M20-04/adapt", M2004_MAX_CANONICAL_REQUEST_BYTES),
+    ],
+)
+def test_m20_fastapi_request_limit_applies_before_result_limit(
+    app: FastAPI,
+    path: str,
+    limit: int,
+) -> None:
+    response = TestClient(app).post(
+        path,
+        content=b"{}",
+        headers={
+            "content-type": "application/json",
+            "content-length": str(limit + 1),
+        },
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
+
+
 def test_m20_fastapi_transport_rejects_oversized_chunked_body() -> None:
     def chunks() -> Iterator[bytes]:
         for _ in range(9):

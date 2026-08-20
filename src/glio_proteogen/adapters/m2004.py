@@ -42,7 +42,11 @@ app = FastAPI(
     title="GLIO-PROTEOGEN M20-04 intended-use adapter",
     version="0.1.0-provisional",
 )
-app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2004_MAX_CANONICAL_RESULT_BYTES)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M2004_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M2004_MAX_CANONICAL_RESULT_BYTES,
+)
 m2004_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 
