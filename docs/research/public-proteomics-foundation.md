@@ -31,6 +31,11 @@ study than the requested study. This prevents a mixed-study metadata response
 from being archived under the requested study identity before any raw-file
 receipt is created.
 
+Metadata snapshots also retain the client endpoint only when it is an
+allow-listed HTTPS PDC host with no embedded credentials or non-default port.
+This keeps a caller-constructed snapshot from presenting off-domain metadata as
+an authenticated PDC source in downstream evidence.
+
 Raw-file receipts apply the same check to caller-constructed snapshots: every
 file in the captured inventory must belong to the snapshot study, even when the
 selected file itself matches. This prevents a valid file receipt from carrying

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -104,5 +105,25 @@ def test_rejects_graphql_errors_and_non_json() -> None:
 def test_config_restricts_endpoint_and_response_bound() -> None:
     with pytest.raises(PDCError, match="allow-listed"):
         PDCClientConfig(endpoint="http://example.invalid/graphql")
+    with pytest.raises(PDCError, match="allow-listed"):
+        PDCClientConfig(endpoint="https://user:p@pdc.cancer.gov/graphql")
+    with pytest.raises(PDCError, match="allow-listed"):
+        PDCClientConfig(endpoint="https://pdc.cancer.gov:444/graphql")
     with pytest.raises(PDCError, match="response cap"):
         PDCClientConfig(max_response_bytes=5 * 1024 * 1024)
+
+
+def test_snapshot_rejects_untrusted_metadata_endpoint() -> None:
+    response = _FIXTURE.read_bytes()
+    query = PDCMetadataClient.build_query("PDC000204")
+    payload = canonical_json_bytes({"query": query})
+    snapshot = PDCMetadataClient(
+        PDCClientConfig(
+            timeout_seconds=_TEST_TIMEOUT,
+            max_response_bytes=_TEST_RESPONSE_CAP,
+            user_agent="test/research",
+        ),
+        _transport(payload, response),
+    ).fetch("PDC000204", retrieved_at="2026-08-17T00:00:00Z")
+    with pytest.raises(PDCError, match="allow-listed"):
+        replace(snapshot, endpoint="https://evil.example/graphql")

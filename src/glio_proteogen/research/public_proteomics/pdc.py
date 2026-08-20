@@ -43,6 +43,28 @@ class PDCError(ValueError):
 type Transport = Callable[[str, bytes, float, str, int], tuple[int, bytes, str]]
 
 
+def _validate_pdc_endpoint(endpoint: str) -> None:
+    """Require metadata snapshots to remain bound to a trusted PDC endpoint."""
+
+    if type(endpoint) is not str or not endpoint.strip():
+        raise PDCError("PDC endpoint must be an allow-listed HTTPS host")
+    try:
+        parsed = urlparse(endpoint)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError as error:
+        raise PDCError("PDC endpoint has an invalid port or host") from error
+    if (
+        parsed.scheme != "https"
+        or host not in _ALLOWED_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+        or port not in {None, 443}
+    ):
+        raise PDCError("PDC endpoint must be an allow-listed HTTPS host")
+
+
 @dataclass(frozen=True, slots=True)
 class PDCClientConfig:
     """Network and response limits for one metadata client."""
@@ -53,9 +75,7 @@ class PDCClientConfig:
     user_agent: str = "glio-proteogen-research-metadata/0.1"
 
     def __post_init__(self) -> None:
-        parsed = urlparse(self.endpoint)
-        if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_HOSTS:
-            raise PDCError("PDC endpoint must be an allow-listed HTTPS host")
+        _validate_pdc_endpoint(self.endpoint)
         if not 0.0 < self.timeout_seconds <= _MAX_TIMEOUT_SECONDS:
             raise PDCError("timeout must be greater than zero and at most 60 seconds")
         if not 0 < self.max_response_bytes <= _MAX_RESPONSE_BYTES:
@@ -166,6 +186,7 @@ class PDCSnapshot:
             raise TypeError("metadata must be a PDCStudyMetadata")
         if type(self.endpoint) is not str or not self.endpoint.strip():
             raise ValueError("PDC snapshot endpoint must be non-empty text")
+        _validate_pdc_endpoint(self.endpoint)
         if type(self.query) is not str or not self.query.strip():
             raise ValueError("PDC snapshot query must be non-empty text")
         if not isinstance(self.source_reference, SourceReference):
