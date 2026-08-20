@@ -24,6 +24,11 @@ study than the requested study. This prevents a mixed-study metadata response
 from being archived under the requested study identity before any raw-file
 receipt is created.
 
+Raw-file receipts apply the same check to caller-constructed snapshots: every
+file in the captured inventory must belong to the snapshot study, even when the
+selected file itself matches. This prevents a valid file receipt from carrying
+an otherwise contaminated cross-study catalog inventory.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint

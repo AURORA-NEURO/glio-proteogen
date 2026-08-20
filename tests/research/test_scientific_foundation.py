@@ -1516,6 +1516,46 @@ def test_pdc_receipt_rejects_catalog_and_source_mismatches() -> None:
             PdcSourceReceipt(**changed)  # type: ignore[arg-type]
 
 
+def test_pdc_receipt_rejects_a_mixed_study_snapshot_inventory() -> None:
+    payload = b"receipt-mixed-study"
+    file = pdc.PdcFile(
+        "PDC000204",
+        "x.mzML",
+        "Processed",
+        "Proteome",
+        "mzML",
+        len(payload),
+        md5(payload, usedforsecurity=False).hexdigest(),
+        "locator",
+    )
+    unrelated = replace(file, study_id="PDC000205", file_name="unrelated.mzML")
+    snapshot = PdcStudySnapshot(
+        "PDC000204",
+        (("Proteome", "Processed", 2),),
+        (file, unrelated),
+        "https://pdc.cancer.gov/pdc/study/PDC000204",
+        "a" * 64,
+    )
+    reference = SourceReference(
+        "pdc:x",
+        "locator",
+        "application/mzml",
+        "sha256:" + sha256(payload).hexdigest(),
+        len(payload),
+        "2026-08-18T00:00:00Z",
+        "research fixture",
+    )
+    with pytest.raises(ValueError, match="different study"):
+        PdcSourceReceipt(
+            snapshot=snapshot,
+            file=file,
+            source_reference=reference,
+            observed_sha256=reference.sha256,
+            observed_md5=file.md5 or "",
+            observed_size=len(payload),
+        )
+
+
 def test_pdc_private_file_size_and_required_fields() -> None:
     base = {
         "pdc_study_id": "PDC000204",

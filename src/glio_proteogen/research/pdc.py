@@ -109,8 +109,12 @@ class PdcSourceReceipt:
             raise TypeError("source_reference must be a SourceReference")
         if self.file.study_id != self.snapshot.study_id:
             raise ValueError("PDC file study does not match the catalog snapshot")
+        if any(not isinstance(item, PdcFile) for item in self.snapshot.files):
+            raise TypeError("PDC snapshot files must be PdcFile values")
         if self.file not in self.snapshot.files:
             raise ValueError("PDC file is absent from the captured catalog snapshot")
+        if any(item.study_id != self.snapshot.study_id for item in self.snapshot.files):
+            raise ValueError("PDC snapshot contains a file from a different study")
         if not _HEX64.fullmatch(self.snapshot.response_sha256):
             raise ValueError("PDC snapshot response hash is not a lowercase SHA-256")
         if not _HEX64.fullmatch(self.observed_sha256.removeprefix("sha256:")):
