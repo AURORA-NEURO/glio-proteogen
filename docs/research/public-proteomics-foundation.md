@@ -32,7 +32,9 @@ from being archived under the requested study identity before any raw-file
 receipt is created.
 
 Metadata snapshots also retain the client endpoint only when it is an
-allow-listed HTTPS PDC host with no embedded credentials or non-default port.
+allow-listed HTTPS PDC host with no embedded credentials, query parameters, or
+non-default port. Query parameters are rejected because they can carry bearer
+tokens that must never enter replayable provenance.
 This keeps a caller-constructed snapshot from presenting off-domain metadata as
 an authenticated PDC source in downstream evidence.
 

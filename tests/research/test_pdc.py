@@ -108,6 +108,8 @@ def test_config_restricts_endpoint_and_response_bound() -> None:
     with pytest.raises(PDCError, match="allow-listed"):
         PDCClientConfig(endpoint="https://user:p@pdc.cancer.gov/graphql")
     with pytest.raises(PDCError, match="allow-listed"):
+        PDCClientConfig(endpoint="https://pdc.cancer.gov/graphql?access_token=secret")
+    with pytest.raises(PDCError, match="allow-listed"):
         PDCClientConfig(endpoint="https://pdc.cancer.gov:444/graphql")
     with pytest.raises(PDCError, match="response cap"):
         PDCClientConfig(max_response_bytes=5 * 1024 * 1024)

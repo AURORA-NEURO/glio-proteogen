@@ -59,6 +59,7 @@ def _validate_pdc_endpoint(endpoint: str) -> None:
         or host not in _ALLOWED_HOSTS
         or parsed.username is not None
         or parsed.password is not None
+        or parsed.query
         or parsed.fragment
         or port not in {None, 443}
     ):
