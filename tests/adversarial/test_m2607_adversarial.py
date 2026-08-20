@@ -125,6 +125,20 @@ def test_result_id_tamper_is_rejected_even_when_digest_shape_is_valid() -> None:
         service.verify(tampered)
 
 
+def test_self_rehashed_approved_package_cannot_change_request_controls() -> None:
+    result = M2607ChangeControlService().control(_request())
+    assert result.change_package is not None
+    forged_proposal = result.change_package.proposal.model_copy(
+        update={"rationale": "forged change rationale"}
+    )
+    forged_package = result.change_package.model_copy(update={"proposal": forged_proposal})
+    forged = result.model_copy(update={"change_package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact request change controls"):
+        ProteinSubtypeChangeControlResult.model_validate(forged.model_dump(mode="python"))
+
+
 def test_request_digest_tamper_is_rejected() -> None:
     service = M2607ChangeControlService()
     result = service.control(_request())

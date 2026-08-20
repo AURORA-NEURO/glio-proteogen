@@ -283,6 +283,17 @@ class ProteinSubtypeChangeControlResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("approved result requires supported package and rollback point")
+            package = self.change_package
+            if (
+                self.rollback_point != self.request.rollback_point
+                or package.proposal != self.request.proposal
+                or package.revalidations != self.request.revalidations
+                or package.comparisons != self.request.comparisons
+                or package.rollback_point != self.request.rollback_point
+                or package.package_id != "package.m2607." + self.request.proposal.proposal_id
+                or package.version != self.request.proposal.proposed_version
+            ):
+                raise ValueError("approved package must bind exact request change controls")
         elif (
             self.change_package is not None
             or self.rollback_point is not None
