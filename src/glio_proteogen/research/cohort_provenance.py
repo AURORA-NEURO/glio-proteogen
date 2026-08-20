@@ -291,6 +291,10 @@ class CohortSourceManifest:
                 request.mzml_source
             ):
                 raise ValueError("source manifest size does not match request bytes")
+            if request.external_pdc_file is not None and request.external_pdc_receipt is None:
+                raise ValueError(
+                    "cohort external PDC declarations require a catalog source receipt"
+                )
             if request.external_pdc_receipt is None and binding.source_kind != "local":
                 raise ValueError("local request has a non-local source binding")
             if request.external_pdc_receipt is not None:
