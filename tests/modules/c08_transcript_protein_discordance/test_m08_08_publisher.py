@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m08_08 import (
     ReconstructionStatus,
     ReconstructionStep,
 )
+from glio_proteogen.contracts.m08_08.canonical import result_payload_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -189,6 +190,19 @@ def test_tamper_and_unissued_plugin_token_are_rejected() -> None:
         plugin.run(ValidatedM0808Request(request=request, _seal=object()))
     token = plugin.validate(json.dumps(request.model_dump(mode="json")).encode())
     assert plugin.run(token).result.result_id == "result.request.m08-08"
+
+
+def test_replay_rejects_semantic_mutation_with_recomputed_digest() -> None:
+    engine = M0808EvidenceExplanationPublisher()
+    built = engine.publish(_request("source.1"))
+    forged = built.result.model_copy(
+        update={
+            "abstention_reason": "forged",
+            "result_digest": "sha256:" + ("0" * 64),
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert not engine.verify(forged).verified
 
 
 def test_public_function_and_invalid_result_replay_boundary() -> None:

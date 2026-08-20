@@ -440,7 +440,15 @@ class M0808EvidenceExplanationPublisher:
             )
         expected = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected
-        deterministic_verified = typed.result_digest == result_payload_digest(typed)
+        deterministic_verified = False
+        if content_verified and typed.result_digest == result_payload_digest(typed):
+            try:
+                replayed = self.publish(typed.request)
+            except (TypeError, ValueError, ValidationError):
+                replayed = None
+            deterministic_verified = replayed is not None and replayed.result.model_dump(
+                mode="json"
+            ) == typed.model_dump(mode="json")
         verified = content_verified and deterministic_verified
         return PublishTranscriptProteinEvidenceVerification(
             content_verified=content_verified,
