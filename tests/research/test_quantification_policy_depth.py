@@ -53,6 +53,20 @@ def test_quantification_rejects_nonphysical_observation_values(intensity: object
 
 
 @pytest.mark.parametrize(
+    "observations",
+    [
+        (("P1", 1e308), ("P1", 1e308)),
+        (("P1", 1e308), ("P2", 1e308)),
+    ],
+)
+def test_quantification_rejects_finite_inputs_that_overflow_derived_signal(
+    observations: tuple[tuple[str, float], ...],
+) -> None:
+    with pytest.raises(ValueError, match="finite"):
+        quantify_matched_ions_with_receipt("overflow", observations)
+
+
+@pytest.mark.parametrize(
     "value",
     [
         PeptideQuant("sample", "P1", -1.0),

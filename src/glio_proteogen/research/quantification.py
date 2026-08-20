@@ -244,8 +244,8 @@ def _median_absolute_deviation(values: tuple[float, ...]) -> float | None:
 
     if len(values) < 2:
         return None
-    center = float(median(values))
-    return float(median(tuple(abs(value - center) for value in values)))
+    center = _finite_median(values, "MAD center")
+    return _finite_median(tuple(abs(value - center) for value in values), "MAD")
 
 
 def _interquartile_range(values: tuple[float, ...]) -> float | None:
@@ -257,7 +257,26 @@ def _interquartile_range(values: tuple[float, ...]) -> float | None:
     midpoint = len(ordered) // 2
     lower = ordered[:midpoint]
     upper = ordered[midpoint:] if len(ordered) % 2 == 0 else ordered[midpoint + 1 :]
-    return float(median(upper) - median(lower))
+    result = _finite_median(upper, "IQR upper median") - _finite_median(lower, "IQR lower median")
+    if not isfinite(result):
+        raise ValueError("IQR must remain finite")
+    return float(result)
+
+
+def _finite_median(values: tuple[float, ...], field: str) -> float:
+    result = float(median(values))
+    if not isfinite(result):
+        raise ValueError(f"{field} must remain finite")
+    return result
+
+
+def _finite_sum(values: Iterable[float], field: str) -> float:
+    total = 0.0
+    for value in values:
+        total += value
+        if not isfinite(total):
+            raise ValueError(f"{field} must remain finite")
+    return total
 
 
 def _signal_quality(positive_count: int, *, unique: bool = False) -> str:
@@ -345,6 +364,8 @@ def quantify_matched_ions_with_receipt(
             raise ValueError("matched-ion intensity must be finite and non-negative")
         normalized_observations.append((peptide, float(intensity)))
         totals[peptide] += intensity
+        if not isfinite(totals[peptide]):
+            raise ValueError("peptide signal must remain finite")
     values = tuple(
         PeptideQuant(
             sample_id,
@@ -363,10 +384,17 @@ def quantify_matched_ions_with_receipt(
     )
     normalized = median_normalize(values, method=selected_policy.normalization_method)
     positive = tuple(item.intensity for item in values if not item.missing and item.intensity > 0)
-    raw_median = median(positive) if positive else None
+    raw_median = _finite_median(tuple(positive), "raw positive median") if positive else None
     positive_count = len(positive)
     positive_mad = _median_absolute_deviation(positive)
     positive_iqr = _interquartile_range(positive)
+    raw_robust_cv = (
+        positive_mad / raw_median
+        if positive_mad is not None and raw_median is not None and raw_median > 0
+        else None
+    )
+    if raw_robust_cv is not None and not isfinite(raw_robust_cv):
+        raise ValueError("raw robust CV must remain finite")
     receipt = QuantificationReceipt(
         sample_id=sample_id,
         version=(
@@ -394,15 +422,11 @@ def quantify_matched_ions_with_receipt(
         observed_peptides=sum(not item.missing for item in values),
         missing_peptides=sum(item.missing for item in values),
         duplicate_observations=len(observed) - len(values),
-        raw_total_signal=sum(item.intensity for item in values),
+        raw_total_signal=_finite_sum((item.intensity for item in values), "raw total signal"),
         raw_positive_median=raw_median,
         raw_positive_mad=positive_mad,
         raw_positive_iqr=positive_iqr,
-        raw_robust_cv=(
-            positive_mad / raw_median
-            if positive_mad is not None and raw_median is not None and raw_median > 0
-            else None
-        ),
+        raw_robust_cv=raw_robust_cv,
         positive_signal_fraction=(positive_count / len(values) if values else 0.0),
         signal_quality=_signal_quality(positive_count),
         normalization_target=(
@@ -410,7 +434,9 @@ def quantify_matched_ions_with_receipt(
             if selected_policy.normalization_method == "sample_median_scaled_v1"
             else None
         ),
-        normalized_total_signal=sum(item.intensity for item in normalized),
+        normalized_total_signal=_finite_sum(
+            (item.intensity for item in normalized), "normalized total signal"
+        ),
         scale_factor=(
             1.0
             if positive and selected_policy.normalization_method == "sample_median_scaled_v1"
@@ -475,7 +501,7 @@ def median_normalize(
             else PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
             for item in values
         )
-    center = median(observed)
+    center = _finite_median(tuple(observed), "normalization median")
     sample_medians: dict[str, float] = {}
     for sample_id in {item.sample_id for item in values}:
         sample = [
@@ -484,21 +510,33 @@ def median_normalize(
             if item.sample_id == sample_id and not item.missing and item.intensity > 0
         ]
         if sample:
-            sample_medians[sample_id] = median(sample)
-    return tuple(
-        PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
-        if item.missing and item.intensity > 0
-        else item
-        if item.missing or item.intensity <= 0 or item.sample_id not in sample_medians
-        else PeptideQuant(
-            item.sample_id,
-            item.peptide,
-            item.intensity * center / sample_medians[item.sample_id],
-            missing=False,
-            status=item.status,
+            sample_medians[sample_id] = _finite_median(tuple(sample), "sample normalization median")
+    normalized: list[PeptideQuant] = []
+    for item in values:
+        if item.missing and item.intensity > 0:
+            normalized.append(
+                PeptideQuant(item.sample_id, item.peptide, 0.0, missing=True, status=item.status)
+            )
+            continue
+        if item.missing or item.intensity <= 0 or item.sample_id not in sample_medians:
+            normalized.append(item)
+            continue
+        scale = center / sample_medians[item.sample_id]
+        if not isfinite(scale):
+            raise ValueError("normalization scale must remain finite")
+        intensity = item.intensity * scale
+        if not isfinite(intensity):
+            raise ValueError("normalized peptide intensity must remain finite")
+        normalized.append(
+            PeptideQuant(
+                item.sample_id,
+                item.peptide,
+                intensity,
+                missing=False,
+                status=item.status,
+            )
         )
-        for item in values
-    )
+    return tuple(normalized)
 
 
 def _validate_group_partition(groups: tuple[ProteinGroup, ...]) -> set[str]:
@@ -612,9 +650,14 @@ def quantify_protein_groups(
             for peptide in group.shared_peptides
             if normalized_intensities.get(peptide, 0.0) > 0
         )
-        unique_signal = sum(unique_signal_values)
-        shared_signal = sum(shared_signal_values)
-        primary_intensity = median(unique_signal_values) if unique_signal_values else None
+        unique_signal = _finite_sum(unique_signal_values, "unique group signal")
+        shared_signal = _finite_sum(shared_signal_values, "shared group signal")
+        primary_intensity = (
+            _finite_median(unique_signal_values, "protein-group median")
+            if unique_signal_values
+            else None
+        )
+        total_signal = _finite_sum((unique_signal, shared_signal), "total group signal")
         status = (
             "quantified"
             if primary_intensity is not None
@@ -633,7 +676,7 @@ def quantify_protein_groups(
                 shared_peptides=group.shared_peptides,
                 unique_signal=unique_signal,
                 shared_signal=shared_signal,
-                total_signal=unique_signal + shared_signal,
+                total_signal=total_signal,
                 primary_intensity=primary_intensity,
                 status=status,
                 supporting_psms=supporting_psms,

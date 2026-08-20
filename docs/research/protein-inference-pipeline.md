@@ -353,6 +353,9 @@ unique-peptide count, MAD, IQR, and `unique_*` quality status. These fields expo
 support and heterogeneity for review and replay. They are not confidence intervals, calibrated
 error bars, abundance uncertainty, or evidence of biological effect, and they never impute an
 absent signal.
+Derived sums, medians, scales, and normalized values are required to remain finite; finite input
+observations that would overflow an aggregate are rejected rather than emitting `inf`/`NaN` receipt
+fields.
 
 `QuantificationPolicy` makes the remaining controls explicit and replay-bound. Only arbitrary
 matched-ion intensity is accepted; normalization is either `none_v1` or
