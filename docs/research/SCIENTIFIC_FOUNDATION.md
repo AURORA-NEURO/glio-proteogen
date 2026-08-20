@@ -124,6 +124,8 @@ C03/C04 computation contract:
   competition, preventing a forged decoy from entering the target denominator. This is
   transparent research FDR evidence, not a calibrated protein probability.
 - `aggregate_evidence` creates a stable content-addressed evidence bundle with explicit limits.
+  Canonical payloads reject non-string mapping keys instead of coercing them, preventing key
+  collisions and silent evidence loss before record digests are computed.
   Each record may additionally carry an `EvidenceQuality` assessment that separates
   byte/computation auditability, observed completeness, and caller-declared independent source
   count. `EvidenceQualitySummary` reports a deterministic source-count-weighted auditability

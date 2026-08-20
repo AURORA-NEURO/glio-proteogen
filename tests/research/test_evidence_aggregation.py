@@ -22,6 +22,16 @@ _HASH_A = "a" * 64
 _HASH_B = "b" * 64
 
 
+def test_evidence_payload_rejects_non_string_mapping_keys() -> None:
+    with pytest.raises(TypeError, match="mapping keys must be strings"):
+        EvidenceRecord.create(
+            "non-string-key",
+            "local:test",
+            "evidence",
+            {1: "decoy", "1": "target"},  # type: ignore[arg-type]
+        )
+
+
 def _observation(
     evidence_id: str,
     source_id: str,

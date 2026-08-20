@@ -25,7 +25,9 @@ def _validate_record_identity(value: str, field: str) -> None:
 
 def _freeze(value: object) -> object:
     if isinstance(value, Mapping):
-        return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
+        if any(type(key) is not str for key in value):
+            raise TypeError("evidence payload mapping keys must be strings")
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
     if isinstance(value, (list, tuple)):
         return tuple(_freeze(item) for item in value)
     if isinstance(value, float) and not isfinite(value):
