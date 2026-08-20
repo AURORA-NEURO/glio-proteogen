@@ -246,6 +246,29 @@ def test_request_required_modalities_and_result_closure_are_fail_closed() -> Non
         )
 
 
+def test_request_rejects_rebound_modality_artifact_material() -> None:
+    request = _request()
+    rebound = request.source_artifacts[0].model_copy(
+        update={"digest": "sha256:" + "f" * 64, "media_type": "text/plain"}
+    )
+    with pytest.raises(ValidationError, match="exact declared gateway modality"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(
+            request.model_copy(
+                update={"source_artifacts": (rebound, *request.source_artifacts[1:])}
+            ).model_dump(mode="python")
+        )
+
+    with pytest.raises(ValidationError, match="unique artifacts"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(
+            request.model_copy(
+                update={
+                    "genome_transcriptome": request.mass_spectrometry_proteome,
+                    "source_artifacts": request.source_artifacts[:2],
+                }
+            ).model_dump(mode="python")
+        )
+
+
 def test_rehashed_published_surface_cannot_change_request_media_or_authority() -> None:
     request = _request()
     published = M2604GatewayEngine().publish(request)

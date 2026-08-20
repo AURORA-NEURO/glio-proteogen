@@ -320,13 +320,19 @@ class PublishProteinSubtypeAccessSurfaceRequest(FrozenModel):
         source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source artifacts must have unique artifact IDs")
-        required_sources = {
-            self.mass_spectrometry_proteome.artifact_id,
-            self.genome_transcriptome.artifact_id,
-            self.ptm_annotations.artifact_id,
-        }
-        if not required_sources.issubset(source_ids):
+        declared_sources = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+        )
+        declared_ids = tuple(item.artifact_id for item in declared_sources)
+        if len(declared_ids) != len(set(declared_ids)):
+            raise ValueError("declared gateway modalities must use unique artifacts")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if not set(declared_ids).issubset(source_by_id):
             raise ValueError("source artifacts must bind every declared gateway modality")
+        if any(source_by_id.get(item.artifact_id) != item for item in declared_sources):
+            raise ValueError("source artifacts must bind exact declared gateway modality material")
         return self
 
 
