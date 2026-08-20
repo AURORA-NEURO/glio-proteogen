@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m11_03 import (
     MechanisticFeatureLineage,
     MechanisticValueKind,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -198,3 +199,17 @@ def test_plugin_parse_once_and_tamper_replay() -> None:
     assert not m1103.verify_m1103_replay(result, tampered)
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    request = _request()
+    result = m1103.construct_variant_peptide_mechanistic_features(request)
+    mutated = result.model_copy(
+        update={
+            "support_decision": result.support_decision.model_copy(
+                update={"rationale": "caller-rehashed semantic mutation"}
+            )
+        }
+    )
+    forged = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    assert not m1103.verify_m1103_replay(forged, request)
