@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m22_05 import (
     EvaluateProteinRnaDiscordanceSubgroupEquityRequest,
     ProteinRnaDiscordanceSubgroupEvaluationResult,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.plugin import ModuleDescriptor, ModulePlugin
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
@@ -50,6 +51,9 @@ class ValidatedM2205Request:
     """Opaque capability proving strict M22-05 request validation."""
 
     request: EvaluateProteinRnaDiscordanceSubgroupEquityRequest
+    _seal: object
+    _request_identity: int = 0
+    _request_bytes: bytes = b""
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -71,10 +75,11 @@ class M2205Plugin(
 ):
     """Expose validate-then-run without an authority or parse bypass."""
 
-    __slots__ = ("_service",)
+    __slots__ = ("_seal", "_service")
 
     def __init__(self, service: M2205Service) -> None:
         self._service = service
+        self._seal = object()
 
     def descriptor(self) -> ModuleDescriptor:
         return _DESCRIPTOR
@@ -87,10 +92,24 @@ class M2205Plugin(
             decoded = strict_json_loads(candidate, max_bytes=M2205_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2205_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2205Request(request=self._service.validate_request(candidate))
+        validated = self._service.validate_request(candidate)
+        return ValidatedM2205Request(
+            request=validated,
+            _seal=self._seal,
+            _request_identity=id(validated),
+            _request_bytes=canonical_json_bytes(validated),
+        )
 
     def run(self, request: ValidatedM2205Request) -> ProteinRnaDiscordanceSubgroupEvaluationResult:
-        if not isinstance(request, ValidatedM2205Request):
+        if type(request) is not ValidatedM2205Request:
+            raise _InvalidExecutionTokenError
+        if request._seal is not self._seal or id(request.request) != request._request_identity:
+            raise _InvalidExecutionTokenError
+        try:
+            current_bytes = canonical_json_bytes(request.request)
+        except (TypeError, ValueError):
+            raise _InvalidExecutionTokenError from None
+        if current_bytes != request._request_bytes:
             raise _InvalidExecutionTokenError
         return self._service.evaluate(request.request)
 

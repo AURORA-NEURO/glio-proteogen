@@ -26,6 +26,7 @@ from glio_proteogen.modules.c21_reference_material.m22_05_subgroup_equity_evalua
     EquityEvaluationSubmission,
     M2205Plugin,
     M2205Service,
+    ValidatedM2205Request,
     cli_app,
     create_app,
 )
@@ -220,6 +221,31 @@ def test_plugin_typed_submission_and_cli_stdout_paths(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_bytes(b"[]")
     assert runner.invoke(cli_app, ["validate", str(bad)]).exit_code != 0
+
+
+def test_plugin_tokens_are_instance_and_snapshot_bound() -> None:
+    request = _request()
+    first = M2205Plugin(M2205Service())
+    second = M2205Plugin(M2205Service())
+    token = first.validate(EquityEvaluationSubmission(request=request))
+
+    assert first.run(token).result_digest.startswith("sha256:")
+    with pytest.raises(TypeError, match="validated request token"):
+        second.run(token)
+
+    forged = ValidatedM2205Request(token.request, object())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(forged)
+
+    mutated = first.validate(EquityEvaluationSubmission(request=request))
+    object.__setattr__(mutated.request, "request_id", "m2205.forged.request")
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(mutated)
+
+    replaced = first.validate(EquityEvaluationSubmission(request=request))
+    object.__setattr__(replaced, "request", replaced.request.model_copy())
+    with pytest.raises(TypeError, match="validated request token"):
+        first.run(replaced)
 
 
 def test_cli_abstention_denial_and_replay_mismatch(
