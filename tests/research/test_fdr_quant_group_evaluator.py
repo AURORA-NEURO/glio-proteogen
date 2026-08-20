@@ -182,3 +182,22 @@ def test_competition_receipt_rejects_nonfinite_candidate_score() -> None:
     malformed = Psm("scan=nonfinite", "PEPTIDER", ("P1",), float("inf"), 3, decoy=False)
     with pytest.raises(ValueError, match="score"):
         PsmCompetition.from_candidates((malformed,))
+
+
+def test_group_fdr_abstains_partial_unique_support_in_connected_component() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("shared", "SHARED", ("P1", "P2"), 5.0, 3, decoy=False),
+            Psm("unique", "UNIQUE_P2", ("P2",), 4.0, 3, decoy=False),
+            Psm("decoy", "DECOY_P", ("DECOY_P",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+    target = next(item for item in candidates if item.status == "target")
+    assert target.accessions == ("P1", "P2")
+    assert target.unique_supported_accessions == ("P2",)
+    assert target.ambiguous_accessions == ("P1",)
+    assert target.identifiability == "partially_unique_ambiguous"
+    assert target.acceptance == "abstained"
+    assert summary.partially_unique_candidates == 1
+    assert target.as_dict()["ambiguous_accessions"] == ["P1"]

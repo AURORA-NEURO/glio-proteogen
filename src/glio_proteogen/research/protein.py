@@ -39,6 +39,8 @@ class ProteinGroupCandidate:
     q_value: float | None
     acceptance: str
     identifiability: str = "unique_peptide_supported"
+    unique_supported_accessions: tuple[str, ...] = ()
+    ambiguous_accessions: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -50,6 +52,8 @@ class ProteinGroupCandidate:
             "shared_peptides": list(self.shared_peptides),
             "status": self.status,
             "supporting_psms": self.supporting_psms,
+            "unique_supported_accessions": list(self.unique_supported_accessions),
+            "ambiguous_accessions": list(self.ambiguous_accessions),
             "unique_peptides": list(self.unique_peptides),
         }
 
@@ -73,6 +77,7 @@ class ProteinGroupFdrSummary:
     competition_digest: str = ""
     shared_peptide_candidates: int = 0
     shared_only_candidates: int = 0
+    partially_unique_candidates: int = 0
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -86,6 +91,7 @@ class ProteinGroupFdrSummary:
             "input_psms": self.input_psms,
             "max_accepted_q_value": self.max_accepted_q_value,
             "method": self.method,
+            "partially_unique_candidates": self.partially_unique_candidates,
             "q_value_threshold": self.q_value_threshold,
             "target_candidates": self.target_candidates,
             "shared_only_candidates": self.shared_only_candidates,
@@ -177,6 +183,11 @@ def infer_protein_group_candidates(
         has_decoy = any(accession.startswith(decoy_prefix) for accession in group.accessions)
         has_target = any(not accession.startswith(decoy_prefix) for accession in group.accessions)
         status = "collision" if has_decoy and has_target else "decoy" if has_decoy else "target"
+        (
+            identifiability,
+            unique_supported_accessions,
+            ambiguous_accessions,
+        ) = _group_support_metadata(group, peptide_to_proteins, status)
         candidates.append(
             ProteinGroupCandidate(
                 accessions=group.accessions,
@@ -187,13 +198,9 @@ def infer_protein_group_candidates(
                 status=status,
                 q_value=None,
                 acceptance="abstained" if status == "collision" else "pending",
-                identifiability=(
-                    "target_decoy_collision"
-                    if status == "collision"
-                    else "shared_only_ambiguous"
-                    if not group.unique_peptides
-                    else "unique_peptide_supported"
-                ),
+                identifiability=identifiability,
+                unique_supported_accessions=unique_supported_accessions,
+                ambiguous_accessions=ambiguous_accessions,
             )
         )
     ordered = sorted(
@@ -235,7 +242,7 @@ def infer_protein_group_candidates(
                 and q_value <= q_value_threshold
             )
             else "abstained"
-            if candidate.identifiability == "shared_only_ambiguous"
+            if candidate.identifiability in {"shared_only_ambiguous", "partially_unique_ambiguous"}
             else "rejected"
             if candidate.status != "collision"
             else "abstained"
@@ -250,6 +257,8 @@ def infer_protein_group_candidates(
             q_value=q_value,
             acceptance=acceptance,
             identifiability=candidate.identifiability,
+            unique_supported_accessions=candidate.unique_supported_accessions,
+            ambiguous_accessions=candidate.ambiguous_accessions,
         )
     finalized = tuple(sorted(by_accessions.values(), key=lambda item: item.accessions))
     accepted_q = tuple(
@@ -280,8 +289,40 @@ def infer_protein_group_candidates(
         shared_only_candidates=sum(
             item.identifiability == "shared_only_ambiguous" for item in finalized
         ),
+        partially_unique_candidates=sum(
+            item.identifiability == "partially_unique_ambiguous" for item in finalized
+        ),
     )
     return finalized, summary
+
+
+def _group_support_metadata(
+    group: ProteinGroup,
+    peptide_to_proteins: dict[str, set[str]],
+    status: str,
+) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+    unique_supported_accessions = tuple(
+        sorted(
+            {
+                accession
+                for peptide in group.unique_peptides
+                for accession in peptide_to_proteins[peptide]
+                if accession in group.accessions
+            }
+        )
+    )
+    ambiguous_accessions = tuple(
+        accession for accession in group.accessions if accession not in unique_supported_accessions
+    )
+    if status == "collision":
+        identifiability = "target_decoy_collision"
+    elif not group.unique_peptides:
+        identifiability = "shared_only_ambiguous"
+    elif ambiguous_accessions:
+        identifiability = "partially_unique_ambiguous"
+    else:
+        identifiability = "unique_peptide_supported"
+    return identifiability, unique_supported_accessions, ambiguous_accessions
 
 
 def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
