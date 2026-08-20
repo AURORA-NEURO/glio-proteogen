@@ -24,7 +24,10 @@ from glio_proteogen.contracts.m26_04 import (
     PublishProteinSubtypeAccessSurfaceRequest,
     contract_json_schema,
 )
-from glio_proteogen.contracts.m26_04.canonical import canonical_request_digest
+from glio_proteogen.contracts.m26_04.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
@@ -241,6 +244,26 @@ def test_request_required_modalities_and_result_closure_are_fail_closed() -> Non
                 mode="python"
             )
         )
+
+
+def test_rehashed_published_surface_cannot_change_request_media_or_authority() -> None:
+    request = _request()
+    published = M2604GatewayEngine().publish(request)
+    assert published.access_surface is not None
+    forged_operation = published.access_surface.operations[0].model_copy(
+        update={"request_media_type": "application/x-forged-request"}
+    )
+    forged_authorization = published.access_surface.authorizations[0].model_copy(
+        update={"scope": "m2604.scope.forged"}
+    )
+    for forged_surface in (
+        published.access_surface.model_copy(update={"operations": (forged_operation,)}),
+        published.access_surface.model_copy(update={"authorizations": (forged_authorization,)}),
+    ):
+        forged = published.model_copy(update={"access_surface": forged_surface})
+        forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+        with pytest.raises(ValidationError, match="exact request gateway material"):
+            ProteinSubtypeAccessSurfaceResult.model_validate(forged.model_dump(mode="python"))
 
 
 def test_public_entrypoint_and_mapping_canonical_helpers_are_stable() -> None:
