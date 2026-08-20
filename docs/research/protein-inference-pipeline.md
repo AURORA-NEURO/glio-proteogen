@@ -72,9 +72,12 @@ hash alone is not a catalog attestation. The cohort `provenance_policy` is expli
 `homogeneous` (the default) rejects local/PDC mixing and requires one study/response for
 catalog-bound runs, `local_only` rejects catalog receipts, `external_same_study` requires a
 receipt for every sample with one study/response, and `mixed_declared` is the opt-in escape
-hatch whose mixed source identities remain fully recorded. Receipt fields are retained per
-child and remain bound through child result digests, so a file rename, response change, or
-source substitution cannot replay as the same cohort.
+hatch whose mixed, receipt-bound source identities remain fully recorded. Even under
+`mixed_declared`, a request carrying an external PDC file declaration without a
+`PdcSourceReceipt` is rejected at the cohort admission boundary; otherwise that file could
+be mislabeled as a local source in the manifest. Receipt fields are retained per child and
+remain bound through child result digests, so a file rename, response change, or source
+substitution cannot replay as the same cohort.
 
 The result is a deterministic sample-by-protein-group matrix. Groups are the union of
 reportable child groups; an absent or non-quantifiable child cell is represented as JSON

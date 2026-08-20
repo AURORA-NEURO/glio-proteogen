@@ -41,6 +41,7 @@
       "biological_duplicate_source_rejection",
       "technical_duplicate_retention_without_independent_support",
       "unknown_independence_safe_abstention",
+      "unbound_external_pdc_cohort_rejection",
       "source_identity_bound_replay",
       "cohort_configuration_compatibility_and_child_replay",
       "content_addressed_replay",
