@@ -20,13 +20,18 @@ from glio_proteogen.contracts.m27_02.canonical import (
     canonical_request_digest,
     graph_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import EvidenceReference
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702LineageResolver,
     M2702Plugin,
+    M2702ReplayError,
     M2702Service,
     resolve_complex_activity_lineage,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    engine as engine_module,
 )
 from tests.runtime.test_m27_02_lineage import _request
 
@@ -80,6 +85,22 @@ def test_plugin_token_rejects_post_issuance_request_replacement() -> None:
     object.__setattr__(token, "request", request.model_copy(deep=True))
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(token)
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_resolver_enforces_canonical_result_size_on_emit_and_replay(
+    duplicate: bool,  # noqa: FBT001 - pytest parameter exercises both result branches.
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resolver = M2702LineageResolver()
+    baseline = resolver.resolve(_request(duplicate=duplicate))
+    result_bytes = canonical_json_bytes(baseline.model_dump(mode="json"))
+    monkeypatch.setattr(engine_module, "M2702_MAX_CANONICAL_RESULT_BYTES", len(result_bytes) - 1)
+
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        resolver.resolve(_request(duplicate=duplicate))
+    with pytest.raises(M2702ReplayError):
+        resolver.replay(baseline)
 
 
 def test_resigned_graph_manifest_tamper_is_rejected() -> None:

@@ -8,6 +8,7 @@ from pydantic import BaseModel, TypeAdapter
 
 from glio_proteogen.contracts.m27_02 import (
     M2702_CONTRACT_VERSION,
+    M2702_MAX_CANONICAL_RESULT_BYTES,
     M2702_MODULE_ID,
     ComplexActivityLineageResult,
     LineageEdge,
@@ -25,6 +26,7 @@ from glio_proteogen.contracts.m27_02 import (
     graph_payload_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentState,
@@ -74,6 +76,11 @@ class M2702ValidatedRequestError(TypeError):
 
     def __init__(self) -> None:
         super().__init__("M27-02 validated execution requires the exact request model")
+
+
+def _ensure_result_size(result: ComplexActivityLineageResult) -> None:
+    if len(canonical_json_bytes(result.model_dump(mode="json"))) > M2702_MAX_CANONICAL_RESULT_BYTES:
+        raise ValueError("M27-02 result exceeds the canonical byte limit")  # noqa: TRY003
 
 
 def preflight_m2702_authorization(candidate: object) -> None:
@@ -153,7 +160,9 @@ class M2702LineageResolver:
             "human_review_required": False,
         }
         payload["result_digest"] = result_payload_digest(payload)
-        return _RESULT_ADAPTER.validate_python(payload, strict=True)
+        result = _RESULT_ADAPTER.validate_python(payload, strict=True)
+        _ensure_result_size(result)
+        return result
 
     def replay(self, result: object) -> ComplexActivityLineageResult:
         """Verify one sealed result and replay its exact request deterministically."""
@@ -162,11 +171,10 @@ class M2702LineageResolver:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
             if validated.request_digest != canonical_request_digest(validated.request):
                 raise M2702ReplayError  # noqa: TRY301
-            expected_result_id = (
-                f"result.m2702.{validated.request_digest.removeprefix('sha256:')}"
-            )
+            expected_result_id = f"result.m2702.{validated.request_digest.removeprefix('sha256:')}"
             if validated.result_id != expected_result_id:
                 raise M2702ReplayError  # noqa: TRY301
+            _ensure_result_size(validated)
             if validated.result_digest != result_payload_digest(validated):
                 raise M2702ReplayError  # noqa: TRY301
             expected = self.resolve_validated(validated.request)
@@ -319,7 +327,9 @@ def _build_abstention(
         "human_review_required": False,
     }
     payload["result_digest"] = result_payload_digest(payload)
-    return _RESULT_ADAPTER.validate_python(payload, strict=True)
+    result = _RESULT_ADAPTER.validate_python(payload, strict=True)
+    _ensure_result_size(result)
+    return result
 
 
 def _finding(
