@@ -614,6 +614,10 @@ def test_fasta_stream_and_digest_validation_edges() -> None:
     ):
         with pytest.raises(ValueError):
             digest_trypsin(entries, **controls)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="unsupported"):
+        digest_trypsin((FastaEntry("P-invalid", "MPEP?DER"),))
+    with pytest.raises(ValueError, match="unsupported"):
+        build_search_space((FastaEntry("P-invalid", "MPEP?DER"),), min_length=2)
 
 
 def test_mzml_precision_compression_retention_and_limits() -> None:

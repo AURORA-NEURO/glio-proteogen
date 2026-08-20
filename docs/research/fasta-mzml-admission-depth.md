@@ -14,7 +14,9 @@ duplicate accessions, and the existing residue alphabet checks remain
 fail-closed. The public tryptic-digestion primitives also require strict
 integer missed-cleavage and peptide-length controls; booleans cannot be
 coerced into search-space parameters through Python's `bool`-is-an-`int`
-relationship.
+relationship. Direct `FastaEntry` digestion applies the same residue alphabet
+admission as text FASTA parsing, so unsupported residues cannot enter receipt
+peptide counts and then disappear at mass calculation.
 
 ## mzML precursor ambiguity
 

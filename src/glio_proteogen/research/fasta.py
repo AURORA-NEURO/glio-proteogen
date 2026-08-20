@@ -14,6 +14,7 @@ DEFAULT_FASTA_MAX_RESIDUES = 100_000_000
 _MAX_FASTA_BYTES = 512 * 1024 * 1024
 _MAX_FASTA_ENTRIES = 2_000_000
 _MAX_FASTA_RESIDUES = 500_000_000
+_FASTA_ALPHABET = frozenset("ABCDEFGHIKLMNOPQRSTUVWYXZ*")
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,7 +125,6 @@ def read_fasta(
     accession: str | None = None
     residues: list[str] = []
     residue_count = 0
-    alphabet = set("ABCDEFGHIKLMNOPQRSTUVWYXZ*")
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
@@ -144,7 +144,7 @@ def read_fasta(
                 raise ValueError("FASTA header has no accession")
             accession = header[0]
             residues = []
-        elif accession is None or any(char not in alphabet for char in line):
+        elif accession is None or any(char not in _FASTA_ALPHABET for char in line):
             raise ValueError("invalid FASTA sequence")
         else:
             residues.append(line.upper())
@@ -336,6 +336,10 @@ def digest_entry_trypsin(
         or not 1 <= min_length <= max_length <= 200
     ):
         raise ValueError("invalid digestion limits")
+    if type(entry.sequence) is not str or not entry.sequence or any(
+        character not in _FASTA_ALPHABET for character in entry.sequence
+    ):
+        raise ValueError("FASTA sequence contains unsupported characters")
     cuts = [0]
     for index, residue in enumerate(entry.sequence[:-1], start=1):
         if residue in "KR" and entry.sequence[index] != "P":
