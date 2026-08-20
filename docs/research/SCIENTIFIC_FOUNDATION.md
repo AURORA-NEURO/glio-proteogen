@@ -150,10 +150,16 @@ C03/C04 computation contract:
   typed abstention status; the policy never imputes values or infers biological strata.
 - Cohort source identity is a separate replay-bound `CohortSourceManifest`. It binds each
   sample to the exact source digest/size and any caller-provided PDC file, catalog, receipt,
-  or metadata snapshot digests, while retaining a declared biological/technical/unknown
+  or metadata snapshot object/digest, while retaining a declared biological/technical/unknown
   replicate kind. Biological reuse of one source is rejected; technical reuse remains visible
   but cannot inflate independent-replicate or normalization support; unknown independence
   abstains support-dependent projections. No independence is inferred from names or order.
+- A PDC metadata snapshot is not an unchecked label: when supplied, the request carries the
+  bounded `PDCSnapshot` itself. Its allow-listed HTTPS endpoint, query digest, response digest,
+  byte length, and JSON `SourceReference` are validated before cohort execution. The snapshot
+  digest is derived into each source binding and serialized in the child configuration, so a
+  caller cannot substitute a metadata digest without also supplying the matching captured
+  response. Snapshots must be identical across one cohort or the run rejects.
 - Every cohort result also carries three inner evidence receipts (`cohort.matrix.v1`,
   `cohort.qc.v1`, and `cohort.provenance.v1`) inside one content-addressed bundle. The
   public `aggregate_cohort_evidence` helper recomputes and verifies these receipts without
