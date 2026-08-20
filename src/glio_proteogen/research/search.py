@@ -595,7 +595,7 @@ def target_decoy_qvalues(psms: Iterable[Psm], *, decoy_prefix: str = "DECOY_") -
     winners: dict[str, Psm] = {}
     for psm in psms:
         _validate_target_decoy_psm(psm, decoy_prefix=decoy_prefix)
-        if not isfinite(psm.score) or psm.score < 0:
+        if not _is_finite_real(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         current = winners.get(psm.spectrum_id)
         if current is None or _competition_sort_key(psm) > _competition_sort_key(current):
@@ -644,7 +644,7 @@ def summarize_target_decoy(
 ) -> FdrSummary:
     """Return replayable winner-level FDR evidence for a declared threshold."""
 
-    if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
+    if not _is_finite_real(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
     scored = target_decoy_qvalues(psms, decoy_prefix=decoy_prefix)
     target_winners = sum(not item.decoy and not item.target_decoy_collision for item in scored)

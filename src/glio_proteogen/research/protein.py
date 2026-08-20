@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from hashlib import sha256
-from math import isfinite
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .search import Psm
+
+from .search import _is_finite_real
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +152,7 @@ def infer_protein_group_candidates(
     is accepted merely because its best peptide passed peptide-level FDR.
     """
 
-    if not isfinite(q_value_threshold) or not 0 <= q_value_threshold <= 1:
+    if not _is_finite_real(q_value_threshold) or not 0 <= q_value_threshold <= 1:
         raise ValueError("q_value_threshold must be finite and between zero and one")
     _validate_decoy_prefix(decoy_prefix)
     input_psms, psms, competition_digest = _prepare_group_psms(psms, decoy_prefix=decoy_prefix)
@@ -159,7 +160,7 @@ def infer_protein_group_candidates(
     for psm in psms:
         if not isinstance(psm.peptide, str) or not psm.peptide:
             raise ValueError("PSM peptide must be a non-empty string")
-        if not isfinite(psm.score) or psm.score < 0:
+        if not _is_finite_real(psm.score) or psm.score < 0:
             raise ValueError("PSM scores must be finite and non-negative")
         peptide_to_proteins.setdefault(psm.peptide, set()).update(psm.protein_accessions)
     groups = infer_protein_groups(
@@ -339,7 +340,7 @@ def _validate_group_psm(psm: Psm, *, decoy_prefix: str) -> None:
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
-    if not isfinite(psm.score) or psm.score < 0:
+    if not _is_finite_real(psm.score) or psm.score < 0:
         raise ValueError("PSM scores must be finite and non-negative")
     derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
     derived_collision = (

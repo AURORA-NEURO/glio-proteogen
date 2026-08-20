@@ -800,6 +800,8 @@ def test_exact_target_decoy_tie_favors_decoy_winner() -> None:
     assert len(target_decoy_qvalues((target, lower))) == 1
     with pytest.raises(ValueError):
         target_decoy_qvalues((replace(target, score=math.nan),))
+    with pytest.raises(ValueError):
+        target_decoy_qvalues((replace(target, score=cast("float", True)),))  # noqa: FBT003
 
 
 def test_many_exact_target_decoy_ties_cannot_create_zero_fdr_targets() -> None:
@@ -1127,6 +1129,19 @@ def test_protein_group_fdr_rejects_inconsistent_target_decoy_flags() -> None:
     inconsistent = Psm("scan-1", "PEPTIDER", ("DECOY_P1",), 5.0, 3, decoy=False)
     with pytest.raises(ValueError, match="target/decoy flags"):
         infer_protein_group_candidates((inconsistent,), q_value_threshold=0.01)
+
+
+def test_protein_group_fdr_rejects_boolean_scores() -> None:
+    boolean_score = Psm(
+        "scan-1",
+        "PEPTIDER",
+        ("P1",),
+        cast("float", True),  # noqa: FBT003
+        3,
+        decoy=False,
+    )
+    with pytest.raises(ValueError, match="PSM scores"):
+        infer_protein_group_candidates((boolean_score,), q_value_threshold=0.01)
 
 
 def test_protein_group_candidate_exposes_shared_only_identifiability() -> None:
