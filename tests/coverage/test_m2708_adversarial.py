@@ -52,6 +52,16 @@ def test_unsupported_upstream_media_abstains_without_scientific_traversal() -> N
         M2708Service().execute(request)
 
 
+def test_upstream_media_substring_spoof_is_rejected() -> None:
+    base = build_request()
+    spoofed = tuple(
+        artifact.model_copy(update={"media_type": "application/x-not-m27-07-but-spoofed"})
+        for artifact in base.source_artifacts
+    )
+    with pytest.raises(ValueError, match="unsupported upstream"):
+        M2708Service().execute(base.model_copy(update={"source_artifacts": spoofed}))
+
+
 def test_result_replay_detects_nested_request_mutation() -> None:
     result = M2708Service().execute(build_request())
     nested = result.model_copy(
