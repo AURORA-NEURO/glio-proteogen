@@ -212,7 +212,10 @@ class AlignProteinSubtypeSourcesRequest(FrozenModel):
     def request_is_bound(self) -> AlignProteinSubtypeSourcesRequest:
         if self.upstream_result.media_type != M2002_M2001_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M20-01 resolver result")
-        source_ids = {artifact.artifact_id for artifact in self.source_artifacts}
+        source_ids_tuple = tuple(artifact.artifact_id for artifact in self.source_artifacts)
+        if len(source_ids_tuple) != len(set(source_ids_tuple)):
+            raise ValueError("alignment source artifact ids must be unique")
+        source_ids = set(source_ids_tuple)
         for item in self.observations:
             if not set(item.source_ids) <= source_ids:
                 raise ValueError("alignment entry references an unknown source artifact")

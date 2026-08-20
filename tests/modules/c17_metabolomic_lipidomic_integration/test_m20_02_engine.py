@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from glio_proteogen.contracts.m20_02 import (
     M2002_M2001_INPUT_MEDIA_TYPE,
@@ -209,6 +210,22 @@ def test_preflight_rejects_missing_or_unsafe_control() -> None:
     )
     with pytest.raises(M2002AuthorizationError, match="control support"):
         preflight_m2002_authorization(_request().model_copy(update={"context": context}))
+
+
+def test_request_rejects_duplicate_source_artifact_ids() -> None:
+    request = _request()
+    duplicate = request.source_artifacts[1].model_copy(
+        update={
+            "artifact_id": request.source_artifacts[0].artifact_id,
+            "digest": sha256_digest("m2002:forged-duplicate"),
+        }
+    )
+
+    with pytest.raises(ValidationError, match="source artifact ids must be unique"):
+        AlignProteinSubtypeSourcesRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (request.source_artifacts[0], duplicate)}
+        )
 
 
 def test_service_and_plugin_share_strict_boundary() -> None:
