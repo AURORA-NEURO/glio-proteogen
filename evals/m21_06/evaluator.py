@@ -42,6 +42,16 @@ def run_evaluator() -> dict[str, Any]:
     repeated = service.generate(request)
     mixed = service.generate(build_request())
     observations = result.robustness_surface.observations if result.robustness_surface else ()
+    expected_input_digests = (
+        {artifact.digest for artifact in request.source_artifacts}
+        | {item.reference.digest for item in request.configuration.evidence}
+        | {
+            artifact.digest
+            for scenario in request.scenarios
+            for artifact in scenario.source_artifacts
+        }
+        | {item.reference.digest for scenario in request.scenarios for item in scenario.evidence}
+    )
     checks: dict[str, bool] = {
         "supported_evaluated": result.status.value == "evaluated",
         "all_locked_scenarios_observed": len(observations) == _SCENARIO_COUNT,
@@ -49,10 +59,8 @@ def run_evaluator() -> dict[str, Any]:
         == {"within_envelope", "review_required"},
         "ood_bands_are_bounded": all(0.0 <= item.ood_score <= 1.0 for item in observations),
         "seven_axis_uncertainty_present": result.uncertainty is not None,
-        "provenance_has_upstream_digest": (
-            result.provenance.input_digests
-            == tuple(artifact.digest for artifact in request.source_artifacts)
-        ),
+        "provenance_covers_bound_material": expected_input_digests
+        <= set(result.provenance.input_digests),
         "deterministic_result": result.result_digest == repeated.result_digest,
         "replay_verified": service.replay(result).result_digest == result.result_digest,
         "mixed_support_abstains_safely": (

@@ -409,7 +409,24 @@ def _provenance(
         module_id=M2106_MODULE_ID,
         module_version=M2106_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(item.reference.digest for item in request.configuration.evidence),
+                    *(
+                        artifact.digest
+                        for scenario in request.scenarios
+                        for artifact in scenario.source_artifacts
+                    ),
+                    *(
+                        item.reference.digest
+                        for scenario in request.scenarios
+                        for item in scenario.evidence
+                    ),
+                )
+            )
+        ),
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,

@@ -55,6 +55,20 @@ def test_engine_evaluates_supported_surface_and_replays() -> None:
     assert replay.result_digest == result.result_digest
 
 
+def test_provenance_covers_nested_scenario_sources_and_evidence() -> None:
+    request = _supported_request()
+    result = M2106Engine().generate(request)
+    nested_digests = {
+        artifact.digest for scenario in request.scenarios for artifact in scenario.source_artifacts
+    }
+    nested_digests.update(item.reference.digest for item in request.configuration.evidence)
+    nested_digests.update(
+        item.reference.digest for scenario in request.scenarios for item in scenario.evidence
+    )
+
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 def test_replay_rejects_tampered_result_digest() -> None:
     result = M2106Engine().generate(_supported_request())
     tampered = result.model_copy(update={"result_digest": "sha256:" + "f" * 64})
