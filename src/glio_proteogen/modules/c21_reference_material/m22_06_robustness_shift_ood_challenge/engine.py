@@ -372,6 +372,12 @@ class M2206Engine:
         *,
         replay: bool = True,
     ) -> ProteinRnaDiscordanceRobustnessChallengeResult:
+        if replay is False:
+            # A payload digest proves only internal consistency.  This module's
+            # robustness surface is deterministic, so verification must
+            # regenerate it from the bound request; otherwise a caller can
+            # re-sign a semantic finding and bypass the replay boundary.
+            raise M2206ReplayError("M22-06 replay verification cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
