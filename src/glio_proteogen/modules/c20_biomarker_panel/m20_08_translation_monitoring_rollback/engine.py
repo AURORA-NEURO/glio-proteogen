@@ -410,6 +410,12 @@ class M2008TranslationMonitoringEngine:
     def verify(
         self, result: object, *, replay: bool = True
     ) -> ProteinSubtypeTranslationHealthResult:
+        if replay is False:
+            # A payload digest proves only internal consistency.  M20-08 is
+            # deterministic, so verification must regenerate the result from
+            # its bound request; otherwise a caller can re-sign a semantic
+            # finding and bypass the replay boundary.
+            raise M2008ReplayVerificationError
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:

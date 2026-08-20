@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from glio_proteogen.contracts.m20_08 import (
     HealthSignalKind,
     HealthSignalStatus,
+    MonitorFindingCode,
     RollbackDecision,
     TranslationHealthStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import ConsentState
@@ -127,6 +131,21 @@ def test_tampered_result_digest_is_rejected() -> None:
         engine.verify(tampered)
 
 
+def test_verify_rejects_self_rehashed_semantic_mutation_when_replay_is_disabled() -> None:
+    """A self-consistent finding still requires deterministic regeneration."""
+
+    engine = M2008TranslationMonitoringEngine()
+    result = engine.infer(_request())
+    forged = result.model_copy(update={"findings": (MonitorFindingCode.POLICY_VIOLATION,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    assert forged.result_digest == result_payload_digest(forged)
+    with pytest.raises(ValueError, match="replay verification failed"):
+        engine.verify(forged, replay=False)
+    with pytest.raises(ValueError, match="replay verification failed"):
+        engine.verify(forged)
+
+
 def test_service_supports_mapping_and_canonical_json_boundaries() -> None:
     service = M2008Service()
     request = _request()
@@ -137,7 +156,7 @@ def test_service_supports_mapping_and_canonical_json_boundaries() -> None:
     result_document = result_from_mapping.model_dump(mode="json")
     assert service.replay(result_document) == result_from_mapping
     assert service.verify(canonical_json_bytes(result_document)) == result_from_mapping
-    assert service.descriptor["upstream_media_type"].endswith("m20-07+json")
+    assert cast("str", service.descriptor["upstream_media_type"]).endswith("m20-07+json")
 
 
 def test_preflight_mapping_and_malformed_candidates_fail_closed() -> None:

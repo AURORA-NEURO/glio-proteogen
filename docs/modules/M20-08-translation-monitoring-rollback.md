@@ -27,6 +27,8 @@ Safety boundaries:
   are always explicit.
 - No kinase activity, generic all-omics fusion, treatment recommendation,
   identity inference, or consent inference is emitted.
+- Verification always regenerates the result from its bound request; disabling
+  replay is rejected so a self-rehashed semantic finding cannot be accepted.
 
 The engine, service, opaque plugin, FastAPI adapter, and Typer adapter share a
 strict parse-once request path and canonical request/result replay verification.
