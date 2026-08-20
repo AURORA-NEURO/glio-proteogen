@@ -155,6 +155,35 @@ def test_result_contract_binds_deterministic_result_and_package_ids() -> None:
         )
 
 
+def test_result_provenance_binds_every_declared_input_artifact() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.provenance.input_digests == (
+        result.request_digest,
+        result.request.mass_spectrometry_proteome.digest,
+        result.request.genome_transcriptome.digest,
+        result.request.ptm_annotations.digest,
+        *(artifact.digest for artifact in result.request.source_artifacts),
+    )
+
+
+def test_result_rejects_rehashed_provenance_missing_scientific_input() -> None:
+    result = M2708Service().execute(build_request())
+    forged_provenance = result.provenance.model_copy(
+        update={
+            "input_digests": (
+                result.request_digest,
+                *(artifact.digest for artifact in result.request.source_artifacts),
+            )
+        }
+    )
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="provenance input digests"):
+        ComplexActivityRetirementResult.model_validate(
+            rehashed.model_dump(mode="python"), strict=True
+        )
+
+
 @pytest.mark.parametrize(
     "field",
     ["activity_id", "actor_id", "input_digests", "configuration_digest", "control_decisions"],
