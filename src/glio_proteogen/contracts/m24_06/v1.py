@@ -134,6 +134,10 @@ class RobustnessObservation(FrozenModel):
             and self.envelope_lower > self.envelope_upper
         ):
             raise ValueError("robustness envelope bounds must be ordered")
+        if self.envelope_lower is not None and self.envelope_upper is not None:
+            measured_within = self.envelope_lower <= self.challenged_value <= self.envelope_upper
+            if self.within_envelope is not measured_within:
+                raise ValueError("within-envelope flag must match challenged value")
         if self.disposition is ChallengeDisposition.WITHIN_ENVELOPE and not self.within_envelope:
             raise ValueError("within-envelope disposition requires an in-envelope observation")
         return self
@@ -183,6 +187,17 @@ class RobustnessSurface(FrozenModel):
         scenario_by_id = {scenario.scenario_id: scenario for scenario in self.scenarios}
         for observation in self.observations:
             scenario = scenario_by_id[observation.scenario_id]
+            expected_band = (
+                OODBand.OUT_OF_DOMAIN
+                if observation.ood_score > self.configuration.ood_threshold
+                else (
+                    OODBand.BORDERLINE
+                    if observation.ood_score >= self.configuration.ood_threshold * 0.75
+                    else OODBand.IN_DOMAIN
+                )
+            )
+            if observation.ood_band is not expected_band:
+                raise ValueError("observation OOD band must match score and threshold")
             if observation.disposition is not scenario.expected_disposition:
                 raise ValueError("observation disposition must match scenario expectation")
             if observation.disposition is ChallengeDisposition.WITHIN_ENVELOPE and (

@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m24_06 import (
     RobustnessConfiguration,
     RobustnessStatus,
     RobustnessSurface,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import ArtifactReference, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material import (
@@ -111,8 +112,38 @@ def test_surface_rejects_ood_band_inconsistent_with_within_disposition() -> None
             )
         }
     )
-    with pytest.raises(ValueError, match="supported OOD bands"):
+    with pytest.raises(ValueError, match="OOD band"):
         RobustnessSurface.model_validate(forged)
+
+
+def test_rehashed_result_rejects_ood_score_band_mismatch() -> None:
+    result = m2406.M2406Service().evaluate(request())
+    assert result.robustness_surface is not None
+    observation = result.robustness_surface.observations[0].model_copy(update={"ood_score": 0.8})
+    surface = result.robustness_surface.model_copy(
+        update={
+            "observations": (observation, *result.robustness_surface.observations[1:]),
+        }
+    )
+    forged = result.model_copy(update={"robustness_surface": surface})
+    forged = type(forged).model_construct(
+        **{
+            **forged.__dict__,
+            "result_digest": result_payload_digest(forged),
+        }
+    )
+    with pytest.raises(ValueError, match="OOD band must match"):
+        type(forged).model_validate(forged)
+
+
+def test_observation_rejects_claimed_in_envelope_value_outside_bounds() -> None:
+    result = m2406.M2406Service().evaluate(request())
+    assert result.robustness_surface is not None
+    observation = result.robustness_surface.observations[0].model_copy(
+        update={"challenged_value": 0.0}
+    )
+    with pytest.raises(ValueError, match="flag must match challenged value"):
+        type(observation).model_validate(observation)
 
 
 def test_replay_rejects_self_rehashed_safe_failure_and_denied_control() -> None:
