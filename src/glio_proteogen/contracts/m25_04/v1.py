@@ -230,6 +230,8 @@ class EvaluateProteotypeExternalTransportRequest(FrozenModel):
 
     @model_validator(mode="after")
     def request_is_closed(self) -> EvaluateProteotypeExternalTransportRequest:
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         validation_dims = {item.dimension for item in self.validations}
         evaluation_dims = {item.dimension for item in self.evaluations}
         required = set(self.configuration.required_dimensions)
@@ -237,6 +239,24 @@ class EvaluateProteotypeExternalTransportRequest(FrozenModel):
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        if len(source_keys) != len(set(source_keys)):
+            raise ValueError("request source artifacts must be unique")
+        source_set = set(source_keys)
+        required_artifacts = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.benchmark_package,
+        )
+        if any(
+            (item.artifact_id, item.version, item.digest, item.media_type) not in source_set
+            for item in required_artifacts
+        ):
+            raise ValueError("source artifacts must include every declared transport input")
         return self
 
 
@@ -273,6 +293,12 @@ class ProteotypeExternalTransportResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported transport report")
+            if (
+                self.report.validations != self.request.validations
+                or self.report.evaluations != self.request.evaluations
+                or self.report.configuration != self.request.configuration
+            ):
+                raise ValueError("evaluated transport report must bind exact request declarations")
         elif (
             self.report is not None
             or self.abstention_reason is None
