@@ -11,6 +11,12 @@ digests, derived result identity, package lock digest, and the full canonical
 result projection must all agree. API, CLI, service, and plugin verification
 therefore share the same semantic closure.
 
+The strict curated-result contract also binds the package endpoint, references,
+controls, inclusion decisions, adjudications, challenge-set IDs, configuration,
+version, and canonical lock digest to the exact request. A self-rehashed package
+cannot substitute benchmark declarations or its lock evidence at the parser
+boundary.
+
 This module still curates caller-declared benchmark material only. It does not
 authenticate an issuer, inspect raw scientific payloads, infer proteotype
 biology, or emit clinical/reference truth claims.

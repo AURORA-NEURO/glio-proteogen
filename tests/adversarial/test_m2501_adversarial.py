@@ -186,6 +186,26 @@ def test_result_digest_tamper_is_rejected() -> None:
         )
 
 
+def test_curated_result_rejects_self_rehashed_package_request_or_lock_mutation() -> None:
+    result = M2501Service().execute(build_request())
+    assert result.package is not None
+    forged_endpoint = result.package.endpoint.model_copy(update={"metric": "forged metric"})
+    mutations = (
+        result.package.model_copy(update={"endpoint": forged_endpoint}),
+        result.package.model_copy(update={"lock_digest": "sha256:" + ("f" * 64)}),
+    )
+
+    for package in mutations:
+        forged = result.model_copy(update={"package": package})
+        forged = ProteotypeReferenceTruthResult.model_construct(
+            **{**forged.__dict__, "result_digest": result_payload_digest(forged)}
+        )
+        with pytest.raises(ValidationError, match="exact request declarations and lock"):
+            ProteotypeReferenceTruthResult.model_validate(
+                forged.model_dump(mode="python"), strict=True
+            )
+
+
 def test_result_identifier_tamper_is_rejected() -> None:
     service = M2501Service()
     result = service.execute(build_request())

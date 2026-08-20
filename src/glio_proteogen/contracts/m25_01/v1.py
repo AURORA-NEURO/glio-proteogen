@@ -15,6 +15,7 @@ from pydantic import Field, model_validator
 
 from glio_proteogen.contracts.m25_01.canonical import (
     canonical_request_digest,
+    package_lock_digest,
     result_identifier,
     result_payload_digest,
 )
@@ -263,6 +264,21 @@ class ProteotypeReferenceTruthResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("curated result requires a supported truth package")
+            expected_challenge_set_ids = tuple(
+                item.reference_id for item in self.request.references if item.challenge_set
+            )
+            if (
+                self.package.endpoint != self.request.endpoint
+                or self.package.references != self.request.references
+                or self.package.controls != self.request.controls
+                or self.package.inclusions != self.request.inclusions
+                or self.package.adjudications != self.request.adjudications
+                or self.package.challenge_set_ids != expected_challenge_set_ids
+                or self.package.configuration != self.request.configuration
+                or self.package.version != self.request.configuration.version
+                or self.package.lock_digest != package_lock_digest(self.package)
+            ):
+                raise ValueError("curated package must bind exact request declarations and lock")
         elif (
             self.package is not None
             or self.abstention_reason is None
