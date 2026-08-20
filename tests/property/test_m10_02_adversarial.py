@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m10_02 import (
     RepresentationInputFeature,
     RepresentationMissingness,
     TransformationStep,
+    result_payload_digest,
 )
 from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor import (  # noqa: E501
     construct_protein_rna_representation,
@@ -52,6 +53,13 @@ def test_tampered_result_digest_is_not_replayable() -> None:
     result = construct_protein_rna_representation(_request())
     tampered = result.model_copy(update={"result_digest": "sha256:" + ("f" * 64)})
     assert verify_result_replay(tampered) is False
+
+
+def test_self_rehashed_semantic_mutation_is_not_replayable() -> None:
+    result = construct_protein_rna_representation(_request())
+    mutated = result.model_copy(update={"abstention_reason": "caller-rehashed semantic mutation"})
+    forged = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    assert verify_result_replay(forged) is False
 
 
 def test_observed_feature_cannot_carry_multiple_value_shapes() -> None:

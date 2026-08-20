@@ -462,11 +462,19 @@ def construct_protein_rna_representation(request: object) -> ProteinRnaRepresent
 
 
 def verify_result_replay(result: ProteinRnaRepresentationResult) -> bool:
-    """Verify both request binding and the exact result payload digest."""
+    """Reconstruct the result and compare every semantic output region."""
 
-    return result.request_digest == canonical_request_digest(
-        result.request
-    ) and result.result_digest == result_payload_digest(result)
+    if type(result) is not ProteinRnaRepresentationResult:
+        return False
+    try:
+        expected = construct_protein_rna_representation(result.request)
+    except (TypeError, ValueError):
+        return False
+    return (
+        result.request_digest == canonical_request_digest(result.request)
+        and result.result_digest == result_payload_digest(result)
+        and result == expected
+    )
 
 
 def validate_json_request(
