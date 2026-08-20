@@ -34,11 +34,16 @@ class M2702Service:
     def execute(self, request: object) -> ComplexActivityLineageResult:
         return self._resolver.resolve(request)
 
+    def replay(self, result: ComplexActivityLineageResult) -> ComplexActivityLineageResult:
+        """Recompute a result for strict API/CLI verification."""
+
+        return self._resolver.replay(result)
+
     def verify(self, result: ComplexActivityLineageResult) -> bool:
         """Return whether a result passes strict identity and semantic replay."""
 
         try:
-            self._resolver.replay(result)
+            self.replay(result)
         except M2702ReplayError:
             return False
         return True
