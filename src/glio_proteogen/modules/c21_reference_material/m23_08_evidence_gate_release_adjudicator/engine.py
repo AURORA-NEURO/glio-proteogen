@@ -125,9 +125,7 @@ def _evidence(
     artifacts.extend(
         evidence.reference for item in request.residual_risks for evidence in item.evidence
     )
-    artifacts.extend(
-        evidence.reference for item in request.approvals for evidence in item.evidence
-    )
+    artifacts.extend(evidence.reference for item in request.approvals for evidence in item.evidence)
     artifacts.extend(
         evidence.reference
         for item in request.post_release_obligations
