@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "b27f0bff",
+  "base_commit": "24fa5a10",
   "pipeline_commit": "depth/m20-replay-integration",
   "source_fixture": {
     "study": "PDC000204",
@@ -70,31 +70,31 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "551af4d49ad995b5e8c2614e5964d509cdc3d2c9492c47d166caae70c680bcbc",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 477,
+    "focused_tests": 478,
     "coverage": {
-      "statements": 3812,
-      "missed_statements": 132,
-      "branches": 1582,
+      "statements": 3816,
+      "missed_statements": 137,
+      "branches": 1584,
       "partial_branches": 125,
-      "percent": 95.03151649981461,
+      "percent": 95.03703703703704,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3905140,
+      "bytes": 3906083,
       "members": 1991,
-      "sha256": "d0c238d273f76b69255772290504183320d620def570d9d84f5010937ff7d946"
+      "sha256": "1c03900960ac734446a9954641ee4f49f408b63e74fe2ce3fa11f2acf8e45d38"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4631112,
+      "bytes": 4633401,
       "members": 4664,
-      "sha256": "dde16ae5b65bef0f520ee0b476ae2b0fb79be0ec71819390b85e7cec90a01a91"
+      "sha256": "19573d931e8f874f56bb9cdc88c5efb716f425b59fcd96d7f0445c1e5b684a57"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "d0c238d273f76b69255772290504183320d620def570d9d84f5010937ff7d946",
-      "sdist": "dde16ae5b65bef0f520ee0b476ae2b0fb79be0ec71819390b85e7cec90a01a91"
+      "wheel": "1c03900960ac734446a9954641ee4f49f408b63e74fe2ce3fa11f2acf8e45d38",
+      "sdist": "19573d931e8f874f56bb9cdc88c5efb716f425b59fcd96d7f0445c1e5b684a57"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
