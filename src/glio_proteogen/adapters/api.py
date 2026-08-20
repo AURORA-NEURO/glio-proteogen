@@ -10,6 +10,7 @@ from typing import Annotated, Final, cast
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.adapters import m1901 as m1901_adapter
@@ -2675,8 +2676,17 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         m2003_adapter,
         m2004_adapter,
     ):
-        app.include_router(adapter.app.router)
-    app.include_router(m2005_adapter.create_app().router)
+        # ``FastAPI.app.router`` is a Starlette ``Router`` rather than the
+        # ``APIRouter`` accepted by ``include_router``. Passing it there
+        # silently registers only an empty placeholder route. Reuse the
+        # already-validated APIRoute objects so the canonical app exposes the
+        # same strict handlers as each standalone adapter.
+        app.router.routes.extend(
+            route for route in adapter.app.routes if isinstance(route, APIRoute)
+        )
+    app.router.routes.extend(
+        route for route in m2005_adapter.create_app().routes if isinstance(route, APIRoute)
+    )
 
     @app.exception_handler(ProtocolNotFoundError)
     def not_found_handler(_request: Request, error: ProtocolNotFoundError) -> JSONResponse:

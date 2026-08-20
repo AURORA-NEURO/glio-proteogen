@@ -70,8 +70,17 @@ def _route_paths(app: object) -> set[str]:
 
 def test_central_surfaces_register_every_implemented_late_adapter(tmp_path: Path) -> None:
     api = create_app(tmp_path / "events.sqlite")
-    route_paths = _route_paths(api)
-    assert route_paths >= _LATE_MODULE_ROUTES
+    # Registration must be direct on the canonical FastAPI app. A nested
+    # Starlette Router can look present while contributing no executable
+    # FastAPI operations, so assert the actual route table as well as the
+    # recursive inventory used for diagnostics.
+    direct_paths = {
+        route.path
+        for route in api.routes
+        if isinstance(getattr(route, "path", None), str) and route.path in _LATE_MODULE_ROUTES
+    }
+    assert direct_paths >= _LATE_MODULE_ROUTES
+    assert _route_paths(api) >= _LATE_MODULE_ROUTES
 
     runner = CliRunner()
     for group in sorted(_LATE_CLI_GROUPS):
