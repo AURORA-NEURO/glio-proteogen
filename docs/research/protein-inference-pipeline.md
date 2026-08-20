@@ -41,8 +41,9 @@ one deterministic, auditable path:
    cannot disappear from the error estimate. If the winner table contains no decoy or
    collision winner, there is no empirical error estimate: target q-values are `null` and
    peptide/group acceptance abstains. Both peptide- and group-FDR boundaries reject PSMs with
-   zero matched fragments before competition; an unobserved decoy count is never treated as
-   zero FDR. PSMs are accepted only at the caller-declared q-value threshold.
+   zero matched fragments or ambiguous accession identity before competition; an unobserved
+   decoy count is never treated as zero FDR. PSMs are accepted only at the caller-declared
+   q-value threshold.
 7. Resolve protein-group candidates from the scored PSMs, including target, decoy, and
    mixed target/decoy collision evidence. Duplicate contenders for one spectrum are reduced to
    one deterministic winner for scoring, while a canonical digest of every contender remains in

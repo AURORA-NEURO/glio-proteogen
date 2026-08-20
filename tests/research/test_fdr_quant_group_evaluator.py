@@ -58,6 +58,23 @@ def test_fdr_boundaries_reject_zero_fragment_evidence() -> None:
         infer_protein_group_candidates((zero_ion,), q_value_threshold=0.01)
 
 
+@pytest.mark.parametrize(
+    ("accessions", "message"),
+    [
+        ((" DECOY_P1",), "bounded opaque"),
+        (("P1", "P1"), "must be unique"),
+    ],
+)
+def test_fdr_boundaries_reject_ambiguous_accession_identity(
+    accessions: tuple[str, ...], message: str
+) -> None:
+    malformed = Psm("scan=identity", "PEPTIDER", accessions, 5.0, 3, decoy=False)
+    with pytest.raises(ValueError, match=message):
+        target_decoy_qvalues((malformed,))
+    with pytest.raises(ValueError, match=message):
+        infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
+
+
 def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:
     candidates, summary = infer_protein_group_candidates(
         (

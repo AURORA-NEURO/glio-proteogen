@@ -209,20 +209,40 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
 
     if not isinstance(psm, Psm):
         raise TypeError("candidate must be a Psm")
-    if not isinstance(psm.spectrum_id, str) or not psm.spectrum_id:
-        raise ValueError("PSM spectrum_id must be a non-empty string")
-    if not isinstance(psm.peptide, str) or not psm.peptide:
-        raise ValueError("PSM peptide must be a non-empty string")
-    if not isinstance(psm.protein_accessions, tuple) or not psm.protein_accessions:
+    if (
+        type(psm.spectrum_id) is not str
+        or not psm.spectrum_id
+        or len(psm.spectrum_id) > 256
+        or psm.spectrum_id != psm.spectrum_id.strip()
+        or any(character.isspace() or ord(character) < 32 for character in psm.spectrum_id)
+    ):
+        raise ValueError("PSM spectrum_id must be a bounded opaque string")
+    if (
+        type(psm.peptide) is not str
+        or not psm.peptide
+        or len(psm.peptide) > 256
+        or any(character.isspace() or ord(character) < 32 for character in psm.peptide)
+    ):
+        raise ValueError("PSM peptide must be a bounded non-whitespace string")
+    if type(psm.protein_accessions) is not tuple or not psm.protein_accessions:
         raise ValueError("PSM must declare at least one protein accession")
-    if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
-        raise ValueError("PSM protein accessions must be non-empty strings")
+    if any(
+        type(accession) is not str
+        or not accession
+        or len(accession) > 256
+        or accession != accession.strip()
+        or any(character.isspace() or ord(character) < 32 for character in accession)
+        for accession in psm.protein_accessions
+    ):
+        raise ValueError("PSM protein accessions must be bounded opaque strings")
+    if len(set(psm.protein_accessions)) != len(psm.protein_accessions):
+        raise ValueError("PSM protein accessions must be unique")
     if type(psm.matched_ions) is not int or psm.matched_ions < 1:
         raise ValueError("PSM matched_ions must be a positive integer")
     if type(psm.decoy) is not bool or type(psm.target_decoy_collision) is not bool:
         raise ValueError("PSM target/decoy flags must be boolean")
     if not _is_finite_real(psm.score) or psm.score < 0:
-        raise ValueError("PSM score must be finite and non-negative")
+        raise ValueError("PSM scores must be finite and non-negative")
     if not _is_finite_real(psm.matched_intensity) or psm.matched_intensity < 0:
         raise ValueError("PSM matched intensity must be finite and non-negative")
     if not _is_finite_real(psm.mean_fragment_error_da) or psm.mean_fragment_error_da < 0:
