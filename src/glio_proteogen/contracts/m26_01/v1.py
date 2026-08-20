@@ -135,6 +135,31 @@ class RegistryHistoryEvent(FrozenModel):
         return self
 
 
+def _validate_history_chain(
+    entries: tuple[RegistryEntry, ...], history: tuple[RegistryHistoryEvent, ...]
+) -> None:
+    """Require each append-only event chain to preserve prior-digest continuity."""
+
+    entries_by_id = {entry.entry_id: entry for entry in entries}
+    last_digest: dict[str, Sha256Digest] = {}
+    for event in history:
+        if event.entry_id not in entries_by_id:
+            raise ValueError("registry history references an unknown entry")
+        prior = last_digest.get(event.entry_id)
+        if event.event_type is RegistryEventType.REGISTER:
+            if prior is not None:
+                raise ValueError("registry history cannot register an entry more than once")
+        elif prior is None:
+            raise ValueError("registry transitions require a preceding registration event")
+        elif event.prior_digest != prior:
+            raise ValueError("registry transition prior digest must match the preceding event")
+        last_digest[event.entry_id] = event.new_digest
+
+    known = set(entries_by_id)
+    if set(last_digest) != known:
+        raise ValueError("registry history must cover every registered entry")
+
+
 class ConfigurationBinding(FrozenModel):
     """A typed registry entry selected by an active configuration."""
 
@@ -194,8 +219,7 @@ class RegistryRecord(FrozenModel):
             raise ValueError("registry history references an unknown entry")
         if not any(item.event_type is RegistryEventType.REGISTER for item in self.history):
             raise ValueError("registry history must contain a registration event")
-        if {item.entry_id for item in self.history} != known:
-            raise ValueError("registry history must cover every registered entry")
+        _validate_history_chain(self.entries, self.history)
         return self
 
 
@@ -233,6 +257,7 @@ class RegisterProteinSubtypeRegistryRequest(FrozenModel):
         known = set(entry_ids)
         if any(item.entry_id not in known for item in self.history):
             raise ValueError("request history references an unknown entry")
+        _validate_history_chain(self.entries, self.history)
         if any(item.entry_id not in known for item in self.active_configuration.bindings):
             raise ValueError("active configuration references an unknown entry")
         entries_by_id = {item.entry_id: item for item in self.entries}

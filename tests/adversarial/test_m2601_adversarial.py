@@ -14,6 +14,8 @@ from typer.testing import CliRunner
 from glio_proteogen.contracts.m26_01 import (
     ActiveConfiguration,
     RegistryEntryStatus,
+    RegistryEventType,
+    RegistryHistoryEvent,
     RegistryRecord,
     RegistryStatus,
     canonical_request_digest,
@@ -118,6 +120,45 @@ def test_contract_rejects_duplicate_configuration_ids_and_history_events() -> No
             version=request.registry_version,
             entries=request.entries,
             history=(event, *request.history[1:]),
+            lock_digest=sha256_digest(request.entries),
+        )
+
+
+def test_history_rejects_rebound_transition_digest() -> None:
+    request = _request()
+    register = request.history[0]
+    transition = RegistryHistoryEvent(
+        event_id="m2601.event.supersede." + register.entry_id,
+        entry_id=register.entry_id,
+        event_type=RegistryEventType.SUPERSEDE,
+        prior_digest=register.new_digest,
+        new_digest=register.new_digest,
+        actor_id=register.actor_id,
+        occurred_at=register.occurred_at,
+        reason="reaffirm current registry digest",
+        evidence=register.evidence,
+    )
+    history = (register, transition, *request.history[1:])
+    RegistryRecord(
+        registry_id=request.registry_id,
+        version=request.registry_version,
+        entries=request.entries,
+        history=history,
+        lock_digest=sha256_digest(history),
+    )
+    forged = transition.model_copy(update={"prior_digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValidationError, match="prior digest must match"):
+        type(request).model_validate(
+            request.model_copy(
+                update={"history": (register, forged, *request.history[1:])}
+            ).model_dump()
+        )
+    with pytest.raises(ValidationError, match="prior digest must match"):
+        RegistryRecord(
+            registry_id=request.registry_id,
+            version=request.registry_version,
+            entries=request.entries,
+            history=(register, forged, *request.history[1:]),
             lock_digest=sha256_digest(request.entries),
         )
 
