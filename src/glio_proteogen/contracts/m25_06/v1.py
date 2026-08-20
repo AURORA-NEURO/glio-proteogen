@@ -267,6 +267,10 @@ class ProteotypeRobustnessChallengeResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported robustness surface")
+            if self.robustness_surface.scenarios != self.request.scenarios:
+                raise ValueError("evaluated surface must bind exact request scenarios")
+            if self.robustness_surface.configuration != self.request.configuration:
+                raise ValueError("evaluated surface must bind exact request configuration")
         elif (
             self.robustness_surface is not None
             or self.abstention_reason is None
