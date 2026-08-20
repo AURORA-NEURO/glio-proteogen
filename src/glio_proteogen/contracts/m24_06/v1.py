@@ -227,6 +227,8 @@ class ChallengeBiomarkerPanelRobustnessRequest(FrozenModel):
     def request_is_bound(self) -> ChallengeBiomarkerPanelRobustnessRequest:
         if self.upstream_result.media_type != M2406_M2405_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-05 biomarker panel result")
+        if self.context.request_id != self.request_id:
+            raise ValueError("execution context must bind the request identifier")
         scenario_ids = tuple(item.scenario_id for item in self.scenarios)
         if len(scenario_ids) != len(set(scenario_ids)):
             raise ValueError("request scenario ids must be unique")
@@ -269,6 +271,11 @@ class BiomarkerPanelRobustnessChallengeResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported robustness surface")
+            if (
+                self.robustness_surface.scenarios != self.request.scenarios
+                or self.robustness_surface.configuration != self.request.configuration
+            ):
+                raise ValueError("evaluated robustness surface must bind exact request challenges")
         elif (
             self.robustness_surface is not None
             or self.abstention_reason is None
