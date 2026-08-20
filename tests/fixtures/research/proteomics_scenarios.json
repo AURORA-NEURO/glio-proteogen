@@ -21,6 +21,7 @@
         "input_psms": 1,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -39,7 +40,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "a04e68baaf618baf4907620a706d3f75ad06d6c4877229923c14d157b2b800a4",
+      "expected_result_digest": "d191bbbfdc933c3debfdee3ece6766d94d55d31016ca46b8d4b9e72a84c20115",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -48,7 +49,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "87c0878ecd1b754a3cdb0672159b180ce18898447817a9e6326cb2945a78becf",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "e17fe31700ac2aa407bd28e03b1ae9958073572b2f5795aa3a6062cf07f959cd",
         "candidate_psms": 1,
         "competition_spectra": 1,
         "contested_spectra": 0,
@@ -56,6 +58,9 @@
         "max_fragment_error_da": 0.0005254659999991418,
         "max_precursor_error_ppm": 0.0,
         "mean_fragment_error_da": 0.0005254659999991418,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -89,11 +94,14 @@
           "candidate_count": 1,
           "candidate_digest": "fca228961c8dcdf25d2fb4e89bb7113bfe78c3f2ce091e15b0b08a8f30175ac9",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 1,
+          "winner_collision": false,
+          "winner_decoy": false,
           "winner_score": 1.5342417579452687
         }
       ],
@@ -118,6 +126,7 @@
         "input_psms": 1,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -136,7 +145,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "abb7061f12e53bd362ef2a5449b2d44f2c1884b44014ce885c80c66690565e6b",
+      "expected_result_digest": "3c7b3a2707fa83d3c012b1a263644cb5661d61ebf275bb62dcdd88518bfb3221",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -145,7 +154,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "fe06fccbd4955150c7408c6e40775ad4c995fa2d3c2eb7890141f3cb7e72c89c",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "199a215babcbdf7fe20d491bbc5cb1973e013a54383cf90fc033b7daa374f65e",
         "candidate_psms": 1,
         "competition_spectra": 1,
         "contested_spectra": 0,
@@ -153,6 +163,9 @@
         "max_fragment_error_da": 0.0005254659999991418,
         "max_precursor_error_ppm": 0.0,
         "mean_fragment_error_da": 0.0005254659999991418,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -186,11 +199,14 @@
           "candidate_count": 1,
           "candidate_digest": "7be2f0b0f30c3ae8935d33d17a8273332d71d2e4db36a63c9a3a6208489d8dd4",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 1,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 0,
+          "winner_collision": false,
+          "winner_decoy": true,
           "winner_score": 1.5342417579452687
         }
       ],
@@ -218,6 +234,7 @@
         "input_psms": 1,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -237,7 +254,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "ef1062dae5c9b32c0d8574a7e8c4036f0988134c83c296c0d5ac76cd9969b939",
+      "expected_result_digest": "cb072ba97f59cb6d972d4914c8fbdcbda1a0acb30467647a8b86463673cc4b40",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -246,7 +263,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "bd9183c2b7da707547988781c4e7301f2ec753957fcfba1fed135c6af409de1c",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "0989083f10cebb39df5d76b75337e05759744bcccba25295bf64238e396bdf85",
         "candidate_psms": 1,
         "competition_spectra": 1,
         "contested_spectra": 0,
@@ -254,6 +272,9 @@
         "max_fragment_error_da": 0.0005254659999991418,
         "max_precursor_error_ppm": 0.0,
         "mean_fragment_error_da": 0.0005254659999991418,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -287,11 +308,14 @@
           "candidate_count": 1,
           "candidate_digest": "60a159d5fda33ee7d7564ce1ae7c6969dd51b89a3b4e2da276e3ecbf8ff7f559",
           "collision_candidates": 1,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 0,
+          "winner_collision": true,
+          "winner_decoy": false,
           "winner_score": 1.5342417579452687
         }
       ],
@@ -317,6 +341,7 @@
         "input_psms": 0,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -326,11 +351,12 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "3ce35fb6e96e1703fe6b7edde83a4275caf0792d85876103e49b51c287aaed04",
+      "expected_result_digest": "52f24f12fc767be73575acacbd6f0707ca49f4919a19ec221edbd605ca339f43",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
+        "ambiguous_precursor_ms2": 0,
         "candidate_competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "candidate_psms": 0,
         "competition_spectra": 0,
@@ -339,6 +365,9 @@
         "max_fragment_error_da": null,
         "max_precursor_error_ppm": null,
         "mean_fragment_error_da": null,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -391,6 +420,7 @@
         "input_psms": 0,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 0,
         "shared_only_candidates": 0,
@@ -400,11 +430,12 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "32d0457b2287afba453da64b6afe68ab3647a60c89b011c67dde46009e9ec228",
+      "expected_result_digest": "f8332f675a8227ceba03191331782dad60d111ab895019ee2f9874876a377d89",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
+        "ambiguous_precursor_ms2": 0,
         "candidate_competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "candidate_psms": 0,
         "competition_spectra": 0,
@@ -413,6 +444,9 @@
         "max_fragment_error_da": null,
         "max_precursor_error_ppm": null,
         "mean_fragment_error_da": null,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -484,6 +518,7 @@
         "input_psms": 1,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 1,
@@ -503,7 +538,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "fcb263d5a0d9d0b6f2297446028baa4f025790bd5c5f8677fc8c36448320dc10",
+      "expected_result_digest": "d0ab38a6f03635bfa17297338cfd1c627cc846297d01816638b588bc00368a35",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -512,7 +547,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "ab014dafbe5f05f76b583ec72100a81fa68059a75f4cd8a4d2371869357456e5",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "66e7895ab39a0f0d519c39d46f62bfd5f34794647f18e8bc73421ffd45552499",
         "candidate_psms": 1,
         "competition_spectra": 1,
         "contested_spectra": 0,
@@ -520,6 +556,9 @@
         "max_fragment_error_da": 0.0005254659999991418,
         "max_precursor_error_ppm": 0.0,
         "mean_fragment_error_da": 0.0005254659999991418,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -553,11 +592,14 @@
           "candidate_count": 1,
           "candidate_digest": "24a5e7fdac02e3ca8639c71354d880e231470e111a8ee62009cc7434031af605",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 1,
+          "winner_collision": false,
+          "winner_decoy": false,
           "winner_score": 1.5342417579452687
         }
       ],
@@ -583,6 +625,7 @@
         "input_psms": 1,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 1,
         "shared_only_candidates": 0,
@@ -601,7 +644,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "ced7ef4027ad2da1888f3768d6f6bb81ba34a54df19074144e8f21464c8717d4",
+      "expected_result_digest": "16d293272abde60dd4581f87b9217e959fb67ffe700b6fccdd2dc1307550b588",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -610,7 +653,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "87c0878ecd1b754a3cdb0672159b180ce18898447817a9e6326cb2945a78becf",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "e17fe31700ac2aa407bd28e03b1ae9958073572b2f5795aa3a6062cf07f959cd",
         "candidate_psms": 1,
         "competition_spectra": 1,
         "contested_spectra": 0,
@@ -618,6 +662,9 @@
         "max_fragment_error_da": 0.0005254659999991418,
         "max_precursor_error_ppm": 0.0,
         "mean_fragment_error_da": 0.0005254659999991418,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -651,11 +698,14 @@
           "candidate_count": 1,
           "candidate_digest": "fca228961c8dcdf25d2fb4e89bb7113bfe78c3f2ce091e15b0b08a8f30175ac9",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 1,
+          "winner_collision": false,
+          "winner_decoy": false,
           "winner_score": 1.5342417579452687
         }
       ],
@@ -682,6 +732,7 @@
         "input_psms": 2,
         "max_accepted_q_value": null,
         "method": "max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        "partially_unique_candidates": 0,
         "q_value_threshold": 0.01,
         "target_candidates": 2,
         "shared_only_candidates": 0,
@@ -708,7 +759,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "94b9a66cb0ad22cfd9eb12772224a7540734220ad0f9755caae04a475f3c07eb",
+      "expected_result_digest": "60f878406b3fd9655cb1d7e5603afd4fbca5ec722535aa43eae493e2a62f0f88",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
@@ -719,7 +770,8 @@
       ],
       "expected_peptide_intensities": [],
       "expected_search_diagnostics": {
-        "candidate_competition_digest": "740262c3f7b4e8cccbe6c03694310e2a90268d090efccb8f3cec725e4d15b06b",
+        "ambiguous_precursor_ms2": 0,
+        "candidate_competition_digest": "fe6d36dff0562f16ae45549e063dac179493123e6d62ed062f1cb8918da872fc",
         "candidate_psms": 2,
         "competition_spectra": 2,
         "contested_spectra": 0,
@@ -727,6 +779,9 @@
         "max_fragment_error_da": 1.8947806286936004e-14,
         "max_precursor_error_ppm": 1.224463819580059e-10,
         "mean_fragment_error_da": 1.6579330501069002e-14,
+        "missing_precursor_ms2": 0,
+        "precursor_abstention_ms2": 0,
+        "precursor_policy_version": "mzml-selected-ion-required-v1",
         "precursor_tolerance_ppm": 20
       },
       "expected_quantification_receipt": {
@@ -760,22 +815,28 @@
           "candidate_count": 1,
           "candidate_digest": "b4c4f27f3b19c2faa2067cdc23ec443edcda973a7e6c336cdeeca21b173430cd",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=1",
           "target_candidates": 1,
+          "winner_collision": false,
+          "winner_decoy": false,
           "winner_score": 4.6035674514745
         },
         {
           "candidate_count": 1,
           "candidate_digest": "a758610f4fa30df1a79aba500761ed9388b2d0b1dcfb9b1eeab59cd3ef659dd3",
           "collision_candidates": 0,
+          "decoy_prefix": "DECOY_",
           "decoy_candidates": 0,
           "runner_up_score": null,
           "score_margin": null,
           "spectrum_id": "scan=2",
           "target_candidates": 1,
+          "winner_collision": false,
+          "winner_decoy": false,
           "winner_score": 4.521277658511313
         }
       ],
