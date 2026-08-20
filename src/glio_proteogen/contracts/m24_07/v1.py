@@ -20,6 +20,8 @@ from glio_proteogen.contracts.m24_07.canonical import (
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
+    ControlDecisionRecord,
+    ControlRole,
     EvidenceReference,
     ExecutionContext,
     FrozenModel,
@@ -260,6 +262,72 @@ class BiomarkerPanelHumanFactorsResult(FrozenModel):
     limitations: tuple[Limitation, ...] = Field(min_length=1, max_length=32)
     human_review_required: Literal[True] = True
 
+    def _provenance_is_closed(self) -> None:
+        references = self.request.context.references
+        expected_controls = tuple(
+            ControlDecisionRecord(
+                role=role,
+                decision_id=decision.decision_id,
+                state=decision.state.value,
+                policy_version=decision.policy_version,
+                evidence_digest=decision.evidence.digest,
+                subject_digest=getattr(decision, "binding_digest", None),
+            )
+            for role, decision in (
+                (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
+                (ControlRole.IDENTITY_LINEAGE, references.identity_lineage),
+                (ControlRole.PROVENANCE, references.provenance),
+                (ControlRole.CONSENT, references.consent),
+                (ControlRole.QUALITY, references.quality),
+                (ControlRole.SUPPORT, references.support),
+                (ControlRole.INTENDED_USE, references.intended_use),
+            )
+        )
+        provenance_bindings = (
+            (
+                self.provenance.activity_id,
+                "m2407.activity." + self.request_digest.removeprefix("sha256:"),
+                "activity identity",
+            ),
+            (self.provenance.actor_id, self.request.context.actor_id, "actor identity"),
+            (self.provenance.module_id, M2407_MODULE_ID, "module identity"),
+            (self.provenance.module_version, M2407_CONTRACT_VERSION, "module version"),
+            (self.provenance.generated_at, self.request.context.occurred_at, "generated time"),
+            (
+                self.provenance.input_digests,
+                (
+                    self.request.upstream_result.digest,
+                    *(item.digest for item in self.request.source_artifacts),
+                ),
+                "input digests",
+            ),
+            (
+                self.provenance.configuration_digest,
+                canonical_request_digest(self.request.configuration),
+                "configuration digest",
+            ),
+            (
+                self.provenance.consent_decision_id,
+                references.consent.decision_id,
+                "consent decision",
+            ),
+            (self.provenance.consent_state, references.consent.state, "consent state"),
+            (
+                self.provenance.consent_policy_version,
+                references.consent.policy_version,
+                "consent policy version",
+            ),
+            (
+                self.provenance.consent_evidence_digest,
+                references.consent.evidence.digest,
+                "consent evidence",
+            ),
+            (self.provenance.control_decisions, expected_controls, "control decisions"),
+        )
+        for actual, expected, label in provenance_bindings:
+            if actual != expected:
+                raise ValueError(f"M24-07 provenance {label} does not bind the request")
+
     @model_validator(mode="after")
     def result_is_closed(self) -> BiomarkerPanelHumanFactorsResult:
         if self.result_id != result_identifier(self.request):
@@ -269,6 +337,7 @@ class BiomarkerPanelHumanFactorsResult(FrozenModel):
             raise ValueError("finding ids must be unique")
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        self._provenance_is_closed()
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None

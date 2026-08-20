@@ -240,6 +240,33 @@ def test_result_closure_rejects_identity_provenance_and_duplicate_finding_forger
         )
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["activity_id", "actor_id", "input_digests", "configuration_digest", "control_decisions"],
+)
+def test_result_contract_rejects_self_rehashed_provenance_forgery(field: str) -> None:
+    result = m2407.M2407Service().evaluate(fixture_request())
+    forged_values: dict[str, object] = {
+        "activity_id": "m2407.activity.forged",
+        "actor_id": "actor:forged",
+        "input_digests": ("sha256:" + "f" * 64,),
+        "configuration_digest": "sha256:" + "e" * 64,
+        "control_decisions": (
+            result.provenance.control_decisions[0].model_copy(
+                update={"decision_id": "m2407.control.forged"}
+            ),
+            *result.provenance.control_decisions[1:],
+        ),
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="M24-07 provenance"):
+        BiomarkerPanelHumanFactorsResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_replay_rejects_self_rehashed_report_and_evidence_forgery() -> None:
     service = m2407.M2407Service()
     result = service.evaluate(fixture_request())
