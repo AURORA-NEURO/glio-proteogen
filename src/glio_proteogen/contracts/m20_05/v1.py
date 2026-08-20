@@ -222,11 +222,17 @@ class PresentProteinSubtypeHumanReviewWorkspaceRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact ids must be unique")
-        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
-        if (
+        artifact_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
+        aligned_key = (
             self.aligned_evidence_bundle.artifact_id,
+            self.aligned_evidence_bundle.version,
             self.aligned_evidence_bundle.digest,
-        ) not in set(artifact_keys):
+            self.aligned_evidence_bundle.media_type,
+        )
+        if aligned_key not in set(artifact_keys):
             raise ValueError("source artifacts must include the aligned evidence bundle")
         return self
 

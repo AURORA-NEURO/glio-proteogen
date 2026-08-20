@@ -365,6 +365,27 @@ def test_request_binds_context_items_and_aligned_source() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", sha256_digest("m2005:forged-aligned")),
+        ("media_type", "application/x-forged-aligned"),
+    ],
+)
+def test_request_requires_full_aligned_artifact_identity(field: str, value: str) -> None:
+    request = _request()
+    forged_source = request.aligned_evidence_bundle.model_copy(update={field: value})
+
+    with pytest.raises(ValueError, match="aligned evidence bundle"):
+        PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
+            request.model_copy(
+                update={"source_artifacts": (forged_source, *request.source_artifacts[1:])}
+            ),
+            strict=True,
+        )
+
+
 def test_request_rejects_context_limits_views_and_duplicate_sources() -> None:
     request = _request()
     with pytest.raises(ValidationError, match="context must bind"):
