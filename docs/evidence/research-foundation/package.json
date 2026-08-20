@@ -66,33 +66,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "66be16db9fa6a655577e5f15772ed6dbec607da950cb97449bcb99f483e4c528",
+    "fixture_sha256": "2d78c8a26a9987a20af7f83ca6a1f7f0dbcf4cace22fc9bda096e512feeda096",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 422,
+    "focused_tests": 451,
       "coverage": {
-        "statements": 3642,
-        "missed_statements": 123,
-        "branches": 1444,
-      "partial_branches": 112,
-      "percent": 95.26150216279984,
+        "statements": 3812,
+        "missed_statements": 134,
+        "branches": 1562,
+      "partial_branches": 121,
+      "percent": 95.10606624488277,
       "fail_under": 95
     },
       "wheel": {
         "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3991979,
+                            "bytes": 3994691,
       "members": 2023,
-        "sha256": "8eb944fb0c9ba2f2acc05ec6a20f1151893b10cc9babf556e3d0625dfee34a8d"
+                            "sha256": "9c4a9b80e6bfec8d226449556b5856c561181b495129b74c3f409518a927f939"
       },
       "sdist": {
         "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4727624,
-        "members": 4744,
-        "sha256": "42f61e9b6c61636de5b5359d56d551e80f973e091f2bfd972cd1b946acf3aca0"
+                            "bytes": 4736005,
+                            "members": 4745,
+                            "sha256": "f3d727a11cd3f96d12e5c9f47df6f1620adfc3dc53fd638a26cb0d3151e6ae31"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "8eb944fb0c9ba2f2acc05ec6a20f1151893b10cc9babf556e3d0625dfee34a8d",
-      "sdist": "42f61e9b6c61636de5b5359d56d551e80f973e091f2bfd972cd1b946acf3aca0"
+      "wheel": "9c4a9b80e6bfec8d226449556b5856c561181b495129b74c3f409518a927f939",
+      "sdist": "f3d727a11cd3f96d12e5c9f47df6f1620adfc3dc53fd638a26cb0d3151e6ae31"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
