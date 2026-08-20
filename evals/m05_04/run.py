@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Any, Final, cast
 from unittest.mock import patch
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ValidationError
 from typer.testing import CliRunner

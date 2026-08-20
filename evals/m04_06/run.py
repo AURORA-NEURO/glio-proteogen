@@ -12,6 +12,11 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, TypedDict, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 

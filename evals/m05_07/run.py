@@ -13,6 +13,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal, TypedDict, cast
 
+if __package__ in {None, ""}:
+    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    if str(_PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_PROJECT_ROOT))
+
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m05_07 import (
