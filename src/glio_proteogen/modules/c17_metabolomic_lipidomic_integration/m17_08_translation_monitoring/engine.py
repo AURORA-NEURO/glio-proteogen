@@ -406,6 +406,9 @@ class M1708Engine:
             raise M1708ReplayError("M17-08 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1708ReplayError("M17-08 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adapt(result.request)
+        if result.model_dump(mode="json") != expected.model_dump(mode="json"):
+            raise M1708ReplayError("M17-08 semantic replay mismatch")  # noqa: TRY003
         return result
 
 
