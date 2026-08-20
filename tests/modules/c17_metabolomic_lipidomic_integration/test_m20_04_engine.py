@@ -12,7 +12,13 @@ from glio_proteogen.contracts.m20_04 import (
     PolicyDecisionStatus,
 )
 from glio_proteogen.contracts.m20_04.canonical import result_payload_digest
-from glio_proteogen.kernel.models import Limitation, SupportStatus, UpstreamDecisionState
+from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import (
+    EvidenceReference,
+    Limitation,
+    SupportStatus,
+    UpstreamDecisionState,
+)
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m20_04_intended_use_adapter as m2004,
 )
@@ -103,6 +109,40 @@ def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
     mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
     with pytest.raises(m2004.M2004ReplayError, match="semantic replay"):
         engine.replay(mutated)
+
+
+def test_provenance_binds_nested_registration_evidence_artifact_identity() -> None:
+    request = _request()
+    base_evidence = request.registration.evidence[0]
+
+    def with_digest(label: str) -> EvidenceReference:
+        reference = base_evidence.reference.model_copy(
+            update={"artifact_id": f"artifact.m2004.{label}", "digest": sha256_digest(label)}
+        )
+        return base_evidence.model_copy(update={"reference": reference})
+
+    registration = request.registration.model_copy(
+        update={
+            "evidence": (with_digest("registration"),),
+            "claim_ceiling": request.registration.claim_ceiling.model_copy(
+                update={"evidence": (with_digest("claim-ceiling"),)}
+            ),
+            "display_semantics": request.registration.display_semantics.model_copy(
+                update={"evidence": (with_digest("display-semantics"),)}
+            ),
+        }
+    )
+    result = m2004.M2004Engine().adapt(request.model_copy(update={"registration": registration}))
+    input_digests = set(result.provenance.input_digests)
+
+    assert all(
+        evidence.reference.digest in input_digests
+        for evidence in (
+            registration.evidence[0],
+            registration.claim_ceiling.evidence[0],
+            registration.display_semantics.evidence[0],
+        )
+    )
 
 
 def test_service_and_plugin_keep_same_typed_boundary() -> None:

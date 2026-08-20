@@ -24,7 +24,8 @@ Safety boundaries:
   human review; abstention never becomes a negative biological conclusion.
 - Seven caller-declared controls are checked before policy or source traversal.
 - All seven uncertainty dimensions are present as explicit not-estimable states;
-  provenance records source digests and every control decision.
+  provenance records source, registration, claim-ceiling and display-semantics
+  evidence digests plus every control decision.
 
 The service, plugin, FastAPI adapter and Typer adapter share one strict parse-once
 request path and canonical replay digest. The evaluator executes eight scenarios and
