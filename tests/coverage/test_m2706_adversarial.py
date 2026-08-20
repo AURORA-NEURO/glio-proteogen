@@ -304,6 +304,33 @@ def test_result_rejects_self_rehashed_request_subject_mutations() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "field",
+    ["activity_id", "actor_id", "input_digests", "configuration_digest", "control_decisions"],
+)
+def test_result_rejects_self_rehashed_provenance_mutations(field: str) -> None:
+    result = M2706Service().emit(build_request())
+    forged_values: dict[str, object] = {
+        "activity_id": "m2706.activity.forged",
+        "actor_id": "forged-actor",
+        "input_digests": ("sha256:" + "f" * 64,),
+        "configuration_digest": "sha256:" + "e" * 64,
+        "control_decisions": (
+            result.provenance.control_decisions[0].model_copy(
+                update={"decision_id": "forged-control"}
+            ),
+            *result.provenance.control_decisions[1:],
+        ),
+    }
+    forged_provenance = result.provenance.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"provenance": forged_provenance})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="provenance"):
+        ComplexActivitySecurityAccessResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_api_parse_and_validate_error_paths() -> None:
     client = TestClient(create_app())
     assert (
