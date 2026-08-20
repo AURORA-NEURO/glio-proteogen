@@ -22,7 +22,10 @@ from glio_proteogen.contracts.m26_08 import (
     RetirementStatus,
     RetireProteinSubtypeServiceRequest,
 )
-from glio_proteogen.contracts.m26_08.canonical import canonical_request_digest
+from glio_proteogen.contracts.m26_08.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -331,3 +334,24 @@ def test_result_status_closure_is_enforced() -> None:
                 ),
             }
         )
+
+
+def test_executed_result_rejects_self_rehashed_package_control_mutation() -> None:
+    service = M2608RetirementService()
+    result = service.retire(_request())
+    assert result.package is not None
+    forged_preservation = result.package.preserved_evidence[0].model_copy(
+        update={"retention_class": "forged-retention"}
+    )
+    forged_package = result.package.model_copy(
+        update={
+            "preserved_evidence": (
+                forged_preservation,
+                *result.package.preserved_evidence[1:],
+            )
+        }
+    )
+    forged = result.model_copy(update={"package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="exact request retirement controls"):
+        ProteinSubtypeRetirementResult.model_validate(forged.model_dump(mode="python"), strict=True)
