@@ -395,6 +395,12 @@ def test_engine_presents_all_views_and_preserves_uncertainty_provenance() -> Non
     assert engine.verify(result) == result
 
 
+def test_provenance_binds_every_emitted_evidence_reference() -> None:
+    result = M1905Engine().present(build_request())
+    emitted_evidence_digests = {item.reference.digest for item in result.evidence}
+    assert emitted_evidence_digests.issubset(set(result.provenance.input_digests))
+
+
 def test_engine_abstains_on_abstained_item_without_negative_conversion() -> None:
     result = M1905Engine().present(build_request(item_status=ReviewItemStatus.ABSTAINED))
     assert result.status is WorkspaceStatus.ABSTAINED

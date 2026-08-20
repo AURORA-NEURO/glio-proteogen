@@ -46,6 +46,8 @@ remain human-review work.
   ordering is deterministic and review-visible.
 - Result identity is derived from the canonical request digest. Canonical result bytes bind the
   request, workspace, findings, support, uncertainty, provenance, evidence and limitations.
+- Provenance input identity binds every emitted evidence reference, including policy and all
+  seven authorization-control evidence artifacts.
 - Replay verifies request identity, result identity, payload digest and exact workspace/source
   closure. Tampering raises a typed replay error and never yields a partially trusted result.
 - The service, FastAPI adapter, Typer CLI and strict parse-once plugin share the same schema and

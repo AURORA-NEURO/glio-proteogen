@@ -186,6 +186,7 @@ def _provenance(
     request_digest: str,
 ) -> ProvenanceRecord:
     refs = request.context.references
+    controls = _control_decisions(request)
     input_digests = tuple(
         dict.fromkeys(
             (
@@ -198,6 +199,8 @@ def _provenance(
                     for item in request.review_items
                     for evidence in item.evidence
                 ),
+                *(evidence.reference.digest for evidence in request.policy.configuration.evidence),
+                *(control.evidence_digest for control in controls),
             )
         )
     )
@@ -213,7 +216,7 @@ def _provenance(
         consent_state=refs.consent.state,
         consent_policy_version=refs.consent.policy_version,
         consent_evidence_digest=refs.consent.evidence.digest,
-        control_decisions=_control_decisions(request),
+        control_decisions=controls,
     )
 
 
