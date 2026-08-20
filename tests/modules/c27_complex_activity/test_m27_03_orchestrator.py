@@ -284,6 +284,19 @@ def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
         engine.verify(rehashed)
 
 
+def test_replay_opt_out_cannot_accept_self_rehashed_semantic_mutation() -> None:
+    engine = M2703Engine()
+    result = engine.execute(_request())
+    mutated_support = result.support_decision.model_copy(
+        update={"rationale": "caller-rehashed mutation with replay disabled"}
+    )
+    mutated = result.model_copy(update={"support_decision": mutated_support})
+    rehashed = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+
+    with pytest.raises(M2703ReplayError, match="cannot be disabled"):
+        engine.verify(rehashed, replay=False)
+
+
 def test_fastapi_exposes_schema_and_sanitizes_bad_json() -> None:
     client = TestClient(create_app())
     response = client.get("/v1/modules/M27-03/schemas/request")
