@@ -19,6 +19,9 @@ Safety boundaries:
   benchmark media type and retains the upstream artifact reference.
 - Independent validation, calibration floors, leakage-audit configuration,
   support-domain narrowing, provenance, and evidence remain explicit.
+- Validation and evaluation dimensions must be unique and exactly equal the
+  locked configuration; extra caller records cannot be silently carried into a
+  report whose support-domain closure names a different set.
 - A non-evaluable dimension or a fully narrowed domain abstains without a
   transport report; narrowed dimensions never become an unsupported negative.
 - Seven caller-declared controls are checked before transport material is

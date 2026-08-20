@@ -59,6 +59,34 @@ def test_request_and_report_closures_reject_missing_or_duplicate_dimensions() ->
         TransportabilityReport.model_validate(report.model_copy(update={"evaluations": duplicate}))
 
 
+def test_validation_dimensions_are_unique_and_exactly_configured() -> None:
+    request = _request()
+    duplicate = (*request.validations, request.validations[0])
+    with pytest.raises(ValidationError, match="validation dimensions"):
+        type(request).model_validate(request.model_copy(update={"validations": duplicate}))
+
+    reduced = request.model_copy(
+        update={
+            "configuration": request.configuration.model_copy(
+                update={"required_dimensions": (TransportDimension.SITE,)}
+            )
+        }
+    )
+    with pytest.raises(ValidationError, match="validation dimensions"):
+        type(request).model_validate(reduced)
+
+    result = M2104Engine().evaluate(request)
+    assert result.report is not None
+    with pytest.raises(ValidationError, match="validation dimensions"):
+        TransportabilityReport.model_validate(
+            result.report.model_copy(
+                update={
+                    "validations": (*result.report.validations, result.report.validations[0])
+                }
+            )
+        )
+
+
 def test_supported_and_narrowed_statuses_require_the_declared_floor() -> None:
     supported = _evaluation(TransportDimension.SITE)
     with pytest.raises(ValidationError, match="supported evaluation"):

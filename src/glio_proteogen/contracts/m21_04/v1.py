@@ -196,6 +196,10 @@ class TransportabilityReport(FrozenModel):
         required_dimensions = set(self.configuration.required_dimensions)
         if not required_dimensions <= validation_dims:
             raise ValueError("report must validate every configured transport dimension")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("transport validation dimensions must be unique")
+        if validation_dims != required_dimensions:
+            raise ValueError("report validation dimensions must equal configured dimensions")
         if not required_dimensions <= evaluation_dims:
             raise ValueError("report must evaluate every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
@@ -246,6 +250,10 @@ class EvaluateComplexActivityExternalTransportRequest(FrozenModel):
         required = set(self.configuration.required_dimensions)
         if not required <= validation_dims or not required <= evaluation_dims:
             raise ValueError("request must cover every configured transport dimension")
+        if len(validation_dims) != len(self.validations):
+            raise ValueError("request validation dimensions must be unique")
+        if validation_dims != required:
+            raise ValueError("request validation dimensions must equal configured dimensions")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
         source_keys = tuple(
