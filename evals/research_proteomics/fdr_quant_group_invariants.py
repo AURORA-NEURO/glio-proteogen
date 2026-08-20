@@ -61,6 +61,14 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
         (Psm("shared", "SHARED", ("P1", "P2"), 5.0, 3, decoy=False),),
         q_value_threshold=0.01,
     )
+    partial_unique, partial_summary = infer_protein_group_candidates(
+        (
+            Psm("partial-shared", "SHARED", ("P1", "P2"), 5.0, 3, decoy=False),
+            Psm("partial-unique", "UNIQUE_P2", ("P2",), 4.0, 3, decoy=False),
+            Psm("partial-decoy", "DECOY_P", ("DECOY_P",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
     collision_groups, collision_group_summary = infer_protein_group_candidates(
         (collision, target_low), q_value_threshold=0.01
     )
@@ -160,6 +168,13 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
             shared_summary.shared_only_candidates == 1
             and shared_only[0].identifiability == "shared_only_ambiguous"
             and shared_only[0].acceptance == "abstained"
+        ),
+        "partial_unique_group_abstains": (
+            partial_summary.partially_unique_candidates == 1
+            and next(item for item in partial_unique if item.status == "target").identifiability
+            == "partially_unique_ambiguous"
+            and next(item for item in partial_unique if item.status == "target").acceptance
+            == "abstained"
         ),
         "fixture_provenance_is_bound": bool(request.fasta_source and request.mzml_source),
     }
