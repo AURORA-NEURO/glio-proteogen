@@ -80,9 +80,7 @@ def test_validation_dimensions_are_unique_and_exactly_configured() -> None:
     with pytest.raises(ValidationError, match="validation dimensions"):
         TransportabilityReport.model_validate(
             result.report.model_copy(
-                update={
-                    "validations": (*result.report.validations, result.report.validations[0])
-                }
+                update={"validations": (*result.report.validations, result.report.validations[0])}
             )
         )
 
