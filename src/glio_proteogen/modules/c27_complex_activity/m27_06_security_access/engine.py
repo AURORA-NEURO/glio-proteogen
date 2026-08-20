@@ -122,6 +122,22 @@ def _evidence(
     )
 
 
+def _consent_evidence(
+    request: EvaluateComplexActivitySecurityAccessRequest,
+) -> tuple[EvidenceReference, ...]:
+    """Expose the explicit consent artifact at every access-decision boundary."""
+
+    if request.consent_reference is None:
+        return ()
+    return (
+        EvidenceReference(
+            reference=request.consent_reference,
+            role="evidence",
+            claim="Caller-declared consent artifact bound to the granted context decision.",
+        ),
+    )
+
+
 def _uncertainty() -> UncertaintyProfile:
     def unavailable(dimension: str) -> UncertaintyEstimate:
         return UncertaintyEstimate(
@@ -176,7 +192,11 @@ def _provenance(
         module_id=M2706_MODULE_ID,
         module_version=M2706_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=(
+            request.upstream_result.digest,
+            *((request.consent_reference.digest,) if request.consent_reference is not None else ()),
+            *(artifact.digest for artifact in request.source_artifacts),
+        ),
         configuration_digest=request.upstream_result.digest,
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,
@@ -186,13 +206,16 @@ def _provenance(
     )
 
 
-def _controls(evidence: tuple[EvidenceReference, ...]) -> tuple[SecurityControlCheck, ...]:
+def _controls(
+    evidence: tuple[EvidenceReference, ...],
+    consent_evidence: tuple[EvidenceReference, ...],
+) -> tuple[SecurityControlCheck, ...]:
     return tuple(
         SecurityControlCheck(
             control=control,
             status=ControlStatus.PASSED,
             rationale="Caller-declared security control is present and structurally reviewed.",
-            evidence=evidence,
+            evidence=consent_evidence if control is SecurityControlKind.CONSENT else evidence,
         )
         for control in SecurityControlKind
     )
@@ -216,6 +239,14 @@ class M2706SecurityEngine:
             return self._safe_failure(
                 canonical, request_digest, evidence, "consent reference missing"
             )
+        if canonical.consent_reference != canonical.context.references.consent.evidence:
+            return self._safe_failure(
+                canonical,
+                request_digest,
+                evidence,
+                "consent reference does not match granted consent evidence",
+            )
+        consent_evidence = _consent_evidence(canonical)
         denied = any(
             marker in f"{canonical.principal} {canonical.resource} {canonical.action}".lower()
             for marker in ("deny", "threat")
@@ -247,7 +278,7 @@ class M2706SecurityEngine:
             posture_id="m2706.posture." + canonical.request_id,
             version="1.0.0",
             status=SecurityPostureStatus.CRITICAL if denied else SecurityPostureStatus.COMPLIANT,
-            controls=_controls(evidence),
+            controls=_controls(evidence, consent_evidence),
             findings=findings,
             evidence=evidence,
         )
@@ -261,7 +292,7 @@ class M2706SecurityEngine:
             consent_required=True,
             consent_verified=True,
             reason="Caller-declared consent reference is present and policy evaluation completed.",
-            evidence=evidence,
+            evidence=consent_evidence,
         )
         audit = AuditEvent(
             event_id="m2706.audit." + canonical.request_id,
@@ -271,7 +302,7 @@ class M2706SecurityEngine:
             action=canonical.action,
             decision_state=state,
             event_type="access_decision",
-            evidence=evidence,
+            evidence=consent_evidence,
         )
         payload: dict[str, Any] = {
             "result_id": "m2706.result." + request_digest.removeprefix("sha256:"),

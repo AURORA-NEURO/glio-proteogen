@@ -413,3 +413,32 @@ def test_direct_contract_relational_guards() -> None:
             findings=posture.findings,
             evidence=posture.evidence,
         )
+
+
+def test_consent_reference_must_bind_granted_context_evidence() -> None:
+    request = build_request()
+    consent = request.consent_reference
+    assert consent is not None
+    forged = consent.model_copy(update={"digest": "sha256:" + "f" * 64})
+    result = M2706SecurityEngine().emit(request.model_copy(update={"consent_reference": forged}))
+    assert result.status.value == "abstained"
+    assert result.access_decision is None
+    assert result.safe_failure_report is not None
+    assert result.abstention_reason == "consent reference does not match granted consent evidence"
+
+
+def test_access_records_expose_bound_consent_evidence_and_input_digests() -> None:
+    request = build_request()
+    result = M2706Service().emit(request)
+    consent = request.context.references.consent.evidence
+    assert result.access_decision is not None
+    assert result.access_decision.evidence[0].reference == consent
+    assert result.audit_event is not None
+    assert result.audit_event.evidence[0].reference == consent
+    assert result.security_posture is not None
+    consent_check = next(
+        check for check in result.security_posture.controls if check.control.value == "consent"
+    )
+    assert consent_check.evidence[0].reference == consent
+    assert consent.digest in result.provenance.input_digests
+    assert request.upstream_result.digest in result.provenance.input_digests

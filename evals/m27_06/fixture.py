@@ -88,7 +88,7 @@ def build_request(  # noqa: PLR0913 - fixture exposes each security axis.
         action=action,
         policy_version="1.0.0",
         requested_controls=tuple(SecurityControlKind),
-        consent_reference=_artifact("consent-reference") if with_consent else None,
+        consent_reference=_artifact("consent") if with_consent else None,
         source_artifacts=(_artifact("security-policy"), _artifact("audit-log")),
     )
 
