@@ -158,6 +158,28 @@ def _provenance(request: MonitorVariantPeptideTranslationHealthRequest) -> Prove
         input_digests=(
             request.upstream_result.digest,
             *(artifact.digest for artifact in request.source_artifacts),
+            request.rollback_policy.rollback_artifact.digest,
+            *(
+                evidence.reference.digest
+                for observation in request.telemetry
+                for evidence in observation.evidence
+            ),
+            *(
+                evidence.reference.digest
+                for observation in request.support_drift
+                for evidence in observation.evidence
+            ),
+            *(
+                evidence.reference.digest
+                for observation in request.workflow_effects
+                for evidence in observation.evidence
+            ),
+            *(
+                evidence.reference.digest
+                for observation in request.discrepancies
+                for evidence in observation.evidence
+            ),
+            *(evidence.reference.digest for evidence in request.rollback_policy.evidence),
         ),
         configuration_digest=sha256_digest(request.rollback_policy),
         consent_decision_id=refs.consent.decision_id,

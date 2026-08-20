@@ -185,6 +185,37 @@ def test_healthy_monitoring_emits_report_and_replays() -> None:
     assert m1708.M1708Engine().replay(result) == result
 
 
+def test_provenance_binds_nested_monitoring_evidence_and_rollback() -> None:
+    request = _request()
+    result = m1708.M1708Engine().adapt(request)
+
+    expected = {
+        request.rollback_policy.rollback_artifact.digest,
+        *(
+            evidence.reference.digest
+            for observation in request.telemetry
+            for evidence in observation.evidence
+        ),
+        *(
+            evidence.reference.digest
+            for observation in request.support_drift
+            for evidence in observation.evidence
+        ),
+        *(
+            evidence.reference.digest
+            for observation in request.workflow_effects
+            for evidence in observation.evidence
+        ),
+        *(
+            evidence.reference.digest
+            for observation in request.discrepancies
+            for evidence in observation.evidence
+        ),
+        *(evidence.reference.digest for evidence in request.rollback_policy.evidence),
+    }
+    assert expected <= set(result.provenance.input_digests)
+
+
 def test_critical_drift_triggers_rollback() -> None:
     result = m1708.M1708Engine().adapt(
         _request(telemetry_status=ObservationStatus.FAIL, threshold=1)
