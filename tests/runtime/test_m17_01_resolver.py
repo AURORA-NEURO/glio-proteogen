@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m17_01 import (
     UpstreamCandidate,
     UpstreamSourceKind,
 )
+from glio_proteogen.contracts.m17_01.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -148,15 +149,15 @@ def _candidate(
             if compatibility is CompatibilityStatus.COMPATIBLE
             else SupportStatus.REVIEW_REQUIRED
         ),
-        provenance_artifact=(
-            artifact if compatibility is CompatibilityStatus.COMPATIBLE else None
-        ),
+        provenance_artifact=(artifact if compatibility is CompatibilityStatus.COMPATIBLE else None),
         uncertainty=_uncertainty(),
         evidence=(_evidence(artifact),),
     )
 
 
-def _request(*candidates: UpstreamCandidate):
+def _request(
+    *candidates: UpstreamCandidate,
+) -> ResolveVariantPeptideUpstreamContractsRequest:
     source = _artifact("source", "application/vnd.m17.source+json")
     configuration = ResolverConfiguration(
         configuration_id="config.synthetic.m1701",
@@ -221,9 +222,7 @@ def test_no_compatible_candidate_abstains_without_negative_conversion() -> None:
 def test_preflight_rejects_unresolved_identity_before_resolution() -> None:
     request = _request(
         _candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE)
-    ).model_copy(
-        update={"context": _context(identity_state=IdentityLineageState.UNRESOLVED)}
-    )
+    ).model_copy(update={"context": _context(identity_state=IdentityLineageState.UNRESOLVED)})
 
     with pytest.raises(m1701.M1701AuthorizationError, match="identity_lineage"):
         m1701.M1701Engine().resolve(request)
@@ -238,4 +237,15 @@ def test_replay_rejects_tampered_result_payload() -> None:
     tampered = tampered.model_copy(update={"result_digest": result.result_digest})
 
     with pytest.raises(m1701.M1701ReplayError, match="payload digest"):
+        m1701.M1701Engine().replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    result = m1701.M1701Engine().resolve(
+        _request(_candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE))
+    )
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1701.M1701ReplayError, match="semantic replay"):
         m1701.M1701Engine().replay(tampered)

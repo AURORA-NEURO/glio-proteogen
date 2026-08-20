@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m17_04 import (
     IntendedUseRegistration,
     PolicyDecisionStatus,
 )
+from glio_proteogen.contracts.m17_04.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -64,9 +65,18 @@ def _decision(role: str, artifact: ArtifactReference) -> UpstreamDecisionReferen
 
 
 def _context() -> ExecutionContext:
-    artifacts = {role: _artifact(role) for role in (
-        "configuration", "identity", "provenance", "quality", "support", "intended_use", "consent"
-    )}
+    artifacts = {
+        role: _artifact(role)
+        for role in (
+            "configuration",
+            "identity",
+            "provenance",
+            "quality",
+            "support",
+            "intended_use",
+            "consent",
+        )
+    }
     return ExecutionContext(
         request_id="request.synthetic.m1704",
         actor_id="actor.synthetic.m1704",
@@ -147,14 +157,33 @@ def _registration(
     )
 
 
-def _request(**registration_kwargs: object) -> AdaptVariantPeptideIntendedUseRequest:
+def _request(
+    *,
+    intended_use: IntendedUseKind = IntendedUseKind.RESEARCH,
+    audience: str = "research",
+    evidence_tier: int = 1,
+    maximum_claim: str = "bounded evidence summary",
+    sections: tuple[str, ...] = (
+        "support",
+        "uncertainty",
+        "provenance",
+        "evidence",
+        "limitations",
+    ),
+) -> AdaptVariantPeptideIntendedUseRequest:
     upstream = _artifact("upstream", "application/vnd.glio-proteogen.m17-03+json")
     source = _artifact("source", "application/vnd.m17.source+json")
     return AdaptVariantPeptideIntendedUseRequest(
         request_id="request.synthetic.m1704",
         context=_context(),
         upstream_result=upstream,
-        registration=_registration(**registration_kwargs),
+        registration=_registration(
+            intended_use=intended_use,
+            audience=audience,
+            evidence_tier=evidence_tier,
+            maximum_claim=maximum_claim,
+            sections=sections,
+        ),
         source_artifacts=(source,),
     )
 
@@ -172,9 +201,7 @@ def test_registered_research_use_adapts_and_replays() -> None:
 
 
 def test_treatment_claim_abstains_without_object() -> None:
-    result = m1704.M1704Engine().adapt(
-        _request(maximum_claim="direct treatment recommendation")
-    )
+    result = m1704.M1704Engine().adapt(_request(maximum_claim="direct treatment recommendation"))
 
     assert result.status.value == "abstained"
     assert result.adapted_object is None
@@ -211,8 +238,7 @@ def test_unsupported_audience_abstains() -> None:
 
     assert result.status.value == "abstained"
     assert any(
-        finding.code is AdapterFindingCode.AUDIENCE_UNSUPPORTED
-        for finding in result.findings
+        finding.code is AdapterFindingCode.AUDIENCE_UNSUPPORTED for finding in result.findings
     )
 
 
@@ -242,4 +268,13 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(m1704.M1704ReplayError, match="payload digest"):
+        m1704.M1704Engine().replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    result = m1704.M1704Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1704.M1704ReplayError, match="semantic replay"):
         m1704.M1704Engine().replay(tampered)
