@@ -31,6 +31,20 @@ class FeatureRecord:
     sha256: str
     attributes: tuple[tuple[str, int | str], ...]
 
+    def __post_init__(self) -> None:
+        if type(self.byte_length) is not int or self.byte_length < 0:
+            raise ValueError("feature byte_length must be a non-negative integer")
+        if type(self.attributes) is not tuple:
+            raise TypeError("feature attributes must be a tuple")
+        for item in self.attributes:
+            if (
+                type(item) is not tuple
+                or len(item) != 2
+                or type(item[0]) is not str
+                or type(item[1]) not in (int, str)
+            ):
+                raise TypeError("feature attributes must contain string/integer pairs")
+
     def as_dict(self) -> dict[str, object]:
         return {
             "attributes": dict(self.attributes),
@@ -74,17 +88,20 @@ def _feature_record(source_id: str, summary: StructuralSummary) -> FeatureRecord
     digest = values.pop("sha256")
     if (
         not isinstance(format_name, str)
-        or not isinstance(byte_length, int)
+        or type(byte_length) is not int
+        or byte_length < 0
         or not isinstance(digest, str)
     ):
         raise TypeError("structural summary has invalid identity fields")
     attributes: list[tuple[str, int | str]] = []
     for key, value in values.items():
         if isinstance(value, bool):
-            attributes.append((key, int(value)))
-        elif isinstance(value, int | str):
+            raise TypeError(f"boolean structural attribute {key!r} is not supported")
+        if type(value) is int or type(value) is str:
             attributes.append((key, value))
         elif isinstance(value, list):
+            if any(isinstance(item, bool) for item in value):
+                raise TypeError(f"boolean structural attribute {key!r} is not supported")
             attributes.append((key, str(value)))
         else:
             raise TypeError(f"unsupported structural attribute {key!r}")

@@ -17,7 +17,9 @@ The local parsers do not decode mzML binary measurements, score spectra, assign
 peptides, infer proteins/protein groups/proteoforms/isoforms, estimate abundance,
 or emit glioma-specific or clinical claims. Counts such as `spectrum_count`,
 `peptide_evidence_count`, and `cases_count` are structural or source metadata,
-not biological conclusions.
+not biological conclusions. Structural receipt fields require exact integer
+counts and byte lengths; boolean values are rejected rather than coerced through
+Python's `bool`-is-an-`int` behavior.
 
 Catalog snapshots fail closed when any returned file declares a different PDC
 study than the requested study. This prevents a mixed-study metadata response

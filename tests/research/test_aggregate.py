@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
+from typing import cast
+
+import pytest
 
 from glio_proteogen.research.public_proteomics import (
     FastaStructure,
+    FeatureRecord,
     MzIdentMlStructure,
     MzMlStructure,
     PDCMetadataClient,
@@ -16,6 +21,7 @@ from glio_proteogen.research.public_proteomics import (
     extract_mzml_structure,
     sha256_digest,
 )
+from glio_proteogen.research.public_proteomics.aggregate import _feature_record
 
 _ROOT = Path(__file__).parents[2]
 _FIXTURE = _ROOT / "research" / "fixtures" / "pdc" / "pdc000204.metadata.json"
@@ -111,3 +117,23 @@ def test_aggregate_accepts_each_supported_local_format() -> None:
         "mzml",
     }
     assert aggregate.digest == sha256_digest(aggregate.as_dict())
+
+
+def test_structural_receipts_reject_boolean_numeric_fields() -> None:
+    boolean_length: object = True
+    with pytest.raises(ValueError, match="byte_length"):
+        FeatureRecord("local:fasta", "fasta", boolean_length, "sha256:" + "a" * 64, ())  # type: ignore[arg-type]
+    boolean_attribute: object = True
+    with pytest.raises(TypeError, match="string/integer"):
+        FeatureRecord(
+            "local:fasta",
+            "fasta",
+            1,
+            "sha256:" + "a" * 64,
+            (("record_count", boolean_attribute),),  # type: ignore[arg-type]
+        )
+
+    summary = extract_fasta_structure(b">x\nMPEP\n")
+    forged = replace(summary, record_count=cast("int", True))  # noqa: FBT003
+    with pytest.raises(TypeError, match="boolean structural attribute"):
+        _feature_record("local:fasta", forged)
