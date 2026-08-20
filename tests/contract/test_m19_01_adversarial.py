@@ -213,3 +213,29 @@ def test_result_status_report_and_support_closure_rejects_tampering() -> None:
         ProteotypeUpstreamResolutionResult.model_validate(
             abstained.model_dump(mode="python") | {"findings": (), "human_review_required": False}
         )
+
+
+def test_provenance_covers_nested_candidate_and_rule_evidence() -> None:
+    request = _request()
+    result = m1901.M1901Engine().resolve(request)
+    nested_digests = {
+        *(candidate.artifact.digest for candidate in request.candidates),
+        *(
+            candidate.provenance_artifact.digest
+            for candidate in request.candidates
+            if candidate.provenance_artifact is not None
+        ),
+        *(artifact.digest for artifact in request.source_artifacts),
+        *(item.reference.digest for item in request.configuration.evidence),
+        *(
+            item.reference.digest
+            for rule in request.configuration.rules
+            for item in rule.evidence
+        ),
+        *(
+            item.reference.digest
+            for candidate in request.candidates
+            for item in candidate.evidence
+        ),
+    }
+    assert nested_digests <= set(result.provenance.input_digests)
