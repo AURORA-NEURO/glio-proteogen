@@ -87,6 +87,21 @@ def test_source_artifact_with_reused_id_but_changed_digest_is_rejected() -> None
         )
 
 
+def test_provenance_covers_nested_subgroup_evidence() -> None:
+    request = _request()
+    result = M2205Service().evaluate(request)
+    nested_evidence = (
+        *(item for performance in request.performance for item in performance.evidence),
+        *(item for calibration in request.calibration for item in calibration.evidence),
+        *(item for coverage in request.coverage for item in coverage.evidence),
+        *request.configuration.evidence,
+    )
+
+    assert {item.reference.digest for item in nested_evidence} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_engine_abstains_for_unsupported_performance_coverage() -> None:
     performance = (
         _request().performance[0].model_copy(update={"coverage_status": CoverageStatus.UNSUPPORTED})

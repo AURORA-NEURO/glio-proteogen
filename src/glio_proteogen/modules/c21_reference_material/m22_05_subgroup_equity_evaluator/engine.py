@@ -309,6 +309,20 @@ def _provenance(
     request: EvaluateProteinRnaDiscordanceSubgroupEquityRequest,
     request_digest: str,
 ) -> ProvenanceRecord:
+    nested_evidence_digests = (
+        *(
+            item.reference.digest
+            for performance in request.performance
+            for item in performance.evidence
+        ),
+        *(
+            item.reference.digest
+            for calibration in request.calibration
+            for item in calibration.evidence
+        ),
+        *(item.reference.digest for coverage in request.coverage for item in coverage.evidence),
+        *(item.reference.digest for item in request.configuration.evidence),
+    )
     references = request.context.references
     controls = (
         (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
@@ -338,9 +352,14 @@ def _provenance(
         module_id=M2205_MODULE_ID,
         module_version=M2205_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            request.upstream_result.digest,
-            *tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    request.upstream_result.digest,
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *nested_evidence_digests,
+                )
+            )
         ),
         configuration_digest=sha256_digest(
             {
