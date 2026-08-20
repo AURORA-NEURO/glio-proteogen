@@ -160,6 +160,10 @@ search receipt for each spectrum: target/decoy/collision candidate counts, winne
 runner-up score, score margin, and a canonical digest over each candidate's peptide,
 accessions, score, matched-ion, and mass-error fields. A changed lower-scoring candidate
 therefore changes the result/evidence digest even when the selected winner remains the same.
+The public receipt constructor validates accession-derived target/decoy/collision class and
+finite measurement fields before counting candidates; callers using a custom decoy namespace
+must pass that exact prefix. This prevents a forged decoy flag from becoming target evidence
+when the receipt is built outside the full pipeline.
 The
 latter binds candidate/target/decoy/collision counts, the max-PSM-score group method,
 group threshold, accepted target groups, descriptive decoy/target ratio, input versus unique

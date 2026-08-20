@@ -45,6 +45,8 @@ C03/C04 computation contract:
   `PsmCompetition` binds target/decoy/collision counts, score margin, and a canonical digest
   over candidate scoring inputs. The pipeline derives its winner/q-value projection from this
   receipt, so a changed lower-scoring contender cannot silently replay as the same result.
+  Building a competition receipt directly also validates accession-derived class flags and
+  finite measurement fields; custom decoy prefixes must be supplied explicitly at that boundary.
 - `target_decoy_qvalues` performs explicit target/decoy competition and preserves
   target/decoy sequence collisions as conservative abstentions. Equal-score collision and
   decoy winners are ordered before targets even across different spectra, so lexical spectrum
