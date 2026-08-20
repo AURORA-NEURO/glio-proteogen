@@ -370,7 +370,11 @@ def _package(
         package_id=package_id_for_request_digest(request_digest),
         version=M2703_CONTRACT_VERSION,
         execution_id=execution.execution_id,
-        artifact_references=(artifact, *request.source_artifacts),
+        # Retain the M27-02 lineage artifact as a first-class package member.
+        # It is already bound by the manifest and evidence projection, but
+        # omitting it here made a stored package incomplete for consumers that
+        # inspect only artifact_references when reconstructing inputs.
+        artifact_references=(artifact, request.upstream_result, *request.source_artifacts),
         manifest_digest=manifest_digest,
         environment_digest=execution.environment_digest,
         reproducibility_digest=reproducibility_digest,
