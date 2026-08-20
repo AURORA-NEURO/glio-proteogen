@@ -34,9 +34,10 @@ C03/C04 computation contract:
 - `search_spectrum` scores theoretical b/y fragments against observed peaks. Overlapping
   fragment-tolerance windows are resolved by a deterministic maximum-cardinality, minimum-error
   one-to-one assignment, with stable m/z/index ordering for exact ties; this avoids greedy peak
-  consumption changing matched-ion counts. The assignment algorithm version is bound into the
-  composed pipeline configuration and replay digest. It is an auditable matching score, not a
-  calibrated probability.
+  consumption changing matched-ion counts. Direct candidate search rejects non-finite or
+  non-positive observed m/z values, so a broad tolerance cannot turn placeholder zero peaks into
+  fragment evidence. The assignment algorithm version is bound into the composed pipeline
+  configuration and replay digest. It is an auditable matching score, not a calibrated probability.
 - `parse_modified_peptide` and `expand_peptide_map` provide a bounded residue-local catalogue
   (`UNIMOD:4`, `UNIMOD:21`, and `UNIMOD:35`). Declared modification deltas participate in both
   precursor and fragment masses; unknown, undeclared, terminal, and residue-incompatible forms

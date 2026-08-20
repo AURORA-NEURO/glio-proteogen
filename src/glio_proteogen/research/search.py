@@ -521,7 +521,7 @@ def search_spectrum_candidates(
     intensity = tuple(observed_intensity)
     if len(mz) != len(intensity):
         raise ValueError("observed m/z and intensity lengths differ")
-    if any(not _is_finite_real(value) or value < 0 for value in mz):
+    if any(not _is_finite_real(value) or value <= 0 for value in mz):
         return ()
     if any(not _is_finite_real(value) or value < 0 for value in intensity):
         return ()

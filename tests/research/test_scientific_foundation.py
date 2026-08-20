@@ -1826,6 +1826,17 @@ def test_zero_intensity_fragment_positions_are_not_search_evidence() -> None:
     assert len(positive_only) == 1
     assert positive_only[0].matched_ions == 1
     assert positive_only[0].matched_intensity == pytest.approx(10.0)
+    assert (
+        search_spectrum_candidates(
+            "zero-mz",
+            1.0,
+            {peptide: ("P1",)},
+            (0.0,),
+            (10.0,),
+            parameters=SearchParameters(fragment_tolerance_da=1000.0, min_matched_ions=1),
+        )
+        == ()
+    )
 
 
 @pytest.mark.parametrize("charges", [(2, 1), (1, 1), (), (0,), (6,)])
