@@ -33,6 +33,27 @@ def test_request_source_and_evaluation_collections_cannot_repeat_entries() -> No
         type(request).model_validate(request.model_copy(update={"evaluations": duplicate}))
 
 
+def test_provenance_covers_nested_transport_artifacts() -> None:
+    request = _request()
+    result = M2104Engine().evaluate(request)
+    nested_digests = {
+        *(validation.provenance_artifact.digest for validation in request.validations),
+        *(
+            item.reference.digest
+            for validation in request.validations
+            for item in validation.evidence
+        ),
+        *(
+            item.reference.digest
+            for evaluation in request.evaluations
+            for item in evaluation.evidence
+        ),
+        *(item.reference.digest for item in request.configuration.evidence),
+    }
+
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 def test_request_and_report_closures_reject_missing_or_duplicate_dimensions() -> None:
     request = _request()
     with pytest.raises(ValidationError, match="required transport dimensions must be unique"):

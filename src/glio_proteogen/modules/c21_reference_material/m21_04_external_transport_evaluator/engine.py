@@ -174,6 +174,18 @@ def _provenance(
                     request_digest,
                     request.benchmark_package.digest,
                     *(artifact.digest for artifact in request.source_artifacts),
+                    *(validation.provenance_artifact.digest for validation in request.validations),
+                    *(
+                        item.reference.digest
+                        for validation in request.validations
+                        for item in validation.evidence
+                    ),
+                    *(
+                        item.reference.digest
+                        for evaluation in request.evaluations
+                        for item in evaluation.evidence
+                    ),
+                    *(item.reference.digest for item in request.configuration.evidence),
                 )
             )
         ),
