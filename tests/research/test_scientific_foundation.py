@@ -1453,6 +1453,8 @@ def test_pdc_download_receipt_binds_catalog_and_observed_hashes(
     assert isinstance(receipt, PdcSourceReceipt)
     assert receipt.response_sha256 == "a" * 64
     assert receipt.observed_size == len(payload)
+    assert receipt.as_dict()["file"]["signed_url"] is None
+    assert receipt.as_dict()["snapshot"]["files"][0]["signed_url"] is None
     assert receipt.as_dict()["file"] == {
         **pdc._file_dict(file),
     }

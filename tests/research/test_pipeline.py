@@ -589,6 +589,7 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
         file_size=len(payload),
         md5=md5(payload, usedforsecurity=False).hexdigest(),
         location="https://pdc.cancer.gov/files/catalog.mzML",
+        signed_url="https://pdc.cancer.gov/download/catalog.mzML?token=secret",
     )
     source = SourceReference(
         source_id="pdc:catalog",
@@ -621,7 +622,17 @@ def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() 
     assert receipt.digest == bound.external_pdc_receipt.digest
     result = run_research_protein_inference(bound)
     configuration = dict(result.configuration)
+    assert configuration["external_pdc_file"]["signed_url"] is None
     assert configuration["external_pdc_receipt"] == receipt.as_dict()
+    assert configuration["external_pdc_receipt"]["file"]["signed_url"] is None
+    assert configuration["external_pdc_receipt"]["snapshot"]["files"][0]["signed_url"] is None
+    declaration = next(
+        record
+        for record in result.evidence.records
+        if record.kind == "external_pdc_file_declaration"
+    )
+    assert declaration.payload["signed_url"] is None
+    assert declaration.payload["receipt"]["file"]["signed_url"] is None
     with pytest.raises(ValueError, match="absent"):
         bind_pdc_mzml_source(
             request,

@@ -50,6 +50,13 @@ Verified PDC bytes are copied with a progress-checked destination contract;
 zero-progress or invalid short writes fail the retrieval instead of returning a
 successful receipt for a truncated caller-owned file.
 
+PDC signed download URLs are runtime-only bearer credentials. The downloader
+uses the URL from the in-memory `PdcFile`, but receipt, snapshot, pipeline
+configuration, and evidence projections retain the stable `signed_url` field as
+`null`; this prevents expiring credentials from being persisted or copied into
+replay artifacts while leaving source identity bound to catalog metadata and
+observed bytes.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint

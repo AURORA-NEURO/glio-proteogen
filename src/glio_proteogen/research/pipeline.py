@@ -390,7 +390,9 @@ def _pdc_file_dict(value: PdcFile) -> dict[str, object]:
         "file_type": value.file_type,
         "location": value.location,
         "md5": value.md5,
-        "signed_url": value.signed_url,
+        # The signed URL is an in-memory download credential. It must not be
+        # copied into replay configuration or evidence records.
+        "signed_url": None,
         "study_id": value.study_id,
     }
 

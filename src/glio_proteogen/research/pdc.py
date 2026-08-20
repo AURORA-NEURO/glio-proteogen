@@ -78,7 +78,10 @@ def _file_dict(value: PdcFile) -> dict[str, object]:
         "file_type": value.file_type,
         "location": value.location,
         "md5": value.md5,
-        "signed_url": value.signed_url,
+        # Signed PDC URLs are bearer credentials for the download boundary,
+        # not stable source identity. Never persist them in receipts or in
+        # catalog snapshots that may be copied into research evidence.
+        "signed_url": None,
         "study_id": value.study_id,
     }
 
