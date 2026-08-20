@@ -119,6 +119,15 @@ replicate counts, missingness, and `descriptive`/`abstained_*` statuses. Labels 
 metadata only; this is not a case/control test, batch correction claim, differential model,
 or biological interpretation.
 
+Technical replicates are retained in the raw matrix but are never used as independent
+biological support for a label's normalization center or replicate gate. When a label contains
+both biological and technical rows, `within_label_median_v1` computes scale factors only for
+the biological rows; each technical row receives `scale_factor=null`, the explicit
+`abstained_technical_replicate` row status, and an all-null normalized row. Its raw values,
+source binding, and QC evidence remain visible, while `independent_observed_replicates` and
+label medians count biological rows only. This is deliberate non-imputation and safe
+abstention, not a claim that the technical measurement is biologically negative or unusable.
+
 Every cohort request also carries a closed `CohortQcPolicy` receipt. Its minimum replicate
 count, minimum observed-group count, and maximum missingness rate are validated as finite
 caller-declared values and included in the configuration/result digest. A label that fails an
