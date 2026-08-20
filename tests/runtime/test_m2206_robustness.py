@@ -38,6 +38,26 @@ def test_supported_surface_is_evaluated_and_replayable() -> None:
     assert engine.verify(result).result_digest == result.result_digest
 
 
+def test_nested_scenario_sources_are_closed_in_evidence_and_provenance() -> None:
+    request = _request()
+    result = M2206Engine().evaluate(request)
+
+    assert result.robustness_surface is not None
+    scenario_digests = {
+        artifact.digest for scenario in request.scenarios for artifact in scenario.source_artifacts
+    }
+    result_evidence = {item.reference.digest for item in result.evidence}
+    observation_evidence = {
+        item.reference.digest
+        for observation in result.robustness_surface.observations
+        for item in observation.evidence
+    }
+
+    assert scenario_digests <= result_evidence
+    assert observation_evidence <= result_evidence
+    assert scenario_digests <= set(result.provenance.input_digests)
+
+
 @pytest.mark.parametrize(
     "disposition",
     [ChallengeDisposition.REVIEW_REQUIRED, ChallengeDisposition.ABSTAIN_UNSUPPORTED],

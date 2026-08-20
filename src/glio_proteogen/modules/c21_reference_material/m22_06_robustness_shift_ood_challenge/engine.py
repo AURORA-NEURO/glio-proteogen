@@ -102,6 +102,9 @@ def _evidence(
     request: ChallengeProteinRnaDiscordanceRobustnessRequest,
 ) -> tuple[EvidenceReference, ...]:
     artifacts: list[ArtifactReference] = [request.upstream_result, *request.source_artifacts]
+    artifacts.extend(
+        artifact for scenario in request.scenarios for artifact in scenario.source_artifacts
+    )
     artifacts.extend(item.reference for scenario in request.scenarios for item in scenario.evidence)
     artifacts.extend(item.reference for item in request.configuration.evidence)
     unique: dict[str, ArtifactReference] = {}
@@ -167,6 +170,11 @@ def _provenance(
                     request_digest,
                     request.upstream_result.digest,
                     *(artifact.digest for artifact in request.source_artifacts),
+                    *(
+                        artifact.digest
+                        for scenario in request.scenarios
+                        for artifact in scenario.source_artifacts
+                    ),
                 )
             )
         ),
