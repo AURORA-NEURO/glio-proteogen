@@ -4,17 +4,20 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from glio_proteogen.contracts.m27_07 import (
+    M2707_MAX_CANONICAL_REQUEST_BYTES,
+    M2707_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityChangeControlResult,
     contract_json_schema,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service import M2707Service
 
 
@@ -32,20 +35,20 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="schema not found")
         return contract_json_schema(name)
 
-    async def _body(request: Request) -> dict[str, Any]:
+    async def _body(request: Request, *, max_bytes: int) -> dict[str, Any]:
         try:
             raw = await request.body()
-            value = json.loads(raw)
+            value = strict_json_loads(raw, max_bytes=max_bytes)
             if not isinstance(value, dict):
                 raise ValueError("object required")
             return value
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
+        except (ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="request validation failed") from error
 
     @api.post("/v1/modules/M27-07/validate")
     async def validate(request: Request) -> JSONResponse:
         try:
-            value = await _body(request)
+            value = await _body(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
             parsed = service.validate_request(value)
             return JSONResponse(parsed.model_dump(mode="json"))
         except HTTPException:
@@ -56,7 +59,7 @@ def create_app() -> FastAPI:
     @api.post("/v1/modules/M27-07/control")
     async def control(request: Request) -> JSONResponse:
         try:
-            value = await _body(request)
+            value = await _body(request, max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES)
             parsed = service.validate_request(value)
             result = service.execute(parsed)
             return JSONResponse(result.model_dump(mode="json"))
@@ -71,7 +74,12 @@ def create_app() -> FastAPI:
     async def verify(request: Request) -> JSONResponse:
         try:
             raw = await request.body()
-            result = ComplexActivityChangeControlResult.model_validate_json(raw, strict=True)
+            value = strict_json_loads(raw, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
+            if not isinstance(value, dict):
+                raise ValueError("object required")
+            result = ComplexActivityChangeControlResult.model_validate_json(
+                canonical_json_bytes(value), strict=True
+            )
             return JSONResponse({"verified": service.verify(result)})
         except HTTPException:
             raise

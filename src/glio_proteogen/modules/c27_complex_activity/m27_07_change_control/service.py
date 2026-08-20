@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from glio_proteogen.contracts.m27_07 import (
@@ -12,6 +11,8 @@ from glio_proteogen.contracts.m27_07 import (
     ComplexActivityChangeControlResult,
     ControlComplexActivityChangeRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.engine import (
     ChangeControlReplayError,
     M2707ChangeControlEngine,
@@ -28,15 +29,23 @@ class M2707Service:
         self, payload: bytes | str | dict[str, Any]
     ) -> ControlComplexActivityChangeRequest:
         try:
-            if isinstance(payload, bytes):
-                if len(payload) > M2707_MAX_CANONICAL_REQUEST_BYTES:
-                    raise ValueError("request exceeds canonical byte limit")
-                return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
-            if isinstance(payload, str):
-                return ControlComplexActivityChangeRequest.model_validate_json(payload, strict=True)
-            document: Any = json.dumps(payload, separators=(",", ":"))
-            return ControlComplexActivityChangeRequest.model_validate_json(document, strict=True)
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
+            encoded: bytes | str
+            if isinstance(payload, dict):
+                encoded = canonical_json_bytes(payload)
+            elif isinstance(payload, (bytes, str)):
+                encoded = payload
+            else:
+                raise TypeError("request must be JSON or a mapping")
+            decoded = strict_json_loads(
+                encoded,
+                max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES,
+            )
+            if not isinstance(decoded, dict):
+                raise TypeError("request must be a JSON object")
+            return ControlComplexActivityChangeRequest.model_validate_json(
+                canonical_json_bytes(decoded), strict=True
+            )
+        except (ValueError, TypeError) as error:
             raise ValueError("M27-07 request validation failed") from error
 
     def execute(

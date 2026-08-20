@@ -1,6 +1,6 @@
 """Typer commands for M27-07 change control."""
 
-# ruff: noqa: TRY003, TC003
+# ruff: noqa: TRY003, TRY004, TRY301, TC003
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ from glio_proteogen.contracts.m27_07 import (
     ContractName,
     contract_json_schema,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service import M2707Service
 
 cli = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -86,10 +88,14 @@ def verify(result: Annotated[Path, typer.Argument()]) -> None:
     """Verify a result digest and report JSON."""
 
     try:
+        raw = _read(result, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
+        value = strict_json_loads(raw, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
+        if not isinstance(value, dict):
+            raise ValueError("result must be a JSON object")
         parsed = ComplexActivityChangeControlResult.model_validate_json(
-            _read(result, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES), strict=True
+            canonical_json_bytes(value), strict=True
         )
-    except (ValueError, TypeError, json.JSONDecodeError) as error:
+    except (ValueError, TypeError) as error:
         raise typer.BadParameter("result verification failed") from error
     typer.echo(json.dumps({"verified": _service.verify(parsed)}, sort_keys=True))
 

@@ -121,6 +121,22 @@ def test_service_rejects_malformed_json() -> None:
         M2707Service().validate_request(b"not-json")
 
 
+def test_strict_parse_once_rejects_duplicate_and_nonfinite_json() -> None:
+    request_json = build_request().model_dump_json()
+    duplicate = request_json.replace(
+        '"request_id":"m2707.request.default"',
+        '"request_id":"m2707.request.default","request_id":"m2707.request.default"',
+        1,
+    )
+    with pytest.raises(ValueError, match="validation failed"):
+        M2707Service().validate_request(duplicate)
+    nonfinite = request_json.replace(
+        '"champion_digest":', '"champion_value":NaN,"champion_digest":', 1
+    )
+    with pytest.raises(ValueError, match="validation failed"):
+        M2707Service().validate_request(nonfinite)
+
+
 def test_result_replay_detects_forged_digest() -> None:
     service = M2707Service()
     result = service.execute(build_request())
@@ -150,6 +166,19 @@ def test_api_named_schema_and_parse_errors() -> None:
     assert client.get("/v1/contracts/M27-07/request/schema").status_code == 200
     assert client.post("/v1/modules/M27-07/validate", content=b"not-json").status_code == 422
     assert client.post("/v1/modules/M27-07/verify", content=b"not-json").status_code == 422
+
+
+def test_api_strict_parser_rejects_duplicate_and_oversized_payloads() -> None:
+    client = TestClient(create_app())
+    request_json = build_request().model_dump_json()
+    duplicate = request_json.replace(
+        '"request_id":"m2707.request.default"',
+        '"request_id":"m2707.request.default","request_id":"m2707.request.default"',
+        1,
+    ).encode()
+    assert client.post("/v1/modules/M27-07/validate", content=duplicate).status_code == 422
+    oversized = b"{" + b" " * (4 * 1024 * 1024) + b"}"
+    assert client.post("/v1/modules/M27-07/validate", content=oversized).status_code == 422
 
 
 def test_api_sanitizes_invalid_control() -> None:
@@ -214,6 +243,20 @@ def test_cli_exports_validates_controls_and_verifies(tmp_path: Path) -> None:
         runner.invoke(cli, ["control", str(request_path), "--output", str(result_path)]).exit_code
         != 0
     )
+
+
+def test_cli_strict_parser_rejects_duplicate_request(tmp_path: Path) -> None:
+    request_path = tmp_path / "duplicate.json"
+    request_json = build_request().model_dump_json()
+    request_path.write_text(
+        request_json.replace(
+            '"request_id":"m2707.request.default"',
+            '"request_id":"m2707.request.default","request_id":"m2707.request.default"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+    assert CliRunner().invoke(cli, ["validate", str(request_path)]).exit_code != 0
 
 
 def test_cli_error_and_unknown_schema_paths(tmp_path: Path) -> None:
