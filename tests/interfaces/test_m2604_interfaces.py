@@ -7,9 +7,14 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_04 import (
+    M2604_MAX_CANONICAL_REQUEST_BYTES,
+    M2604_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
     GatewaySubmission,
     M2604Client,
@@ -72,6 +77,22 @@ def test_api_verify_rejects_nonobject_and_malformed_json() -> None:
     )
     assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_api_enforces_distinct_request_and_result_stream_limits() -> None:
+    client = TestClient(api.create_app())
+    oversized_request = b"{" + b" " * M2604_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    oversized_result = b"{" + b" " * M2604_MAX_CANONICAL_RESULT_BYTES + b"}"
+    request_response = client.post("/v1/modules/M26-04/validate", content=oversized_request)
+    result_response = client.post("/v1/modules/M26-04/verify", content=oversized_result)
+
+    assert request_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert result_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+    between_limits = b"{" + b" " * M2604_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    assert api._parse_object(between_limits, max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES) == {}
+    with pytest.raises(HTTPException, match="request JSON is invalid"):
+        api._parse_object(between_limits, max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES)
 
 
 def test_sdk_and_plugin_return_same_canonical_result() -> None:

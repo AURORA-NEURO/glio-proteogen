@@ -20,6 +20,13 @@ from .engine import M2604GatewayEngine, preflight_m2604_authorization
 _REQUEST_ADAPTER = TypeAdapter(PublishProteinSubtypeAccessSurfaceRequest)
 
 
+def _bounded_mapping_json(mapping: Mapping[object, object], *, max_bytes: int, label: str) -> bytes:
+    encoded = canonical_json_bytes(dict(mapping))
+    if len(encoded) > max_bytes:
+        raise ValueError(f"{label} exceeds canonical byte limit")  # noqa: TRY003
+    return encoded
+
+
 class M2604Service:
     """Validate, publish, and replay through one deterministic gateway engine."""
 
@@ -35,7 +42,14 @@ class M2604Service:
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         preflight_m2604_authorization(request)
         if isinstance(request, Mapping):
-            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(request)), strict=True)
+            return _REQUEST_ADAPTER.validate_json(
+                _bounded_mapping_json(
+                    request,
+                    max_bytes=M2604_MAX_CANONICAL_REQUEST_BYTES,
+                    label="M26-04 request",
+                ),
+                strict=True,
+            )
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def publish(self, request: object) -> ProteinSubtypeAccessSurfaceResult:
@@ -49,7 +63,12 @@ class M2604Service:
             )
         elif isinstance(result, Mapping):
             typed = ProteinSubtypeAccessSurfaceResult.model_validate_json(
-                canonical_json_bytes(dict(result)), strict=True
+                _bounded_mapping_json(
+                    result,
+                    max_bytes=M2604_MAX_CANONICAL_RESULT_BYTES,
+                    label="M26-04 result",
+                ),
+                strict=True,
             )
         else:
             typed = ProteinSubtypeAccessSurfaceResult.model_validate(result, strict=True)

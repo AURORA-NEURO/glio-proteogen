@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m26_04 import (
+    M2604_MAX_CANONICAL_RESULT_BYTES,
     AccessProtocol,
     AccessSurface,
     AsyncJobRecord,
@@ -331,6 +332,11 @@ def test_service_typed_replay_and_sdk_json_publish() -> None:
         AsyncJobRecord.model_validate(
             job.model_copy(update={"status": JobStatus.CANCELLED}).model_dump(mode="python")
         )
+
+
+def test_service_rejects_oversized_mapping_result_before_validation() -> None:
+    with pytest.raises(ValueError, match="M26-04 result exceeds"):
+        M2604Service().replay({"oversized": "x" * M2604_MAX_CANONICAL_RESULT_BYTES})
 
 
 def test_service_descriptor_and_plugin_capability_seals_are_closed() -> None:
