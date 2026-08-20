@@ -1208,6 +1208,29 @@ def test_pdc_transport_and_file_validation_edges(monkeypatch: pytest.MonkeyPatch
         pdc.PdcClient().study_snapshot("PDC000204", limit=1)
 
 
+def test_pdc_snapshot_rejects_files_from_a_different_study(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {
+        "filesCountPerStudy": [],
+        "filesPerStudy": [
+            {
+                "pdc_study_id": "PDC000205",
+                "file_name": "wrong-study.mzML",
+                "file_type": "Mass",
+                "data_category": "Raw",
+                "file_format": "mzML",
+                "file_size": "2",
+                "md5sum": "abc",
+                "file_location": "studies/205/wrong-study.mzML",
+            }
+        ],
+    }
+    monkeypatch.setattr(pdc, "_post", lambda _query: (payload, b"{}"))
+    with pytest.raises(pdc.PdcError, match="does not match requested study"):
+        pdc.PdcClient().study_snapshot("PDC000204", limit=1)
+
+
 @pytest.mark.parametrize(
     "value",
     [[], {"files_count": "1"}, {"files_count": "-1"}, {"files_count": "bad"}],

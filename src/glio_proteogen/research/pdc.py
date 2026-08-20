@@ -462,6 +462,8 @@ class PdcClient:
                 )
             )
         files = tuple(_file(item) for item in raw_files)
+        if any(item.study_id != study_id for item in files):
+            raise PdcError("PDC response file study does not match requested study")
         return PdcStudySnapshot(
             study_id=study_id,
             counts=tuple(sorted(counts)),

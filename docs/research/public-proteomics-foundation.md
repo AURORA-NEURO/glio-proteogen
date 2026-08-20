@@ -19,6 +19,11 @@ or emit glioma-specific or clinical claims. Counts such as `spectrum_count`,
 `peptide_evidence_count`, and `cases_count` are structural or source metadata,
 not biological conclusions.
 
+Catalog snapshots fail closed when any returned file declares a different PDC
+study than the requested study. This prevents a mixed-study metadata response
+from being archived under the requested study identity before any raw-file
+receipt is created.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint
