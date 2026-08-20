@@ -43,6 +43,7 @@ _CONTROL_ROLES: Final = (
     ControlRole.SUPPORT,
     ControlRole.INTENDED_USE,
 )
+_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 
 
 class RetirementAuthorizationError(ValueError):
@@ -83,7 +84,7 @@ def preflight_retirement_authorization(request: RetireComplexActivityServiceRequ
         request.source_artifacts
     ):
         raise RetirementAuthorizationError("source artifact ids must be unique")
-    if any("m27-07" not in item.media_type for item in request.source_artifacts):
+    if any(item.media_type != _M2707_INPUT_MEDIA_TYPE for item in request.source_artifacts):
         raise RetirementAuthorizationError("unsupported upstream artifact media type")
 
 
