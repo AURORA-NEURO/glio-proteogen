@@ -393,9 +393,12 @@ def _validate_gateway_components(  # noqa: PLR0912, PLR0913 - explicit graph clo
     _require_unique(tuple(event.event_id for event in audit_events), "audit event")
     if not authorization_ids:
         raise ValueError("gateway requires authorization records")
+    operation_by_id = {operation.operation_id: operation for operation in operations}
     for authorization in authorizations:
         if authorization.operation_id not in operation_ids:
             raise ValueError("authorization references unknown operation")
+        if authorization.scope != operation_by_id[authorization.operation_id].authorization_scope:
+            raise ValueError("authorization scope must match operation authorization scope")
     for record in idempotency_records:
         if record.operation_id not in operation_ids:
             raise ValueError("idempotency references unknown operation")
@@ -412,7 +415,6 @@ def _validate_gateway_components(  # noqa: PLR0912, PLR0913 - explicit graph clo
     for event in audit_events:
         if event.operation_id not in operation_ids:
             raise ValueError("audit event references unknown operation")
-    operation_by_id = {operation.operation_id: operation for operation in operations}
     for job in jobs:
         if not operation_by_id[job.operation_id].asynchronous_supported:
             raise ValueError("async job references operation without async support")

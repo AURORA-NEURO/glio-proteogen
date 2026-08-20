@@ -20,3 +20,6 @@ The runtime is stateless and deterministic. All records are caller-declared and 
 canonical digests; provenance and control records preserve source identity and evidence without
 asserting their authenticity. Unsupported, unresolved, unauthorized, or tampered material is
 retained as typed review/abstention state rather than converted into a negative claim.
+
+Authorization records are graph-closed: each record must reference a declared operation and its
+scope must exactly match that operation's declared authorization scope before publication.

@@ -178,6 +178,12 @@ def test_contract_rejects_unresolved_graph_references() -> None:
             {**request.model_dump(mode="python"), "authorizations": (authorization,)},
             strict=True,
         )
+    authorization = request.authorizations[0].model_copy(update={"scope": "forged:scope"})
+    with pytest.raises(ValueError, match="scope must match operation"):
+        PublishComplexActivityAccessSurfaceRequest.model_validate(
+            {**request.model_dump(mode="python"), "authorizations": (authorization,)},
+            strict=True,
+        )
     configuration = request.configuration.model_copy(
         update={"supported_protocols": (AccessProtocol.SDK,)}
     )
