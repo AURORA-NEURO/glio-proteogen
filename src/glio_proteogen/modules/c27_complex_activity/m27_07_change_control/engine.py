@@ -23,7 +23,7 @@ from glio_proteogen.contracts.m27_07.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ControlDecisionRecord,
     ControlRole,
@@ -293,9 +293,21 @@ class M2707ChangeControlEngine:
     def replay(
         self, result: ComplexActivityChangeControlResult
     ) -> ComplexActivityChangeControlResult:
-        if result.result_digest != result_payload_digest(result):
+        try:
+            validated = ComplexActivityChangeControlResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise ChangeControlReplayError("result envelope is invalid") from error
+        if validated.result_digest != result_payload_digest(validated):
             raise ChangeControlReplayError("result digest mismatch")
-        return result
+        try:
+            expected = self.evaluate(validated.request)
+        except Exception as error:
+            raise ChangeControlReplayError("result replay failed") from error
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise ChangeControlReplayError("result replay differs from request")
+        return validated
 
 
 def control_complex_activity_change(
