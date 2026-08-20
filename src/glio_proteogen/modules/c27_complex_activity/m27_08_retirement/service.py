@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-import json
+from collections.abc import Mapping
 from typing import Any
 
 from glio_proteogen.contracts.m27_08 import (
@@ -13,6 +13,8 @@ from glio_proteogen.contracts.m27_08 import (
     ComplexActivityRetirementResult,
     RetireComplexActivityServiceRequest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.engine import (
     M2708RetirementEngine,
     RetirementReplayError,
@@ -24,19 +26,22 @@ class M2708Service:
         self.engine = M2708RetirementEngine()
 
     def validate_request(
-        self, payload: bytes | str | dict[str, Any]
+        self, payload: bytes | bytearray | str | Mapping[str, Any]
     ) -> RetireComplexActivityServiceRequest:
         try:
-            if isinstance(payload, bytes):
-                if len(payload) > M2708_MAX_CANONICAL_REQUEST_BYTES:
-                    raise ValueError("request exceeds canonical byte limit")
-                return RetireComplexActivityServiceRequest.model_validate_json(payload, strict=True)
-            if isinstance(payload, str):
-                return RetireComplexActivityServiceRequest.model_validate_json(payload, strict=True)
-            return RetireComplexActivityServiceRequest.model_validate_json(
-                json.dumps(payload, separators=(",", ":")), strict=True
-            )
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
+            decoded: object = {}
+            if isinstance(payload, (bytes, bytearray, str)):
+                decoded = strict_json_loads(payload, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
+                encoded = canonical_json_bytes(decoded)
+            elif isinstance(payload, Mapping):
+                encoded = canonical_json_bytes(dict(payload))
+                strict_json_loads(encoded, max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES)
+            else:
+                raise TypeError("request must be JSON or a mapping")
+            if not isinstance(decoded, dict):
+                raise TypeError("request must be a JSON object")
+            return RetireComplexActivityServiceRequest.model_validate_json(encoded, strict=True)
+        except (StrictJsonError, ValueError, TypeError) as error:
             raise ValueError("M27-08 request validation failed") from error
 
     def execute(
