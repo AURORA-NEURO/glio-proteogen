@@ -24,7 +24,7 @@ from glio_proteogen.modules.c21_reference_material.m21_07_human_factors_operatio
     M2107Engine,
     M2107ReplayError,
 )
-from tests.contract.test_m21_07_hardening import _fallback, _metric, _request
+from tests.contract.test_m21_07_hardening import _artifact, _evidence, _fallback, _metric, _request
 
 
 def test_request_metrics_sources_and_configuration_cannot_repeat_entries() -> None:
@@ -42,6 +42,34 @@ def test_request_metrics_sources_and_configuration_cannot_repeat_entries() -> No
                 update={"required_dimensions": (OperationalDimension.REVIEWER_COMPREHENSION,) * 7}
             )
         )
+
+
+def test_provenance_binds_nested_operational_input_artifacts() -> None:
+    request = _request()
+    configuration_evidence = _artifact("nested-configuration-evidence")
+    metric_evidence = _artifact("nested-metric-evidence")
+    fallback_evidence = _artifact("nested-fallback-evidence")
+    metric = request.metrics[0].model_copy(update={"evidence": _evidence("nested-metric-evidence")})
+    fallback = request.fallbacks[0].model_copy(
+        update={"evidence": _evidence("nested-fallback-evidence")}
+    )
+    request = request.model_copy(
+        update={
+            "metrics": (metric, *request.metrics[1:]),
+            "fallbacks": (fallback,),
+            "configuration": request.configuration.model_copy(
+                update={"evidence": _evidence("nested-configuration-evidence")}
+            ),
+        }
+    )
+
+    result = M2107Engine().evaluate(request)
+
+    assert {
+        configuration_evidence.digest,
+        metric_evidence.digest,
+        fallback_evidence.digest,
+    } <= set(result.provenance.input_digests)
 
 
 def test_fallback_and_report_collections_are_closed() -> None:
