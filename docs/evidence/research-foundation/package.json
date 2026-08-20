@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "87545261",
+  "base_commit": "57aeceff",
   "pipeline_commit": "depth/m20-replay-integration",
   "source_fixture": {
     "study": "PDC000204",
@@ -81,20 +81,20 @@
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3900461,
+      "bytes": 3900672,
       "members": 1991,
-      "sha256": "0fdb8899d41a76ce3a408cbd3b4ce3f1f76d6ed411fd94075e8b9fb81585b118"
+      "sha256": "24904cf688ff36e6f18a5267426203f39dcf268c55553e1962190cdf6ee29c0e"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4621195,
+      "bytes": 4621753,
       "members": 4664,
-      "sha256": "a6546f2717adcca70e141bce9caf9e23ace8aa277a77bb9c5be076fb1936c879"
+      "sha256": "535939e14ce4489699a122cd81fb4498b99a5f0f4798fc35cfbd46e9e21066d7"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "0fdb8899d41a76ce3a408cbd3b4ce3f1f76d6ed411fd94075e8b9fb81585b118",
-      "sdist": "a6546f2717adcca70e141bce9caf9e23ace8aa277a77bb9c5be076fb1936c879"
+      "wheel": "24904cf688ff36e6f18a5267426203f39dcf268c55553e1962190cdf6ee29c0e",
+      "sdist": "535939e14ce4489699a122cd81fb4498b99a5f0f4798fc35cfbd46e9e21066d7"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
