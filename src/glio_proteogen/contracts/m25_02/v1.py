@@ -222,7 +222,7 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
     human_review_required: bool = False
 
     @model_validator(mode="after")
-    def result_is_closed(self) -> ProteotypeSyntheticTruthResult:
+    def result_is_closed(self) -> ProteotypeSyntheticTruthResult:  # noqa: PLR0912
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request_digest):
@@ -244,6 +244,13 @@ class ProteotypeSyntheticTruthResult(FrozenModel):
                 raise ValueError("generated result requires a supported corpus and manifest")
             if self.corpus.manifest != self.manifest:
                 raise ValueError("result manifest must bind the generated corpus")
+            if (
+                self.corpus.version != self.request.configuration.version
+                or self.corpus.source_artifacts != self.request.source_artifacts
+                or self.manifest.version != self.request.configuration.version
+                or self.manifest.configuration != self.request.configuration
+            ):
+                raise ValueError("generated corpus must bind exact request material")
             if len(self.corpus.cases) != self.request.requested_case_count:
                 raise ValueError("generated corpus must match requested case count")
         elif (

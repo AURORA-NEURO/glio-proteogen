@@ -141,6 +141,20 @@ def test_result_replay_rejects_recomputed_digest_for_forged_corpus() -> None:
         service.verify_replay(forged)
 
 
+def test_strict_result_validation_rejects_self_rehashed_corpus_media_mutation() -> None:
+    result = m2402.M2502Service().generate(_request())
+    assert result.corpus is not None
+    forged_source = result.request.source_artifacts[0].model_copy(
+        update={"media_type": "application/json"}
+    )
+    forged_corpus = result.corpus.model_copy(update={"source_artifacts": (forged_source,)})
+    forged = result.model_copy(update={"corpus": forged_corpus, "manifest": forged_corpus.manifest})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact request material"):
+        ProteotypeSyntheticTruthResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_contract_rejects_corpus_and_manifest_case_drift() -> None:
     result = m2402.M2502Service().generate(_request())
     assert result.corpus is not None
