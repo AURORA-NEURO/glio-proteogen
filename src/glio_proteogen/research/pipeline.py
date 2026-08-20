@@ -658,6 +658,9 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         ProteinGroup(item.accessions, item.unique_peptides, item.shared_peptides)
         for item in visible_group_candidates
     )
+    abstained_group_accessions = tuple(
+        item.accessions for item in visible_group_candidates if item.acceptance != "accepted"
+    )
     reportable_accession_sets = tuple(
         frozenset(item.accessions) for item in accepted_group_candidates
     )
@@ -691,6 +694,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         groups,
         dict(peptide_intensities),
         dict(counts),
+        abstained_groups=abstained_group_accessions,
     )
     mzml_digest = sha256(mzml_bytes).hexdigest()
     fasta_digest = sha256(fasta_bytes).hexdigest()
@@ -715,7 +719,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "quantification_unit": quantified.receipt.measurement_unit,
         "quantification_receipt_version": quantified.receipt.version,
         "quantification_policy": request.quantification_policy.as_dict(),
-        "protein_group_quantification_version": "unique-peptide-median-v1",
+        "protein_group_quantification_version": "unique-peptide-median-v2-abstention-bound",
         "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
         "require_precursor_mz": True,
         "precursor_policy_version": _PRECURSOR_POLICY_VERSION,

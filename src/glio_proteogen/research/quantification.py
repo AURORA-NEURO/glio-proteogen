@@ -186,9 +186,10 @@ class ProteinGroupQuant:
     evidence_version: str = ""
     input_intensity_peptides: int = 0
     input_psm_peptides: int = 0
+    abstention_reason: str | None = None
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        payload = {
             "group_accessions": list(self.group_accessions),
             "primary_intensity": self.primary_intensity,
             "shared_peptides": list(self.shared_peptides),
@@ -213,6 +214,9 @@ class ProteinGroupQuant:
                 else {}
             ),
         }
+        if self.abstention_reason is not None:
+            payload["abstention_reason"] = self.abstention_reason
+        return payload
 
 
 def _median_absolute_deviation(values: tuple[float, ...]) -> float | None:
@@ -558,6 +562,8 @@ def _group_evidence_digest(
     group: ProteinGroup,
     normalized_intensities: Mapping[str, float],
     normalized_counts: Mapping[str, int],
+    *,
+    primary_estimate_allowed: bool,
 ) -> str:
     group_peptides = (*group.unique_peptides, *group.shared_peptides)
     evidence_payload = {
@@ -568,7 +574,8 @@ def _group_evidence_digest(
             [peptide, normalized_intensities.get(peptide)] for peptide in group_peptides
         ],
         "psm_counts": [[peptide, normalized_counts.get(peptide)] for peptide in group_peptides],
-        "version": "protein-group-quantification-input-1",
+        "primary_estimate_allowed": primary_estimate_allowed,
+        "version": "protein-group-quantification-input-2",
     }
     return sha256(
         json.dumps(evidence_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -579,6 +586,8 @@ def quantify_protein_groups(
     groups: Iterable[ProteinGroup],
     peptide_intensities: Mapping[str, float],
     peptide_psm_counts: Mapping[str, int],
+    *,
+    abstained_groups: Iterable[tuple[str, ...]] = (),
 ) -> tuple[ProteinGroupQuant, ...]:
     """Quantify groups without inventing values for shared-peptide ambiguity.
 
@@ -591,12 +600,31 @@ def quantify_protein_groups(
     if not materialized_groups:
         return ()
     declared_peptides = _validate_group_partition(materialized_groups)
+    abstained = tuple(abstained_groups)
+    if any(
+        type(accessions) is not tuple
+        or not accessions
+        or any(type(accession) is not str or not accession for accession in accessions)
+        for accessions in abstained
+    ):
+        raise ValueError("abstained group accessions must be non-empty tuples")
+    if len(set(abstained)) != len(abstained):
+        raise ValueError("abstained group accessions must be unique")
+    declared_groups = {group.accessions for group in materialized_groups}
+    if set(abstained).difference(declared_groups):
+        raise ValueError("abstained groups must be present in the group partition")
     normalized_intensities = _normalize_group_intensities(peptide_intensities, declared_peptides)
     normalized_counts = _normalize_group_psm_counts(peptide_psm_counts, declared_peptides)
     output: list[ProteinGroupQuant] = []
     for group in sorted(materialized_groups, key=lambda item: item.accessions):
         group_peptides = (*group.unique_peptides, *group.shared_peptides)
-        evidence_digest = _group_evidence_digest(group, normalized_intensities, normalized_counts)
+        primary_estimate_allowed = group.accessions not in abstained
+        evidence_digest = _group_evidence_digest(
+            group,
+            normalized_intensities,
+            normalized_counts,
+            primary_estimate_allowed=primary_estimate_allowed,
+        )
         unique_signal_values = tuple(
             normalized_intensities.get(peptide, 0.0)
             for peptide in group.unique_peptides
@@ -609,9 +637,15 @@ def quantify_protein_groups(
         )
         unique_signal = sum(unique_signal_values)
         shared_signal = sum(shared_signal_values)
-        primary_intensity = median(unique_signal_values) if unique_signal_values else None
+        primary_intensity = (
+            median(unique_signal_values)
+            if unique_signal_values and primary_estimate_allowed
+            else None
+        )
         status = (
-            "quantified"
+            "abstained_ambiguous_support"
+            if not primary_estimate_allowed
+            else "quantified"
             if primary_intensity is not None
             else "non_quantifiable_shared_only"
             if shared_signal_values
@@ -637,11 +671,14 @@ def quantify_protein_groups(
                 unique_signal_iqr=_interquartile_range(unique_signal_values),
                 unique_signal_quality=_signal_quality(len(unique_signal_values), unique=True),
                 evidence_digest=evidence_digest,
-                evidence_version="protein-group-quantification-input-1",
+                evidence_version="protein-group-quantification-input-2",
                 input_intensity_peptides=sum(
                     peptide in normalized_intensities for peptide in group_peptides
                 ),
                 input_psm_peptides=sum(peptide in normalized_counts for peptide in group_peptides),
+                abstention_reason=(
+                    "partial_or_shared_protein_support" if not primary_estimate_allowed else None
+                ),
             )
         )
     return tuple(output)
