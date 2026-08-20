@@ -188,6 +188,27 @@ class WorkflowDAG(FrozenModel):
         return self
 
 
+def _canonical_execution_order(workflow: WorkflowDAG) -> tuple[Identifier, ...]:
+    outgoing: dict[Identifier, list[Identifier]] = {node.node_id: [] for node in workflow.nodes}
+    indegree = {node.node_id: 0 for node in workflow.nodes}
+    for edge in workflow.edges:
+        outgoing[edge.source_node_id].append(edge.target_node_id)
+        indegree[edge.target_node_id] += 1
+    ready = sorted(node_id for node_id, degree in indegree.items() if degree == 0)
+    order: list[Identifier] = []
+    while ready:
+        current = ready.pop(0)
+        order.append(current)
+        for target in sorted(outgoing[current]):
+            indegree[target] -= 1
+            if indegree[target] == 0:
+                ready.append(target)
+                ready.sort()
+    if len(order) != len(workflow.nodes):
+        raise ValueError("workflow graph must be acyclic")
+    return tuple(order)
+
+
 class ExecutionPolicy(FrozenModel):
     policy_id: Identifier
     version: SemanticVersion
@@ -266,6 +287,53 @@ class OrchestrateComplexActivityPipelineRequest(FrozenModel):
         if len(ids) != len(set(ids)) or len(digests) != len(set(digests)):
             raise ValueError("source artifacts must have unique ids and digests")
         return self
+
+
+def _execution_trace_is_closed(
+    request: OrchestrateComplexActivityPipelineRequest,
+    request_digest: Sha256Digest,
+    execution: ExecutionRecord,
+) -> None:
+    if execution.status not in {ExecutionStatus.SUCCEEDED, ExecutionStatus.RECOVERED}:
+        raise ValueError("executed result requires a successful or recovered execution")
+    if execution.execution_id != execution_id_for_request_digest(request_digest):
+        raise ValueError("execution id must be derived from the request digest")
+    if execution.workflow_id != request.workflow.workflow_id:
+        raise ValueError("execution record must bind the request workflow")
+    expected_order = _canonical_execution_order(request.workflow)
+    if tuple(execution.completed_node_ids) != expected_order:
+        raise ValueError("executed record must bind canonical workflow order")
+    expected_environment = sha256_digest(
+        {
+            "workflow": request.workflow,
+            "policy": request.policy,
+            "containers": tuple(
+                (node.node_id, node.container_image, node.container_digest, node.version)
+                for node in request.workflow.nodes
+            ),
+        }
+    )
+    if execution.environment_digest != expected_environment:
+        raise ValueError("executed record environment does not bind the request")
+    expected_output = sha256_digest(
+        {
+            "request": request_digest,
+            "seed": request.policy.deterministic_seed,
+            "order": expected_order,
+            "upstream": request.upstream_result.digest,
+        }
+    )
+    if execution.output_digest != expected_output:
+        raise ValueError("executed record output does not bind the request")
+    expected_checkpoint = sha256_digest(
+        {
+            "interval": request.policy.checkpoint_interval_nodes,
+            "completed": expected_order[:: request.policy.checkpoint_interval_nodes],
+            "environment": expected_environment,
+        }
+    )
+    if execution.checkpoint_digest != expected_checkpoint:
+        raise ValueError("executed record checkpoint does not bind the request")
 
 
 class ComplexActivityPipelineResult(FrozenModel):
@@ -374,14 +442,7 @@ class ComplexActivityPipelineResult(FrozenModel):
             execution = self.execution_record
             package = self.result_package
             assert execution is not None and package is not None
-            if execution.execution_id != execution_id_for_request_digest(self.request_digest):
-                raise ValueError("execution id must be derived from the request digest")
-            if execution.workflow_id != self.request.workflow.workflow_id:
-                raise ValueError("execution record must bind the request workflow")
-            expected_nodes = {node.node_id for node in self.request.workflow.nodes}
-            completed = set(execution.completed_node_ids)
-            if completed != expected_nodes:
-                raise ValueError("executed record must close every workflow node")
+            _execution_trace_is_closed(self.request, self.request_digest, execution)
             if package.execution_id != execution.execution_id:
                 raise ValueError("result package must bind the execution record")
             if package.package_id != package_id_for_request_digest(self.request_digest):

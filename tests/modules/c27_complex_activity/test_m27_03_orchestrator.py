@@ -565,6 +565,28 @@ def test_result_closure_rejects_mismatched_bindings() -> None:
 
 
 @pytest.mark.parametrize(
+    "field",
+    ["status", "completed_node_ids", "environment_digest", "checkpoint_digest", "output_digest"],
+)
+def test_result_closure_rejects_self_rehashed_execution_trace_forgery(field: str) -> None:
+    result = M2703Engine().execute(_request())
+    assert result.execution_record is not None
+    execution = result.execution_record
+    forged_values: dict[str, object] = {
+        "status": ExecutionStatus.FAILED,
+        "completed_node_ids": ("exit", "entry"),
+        "environment_digest": _digest(903),
+        "checkpoint_digest": _digest(904),
+        "output_digest": _digest(905),
+    }
+    forged_execution = execution.model_copy(update={field: forged_values[field]})
+    forged = result.model_copy(update={"execution_record": forged_execution})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match=r"executed (result|record)"):
+        ComplexActivityPipelineResult.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
+@pytest.mark.parametrize(
     "field", ["manifest_digest", "reproducibility_digest", "artifact_references"]
 )
 def test_result_closure_rejects_self_rehashed_package_projection_forgery(field: str) -> None:
