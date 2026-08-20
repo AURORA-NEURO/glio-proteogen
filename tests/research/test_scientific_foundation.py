@@ -1499,3 +1499,42 @@ def test_protein_group_quantification_rejects_malformed_partitions() -> None:
         quantify_protein_groups(valid, {}, {"PEPTIDE": -1})
     with pytest.raises(ValueError, match="non-negative integers"):
         quantify_protein_groups(valid, {}, {"PEPTIDE": True})
+
+
+def test_searches_with_two_plus_fragment_ions_when_declared() -> None:
+    peptide = "PEPTIDER"
+    singly = search_module._fragments(peptide)
+    observed = tuple((value + search_module._PROTON) / 2 for value in (singly[0][0], singly[1][0]))
+    peptide_map = {peptide: ("P1",)}
+
+    assert (
+        search_spectrum_candidates(
+            "scan=2+",
+            1.0,
+            peptide_map,
+            observed,
+            (10.0, 20.0),
+            parameters=SearchParameters(fragment_tolerance_da=0.001, min_matched_ions=2),
+        )
+        == ()
+    )
+    matched = search_spectrum_candidates(
+        "scan=2+",
+        1.0,
+        peptide_map,
+        observed,
+        (10.0, 20.0),
+        parameters=SearchParameters(
+            fragment_tolerance_da=0.001,
+            min_matched_ions=2,
+            fragment_charges=(1, 2),
+        ),
+    )
+    assert len(matched) == 1
+    assert matched[0].matched_ions == 2
+
+
+@pytest.mark.parametrize("charges", [(2, 1), (1, 1), (), (0,), (6,)])
+def test_fragment_charges_are_canonical_and_bounded(charges: tuple[int, ...]) -> None:
+    with pytest.raises(ValueError, match="fragment_charges"):
+        SearchParameters(fragment_charges=charges)

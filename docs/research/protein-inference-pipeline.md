@@ -246,6 +246,18 @@ A future governed computation ABI must freeze reference/search versions, modific
 units, FDR calibration, missingness, ambiguity, privacy/consent, validation cohorts, review,
   and safe-abstention semantics before this lane can be promoted.
 
+### Fragment charge search space
+
+The research search now supports an explicit tuple of fragment-ion charge states. The
+original one-plus-only primitive remains available through `SearchParameters`' default
+`fragment_charges=(1,)`; the mzML pipeline declares `(1, 2)` so doubly charged b/y ions are
+eligible when their observed m/z values support them. Each charged ion is derived from the
+same modification-aware singly charged mass, and one-to-one peak assignment still prevents
+one observed peak from counting for multiple ions. The tuple is validated, serialized into
+the run configuration, and therefore bound to replay/result digests. This is a search-space
+extension, not charge-state deconvolution or abundance inference: unobserved/ambiguous
+precursor metadata still abstains and the output remains research-only.
+
 ### Quantification receipt and units
 
 `QuantificationReceipt` is the explicit measurement contract for the research computation.
