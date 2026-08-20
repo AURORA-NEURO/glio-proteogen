@@ -21,7 +21,7 @@ from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simula
     generate_protein_rna_discordance_synthetic_truth,
     preflight_m2202_authorization,
 )
-from tests.contract.test_m22_02_hardening import _request
+from tests.contract.test_m22_02_hardening import _evidence, _request
 
 
 def test_generator_emits_all_requested_fixture_kinds_and_replays() -> None:
@@ -40,6 +40,17 @@ def test_generator_emits_all_requested_fixture_kinds_and_replays() -> None:
     assert tuple(item.fixture_kind for item in result.corpus.cases) == tuple(FixtureKind)
     assert result.manifest == result.corpus.manifest
     assert service.verify_replay(result).result_digest == result.result_digest
+
+
+def test_provenance_covers_configuration_evidence() -> None:
+    request = _request()
+    configuration = request.configuration.model_copy(
+        update={"evidence": (_evidence("m2202.configuration.evidence"),)}
+    )
+    request = request.model_copy(update={"configuration": configuration})
+    result = M2202Service().generate(request)
+
+    assert configuration.evidence[0].reference.digest in result.provenance.input_digests
 
 
 def test_generator_is_deterministic_across_typed_and_json_paths() -> None:

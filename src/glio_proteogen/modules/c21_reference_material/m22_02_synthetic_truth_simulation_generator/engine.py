@@ -314,7 +314,14 @@ def _provenance(
         module_id=M2202_MODULE_ID,
         module_version=M2202_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(item.reference.digest for item in request.configuration.evidence),
+                )
+            )
+        ),
         configuration_digest=canonical_request_digest(request.configuration),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,
