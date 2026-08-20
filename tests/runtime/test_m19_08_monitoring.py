@@ -32,6 +32,12 @@ def test_healthy_monitoring_emits_report_and_replays() -> None:
     assert engine.replay(result) == result
 
 
+def test_provenance_binds_all_emitted_evidence_artifact_identity() -> None:
+    result = m1908.M1908TranslationMonitoringEngine().infer(_request())
+    emitted_evidence_digests = {item.reference.digest for item in result.evidence}
+    assert emitted_evidence_digests.issubset(set(result.provenance.input_digests))
+
+
 def test_critical_drift_triggers_rollback() -> None:
     request = _request().model_copy(
         update={

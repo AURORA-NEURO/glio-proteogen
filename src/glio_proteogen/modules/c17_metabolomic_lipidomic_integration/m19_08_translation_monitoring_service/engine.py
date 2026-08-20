@@ -213,6 +213,7 @@ def _provenance(
                 request_digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 request.rollback_policy.rollback_artifact.digest,
+                *(reference.evidence.digest for _, reference in controls),
             )
         )
     )

@@ -51,8 +51,10 @@ or unsupported support produces an explicit abstention with no health report.
 
 Every result contains a canonical request digest, result digest, typed support decision,
 seven explicit not-estimable uncertainty dimensions, provenance, evidence, limitations,
-finding codes, and immutable replay material. Replaying the exact request must reproduce
-the result; tampered identifiers, payloads, digests, or replay state are rejected. A
+finding codes, and immutable replay material. Provenance input identity binds every
+emitted evidence artifact, including the seven control evidence references. Replaying
+the exact request must reproduce the result; tampered identifiers, payloads, digests,
+or replay state are rejected. A
 rollback decision is a decision record only: recovery is append-only and requires an
 externally governed superseding request and review.
 
@@ -76,7 +78,7 @@ replay validation.
 The locked fixture contains eight named scenarios and eight adversarial cases, with a
 95 percent adversarial target. The executable evaluator passed all scenarios and all
 adversarial cases. The focused contract, runtime, interface, evaluator, and adversarial
-suite contains 47 passing tests, including seven caller-claim surfaces and API/CLI/service
+suite contains 48 passing tests, including seven caller-claim surfaces and API/CLI/service
 parity. Scoped branch-enabled coverage is 96.2171 percent over 514 statements and 94
 branches (499 statements and 86 branches covered; fail-under 95). The 25-iteration
 benchmark times only the deterministic engine call after construction and warm-up; the
