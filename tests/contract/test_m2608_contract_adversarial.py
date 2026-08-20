@@ -297,6 +297,20 @@ def test_request_rejects_duplicate_source_modalities() -> None:
         )
 
 
+def test_request_rejects_missing_or_rehashed_source_modality() -> None:
+    request = _request()
+    with pytest.raises(ValidationError, match="bind every declared source modality"):
+        RetireProteinSubtypeServiceRequest.model_validate(
+            request.model_dump(mode="python") | {"source_artifacts": request.source_artifacts[:2]}
+        )
+    forged = request.mass_spectrometry_proteome.model_copy(update={"digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValidationError, match="bind every declared source modality"):
+        RetireProteinSubtypeServiceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (forged, *request.source_artifacts[1:])}
+        )
+
+
 def test_result_status_closure_is_enforced() -> None:
     service = M2608RetirementService()
     executed = service.retire(_request())

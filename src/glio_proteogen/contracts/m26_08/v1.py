@@ -289,6 +289,14 @@ class RetireProteinSubtypeServiceRequest(FrozenModel):
             != M2608_REQUIRED_SOURCE_MODALITIES
         ):
             raise ValueError("source modality artifacts must be distinct")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        required_modalities = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+        )
+        if any(source_by_id.get(item.artifact_id) != item for item in required_modalities):
+            raise ValueError("source artifacts must bind every declared source modality exactly")
         return self
 
 
