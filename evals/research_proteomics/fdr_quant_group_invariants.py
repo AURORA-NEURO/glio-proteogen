@@ -9,10 +9,12 @@ from itertools import pairwise
 from pathlib import Path
 
 from glio_proteogen.research import (
+    ProteinGroup,
     Psm,
     QuantificationPolicy,
     infer_protein_group_candidates,
     quantify_matched_ions_with_receipt,
+    quantify_protein_groups,
     summarize_target_decoy,
     target_decoy_qvalues,
 )
@@ -74,6 +76,19 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
             Psm("partial-decoy", "DECOY_P", ("DECOY_P",), 1.0, 3, decoy=True),
         ),
         q_value_threshold=0.01,
+    )
+    partial_candidate = next(item for item in partial_unique if item.status == "target")
+    partial_quantification = quantify_protein_groups(
+        (
+            ProteinGroup(
+                partial_candidate.accessions,
+                partial_candidate.unique_peptides,
+                partial_candidate.shared_peptides,
+            ),
+        ),
+        {"SHARED": 8.0, "UNIQUE_P2": 4.0},
+        {"SHARED": 1, "UNIQUE_P2": 1},
+        abstained_groups=(partial_candidate.accessions,),
     )
     collision_groups, collision_group_summary = infer_protein_group_candidates(
         (collision, target_low), q_value_threshold=0.01
@@ -181,6 +196,12 @@ def run_fdr_quant_group_invariants_evaluator() -> dict[str, object]:
             == "partially_unique_ambiguous"
             and next(item for item in partial_unique if item.status == "target").acceptance
             == "abstained"
+        ),
+        "partial_unique_quantification_abstains": (
+            len(partial_quantification) == 1
+            and partial_quantification[0].status == "abstained_ambiguous_support"
+            and partial_quantification[0].primary_intensity is None
+            and partial_quantification[0].abstention_reason == "partial_or_shared_protein_support"
         ),
         "fixture_provenance_is_bound": bool(request.fasta_source and request.mzml_source),
     }

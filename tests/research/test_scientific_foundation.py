@@ -1525,10 +1525,36 @@ def test_protein_group_quantification_is_unique_signal_bound_and_deterministic()
     assert p1.unique_signal_iqr == 20.0
     assert p1.unique_signal_quality == "unique_descriptive_positive_signal"
     assert shared_only.unique_signal_quality == "unique_no_positive_signal"
-    assert p1.evidence_version == "protein-group-quantification-input-1"
+    assert p1.evidence_version == "protein-group-quantification-input-2"
     assert len(p1.evidence_digest) == HEX_DIGEST_LENGTH
     assert p1.input_intensity_peptides == 2
     assert p1.input_psm_peptides == 2
+
+
+def test_protein_group_quantification_abstains_partial_support() -> None:
+    """Visible ambiguous signal must not become a resolved primary estimate."""
+
+    partial = (ProteinGroup(("P1", "P2"), ("UNIQUE_P2",), ("SHARED",)),)
+    quantified = quantify_protein_groups(
+        partial,
+        {"UNIQUE_P2": 12.0, "SHARED": 8.0},
+        {"UNIQUE_P2": 2, "SHARED": 1},
+        abstained_groups=(("P1", "P2"),),
+    )
+    result = quantified[0]
+    assert result.status == "abstained_ambiguous_support"
+    assert result.primary_intensity is None
+    assert result.unique_signal == 12.0
+    assert result.shared_signal == 8.0
+    assert result.abstention_reason == "partial_or_shared_protein_support"
+    assert result.as_dict()["abstention_reason"] == "partial_or_shared_protein_support"
+    with pytest.raises(ValueError, match="present in the group partition"):
+        quantify_protein_groups(
+            partial,
+            {"UNIQUE_P2": 12.0, "SHARED": 8.0},
+            {"UNIQUE_P2": 2, "SHARED": 1},
+            abstained_groups=(("P3",),),
+        )
 
 
 def test_protein_group_quantification_rejects_overlapping_partition() -> None:
