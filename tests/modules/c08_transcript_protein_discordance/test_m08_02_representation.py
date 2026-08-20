@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m08_02 import (
     normalized_request,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -171,6 +172,25 @@ def test_replay_accepts_canonical_and_rejects_tamper() -> None:
     assert rejected.verified is False
     assert rejected.result_digest is None
     assert rejected.reason is RepresentationReplayReason.CANONICAL_BYTES_MISMATCH
+
+
+def test_replay_rejects_self_rehashed_feature_mutation() -> None:
+    engine = m0802.M0802RepresentationEngine()
+    built = engine.construct(_request())
+    feature = built.result.features[0]
+    forged_feature = feature.model_copy(
+        update={"values": (feature.values[0] + 0.25, *feature.values[1:])}
+    )
+    forged = built.result.model_copy(
+        update={"features": (forged_feature, *built.result.features[1:])}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    outcome = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert outcome.content_verified is True
+    assert outcome.deterministic_verified is False
+    assert outcome.verified is False
 
 
 def test_leakage_token_abstains_without_features() -> None:

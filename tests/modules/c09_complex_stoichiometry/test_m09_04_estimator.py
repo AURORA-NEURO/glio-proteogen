@@ -19,7 +19,9 @@ from glio_proteogen.contracts.m09_04 import (
     ProbabilisticPriorKind,
     ProbabilisticReplayReason,
     ProbabilisticResultStatus,
+    result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -229,6 +231,23 @@ def test_replay_rejects_tampered_bytes_and_invalid_token() -> None:
     assert verification.reason is ProbabilisticReplayReason.NON_CANONICAL
     with pytest.raises(TypeError):
         plugin.run(ValidatedM0904Request(request=built.result.request, _seal=object()))
+
+
+def test_replay_rejects_self_rehashed_diagnostic_mutation() -> None:
+    engine = M0904ProbabilisticEstimator()
+    built = engine.build(_request("stable_support"))
+    diagnostic = built.result.diagnostics[0]
+    forged_diagnostic = diagnostic.model_copy(update={"message": diagnostic.message + " forged"})
+    forged = built.result.model_copy(
+        update={"diagnostics": (forged_diagnostic, *built.result.diagnostics[1:])}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    outcome = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert outcome.content_verified is True
+    assert outcome.deterministic_verified is False
+    assert outcome.verified is False
 
 
 def test_contract_closes_nonfinite_values_and_diagnostic_requirements() -> None:
