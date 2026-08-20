@@ -74,6 +74,28 @@ def test_executed_result_requires_executed_package_status() -> None:
         ComplexActivityRetirementResult.model_validate(payload, strict=True)
 
 
+def test_executed_result_rejects_self_rehashed_package_evidence_mutation() -> None:
+    result = M2708Service().execute(build_request())
+    assert result.package is not None
+    forged_preservation = result.package.preserved_evidence[0].model_copy(
+        update={"retention_class": "forged-retention"}
+    )
+    forged_package = result.package.model_copy(
+        update={
+            "preserved_evidence": (
+                forged_preservation,
+                *result.package.preserved_evidence[1:],
+            )
+        }
+    )
+    forged = result.model_copy(update={"package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request retirement controls"):
+        ComplexActivityRetirementResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
     result = M2708Service().execute(build_request())
     changed_request = build_request(request_id="m2708.request.changed")

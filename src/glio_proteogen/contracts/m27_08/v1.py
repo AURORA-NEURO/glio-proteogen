@@ -282,6 +282,15 @@ class ComplexActivityRetirementResult(FrozenModel):
                 raise ValueError("executed result requires a supported retirement package")
             if self.package.status is not RetirementStatus.EXECUTED:
                 raise ValueError("executed result requires an executed retirement package")
+            if (
+                self.package.criteria != self.request.criteria
+                or self.package.migrations != self.request.migrations
+                or self.package.preserved_evidence != self.request.preserved_evidence
+                or self.package.communications != self.request.communications
+                or self.package.archive != self.request.archive
+                or self.package.configuration != self.request.configuration
+            ):
+                raise ValueError("executed package must bind exact request retirement controls")
         elif (
             self.package is not None
             or self.abstention_reason is None
