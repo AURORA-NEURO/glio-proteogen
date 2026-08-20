@@ -7,8 +7,10 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m21_05 import (
     M2105_MAX_CANONICAL_REQUEST_BYTES,
+    M2105_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivitySubgroupEvaluationResult,
     EvaluateComplexActivitySubgroupEquityRequest,
     contract_json_schema,
@@ -39,6 +41,13 @@ def _safe_validation(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M21-05 contract")
 
 
+def _require_json(request: Request) -> None:
+    if request.headers.get("content-type", "").partition(";")[0].strip().lower() != (
+        "application/json"
+    ):
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
+
+
 def _parse_request(body: bytes) -> EvaluateComplexActivitySubgroupEquityRequest:
     try:
         strict_json_loads(body, max_bytes=M2105_MAX_CANONICAL_REQUEST_BYTES)
@@ -49,7 +58,7 @@ def _parse_request(body: bytes) -> EvaluateComplexActivitySubgroupEquityRequest:
 
 def _parse_object(body: bytes) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body)
+        value = strict_json_loads(body, max_bytes=M2105_MAX_CANONICAL_RESULT_BYTES)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -62,6 +71,11 @@ def create_app(service: M2105Service | None = None) -> FastAPI:
 
     boundary = service or M2105Service()
     app = FastAPI(title="GLIO-PROTEOGEN M21-05", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2105_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2105_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M21-05/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -75,6 +89,7 @@ def create_app(service: M2105Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M21-05/validate")
     async def validate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             typed = boundary.validate_request(payload)
@@ -84,6 +99,7 @@ def create_app(service: M2105Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M21-05/evaluate")
     async def evaluate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             result = boundary.execute(payload)
@@ -93,6 +109,7 @@ def create_app(service: M2105Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M21-05/verify")
     async def verify(request: Request) -> dict[str, object]:
+        _require_json(request)
         envelope = _parse_object(await request.body())
         candidate = envelope.get("result", envelope)
         try:
