@@ -332,6 +332,9 @@ class ResolveProteinSubtypeUpstreamContractsRequest(FrozenModel):
             raise ValueError("request candidate ids must be unique")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context request id must match request id")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("request source artifact ids must be unique")
         source_digests = tuple(item.digest for item in self.source_artifacts)
         if len(source_digests) != len(set(source_digests)):
             raise ValueError("request source artifact digests must be unique")

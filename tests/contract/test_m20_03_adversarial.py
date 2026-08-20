@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from glio_proteogen.contracts.m20_03 import (
     AggregationConfiguration,
@@ -204,6 +205,33 @@ def test_low_reliability_and_forbidden_scope_abstain() -> None:
         FusionFindingCode.LOW_RELIABILITY,
         FusionFindingCode.OWNERSHIP_UNCLEAR,
     }
+
+
+def test_forbidden_scope_in_aggregate_values_abstains() -> None:
+    request = _request().model_copy(update={"aggregate_values": ("glioma subtype=claimed",)})
+    result = M2003Engine().fuse(request)
+    assert result.status is FusionStatus.ABSTAINED
+    assert any(item.code is FusionFindingCode.OWNERSHIP_UNCLEAR for item in result.findings)
+
+
+def test_contribution_artifact_binding_requires_exact_id_and_digest() -> None:
+    request = _request()
+    mismatched = request.source_artifacts[0].model_copy(
+        update={"digest": sha256_digest("m2003:forged-source")}
+    )
+    with pytest.raises(ValidationError, match="bind every contribution artifact exactly"):
+        FuseProteinSubtypeEvidenceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (mismatched, *request.source_artifacts[1:])}
+        )
+    duplicate_id = request.source_artifacts[1].model_copy(
+        update={"artifact_id": request.source_artifacts[0].artifact_id}
+    )
+    with pytest.raises(ValidationError, match="source artifact ids"):
+        FuseProteinSubtypeEvidenceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (request.source_artifacts[0], duplicate_id)}
+        )
 
 
 def test_control_denial_precedes_source_traversal() -> None:

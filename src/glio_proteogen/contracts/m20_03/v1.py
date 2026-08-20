@@ -236,10 +236,15 @@ class FuseProteinSubtypeEvidenceRequest(FrozenModel):
         allowed = set(source_ids)
         if any(not set(item.source_ids) <= allowed for item in self.disagreements):
             raise ValueError("request disagreement references an unknown source")
-        artifact_ids = {item.artifact.artifact_id for item in self.contributions}
-        declared_ids = {item.artifact_id for item in self.source_artifacts}
-        if not artifact_ids <= declared_ids:
-            raise ValueError("source artifacts must declare every contribution artifact")
+        declared_artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(declared_artifact_ids) != len(set(declared_artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
+        contribution_keys = {
+            (item.artifact.artifact_id, item.artifact.digest) for item in self.contributions
+        }
+        declared_keys = {(item.artifact_id, item.digest) for item in self.source_artifacts}
+        if not contribution_keys <= declared_keys:
+            raise ValueError("source artifacts must bind every contribution artifact exactly")
         disagreement_ids = tuple(item.disagreement_id for item in self.disagreements)
         if len(disagreement_ids) != len(set(disagreement_ids)):
             raise ValueError("request disagreement ids must be unique")

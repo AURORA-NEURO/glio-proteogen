@@ -16,6 +16,9 @@ Safety boundaries:
   generic all-omics fusion, treatment recommendation, or disagreement erasure.
 - Unsupported, not-evaluable, low-reliability, forbidden-scope, or unresolved-disagreement
   inputs abstain safely and preserve review findings.
+- Contribution artifacts must be declared by the exact artifact-id/digest pair; aggregate
+  values are scanned for forbidden biological, kinase, treatment, and diagnosis claims and
+  cause abstention rather than being presented as component-specific evidence.
 - Seven caller-declared controls are checked before contribution traversal.
 
 The service, plugin, FastAPI adapter, and Typer adapter share the same strict parse-once

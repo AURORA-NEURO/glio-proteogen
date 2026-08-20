@@ -462,10 +462,21 @@ def test_configuration_and_request_closure_reject_duplicates_and_mismatches() ->
             _request(context_request_id="request.other").model_dump(mode="python")
         )
     duplicate_source = _artifact("source.duplicate")
+    duplicate_digest = duplicate_source.model_copy(
+        update={"artifact_id": "artifact.source.digest-duplicate"}
+    )
     with pytest.raises(ValidationError, match="source artifact digests"):
         ResolveProteinSubtypeUpstreamContractsRequest.model_validate(
             _request().model_dump(mode="python")
-            | {"source_artifacts": (duplicate_source, duplicate_source)}
+            | {"source_artifacts": (duplicate_source, duplicate_digest)}
+        )
+    duplicate_id = _artifact("source.other").model_copy(
+        update={"artifact_id": duplicate_source.artifact_id}
+    )
+    with pytest.raises(ValidationError, match="source artifact ids"):
+        ResolveProteinSubtypeUpstreamContractsRequest.model_validate(
+            _request().model_dump(mode="python")
+            | {"source_artifacts": (duplicate_source, duplicate_id)}
         )
     with pytest.raises(ValidationError, match="candidate ids"):
         ResolveProteinSubtypeUpstreamContractsRequest.model_validate(

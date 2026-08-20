@@ -55,7 +55,17 @@ _CONTROL_STATES: Final = {
     "intended_use": UpstreamDecisionState.ACCEPTED.value,
 }
 _FORBIDDEN_TERMS: Final = frozenset(
-    {"all-omics", "kinase", "treatment", "identity inference", "diagnosis"}
+    {
+        "all-omics",
+        "diagnosis",
+        "glioma",
+        "identity inference",
+        "isoform",
+        "kinase",
+        "protein inference",
+        "proteoform",
+        "treatment",
+    }
 )
 
 
@@ -237,6 +247,18 @@ def _finding(
 def _findings(request: FuseProteinSubtypeEvidenceRequest) -> tuple[FusionFinding, ...]:
     findings: list[FusionFinding] = []
     threshold = request.configuration.reliability_threshold
+    if any(
+        any(term in aggregate_value.casefold() for term in _FORBIDDEN_TERMS)
+        for aggregate_value in request.aggregate_values
+    ):
+        findings.append(
+            _finding(
+                request.request_id,
+                FusionFindingCode.OWNERSHIP_UNCLEAR,
+                "An aggregate value exceeds the component-specific M20-03 authority boundary.",
+                request.configuration.evidence,
+            )
+        )
     for contribution in request.contributions:
         claim = contribution.claim.casefold()
         if any(term in claim for term in _FORBIDDEN_TERMS):
