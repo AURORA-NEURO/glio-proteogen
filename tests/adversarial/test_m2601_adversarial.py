@@ -179,6 +179,14 @@ def test_registry_history_rejects_forged_transition_chain_and_current_digest() -
         )
 
 
+def test_registry_record_rejects_stale_lock_digest() -> None:
+    result = M2601RegistryEngine().register(_request())
+    assert result.registry is not None
+    forged = result.registry.model_copy(update={"lock_digest": "sha256:" + "f" * 64})
+    with pytest.raises(ValidationError, match="lock digest"):
+        RegistryRecord.model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_api_replay_rejects_nonobject_and_tampered_result() -> None:
     request = _request()
     client = TestClient(m2601_api.create_app())

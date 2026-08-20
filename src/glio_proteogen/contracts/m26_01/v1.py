@@ -217,6 +217,9 @@ class RegistryRecord(FrozenModel):
                     raise ValueError("registry history events must be chronological per entry")
             if events[-1].new_digest != sha256_digest(entries_by_id[entry_id]):
                 raise ValueError("registry history must bind the current entry digest")
+        expected_lock_digest = sha256_digest({"entries": self.entries, "history": self.history})
+        if self.lock_digest != expected_lock_digest:
+            raise ValueError("registry lock digest does not match canonical contents")
         return self
 
 

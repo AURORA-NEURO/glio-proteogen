@@ -195,7 +195,7 @@ def test_full_registry_request_closes_history_and_configuration() -> None:
         version=request.registry_version,
         entries=request.entries,
         history=request.history,
-        lock_digest=sha256_digest(request.entries),
+        lock_digest=sha256_digest({"entries": request.entries, "history": request.history}),
         evidence=_evidence("record"),
     )
     assert len(record.history) == len(record.entries)
