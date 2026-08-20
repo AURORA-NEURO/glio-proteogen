@@ -8,7 +8,6 @@ remain explicit abstentions.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, Final
 
 from pydantic import TypeAdapter
@@ -183,7 +182,7 @@ def preflight_m2503_authorization(candidate: object) -> None:
             candidate.context
             if isinstance(candidate, RunProteotypeInternalBenchmarkRequest)
             else candidate.get("context")
-            if isinstance(candidate, Mapping)
+            if type(candidate) is dict
             else None
         )
         references = _member(context, "references")
@@ -206,7 +205,7 @@ def preflight_m2503_authorization(candidate: object) -> None:
 
 
 def _member(candidate: object, field: str) -> object:
-    if isinstance(candidate, Mapping):
+    if type(candidate) is dict:
         return candidate.get(field)
     return getattr(candidate, field, None)
 

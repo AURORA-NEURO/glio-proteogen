@@ -271,6 +271,19 @@ def test_hostile_mapping_preflight_fails_closed() -> None:
         service.execute({"context": {"references": {}}})
 
 
+def test_mapping_subclass_is_rejected_without_accessor_execution() -> None:
+    touched: list[str] = []
+
+    class HostileDict(dict[str, object]):
+        def get(self, key: str, default: object = None) -> object:
+            touched.append(key)
+            return super().get(key, default)
+
+    with pytest.raises(M2503AuthorizationError):
+        M2503Service().execute(HostileDict(context={"references": {}}))
+    assert touched == []
+
+
 def test_cli_abstention_has_nonzero_exit_and_no_false_success(tmp_path: Path) -> None:
     request = build_request(metric_status=ValidationStatus.FAIL)
     request_path = tmp_path / "request.json"
