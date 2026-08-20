@@ -111,6 +111,21 @@ def test_runtime_abstains_and_preserves_conflict_or_support_findings(
     assert any(item.code == "safe_abstention" for item in result.limitations)
 
 
+def test_provenance_binds_discrepancy_and_configuration_evidence() -> None:
+    request = build_scenario_request("conflict")
+    result = M1802CrossSourceAlignmentEngine().infer(request)
+
+    expected = {
+        *(
+            evidence.reference.digest
+            for item in request.discrepancies
+            for evidence in item.evidence
+        ),
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+    }
+    assert expected <= set(result.provenance.input_digests)
+
+
 def test_service_accepts_bytes_mapping_and_typed_inputs_but_rejects_duplicate_json() -> None:
     service = M1802Service()
     request = build_scenario_request()

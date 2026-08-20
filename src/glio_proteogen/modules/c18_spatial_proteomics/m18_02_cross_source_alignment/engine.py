@@ -179,6 +179,12 @@ def _provenance(
                     for item in request.observations
                     for evidence in item.evidence
                 ),
+                *(
+                    evidence.reference.digest
+                    for item in request.discrepancies
+                    for evidence in item.evidence
+                ),
+                *(evidence.reference.digest for evidence in request.configuration.evidence),
             )
         )
     )
