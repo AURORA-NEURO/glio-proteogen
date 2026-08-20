@@ -342,6 +342,7 @@ def test_cohort_label_contrast_abstains_when_derived_ratio_is_nonfinite(
                 median_normalized_intensity=label_a_median,
                 mad_normalized_intensity=0.0,
                 status="descriptive",
+                independent_observed_replicates=2,
             ),
             CohortLabelGroupEvidence(
                 cohort_label="control",
@@ -352,6 +353,7 @@ def test_cohort_label_contrast_abstains_when_derived_ratio_is_nonfinite(
                 median_normalized_intensity=label_b_median,
                 mad_normalized_intensity=0.0,
                 status="descriptive",
+                independent_observed_replicates=2,
             ),
         )
     )

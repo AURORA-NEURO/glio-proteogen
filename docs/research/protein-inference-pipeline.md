@@ -163,8 +163,11 @@ both biological and technical rows, `within_label_median_v1` computes scale fact
 the biological rows; each technical row receives `scale_factor=null`, the explicit
 `abstained_technical_replicate` row status, and an all-null normalized row. Its raw values,
 source binding, and QC evidence remain visible, while `independent_observed_replicates` and
-label medians count biological rows only. This is deliberate non-imputation and safe
-abstention, not a claim that the technical measurement is biologically negative or unusable.
+the within-label normalized medians count biological rows only. A group observed only in technical rows is also
+withheld from pairwise label contrasts, including under `normalization_policy="none"`; its raw
+value remains visible but its group evidence is marked `abstained_insufficient_replicates`.
+This is deliberate non-imputation and safe abstention, not a claim that the technical
+measurement is biologically negative or unusable.
 
 Every cohort request also carries a closed `CohortQcPolicy` receipt. Its minimum replicate
 count, minimum observed-group count, and maximum missingness rate are validated as finite
@@ -203,10 +206,10 @@ computation, re-derives normalized matrices, sample scales, label QC, label-by-g
 matrix-derived group/sample QC, and label contrasts from their upstream projections, verifies the
 complete outer result digest, and rejects a stale, tampered, or internally inconsistent receipt.
 Positive medians from labels whose QC
-status is not exactly `descriptive` are also withheld: they produce `abstained_label_qc` with
-null difference, ratio, and log2-ratio fields. This prevents unknown-independence, missingness,
-or insufficient-support labels from being presented as derived effects while retaining their
-raw and QC evidence.
+status is not exactly `descriptive`, or groups with no independent biological observation,
+are also withheld: they produce `abstained_label_qc` with null difference, ratio, and log2-ratio
+fields. This prevents unknown-independence, missingness, or insufficient-support labels/groups
+from being presented as derived effects while retaining their raw and QC evidence.
 Finite positive medians whose derived difference, ratio, or log2 ratio would overflow or underflow
 are likewise withheld as `abstained_nonfinite_derived`, with all derived effect fields null.
 This keeps floating-point boundary behavior deterministic and prevents an extreme finite input

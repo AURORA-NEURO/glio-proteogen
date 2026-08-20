@@ -10,6 +10,7 @@ from evals.research_proteomics.run import build_cohort_supported_request
 
 import glio_proteogen.research.cohort as cohort_module
 from glio_proteogen.research import (
+    CohortSourceBinding,
     CohortSourceManifest,
     ProteinGroup,
     ProteinGroupQuant,
@@ -62,6 +63,60 @@ def _quant(group: tuple[str, ...], intensity: float) -> ProteinGroupQuant:
         status="quantified",
         supporting_psms=1,
     )
+
+
+def test_technical_only_group_cannot_emit_a_descriptive_label_contrast() -> None:
+    samples = tuple(
+        cohort_module._CohortLabelSample(sample_id, label)
+        for sample_id, label in (
+            ("case-a", "case"),
+            ("case-b", "case"),
+            ("case-tech", "case"),
+            ("control-a", "control"),
+            ("control-b", "control"),
+        )
+    )
+    manifest = CohortSourceManifest(
+        tuple(
+            CohortSourceBinding(
+                sample_id=sample.sample_id,
+                source_kind="local",
+                source_id=f"local:{sample.sample_id}",
+                source_sha256=f"{index + 1:064x}",
+                source_size=1,
+                replicate_kind=("technical" if sample.sample_id == "case-tech" else "biological"),
+            )
+            for index, sample in enumerate(samples)
+        )
+    )
+    raw_matrix = (
+        (("P1",), (None, None, 100.0, 10.0, 10.0)),
+        (("P2",), (10.0, 10.0, 10.0, 10.0, 10.0)),
+    )
+    _, _, label_qc, group_evidence, _ = cohort_module._build_label_evidence(
+        samples,
+        (("P1",), ("P2",)),
+        raw_matrix,
+        "none",
+        cohort_module.CohortQcPolicy(),
+        manifest,
+    )
+
+    case_p1 = next(
+        item
+        for item in group_evidence
+        if item.cohort_label == "case" and item.group_accessions == ("P1",)
+    )
+    assert next(item for item in label_qc if item.cohort_label == "case").status == "descriptive"
+    assert case_p1.independent_observed_replicates == 0
+    assert case_p1.status == "abstained_insufficient_replicates"
+    p1_contrast = next(
+        item
+        for item in cohort_module._build_label_contrasts(group_evidence)
+        if item.group_accessions == ("P1",)
+    )
+    assert p1_contrast.status == "abstained_label_qc"
+    assert p1_contrast.median_ratio is None
 
 
 def test_within_label_normalization_preserves_raw_and_aligns_replicates(

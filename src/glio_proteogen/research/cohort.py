@@ -301,10 +301,11 @@ class CohortLabelContrast:
     This is an evidence projection over normalized group medians, not a
     differential-expression test.  Labels are supplied by the caller and are
     never inferred from values, disease metadata, or protein names.  A ratio
-    and log2 ratio are emitted only when both label medians are positive and
-    both upstream label QC statuses are descriptive; missing, non-positive,
-    non-finite-derived, or unverified-QC cells remain explicit abstentions
-    rather than imputed effects.
+    and log2 ratio are emitted only when both label medians are positive,
+    both upstream label-by-group QC statuses are descriptive, and each label has
+    at least one independent observed replicate for the group; missing,
+    non-positive, non-finite-derived, or unverified-QC cells remain explicit
+    abstentions rather than imputed effects.
     """
 
     cohort_label_a: str
@@ -763,7 +764,12 @@ def _build_label_contrasts(
                     ratio = None
                     log_ratio = None
                     status = "abstained_missing_or_nonpositive"
-                elif left.status != "descriptive" or right.status != "descriptive":
+                elif (
+                    left.status != "descriptive"
+                    or right.status != "descriptive"
+                    or left.independent_observed_replicates < 1
+                    or right.independent_observed_replicates < 1
+                ):
                     difference = None
                     ratio = None
                     log_ratio = None
@@ -1078,9 +1084,13 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                 float(value) for value in values if value is not None and _positive(value)
             )
             center, mad = _median_mad(observed)
-            evidence_status = qc_status
             independent_observed = sum(
                 _positive(sample_rows[index].get(group)) for index in biological_indices
+            )
+            evidence_status = (
+                "abstained_insufficient_replicates"
+                if qc_status == "descriptive" and independent_observed < 1
+                else qc_status
             )
             label_evidence.append(
                 CohortLabelGroupEvidence(
