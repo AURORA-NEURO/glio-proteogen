@@ -326,12 +326,47 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     ]
 
 
-@pytest.mark.parametrize("observation", [("", 1.0), ("P", -1.0), ("P", math.nan)])
+@pytest.mark.parametrize(
+    "observation", [("", 1.0), ("P", -1.0), ("P", math.nan), ("P", True), ("P", False)]
+)
 def test_matched_ion_quantification_rejects_invalid_observations(
-    observation: tuple[str, float],
+    observation: tuple[str, float | bool],
 ) -> None:
     with pytest.raises(ValueError):
         quantify_matched_ions("sample-1", (observation,))
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_search_rejects_boolean_measurements(value: bool) -> None:  # noqa: FBT001
+    parameters = SearchParameters(require_precursor_mz=True, min_matched_ions=1)
+    assert (
+        search_spectrum_candidates(
+            "boolean-measurement",
+            value,
+            {"PEPTIDER": ("P1",)},
+            (value,),
+            (value,),
+            parameters=parameters,
+        )
+        == ()
+    )
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_target_decoy_validation_rejects_boolean_scores(value: bool) -> None:  # noqa: FBT001
+    with pytest.raises(ValueError, match="PSM score"):
+        target_decoy_qvalues(
+            (
+                Psm(
+                    "boolean-score",
+                    "PEPTIDER",
+                    ("P1",),
+                    score=value,
+                    matched_ions=1,
+                    decoy=False,
+                ),
+            )
+        )
 
 
 def test_evidence_aggregation_is_order_stable_and_explicitly_limited() -> None:

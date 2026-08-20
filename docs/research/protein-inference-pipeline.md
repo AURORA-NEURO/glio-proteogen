@@ -293,3 +293,8 @@ missing with zero normalized signal and no imputation. The policy, below-LOQ cou
 peptide status vectors are included in the non-default configuration/receipt digest, so a
 replay cannot silently change units, normalization, or LOQ semantics. The LOQ is not an
 empirical assay calibration and does not establish clinical detectability.
+
+All search and matched-ion numeric boundaries reject booleans explicitly. Although Python
+`bool` is an `int` subclass and `math.isfinite(True)` is true, a metadata flag is not a valid
+m/z, precursor, intensity, or PSM score. Such values are rejected before arithmetic; missing or
+unsupported measurements abstain rather than being coerced into one-unit signal.

@@ -303,7 +303,7 @@ def quantify_matched_ions_with_receipt(
         peptide, intensity = item
         if not isinstance(peptide, str) or not peptide or len(peptide) > 256:
             raise ValueError("peptide must be a bounded non-empty string")
-        if not isfinite(intensity) or intensity < 0:
+        if type(intensity) not in (int, float) or not isfinite(intensity) or intensity < 0:
             raise ValueError("matched-ion intensity must be finite and non-negative")
         normalized_observations.append((peptide, float(intensity)))
         totals[peptide] += intensity

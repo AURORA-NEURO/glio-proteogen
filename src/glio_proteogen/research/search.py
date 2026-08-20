@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from hashlib import sha256
 from math import hypot, isfinite
+from typing import cast
 
 from .modifications import normalize_modification_rules, parse_modified_peptide
 
@@ -194,6 +195,18 @@ def _validate_target_decoy_psm(psm: Psm, *, decoy_prefix: str = "DECOY_") -> Non
         raise ValueError("PSM must declare at least one protein accession")
     if any(not isinstance(accession, str) or not accession for accession in psm.protein_accessions):
         raise ValueError("PSM protein accessions must be non-empty strings")
+    if not _is_finite_real(psm.score) or psm.score < 0:
+        raise ValueError("PSM score must be finite and non-negative")
+    if not _is_finite_real(psm.matched_intensity) or psm.matched_intensity < 0:
+        raise ValueError("PSM matched intensity must be finite and non-negative")
+    if not _is_finite_real(psm.mean_fragment_error_da) or psm.mean_fragment_error_da < 0:
+        raise ValueError("PSM fragment error must be finite and non-negative")
+    if psm.precursor_error_ppm is not None and (
+        not _is_finite_real(psm.precursor_error_ppm) or psm.precursor_error_ppm < 0
+    ):
+        raise ValueError("PSM precursor error must be finite and non-negative")
+    if psm.q_value is not None and (not _is_finite_real(psm.q_value) or not 0 <= psm.q_value <= 1):
+        raise ValueError("PSM q_value must be finite and between zero and one")
     derived_decoy = all(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
     derived_collision = (
         any(accession.startswith(decoy_prefix) for accession in psm.protein_accessions)
@@ -228,6 +241,14 @@ _MASS = {
 _PROTON = 1.007276466
 _WATER = 18.010565
 _DEFAULT_PARAMETERS = SearchParameters()
+
+
+def _is_finite_real(value: object) -> bool:
+    """Accept real measurements while rejecting booleans as numeric data."""
+
+    if type(value) not in (int, float):
+        return False
+    return isfinite(cast("int | float", value))
 
 
 def _fragments(
@@ -435,15 +456,15 @@ def search_spectrum_candidates(
     open-search workflow.  Candidates are returned in the same total order used
     by target/decoy competition so the caller can retain an auditable receipt.
     """
-    if parameters.require_precursor_mz and (not isfinite(precursor_mz) or precursor_mz <= 0):
+    if parameters.require_precursor_mz and (not _is_finite_real(precursor_mz) or precursor_mz <= 0):
         return ()
     mz = tuple(observed_mz)
     intensity = tuple(observed_intensity)
     if len(mz) != len(intensity):
         raise ValueError("observed m/z and intensity lengths differ")
-    if any(not isfinite(value) or value < 0 for value in mz):
+    if any(not _is_finite_real(value) or value < 0 for value in mz):
         return ()
-    if any(not isfinite(value) or value < 0 for value in intensity):
+    if any(not _is_finite_real(value) or value < 0 for value in intensity):
         return ()
     norm = hypot(*intensity) if intensity else 0.0
     all_candidates: list[Psm] = []
