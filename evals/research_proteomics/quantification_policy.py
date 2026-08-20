@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
+from pathlib import Path
 
 from glio_proteogen.research import (
     QuantificationPolicy,
@@ -11,7 +13,11 @@ from glio_proteogen.research import (
     run_research_protein_inference,
 )
 
-from .run import build_scenario_request, scenarios
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from evals.research_proteomics.run import build_scenario_request, scenarios
+else:
+    from .run import build_scenario_request, scenarios
 
 _LOQ = 4.0
 _BELOW_LOQ = 2

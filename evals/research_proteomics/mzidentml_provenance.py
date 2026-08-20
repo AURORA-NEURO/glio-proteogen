@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
+from pathlib import Path
 
 from glio_proteogen.research import (
     ResearchRunRequest,
@@ -10,7 +12,11 @@ from glio_proteogen.research import (
     run_research_protein_inference,
 )
 
-from .run import build_scenario_request, scenarios
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from evals.research_proteomics.run import build_scenario_request, scenarios
+else:
+    from .run import build_scenario_request, scenarios
 
 _MZIDENTML = b"""\
 <MzIdentML id="evaluation">
@@ -86,3 +92,9 @@ def run_mzidentml_provenance_evaluator() -> dict[str, object]:
         "bound_result_digest": bound.result_digest,
         "mzidentml_sha256": structure.sha256 if structure is not None else None,
     }
+
+
+if __name__ == "__main__":
+    import json
+
+    sys.stdout.write(json.dumps(run_mzidentml_provenance_evaluator(), sort_keys=True))
