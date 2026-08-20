@@ -211,6 +211,22 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
     )
 
 
+def test_cohort_evidence_rejects_coherent_bundle_with_stale_outer_digest() -> None:
+    original = run_research_cohort(
+        ResearchCohortRequest(
+            (_sample("target_supported", "a", "r1"), _sample("target_supported", "b", "r2"))
+        )
+    )
+    alternate = run_research_cohort(
+        ResearchCohortRequest(
+            (_sample("target_supported", "a", "r1"), _sample("no_match", "b", "r2"))
+        )
+    )
+    forged = replace(alternate, result_digest=original.result_digest)
+    with pytest.raises(ValueError, match="result digest"):
+        aggregate_cohort_evidence(forged)
+
+
 def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
     def distinct_sample(sample_id: str, replicate: str, label: str) -> ResearchCohortSample:
         sample = _sample("target_supported", sample_id, replicate)

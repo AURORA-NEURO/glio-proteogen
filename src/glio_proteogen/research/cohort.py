@@ -599,6 +599,14 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
         raise ValueError("cohort result has no evidence bundle")
     if observed.as_dict() != result.evidence_bundle.as_dict():
         raise ValueError("cohort evidence bundle is not reproducible")
+    # The inner bundle can be coherent even when a caller swaps in a complete
+    # bundle from another result.  Keep this non-executing verifier bound to the
+    # complete outer projection as well, so a stale result digest cannot pass as
+    # an auditable cohort receipt.
+    expected_payload = result.as_dict()
+    expected_digest = expected_payload.pop("result_digest")
+    if expected_digest != result.result_digest or _digest(expected_payload) != expected_digest:
+        raise ValueError("cohort result digest is invalid")
     return observed
 
 
