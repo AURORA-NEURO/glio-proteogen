@@ -173,10 +173,7 @@ def _provenance(request: AdaptProteotypeIntendedUseRequest) -> ProvenanceRecord:
                 request.upstream_result.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 *(item.reference.digest for item in request.registration.evidence),
-                *(
-                    item.reference.digest
-                    for item in request.registration.claim_ceiling.evidence
-                ),
+                *(item.reference.digest for item in request.registration.claim_ceiling.evidence),
                 *(
                     item.reference.digest
                     for item in request.registration.display_semantics.evidence
@@ -423,6 +420,9 @@ class M1904Engine:
             raise M1904ReplayError("M19-04 result identifier mismatch")  # noqa: TRY003
         if validated.result_digest != result_payload_digest(validated):
             raise M1904ReplayError("M19-04 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adapt(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1904ReplayError("M19-04 deterministic replay result mismatch")  # noqa: TRY003
         return validated
 
 

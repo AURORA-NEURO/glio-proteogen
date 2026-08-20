@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m19_03 import (
     FusionFindingCode,
     FusionStatus,
     ReliabilityBand,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import EvidenceReference, SupportStatus
@@ -159,6 +160,15 @@ def test_tampered_result_digest_is_rejected() -> None:
 
     with pytest.raises(M1903ReplayError, match="payload digest"):
         M1903Engine().replay(tampered)
+
+
+def test_replay_rejects_semantic_mutation_with_recomputed_digest() -> None:
+    result = M1903Engine().adapt(_request())
+    forged = result.model_copy(update={"human_review_required": True})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M1903ReplayError, match="deterministic replay"):
+        M1903Engine().replay(forged)
 
 
 def test_duplicate_source_artifact_is_deduplicated_by_runtime() -> None:

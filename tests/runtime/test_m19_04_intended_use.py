@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m19_04 import (
     AdaptProteotypeIntendedUseRequest,
     IntendedUseKind,
     PolicyDecisionStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import EvidenceReference, SupportStatus
@@ -180,6 +181,16 @@ def test_service_replay_rejects_request_identifier_and_payload_tamper() -> None:
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1904.M1904ReplayError, match="result digest"):
         service.replay(result.model_copy(update={"human_review_required": True}))
+
+
+def test_service_replay_rejects_semantic_mutation_with_recomputed_digest() -> None:
+    service = m1904.M1904Service()
+    result = service.adapt(_supported_request())
+    forged = result.model_copy(update={"human_review_required": True})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(m1904.M1904ReplayError, match="deterministic replay"):
+        service.replay(forged)
 
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:

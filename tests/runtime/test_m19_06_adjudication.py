@@ -7,6 +7,7 @@ from glio_proteogen.contracts.m19_06 import (
     QueueResultStatus,
     ReviewDecision,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import EvidenceReference
@@ -112,6 +113,15 @@ def test_replay_rejects_request_and_result_tampering() -> None:
     tampered_result = result.model_copy(update={"result_digest": _ZERO_DIGEST})
     with pytest.raises(M1906ReplayError, match="payload digest"):
         M1906Engine().replay(tampered_result)
+
+
+def test_replay_rejects_semantic_mutation_with_recomputed_digest() -> None:
+    result = M1906Engine().adapt(_request())
+    forged = result.model_copy(update={"human_review_required": False})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M1906ReplayError, match="deterministic replay"):
+        M1906Engine().replay(forged)
 
 
 def test_plugin_descriptor_and_runtime_are_bounded() -> None:
