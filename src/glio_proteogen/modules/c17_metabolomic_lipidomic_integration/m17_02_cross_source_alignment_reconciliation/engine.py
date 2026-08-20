@@ -431,19 +431,20 @@ class M1702AlignmentEngine:
         *,
         replay: bool = True,
     ) -> VariantPeptideCrossSourceAlignmentResult:
+        if replay is False:
+            raise M1702ReplayVerificationError("M17-02 deterministic replay cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M1702ReplayVerificationError from error
         if validated.result_digest != result_payload_digest(validated):
             raise M1702ReplayVerificationError
-        if replay:
-            try:
-                expected = self.export(validated.request)
-            except Exception as error:
-                raise M1702ReplayVerificationError from error
-            if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
-                raise M1702ReplayVerificationError
+        try:
+            expected = self.export(validated.request)
+        except Exception as error:
+            raise M1702ReplayVerificationError from error
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1702ReplayVerificationError
         return validated
 
 
