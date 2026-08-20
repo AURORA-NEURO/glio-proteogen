@@ -20,6 +20,26 @@ def run_evaluator() -> dict[str, Any]:
     request = build_request()
     result = service.generate(request)
     repeated = service.generate(request)
+    nested_evidence_digests = (
+        {item.reference.digest for item in request.split.evidence}
+        | {
+            item.reference.digest
+            for baseline in request.baseline_runs
+            for item in baseline.evidence
+        }
+        | {
+            item.reference.digest
+            for baseline in request.baseline_runs
+            for metric in baseline.metrics
+            for item in metric.evidence
+        }
+        | {item.reference.digest for ablation in request.ablations for item in ablation.evidence}
+        | {
+            item.reference.digest
+            for comparison in request.comparisons
+            for item in comparison.evidence
+        }
+    )
     checks: dict[str, bool] = {
         "completed": result.status.value == "completed",
         "locked_split": result.dossier is not None and result.dossier.split.locked,
@@ -36,6 +56,8 @@ def run_evaluator() -> dict[str, Any]:
         ),
         "deterministic_result": result.result_digest == repeated.result_digest,
         "replay_verified": service.replay(result).result_digest == result.result_digest,
+        "provenance_covers_nested_evidence": nested_evidence_digests
+        <= set(result.provenance.input_digests),
         "parent_boundary": result.emits_parent is False
         and result.parent_target == "protein-RNA discordance",
     }

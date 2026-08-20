@@ -303,10 +303,36 @@ def _provenance(
         module_id=M2203_MODULE_ID,
         module_version=M2203_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            *tuple(artifact.digest for artifact in request.source_artifacts),
-            request.upstream_result.digest,
-            sha256_digest(request.split),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    request.upstream_result.digest,
+                    sha256_digest(request.split),
+                    *(item.reference.digest for item in request.split.evidence),
+                    *(
+                        item.reference.digest
+                        for baseline in request.baseline_runs
+                        for item in baseline.evidence
+                    ),
+                    *(
+                        item.reference.digest
+                        for baseline in request.baseline_runs
+                        for metric in baseline.metrics
+                        for item in metric.evidence
+                    ),
+                    *(
+                        item.reference.digest
+                        for ablation in request.ablations
+                        for item in ablation.evidence
+                    ),
+                    *(
+                        item.reference.digest
+                        for comparison in request.comparisons
+                        for item in comparison.evidence
+                    ),
+                )
+            )
         ),
         configuration_digest=sha256_digest(
             {

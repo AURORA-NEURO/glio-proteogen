@@ -27,6 +27,27 @@ def test_benchmark_emits_dossier_and_replays() -> None:
     assert service.replay(result).result_digest == result.result_digest
 
 
+def test_provenance_covers_nested_benchmark_evidence() -> None:
+    request = _request()
+    result = M2203Service().generate(request)
+    nested_evidence = (
+        *request.split.evidence,
+        *(item for baseline in request.baseline_runs for item in baseline.evidence),
+        *(
+            item
+            for baseline in request.baseline_runs
+            for metric in baseline.metrics
+            for item in metric.evidence
+        ),
+        *(item for ablation in request.ablations for item in ablation.evidence),
+        *(item for comparison in request.comparisons for item in comparison.evidence),
+    )
+
+    assert {item.reference.digest for item in nested_evidence} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_benchmark_is_deterministic_across_typed_and_json_paths() -> None:
     service = M2203Service()
     request = _request()
