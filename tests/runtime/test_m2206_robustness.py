@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m22_06 import (
     ChallengeDisposition,
     RobustnessStatus,
 )
+from glio_proteogen.contracts.m22_06.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_challenge import (
     M2206AuthorizationError,
@@ -104,3 +105,27 @@ def test_replay_rejects_tampered_payload() -> None:
         engine.verify(result.model_copy(update={"abstention_reason": "tampered"}), replay=False)
     with pytest.raises((TypeError, ValueError)):
         M2206Plugin().validate("{")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_id", "GLIO-PROTEOGEN-M22-05"),
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    field: str,
+    value: object,
+) -> None:
+    engine = M2206Engine()
+    result = engine.evaluate(_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2206ReplayError):
+        engine.verify(forged)
