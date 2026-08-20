@@ -78,11 +78,37 @@ def test_receipt_marks_cleavage_mismatch_without_dropping_the_pair() -> None:
     assert receipt.pairs[0].status == "cleavage_mismatch"
 
 
+def test_pair_compatibility_is_independent_of_variable_modification_expansion() -> None:
+    """Modification eligibility must not masquerade as cleavage mismatch."""
+
+    entries = (
+        FastaEntry("P1", "MSTPEPTIDER"),
+        FastaEntry("DECOY_P1", "STPEPTIDER"),
+    )
+    receipt = build_search_space_receipt(
+        b">P1\nMSTPEPTIDER\n>DECOY_P1\nSTPEPTIDER\n",
+        entries,
+        min_peptide_length=7,
+        max_peptide_length=20,
+        modification_rules=("UNIMOD:35",),
+        max_variable_modifications=1,
+    )
+
+    assert receipt.pairs[0].target_peptides == receipt.pairs[0].decoy_peptides == 1
+    assert receipt.pairs[0].status == "cleavage_compatible"
+    assert receipt.modified_target_peptides > receipt.modified_decoy_peptides
+    assert verify_search_space_receipt(receipt) == receipt
+
+
 def test_receipt_is_order_stable_and_source_bound() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
-    forward = build_search_space_receipt(b"fixture-a", entries)
-    reverse = build_search_space_receipt(b"fixture-a", tuple(reversed(entries)))
-    changed_source = build_search_space_receipt(b"fixture-b", entries)
+    source = b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n"
+    forward = build_search_space_receipt(source, entries)
+    reverse = build_search_space_receipt(source, tuple(reversed(entries)))
+    changed_entries = (FastaEntry("P1", "MPEPTIDERA"), FastaEntry("DECOY_P1", "MPEPTIDERA"))
+    changed_source = build_search_space_receipt(
+        b">P1\nMPEPTIDERA\n>DECOY_P1\nMPEPTIDERA\n", changed_entries
+    )
     assert forward.as_dict() == reverse.as_dict()
     assert forward.search_space_digest != changed_source.search_space_digest
     assert forward.source_sha256 != changed_source.source_sha256
@@ -90,39 +116,49 @@ def test_receipt_is_order_stable_and_source_bound() -> None:
 
 def test_receipt_rejects_duplicate_accessions_and_bad_source() -> None:
     entry = FastaEntry("P1", "MPEPTIDER")
+    source = b">P1\nMPEPTIDER\n"
     with pytest.raises(ValueError, match="unique"):
-        build_search_space_receipt(b"fixture", (entry, entry))
+        build_search_space_receipt(source, (entry, entry))
     with pytest.raises(TypeError, match="immutable bytes"):
         build_search_space_receipt(bytearray(b"fixture"), (entry,))  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="prefix"):
-        build_search_space_receipt(b"fixture", (entry,), decoy_prefix=" ")
+        build_search_space_receipt(source, (entry,), decoy_prefix=" ")
     with pytest.raises(ValueError, match="sequence"):
-        build_search_space_receipt(b"fixture", (FastaEntry("P1", "mpeptider"),))
+        build_search_space_receipt(source, (FastaEntry("P1", "mpeptider"),))
     with pytest.raises(ValueError, match="accession"):
-        build_search_space_receipt(b"fixture", (FastaEntry("P 1", "MPEPTIDER"),))
+        build_search_space_receipt(source, (FastaEntry("P 1", "MPEPTIDER"),))
+
+
+def test_receipt_rejects_source_entry_mismatch_before_digest() -> None:
+    with pytest.raises(ValueError, match="source FASTA"):
+        build_search_space_receipt(
+            b">P1\nMPEPTIDER\n",
+            (FastaEntry("P1", "PEPTIDER"),),
+        )
 
 
 def test_receipt_rejects_unsupported_generation_and_modification_controls() -> None:
     entry = FastaEntry("P1", "MPEPTIDER")
+    source = b">P1\nMPEPTIDER\n"
     with pytest.raises(ValueError, match="unsupported decoy_strategy"):
-        build_search_space_receipt(b"fixture", (entry,), decoy_strategy="random")
+        build_search_space_receipt(source, (entry,), decoy_strategy="random")
     with pytest.raises(ValueError, match="at least one"):
-        build_search_space_receipt(b"fixture", ())
+        build_search_space_receipt(source, ())
     with pytest.raises(ValueError, match="between zero and three"):
-        build_search_space_receipt(b"fixture", (entry,), max_variable_modifications=4)
+        build_search_space_receipt(source, (entry,), max_variable_modifications=4)
     with pytest.raises(ValueError, match="positive site limit"):
         build_search_space_receipt(
-            b"fixture",
+            source,
             (entry,),
             modification_rules=("UNIMOD:35",),
             max_variable_modifications=0,
         )
     with pytest.raises(ValueError, match="non-empty"):
-        build_search_space_receipt(b"fixture", (FastaEntry(" ", "MPEPTIDER"),))
+        build_search_space_receipt(source, (FastaEntry(" ", "MPEPTIDER"),))
     with pytest.raises(ValueError, match="digestion limits"):
-        build_search_space_receipt(b"fixture", (entry,), missed_cleavages=True)
+        build_search_space_receipt(source, (entry,), missed_cleavages=True)
     with pytest.raises(ValueError, match="prefix"):
-        build_search_space_receipt(b"fixture", (entry,), decoy_prefix="D")
+        build_search_space_receipt(source, (entry,), decoy_prefix="D")
 
 
 def test_generated_decoys_are_paired_and_source_bound() -> None:
@@ -195,7 +231,7 @@ def test_receipt_verifier_rejects_strategy_and_digest_alias_tampering() -> None:
 
 def test_receipt_verifier_rejects_pairing_and_outer_tampering() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
-    receipt = build_search_space_receipt(b"fixture", entries)
+    receipt = build_search_space_receipt(b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n", entries)
     with pytest.raises(ValueError, match="pairing digest"):
         verify_search_space_receipt(replace(receipt, pairing_digest="0" * 64))
     with pytest.raises(ValueError, match="search-space digest"):
@@ -205,7 +241,7 @@ def test_receipt_verifier_rejects_pairing_and_outer_tampering() -> None:
 
 def test_receipt_verifier_rejects_forged_source_identity_and_controls() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
-    receipt = build_search_space_receipt(b"fixture", entries)
+    receipt = build_search_space_receipt(b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n", entries)
     with pytest.raises(ValueError, match="source SHA-256"):
         verify_search_space_receipt(_rehashed(receipt, source_sha256="g" * 64))
     with pytest.raises(ValueError, match="version"):
@@ -216,7 +252,7 @@ def test_receipt_verifier_rejects_forged_source_identity_and_controls() -> None:
 
 def test_receipt_verifier_rejects_noncanonical_pair_identity_and_status() -> None:
     entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("DECOY_P1", "MPEPTIDER"))
-    receipt = build_search_space_receipt(b"fixture", entries)
+    receipt = build_search_space_receipt(b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n", entries)
     forged_identity = replace(
         receipt,
         pairs=(replace(receipt.pairs[0], decoy_accession="DECOY_OTHER"),),
@@ -238,7 +274,10 @@ def test_receipt_verifier_closes_every_structural_control_boundary() -> None:
         FastaEntry("P2", "PEPTIDEK"),
         FastaEntry("DECOY_P2", "PEPTIDEK"),
     )
-    receipt = build_search_space_receipt(b"fixture", entries)
+    receipt = build_search_space_receipt(
+        b">P1\nMPEPTIDER\n>DECOY_P1\nMPEPTIDER\n>P2\nPEPTIDEK\n>DECOY_P2\nPEPTIDEK\n",
+        entries,
+    )
     reversed_pairs = tuple(reversed(receipt.pairs))
     cases: tuple[tuple[dict[str, Any], str], ...] = (
         ({"digestion_enzyme": "pepsin"}, "enzyme"),

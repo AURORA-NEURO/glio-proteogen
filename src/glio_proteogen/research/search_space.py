@@ -197,6 +197,15 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
     for entry in entries_tuple:
         _validate_fasta_entry(entry)
     _validate_entries(entries_tuple)
+    # A receipt that hashes one FASTA while digesting another is not a
+    # source-bound search-space record.  Keep caller ordering irrelevant (the
+    # digest is canonicalized below), but require the accession/sequence map
+    # to agree with the bytes before any target/decoy expansion occurs.
+    parsed_entries = read_fasta(source_bytes)
+    if tuple(sorted(parsed_entries, key=lambda item: item.accession)) != tuple(
+        sorted(entries_tuple, key=lambda item: item.accession)
+    ):
+        raise ValueError("search-space entries do not match source FASTA")
     declared_decoys = tuple(
         entry for entry in entries_tuple if entry.accession.startswith(decoy_prefix)
     )
@@ -262,8 +271,15 @@ def build_search_space_receipt(  # noqa: PLR0915 - receipt construction binds ev
         if decoy not in by_accession:
             unmatched_targets += 1
             continue
-        target_count = len(modified_digests[target])
-        decoy_count = len(modified_digests[decoy])
+        # Pair compatibility describes the digestion, not the optional
+        # variable-modification expansion.  A target and decoy with identical
+        # cleavage products can have different modification counts simply
+        # because one sequence contains an eligible residue (for example M)
+        # and the other does not.  Using the expanded counts here incorrectly
+        # downgrades a cleavage-compatible pair and makes the FDR calibration
+        # receipt depend on a separate modification policy.
+        target_count = len(digests[target])
+        decoy_count = len(digests[decoy])
         status = (
             "cleavage_compatible"
             if target_count == decoy_count and target_count > 0
