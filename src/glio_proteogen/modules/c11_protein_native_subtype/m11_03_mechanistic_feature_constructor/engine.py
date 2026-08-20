@@ -444,9 +444,11 @@ def verify_m1103_replay(
     result: VariantPeptideMechanisticFeatureResult,
     request: object,
 ) -> bool:
-    """Verify exact request binding and sealed result digest without recomputation."""
+    """Verify request binding, deterministic rederivation, and sealed result bytes."""
 
     try:
+        if type(result) is not VariantPeptideMechanisticFeatureResult:
+            return False
         if type(request) in {bytes, bytearray, str}:
             serialized = cast("bytes | bytearray | str", request)
             decoded = strict_json_loads(serialized)
@@ -457,7 +459,8 @@ def verify_m1103_replay(
             return False
         if result.request != typed:
             return False
-        return result.result_digest == result_payload_digest(result)
+        expected = _build_result(typed)
+        return result == expected and result.result_digest == result_payload_digest(result)
     except (AttributeError, TypeError, ValueError, ValidationError):
         return False
 
