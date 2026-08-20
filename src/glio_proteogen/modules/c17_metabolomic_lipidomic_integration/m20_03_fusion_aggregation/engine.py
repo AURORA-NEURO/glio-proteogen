@@ -172,6 +172,17 @@ def _provenance(request: FuseProteinSubtypeEvidenceRequest) -> ProvenanceRecord:
                 request.alignment_result.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 *(item.artifact.digest for item in request.contributions),
+                *(item.reference.digest for item in request.configuration.evidence),
+                *(
+                    item.reference.digest
+                    for contribution in request.contributions
+                    for item in contribution.evidence
+                ),
+                *(
+                    item.reference.digest
+                    for disagreement in request.disagreements
+                    for item in disagreement.evidence
+                ),
             )
         )
     )

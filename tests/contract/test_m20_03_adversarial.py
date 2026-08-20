@@ -284,6 +284,33 @@ def test_evidence_inventory_preserves_full_artifact_identity() -> None:
     ) in identities
 
 
+def test_provenance_covers_nested_fusion_evidence() -> None:
+    disagreement = DisagreementRecord(
+        disagreement_id="disagreement.m2003.provenance",
+        source_ids=("source.m2003.proteome", "source.m2003.genome"),
+        description="Synthetic unresolved difference for provenance coverage.",
+        status=DisagreementStatus.OPEN,
+        evidence=(_evidence(_artifact("provenance-disagreement")),),
+    )
+    request = _request(disagreements=(disagreement,)).model_copy(
+        update={
+            "configuration": _request().configuration.model_copy(
+                update={"evidence": (_evidence(_artifact("provenance-configuration")),)}
+            )
+        }
+    )
+    result = M2003Engine().fuse(request)
+    nested_evidence = (
+        *request.configuration.evidence,
+        *(item for contribution in request.contributions for item in contribution.evidence),
+        *(item for disagreement in request.disagreements for item in disagreement.evidence),
+    )
+
+    assert {item.reference.digest for item in nested_evidence} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_control_denial_precedes_source_traversal() -> None:
     request = _request()
     denied = request.context.references.consent.model_copy(update={"state": "withheld"})
