@@ -137,9 +137,21 @@ def test_service_denies_unsafe_context_and_replay_tampering() -> None:
 
 def test_api_sanitizes_non_object_unknown_schema_and_denial() -> None:
     client = TestClient(create_app(M2005Service()))
-    assert client.post("/v1/modules/M20-05/verify", content=b"[").status_code == _HTTP_UNPROCESSABLE
     assert (
-        client.post("/v1/modules/M20-05/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
+        client.post(
+            "/v1/modules/M20-05/verify",
+            content=b"[",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+    assert (
+        client.post(
+            "/v1/modules/M20-05/verify",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_UNPROCESSABLE
     )
     assert client.get("/v1/modules/M20-05/schemas/unknown").status_code == _HTTP_NOT_FOUND
     denied = denied_request().model_dump(mode="json")

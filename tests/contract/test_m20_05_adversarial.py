@@ -384,7 +384,7 @@ def test_request_rejects_context_limits_views_and_duplicate_sources() -> None:
             request.model_copy(update={"review_items": request.review_items[:-1]}),
             strict=True,
         )
-    with pytest.raises(ValidationError, match="unique by id"):
+    with pytest.raises(ValidationError, match="source artifact ids"):
         PresentProteinSubtypeHumanReviewWorkspaceRequest.model_validate(
             request.model_copy(
                 update={

@@ -219,9 +219,10 @@ class PresentProteinSubtypeHumanReviewWorkspaceRequest(FrozenModel):
             raise ValueError("request review item positions must be contiguous from zero")
         if {item.view_kind for item in self.review_items} != set(self.policy.required_views):
             raise ValueError("request must include every policy-required workspace view")
+        artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("source artifact ids must be unique")
         artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
-        if len(artifact_keys) != len(set(artifact_keys)):
-            raise ValueError("source artifacts must be unique by id and digest")
         if (
             self.aligned_evidence_bundle.artifact_id,
             self.aligned_evidence_bundle.digest,

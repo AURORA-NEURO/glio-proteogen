@@ -25,6 +25,7 @@ from tests.contract.test_m20_05_adversarial import _request
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
+_HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 _HTTP_UNPROCESSABLE = 422
 
 
@@ -52,7 +53,11 @@ def test_fastapi_schema_validate_present_verify_and_sanitized_errors() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert client.get("/v1/modules/M20-05/schemas/unknown").status_code == _HTTP_NOT_FOUND
-    invalid = client.post("/v1/modules/M20-05/validate", content=b"[]")
+    invalid = client.post(
+        "/v1/modules/M20-05/validate",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in invalid.text
     assert (
@@ -64,6 +69,26 @@ def test_fastapi_schema_validate_present_verify_and_sanitized_errors() -> None:
     assert client.post("/v1/modules/M20-05/verify", json={"result": {}}).status_code == (
         _HTTP_UNPROCESSABLE
     )
+
+
+def test_fastapi_rejects_non_json_and_oversized_verify_body() -> None:
+    request = _request()
+    client = TestClient(create_app(M2005Service()))
+    body = canonical_json_bytes(request)
+    wrong_type = client.post(
+        "/v1/modules/M20-05/validate",
+        content=body,
+        headers={"content-type": "text/plain"},
+    )
+    assert wrong_type.status_code == _HTTP_UNSUPPORTED_MEDIA_TYPE
+
+    oversized = b"{" + b'"result":' + b'"' + b"x" * M2005_MAX_CANONICAL_RESULT_BYTES + b'"}'
+    too_large = client.post(
+        "/v1/modules/M20-05/verify",
+        content=oversized,
+        headers={"content-type": "application/json"},
+    )
+    assert too_large.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
