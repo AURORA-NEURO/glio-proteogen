@@ -87,6 +87,10 @@ def _valid_contrast() -> CohortLabelContrast:
             {"status": "abstained_missing_or_nonpositive", "median_difference": -10.0},
             "abstained contrast",
         ),
+        (
+            {"status": "abstained_label_qc", "median_ratio": 0.5},
+            "abstained contrast",
+        ),
     ],
 )
 def test_label_contrast_rejects_malformed_or_overstated_receipts(
@@ -206,12 +210,35 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
 
 
 def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
+    def distinct_sample(sample_id: str, replicate: str, label: str) -> ResearchCohortSample:
+        sample = _sample("target_supported", sample_id, replicate)
+        return replace(
+            sample,
+            cohort_label=label,
+            request=replace(
+                sample.request,
+                mzml_source=sample.request.mzml_source.replace(
+                    b"</mzML>", f"<!--{sample_id}--></mzML>".encode()
+                ),
+            ),
+        )
+
+    samples = tuple(
+        distinct_sample(sample_id, replicate, label)
+        for sample_id, replicate, label in (
+            ("case-a", "r1", "case"),
+            ("case-b", "r2", "case"),
+            ("control-a", "r1", "control"),
+            ("control-b", "r2", "control"),
+        )
+    )
     result = run_research_cohort(
         ResearchCohortRequest(
-            (
-                replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
-                replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
-            )
+            samples,
+            source_manifest=CohortSourceManifest.from_requests(
+                tuple(sample.request for sample in samples),
+                replicate_kinds={sample.sample_id: "biological" for sample in samples},
+            ),
         )
     )
     assert len(result.label_contrasts) == 1
@@ -248,6 +275,33 @@ def test_cohort_label_contrast_abstains_without_two_positive_medians() -> None:
     assert contrast.median_difference is None
     assert contrast.median_ratio is None
     assert contrast.log2_median_ratio is None
+
+
+def test_cohort_label_contrast_abstains_when_label_qc_is_unverified() -> None:
+    request = ResearchCohortRequest(
+        (
+            replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
+            replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
+        ),
+        normalization_policy="none",
+    )
+    result = run_research_cohort(request)
+    assert {item.status for item in result.label_qc} == {"unverified_independence"}
+    assert len(result.label_contrasts) == 1
+    contrast = result.label_contrasts[0]
+    assert contrast.status == "abstained_label_qc"
+    assert contrast.median_difference is None
+    assert contrast.median_ratio is None
+    assert contrast.log2_median_ratio is None
+    assert replay_research_cohort(request, result) == result
+    tampered_status = replace(
+        result,
+        label_contrasts=(replace(contrast, label_a_status="descriptive"),),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_cohort(request, tampered_status)
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_cohort(request, replace(result, result_digest="0" * 64))
 
 
 def test_cohort_evidence_bundle_rejects_tampered_outer_or_inner_receipt() -> None:

@@ -157,6 +157,10 @@ case/control, disease, treatment, or biological strata, and no p-value or signif
 claim is emitted. The outer bundle digest covers the ordered record identities and each
 inner digest covers its frozen payload. `aggregate_cohort_evidence` recomputes all four
 records without rerunning the raw-byte computation and rejects a stale or tampered receipt.
+Positive medians from labels whose QC status is not exactly `descriptive` are also withheld:
+they produce `abstained_label_qc` with null difference, ratio, and log2-ratio fields. This
+prevents unknown-independence, missingness, or insufficient-support labels from being
+presented as derived effects while retaining their raw and QC evidence.
 External metadata
 snapshot digests must be identical across a cohort or all be absent; a mixed metadata
 version is rejected rather than silently combining catalog contexts. The receipt remains

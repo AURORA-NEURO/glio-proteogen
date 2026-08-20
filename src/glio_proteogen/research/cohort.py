@@ -289,9 +289,9 @@ class CohortLabelContrast:
     This is an evidence projection over normalized group medians, not a
     differential-expression test.  Labels are supplied by the caller and are
     never inferred from values, disease metadata, or protein names.  A ratio
-    and log2 ratio are emitted only when both label medians are positive;
-    missing/non-positive cells remain an explicit abstention rather than an
-    imputed zero.
+    and log2 ratio are emitted only when both label medians are positive and
+    both upstream label QC statuses are descriptive; missing, non-positive, or
+    unverified-QC cells remain explicit abstentions rather than imputed effects.
     """
 
     cohort_label_a: str
@@ -335,7 +335,11 @@ class CohortLabelContrast:
         ):
             if type(value) not in (int, float) or not isfinite(value) or not 0.0 <= value <= 1.0:
                 raise ValueError(f"{field_name} must be a finite fraction")
-        if self.status not in {"descriptive", "abstained_missing_or_nonpositive"}:
+        if self.status not in {
+            "descriptive",
+            "abstained_label_qc",
+            "abstained_missing_or_nonpositive",
+        }:
             raise ValueError("contrast status is not supported")
         nonnegative = (
             self.label_a_median,
@@ -366,6 +370,8 @@ class CohortLabelContrast:
                 or self.log2_median_ratio is None
             ):
                 raise ValueError("descriptive contrast requires two positive medians")
+            if self.label_a_status != "descriptive" or self.label_b_status != "descriptive":
+                raise ValueError("descriptive contrast requires descriptive label QC")
         elif any(
             value is not None
             for value in (self.median_difference, self.median_ratio, self.log2_median_ratio)
@@ -679,22 +685,27 @@ def _build_label_contrasts(
                 left_median = left.median_normalized_intensity
                 right_median = right.median_normalized_intensity
                 if (
-                    left_median is not None
-                    and right_median is not None
-                    and isfinite(left_median)
-                    and isfinite(right_median)
-                    and left_median > 0
-                    and right_median > 0
+                    left_median is None
+                    or right_median is None
+                    or not isfinite(left_median)
+                    or not isfinite(right_median)
+                    or left_median <= 0
+                    or right_median <= 0
                 ):
-                    difference = left_median - right_median
-                    ratio = left_median / right_median
-                    log_ratio = log2(ratio)
-                    status = "descriptive"
-                else:
                     difference = None
                     ratio = None
                     log_ratio = None
                     status = "abstained_missing_or_nonpositive"
+                elif left.status != "descriptive" or right.status != "descriptive":
+                    difference = None
+                    ratio = None
+                    log_ratio = None
+                    status = "abstained_label_qc"
+                else:
+                    difference = left_median - right_median
+                    ratio = left_median / right_median
+                    log_ratio = log2(ratio)
+                    status = "descriptive"
                 contrasts.append(
                     CohortLabelContrast(
                         cohort_label_a=label_a,
