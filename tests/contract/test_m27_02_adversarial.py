@@ -71,6 +71,26 @@ def test_resigned_graph_manifest_tamper_is_rejected() -> None:
         ComplexActivityLineageResult.model_validate(payload, strict=True)
 
 
+def test_resigned_result_rejects_partial_reproducibility_bundle() -> None:
+    result = M2702LineageResolver().resolve(_request())
+    assert result.lineage_graph is not None
+    graph = result.lineage_graph
+    bundle = graph.reproducibility_bundle.model_copy(
+        update={"node_ids": graph.reproducibility_bundle.node_ids[:-1]}
+    )
+    partial_graph = graph.model_copy(update={"reproducibility_bundle": bundle})
+    sealed_bundle = bundle.model_copy(
+        update={"manifest_digest": graph_payload_digest(partial_graph)}
+    )
+    partial_graph = partial_graph.model_copy(update={"reproducibility_bundle": sealed_bundle})
+    payload = result.model_dump(mode="python")
+    payload["lineage_graph"] = partial_graph
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="bundle must enumerate every lineage node"):
+        ComplexActivityLineageResult.model_validate(payload, strict=True)
+
+
 def test_contract_enumerations_and_self_link_are_closed() -> None:
     assert len(tuple(LineageNodeKind)) == _NODE_KIND_COUNT
     assert len(tuple(LineageRelation)) == _RELATION_COUNT

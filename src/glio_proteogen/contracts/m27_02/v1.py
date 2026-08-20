@@ -185,6 +185,10 @@ class LineageGraph(FrozenModel):
             raise ValueError("bundle references an unknown lineage node")
         if not set(self.reproducibility_bundle.edge_ids).issubset(set(edge_ids)):
             raise ValueError("bundle references an unknown lineage edge")
+        if set(self.reproducibility_bundle.node_ids) != node_set:
+            raise ValueError("bundle must enumerate every lineage node")
+        if set(self.reproducibility_bundle.edge_ids) != set(edge_ids):
+            raise ValueError("bundle must enumerate every lineage edge")
         adjacency: dict[str, set[str]] = {node_id: set() for node_id in node_set}
         for edge in self.edges:
             adjacency[edge.source_node_id].add(edge.target_node_id)
