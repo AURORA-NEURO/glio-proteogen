@@ -245,6 +245,18 @@ class ExportProteinSubtypeDownstreamContractRequest(FrozenModel):
         artifact_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("request source artifact ids must be unique")
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in source_keys:
+            raise ValueError("request source artifacts must include the exact M20-06 result")
         if (
             self.consent.state is ConsentState.GRANTED
             and self.consent != self.context.references.consent
