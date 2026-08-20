@@ -180,6 +180,16 @@ def _uncertainty() -> UncertaintyProfile:
 def _generated_result() -> VariantPeptideSyntheticTruthResult:
     request = _request()
     corpus = _corpus()
+    references = request.context.references
+    control_references = {
+        ControlRole.APPROVED_CONFIGURATION: references.approved_configuration,
+        ControlRole.IDENTITY_LINEAGE: references.identity_lineage,
+        ControlRole.PROVENANCE: references.provenance,
+        ControlRole.CONSENT: references.consent,
+        ControlRole.QUALITY: references.quality,
+        ControlRole.SUPPORT: references.support,
+        ControlRole.INTENDED_USE: references.intended_use,
+    }
     payload: dict[str, Any] = {
         "output_type": "variant_peptide_synthetic_truth",
         "result_id": result_identifier(request),
@@ -201,12 +211,17 @@ def _generated_result() -> VariantPeptideSyntheticTruthResult:
         ),
         "uncertainty": _uncertainty(),
         "provenance": ProvenanceRecord(
-            activity_id="activity.m2302.synthetic",
+            activity_id="m2302.activity."
+            + canonical_request_digest(request).removeprefix("sha256:"),
             actor_id=request.context.actor_id,
             module_id="GLIO-PROTEOGEN-M23-02",
             module_version="0.1.0-provisional",
             generated_at=request.context.occurred_at,
-            input_digests=(request.upstream_result.digest, _artifact("source").digest),
+            input_digests=(
+                canonical_request_digest(request),
+                request.upstream_result.digest,
+                _artifact("source").digest,
+            ),
             configuration_digest=_artifact("configuration").digest,
             consent_decision_id=request.context.references.consent.decision_id,
             consent_state=request.context.references.consent.state,
@@ -215,23 +230,11 @@ def _generated_result() -> VariantPeptideSyntheticTruthResult:
             control_decisions=tuple(
                 ControlDecisionRecord(
                     role=role,
-                    decision_id=f"decision.m2302.{role.value}",
-                    state=(
-                        IdentityLineageState.RESOLVED.value
-                        if role is ControlRole.IDENTITY_LINEAGE
-                        else (
-                            ConsentState.GRANTED.value
-                            if role is ControlRole.CONSENT
-                            else UpstreamDecisionState.ACCEPTED.value
-                        )
-                    ),
-                    policy_version="1.0.0",
-                    evidence_digest=_artifact("control").digest,
-                    subject_digest=(
-                        sha256_digest("m2302.identity")
-                        if role is ControlRole.IDENTITY_LINEAGE
-                        else None
-                    ),
+                    decision_id=control_references[role].decision_id,
+                    state=control_references[role].state.value,
+                    policy_version=control_references[role].policy_version,
+                    evidence_digest=control_references[role].evidence.digest,
+                    subject_digest=getattr(control_references[role], "binding_digest", None),
                 )
                 for role in ControlRole
             ),
@@ -373,3 +376,26 @@ def test_result_identity_digest_and_safe_status_are_replay_closed() -> None:
     )
     validated = VariantPeptideSyntheticTruthResult.model_validate(abstained)
     assert validated.status is GenerationStatus.ABSTAINED
+
+
+@pytest.mark.parametrize("field", ["activity_id", "actor_id", "input_digests", "control_decisions"])
+def test_result_rejects_forged_provenance_after_rehashing(field: str) -> None:
+    result = _generated_result()
+    forged_values: dict[str, Any] = {
+        "activity_id": "m2302.activity." + ("f" * 64),
+        "actor_id": "actor.m2302.forged",
+        "input_digests": (sha256_digest("m2302.forged.input"),),
+        "control_decisions": (
+            *result.provenance.control_decisions[:-1],
+            result.provenance.control_decisions[-1].model_copy(
+                update={"decision_id": "decision.m2302.forged"}
+            ),
+        ),
+    }
+    changed = result.__dict__.copy()
+    changed["provenance"] = result.provenance.model_copy(update={field: forged_values[field]})
+    changed["result_digest"] = result_payload_digest(
+        VariantPeptideSyntheticTruthResult.model_construct(**changed)
+    )
+    with pytest.raises(ValueError, match="M23-02 provenance"):
+        VariantPeptideSyntheticTruthResult.model_validate(changed)
