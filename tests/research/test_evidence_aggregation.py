@@ -383,3 +383,62 @@ def test_aggregate_constructor_rejects_status_not_derived_from_ledger() -> None:
             evidence_bundle=forged_bundle,
             digest="0" * 64,
         )
+
+
+def test_aggregate_constructor_closes_every_ledger_projection_boundary() -> None:
+    result = aggregate_external_evidence(
+        (_observation("e1", "source-a"), _observation("e2", "source-b"))
+    )
+    ledger = result.evidence_bundle.records[0]
+    payload = ledger.payload_jsonable
+    quality = ledger.quality
+    assert quality is not None
+
+    extra = EvidenceRecord.create("extra-ledger", "claim:caller-claim-1", "other.v1", {})
+    with pytest.raises(ValueError, match="one ledger record"):
+        replace(result, evidence_bundle=aggregate_evidence((ledger, extra)))
+
+    wrong_identity = EvidenceRecord.create(
+        "wrong-ledger",
+        ledger.source,
+        ledger.kind,
+        payload,
+        quality=quality,
+    )
+    with pytest.raises(ValueError, match="not the claim ledger"):
+        replace(result, evidence_bundle=aggregate_evidence((wrong_identity,)))
+
+    invalid_threshold_payload = dict(payload)
+    invalid_threshold_payload["minimum_independent_sources"] = 0
+    invalid_threshold = EvidenceRecord.create(
+        ledger.evidence_id,
+        ledger.source,
+        ledger.kind,
+        invalid_threshold_payload,
+        quality=quality,
+    )
+    with pytest.raises(ValueError, match="independence threshold"):
+        replace(result, evidence_bundle=aggregate_evidence((invalid_threshold,)))
+
+    wrong_quality = EvidenceRecord.create(
+        ledger.evidence_id,
+        ledger.source,
+        ledger.kind,
+        payload,
+        quality=EvidenceQuality(
+            status="computed",
+            auditability=1.0,
+            completeness=0.5,
+            independent_sources=2,
+            basis="wrong-quality",
+        ),
+    )
+    with pytest.raises(ValueError, match="quality"):
+        replace(result, evidence_bundle=aggregate_evidence((wrong_quality,)))
+
+    with pytest.raises(ValueError, match="claim does not match"):
+        replace(result, claim_id="caller-claim-2")
+    with pytest.raises(ValueError, match="receipt identities"):
+        replace(result, independent_source_ids=("source-a", "source-z"))
+    with pytest.raises(ValueError, match="limitations"):
+        replace(result, limitations=("forged limitation",))
