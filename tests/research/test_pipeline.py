@@ -23,7 +23,9 @@ from glio_proteogen.research import (
     bind_pdc_mzml_source,
     replay_research_protein_inference,
     run_research_protein_inference,
+    verify_evidence_bundle,
 )
+from glio_proteogen.research.evidence import _bundle_digest
 
 
 def _array(values: tuple[float, ...], accession: str) -> str:
@@ -814,3 +816,31 @@ def test_evidence_payload_is_immutable_and_digest_bound() -> None:
         aggregate_evidence((replace(record, digest="0" * 64),))
     with pytest.raises(TypeError):
         EvidenceRecord.create("bad", "source", "kind", {"unsupported": object()})
+
+
+@pytest.mark.parametrize("field", ["evidence_id", "source", "kind"])
+def test_evidence_digest_binds_receipt_identity_fields(field: str) -> None:
+    record = EvidenceRecord.create("identity", "source", "kind", {"value": 1})
+    tampered = {
+        "evidence_id": replace(record, evidence_id="tampered"),
+        "source": replace(record, source="tampered"),
+        "kind": replace(record, kind="tampered"),
+    }[field]
+    with pytest.raises(ValueError, match="payload digest"):
+        aggregate_evidence((tampered,))
+
+
+def test_evidence_bundle_digest_binds_limitations_and_quality_projection() -> None:
+    record = EvidenceRecord.create("complete", "source", "kind", {"value": 1})
+    bundle = aggregate_evidence((record,))
+    assert bundle.digest == _bundle_digest(
+        bundle.records, bundle.limitations, bundle.quality_summary
+    )
+    forged_limitations = replace(bundle, limitations=("forged",))
+    assert forged_limitations.digest != _bundle_digest(
+        forged_limitations.records,
+        forged_limitations.limitations,
+        forged_limitations.quality_summary,
+    )
+    with pytest.raises(ValueError, match="digest"):
+        verify_evidence_bundle(forged_limitations)

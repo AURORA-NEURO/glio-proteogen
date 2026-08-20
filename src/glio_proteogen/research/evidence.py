@@ -130,7 +130,16 @@ class EvidenceQualitySummary:
 
 
 def _canonical_record_payload(record: EvidenceRecord) -> dict[str, object]:
-    payload: dict[str, object] = {"payload": record.payload_jsonable}
+    # The receipt identity is part of the signed content.  Previously the
+    # digest covered only payload/quality, which allowed the same digest to be
+    # transplanted to a different evidence ID, source, or kind.  That is a
+    # material provenance failure even when the measured payload is unchanged.
+    payload: dict[str, object] = {
+        "evidence_id": record.evidence_id,
+        "kind": record.kind,
+        "payload": record.payload_jsonable,
+        "source": record.source,
+    }
     if record.quality is not None:
         payload["quality"] = record.quality.as_dict()
     return payload
@@ -158,7 +167,12 @@ class EvidenceRecord:
         frozen = _freeze(payload)
         if not isinstance(frozen, Mapping):
             raise TypeError("evidence payload must be a mapping")
-        canonical: dict[str, object] = {"payload": _thaw(frozen)}
+        canonical: dict[str, object] = {
+            "evidence_id": evidence_id,
+            "kind": kind,
+            "payload": _thaw(frozen),
+            "source": source,
+        }
         if quality is not None:
             canonical["quality"] = quality.as_dict()
         raw = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -209,6 +223,31 @@ class EvidenceBundle:
         }
 
 
+def _bundle_digest(
+    records: tuple[EvidenceRecord, ...],
+    limitations: tuple[str, ...],
+    quality_summary: EvidenceQualitySummary | None,
+) -> str:
+    """Hash the complete archive projection except for its self-referential digest."""
+
+    payload = {
+        "limitations": list(limitations),
+        "quality_summary": quality_summary.as_dict() if quality_summary is not None else None,
+        "records": [
+            {
+                "digest": record.digest,
+                "evidence_id": record.evidence_id,
+                "kind": record.kind,
+                "payload": record.payload_jsonable,
+                "quality": record.quality.as_dict() if record.quality is not None else None,
+                "source": record.source,
+            }
+            for record in records
+        ],
+    }
+    return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     if not records:
         raise ValueError("at least one evidence record is required")
@@ -226,19 +265,11 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     if any(len(digests) > 1 for digests in by_source_kind.values()):
         raise ValueError("conflicting evidence records share a source and kind")
     ordered = tuple(sorted(records, key=lambda record: record.evidence_id))
-    payload = [
-        {
-            "id": record.evidence_id,
-            "source": record.source,
-            "kind": record.kind,
-            "digest": record.digest,
-            "quality": record.quality.as_dict() if record.quality is not None else None,
-        }
-        for record in ordered
-    ]
-    digest = sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    limitations = (
+        "External evidence provenance is recorded but issuer truth is not authenticated.",
+        "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
+        "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer.",
+    )
     quality_records = tuple(
         record.quality
         for record in ordered
@@ -285,14 +316,11 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
         if quality_records
         else None
     )
+    digest = _bundle_digest(ordered, limitations, summary)
     return EvidenceBundle(
         records=ordered,
         digest=digest,
-        limitations=(
-            "External evidence provenance is recorded but issuer truth is not authenticated.",
-            "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
-            "No clinical, disease, treatment, or mechanistic claim is emitted by this research layer.",
-        ),
+        limitations=limitations,
         quality_summary=summary,
     )
 
