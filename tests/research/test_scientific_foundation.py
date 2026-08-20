@@ -47,6 +47,7 @@ from glio_proteogen.research import (
     target_decoy_qvalues,
     verify_evidence_bundle,
 )
+from glio_proteogen.research import mzml as mzml_module
 from glio_proteogen.research import search as search_module
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "research" / "pdc000204_snapshot.json"
@@ -738,6 +739,49 @@ def test_mzml_nonseekable_gzip_and_precursor_validation() -> None:
     )
     with pytest.raises(ValueError):
         parse_mzml(charge)
+
+
+def test_mzml_stream_adapter_and_validation_edges() -> None:
+    reader = mzml_module._PrefixedReader(b"ab", cast("BinaryIO", io.BytesIO(b"cd")))
+    assert reader.readable()
+    assert reader.read(-1) == b"abcd"
+    reader = mzml_module._PrefixedReader(b"ab", cast("BinaryIO", io.BytesIO(b"cd")))
+    assert reader.read(1) == b"a"
+    assert reader.read(8) == b"bcd"
+
+    class BadPrefix:
+        def read(self, _size: int = -1) -> str:
+            return "not-bytes"
+
+    with pytest.raises(TypeError, match="must return bytes"):
+        parse_mzml(cast("BinaryIO", BadPrefix()))
+
+    class BadTail:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def read(self, _size: int = -1) -> bytes | str:
+            self.calls += 1
+            return b"<m" if self.calls == 1 else "not-bytes"
+
+    with pytest.raises(TypeError, match="must return bytes"):
+        parse_mzml(cast("BinaryIO", BadTail()))
+
+    invalid_ms_level = (
+        b"<mzML><run><spectrumList><spectrum>"
+        b'<cvParam accession="MS:1000511" value="0"/>'
+        b"</spectrum></spectrumList></run></mzML>"
+    )
+    with pytest.raises(ValueError, match="MS level"):
+        parse_mzml(invalid_ms_level)
+    duplicate_intensity = (
+        b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
+        + _array((1.0,), "MS:1000515").encode()
+        + _array((2.0,), "MS:1000515").encode()
+        + b"</binaryDataArrayList></spectrum></spectrumList></run></mzML>"
+    )
+    with pytest.raises(ValueError, match="duplicate intensity"):
+        parse_mzml(duplicate_intensity)
 
 
 def test_mzml_plain_short_read_stream_is_drained() -> None:
