@@ -198,8 +198,7 @@ def _evidence(request: AlignProteinSubtypeSourcesRequest) -> tuple[EvidenceRefer
                 reference=artifact,
                 role="evidence",
                 claim=(
-                    "Caller-declared M20-02 alignment input; issuer authority is not "
-                    "authenticated."
+                    "Caller-declared M20-02 alignment input; issuer authority is not authenticated."
                 ),
             )
             for artifact in (request.upstream_result, *request.source_artifacts)
