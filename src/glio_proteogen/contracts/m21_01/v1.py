@@ -307,6 +307,12 @@ class CurateComplexActivityReferenceTruthRequest(FrozenModel):
         challenge_ids = {item.reference_id for item in self.references if item.challenge_set}
         if not challenge_ids:
             raise ValueError("request must include at least one challenge-set item")
+        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("request source artifact ids must be unique")
+        source_digests = tuple(item.digest for item in self.source_artifacts)
+        if len(source_digests) != len(set(source_digests)):
+            raise ValueError("request source artifact digests must be unique")
         return self
 
 

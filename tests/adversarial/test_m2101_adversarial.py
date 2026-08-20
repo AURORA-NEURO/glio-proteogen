@@ -22,7 +22,7 @@ from glio_proteogen.contracts.m21_01 import (
     package_lock_digest,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_01_reference_truth_benchmark_curator import (
     M2101AuthorizationError,
     M2101Plugin,
@@ -293,6 +293,24 @@ def test_request_rejects_duplicate_reference_and_control_ids() -> None:
         request.controls[1],
     )
     with pytest.raises(ValidationError, match="reference and control ids"):
+        _REQUEST_ADAPTER.validate_python(cast("Any", payload), strict=True)
+
+
+def test_request_rejects_duplicate_source_artifact_identity() -> None:
+    request = build_request()
+    duplicate_digest = request.source_artifacts[0].model_copy(
+        update={"artifact_id": "artifact.m2101.source.digest-duplicate"}
+    )
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = (request.source_artifacts[0], duplicate_digest)
+    with pytest.raises(ValidationError, match="source artifact digests"):
+        _REQUEST_ADAPTER.validate_python(cast("Any", payload), strict=True)
+
+    duplicate_id = request.source_artifacts[0].model_copy(
+        update={"digest": sha256_digest("m2101:source.id-duplicate")}
+    )
+    payload["source_artifacts"] = (request.source_artifacts[0], duplicate_id)
+    with pytest.raises(ValidationError, match="source artifact ids"):
         _REQUEST_ADAPTER.validate_python(cast("Any", payload), strict=True)
 
 
