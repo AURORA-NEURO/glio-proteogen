@@ -9,7 +9,6 @@ from glio_proteogen.contracts.m20_01 import (
     ResolverStatus,
     result_payload_digest,
 )
-from glio_proteogen.contracts.m20_01.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_01_upstream_contract_resolver import (  # noqa: E501
     M2001AuthorizationError,
