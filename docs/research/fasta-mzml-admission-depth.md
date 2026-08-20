@@ -30,6 +30,9 @@ silently selecting whichever descendant CV parameter happened to appear last.
 The research pipeline treats that spectrum as a missing/unsupported precursor
 and abstains before fragment search. Identical repeated selected-ion metadata
 remains valid.
+Repeated precursor m/z or charge fields within one selected-ion record are
+rejected rather than applying a last-value-wins rule, so contradictory XML
+cannot silently change precursor matching.
 
 Effective spectrum IDs must also be unique. The downstream target/decoy
 competition is keyed by spectrum identity; accepting two distinct spectra with

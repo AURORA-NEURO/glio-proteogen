@@ -177,11 +177,19 @@ def parse_mzml(  # noqa: PLR0915 - parser keeps XML state and safety checks toge
         for selected_ion in element.findall(".//{*}selectedIon"):
             ion_mz: float | None = None
             ion_charge: int | None = None
+            seen_ion_mz = False
+            seen_ion_charge = False
             for cv in selected_ion.findall("{*}cvParam"):
                 accession = cv.attrib.get("accession")
                 if accession == "MS:1000744" and cv.attrib.get("value") is not None:
+                    if seen_ion_mz:
+                        raise ValueError("selected ion declares duplicate precursor m/z")
+                    seen_ion_mz = True
                     ion_mz = float(cv.attrib["value"])
                 elif accession == "MS:1000041" and cv.attrib.get("value") is not None:
+                    if seen_ion_charge:
+                        raise ValueError("selected ion declares duplicate precursor charge")
+                    seen_ion_charge = True
                     ion_charge = int(cv.attrib["value"])
             if ion_mz is not None or ion_charge is not None:
                 selected_ions.add((ion_mz, ion_charge))

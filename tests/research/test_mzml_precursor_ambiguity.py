@@ -31,6 +31,27 @@ def test_parser_does_not_choose_an_arbitrary_selected_ion() -> None:
     assert spectrum.precursor_charge is None
 
 
+@pytest.mark.parametrize(
+    ("accession", "value", "label"),
+    [
+        ("MS:1000744", "500.0", "precursor m/z"),
+        ("MS:1000041", "2", "precursor charge"),
+    ],
+)
+def test_parser_rejects_duplicate_precursor_cv_fields(
+    accession: str, value: str, label: str
+) -> None:
+    duplicate = _ambiguous_mzml().replace(
+        f'<cvParam accession="{accession}" value="{value}"/>'.encode(),
+        (
+            f'<cvParam accession="{accession}" value="{value}"/>'
+            f'<cvParam accession="{accession}" value="{value}"/>'
+        ).encode(),
+    )
+    with pytest.raises(ValueError, match=f"duplicate {label}"):
+        parse_mzml(duplicate)
+
+
 def test_parser_rejects_a_non_mzml_root_before_search() -> None:
     wrong_root = (
         _ambiguous_mzml().replace(b"<mzML>", b"<notMzML>").replace(b"</mzML>", b"</notMzML>")
