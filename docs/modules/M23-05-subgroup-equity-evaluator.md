@@ -25,7 +25,9 @@ Contract and safety boundaries:
   an explicit abstention with human review required; it cannot become a
   negative finding.
 - Replay verifies request digest, deterministic result identity, provenance,
-  upstream digest binding, and canonical result digest.
+  exact upstream artifact identity (ID, version, digest, and media type), and
+  canonical result digest. The source manifest cannot substitute a same-ID
+  upstream artifact with altered content or media metadata.
 - The strict parse-once plugin, FastAPI adapter, Typer adapter, service,
   evaluator, and benchmark share one canonical request/result path.
 - Kinase ownership, generic all-omics fusion, treatment recommendation,

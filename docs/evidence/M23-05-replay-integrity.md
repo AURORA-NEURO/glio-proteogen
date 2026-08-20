@@ -16,6 +16,10 @@ projection. This preserves the existing `M2305ReplayError` boundary and does
 not alter the contract models, media identifiers, result fields, or provisional
 ABI.
 
+The request boundary also retains the exact M23-04 upstream artifact identity
+in `source_artifacts`: an upstream entry with the same artifact ID but altered
+version, digest, or media type is rejected before evaluation.
+
 ## Evidence
 
 - The adversarial suite mutates one performance value and recomputes the result

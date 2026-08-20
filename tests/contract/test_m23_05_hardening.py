@@ -304,10 +304,26 @@ def test_request_closes_context_media_and_source_artifacts() -> None:
         _request_update(request, context=_context("other-request"))
     with pytest.raises(ValidationError, match="provisional M23-04"):
         _request_update(request, upstream_result=_artifact("wrong", "application/wrong"))
-    with pytest.raises(ValidationError, match="include the upstream"):
+    with pytest.raises(ValidationError, match="exact upstream result identity"):
         _request_update(request, source_artifacts=(_artifact("subgroup-material"),))
     with pytest.raises(ValidationError, match="source artifact ids"):
         _request_update(request, source_artifacts=(request.source_artifacts[0],) * 2)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "0.2.0"),
+        ("digest", "sha256:" + "f" * 64),
+        ("media_type", "application/vnd.glio-proteogen.m23-04+json; forged"),
+    ],
+)
+def test_source_artifacts_retain_full_upstream_identity(field: str, value: str) -> None:
+    request = _request()
+    forged = request.source_artifacts[0].model_copy(update={field: value})
+
+    with pytest.raises(ValidationError, match="exact upstream result identity"):
+        _request_update(request, source_artifacts=(forged, *request.source_artifacts[1:]))
 
 
 def test_numeric_and_equity_closures_reject_invalid_material() -> None:

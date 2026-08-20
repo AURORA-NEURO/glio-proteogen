@@ -247,8 +247,9 @@ class EvaluateVariantPeptideSubgroupEquityRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact ids must be unique")
-        if self.upstream_result.artifact_id not in set(artifact_ids):
-            raise ValueError("source artifacts must include the upstream result")
+        source_by_id = {artifact.artifact_id: artifact for artifact in self.source_artifacts}
+        if source_by_id.get(self.upstream_result.artifact_id) != self.upstream_result:
+            raise ValueError("source artifacts must retain the exact upstream result identity")
         return self
 
 
