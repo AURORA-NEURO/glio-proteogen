@@ -355,9 +355,7 @@ class ExternalEvidenceAggregate:
             independent_source_count=len(independent_source_ids),
             evidence_bundle=self.evidence_bundle,
         )
-        expected_status = _status(
-            ordered, source_directions, len(independent_source_ids), minimum
-        )
+        expected_status = _status(ordered, source_directions, len(independent_source_ids), minimum)
         if self.status != expected_status:
             raise ValueError("aggregate status does not match observations")
         if self.limitations != _aggregate_limitations(identity_sources, self.status):
