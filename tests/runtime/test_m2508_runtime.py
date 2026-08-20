@@ -46,6 +46,7 @@ def test_nominal_gate_is_adjudicated_and_replayable() -> None:
         {
             "requirements": (
                 build_request().requirements[0].model_copy(update={"satisfied": False}),
+                *build_request().requirements[1:],
             )
         },
         {"benchmarks": (build_request().benchmarks[0].model_copy(update={"passed": False}),)},

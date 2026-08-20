@@ -175,6 +175,11 @@ class GateConfiguration(FrozenModel):
     evidence: tuple[EvidenceReference, ...] = Field(default=(), max_length=M2508_MAX_EVIDENCE)
 
 
+def _requirement_categories_are_closed(requirements: tuple[GateRequirement, ...]) -> None:
+    if {item.category for item in requirements} != set(RequirementCategory):
+        raise ValueError("gate record must cover every required requirement category")
+
+
 class SignedReleaseRecord(FrozenModel):
     """Signed gate decision with limitations and post-release obligations."""
 
@@ -205,6 +210,7 @@ class SignedReleaseRecord(FrozenModel):
         groups = (requirement_ids, benchmark_ids, risk_ids, approval_ids, obligation_ids)
         if any(len(group) != len(set(group)) for group in groups):
             raise ValueError("gate record identifiers must be unique")
+        _requirement_categories_are_closed(self.requirements)
         if self.decision is GateDecision.PASS:
             if any(not item.satisfied for item in self.requirements):
                 raise ValueError("passing gate cannot contain unsatisfied requirements")
@@ -265,6 +271,7 @@ class AdjudicateProteotypeEvidenceGateRequest(FrozenModel):
         )
         if len(source_keys) != len(set(source_keys)):
             raise ValueError("request source artifacts must be unique")
+        _requirement_categories_are_closed(self.requirements)
         source_set = set(source_keys)
         required = (
             self.mass_spectrometry_proteome,

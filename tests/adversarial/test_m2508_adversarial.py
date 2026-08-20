@@ -72,6 +72,17 @@ def test_every_declared_evidence_artifact_is_required() -> None:
         AdjudicateProteotypeEvidenceGateRequest.model_validate(payload, strict=True)
 
 
+def test_missing_requirement_category_cannot_pass_the_gate() -> None:
+    request = build_request()
+    payload = request.model_dump(mode="python")
+    payload["requirements"] = tuple(
+        item for item in request.requirements if item.category.value != "claim_ceiling"
+    )
+
+    with pytest.raises(ValidationError, match="every required requirement category"):
+        AdjudicateProteotypeEvidenceGateRequest.model_validate(payload, strict=True)
+
+
 def test_duplicate_source_artifacts_are_rejected() -> None:
     request = build_request()
     payload = request.model_dump(mode="python")
@@ -115,6 +126,7 @@ def test_passing_benchmark_must_meet_floor() -> None:
             {
                 "requirements": (
                     build_request().requirements[0].model_copy(update={"satisfied": False}),
+                    *build_request().requirements[1:],
                 )
             },
             "unsatisfied requirements",
@@ -150,6 +162,21 @@ def test_pass_record_closes_all_gate_buckets(update: dict[str, object], message:
     assert record is not None
     changed = record.model_copy(update=update)
     with pytest.raises(ValidationError, match=message):
+        SignedReleaseRecord.model_validate(changed, strict=True)
+
+
+def test_signed_release_record_requires_every_requirement_category() -> None:
+    record = M2508Engine().evaluate(build_request()).release_record
+    assert record is not None
+    changed = record.model_copy(
+        update={
+            "requirements": tuple(
+                item for item in record.requirements if item.category.value != "claim_ceiling"
+            )
+        }
+    )
+
+    with pytest.raises(ValidationError, match="every required requirement category"):
         SignedReleaseRecord.model_validate(changed, strict=True)
 
 
