@@ -387,6 +387,17 @@ def test_report_requires_performance_calibration_coverage_alignment() -> None:
         SubgroupEvaluationReport.model_validate(duplicate)
 
 
+def test_report_rejects_partial_required_dimension_coverage() -> None:
+    request = _request()
+    report = _report(request)
+    age_only = report.model_dump()
+    age_only["performance"] = (age_only["performance"][0],)
+    age_only["calibration"] = (age_only["calibration"][0],)
+    age_only["coverage"] = (age_only["coverage"][0],)
+    with pytest.raises(ValidationError, match="every configured required dimension"):
+        SubgroupEvaluationReport.model_validate(age_only)
+
+
 def test_request_requires_exact_upstream_media_context_and_source_closure() -> None:
     request = _request()
     with pytest.raises(ValidationError, match="M21-04"):
