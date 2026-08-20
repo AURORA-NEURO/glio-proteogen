@@ -64,7 +64,7 @@ class ProteinGroupFdrSummary:
     accepted_targets: int
     q_value_threshold: float
     max_accepted_q_value: float | None
-    decoy_to_target_ratio: float
+    decoy_to_target_ratio: float | None
     input_psms: int = 0
     unique_spectra: int = 0
     duplicate_spectrum_psms: int = 0
@@ -268,7 +268,7 @@ def infer_protein_group_candidates(
             sum(item.status in {"decoy", "collision"} for item in finalized)
             / sum(item.status == "target" for item in finalized)
             if any(item.status == "target" for item in finalized)
-            else 0.0
+            else None
         ),
         input_psms=len(input_psms),
         unique_spectra=len(psms),
