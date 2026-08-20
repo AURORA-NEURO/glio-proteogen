@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m27_05 import (
     M2705_CONTRACT_VERSION,
     M2705_M2704_INPUT_MEDIA_TYPE,
     M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     M2705_MODULE_ID,
     M2705_PARENT,
     AlertRecord,
@@ -245,6 +246,11 @@ def _finding(evidence: tuple[EvidenceReference, ...]) -> TelemetryFinding:
     )
 
 
+def _ensure_result_size(result: ProteomicsTelemetryResult) -> None:
+    if len(canonical_json_bytes(result.model_dump(mode="json"))) > M2705_MAX_CANONICAL_RESULT_BYTES:
+        raise ValueError("M27-05 result exceeds the canonical byte limit")  # noqa: TRY003
+
+
 class M2705TelemetryEngine:
     """Emit one deterministic observability stream or an explicit safe failure."""
 
@@ -341,7 +347,9 @@ class M2705TelemetryEngine:
             )
         provisional = ProteomicsTelemetryResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(provisional)
-        return _RESULT_ADAPTER.validate_python(payload, strict=True)
+        result = _RESULT_ADAPTER.validate_python(payload, strict=True)
+        _ensure_result_size(result)
+        return result
 
     def replay(self, result: object) -> ProteomicsTelemetryResult:
         try:
@@ -351,6 +359,7 @@ class M2705TelemetryEngine:
             expected_id = "m2705.result." + validated.request_digest.removeprefix("sha256:")
             if validated.result_id != expected_id:
                 raise M2705ReplayError  # noqa: TRY301
+            _ensure_result_size(validated)
             if validated.result_digest != result_payload_digest(validated):
                 raise M2705ReplayError  # noqa: TRY301
             expected = self.emit(validated.request)

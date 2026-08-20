@@ -41,7 +41,16 @@ from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry 
     create_app,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
+    api as api_module,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     cli as cli_module,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
+    engine as engine_module,
+)
+from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
+    service as service_module,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry.cli import app
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry.plugin import (
@@ -247,6 +256,31 @@ def test_engine_replay_rejects_all_digest_closure_paths() -> None:
         engine.replay(result.model_copy(update={"result_id": "m2705.result.forged"}))
     with pytest.raises(M2705ReplayError):
         engine.replay(result.model_copy(update={"result_digest": "sha256:forged"}))
+
+
+def test_engine_service_and_api_replay_enforce_result_byte_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = M2705TelemetryEngine().emit(build_request())
+    result_bytes = result.model_dump_json().encode("utf-8")
+    limit = len(result_bytes) - 1
+
+    monkeypatch.setattr(engine_module, "M2705_MAX_CANONICAL_RESULT_BYTES", limit)
+    with pytest.raises(ValueError, match="canonical byte limit"):
+        M2705TelemetryEngine().emit(build_request())
+    with pytest.raises(M2705ReplayError):
+        M2705TelemetryEngine().replay(result)
+
+    monkeypatch.setattr(engine_module, "M2705_MAX_CANONICAL_RESULT_BYTES", 16 * 1024 * 1024)
+    monkeypatch.setattr(service_module, "M2705_MAX_CANONICAL_RESULT_BYTES", limit)
+    with pytest.raises(ValueError, match="exceeds"):
+        M2705Service().replay(result.model_dump_json())
+
+    monkeypatch.setattr(api_module, "M2705_MAX_CANONICAL_RESULT_BYTES", limit)
+    response = TestClient(create_app()).post(
+        "/v1/modules/M27-05/verify", content=result.model_dump_json()
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_request_and_stream_identity_closures_are_explicit() -> None:
