@@ -155,12 +155,15 @@ non-positive cells produce `abstained_missing_or_nonpositive` with no imputation
 are compared in canonical lexical order as caller metadata; they are never interpreted as
 case/control, disease, treatment, or biological strata, and no p-value or significance
 claim is emitted. The outer bundle digest covers the ordered record identities and each
-inner digest covers its frozen payload. `aggregate_cohort_evidence` recomputes all four
-records without rerunning the raw-byte computation and rejects a stale or tampered receipt.
-Positive medians from labels whose QC status is not exactly `descriptive` are also withheld:
-they produce `abstained_label_qc` with null difference, ratio, and log2-ratio fields. This
-prevents unknown-independence, missingness, or insufficient-support labels from being
-presented as derived effects while retaining their raw and QC evidence.
+inner digest covers the complete record identity (`evidence_id`, `source`, and `kind`) as
+well as its frozen payload and quality metadata. Relabeling a record while retaining its
+old digest therefore fails replay; an evidence ID is not an interchangeable display label.
+`aggregate_cohort_evidence` recomputes all four records without rerunning the raw-byte
+computation and rejects a stale or tampered receipt. Positive medians from labels whose QC
+status is not exactly `descriptive` are also withheld: they produce `abstained_label_qc` with
+null difference, ratio, and log2-ratio fields. This prevents unknown-independence, missingness,
+or insufficient-support labels from being presented as derived effects while retaining their
+raw and QC evidence.
 External metadata
 snapshot digests must be identical across a cohort or all be absent; a mixed metadata
 version is rejected rather than silently combining catalog contexts. The receipt remains
@@ -216,11 +219,11 @@ search output is unchanged. This is provenance of an external identification art
 not acceptance of its PSMs, protein hypotheses, FDR, or biological claims.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
-each record's quality metadata, the derived quality summary, limitations, and outer digest.
-`verify_evidence_bundle` recomputes inner payload digests, the ordered outer digest, and all
-derived quality fields before replay. This keeps a forged completeness/auditability summary
-or altered limitation projection from remaining invisible merely because the underlying raw
-records are unchanged.
+each record's identity, payload, quality metadata, the derived quality summary, limitations,
+and outer digest. `verify_evidence_bundle` recomputes each identity-and-payload-bound inner
+digest, the ordered outer digest, and all derived quality fields before replay. This keeps a
+forged source/kind/evidence-ID relabeling or completeness/auditability summary from remaining
+invisible merely because the underlying raw records are unchanged.
 
 The locked evaluator covers eight paths: a target match, decoy rejection, target/decoy
 sequence collision, no-match safe path, precursor rejection, shared-peptide grouping,

@@ -151,7 +151,9 @@ C03/C04 computation contract:
   `cohort.qc.v1`, and `cohort.provenance.v1`) inside one content-addressed bundle. The
   public `aggregate_cohort_evidence` helper recomputes and verifies these receipts without
   re-reading raw spectra, so a changed matrix, QC decision, source manifest, or metadata
-  snapshot cannot be presented with an old cohort evidence digest. Metadata snapshot
+  snapshot cannot be presented with an old cohort evidence digest. Each inner digest binds
+  the record's `evidence_id`, `source`, and `kind` in addition to its payload and quality;
+  relabeling provenance while preserving the old digest is rejected. Metadata snapshot
   versions must be uniform within one cohort or the run rejects before emitting an
   aggregate.
   Their quality assessments distinguish complete versus missing matrix support and bind the

@@ -40,7 +40,10 @@ receipt identity; the complete alias set is retained in the observation ledger
 and therefore remains part of the replay digest.
 
 Each aggregate includes a content-addressed EvidenceBundle containing the
-canonical observation ledger. replay_external_evidence recomputes the bundle,
+canonical observation ledger. Every inner EvidenceRecord digest binds its opaque
+evidence ID, source, kind, payload, and quality metadata; changing any of those
+fields invalidates the receipt rather than treating provenance labels as mutable
+presentation. replay_external_evidence recomputes the bundle,
 direction counts, receipt-bound source set, status, and digest and rejects
 changed source hashes, directions, source IDs, or thresholds. EvidenceQuality fields describe
 receipt auditability and completeness only; they are not a measure of biological
