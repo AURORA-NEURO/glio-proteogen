@@ -22,6 +22,7 @@ from glio_proteogen.contracts.m27_03.canonical import (
     result_id_for_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -323,6 +324,24 @@ class ComplexActivityPipelineResult(FrozenModel):
                 raise ValueError("result package must bind execution environment")
             if execution.output_digest is None:
                 raise ValueError("executed record requires output digest")
+            expected_manifest_digest = sha256_digest(
+                {
+                    "upstream": self.request.upstream_result,
+                    "sources": self.request.source_artifacts,
+                    "workflow": self.request.workflow,
+                }
+            )
+            if package.manifest_digest != expected_manifest_digest:
+                raise ValueError("result package manifest digest does not bind request inputs")
+            expected_reproducibility_digest = sha256_digest(
+                {
+                    "manifest": package.manifest_digest,
+                    "environment": execution.environment_digest,
+                    "output": execution.output_digest,
+                }
+            )
+            if package.reproducibility_digest != expected_reproducibility_digest:
+                raise ValueError("result package reproducibility digest is not derived correctly")
             if self.human_review_required:
                 raise ValueError("supported executed result cannot require human review")
         elif (

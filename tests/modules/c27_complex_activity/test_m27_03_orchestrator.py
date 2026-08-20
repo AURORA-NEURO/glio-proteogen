@@ -206,6 +206,24 @@ def test_supported_execution_closes_environment_checkpoint_and_package() -> None
     assert M2703Engine().verify(result).result_digest == result.result_digest
 
 
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("manifest_digest", "manifest digest"),
+        ("reproducibility_digest", "reproducibility digest"),
+    ],
+)
+def test_self_rehashed_result_rejects_forged_package_digest(field: str, message: str) -> None:
+    result = M2703Engine().execute(_request())
+    assert result.result_package is not None
+    forged_package = result.result_package.model_copy(update={field: _digest(903)})
+    payload = result.model_copy(update={"result_package": forged_package}).model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match=message):
+        ComplexActivityPipelineResult.model_validate(payload, strict=True)
+
+
 def test_rejected_support_abstains_without_execution_or_negative_claim() -> None:
     result = M2703Engine().execute(_request(support=UpstreamDecisionState.REJECTED))
     assert result.status is PipelineStatus.ABSTAINED

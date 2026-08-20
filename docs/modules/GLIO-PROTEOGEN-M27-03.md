@@ -28,7 +28,8 @@ media type.
 `WorkflowDAG` enforces unique node/edge IDs, unique endpoint pairs, known references, acyclicity,
 entry reachability, and exit reachability. Requests enforce the exact M27-02 media type and unique
 source IDs/digests. Executed results bind request, result, execution, and package IDs to the request
-digest; all nodes must be completed; the package execution/environment digests must match; output and
+digest; all nodes must be completed; the package execution/environment digests, input manifest digest,
+and derived reproducibility digest must match the exact request and execution output; output and
 result digests are canonical. Abstentions carry a safe-failure report, explicit reason, review state,
 and no execution/package. Seven uncertainty dimensions are always present and are not-estimable for
 orchestration metadata.
