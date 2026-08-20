@@ -43,6 +43,15 @@ _UNCERTAINTY_DIMENSIONS = (
 )
 
 
+def _control[StateT](
+    controls: dict[str, object], key: str, default: StateT, expected: type[StateT]
+) -> StateT:
+    value = controls.get(key, default)
+    if not isinstance(value, expected):
+        raise TypeError
+    return value
+
+
 def _artifact(name: str, media: str = "application/octet-stream") -> ArtifactReference:
     return ArtifactReference(
         artifact_id=name,
@@ -57,7 +66,7 @@ def _request(
     upstream_id: str = "result.m1102.supported",
     source_id: str = "source.proteome",
     feature_unit: str = "activity",
-    controls: dict[str, str] | None = None,
+    controls: dict[str, object] | None = None,
     with_features: bool = True,
 ) -> ConstructVariantPeptideMechanisticFeaturesRequest:
     controls = controls or {}
@@ -65,44 +74,59 @@ def _request(
     refs = ContextReferences(
         approved_configuration=UpstreamDecisionReference(
             decision_id="decision.config",
-            state=controls.get("approved_configuration", UpstreamDecisionState.ACCEPTED),
+            state=_control(
+                controls,
+                "approved_configuration",
+                UpstreamDecisionState.ACCEPTED,
+                UpstreamDecisionState,
+            ),
             policy_version="1.0.0",
             evidence=evidence,
         ),
         identity_lineage=IdentityLineageReference(
             decision_id="decision.identity",
-            state=controls.get("identity_lineage", IdentityLineageState.RESOLVED),
+            state=_control(
+                controls, "identity_lineage", IdentityLineageState.RESOLVED, IdentityLineageState
+            ),
             policy_version="1.0.0",
             binding_digest=_artifact("identity.binding").digest,
             evidence=evidence,
         ),
         provenance=UpstreamDecisionReference(
             decision_id="decision.provenance",
-            state=controls.get("provenance", UpstreamDecisionState.ACCEPTED),
+            state=_control(
+                controls, "provenance", UpstreamDecisionState.ACCEPTED, UpstreamDecisionState
+            ),
             policy_version="1.0.0",
             evidence=evidence,
         ),
         consent=ConsentReference(
             decision_id="decision.consent",
-            state=controls.get("consent", ConsentState.GRANTED),
+            state=_control(controls, "consent", ConsentState.GRANTED, ConsentState),
             policy_version="1.0.0",
             evidence=evidence,
         ),
         quality=UpstreamDecisionReference(
             decision_id="decision.quality",
-            state=controls.get("quality", UpstreamDecisionState.ACCEPTED),
+            state=_control(
+                controls, "quality", UpstreamDecisionState.ACCEPTED, UpstreamDecisionState
+            ),
             policy_version="1.0.0",
             evidence=evidence,
         ),
         support=UpstreamDecisionReference(
             decision_id="decision.support",
-            state=controls.get("support", UpstreamDecisionState.ACCEPTED),
+            state=_control(
+                controls, "support", UpstreamDecisionState.ACCEPTED, UpstreamDecisionState
+            ),
             policy_version="1.0.0",
             evidence=evidence,
         ),
         intended_use=UpstreamDecisionReference(
             decision_id="decision.use",
-            state=controls.get("intended_use", UpstreamDecisionState.ACCEPTED),
+            state=_control(
+                controls, "intended_use", UpstreamDecisionState.ACCEPTED, UpstreamDecisionState
+            ),
             policy_version="1.0.0",
             evidence=evidence,
         ),
@@ -175,7 +199,7 @@ def test_supported_runtime_constructs_feature_object_and_seals_replay() -> None:
 def test_safe_abstention_keeps_unsupported_distinct_from_negative(
     kwargs: dict[str, object], finding: str
 ) -> None:
-    result = m1103.construct_variant_peptide_mechanistic_features(_request(**kwargs))
+    result = m1103.construct_variant_peptide_mechanistic_features(_request(**kwargs))  # type: ignore[arg-type]
     assert result.status.value == "abstained"
     assert result.feature_object is None
     assert finding in {item.value for item in result.findings}
