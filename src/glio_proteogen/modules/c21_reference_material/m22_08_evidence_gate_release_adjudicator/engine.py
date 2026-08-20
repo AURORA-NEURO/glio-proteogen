@@ -338,6 +338,19 @@ def _provenance(
     request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest,
     request_digest: str,
 ) -> ProvenanceRecord:
+    nested_artifacts = (
+        *(item.reference for requirement in request.requirements for item in requirement.evidence),
+        *(benchmark.report_artifact for benchmark in request.benchmarks),
+        *(item.reference for benchmark in request.benchmarks for item in benchmark.evidence),
+        *(item.reference for risk in request.residual_risks for item in risk.evidence),
+        *(item.reference for approval in request.approvals for item in approval.evidence),
+        *(
+            item.reference
+            for obligation in request.post_release_obligations
+            for item in obligation.evidence
+        ),
+        *(item.reference for item in request.configuration.evidence),
+    )
     references = request.context.references
     controls = (
         (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
@@ -367,7 +380,14 @@ def _provenance(
         module_id=M2208_MODULE_ID,
         module_version=M2208_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(artifact.digest for artifact in nested_artifacts),
+                )
+            )
+        ),
         configuration_digest=sha256_digest(
             {
                 "configuration": request.configuration,

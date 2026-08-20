@@ -97,6 +97,28 @@ def test_contract_rejects_source_artifact_digest_substitution() -> None:
         AdjudicateProteinRnaDiscordanceEvidenceGateRequest.model_validate(payload)
 
 
+def test_provenance_covers_nested_gate_artifacts() -> None:
+    request = _request()
+    result = M2208EvidenceGateEngine().adjudicate(request)
+    nested_artifacts = (
+        *(item.reference for requirement in request.requirements for item in requirement.evidence),
+        *(benchmark.report_artifact for benchmark in request.benchmarks),
+        *(item.reference for benchmark in request.benchmarks for item in benchmark.evidence),
+        *(item.reference for risk in request.residual_risks for item in risk.evidence),
+        *(item.reference for approval in request.approvals for item in approval.evidence),
+        *(
+            item.reference
+            for obligation in request.post_release_obligations
+            for item in obligation.evidence
+        ),
+        *(item.reference for item in request.configuration.evidence),
+    )
+
+    assert {artifact.digest for artifact in nested_artifacts} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_api_replay_rejects_nonobject_and_tampered_result() -> None:
     request = _request()
     client = TestClient(m2208_api.create_app())
