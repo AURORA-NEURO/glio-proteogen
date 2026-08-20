@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m20_04 import (
     AdapterFindingCode,
     DisplaySemantics,
     ProteinSubtypeIntendedUseAdapterResult,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_04_intended_use_adapter import (
@@ -73,6 +74,22 @@ def test_replay_rejects_request_digest_and_result_digest_tampering() -> None:
         engine.replay(result.model_copy(update={"request_digest": "sha256:" + "1" * 64}))
     with pytest.raises(M2004ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+
+
+def test_replay_rederives_payload_after_digest_rebinding() -> None:
+    engine = M2004Engine()
+    result = engine.adapt(_request())
+    forged = result.model_copy(
+        update={
+            "limitations": (
+                result.limitations[0].model_copy(update={"statement": "forged statement"}),
+                *result.limitations[1:],
+            )
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(M2004ReplayError, match="deterministic replay"):
+        engine.replay(forged)
 
 
 def test_result_contract_revalidates_finding_and_evidence_uniqueness() -> None:

@@ -7,6 +7,7 @@ import pytest
 from glio_proteogen.contracts.m20_01 import (
     CompatibilityStatus,
     ResolverStatus,
+    result_payload_digest,
 )
 from glio_proteogen.contracts.m20_01.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus
