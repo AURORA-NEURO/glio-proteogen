@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from hashlib import sha256
 
 import pytest
 from evals.research_proteomics.fdr_quant_group_invariants import (
@@ -340,6 +342,88 @@ def test_group_receipt_rejects_status_and_partition_digest_tampering() -> None:
         verify_protein_group_fdr_summary(candidates, forged)
     with pytest.raises(TypeError, match="summary"):
         verify_protein_group_fdr_summary(candidates, object())  # type: ignore[arg-type]
+
+
+def test_group_receipt_rejects_partial_unique_promotion_and_incomplete_support() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("shared", "SHARED", ("P1", "P2"), 5.0, 3, decoy=False),
+            Psm("unique", "UNIQUE_P2", ("P2",), 4.0, 3, decoy=False),
+            Psm("decoy", "DECOY_P", ("DECOY_P",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+    partial = next(item for item in candidates if item.status == "target")
+    with pytest.raises(ValueError, match="partially unique"):
+        verify_protein_group_fdr_summary(
+            (
+                replace(
+                    partial,
+                    acceptance="accepted",
+                    q_value=0.0,
+                ),
+            ),
+            replace(summary, candidates=1, target_candidates=1, error_candidates=0),
+        )
+
+    target_candidates, target_summary = _group_receipt()
+    with pytest.raises(ValueError, match="incomplete"):
+        verify_protein_group_fdr_summary(
+            (replace(target_candidates[0], unique_supported_accessions=()),),
+            replace(target_summary, group_partition_digest="0" * 64),
+        )
+
+
+def test_group_receipt_recomputes_q_values_and_summary_ambiguity_counts() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("decoy", "DECOY_P", ("DECOY_P",), 6.0, 3, decoy=True),
+            Psm("target-1", "PEPTIDER", ("P1",), 5.0, 3, decoy=False),
+            Psm("target-2", "PEPTIDEK", ("P2",), 4.0, 3, decoy=False),
+        ),
+        q_value_threshold=0.6,
+    )
+    target = next(item for item in candidates if item.accessions == ("P1",))
+    forged_target = replace(target, q_value=0.0)
+    forged_candidates = tuple(
+        forged_target if item.accessions == target.accessions else item for item in candidates
+    )
+    forged_partition = sha256(
+        json.dumps(
+            [item.as_dict() for item in forged_candidates],
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    with pytest.raises(ValueError, match="q-values"):
+        verify_protein_group_fdr_summary(
+            forged_candidates,
+            replace(summary, group_partition_digest=forged_partition),
+        )
+
+    with pytest.raises(ValueError, match="shared-peptide count"):
+        verify_protein_group_fdr_summary(
+            candidates,
+            replace(summary, shared_peptide_candidates=summary.shared_peptide_candidates + 1),
+        )
+    with pytest.raises(ValueError, match="ratio"):
+        verify_protein_group_fdr_summary(
+            candidates,
+            replace(summary, decoy_to_target_ratio=0.0),
+        )
+
+
+def test_group_receipt_rejects_invalid_competition_and_input_closure() -> None:
+    candidates, summary = _group_receipt()
+    invalid_summaries = (
+        replace(summary, competition_digest="not-a-digest"),
+        replace(summary, q_value_threshold=float("nan")),
+        replace(summary, input_psms=summary.input_psms + 1),
+        replace(summary, max_accepted_q_value=float("inf")),
+    )
+    for forged in invalid_summaries:
+        with pytest.raises(ValueError):
+            verify_protein_group_fdr_summary(candidates, forged)
 
 
 def test_group_partition_rejects_non_mapping_and_group_decoy_prefix() -> None:
