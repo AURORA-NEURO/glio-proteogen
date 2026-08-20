@@ -15,7 +15,13 @@ from dataclasses import dataclass, field, replace
 from hashlib import md5, sha256
 from typing import BinaryIO
 
-from .evidence import EvidenceBundle, EvidenceRecord, aggregate_evidence, verify_evidence_bundle
+from .evidence import (
+    EvidenceBundle,
+    EvidenceQuality,
+    EvidenceRecord,
+    aggregate_evidence,
+    verify_evidence_bundle,
+)
 from .fasta import build_search_space, read_fasta
 from .modifications import expand_peptide_map, normalize_modification_rules
 from .mzml import parse_mzml
@@ -59,6 +65,8 @@ _MZML_PARSER_VERSION = "mzml-parser-1"
 _SEARCH_VERSION = "fragment-search-5-candidate-audit-decoy-tie-abstention-assignment"
 _DIGESTION_VERSION = "trypsin-digest-1"
 _MODIFICATION_VERSION = "residue-local-unimod-1"
+_PRECURSOR_POLICY_VERSION = "mzml-selected-ion-required-v1"
+_MZIDENTML_PARSER_VERSION = "mzidentml-structure-1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,6 +274,7 @@ class ResearchRunResult:
     configuration: tuple[tuple[str, object], ...]
     missing_precursor_ms2: int
     result_digest: str
+    ambiguous_precursor_ms2: int = 0
     search_space_receipt: SearchSpaceReceipt | None = None
     peptide_intensities: tuple[tuple[str, float], ...] = ()
     fdr_summary: FdrSummary | None = None
@@ -295,6 +304,7 @@ class ResearchRunResult:
                 else None
             ),
             "missing_precursor_ms2": self.missing_precursor_ms2,
+            "ambiguous_precursor_ms2": self.ambiguous_precursor_ms2,
             "psms": [_psm_dict(item) for item in self.psms],
             "accepted_psms": [_psm_dict(item) for item in self.accepted_psms],
             "peptide_spectral_counts": [list(item) for item in self.peptide_spectral_counts],
@@ -547,15 +557,15 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
     competition_audit: list[PsmCompetition] = []
     ms2_count = 0
     missing_precursor_count = 0
+    ambiguous_precursor_count = 0
     for spectrum in spectra:
         if spectrum.ms_level != 2:
             continue
         ms2_count += 1
-        if (
-            spectrum.precursor_ambiguous
-            or spectrum.precursor_mz is None
-            or spectrum.precursor_charge is None
-        ):
+        if spectrum.precursor_ambiguous:
+            ambiguous_precursor_count += 1
+            continue
+        if spectrum.precursor_mz is None or spectrum.precursor_charge is None:
             missing_precursor_count += 1
             continue
         candidates = search_spectrum_candidates(
@@ -619,6 +629,10 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "max_fragment_error_da": max(fragment_errors) if fragment_errors else None,
                 "max_precursor_error_ppm": max(precursor_errors) if precursor_errors else None,
                 "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
+                "precursor_policy_version": _PRECURSOR_POLICY_VERSION,
+                "missing_precursor_ms2": missing_precursor_count,
+                "ambiguous_precursor_ms2": ambiguous_precursor_count,
+                "precursor_abstention_ms2": (missing_precursor_count + ambiguous_precursor_count),
             }.items()
         )
     )
@@ -699,7 +713,10 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "protein_group_quantification_version": "unique-peptide-median-v1",
         "protein_group_quantification_policy": "shared-signal-visible-excluded-from-primary",
         "require_precursor_mz": True,
+        "precursor_policy_version": _PRECURSOR_POLICY_VERSION,
         "precursor_charge_source": "mzml_selected_ion",
+        "missing_precursor_ms2": missing_precursor_count,
+        "ambiguous_precursor_ms2": ambiguous_precursor_count,
         "search_space_version": search_space_receipt.version,
         "search_space_digest": search_space_receipt.search_space_digest,
         "search_space_pairing_digest": search_space_receipt.pairing_digest,
@@ -736,6 +753,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         configuration_payload.update(
             {
                 "mzidentml_sha256": mzidentml_structure.sha256,
+                "mzidentml_parser_version": _MZIDENTML_PARSER_VERSION,
                 "mzidentml_structure": mzidentml_structure.as_dict(),
             }
         )
@@ -761,7 +779,38 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             "input:mzml",
             f"sha256:{mzml_digest}",
             "spectra",
-            {"bytes": len(mzml_bytes), "spectra": len(spectra), "ms2": ms2_count},
+            {
+                "bytes": len(mzml_bytes),
+                "spectra": len(spectra),
+                "ms2": ms2_count,
+                "missing_precursor_ms2": missing_precursor_count,
+                "ambiguous_precursor_ms2": ambiguous_precursor_count,
+            },
+        ),
+        EvidenceRecord.create(
+            "computed:precursor-qc",
+            "research:mzml-parser",
+            "precursor_qc",
+            {
+                "policy_version": _PRECURSOR_POLICY_VERSION,
+                "ms2_spectra": ms2_count,
+                "searched_ms2": ms2_count - missing_precursor_count - ambiguous_precursor_count,
+                "missing_precursor_ms2": missing_precursor_count,
+                "ambiguous_precursor_ms2": ambiguous_precursor_count,
+                "abstained_ms2": missing_precursor_count + ambiguous_precursor_count,
+            },
+            quality=EvidenceQuality(
+                status="computed",
+                auditability=1.0,
+                completeness=(
+                    1.0
+                    if ms2_count == 0
+                    else (ms2_count - missing_precursor_count - ambiguous_precursor_count)
+                    / ms2_count
+                ),
+                independent_sources=1,
+                basis="deterministic-mzml-selected-ion-metadata-policy",
+            ),
         ),
         EvidenceRecord.create(
             "run:configuration",
@@ -779,6 +828,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 "target_decoy_collisions": sum(item.target_decoy_collision for item in scored),
                 "groups": len(groups),
                 "missing_precursor_ms2": missing_precursor_count,
+                "ambiguous_precursor_ms2": ambiguous_precursor_count,
                 "quantified_peptides": len(peptide_intensities),
                 "quantification_unit": quantified.receipt.measurement_unit,
                 "fdr_summary": fdr_summary.as_dict(),
@@ -839,6 +889,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "search_space_peptides": len(peptide_map),
         "search_space_receipt": search_space_receipt.as_dict(),
         "missing_precursor_ms2": missing_precursor_count,
+        "ambiguous_precursor_ms2": ambiguous_precursor_count,
         "psms": [_psm_dict(item) for item in scored],
         "accepted_psms": [_psm_dict(item) for item in accepted],
         "peptide_spectral_counts": [list(item) for item in counts],
@@ -887,6 +938,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         configuration=configuration,
         missing_precursor_ms2=missing_precursor_count,
         result_digest=result_digest,
+        ambiguous_precursor_ms2=ambiguous_precursor_count,
         peptide_intensities=peptide_intensities,
         fdr_summary=fdr_summary,
         search_diagnostics=search_diagnostics,

@@ -38,6 +38,9 @@ def test_pipeline_abstains_ambiguous_ms2_before_precursor_search() -> None:
         )
     )
     assert result.ms2_spectra_seen == 1
-    assert result.missing_precursor_ms2 == 1
+    assert result.missing_precursor_ms2 == 0
+    assert result.ambiguous_precursor_ms2 == 1
+    diagnostics = dict(result.search_diagnostics)
+    assert diagnostics["precursor_abstention_ms2"] == 1
     assert result.psms == ()
     assert result.accepted_psms == ()

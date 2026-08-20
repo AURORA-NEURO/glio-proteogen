@@ -127,9 +127,11 @@ def test_pipeline_replay_rejects_tampered_evidence_quality_projection() -> None:
         max_peptide_length=12,
     )
     result = run_research_protein_inference(request)
-    assert result.evidence.quality_summary is None
+    assert result.evidence.quality_summary is not None
+    assert result.evidence.quality_summary.scored_records == 1
+    assert result.evidence.quality_summary.weighted_completeness == 1.0
     forged_quality = EvidenceQualitySummary(
-        scored_records=1,
+        scored_records=0,
         ungraded_records=len(result.evidence.records) - 1,
         abstained_records=0,
         independent_sources=1,
@@ -484,6 +486,8 @@ def test_pipeline_abstains_when_precursor_metadata_is_missing() -> None:
     )
     assert result.psms == ()
     assert result.missing_precursor_ms2 == 1
+    assert result.ambiguous_precursor_ms2 == 0
+    assert dict(result.search_diagnostics)["precursor_abstention_ms2"] == 1
 
 
 def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
