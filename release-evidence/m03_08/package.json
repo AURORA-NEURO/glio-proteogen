@@ -11,15 +11,15 @@
     {
       "kind": "wheel",
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "size_bytes": 3989411,
-      "sha256": "79a0349539b88bf8b9308ffd9404d1b2a852ea7d83472ea3f6beccf2b8eabe7d",
+      "size_bytes": 3989549,
+      "sha256": "da6cc1061a281bc1b9946d900377b1c2598ad3994a1d8e30a49de59d45d89e0a",
       "members": 2023
     },
     {
       "kind": "sdist",
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "size_bytes": 4697583,
-      "sha256": "60da9d835a1ea916cd49b80d7579e24925da6a62a07058e5b17eb5fd0ec4b0a8",
+      "size_bytes": 4698184,
+      "sha256": "ba366bf1ea6ae84a1e3e6289a7e29f11108291275a536728226f166cf09978fb",
       "members": 4741
     }
   ]

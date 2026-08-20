@@ -3,21 +3,21 @@
   "contract_version": "0.1.0-provisional",
   "wheel": {
     "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-    "size_bytes": 3989411,
-    "sha256": "79a0349539b88bf8b9308ffd9404d1b2a852ea7d83472ea3f6beccf2b8eabe7d"
+    "size_bytes": 3989549,
+    "sha256": "da6cc1061a281bc1b9946d900377b1c2598ad3994a1d8e30a49de59d45d89e0a"
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "size_bytes": 4697583,
-    "sha256": "60da9d835a1ea916cd49b80d7579e24925da6a62a07058e5b17eb5fd0ec4b0a8"
+    "size_bytes": 4698184,
+    "sha256": "ba366bf1ea6ae84a1e3e6289a7e29f11108291275a536728226f166cf09978fb"
   },
   "build_backend": "hatchling 1.31.0",
   "reproducibility": {
     "build_count": 2,
     "byte_identical": true,
     "source_date_epoch": 315532800,
-    "wheel_sha256": "79a0349539b88bf8b9308ffd9404d1b2a852ea7d83472ea3f6beccf2b8eabe7d",
-    "sdist_sha256": "60da9d835a1ea916cd49b80d7579e24925da6a62a07058e5b17eb5fd0ec4b0a8"
+    "wheel_sha256": "da6cc1061a281bc1b9946d900377b1c2598ad3994a1d8e30a49de59d45d89e0a",
+    "sdist_sha256": "ba366bf1ea6ae84a1e3e6289a7e29f11108291275a536728226f166cf09978fb"
   },
   "isolated_import_passed": true,
   "release_verifier_passed": true,
