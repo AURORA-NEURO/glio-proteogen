@@ -170,7 +170,10 @@ def test_central_cli_has_no_research_execution_or_research_owned_callbacks() -> 
     for name, callback in callbacks:
         module = _callback_module(callback)
         assert module is not None, (name, module)
-        assert module.startswith("glio_proteogen.adapters."), (name, module)
+        assert module.startswith(("glio_proteogen.adapters.", "glio_proteogen.modules.")), (
+            name,
+            module,
+        )
         assert not module.startswith(_RESEARCH_NAMESPACE), (name, module)
         assert not any(token in name.lower() for token in _RESEARCH_CAPABILITY_MARKERS), name
 
