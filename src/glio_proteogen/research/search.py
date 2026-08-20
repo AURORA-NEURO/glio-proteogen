@@ -17,6 +17,11 @@ class SearchParameters:
     fragment_tolerance_da: float = 0.02
     min_matched_ions: int = 2
     precursor_charge: int = 1
+    # Fragment ions are conventionally observed at more than one charge
+    # state.  The default remains one-plus for compatibility with the original
+    # research primitive; callers that have not declared fragment charge
+    # handling must not silently claim that they searched those ions.
+    fragment_charges: tuple[int, ...] = (1,)
     decoy_prefix: str = "DECOY_"
     require_precursor_mz: bool = False
     allowed_modifications: tuple[str, ...] = ()
@@ -31,6 +36,17 @@ class SearchParameters:
             raise ValueError("min_matched_ions must be positive")
         if type(self.precursor_charge) is not int or not 1 <= self.precursor_charge <= 20:
             raise ValueError("precursor_charge must be positive")
+        if (
+            type(self.fragment_charges) is not tuple
+            or not self.fragment_charges
+            or any(
+                type(charge) is not int or not 1 <= charge <= 5 for charge in self.fragment_charges
+            )
+            or tuple(sorted(set(self.fragment_charges))) != self.fragment_charges
+        ):
+            raise ValueError(
+                "fragment_charges must be a sorted tuple of charges between one and five"
+            )
         if (
             not isinstance(self.decoy_prefix, str)
             or not 1 <= len(self.decoy_prefix) <= 32
@@ -232,6 +248,31 @@ def _fragments(
     return tuple(b), tuple(y)
 
 
+def _charged_fragments(
+    peptide: str,
+    charges: tuple[int, ...],
+    *,
+    allowed_modifications: tuple[str, ...] = (),
+) -> tuple[float, ...]:
+    """Return b/y fragment m/z values for each explicitly searched charge.
+
+    ``_fragments`` historically returns singly charged b/y ions.  Converting
+    those m/z values back to neutral-ion mass and then applying each charge is
+    deterministic and avoids duplicating modification mass handling.  Charge
+    states are part of ``SearchParameters`` so the candidate and replay
+    receipts cannot silently change search space.
+    """
+
+    singly_charged = _fragments(peptide, allowed_modifications=allowed_modifications)
+    values: list[float] = []
+    for charge in charges:
+        values.extend(
+            (ion_mz + (charge - 1) * _PROTON) / charge
+            for ion_mz in (*singly_charged[0], *singly_charged[1])
+        )
+    return tuple(values)
+
+
 def _precursor_mz(
     peptide: str, charge: int, *, allowed_modifications: tuple[str, ...] = ()
 ) -> float:
@@ -297,7 +338,7 @@ def _assign_fragment_peaks(
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(
+    def better(  # noqa: PLR0917
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
@@ -428,8 +469,11 @@ def search_spectrum_candidates(
             )
             if ppm_error > parameters.precursor_tolerance_ppm:
                 continue
-        fragments = _fragments(peptide, allowed_modifications=parameters.allowed_modifications)
-        theoretical = fragments[0] + fragments[1]
+        theoretical = _charged_fragments(
+            peptide,
+            parameters.fragment_charges,
+            allowed_modifications=parameters.allowed_modifications,
+        )
         assignments = _assign_fragment_peaks(theoretical, mz, parameters.fragment_tolerance_da)
         matched = len(assignments)
         intensity_score = 0.0

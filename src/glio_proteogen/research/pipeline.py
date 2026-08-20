@@ -52,7 +52,7 @@ from .search_space import (
 
 _PIPELINE_VERSION = "research-pipeline-1"
 _MZML_PARSER_VERSION = "mzml-parser-1"
-_SEARCH_VERSION = "fragment-search-5-candidate-audit-decoy-tie-abstention-assignment"
+_SEARCH_VERSION = "fragment-search-6-candidate-audit-decoy-tie-abstention-charge-assignment"
 _DIGESTION_VERSION = "trypsin-digest-1"
 _MODIFICATION_VERSION = "residue-local-unimod-1"
 
@@ -82,6 +82,7 @@ class ResearchRunRequest:
     external_pdc_receipt: PdcSourceReceipt | None = None
     quantification_policy: QuantificationPolicy = field(default_factory=QuantificationPolicy)
     precursor_tolerance_ppm: int = 20
+    fragment_charges: tuple[int, ...] = (1, 2)
     mzidentml_source: bytes | bytearray | BinaryIO | None = None
 
     def __post_init__(self) -> None:
@@ -411,6 +412,15 @@ def _validate_request(request: ResearchRunRequest) -> None:
         raise ValueError("min_matched_ions must be positive")
     if request.min_matched_ions > 100:
         raise ValueError("min_matched_ions exceeds the research limit")
+    if (
+        type(request.fragment_charges) is not tuple
+        or not request.fragment_charges
+        or any(
+            type(charge) is not int or not 1 <= charge <= 5 for charge in request.fragment_charges
+        )
+        or tuple(sorted(set(request.fragment_charges))) != request.fragment_charges
+    ):
+        raise ValueError("fragment_charges must be a sorted tuple of charges between one and five")
     if type(request.missed_cleavages) is not int or not 0 <= request.missed_cleavages <= 4:
         raise ValueError("missed_cleavages is outside the research limit")
     if (
@@ -495,6 +505,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         precursor_tolerance_ppm=request.precursor_tolerance_ppm,
         fragment_tolerance_da=request.fragment_tolerance_da,
         min_matched_ions=request.min_matched_ions,
+        fragment_charges=request.fragment_charges,
         decoy_prefix=request.decoy_prefix,
         require_precursor_mz=True,
         allowed_modifications=request.variable_modifications,
@@ -526,6 +537,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
                 fragment_tolerance_da=parameters.fragment_tolerance_da,
                 min_matched_ions=parameters.min_matched_ions,
                 precursor_charge=spectrum.precursor_charge,
+                fragment_charges=parameters.fragment_charges,
                 decoy_prefix=request.decoy_prefix,
                 require_precursor_mz=True,
                 allowed_modifications=request.variable_modifications,
@@ -640,6 +652,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "fragment_tolerance_da": request.fragment_tolerance_da,
         "precursor_tolerance_ppm": parameters.precursor_tolerance_ppm,
         "min_matched_ions": request.min_matched_ions,
+        "fragment_charges": list(request.fragment_charges),
         "missed_cleavages": request.missed_cleavages,
         "min_peptide_length": request.min_peptide_length,
         "max_peptide_length": request.max_peptide_length,
