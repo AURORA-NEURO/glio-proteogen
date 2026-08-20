@@ -354,9 +354,7 @@ def test_cohort_evidence_rederives_label_contrasts_from_label_evidence() -> None
         replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
         replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
     )
-    result = run_research_cohort(
-        ResearchCohortRequest(samples)
-    )
+    result = run_research_cohort(ResearchCohortRequest(samples))
     assert len(result.label_contrasts) == 1
     forged = replace(
         result,
@@ -417,6 +415,91 @@ def test_cohort_evidence_rederives_group_qc_from_matrix() -> None:
     payload.pop("result_digest")
     forged = replace(forged, result_digest=_digest(payload))
     with pytest.raises(ValueError, match="group QC"):
+        aggregate_cohort_evidence(forged)
+
+
+@pytest.mark.parametrize(
+    "projection_mutation",
+    [
+        "sample_order",
+        "group_order",
+        "raw_matrix",
+        "normalized_group",
+        "row_length",
+        "invalid_intensity",
+        "sample_qc_order",
+        "group_qc",
+        "sample_scales",
+        "sample_qc_values",
+        "scale_link",
+    ],
+)
+def test_cohort_matrix_projection_rejects_each_structural_mutation(  # noqa: C901
+    projection_mutation: str,
+) -> None:
+    """Every matrix/QC projection field must remain derived from the receipt."""
+
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            (_sample("target_supported", "a", "r1"), _sample("target_supported", "b", "r2"))
+        )
+    )
+    if projection_mutation == "sample_order":
+        forged = replace(result, sample_ids=tuple(reversed(result.sample_ids)))
+    elif projection_mutation == "group_order":
+        forged = replace(
+            result,
+            group_accessions=("forged-group", *result.group_accessions[1:]),
+        )
+    elif projection_mutation == "raw_matrix":
+        group, values = result.raw_matrix[0]
+        forged = replace(
+            result,
+            raw_matrix=((group, (None, *values[1:])), *result.raw_matrix[1:]),
+        )
+    elif projection_mutation == "normalized_group":
+        _, values = result.normalized_matrix[0]
+        forged = replace(
+            result,
+            normalized_matrix=(("forged-group", values), *result.normalized_matrix[1:]),
+        )
+    elif projection_mutation == "row_length":
+        group, values = result.matrix[0]
+        forged = replace(result, matrix=((group, values[:-1]), *result.matrix[1:]))
+    elif projection_mutation == "invalid_intensity":
+        group, values = result.matrix[0]
+        forged_values = (-1.0, *values[1:])
+        forged = replace(
+            result,
+            matrix=((group, forged_values), *result.matrix[1:]),
+            raw_matrix=((group, forged_values), *result.raw_matrix[1:]),
+        )
+    elif projection_mutation == "sample_qc_order":
+        forged = replace(result, sample_qc=tuple(reversed(result.sample_qc)))
+    elif projection_mutation == "group_qc":
+        forged = replace(
+            result,
+            group_qc=(replace(result.group_qc[0], missingness_rate=1.0), *result.group_qc[1:]),
+        )
+    elif projection_mutation == "sample_scales":
+        forged = replace(result, sample_scales=result.sample_scales[:-1])
+    elif projection_mutation == "sample_qc_values":
+        forged = replace(
+            result,
+            sample_qc=(
+                replace(result.sample_qc[0], quantified_groups=999),
+                *result.sample_qc[1:],
+            ),
+        )
+    else:
+        forged = replace(
+            result,
+            sample_qc=(
+                replace(result.sample_qc[0], normalization_status="forged"),
+                *result.sample_qc[1:],
+            ),
+        )
+    with pytest.raises(ValueError, match="cohort"):
         aggregate_cohort_evidence(forged)
 
 
