@@ -292,6 +292,14 @@ class ProteotypeSubgroupEvaluationResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported subgroup report")
+            if (
+                self.report.version != self.request.configuration.version
+                or self.report.configuration != self.request.configuration
+                or self.report.performance != self.request.performance
+                or self.report.calibration != self.request.calibration
+                or self.report.coverage != self.request.coverage
+            ):
+                raise ValueError("evaluated report must bind the exact request declarations")
         elif (
             self.report is not None
             or self.abstention_reason is None

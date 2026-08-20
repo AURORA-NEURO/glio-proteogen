@@ -129,10 +129,10 @@ def evaluate(
 def verify(path: Annotated[Path, typer.Argument(exists=True, readable=True)]) -> None:
     """Verify one immutable M25-05 result by replaying its digest."""
 
-    result = _read_result(path)
     try:
+        result = _read_result(path)
         replay = _SERVICE.verify_replay(result)
-    except (TypeError, ValueError, ValidationError) as error:
+    except (M2505CliError, TypeError, ValueError, ValidationError) as error:
         raise M2505CliError("result replay is invalid") from error  # noqa: TRY003
     verified = replay.result_digest == result.result_digest
     typer.echo(

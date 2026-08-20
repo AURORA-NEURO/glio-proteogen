@@ -153,6 +153,24 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
         service.verify_replay(forged)
 
 
+def test_strict_result_validation_rejects_self_rehashed_report_mutation() -> None:
+    result = M2505Service().execute(build_request())
+    assert result.report is not None
+    changed_metric = result.report.performance[0].model_copy(
+        update={"value": 0.9, "lower_bound": 0.8, "upper_bound": 0.95}
+    )
+    changed_report = result.report.model_copy(
+        update={"performance": (changed_metric, *result.report.performance[1:])}
+    )
+    forged = result.model_copy(update={"report": changed_report})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        ProteotypeSubgroupEvaluationResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_result_finding_ids_are_unique() -> None:
     result = M2505Service().execute(build_request(performance_status=EquityStatus.BELOW_FLOOR))
     assert result.findings
