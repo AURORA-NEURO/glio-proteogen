@@ -291,7 +291,13 @@ def digest_trypsin(
     min_length: int = 7,
     max_length: int = 40,
 ) -> dict[str, tuple[str, ...]]:
-    if not 0 <= missed_cleavages <= 3 or not 1 <= min_length <= max_length <= 200:
+    if (
+        type(missed_cleavages) is not int
+        or type(min_length) is not int
+        or type(max_length) is not int
+        or not 0 <= missed_cleavages <= 3
+        or not 1 <= min_length <= max_length <= 200
+    ):
         raise ValueError("invalid digestion limits")
     peptide_map: dict[str, set[str]] = {}
     for entry in entries:
@@ -322,7 +328,13 @@ def digest_entry_trypsin(
     so search-space provenance cannot silently diverge from the actual search.
     """
 
-    if not 0 <= missed_cleavages <= 3 or not 1 <= min_length <= max_length <= 200:
+    if (
+        type(missed_cleavages) is not int
+        or type(min_length) is not int
+        or type(max_length) is not int
+        or not 0 <= missed_cleavages <= 3
+        or not 1 <= min_length <= max_length <= 200
+    ):
         raise ValueError("invalid digestion limits")
     cuts = [0]
     for index, residue in enumerate(entry.sequence[:-1], start=1):

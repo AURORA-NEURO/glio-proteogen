@@ -11,7 +11,10 @@ Byte and text inputs are measured before decoding; binary streams are read once
 with `max_bytes + 1`, so oversized content is rejected before UTF-8 parsing or
 sequence materialization. Stream return types, malformed UTF-8, empty entries,
 duplicate accessions, and the existing residue alphabet checks remain
-fail-closed.
+fail-closed. The public tryptic-digestion primitives also require strict
+integer missed-cleavage and peptide-length controls; booleans cannot be
+coerced into search-space parameters through Python's `bool`-is-an-`int`
+relationship.
 
 ## mzML precursor ambiguity
 

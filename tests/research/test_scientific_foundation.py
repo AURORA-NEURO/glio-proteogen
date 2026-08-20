@@ -607,6 +607,13 @@ def test_fasta_stream_and_digest_validation_edges() -> None:
         digest_trypsin(entries, missed_cleavages=4)
     with pytest.raises(ValueError):
         digest_trypsin(entries, min_length=0)
+    for controls in (
+        {"missed_cleavages": True},
+        {"min_length": True},
+        {"max_length": True},
+    ):
+        with pytest.raises(ValueError):
+            digest_trypsin(entries, **controls)  # type: ignore[arg-type]
 
 
 def test_mzml_precision_compression_retention_and_limits() -> None:
