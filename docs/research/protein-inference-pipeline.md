@@ -189,8 +189,9 @@ inner digest covers the complete record identity (`evidence_id`, `source`, and `
 well as its frozen payload and quality metadata. Relabeling a record while retaining its
 old digest therefore fails replay; an evidence ID is not an interchangeable display label.
 `aggregate_cohort_evidence` recomputes all four records without rerunning the raw-byte
-computation, re-derives label contrasts from the label-by-group evidence, verifies the complete
-outer result digest, and rejects a stale or tampered receipt. Positive medians from labels whose QC
+computation, re-derives matrix-derived group and sample QC plus label contrasts from their
+upstream projections, verifies the complete outer result digest, and rejects a stale, tampered,
+or internally inconsistent receipt. Positive medians from labels whose QC
 status is not exactly `descriptive` are also withheld: they produce `abstained_label_qc` with
 null difference, ratio, and log2-ratio fields. This prevents unknown-independence, missingness,
 or insufficient-support labels from being presented as derived effects while retaining their

@@ -580,6 +580,7 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
         raise TypeError("result must be a ResearchCohortResult")
     if result.source_manifest is None:
         raise ValueError("cohort result has no source manifest")
+    _validate_matrix_qc_projection(result)
     observed = _build_evidence_bundle(
         sample_ids=result.sample_ids,
         group_accessions=result.group_accessions,
@@ -743,6 +744,86 @@ def _build_label_contrasts(
                     )
                 )
     return tuple(contrasts)
+
+
+def _build_group_qc(
+    matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
+) -> tuple[CohortGroupQc, ...]:
+    """Derive group QC directly from the canonical raw matrix projection."""
+
+    output: list[CohortGroupQc] = []
+    for group, row in matrix:
+        observed = tuple(value for value in row if value is not None)
+        center = float(median(observed)) if observed else None
+        deviations = tuple(abs(value - center) for value in observed) if center is not None else ()
+        output.append(
+            CohortGroupQc(
+                group_accessions=group,
+                observed_samples=len(observed),
+                missing_samples=len(row) - len(observed),
+                missingness_rate=(len(row) - len(observed)) / len(row) if row else 1.0,
+                median_intensity=center,
+                mad_intensity=float(median(deviations)) if deviations else None,
+            )
+        )
+    return tuple(output)
+
+
+def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
+    """Reject a receipt whose QC fields are not derived from its matrix."""
+
+    if result.sample_ids != tuple(sorted(result.sample_ids)):
+        raise ValueError("cohort sample IDs are not canonically ordered")
+    groups = tuple(group for group, _ in result.matrix)
+    if groups != result.group_accessions:
+        raise ValueError("cohort matrix groups are not reproducible")
+    if result.raw_matrix != result.matrix:
+        raise ValueError("cohort raw matrix is not reproducible")
+    if tuple(group for group, _ in result.normalized_matrix) != groups:
+        raise ValueError("cohort normalized matrix groups are not reproducible")
+    for matrix_name, matrix in (
+        ("matrix", result.matrix),
+        ("normalized matrix", result.normalized_matrix),
+    ):
+        for _, values in matrix:
+            if len(values) != len(result.sample_ids):
+                raise ValueError(f"cohort {matrix_name} row length is not reproducible")
+            if any(
+                value is not None
+                and (type(value) not in (int, float) or not isfinite(value) or value < 0)
+                for value in values
+            ):
+                raise ValueError(f"cohort {matrix_name} contains invalid intensity")
+    if tuple(item.sample_id for item in result.sample_qc) != result.sample_ids:
+        raise ValueError("cohort sample QC is not canonically ordered")
+    expected_group_qc = _build_group_qc(result.matrix)
+    if expected_group_qc != result.group_qc:
+        raise ValueError("cohort group QC is not derived from the matrix")
+    scale_by_sample = {item.sample_id: item for item in result.sample_scales}
+    if (
+        tuple(item.sample_id for item in result.sample_scales) != result.sample_ids
+        or set(scale_by_sample) != set(result.sample_ids)
+        or len(scale_by_sample) != len(result.sample_scales)
+    ):
+        raise ValueError("cohort sample scales are not reproducible")
+    for index, item in enumerate(result.sample_qc):
+        observed = sum(
+            value is not None for _, values in result.matrix for value in (values[index],)
+        )
+        missing = len(result.group_accessions) - observed
+        expected_missingness = missing / len(result.group_accessions) if result.group_accessions else 1.0
+        if (
+            item.quantified_groups != observed
+            or item.missing_groups != missing
+            or item.missingness_rate != expected_missingness
+        ):
+            raise ValueError("cohort sample QC is not derived from the matrix")
+        scale = scale_by_sample[item.sample_id]
+        if (
+            item.normalization_scale != scale.scale_factor
+            or item.normalization_status != scale.status
+        ):
+            raise ValueError("cohort sample QC is not linked to sample scales")
 
 
 def _build_label_evidence(  # noqa: PLR0915, PLR0917
@@ -1099,21 +1180,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         )
         for item in qc
     ]
-    group_qc: list[CohortGroupQc] = []
-    for group, row in matrix:
-        observed = tuple(value for value in row if value is not None)
-        center = float(median(observed)) if observed else None
-        deviations = tuple(abs(value - center) for value in observed) if center is not None else ()
-        group_qc.append(
-            CohortGroupQc(
-                group_accessions=group,
-                observed_samples=len(observed),
-                missing_samples=len(row) - len(observed),
-                missingness_rate=(len(row) - len(observed)) / len(row),
-                median_intensity=center,
-                mad_intensity=float(median(deviations)) if deviations else None,
-            )
-        )
+    group_qc = _build_group_qc(matrix)
     configuration = tuple(
         sorted(
             {
@@ -1149,7 +1216,7 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
         raw_matrix=matrix,
         normalized_matrix=normalized_matrix,
         sample_qc=tuple(qc),
-        group_qc=tuple(group_qc),
+        group_qc=group_qc,
         sample_scales=sample_scales,
         label_qc=label_qc,
         label_group_evidence=label_group_evidence,
