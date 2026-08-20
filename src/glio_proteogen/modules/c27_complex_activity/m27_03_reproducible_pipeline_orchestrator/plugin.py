@@ -25,6 +25,8 @@ from .service import M2703Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(OrchestrateComplexActivityPipelineRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ComplexActivityPipelineResult)
+
+
 @dataclass(frozen=True, slots=True)
 class ValidatedM2703Request:
     """Opaque request token issued by strict validation."""
