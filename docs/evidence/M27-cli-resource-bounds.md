@@ -25,3 +25,10 @@ declared limit. The test asserts nonzero rejection and confirms that neither
 This is an interface/resource hardening change only. Contract versions,
 schemas, media types, operation semantics, provisional metadata, and result
 digests are unchanged.
+
+M27-08's FastAPI boundary now applies the same ceilings before parsing request
+or result bodies. Its service boundary also bounds JSON strings, bytes, and
+mapping inputs after canonical re-encoding, so callers cannot bypass the
+declared request limit by supplying an in-memory mapping instead of raw JSON.
+Duplicate keys and non-finite JSON numbers are rejected by the shared strict
+parser at both transport and service boundaries.
