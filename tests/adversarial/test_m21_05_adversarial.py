@@ -63,17 +63,33 @@ def test_plugin_rejects_invalid_json_and_unsealed_token() -> None:
 
 def test_api_sanitizes_malformed_json_and_unknown_schema() -> None:
     client = TestClient(create_app(M2105Service()))
-    malformed = client.post("/v1/modules/M21-05/validate", content=b'{"context":')
+    malformed = client.post(
+        "/v1/modules/M21-05/validate",
+        content=b'{"context":',
+        headers={"content-type": "application/json"},
+    )
     assert malformed.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in malformed.text
-    primitive = client.post("/v1/modules/M21-05/validate", content=b"[]")
+    primitive = client.post(
+        "/v1/modules/M21-05/validate",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert primitive.status_code == _HTTP_UNPROCESSABLE
     unknown = client.get("/v1/modules/M21-05/schemas/not-a-contract")
     assert unknown.status_code == _HTTP_NOT_FOUND
     assert client.get("/v1/modules/M21-05/schemas/request").status_code == _HTTP_OK
-    malformed_envelope = client.post("/v1/modules/M21-05/verify", content=b"{")
+    malformed_envelope = client.post(
+        "/v1/modules/M21-05/verify",
+        content=b"{",
+        headers={"content-type": "application/json"},
+    )
     assert malformed_envelope.status_code == _HTTP_UNPROCESSABLE
-    primitive_envelope = client.post("/v1/modules/M21-05/verify", content=b"[]")
+    primitive_envelope = client.post(
+        "/v1/modules/M21-05/verify",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert primitive_envelope.status_code == _HTTP_UNPROCESSABLE
 
 
