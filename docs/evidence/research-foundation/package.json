@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "e3cfb70f",
+  "base_commit": "b4f5a3e1",
   "pipeline_commit": "depth/m20-replay-integration",
   "source_fixture": {
     "study": "PDC000204",
@@ -68,33 +68,33 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "b1063b1f98ff07cb7e8d49999abc6774b75966c365ffe6e03ff3d623719b5355",
+    "fixture_sha256": "0b5550ed3b41163493cff06626f89c24573d6fade20af3f2b5455ce6e3924778",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 389,
+    "focused_tests": 397,
     "coverage": {
-      "statements": 3484,
-      "missed_statements": 118,
-      "branches": 1380,
-      "partial_branches": 110,
-      "percent": 95.18914473684211,
+      "statements": 3500,
+      "missed_statements": 119,
+      "branches": 1384,
+      "partial_branches": 111,
+      "percent": 95.16789516789517,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3884547,
+      "bytes": 3884919,
       "members": 1991,
-      "sha256": "a0576d9bdc1f88f9a067868e9ea95ad489bc65308293669151a2c260cade5316"
+      "sha256": "6265a763f892da49a27a156bfa52fe428c004972cdfdefaf8ffa2d325ff82605"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4573040,
-      "members": 4661,
-      "sha256": "9132d45f0b98287ff1ff2b6ff366ec322ce19a2fc92b518d6be98d9ab9370c3e"
+      "bytes": 4575695,
+      "members": 4662,
+      "sha256": "ff877920d03294c7392aed0760ce7260be4cd164834bf6ae96aa038720e64636"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "a0576d9bdc1f88f9a067868e9ea95ad489bc65308293669151a2c260cade5316",
-      "sdist": "9132d45f0b98287ff1ff2b6ff366ec322ce19a2fc92b518d6be98d9ab9370c3e"
+      "wheel": "6265a763f892da49a27a156bfa52fe428c004972cdfdefaf8ffa2d325ff82605",
+      "sdist": "ff877920d03294c7392aed0760ce7260be4cd164834bf6ae96aa038720e64636"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
