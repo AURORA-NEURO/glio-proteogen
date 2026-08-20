@@ -61,6 +61,25 @@ def test_replay_rejects_self_rehashed_reference_evidence_forgery() -> None:
         M2301Service().verify_replay(forged)
 
 
+def test_provenance_binds_the_complete_canonical_request_identity() -> None:
+    request = _request()
+    result = M2301Service().execute(request)
+
+    assert result.request_digest in result.provenance.input_digests
+
+    changed = request.model_copy(
+        update={
+            "inclusions": (
+                request.inclusions[0].model_copy(update={"rationale": "different policy"}),
+                *request.inclusions[1:],
+            )
+        }
+    )
+    changed_result = M2301Service().execute(changed)
+    assert changed_result.request_digest != result.request_digest
+    assert changed_result.provenance.input_digests[0] == changed_result.request_digest
+
+
 def test_contract_rejects_partition_kind_and_duplicate_source_ids() -> None:
     request = _request()
     invalid_reference = request.references[0].model_copy(
