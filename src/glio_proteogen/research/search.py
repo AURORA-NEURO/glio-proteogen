@@ -615,8 +615,6 @@ def summarize_target_decoy(
         q_value_threshold=q_value_threshold,
         max_accepted_q_value=max(accepted_q_values) if accepted_q_values else None,
         decoy_to_target_ratio=(
-            (decoy_winners + collision_winners) / target_winners
-            if target_winners
-            else None
+            (decoy_winners + collision_winners) / target_winners if target_winners else None
         ),
     )
