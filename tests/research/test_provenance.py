@@ -40,6 +40,20 @@ def test_manifest_rejects_duplicate_sources_and_bad_timestamps() -> None:
         )
 
 
+@pytest.mark.parametrize("length", [True, 1.0])
+def test_source_reference_rejects_non_integer_byte_lengths(length: object) -> None:
+    with pytest.raises(ProvenanceError, match="non-negative integer"):
+        SourceReference(
+            "source",
+            "memory:source",
+            "text/plain",
+            sha256_digest(b"x"),
+            length,  # type: ignore[arg-type]
+            "2026-08-17T00:00:00Z",
+            "terms",
+        )
+
+
 def test_file_reference_is_content_and_length_checked(tmp_path: Path) -> None:
     payload = b"bounded local evidence\n"
     path = tmp_path / "fixture.txt"

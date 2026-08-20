@@ -112,7 +112,7 @@ and child/result digests to a fresh run; counts and a fixture hash alone are ins
 
 Each cohort can carry a frozen `CohortSourceManifest` with one binding per sample. A
 binding records the opaque sample identifier, source kind and identifier, exact mzML
-SHA-256 and byte size, caller-declared replicate kind (`biological`, `technical`, or
+SHA-256 and non-negative integer byte size, caller-declared replicate kind (`biological`, `technical`, or
 `unknown`), and any available acquisition/aliquot, PDC study/file/locator, catalog
 response, receipt, or metadata-snapshot digests. The full manifest is canonicalized and
 bound into the cohort configuration, result digest, and replay evidence; changing a file,

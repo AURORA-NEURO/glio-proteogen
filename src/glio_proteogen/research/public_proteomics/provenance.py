@@ -71,8 +71,8 @@ class SourceReference:
         if not self.media_type.strip() or not self.license_or_terms.strip():
             raise ProvenanceError("media type and usage terms are required")
         _validate_digest(self.sha256)
-        if self.byte_length < 0:
-            raise ProvenanceError("byte length cannot be negative")
+        if type(self.byte_length) is not int or self.byte_length < 0:
+            raise ProvenanceError("byte length must be a non-negative integer")
         if not self.retrieved_at.endswith("Z"):
             raise ProvenanceError("retrieved_at must be a UTC timestamp ending in Z")
 
