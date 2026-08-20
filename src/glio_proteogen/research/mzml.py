@@ -200,6 +200,8 @@ def parse_mzml(  # noqa: PLR0915 - parser keeps XML state and safety checks toge
         seen_intensity = False
         for array in arrays:
             accessions = {item.attrib.get("accession") for item in array.findall("{*}cvParam")}
+            if "MS:1000514" in accessions and "MS:1000515" in accessions:
+                raise ValueError("mzML binary array declares both m/z and intensity roles")
             values = _binary_array(array, max_output_bytes=max_bytes)
             if "MS:1000514" in accessions:
                 if seen_mz:

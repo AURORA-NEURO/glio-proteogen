@@ -75,6 +75,12 @@ def test_parser_rejects_ambiguous_arrays_and_nonphysical_values() -> None:
     duplicate = prefix + array((100.0,), "MS:1000514") + array((200.0,), "MS:1000514") + suffix
     with pytest.raises(ValueError, match="duplicate m/z"):
         parse_mzml(duplicate)
+    dual_role = array((100.0,), "MS:1000514").replace(
+        b'<cvParam accession="MS:1000514"/>',
+        b'<cvParam accession="MS:1000514"/><cvParam accession="MS:1000515"/>',
+    )
+    with pytest.raises(ValueError, match="both m/z and intensity"):
+        parse_mzml(prefix + dual_role + array((10.0,), "MS:1000515") + suffix)
     with pytest.raises(ValueError, match="retention"):
         parse_mzml(
             b'<mzML><run><spectrumList><spectrum><cvParam accession="MS:1000016" value="-1"/>'

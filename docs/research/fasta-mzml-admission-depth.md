@@ -52,11 +52,12 @@ values are also rejected for direct numeric search controls
 through Python's `bool`-subclass-of-`int` behavior.
 
 The parser also requires one physical m/z array and one physical intensity
-array per spectrum when those arrays are declared: duplicate role arrays are
-rejected instead of selecting the last XML descendant. m/z values must be
-finite and positive, intensities finite and non-negative, retention time
-non-negative, and MS level positive. Invalid measurements fail before fragment
-search so malformed signal cannot be silently converted into an empty result.
+array per spectrum when those arrays are declared: duplicate role arrays and
+arrays declaring both roles are rejected instead of selecting an arbitrary XML
+descendant. m/z values must be finite and positive, intensities finite and
+non-negative, retention time non-negative, and MS level positive. Invalid
+measurements fail before fragment search so malformed signal cannot be
+silently converted into an empty result.
 
 ## Validation
 
