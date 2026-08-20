@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 if __package__ in {None, ""}:  # pragma: no cover - direct script invocation.
     _PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(_PROJECT_ROOT) not in sys.path:
@@ -85,18 +87,22 @@ def run_evaluator() -> dict[str, Any]:
             update={"performance": (performance, *result.report.performance[1:])}
         )
         forged = result.model_copy(update={"report": forged_report})
-        forged = VariantPeptideSubgroupEvaluationResult.model_validate_json(
-            canonical_json_bytes(
-                forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-            ),
-            strict=True,
-        )
         try:
-            service.replay(forged)
-        except M2305ReplayError:
+            forged = VariantPeptideSubgroupEvaluationResult.model_validate_json(
+                canonical_json_bytes(
+                    forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+                ),
+                strict=True,
+            )
+        except ValidationError:
             checks["semantic_replay_rejects_self_rehash"] = True
         else:
-            checks["semantic_replay_rejects_self_rehash"] = False
+            try:
+                service.replay(forged)
+            except M2305ReplayError:
+                checks["semantic_replay_rejects_self_rehash"] = True
+            else:
+                checks["semantic_replay_rejects_self_rehash"] = False
     return {
         "module": "M23-05",
         "checks": checks,

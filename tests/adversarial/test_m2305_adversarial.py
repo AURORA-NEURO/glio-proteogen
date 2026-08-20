@@ -25,7 +25,6 @@ from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evalua
     EquityEvaluationSubmission,
     M2305AuthorizationError,
     M2305Plugin,
-    M2305ReplayError,
     M2305Service,
     cli_app,
     create_app,
@@ -151,7 +150,7 @@ def test_authentication_denial_is_not_recast_as_a_negative_equity_result() -> No
         M2305Service().evaluate(denied_request())
 
 
-def test_replay_rejects_self_rehashed_report_mutation() -> None:
+def test_strict_result_rejects_self_rehashed_report_mutation() -> None:
     request = _request()
     result = _completed_result(request)
     assert result.report is not None
@@ -160,14 +159,11 @@ def test_replay_rejects_self_rehashed_report_mutation() -> None:
         update={"performance": (performance, *result.report.performance[1:])}
     )
     forged = result.model_copy(update={"report": report})
-    forged = VariantPeptideSubgroupEvaluationResult.model_validate_json(
-        canonical_json_bytes(
-            forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-        ),
-        strict=True,
-    )
-    with pytest.raises(M2305ReplayError, match="deterministic replay"):
-        M2305Service().replay(forged)
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        VariantPeptideSubgroupEvaluationResult.model_validate_json(
+            canonical_json_bytes(forged), strict=True
+        )
 
 
 __all__ = []
