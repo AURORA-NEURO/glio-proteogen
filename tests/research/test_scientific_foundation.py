@@ -862,6 +862,36 @@ def test_search_parameter_and_peak_validation() -> None:
     )
 
 
+def test_public_search_receipts_reject_malformed_psm_and_normalize_controls() -> None:
+    """Exercise the public receipt boundary independently of the pipeline."""
+
+    normalized = SearchParameters(
+        allowed_modifications=["unimod:35"],  # type: ignore[arg-type]
+        min_matched_ions=1,
+    )
+    assert normalized.allowed_modifications == ("UNIMOD:35",)
+    with pytest.raises(ValueError, match="require_precursor_mz"):
+        SearchParameters(require_precursor_mz=1)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="max_variable_modifications"):
+        SearchParameters(max_variable_modifications=4)
+
+    valid = Psm("scan-valid", "PEPTIDE", ("P1",), 1.0, 1, decoy=False)
+    malformed: tuple[object, ...] = (
+        object(),
+        replace(valid, spectrum_id=""),
+        replace(valid, peptide=""),
+        replace(valid, protein_accessions=()),
+        replace(valid, decoy=True),
+        replace(valid, matched_intensity=-1.0),
+        replace(valid, mean_fragment_error_da=-1.0),
+        replace(valid, precursor_error_ppm=-1.0),
+        replace(valid, q_value=2.0),
+    )
+    for candidate in malformed:
+        with pytest.raises((TypeError, ValueError)):
+            target_decoy_qvalues((candidate,))  # type: ignore[arg-type]
+
+
 def test_exact_target_decoy_tie_favors_decoy_winner() -> None:
     target = search_spectrum(
         "tie",
