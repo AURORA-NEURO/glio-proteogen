@@ -664,13 +664,14 @@ def test_evidence_record_digest_binds_provenance_identity(field: str, value: str
 
 
 @pytest.mark.parametrize("field", ["evidence_id", "source", "kind"])
-def test_evidence_record_identity_is_bounded(field: str) -> None:
+@pytest.mark.parametrize("invalid", ["", "bad id", "line\nbreak", "x" * 257])
+def test_evidence_record_identity_is_bounded(field: str, invalid: str) -> None:
     values: dict[str, object] = {
         "evidence_id": "evidence",
         "source": "source",
         "kind": "kind",
         "payload": {},
     }
-    values[field] = "bad id"
+    values[field] = invalid
     with pytest.raises(ValueError, match="identifier"):
         EvidenceRecord.create(**values)  # type: ignore[arg-type]
