@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m07_05 import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -147,6 +148,24 @@ def test_integrator_is_deterministic_and_emits_ablation_evidence() -> None:
     assert len(first.result.estimates) == _EXPECTED_ESTIMATES
     assert first.result.ablations[0].constraint_id == "constraint.pathway"
     assert first.canonical_bytes == second.canonical_bytes
+
+
+def test_replay_rejects_self_rehashed_evaluation_mutation() -> None:
+    engine = M0705ConstraintEngine()
+    built = engine.integrate(_request())
+    evaluation = built.result.evaluations[0]
+    forged_evaluation = evaluation.model_copy(update={"message": evaluation.message + " forged"})
+    forged = built.result.model_copy(
+        update={"evaluations": (forged_evaluation, *built.result.evaluations[1:])}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verdict = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert verdict.content_verified is True
+    assert verdict.deterministic_verified is False
+    assert verdict.verified is False
+    assert verdict.result_digest is None
 
 
 def test_soft_conflict_remains_visible_without_hidden_prior_dominance() -> None:

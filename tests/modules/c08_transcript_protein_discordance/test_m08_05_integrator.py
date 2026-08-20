@@ -24,7 +24,9 @@ from glio_proteogen.contracts.m08_05 import (
     MechanismConstraint,
     MechanismConstraintKind,
     canonical_request_digest,
+    result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -135,6 +137,24 @@ def test_supported_integration_is_deterministic_and_replayable() -> None:
     assert first.result.satisfaction_report[0].status is ConstraintEvaluationStatus.SATISFIED
     assert first.canonical_bytes == second.canonical_bytes
     assert engine.verify(first.result, first.canonical_bytes).verified
+
+
+def test_replay_rejects_self_rehashed_report_mutation() -> None:
+    engine = M0805ConstraintIntegrator()
+    built = engine.integrate(_request("conservation_hold"))
+    report = built.result.satisfaction_report[0]
+    forged_report = report.model_copy(update={"message": report.message + " forged"})
+    forged = built.result.model_copy(
+        update={"satisfaction_report": (forged_report, *built.result.satisfaction_report[1:])}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verdict = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert verdict.content_verified is True
+    assert verdict.deterministic_verified is False
+    assert verdict.verified is False
+    assert verdict.result_digest is None
 
 
 def test_hard_violation_abstains_without_estimates() -> None:

@@ -65,7 +65,7 @@ from glio_proteogen.contracts.m06_07 import (
     SelectiveSupportThreshold,
     result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -426,6 +426,24 @@ def test_calibration_replay_accepts_canonical_and_rejects_tamper() -> None:
     rejected = engine.verify(built.result, tampered)
     assert rejected.verified is False
     assert rejected.result_digest is None
+
+
+def test_calibration_replay_rejects_self_rehashed_diagnostic_mutation() -> None:
+    engine = M0607CalibrationEngine()
+    built = engine.calibrate(_request())
+    diagnostic = built.result.diagnostics[0]
+    forged_diagnostic = diagnostic.model_copy(update={"message": diagnostic.message + " forged"})
+    forged = built.result.model_copy(
+        update={"diagnostics": (forged_diagnostic, *built.result.diagnostics[1:])}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verdict = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert verdict.content_verified is True
+    assert verdict.deterministic_verified is False
+    assert verdict.verified is False
+    assert verdict.result_digest is None
 
 
 def test_upstream_abstention_and_bad_coverage_abstain_safely() -> None:

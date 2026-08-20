@@ -211,6 +211,26 @@ def test_replay_accepts_canonical_bytes_and_rejects_tamper() -> None:
     assert rejected.result_digest is None
 
 
+def test_replay_rejects_self_rehashed_non_deterministic_result() -> None:
+    engine = M0605MechanismConstraintEngine()
+    built = engine.integrate(_request())
+    evaluation = built.result.evaluations[1]
+    forged_evaluation = evaluation.model_copy(update={"message": "caller-forged evaluation"})
+    forged = built.result.model_copy(
+        update={
+            "evaluations": (built.result.evaluations[0], forged_evaluation),
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    verdict = engine.verify(forged, canonical_json_bytes(forged.model_dump(mode="json")))
+
+    assert verdict.content_verified is True
+    assert verdict.deterministic_verified is False
+    assert verdict.verified is False
+    assert verdict.result_digest is None
+
+
 def test_replay_rejects_invalid_object_and_non_bytes() -> None:
     engine = M0605MechanismConstraintEngine()
     built = engine.integrate(_request())
