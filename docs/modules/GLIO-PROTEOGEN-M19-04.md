@@ -47,8 +47,9 @@ state, claim promotion, release exception, or unresolved conflict remains extern
    unrestricted research output.
 9. Emit all seven uncertainty dimensions as `not_estimable`; policy adaptation is not a biology
    estimator and makes no calibration, probability, or transport claim.
-10. Preserve exact source and registration evidence, seven control decisions, provenance,
-    limitations, parent ceiling, and false authority flags in every result.
+10. Preserve exact source, registration, claim-ceiling and display-semantics evidence, seven
+    control decisions, provenance, limitations, parent ceiling, and false authority flags in
+    every result.
 11. Derive request digest, result identifier, result payload digest, activity identifier, and
     object identifier deterministically from canonical content. Replay revalidates the complete
     result and rejects identifier, request, payload, and tamper changes.

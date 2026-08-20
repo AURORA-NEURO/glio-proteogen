@@ -11,7 +11,8 @@ from glio_proteogen.contracts.m19_04 import (
     IntendedUseKind,
     PolicyDecisionStatus,
 )
-from glio_proteogen.kernel.models import SupportStatus
+from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import EvidenceReference, SupportStatus
 from glio_proteogen.modules.c19_immunopeptidomic_evidence import (
     m19_04_intended_use_adapter as m1904,
 )
@@ -117,6 +118,40 @@ def test_treatment_kinase_and_all_omics_claims_abstain() -> None:
         "treatment_recommendation_blocked",
         "claim_exceeds_ceiling",
     }
+
+
+def test_provenance_binds_nested_registration_evidence_artifact_identity() -> None:
+    request = _supported_request()
+    base_evidence = request.registration.evidence[0]
+
+    def with_digest(label: str) -> EvidenceReference:
+        reference = base_evidence.reference.model_copy(
+            update={"artifact_id": f"artifact.m1904.{label}", "digest": sha256_digest(label)}
+        )
+        return base_evidence.model_copy(update={"reference": reference})
+
+    registration = request.registration.model_copy(
+        update={
+            "evidence": (with_digest("registration"),),
+            "claim_ceiling": request.registration.claim_ceiling.model_copy(
+                update={"evidence": (with_digest("claim-ceiling"),)}
+            ),
+            "display_semantics": request.registration.display_semantics.model_copy(
+                update={"evidence": (with_digest("display-semantics"),)}
+            ),
+        }
+    )
+    result = m1904.M1904Engine().adapt(request.model_copy(update={"registration": registration}))
+    input_digests = set(result.provenance.input_digests)
+
+    assert all(
+        evidence.reference.digest in input_digests
+        for evidence in (
+            registration.evidence[0],
+            registration.claim_ceiling.evidence[0],
+            registration.display_semantics.evidence[0],
+        )
+    )
 
 
 def test_preflight_requires_all_controls_and_fail_closed_consent() -> None:
