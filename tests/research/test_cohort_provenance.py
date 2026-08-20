@@ -188,6 +188,25 @@ def test_source_swap_is_rejected_by_digest_binding() -> None:
         run_research_cohort(ResearchCohortRequest((first, second), source_manifest=swapped))
 
 
+def test_source_manifest_rejection_precedes_raw_mzml_traversal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    samples = (_sample("a", "r1"), _sample("b", "r2"))
+    manifest = _manifest(samples, "technical")
+    forged = replace(manifest.for_sample("a"), source_sha256="f" * 64)
+    bad_manifest = CohortSourceManifest((forged, manifest.for_sample("b")))
+
+    def fail_if_child_runs(_request: object) -> object:
+        raise AssertionError
+
+    monkeypatch.setattr(
+        "glio_proteogen.research.cohort.run_research_protein_inference",
+        fail_if_child_runs,
+    )
+    with pytest.raises(ValueError, match="mzML digest"):
+        run_research_cohort(ResearchCohortRequest(samples, source_manifest=bad_manifest))
+
+
 def test_wrong_pdc_study_binding_is_rejected() -> None:
     target = next(item for item in scenarios() if item.scenario_id == "target_supported")
     sample = _pdc_sample(target, "pdc-a", "r1")

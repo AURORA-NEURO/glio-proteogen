@@ -1192,10 +1192,14 @@ def run_research_cohort(request: ResearchCohortRequest) -> ResearchCohortResult:
     """Run compatible samples and emit a deterministic matrix without imputation."""
 
     ordered_samples = tuple(sorted(request.samples, key=lambda item: item.sample_id))
-    child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
     _validate_provenance_policy(request, ordered_samples)
-    _compatible_configuration(child)
+    # Provenance policy and source-manifest validation are admission boundaries.
+    # Reject mixed, unattested, snapshot-incompatible, or byte-mismatched cohorts
+    # before parsing or traversing raw mzML; otherwise a rejected source could
+    # still trigger scientific computation before the safe failure.
     source_manifest = _source_manifest(request, ordered_samples)
+    child = tuple(run_research_protein_inference(item.request) for item in ordered_samples)
+    _compatible_configuration(child)
     sample_ids = tuple(item.sample_id for item in ordered_samples)
     groups = tuple(
         sorted({group.accessions for result in child for group in result.protein_groups})

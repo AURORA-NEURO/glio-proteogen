@@ -108,9 +108,11 @@ receipt for every sample with one study/response, and `mixed_declared` is the op
 hatch whose mixed, receipt-bound source identities remain fully recorded. Even under
 `mixed_declared`, a request carrying an external PDC file declaration without a
 `PdcSourceReceipt` is rejected at the cohort admission boundary; otherwise that file could
-be mislabeled as a local source in the manifest. Receipt fields are retained per child and
-remain bound through child result digests, so a file rename, response change, or source
-substitution cannot replay as the same cohort.
+be mislabeled as a local source in the manifest. Provenance policy and source-manifest
+validation also run before any child raw mzML traversal, so a rejected or byte-mismatched
+source cannot trigger scientific computation before the safe failure. Receipt fields are
+retained per child and remain bound through child result digests, so a file rename, response
+change, or source substitution cannot replay as the same cohort.
 
 When a PDC file declaration is supplied without a catalog receipt, its source-reference media
 type is still checked against the declared `mzML`/`mzML.gz` format before parsing, so a text or
