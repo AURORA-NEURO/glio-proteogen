@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.kernel.models import ConsentState, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_04_external_transport_evaluator import (
     M2204Service,
     cli_app,
@@ -87,6 +87,20 @@ def test_fastapi_service_errors_are_sanitized() -> None:
     assert (
         client.post("/v1/modules/M22-04/evaluate", json=request).status_code == _HTTP_UNPROCESSABLE
     )
+
+
+def test_fastapi_validate_rejects_withheld_consent() -> None:
+    client = TestClient(create_app())
+    request = _request()
+    consent = request.context.references.consent.model_copy(update={"state": ConsentState.WITHHELD})
+    references = request.context.references.model_copy(update={"consent": consent})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
+
+    response = client.post("/v1/modules/M22-04/validate", json=denied.model_dump(mode="json"))
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert response.json() == {"detail": "request does not satisfy the M22-04 contract"}
 
 
 def test_typer_evaluate_verify_schema_and_no_overwrite(tmp_path: Path) -> None:

@@ -226,7 +226,12 @@ def test_authorization_service_plugin_and_public_entry_point() -> None:
                 update={"context": request.context.model_copy(update={"references": references})}
             )
         )
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
     service = M2204Service()
+    with pytest.raises(M2204AuthorizationError):
+        service.validate_request(denied)
     result = service.evaluate(request.model_dump_json())
     assert service.replay(result.model_dump_json()) == result
     assert service.evaluate(request.model_dump(mode="json")) == result
@@ -235,6 +240,10 @@ def test_authorization_service_plugin_and_public_entry_point() -> None:
     token = plugin.validate(request)
     assert plugin.run(token) == result
     assert plugin.validate_request(request) == request
+    with pytest.raises(M2204AuthorizationError):
+        plugin.validate(denied)
+    with pytest.raises(M2204AuthorizationError):
+        plugin.validate_request(denied)
     assert plugin.replay(result) == result
     assert plugin.descriptor.module_id == "GLIO-PROTEOGEN-M22-04"
     with pytest.raises(TypeError, match="validated request token"):

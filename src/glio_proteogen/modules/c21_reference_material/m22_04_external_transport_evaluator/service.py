@@ -11,7 +11,7 @@ from glio_proteogen.contracts.m22_04 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2204Engine
+from .engine import M2204Engine, preflight_m2204_authorization
 
 
 class M2204Service:
@@ -23,6 +23,7 @@ class M2204Service:
     def validate_request(
         self, request: object
     ) -> EvaluateProteinRnaDiscordanceExternalTransportRequest:
+        preflight_m2204_authorization(request)
         return EvaluateProteinRnaDiscordanceExternalTransportRequest.model_validate(
             request, strict=True
         )
