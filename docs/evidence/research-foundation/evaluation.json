@@ -1,12 +1,12 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "51c1cbadd24786306064358c3aa56655fc67b9fd0f028bd3c80f193835d2ac9f",
+  "fixture_sha256": "e3cecc39ed1d2c5799df29fefb1893f2e6bb045c6d10bbf793c8186da9e26be5",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "51c1cbadd24786306064358c3aa56655fc67b9fd0f028bd3c80f193835d2ac9f",
+    "fixture_sha256": "e3cecc39ed1d2c5799df29fefb1893f2e6bb045c6d10bbf793c8186da9e26be5",
     "generated_search_space": {
       "passed": true,
       "result_digest": "cab06aac78ba4a8d5b12cafab604a3fc500b53a9cd600441fe17786eb6615301",
@@ -151,13 +151,13 @@
       {
         "scenario_id": "decoy_rejected",
         "passed": true,
-        "result_digest": "d0099d1857c7f4ce88d7438faa20028985398fd2548b0fd98edfbfefc6e1d8f2",
+        "result_digest": "2759fc17f53b7a5c8d25e3fa3319c237c3f1bf39f2f08891942e5b7bc88bbc70",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
         "fdr_summary": {
           "accepted_targets": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "decoy_winners": 1,
           "collision_winners": 0,
           "max_accepted_q_value": null,
@@ -171,7 +171,7 @@
           "candidates": 1,
           "collision_candidates": 0,
           "decoy_candidates": 1,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "duplicate_spectrum_psms": 0,
           "competition_digest": "12e59d95b1c9eca28a12011b1b88520400bf970a0e12799aaf2f9afa9618bab8",
           "input_psms": 1,
@@ -249,13 +249,13 @@
       {
         "scenario_id": "target_decoy_collision",
         "passed": true,
-        "result_digest": "4333a3686556f75e3c28b6680be89e1c13bbf17ef7f67ecc34ce0a906afd4c05",
+        "result_digest": "40971bd8c96dc6b04614033bdd5c904fd4e8efdeccaa544c4b75e08f4c6a3665",
         "psms": 1,
         "accepted_psms": 0,
         "groups": [],
         "fdr_summary": {
           "accepted_targets": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "decoy_winners": 0,
           "collision_winners": 1,
           "max_accepted_q_value": null,
@@ -269,7 +269,7 @@
           "candidates": 1,
           "collision_candidates": 1,
           "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "duplicate_spectrum_psms": 0,
           "competition_digest": "25d25b234fc9cecad20bf523f4ed086b28368d78ec9a28b0c51f6c6b44c9c204",
           "input_psms": 1,
@@ -348,13 +348,13 @@
       {
         "scenario_id": "no_match",
         "passed": true,
-        "result_digest": "24f1b38ff1b191780773853994b428e0f8547151c6226c415858160972368ed7",
+        "result_digest": "fe92cd148ba2e08a59eed7e504dc11d8a48108685a38dc6762de65323eb48be3",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
         "fdr_summary": {
           "accepted_targets": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": null,
@@ -368,7 +368,7 @@
           "candidates": 0,
           "collision_candidates": 0,
           "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "duplicate_spectrum_psms": 0,
           "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
           "input_psms": 0,
@@ -425,13 +425,13 @@
       {
         "scenario_id": "precursor_rejected",
         "passed": true,
-        "result_digest": "efe085005c3f97a447aa99ef8dcc6249c9e3c05ff46c131febea22c521938063",
+        "result_digest": "81c2c67e54964dea002206587e4ca59ca22807f9ece33c0f2a257e8bfff3db17",
         "psms": 0,
         "accepted_psms": 0,
         "groups": [],
         "fdr_summary": {
           "accepted_targets": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "decoy_winners": 0,
           "collision_winners": 0,
           "max_accepted_q_value": null,
@@ -445,7 +445,7 @@
           "candidates": 0,
           "collision_candidates": 0,
           "decoy_candidates": 0,
-          "decoy_to_target_ratio": 0.0,
+          "decoy_to_target_ratio": null,
           "duplicate_spectrum_psms": 0,
           "competition_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
           "input_psms": 0,
@@ -1470,13 +1470,13 @@
       {
         "id": "qc_abstention",
         "passed": true,
-        "result_digest": "0b5b8e9243e4b65ca0e651f246250478f06e9cfa26684983d7d40a00e64456a7",
+        "result_digest": "67e8d76e393420cf8b3ae6e895d2dd5acd05f7db1943eede25792069a9d48961",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "qc-absent",
-              "1582b592d13fcb370d40ddf208a53fcf1b3768ea496c5bb917629fa8aa7d4070"
+              "31301b15cbc5db6efcf4377b70bbd8a809b31eec7093eb7ddb5f713032624a16"
             ],
             [
               "qc-present",
@@ -1485,7 +1485,7 @@
           ],
           "configuration": {
             "child_result_digests": [
-              "1582b592d13fcb370d40ddf208a53fcf1b3768ea496c5bb917629fa8aa7d4070",
+              "31301b15cbc5db6efcf4377b70bbd8a809b31eec7093eb7ddb5f713032624a16",
               "8b7ffa2da7bdacb93a0ac82611d0823ea75e0d70acc9b8fed83e554c4fd18bf9"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
@@ -1615,7 +1615,7 @@
               ]
             ]
           ],
-          "result_digest": "0b5b8e9243e4b65ca0e651f246250478f06e9cfa26684983d7d40a00e64456a7",
+          "result_digest": "67e8d76e393420cf8b3ae6e895d2dd5acd05f7db1943eede25792069a9d48961",
           "sample_ids": [
             "qc-absent",
             "qc-present"
@@ -1743,7 +1743,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "e6b6c36522a2bb0c1792fea98928cf323d6917ce1416e73cb52652d93f373460",
+            "digest": "7ac9c952fc8fe7790cef96e2cafaf9f1ce0389ffa05d02a2ca2bc413759672f4",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -1834,13 +1834,13 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "cbeb286cbe83361c9b37a50ac4ed35889431c481bcfba9af0bb8658843221a7d",
+                "digest": "ee6b470bd4a000dbb0f993535dec00c1668653d645edb9f75a7dd2553d9b6456",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "1582b592d13fcb370d40ddf208a53fcf1b3768ea496c5bb917629fa8aa7d4070",
+                      "31301b15cbc5db6efcf4377b70bbd8a809b31eec7093eb7ddb5f713032624a16",
                       "8b7ffa2da7bdacb93a0ac82611d0823ea75e0d70acc9b8fed83e554c4fd18bf9"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
@@ -2086,13 +2086,13 @@
       {
         "id": "explicit_missingness",
         "passed": true,
-        "result_digest": "808f3e0939ec0c8f7fa60c39630e5acd12802881fafd712099696bddc1a89f4f",
+        "result_digest": "57a77d28427df8fe983ec675cbabf636228c4be4ecece79dcb861a6673084d3a",
         "missing_cells": 1,
         "projection": {
           "child_result_digests": [
             [
               "absent",
-              "c9616d36bfb6f8193f376e904fba35c9f075d4388d4eadb4998ee0e0bffa917e"
+              "786bff39e8c137bf0226aea4245ee34f16b40a8feb76d056f15739b40704feeb"
             ],
             [
               "present",
@@ -2101,7 +2101,7 @@
           ],
           "configuration": {
             "child_result_digests": [
-              "c9616d36bfb6f8193f376e904fba35c9f075d4388d4eadb4998ee0e0bffa917e",
+              "786bff39e8c137bf0226aea4245ee34f16b40a8feb76d056f15739b40704feeb",
               "03ed952845a36a1bded9ad2ca3494a3f81980db8baefcd97780c136371b207a4"
             ],
             "cohort_contrast_version": "caller-label-median-contrast-v1",
@@ -2231,7 +2231,7 @@
               ]
             ]
           ],
-          "result_digest": "808f3e0939ec0c8f7fa60c39630e5acd12802881fafd712099696bddc1a89f4f",
+          "result_digest": "57a77d28427df8fe983ec675cbabf636228c4be4ecece79dcb861a6673084d3a",
           "sample_ids": [
             "absent",
             "present"
@@ -2359,7 +2359,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "5abdf289939cf36eb2658c4f3adc83f0b8e891d8d4460e7fcb144f968af88cfa",
+            "digest": "4175d7730cf8fc6d49e46af1ec25385e7b48f1666affeaafd843ee755f56ace7",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -2450,13 +2450,13 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "2900a9318323b2c5b9813c12dc58980ad19a19066b480ee95a9811022ac02a33",
+                "digest": "d26f247443e29f70faae859ab1cd44cf2c242b6287476885fb875a1473a0a9b1",
                 "evidence_id": "cohort.provenance.v1",
                 "kind": "source_provenance",
                 "payload": {
                   "configuration": {
                     "child_result_digests": [
-                      "c9616d36bfb6f8193f376e904fba35c9f075d4388d4eadb4998ee0e0bffa917e",
+                      "786bff39e8c137bf0226aea4245ee34f16b40a8feb76d056f15739b40704feeb",
                       "03ed952845a36a1bded9ad2ca3494a3f81980db8baefcd97780c136371b207a4"
                     ],
                     "cohort_contrast_version": "caller-label-median-contrast-v1",
@@ -6014,20 +6014,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      710600,
-      716700,
-      702100,
-      713400,
-      704600,
-      717700,
-      767500,
-      749100,
-      722300,
-      722900
+      739800,
+      948500,
+      803800,
+      779300,
+      742400,
+      702400,
+      725800,
+      713300,
+      743100,
+      905900
     ],
-    "mean_ns": 722690.0,
-    "median_ns": 717700,
-    "p95_ns": 767500,
+    "mean_ns": 780430.0,
+    "median_ns": 743100,
+    "p95_ns": 948500,
     "result_digest": "22fe20bc8e622ec17ebfc92dc91a1153fc5d015c4348d4316adc7840f3d92a27"
   },
   "coverage": {
@@ -6053,7 +6053,7 @@
       "broad_replay_passes": true,
       "changed_policy_replay_rejected": true
     },
-    "narrow_result_digest": "5f292bd1664ab39b70ceaf32c27ce0058bbe4e6a5c92d2d44fd102c23dda911f",
+    "narrow_result_digest": "b26201d266dae6741210489a1bb971fc8bbe3adf47b1d23bb556262c0beb846d",
     "broad_result_digest": "98f36b3a66bc6836110658faf8398c27b11059231d2bd638f187d68549034dc3"
   },
   "mzidentml_provenance_evaluation": {
@@ -6112,5 +6112,6 @@
         "P2"
       ]
     ]
-  }
+  },
+  "evaluation": null
 }
