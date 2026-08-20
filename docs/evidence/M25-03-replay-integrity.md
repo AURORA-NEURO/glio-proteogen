@@ -30,6 +30,11 @@ outer payload digest. The same semantic check is used by the service, strict
 plugin, FastAPI `/v1/modules/M25-03/verify` route, and Typer `verify` command;
 interfaces expose only sanitized replay errors.
 
+The result contract also binds a completed dossier's split, baselines,
+ablations, comparisons, and derived metrics to the exact request declarations.
+Thus strict result parsing rejects a self-rehashed dossier mutation before an
+interface invokes replay.
+
 ## Adversarial coverage
 
 The focused M25-03 suite covers self-rehashed mutation of a dossier metric,

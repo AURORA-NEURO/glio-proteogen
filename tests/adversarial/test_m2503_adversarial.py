@@ -203,6 +203,21 @@ def test_self_rehashed_nested_dossier_mutation_is_rejected() -> None:
         service.verify_replay(tampered)
 
 
+def test_strict_result_validation_rejects_self_rehashed_dossier_mutation() -> None:
+    result = M2503Service().execute(build_request())
+    assert result.dossier is not None
+    metric = result.dossier.metrics[0].model_copy(
+        update={"candidate_value": result.dossier.metrics[0].candidate_value + 1.0}
+    )
+    dossier = result.dossier.model_copy(update={"metrics": (metric, *result.dossier.metrics[1:])})
+    tampered = _self_rehashed(result, dossier=dossier)
+
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        ProteotypeInternalBenchmarkResult.model_validate(
+            tampered.model_dump(mode="python"), strict=True
+        )
+
+
 def test_self_rehashed_provenance_mutation_is_rejected() -> None:
     service = M2503Service()
     result = service.execute(build_request())

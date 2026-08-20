@@ -272,6 +272,18 @@ class ProteotypeInternalBenchmarkResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("completed result requires a supported benchmark dossier")
+            expected_metrics = tuple(
+                metric for baseline in self.request.baseline_runs for metric in baseline.metrics
+            )
+            if (
+                self.dossier.version != self.request.split.version
+                or self.dossier.split != self.request.split
+                or self.dossier.baselines != self.request.baseline_runs
+                or self.dossier.ablations != self.request.ablations
+                or self.dossier.comparisons != self.request.comparisons
+                or self.dossier.metrics != expected_metrics
+            ):
+                raise ValueError("completed dossier must bind exact request declarations")
         elif (
             self.dossier is not None
             or self.abstention_reason is None

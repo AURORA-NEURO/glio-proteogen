@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Final
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m25_03 import (
     M2503_CONTRACT_VERSION,
@@ -150,6 +150,10 @@ class M2503BenchmarkEngine:
             replayed = ProteotypeInternalBenchmarkResult.model_validate_json(
                 canonical_json_bytes(result), strict=True
             )
+        except ValidationError as error:
+            if "completed dossier must bind exact request declarations" in str(error):
+                raise M2503ReplayError(_SEMANTIC_REPLAY_MESSAGE) from error
+            raise M2503ReplayError from error
         except Exception as error:
             raise M2503ReplayError from error
         if replayed.request_digest != canonical_request_digest(replayed.request):
