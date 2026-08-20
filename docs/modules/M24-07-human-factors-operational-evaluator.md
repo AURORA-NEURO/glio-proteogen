@@ -13,8 +13,9 @@ Authority is the permitted dossier SHA-256
 slice `GLIO-PROTEOGEN_240_Module_Dossier.md:8580-8620`. The ABI remains
 `0.1.0-provisional`; no frozen endpoint, catalogue or production media type is
 claimed. M24-06 is an unpublished caller-declared media producer. M24-07 binds
-its declared `application/vnd.glio-proteogen.m24-06+json` media type only and
-imports no M24-06 runtime service or implementation.
+the exact upstream artifact identity (ID, version, digest and media type)
+including its declared `application/vnd.glio-proteogen.m24-06+json` media type,
+and imports no M24-06 runtime service or implementation.
 
 Safety and lifecycle closure:
 

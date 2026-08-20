@@ -213,6 +213,9 @@ class EvaluateBiomarkerPanelHumanFactorsRequest(FrozenModel):
     def request_is_bound(self) -> EvaluateBiomarkerPanelHumanFactorsRequest:
         if self.upstream_result.media_type != M2407_M2406_INPUT_MEDIA_TYPE:
             raise ValueError("request must bind the provisional M24-06 challenge result")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if source_by_id.get(self.upstream_result.artifact_id) != self.upstream_result:
+            raise ValueError("source artifacts must retain the exact upstream result identity")
         metric_ids = tuple(item.metric_id for item in self.metrics)
         fallback_ids = tuple(item.scenario_id for item in self.fallbacks)
         if len(metric_ids) != len(set(metric_ids)):

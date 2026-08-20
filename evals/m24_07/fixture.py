@@ -139,5 +139,12 @@ def request() -> EvaluateBiomarkerPanelHumanFactorsRequest:
             required_dimensions=tuple(OperationalDimension),
             evidence=evidence("d"),
         ),
-        source_artifacts=(artifact("e"),),
+        source_artifacts=(
+            ArtifactReference(
+                artifact_id="m2406.fixture.result",
+                version="0.1.0-provisional",
+                digest="sha256:" + "e" * 64,
+                media_type=M2407_M2406_INPUT_MEDIA_TYPE,
+            ),
+        ),
     )

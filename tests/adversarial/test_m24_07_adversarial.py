@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m24_07 import (
     BiomarkerPanelHumanFactorsResult,
+    EvaluateBiomarkerPanelHumanFactorsRequest,
     EvaluationStatus,
     HumanFactorsOperationalReport,
     OperationalConfiguration,
@@ -104,6 +105,27 @@ def test_service_rejects_unknown_fields_wrong_media_and_incomplete_dimensions() 
     )
     with pytest.raises(ValidationError, match="fallback ids must be unique"):
         m2407.M2407Service().validate_request(duplicate_fallbacks)
+
+
+def test_source_artifacts_retain_exact_upstream_identity() -> None:
+    request = fixture_request()
+    missing = request.model_dump(mode="python")
+    missing["source_artifacts"] = (
+        request.source_artifacts[0].model_copy(update={"artifact_id": "unrelated"}),
+    )
+    with pytest.raises(ValidationError, match="exact upstream result identity"):
+        EvaluateBiomarkerPanelHumanFactorsRequest.model_validate(missing, strict=True)
+
+    for field, value in (
+        ("version", "1.0.1"),
+        ("digest", "sha256:" + "f" * 64),
+        ("media_type", "application/vnd.glio-proteogen.m24-06+json; forged"),
+    ):
+        forged = request.source_artifacts[0].model_copy(update={field: value})
+        substituted = request.model_dump(mode="python")
+        substituted["source_artifacts"] = (forged,)
+        with pytest.raises(ValidationError, match="exact upstream result identity"):
+            EvaluateBiomarkerPanelHumanFactorsRequest.model_validate(substituted, strict=True)
 
 
 def test_contract_rejects_invalid_metric_math_and_configuration_closure() -> None:
