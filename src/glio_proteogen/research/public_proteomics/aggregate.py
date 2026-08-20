@@ -148,6 +148,17 @@ def aggregate_evidence(
     pdc_ref = source_by_id.get(pdc_snapshot.source_reference.source_id)
     if pdc_ref is None or pdc_ref.as_dict() != pdc_snapshot.source_reference.as_dict():
         raise ValueError("PDC snapshot source is not exactly represented in the manifest")
+    required_local_sources = {
+        source.source_id
+        for source in manifest.sources
+        if source.source_id != pdc_snapshot.source_reference.source_id
+    }
+    missing_local_sources = required_local_sources.difference(local_features)
+    if missing_local_sources:
+        raise ValueError(
+            "manifest local sources are missing structural features: "
+            + ", ".join(sorted(missing_local_sources))
+        )
     records: list[FeatureRecord] = []
     for source_id, summary in sorted(local_features.items()):
         reference = source_by_id.get(source_id)

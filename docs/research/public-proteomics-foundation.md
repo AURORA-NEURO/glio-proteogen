@@ -103,6 +103,11 @@ imputation, abstains when no decoy/collision winner supplies empirical error evi
 shared-only group signal visible while abstaining from a primary estimate.
 It does not turn these fixtures into clinical or glioma claims.
 
+Structural aggregation is complete with respect to the caller's manifest: every
+non-PDC source declared there must provide a matching local format summary.
+Omitting a declared FASTA, mzML, or mzIdentML feature is rejected instead of
+silently understating the aggregate's local-source count.
+
 ## Promotion gate
 
 Before this foundation can feed a governed module, an owner must freeze the

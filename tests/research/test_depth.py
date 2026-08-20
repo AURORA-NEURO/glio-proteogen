@@ -280,6 +280,8 @@ def test_aggregate_rejects_unbound_and_mismatched_sources() -> None:
         (snapshot.source_reference, local_ref),
         "derivation",
     )
+    with pytest.raises(ValueError, match="missing structural features"):
+        aggregate_evidence(complete, snapshot, {})
     with pytest.raises(ValueError, match="does not match"):
         aggregate_evidence(
             complete, snapshot, {"local": extract_fasta_structure(b">x\nMPEPTIDE\n")}
