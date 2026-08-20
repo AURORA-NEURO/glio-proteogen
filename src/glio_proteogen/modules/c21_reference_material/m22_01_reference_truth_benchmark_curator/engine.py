@@ -313,6 +313,20 @@ def _provenance(
     request: CurateProteinRnaDiscordanceReferenceTruthRequest,
     request_digest: str,
 ) -> ProvenanceRecord:
+    reference_entries = (*request.references, *request.controls)
+    nested_artifacts = (
+        *(item.reference for item in request.endpoint.evidence),
+        *(entry.artifact for entry in reference_entries),
+        *(entry.provenance_artifact for entry in reference_entries),
+        *(item.reference for entry in reference_entries for item in entry.evidence),
+        *(item.reference for inclusion in request.inclusions for item in inclusion.evidence),
+        *(
+            item.reference
+            for adjudication in request.adjudications
+            for item in adjudication.evidence
+        ),
+        *(item.reference for item in request.configuration.evidence),
+    )
     references = request.context.references
     controls = (
         (ControlRole.APPROVED_CONFIGURATION, references.approved_configuration),
@@ -342,7 +356,14 @@ def _provenance(
         module_id=M2201_MODULE_ID,
         module_version=M2201_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=tuple(
+            dict.fromkeys(
+                (
+                    *(artifact.digest for artifact in request.source_artifacts),
+                    *(artifact.digest for artifact in nested_artifacts),
+                )
+            )
+        ),
         configuration_digest=canonical_request_digest(request.configuration),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,

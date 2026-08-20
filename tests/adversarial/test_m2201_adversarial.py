@@ -327,6 +327,29 @@ def test_request_binds_m2108_media_and_exact_source_set() -> None:
         CurateProteinRnaDiscordanceReferenceTruthRequest(**payload)
 
 
+def test_provenance_covers_nested_reference_truth_artifacts() -> None:
+    request = _request()
+    result = M2201Service().curate(request)
+    reference_entries = (*request.references, *request.controls)
+    nested_artifacts = (
+        *(item.reference for item in request.endpoint.evidence),
+        *(entry.artifact for entry in reference_entries),
+        *(entry.provenance_artifact for entry in reference_entries),
+        *(item.reference for entry in reference_entries for item in entry.evidence),
+        *(item.reference for inclusion in request.inclusions for item in inclusion.evidence),
+        *(
+            item.reference
+            for adjudication in request.adjudications
+            for item in adjudication.evidence
+        ),
+        *(item.reference for item in request.configuration.evidence),
+    )
+
+    assert {artifact.digest for artifact in nested_artifacts} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_request_closes_ids_context_and_challenge_set() -> None:
     request = _request()
     payload = request.model_dump(mode="python")
