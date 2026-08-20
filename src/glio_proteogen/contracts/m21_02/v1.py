@@ -177,10 +177,19 @@ class GenerateComplexActivitySyntheticTruthRequest(FrozenModel):
             raise ValueError("request must bind the provisional M21-01 curator result")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context request id must equal request id")
-        source_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        source_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
         if len(source_keys) != len(set(source_keys)):
             raise ValueError("request source artifacts must be unique by id and digest")
-        if (self.upstream_result.artifact_id, self.upstream_result.digest) not in set(source_keys):
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(source_keys):
             raise ValueError("request source artifacts must include the M21-01 result")
         if not set(self.configuration.requested_fixture_kinds):
             raise ValueError("request must declare at least one fixture kind")

@@ -32,6 +32,27 @@ def test_request_requires_upstream_artifact_in_source_manifest() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", sha256_digest("m2102:forged-upstream")),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_request_requires_full_upstream_artifact_identity(field: str, value: str) -> None:
+    request = build_request()
+    forged_source = request.upstream_result.model_copy(update={field: value})
+
+    with pytest.raises(ValidationError, match="include the M21-01 result"):
+        GenerateComplexActivitySyntheticTruthRequest.model_validate(
+            request.model_copy(
+                update={"source_artifacts": (forged_source, *request.source_artifacts[1:])}
+            ),
+            strict=True,
+        )
+
+
 def test_request_rejects_duplicate_source_artifacts() -> None:
     request = build_request()
     with pytest.raises(ValidationError, match="unique by id"):
