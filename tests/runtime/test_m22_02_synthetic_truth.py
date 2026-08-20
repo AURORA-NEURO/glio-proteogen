@@ -85,6 +85,29 @@ def test_replay_rejects_recomputed_digest_for_forged_corpus() -> None:
         service.verify_replay(forged)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_forgery(
+    field: str,
+    value: object,
+) -> None:
+    service = M2202Service()
+    result = service.generate(_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2202ReplayError):
+        service.verify_replay(forged)
+
+
 def test_authorization_fails_closed_before_material_traversal() -> None:
     request = _request()
     support = request.context.references.support.model_copy(

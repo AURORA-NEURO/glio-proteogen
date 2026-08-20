@@ -207,6 +207,34 @@ class GenerateProteinRnaDiscordanceSyntheticTruthRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: ProteinRnaDiscordanceSyntheticTruthResult) -> str | None:
+    request = result.request
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2202_MODULE_ID,
+            "provenance module id must match M22-02",
+        ),
+        (
+            result.provenance.module_version == M2202_CONTRACT_VERSION,
+            "provenance module version must match M22-02",
+        ),
+        (
+            result.provenance.configuration_digest
+            == canonical_request_digest(request.configuration),
+            "provenance configuration must bind the generation configuration",
+        ),
+        (
+            result.provenance.input_digests
+            == tuple(artifact.digest for artifact in request.source_artifacts),
+            "provenance inputs must bind the request source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ProteinRnaDiscordanceSyntheticTruthResult(FrozenModel):
     """Synthetic-truth corpus with explicit reproducibility and abstention."""
 
@@ -238,10 +266,11 @@ class ProteinRnaDiscordanceSyntheticTruthResult(FrozenModel):
             raise ValueError("result request digest does not bind the exact request")
         if self.result_id != result_identifier(self.request):
             raise ValueError("result id must be deterministically bound to the request")
-        if self.provenance.module_id != M2202_MODULE_ID:
-            raise ValueError("provenance module id must match M22-02")
         if self.request.upstream_result.digest not in self.provenance.input_digests:
             raise ValueError("provenance must include the upstream result digest")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.status is GenerationStatus.GENERATED:
             if (
                 self.corpus is None

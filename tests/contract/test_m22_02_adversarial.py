@@ -12,6 +12,7 @@ from glio_proteogen.contracts.m22_02 import (
     SyntheticTruthCorpus,
     contract_json_schemas,
 )
+from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202Service,
 )
@@ -114,3 +115,25 @@ def test_abstained_result_cannot_retain_generated_material() -> None:
     payload["abstention_reason"] = "caller support is insufficient"
     with pytest.raises(ValidationError, match="abstained result requires"):
         ProteinRnaDiscordanceSyntheticTruthResult(**payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_result_rejects_self_rehashed_provenance_binding_forgery(
+    field: str,
+    value: object,
+) -> None:
+    result = M2202Service().generate(_request())
+    forged = result.model_copy(
+        update={"provenance": result.provenance.model_copy(update={field: value})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="provenance"):
+        ProteinRnaDiscordanceSyntheticTruthResult.model_validate(forged, strict=True)
