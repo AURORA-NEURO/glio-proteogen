@@ -11,7 +11,8 @@ from glio_proteogen.contracts.m20_04 import (
     IntendedUseKind,
     PolicyDecisionStatus,
 )
-from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
+from glio_proteogen.contracts.m20_04.canonical import result_payload_digest
+from glio_proteogen.kernel.models import Limitation, SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m20_04_intended_use_adapter as m2004,
 )
@@ -86,6 +87,22 @@ def test_upstream_media_and_tamper_replay_are_closed() -> None:
     result = engine.adapt(request)
     with pytest.raises(m2004.M2004ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"human_review_required": True}))
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    engine = m2004.M2004Engine()
+    result = engine.adapt(_request())
+    mutated = result.model_copy(
+        update={
+            "limitations": (
+                *result.limitations,
+                Limitation(code="forged", statement="forged semantic state"),
+            )
+        }
+    )
+    mutated = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(m2004.M2004ReplayError, match="semantic replay"):
+        engine.replay(mutated)
 
 
 def test_service_and_plugin_keep_same_typed_boundary() -> None:
