@@ -156,25 +156,37 @@ def _control_decisions(
 
 def _provenance(request: ResolveProteinSubtypeUpstreamContractsRequest) -> ProvenanceRecord:
     refs = request.context.references
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                *(candidate.artifact.digest for candidate in request.candidates),
+                *(
+                    candidate.provenance_artifact.digest
+                    for candidate in request.candidates
+                    if candidate.provenance_artifact is not None
+                ),
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in request.configuration.evidence),
+                *(
+                    item.reference.digest
+                    for rule in request.configuration.rules
+                    for item in rule.evidence
+                ),
+                *(
+                    item.reference.digest
+                    for candidate in request.candidates
+                    for item in candidate.evidence
+                ),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
         actor_id=request.context.actor_id,
         module_id=M2001_MODULE_ID,
         module_version=M2001_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(
-            dict.fromkeys(
-                (
-                    *(candidate.artifact.digest for candidate in request.candidates),
-                    *(
-                        candidate.provenance_artifact.digest
-                        for candidate in request.candidates
-                        if candidate.provenance_artifact is not None
-                    ),
-                    *(artifact.digest for artifact in request.source_artifacts),
-                )
-            )
-        ),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,

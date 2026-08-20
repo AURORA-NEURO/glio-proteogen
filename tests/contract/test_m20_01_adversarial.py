@@ -54,6 +54,9 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m20_01_upstream_contract_resolver as m2001,
+)
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
 _MEDIA_TYPE = "application/vnd.glio-proteogen.source+json"
@@ -636,3 +639,29 @@ def test_result_identity_replay_and_safe_abstention_are_closed() -> None:
         ProteinSubtypeUpstreamResolutionResult.model_validate(
             abstained.model_copy(update={"human_review_required": False})
         )
+
+
+def test_provenance_covers_nested_candidate_and_rule_evidence() -> None:
+    request = _request()
+    result = m2001.M2001Engine().resolve(request)
+    nested_digests = {
+        *(candidate.artifact.digest for candidate in request.candidates),
+        *(
+            candidate.provenance_artifact.digest
+            for candidate in request.candidates
+            if candidate.provenance_artifact is not None
+        ),
+        *(artifact.digest for artifact in request.source_artifacts),
+        *(item.reference.digest for item in request.configuration.evidence),
+        *(
+            item.reference.digest
+            for rule in request.configuration.rules
+            for item in rule.evidence
+        ),
+        *(
+            item.reference.digest
+            for candidate in request.candidates
+            for item in candidate.evidence
+        ),
+    }
+    assert nested_digests <= set(result.provenance.input_digests)
