@@ -31,6 +31,14 @@ def test_parser_does_not_choose_an_arbitrary_selected_ion() -> None:
     assert spectrum.precursor_charge is None
 
 
+def test_parser_rejects_a_non_mzml_root_before_search() -> None:
+    wrong_root = _ambiguous_mzml().replace(b"<mzML>", b"<notMzML>").replace(
+        b"</mzML>", b"</notMzML>"
+    )
+    with pytest.raises(ValueError, match="root"):
+        parse_mzml(wrong_root)
+
+
 def test_parser_rejects_duplicate_spectrum_ids_before_fdr() -> None:
     duplicate = _ambiguous_mzml().replace(
         b"</spectrum></spectrumList></run></mzML>",

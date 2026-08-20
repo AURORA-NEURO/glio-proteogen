@@ -149,6 +149,8 @@ def parse_mzml(  # noqa: PLR0915 - parser keeps XML state and safety checks toge
     ):
         raise ValueError("research limits are outside supported bounds")
     root = ElementTree.fromstring(_payload(source, max_bytes))
+    if _local(root.tag) != "mzML":
+        raise ValueError("mzML root element is required")
     output: list[Spectrum] = []
     for element in root.iter():
         if _local(element.tag) != "spectrum":

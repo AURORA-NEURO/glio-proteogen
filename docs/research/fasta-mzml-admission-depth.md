@@ -15,6 +15,10 @@ fail-closed.
 
 ## mzML precursor ambiguity
 
+The parser requires the document root to be `mzML` (including namespace-qualified
+roots) before walking nested spectra. A well-formed XML document with a spectrum-like
+child but a different root is rejected before precursor/search evidence can be emitted.
+
 The parser now examines each `selectedIon` independently. Distinct precursor
 m/z/charge pairs in one spectrum are marked `precursor_ambiguous` instead of
 silently selecting whichever descendant CV parameter happened to appear last.
