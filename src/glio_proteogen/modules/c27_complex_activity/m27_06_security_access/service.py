@@ -8,6 +8,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m27_06 import (
     M2706_MAX_CANONICAL_REQUEST_BYTES,
+    M2706_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivitySecurityAccessResult,
     EvaluateComplexActivitySecurityAccessRequest,
 )
@@ -18,6 +19,15 @@ from .engine import M2706SecurityEngine, preflight_m2706_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(EvaluateComplexActivitySecurityAccessRequest)
 _RESULT_ADAPTER = TypeAdapter(ComplexActivitySecurityAccessResult)
+
+
+def _bounded_mapping_bytes(
+    mapping: Mapping[object, object], *, max_bytes: int, label: str
+) -> bytes:
+    serialized = canonical_json_bytes(dict(mapping))
+    if len(serialized) > max_bytes:
+        raise ValueError(f"{label} exceeds canonical byte limit")  # noqa: TRY003
+    return serialized
 
 
 class M2706Service:
@@ -35,7 +45,14 @@ class M2706Service:
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         preflight_m2706_authorization(request)
         if isinstance(request, Mapping):
-            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(request)), strict=True)
+            return _REQUEST_ADAPTER.validate_json(
+                _bounded_mapping_bytes(
+                    request,
+                    max_bytes=M2706_MAX_CANONICAL_REQUEST_BYTES,
+                    label="M27-06 request",
+                ),
+                strict=True,
+            )
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def emit(self, request: object) -> ComplexActivitySecurityAccessResult:
@@ -43,10 +60,17 @@ class M2706Service:
 
     def replay(self, result: object) -> ComplexActivitySecurityAccessResult:
         if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result)
+            decoded = strict_json_loads(result, max_bytes=M2706_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         elif isinstance(result, Mapping):
-            typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
+            typed = _RESULT_ADAPTER.validate_json(
+                _bounded_mapping_bytes(
+                    result,
+                    max_bytes=M2706_MAX_CANONICAL_RESULT_BYTES,
+                    label="M27-06 result",
+                ),
+                strict=True,
+            )
         else:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         return self._engine.replay(typed)
