@@ -354,6 +354,13 @@ class M2603Engine:
             raise M2603EvaluationError("M26-03 result construction failed safely") from error
 
     def verify(self, result: object, *, replay: bool = True) -> ProteinSubtypeExecutionResult:
+        if replay is False:
+            # A payload digest only proves that the submitted envelope is
+            # internally self-consistent.  M26-03 claims deterministic
+            # workflow execution, so verification must regenerate the result
+            # from its bound request; accepting a caller-controlled opt-out
+            # would allow a re-signed semantic mutation through this boundary.
+            raise M2603ReplayError("M26-03 replay verification cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
