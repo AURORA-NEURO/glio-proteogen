@@ -185,6 +185,10 @@ class SubgroupEvaluationReport(FrozenModel):
         coverage_keys = {(item.dimension, item.subgroup) for item in self.coverage}
         if performance_keys != calibration_keys or performance_keys != coverage_keys:
             raise ValueError("subgroup report dimensions and strata must align")
+        required_dimensions = set(self.configuration.required_dimensions)
+        reported_dimensions = {dimension for dimension, _ in performance_keys}
+        if reported_dimensions != required_dimensions:
+            raise ValueError("subgroup report must include every configured required dimension")
         return self
 
 
