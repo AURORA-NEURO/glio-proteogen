@@ -65,6 +65,29 @@ def test_replay_closes_request_and_identifier_identity() -> None:
         service.replay(result.model_copy(update={"result_id": "wrong-result-id"}))
 
 
+def test_provenance_binds_the_complete_canonical_benchmark_request() -> None:
+    service = M2303Service()
+    request = _request()
+    result = service.generate(request)
+
+    assert result.request_digest in result.provenance.input_digests
+
+    metric = request.baseline_runs[0].metrics[0]
+    changed_request = request.model_copy(
+        update={
+            "baseline_runs": (
+                request.baseline_runs[0].model_copy(
+                    update={"metrics": (metric.model_copy(update={"tolerance": 0.3}),)}
+                ),
+                *request.baseline_runs[1:],
+            )
+        }
+    )
+    changed_result = service.generate(changed_request)
+    assert changed_result.request_digest != result.request_digest
+    assert changed_result.provenance.input_digests[0] == changed_result.request_digest
+
+
 @pytest.mark.parametrize("mutation", ["dossier", "evidence"])
 def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
     service = M2303Service()

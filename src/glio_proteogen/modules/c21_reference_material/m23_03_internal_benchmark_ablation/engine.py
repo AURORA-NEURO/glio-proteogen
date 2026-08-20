@@ -404,6 +404,7 @@ def _provenance(
         module_version=M2303_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
         input_digests=(
+            request_digest,
             *tuple(artifact.digest for artifact in request.source_artifacts),
             request.upstream_result.digest,
             sha256_digest(request.split),
