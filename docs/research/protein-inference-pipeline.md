@@ -106,6 +106,10 @@ be mislabeled as a local source in the manifest. Receipt fields are retained per
 remain bound through child result digests, so a file rename, response change, or source
 substitution cannot replay as the same cohort.
 
+When a PDC file declaration is supplied without a catalog receipt, its source-reference media
+type is still checked against the declared `mzML`/`mzML.gz` format before parsing, so a text or
+unrelated-media label cannot be attached to otherwise matching bytes.
+
 The result is a deterministic sample-by-protein-group matrix. Groups are the union of
 reportable child groups; an absent or non-quantifiable child cell is represented as JSON
 `null`, never zero or imputed. Per-group QC reports observed/missing counts, missingness

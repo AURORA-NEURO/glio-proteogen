@@ -161,6 +161,19 @@ def _validate_pdc_file_binding(
         raise ValueError("external PDC file requires a matching source reference")
     if pdc_file.file_format is None or pdc_file.file_format.lower() not in {"mzml", "mzml.gz"}:
         raise ValueError("external PDC file must declare mzML format")
+    reference_media = source_reference.media_type.split(";", 1)[0].strip().lower()
+    allowed_media = (
+        {
+            "application/mzml",
+            "application/octet-stream",
+            "application/xml",
+            "text/xml",
+        }
+        if pdc_file.file_format.lower() == "mzml"
+        else {"application/gzip", "application/octet-stream", "application/x-gzip"}
+    )
+    if reference_media not in allowed_media:
+        raise ValueError("external PDC source media type is incompatible with file format")
     if source_reference.locator != pdc_file.location:
         raise ValueError("external PDC source locator does not match its file declaration")
     if pdc_file.file_size != len(mzml_bytes):

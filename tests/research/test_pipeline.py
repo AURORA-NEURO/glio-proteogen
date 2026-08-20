@@ -578,6 +578,42 @@ def test_pipeline_rejects_unbound_pdc_declarations() -> None:
         )
 
 
+def test_pipeline_rejects_pdc_source_media_incompatible_with_file_format() -> None:
+    payload = _mzml()
+    pdc_file = PdcFile(
+        study_id="PDC000204",
+        file_name="fixture.mzML",
+        file_type="Mass Spectrometry",
+        data_category="Raw Mass Spectra",
+        file_format="mzML",
+        file_size=len(payload),
+        md5=md5(payload, usedforsecurity=False).hexdigest(),
+        location="memory://PDC000204/fixture.mzML",
+    )
+    source_reference = SourceReference(
+        source_id="pdc:PDC000204:fixture-media-mismatch",
+        locator=pdc_file.location,
+        media_type="text/plain",
+        sha256="sha256:" + sha256(payload).hexdigest(),
+        byte_length=len(payload),
+        retrieved_at="2026-08-17T00:00:00Z",
+        license_or_terms="caller-provided public fixture; research-only",
+    )
+    with pytest.raises(ValueError, match="media type"):
+        bind_pdc_mzml_source(
+            ResearchRunRequest(
+                "pdc-media-mismatch",
+                payload,
+                b">P1\nMPEPTIDER\n",
+                min_matched_ions=1,
+                min_peptide_length=7,
+                max_peptide_length=12,
+            ),
+            pdc_file,
+            source_reference,
+        )
+
+
 def test_pipeline_binds_catalog_attested_pdc_receipt_and_rejects_substitution() -> None:
     payload = _mzml()
     pdc_file = PdcFile(
