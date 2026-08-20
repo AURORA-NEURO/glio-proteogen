@@ -203,6 +203,18 @@ def test_result_rejects_self_rehashed_package_control_mutations() -> None:
         type(result).model_validate(forged.model_dump(mode="python"), strict=True)
 
 
+def test_result_rejects_self_rehashed_package_identity_mutation() -> None:
+    result = M2707Service().execute(build_request())
+    assert result.approved_change_package is not None
+    forged_package = result.approved_change_package.model_copy(
+        update={"package_digest": "sha256:" + "f" * 64}
+    )
+    forged = result.model_copy(update={"approved_change_package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="package identity"):
+        type(result).model_validate(forged.model_dump(mode="python"), strict=True)
+
+
 def test_api_rejects_non_object_payload() -> None:
     response = TestClient(create_app()).post("/v1/modules/M27-07/validate", content=b"[]")
     assert response.status_code == 422

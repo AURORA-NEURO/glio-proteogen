@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m27_07.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -286,6 +287,22 @@ class ComplexActivityChangeControlResult(FrozenModel):
                 != self.request.challenger_digest
             ):
                 raise ValueError("approved package must bind exact request change controls")
+            expected_suffix = self.request_digest.removeprefix("sha256:")
+            expected_package_digest = sha256_digest(
+                {
+                    "request_digest": self.request_digest,
+                    "rollback": self.request.rollback_point.target_digest,
+                }
+            )
+            if (
+                self.approved_change_package.package_id != "package.m2707." + expected_suffix[:16]
+                or self.approved_change_package.version != "1.0.0"
+                or self.approved_change_package.approval_reference
+                != "m2707.approval.caller-declared"
+                or self.approved_change_package.promotion_state is not PromotionState.APPROVED
+                or self.approved_change_package.package_digest != expected_package_digest
+            ):
+                raise ValueError("approved package identity must bind the exact request digest")
         elif (
             self.approved_change_package is not None
             or self.safe_failure_report is None
