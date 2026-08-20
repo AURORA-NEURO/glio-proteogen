@@ -39,6 +39,7 @@ from tests.contract.test_m22_03_hardening import (
     _completed_result,
     _dossier,
     _request,
+    _request_update,
     _result_update,
 )
 
@@ -53,6 +54,21 @@ def test_canonical_dict_projection_and_digest_are_stable() -> None:
     document = normalized_request(request)
     assert canonical_request_digest(document) == canonical_request_digest(request)
     assert result_identifier(document) == result_identifier(request)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + ("f" * 64)),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_upstream_source_artifact_requires_full_identity_binding(field: str, value: str) -> None:
+    request = _request()
+    forged_source = request.source_artifacts[0].model_copy(update={field: value})
+    with pytest.raises(ValidationError, match="include the upstream"):
+        _request_update(request, source_artifacts=(forged_source, *request.source_artifacts[1:]))
 
 
 def test_baseline_and_dossier_identity_closures_reject_duplicates() -> None:

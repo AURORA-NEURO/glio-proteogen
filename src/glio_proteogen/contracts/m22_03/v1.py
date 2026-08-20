@@ -261,7 +261,17 @@ class RunProteinRnaDiscordanceInternalBenchmarkRequest(FrozenModel):
         artifact_ids = tuple(artifact.artifact_id for artifact in self.source_artifacts)
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("source artifact ids must be unique")
-        if self.upstream_result.artifact_id not in set(artifact_ids):
+        source_keys = {
+            (artifact.artifact_id, artifact.version, artifact.digest, artifact.media_type)
+            for artifact in self.source_artifacts
+        }
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in source_keys:
             raise ValueError("source artifacts must include the upstream result")
         baseline_kinds = {baseline.kind for baseline in self.baseline_runs}
         if baseline_kinds != {BaselineKind.SIMPLE, BaselineKind.MATURE}:
