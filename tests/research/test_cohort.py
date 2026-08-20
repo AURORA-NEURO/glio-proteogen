@@ -418,6 +418,43 @@ def test_cohort_evidence_rederives_group_qc_from_matrix() -> None:
         aggregate_cohort_evidence(forged)
 
 
+def test_cohort_evidence_rederives_label_group_evidence() -> None:
+    request = ResearchCohortRequest(
+        (_sample("target_supported", "a", "r1"), _sample("target_supported", "b", "r2"))
+    )
+    result = run_research_cohort(request)
+    assert result.source_manifest is not None
+    assert result.label_group_evidence
+    forged = replace(
+        result,
+        label_group_evidence=(
+            replace(result.label_group_evidence[0], median_normalized_intensity=999.0),
+            *result.label_group_evidence[1:],
+        ),
+    )
+    forged_bundle = _build_evidence_bundle(
+        sample_ids=forged.sample_ids,
+        group_accessions=forged.group_accessions,
+        matrix=forged.matrix,
+        raw_matrix=forged.raw_matrix,
+        normalized_matrix=forged.normalized_matrix,
+        sample_qc=forged.sample_qc,
+        group_qc=forged.group_qc,
+        sample_scales=forged.sample_scales,
+        label_qc=forged.label_qc,
+        label_group_evidence=forged.label_group_evidence,
+        label_contrasts=forged.label_contrasts,
+        source_manifest=forged.source_manifest,
+        configuration=forged.configuration,
+    )
+    forged = replace(forged, evidence_bundle=forged_bundle)
+    payload = forged.as_dict()
+    payload.pop("result_digest")
+    forged = replace(forged, result_digest=_digest(payload))
+    with pytest.raises(ValueError, match="label evidence"):
+        aggregate_cohort_evidence(forged)
+
+
 @pytest.mark.parametrize(
     "projection_mutation",
     [

@@ -163,11 +163,12 @@ C03/C04 computation contract:
 - Every cohort result also carries three inner evidence receipts (`cohort.matrix.v1`,
   `cohort.qc.v1`, and `cohort.provenance.v1`) inside one content-addressed bundle. The
   public `aggregate_cohort_evidence` helper recomputes and verifies these receipts without
-  re-reading raw spectra, re-derives matrix-derived group/sample QC and label contrasts, and
-  rejects internally inconsistent projections as well as stale or tampered receipts. A changed
-  matrix, QC decision, source manifest, or metadata snapshot cannot be presented with an old
-  cohort evidence digest. Each inner digest binds the record's `evidence_id`, `source`, and `kind`
-  in addition to its payload and quality;
+  re-reading raw spectra, re-derives normalized matrices, sample scales, label QC,
+  label-by-group evidence, matrix-derived group/sample QC, and label contrasts, and rejects
+  internally inconsistent projections as well as stale or tampered receipts. A changed matrix,
+  QC decision, source manifest, or metadata snapshot cannot be presented with an old cohort
+  evidence digest. Each inner digest binds the record's `evidence_id`, `source`, and `kind` in
+  addition to its payload and quality;
   relabeling provenance while preserving the old digest is rejected. Metadata snapshot
   versions must be uniform within one cohort or the run rejects before emitting an
   aggregate.

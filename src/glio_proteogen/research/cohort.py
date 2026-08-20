@@ -66,6 +66,18 @@ class ResearchCohortSample:
 
 
 @dataclass(frozen=True, slots=True)
+class _CohortLabelSample:
+    """Minimal label metadata used to replay cohort projections without raw requests."""
+
+    sample_id: str
+    cohort_label: str
+
+    def __post_init__(self) -> None:
+        _label(self.sample_id, "sample_id")
+        _label(self.cohort_label, "cohort_label")
+
+
+@dataclass(frozen=True, slots=True)
 class CohortQcPolicy:
     """Caller-declared descriptive QC gate; it never infers a biological label."""
 
@@ -581,6 +593,41 @@ def aggregate_cohort_evidence(result: ResearchCohortResult) -> EvidenceBundle:
     if result.source_manifest is None:
         raise ValueError("cohort result has no source manifest")
     _validate_matrix_qc_projection(result)
+    configuration = dict(result.configuration)
+    raw_qc_policy = configuration.get("cohort_qc_policy")
+    if not isinstance(raw_qc_policy, dict):
+        raise TypeError("cohort QC policy is not reproducible")
+    try:
+        qc_policy = CohortQcPolicy(**raw_qc_policy)
+    except (TypeError, ValueError) as error:
+        raise ValueError("cohort QC policy is not reproducible") from error
+    normalization_policy = configuration.get("cohort_normalization_policy")
+    if normalization_policy not in _NORMALIZATION_POLICIES:
+        raise ValueError("cohort normalization policy is not reproducible")
+    label_metadata = tuple(
+        _CohortLabelSample(item.sample_id, item.cohort_label) for item in result.sample_qc
+    )
+    (
+        expected_normalized_matrix,
+        expected_sample_scales,
+        expected_label_qc,
+        expected_label_group_evidence,
+        _,
+    ) = _build_label_evidence(
+        label_metadata,
+        result.group_accessions,
+        result.raw_matrix,
+        normalization_policy,
+        qc_policy,
+        result.source_manifest,
+    )
+    if (
+        expected_normalized_matrix != result.normalized_matrix
+        or expected_sample_scales != result.sample_scales
+        or expected_label_qc != result.label_qc
+        or expected_label_group_evidence != result.label_group_evidence
+    ):
+        raise ValueError("cohort label evidence is not reproducible")
     observed = _build_evidence_bundle(
         sample_ids=result.sample_ids,
         group_accessions=result.group_accessions,
@@ -829,7 +876,7 @@ def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
 
 
 def _build_label_evidence(  # noqa: PLR0915, PLR0917
-    ordered_samples: tuple[ResearchCohortSample, ...],
+    ordered_samples: tuple[ResearchCohortSample | _CohortLabelSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
     policy: str,
