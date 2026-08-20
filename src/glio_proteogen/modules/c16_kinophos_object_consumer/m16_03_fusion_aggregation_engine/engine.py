@@ -249,6 +249,22 @@ def _provenance(
             request.alignment_result.digest,
             *(artifact.digest for artifact in request.source_artifacts),
             *(item.artifact.digest for item in request.contributions),
+            *(
+                evidence.reference.digest
+                for item in request.contributions
+                for evidence in item.evidence
+            ),
+            *(
+                evidence.reference.digest
+                for item in request.disagreements
+                for evidence in item.evidence
+            ),
+            *(
+                evidence.reference.digest
+                for item in request.propagation
+                for evidence in item.evidence
+            ),
+            *(evidence.reference.digest for evidence in request.configuration.evidence),
         ),
         configuration_digest=sha256_digest(request.configuration.model_dump(mode="json")),
         consent_decision_id=references.consent.decision_id,

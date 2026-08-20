@@ -180,6 +180,35 @@ def test_integrated_replay_preserves_attribution_conflict_and_propagation() -> N
     assert service.verify(result).result_digest == result.result_digest
 
 
+def test_provenance_binds_nested_fusion_evidence() -> None:
+    request = _request()
+    service = m1603.M1603Service()
+    result = service.execute(request)
+    nested_digests = {
+        evidence.reference.digest for item in request.contributions for evidence in item.evidence
+    }
+    nested_digests.update(
+        evidence.reference.digest for item in request.disagreements for evidence in item.evidence
+    )
+    nested_digests.update(
+        evidence.reference.digest for item in request.propagation for evidence in item.evidence
+    )
+    nested_digests.update(evidence.reference.digest for evidence in request.configuration.evidence)
+    assert nested_digests <= set(result.provenance.input_digests)
+
+    mutated = request.model_copy(
+        update={
+            "disagreements": (
+                request.disagreements[0].model_copy(
+                    update={"evidence": (_evidence("disagreement-mutated"),)}
+                ),
+            )
+        }
+    )
+    mutated_result = service.execute(mutated)
+    assert mutated_result.provenance.input_digests != result.provenance.input_digests
+
+
 def test_low_reliability_abstains_without_negative_conversion() -> None:
     request = _request()
     low = request.contributions[0].model_copy(
