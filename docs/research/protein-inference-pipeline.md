@@ -10,6 +10,10 @@ and does not widen M03/M04 contracts.
 one deterministic, auditable path:
 
 1. Decode bounded mzML spectra and retain MS2 spectra only for identification.
+   The parser drains caller-supplied uncompressed binary streams to EOF within
+   the byte cap, including when individual ``read(n)`` calls return short chunks;
+   this keeps direct parser use replay-stable instead of silently analyzing a
+   valid prefix. Gzip streams are drained through the same bounded decoder.
    A spectrum with multiple selected ions is marked as ambiguous and abstains
    from this single-precursor search rather than inheriting a document-order
    ``cvParam`` value.

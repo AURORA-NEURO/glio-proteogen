@@ -98,16 +98,34 @@ def _payload(source: bytes | bytearray | BinaryIO, max_bytes: int) -> bytes:
     stream: BinaryIO = (
         io.BytesIO(bytes(source)) if isinstance(source, (bytes, bytearray)) else source
     )
-    header = stream.read(2)
+    # ``BinaryIO.read(n)`` may legally return fewer than n bytes before EOF.
+    # Drain the sniffed prefix before deciding whether the stream is gzip so a
+    # throttled or non-seekable source cannot be mistaken for a short payload.
+    prefix = bytearray()
+    while len(prefix) < 2:
+        chunk = stream.read(2 - len(prefix))
+        if not isinstance(chunk, (bytes, bytearray)):
+            raise TypeError("mzML binary stream must return bytes")
+        if not chunk:
+            break
+        prefix.extend(chunk)
+    header = bytes(prefix)
     if header == b"\x1f\x8b":
         if stream.seekable():
             stream.seek(0)
             return _read_bounded_gzip(stream, max_bytes)
         return _read_bounded_gzip(cast("BinaryIO", _PrefixedReader(header, stream)), max_bytes)
-    payload = header + stream.read(max_bytes + 1 - len(header))
+    payload = bytearray(header)
+    while len(payload) <= max_bytes:
+        chunk = stream.read(min(65_536, max_bytes + 1 - len(payload)))
+        if not isinstance(chunk, (bytes, bytearray)):
+            raise TypeError("mzML binary stream must return bytes")
+        if not chunk:
+            break
+        payload.extend(chunk)
     if len(payload) > max_bytes:
         raise ValueError("mzML payload exceeds the research limit")
-    return payload
+    return bytes(payload)
 
 
 def _finalize_spectra(output: list[Spectrum]) -> tuple[Spectrum, ...]:

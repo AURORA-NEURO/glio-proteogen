@@ -740,6 +740,24 @@ def test_mzml_nonseekable_gzip_and_precursor_validation() -> None:
         parse_mzml(charge)
 
 
+def test_mzml_plain_short_read_stream_is_drained() -> None:
+    payload = b'<mzML><run><spectrumList><spectrum id="x"/></spectrumList></run></mzML>'
+
+    class ShortRead:
+        def __init__(self, value: bytes) -> None:
+            self.value = value
+
+        def read(self, size: int = -1) -> bytes:
+            if not self.value:
+                return b""
+            limit = len(self.value) if size < 0 else min(size, 1)
+            chunk, self.value = self.value[:limit], self.value[limit:]
+            return chunk
+
+    spectra = parse_mzml(cast("BinaryIO", ShortRead(payload)))
+    assert spectra[0].spectrum_id == "x"
+
+
 def test_search_and_quantification_edge_closures() -> None:
     with pytest.raises(ValueError):
         search_spectrum("bad", 1.0, {"PEPTIDE": ("P1",)}, (1.0,), ())
