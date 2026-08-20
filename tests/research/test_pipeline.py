@@ -186,6 +186,29 @@ def test_pipeline_replay_rejects_tampered_observation_receipt() -> None:
         replay_research_protein_inference(request, tampered)
 
 
+def test_pipeline_replay_rejects_default_status_vector_tampering() -> None:
+    request = ResearchRunRequest(
+        "status-vector-tamper",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    result = run_research_protein_inference(request)
+    receipt = result.quantification_receipt
+    assert receipt is not None
+    tampered = replace(
+        result,
+        quantification_receipt=replace(
+            receipt,
+            raw_peptide_statuses=(("forged", "forged"),),
+        ),
+    )
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_protein_inference(request, tampered)
+
+
 def test_pipeline_replay_rejects_tampered_competition_receipt() -> None:
     request = ResearchRunRequest(
         "competition-tamper",

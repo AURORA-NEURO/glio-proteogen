@@ -152,9 +152,15 @@ class QuantificationReceipt:
             "unique_peptides": self.unique_peptides,
             "version": self.version,
         }
-        # Historical default receipts remain stable; a non-default LOQ is fully
-        # self-describing and therefore part of the replay projection.
-        if self.limit_of_quantification > 0 or self.below_loq_peptides:
+        # Empty historical default receipts remain stable. Whenever per-peptide
+        # statuses exist, they are part of the replay projection even under the
+        # default policy so missingness cannot change without changing the digest.
+        if (
+            self.limit_of_quantification > 0
+            or self.below_loq_peptides
+            or self.raw_peptide_statuses
+            or self.normalized_peptide_statuses
+        ):
             payload.update(
                 {
                     "below_loq_peptides": self.below_loq_peptides,

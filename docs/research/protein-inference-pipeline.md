@@ -76,6 +76,9 @@ one deterministic, auditable path:
    the first excess item and cannot bypass the bounded receipt contract.
    Receipt LOQ is validated as finite and non-negative, and status counters as
    non-negative integers, including fields omitted from the compact default projection.
+   Per-peptide raw and normalized status vectors are bound whenever present, even
+   under the default policy, so replay cannot silently replace quantified/missing
+   status evidence.
 9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
