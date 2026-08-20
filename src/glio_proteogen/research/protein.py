@@ -340,7 +340,7 @@ def _build_group_fdr_summary(
     )
 
 
-def verify_protein_group_fdr_summary(
+def verify_protein_group_fdr_summary(  # noqa: PLR0915 - complete receipt closure
     candidates: tuple[ProteinGroupCandidate, ...], summary: ProteinGroupFdrSummary
 ) -> None:
     """Verify group partition, ambiguity, and FDR receipt invariants.
@@ -355,6 +355,29 @@ def verify_protein_group_fdr_summary(
 
     if not isinstance(summary, ProteinGroupFdrSummary):
         raise TypeError("summary must be a ProteinGroupFdrSummary")
+    if not isfinite(summary.q_value_threshold) or not 0 <= summary.q_value_threshold <= 1:
+        raise ValueError("group-FDR q-value threshold is invalid")
+    if len(summary.competition_digest) != 64 or not _is_hex_digest(summary.competition_digest):
+        raise ValueError("group-FDR competition digest is invalid")
+    if (
+        not isfinite(summary.decoy_to_target_ratio)
+        or summary.decoy_to_target_ratio < 0
+        or (
+            summary.max_accepted_q_value is not None
+            and (
+                not isfinite(summary.max_accepted_q_value)
+                or not 0 <= summary.max_accepted_q_value <= 1
+            )
+        )
+    ):
+        raise ValueError("group-FDR summary metrics are invalid")
+    if (
+        summary.input_psms < 0
+        or summary.unique_spectra < 0
+        or summary.duplicate_spectrum_psms < 0
+        or summary.duplicate_spectrum_psms != summary.input_psms - summary.unique_spectra
+    ):
+        raise ValueError("group-FDR input counts are inconsistent")
     ordered = tuple(sorted(candidates, key=lambda item: item.accessions))
     if ordered != candidates:
         raise ValueError("protein-group candidates must be sorted by accession")
@@ -363,27 +386,72 @@ def verify_protein_group_fdr_summary(
     for candidate in candidates:
         if not candidate.accessions or tuple(sorted(candidate.accessions)) != candidate.accessions:
             raise ValueError("protein-group accessions must be non-empty and sorted")
+        if (
+            tuple(sorted(set(candidate.unique_peptides))) != candidate.unique_peptides
+            or tuple(sorted(set(candidate.shared_peptides))) != candidate.shared_peptides
+            or tuple(sorted(set(candidate.unique_supported_accessions)))
+            != candidate.unique_supported_accessions
+            or tuple(sorted(set(candidate.ambiguous_accessions))) != candidate.ambiguous_accessions
+        ):
+            raise ValueError("protein-group evidence memberships must be sorted and unique")
         if set(candidate.unique_peptides).intersection(candidate.shared_peptides):
             raise ValueError("unique and shared peptide memberships must be disjoint")
         if candidate.status not in {"target", "decoy", "collision"}:
             raise ValueError("protein-group candidate status is invalid")
         if candidate.acceptance not in {"pending", "accepted", "rejected", "abstained"}:
             raise ValueError("protein-group candidate acceptance is invalid")
+        if candidate.identifiability not in {
+            "unique_peptide_supported",
+            "shared_only_ambiguous",
+            "partially_unique_ambiguous",
+            "target_decoy_collision",
+        }:
+            raise ValueError("protein-group identifiability is invalid")
+        if not isfinite(candidate.score) or candidate.score < 0 or candidate.supporting_psms < 1:
+            raise ValueError("protein-group score/support count is invalid")
         if candidate.q_value is not None and (
             not isfinite(candidate.q_value) or not 0 <= candidate.q_value <= 1
         ):
             raise ValueError("protein-group q-values must be finite and between zero and one")
         if len(candidate.evidence_digest) != 64 or not _is_hex_digest(candidate.evidence_digest):
             raise ValueError("protein-group evidence digest is invalid")
+        accessions = set(candidate.accessions)
+        unique_supported = set(candidate.unique_supported_accessions)
+        ambiguous = set(candidate.ambiguous_accessions)
+        if not unique_supported <= accessions or not ambiguous <= accessions:
+            raise ValueError("protein-group support accessions must belong to the group")
+        if unique_supported.intersection(ambiguous):
+            raise ValueError("unique and ambiguous accessions must be disjoint")
+        if unique_supported.union(ambiguous) != accessions:
+            raise ValueError("protein-group support accessions are incomplete")
         if candidate.status == "collision" and (
             candidate.q_value is not None or candidate.acceptance != "abstained"
         ):
             raise ValueError("collision groups must remain null-q abstentions")
-        if (
-            candidate.identifiability == "shared_only_ambiguous"
-            and candidate.acceptance != "abstained"
+        if candidate.identifiability == "shared_only_ambiguous" and (
+            candidate.acceptance != "abstained"
+            or candidate.unique_peptides
+            or unique_supported
+            or ambiguous != accessions
         ):
-            raise ValueError("shared-only groups must remain abstentions")
+            raise ValueError("shared-only groups must remain complete abstentions")
+        if candidate.identifiability == "partially_unique_ambiguous" and (
+            candidate.acceptance != "abstained" or not unique_supported or not ambiguous
+        ):
+            raise ValueError("partially unique groups must remain abstentions")
+        if candidate.acceptance == "accepted" and (
+            candidate.status != "target"
+            or candidate.identifiability != "unique_peptide_supported"
+            or not candidate.unique_peptides
+            or ambiguous
+            or candidate.q_value is None
+            or candidate.q_value > summary.q_value_threshold
+        ):
+            raise ValueError("only uniquely supported target groups may be accepted")
+        if candidate.identifiability == "unique_peptide_supported" and (
+            not candidate.unique_peptides or unique_supported != accessions or ambiguous
+        ):
+            raise ValueError("unique group support metadata is incomplete")
     if summary.candidates != len(candidates):
         raise ValueError("group-FDR candidate count does not match candidates")
     if summary.target_candidates != sum(item.status == "target" for item in candidates):
@@ -412,6 +480,33 @@ def verify_protein_group_fdr_summary(
         raise ValueError("group-FDR evidence status does not match candidates")
     if summary.group_partition_digest != _group_partition_digest(candidates):
         raise ValueError("group-FDR partition digest does not match candidates")
+    if summary.shared_peptide_candidates != sum(bool(item.shared_peptides) for item in candidates):
+        raise ValueError("group-FDR shared-peptide count does not match candidates")
+    if summary.shared_only_candidates != sum(
+        item.identifiability == "shared_only_ambiguous" for item in candidates
+    ):
+        raise ValueError("group-FDR shared-only count does not match candidates")
+    if summary.partially_unique_candidates != sum(
+        item.identifiability == "partially_unique_ambiguous" for item in candidates
+    ):
+        raise ValueError("group-FDR partial-unique count does not match candidates")
+    expected_q_values = _expected_group_q_values(candidates)
+    for candidate in candidates:
+        if candidate.q_value != expected_q_values[candidate.accessions]:
+            raise ValueError("group-FDR q-values do not match target/decoy ordering")
+    accepted_q_values = tuple(
+        item.q_value
+        for item in candidates
+        if item.acceptance == "accepted" and item.q_value is not None
+    )
+    expected_max_q = max(accepted_q_values) if accepted_q_values else None
+    if summary.max_accepted_q_value != expected_max_q:
+        raise ValueError("group-FDR maximum accepted q-value does not match candidates")
+    expected_ratio = (
+        summary.error_candidates / summary.target_denominator if summary.target_denominator else 0.0
+    )
+    if summary.decoy_to_target_ratio != expected_ratio:
+        raise ValueError("group-FDR ratio does not match candidates")
 
 
 def _validate_group_mapping(
@@ -449,6 +544,42 @@ def _validate_group_token(value: object, label: str) -> None:
 
 def _is_hex_digest(value: str) -> bool:
     return all(character in "0123456789abcdef" for character in value)
+
+
+def _expected_group_q_values(
+    candidates: tuple[ProteinGroupCandidate, ...],
+) -> dict[tuple[str, ...], float | None]:
+    """Recompute the descriptive group q-values from the receipt projection."""
+
+    ordered = sorted(
+        candidates,
+        key=lambda item: (
+            -item.score,
+            {"collision": 0, "decoy": 1, "target": 2}[item.status],
+            item.accessions,
+        ),
+    )
+    has_decoy_evidence = any(item.status in {"decoy", "collision"} for item in ordered)
+    decoys = 0
+    targets = 0
+    raw: list[tuple[ProteinGroupCandidate, float | None]] = []
+    for candidate in ordered:
+        if candidate.status == "collision":
+            decoys += 1
+            raw.append((candidate, None))
+            continue
+        decoys += int(candidate.status == "decoy")
+        targets += int(candidate.status == "target")
+        raw.append((candidate, decoys / max(targets, 1)))
+    running = 1.0
+    values: dict[tuple[str, ...], float | None] = {}
+    for candidate, value in reversed(raw):
+        if value is not None:
+            running = min(running, value)
+        values[candidate.accessions] = (
+            None if candidate.status != "target" or not has_decoy_evidence else running
+        )
+    return values
 
 
 def _group_partition_digest(candidates: tuple[ProteinGroupCandidate, ...]) -> str:
