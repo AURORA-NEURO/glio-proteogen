@@ -20,6 +20,8 @@ from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import pytest
+
 _SCHEMA_COUNT = 9
 
 
@@ -79,6 +81,27 @@ def test_fastapi_verify_sanitizes_invalid_json_and_tampering() -> None:
     result["result_digest"] = "sha256:" + ("f" * 64)
     tampered = client.post("/v1/modules/M26-03/verify", json={"result": result})
     assert tampered.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_fastapi_streams_bodies_and_enforces_request_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = TestClient(m2603_api.create_app())
+
+    def fail_body(_request: object) -> bytes:
+        raise AssertionError
+
+    monkeypatch.setattr("starlette.requests.Request.body", fail_body)
+    valid = client.post(
+        "/v1/modules/M26-03/validate",
+        content=build_request().model_dump_json(),
+    )
+    assert valid.status_code == HTTPStatus.OK
+
+    monkeypatch.setattr(m2603_api, "M2603_MAX_CANONICAL_REQUEST_BYTES", 16)
+    oversized = client.post("/v1/modules/M26-03/validate", content=b"{}" + (b" " * 24))
+    assert oversized.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert oversized.json()["detail"] == "request exceeds byte limit"
 
 
 def test_typer_round_trip_no_overwrite_and_schema_validation(tmp_path: Path) -> None:

@@ -357,6 +357,28 @@ def test_fastapi_validate_execute_verify_and_unknown_schema() -> None:
     assert malformed.status_code == 422
 
 
+def test_fastapi_streams_bodies_and_bounds_result_envelopes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+    client = TestClient(create_app())
+
+    def fail_body(_request: object) -> bytes:
+        raise AssertionError("FastAPI adapter must consume the bounded request stream")
+
+    monkeypatch.setattr("starlette.requests.Request.body", fail_body)
+    validated = client.post("/v1/modules/M27-03/validate", content=request.model_dump_json())
+    assert validated.status_code == 200
+
+    monkeypatch.setattr(
+        "glio_proteogen.modules.c27_complex_activity.m27_03_reproducible_pipeline_orchestrator.api.M2703_MAX_CANONICAL_RESULT_BYTES",
+        32,
+    )
+    oversized = client.post("/v1/modules/M27-03/verify", content=b"{}" + (b" " * 40))
+    assert oversized.status_code == 422
+    assert oversized.json()["detail"] == "request exceeds byte limit"
+
+
 def test_fastapi_sanitizes_route_service_errors() -> None:
     class FailingService(M2703Service):
         def validate_request(self, _candidate: object) -> OrchestrateComplexActivityPipelineRequest:
