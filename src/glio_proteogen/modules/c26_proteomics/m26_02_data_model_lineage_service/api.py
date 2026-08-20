@@ -9,13 +9,14 @@ from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     ProteinSubtypeLineageResult,
     canonical_request_digest,
     contract_json_schema,
 )
 from glio_proteogen.kernel.strict_json import (
-    MAX_JSON_BYTES,
     StrictJsonError,
     sanitized_validation_errors,
     strict_json_error_detail,
@@ -40,7 +41,7 @@ def _validated_payload(
     raw: bytes, service: M2602LineageService
 ) -> BuildProteinSubtypeLineageRequest:
     try:
-        strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+        strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _REQUEST_ADAPTER.validate_json(raw, strict=True)
         return service.validate_request(validated)
     except StrictJsonError as error:
@@ -51,6 +52,26 @@ def _validated_payload(
         raise HTTPException(
             status_code=403, detail={"type": "authorization", "msg": str(error)}
         ) from error
+
+
+async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
+    """Drain an HTTP body without retaining bytes beyond the contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "type": "json_too_large",
+                    "loc": [],
+                    "msg": "JSON input exceeds the byte limit",
+                },
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
@@ -69,24 +90,22 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
 
     @app.post("/m26-02/validate")
     async def validate(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await _read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _validated_payload(raw, active_service)
-        return JSONResponse(
-            {"valid": True, "requestDigest": canonical_request_digest(validated)}
-        )
+        return JSONResponse({"valid": True, "requestDigest": canonical_request_digest(validated)})
 
     @app.post("/m26-02/construct")
     async def construct(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await _read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _validated_payload(raw, active_service)
         result = active_service.execute(validated)
         return JSONResponse(result.model_dump(mode="json"))
 
     @app.post("/m26-02/verify")
     async def verify(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await _read_bounded(request, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
         try:
-            decoded = strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
+            decoded = strict_json_loads(raw, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
             del decoded
             result = _RESULT_ADAPTER.validate_json(raw, strict=True)
             verified = active_service.verify(result)

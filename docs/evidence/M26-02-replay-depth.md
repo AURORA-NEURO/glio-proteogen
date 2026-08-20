@@ -20,6 +20,10 @@ The locked evaluator and adversarial suite include a self-rehashed provenance
 mutation. The independent release verifier locks the ordered scenario IDs so a
 receipt cannot report only a digest-tamper case while omitting semantic replay.
 
+FastAPI request and replay bodies now drain under the 4 MiB request / 8 MiB
+result ceilings before strict parsing; direct service mappings enforce the same
+limits before model validation.
+
 Evidence gates on the current-main lane: 31 focused tests, 96.0% scoped
 branch-enabled coverage (586 statements, 114 branches; fail-under 95), fresh
 10-round benchmark mean 2,518,761 ns and p95 3,473,500 ns, two byte-identical

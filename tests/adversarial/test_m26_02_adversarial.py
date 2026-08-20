@@ -168,3 +168,8 @@ def test_cli_rejects_oversized_json_before_reading(
     with pytest.raises(ValueError, match="bounded JSON byte limit"):
         helper(path)
     assert not read_called
+
+
+def test_service_rejects_oversized_mapping_result_before_validation() -> None:
+    with pytest.raises(ValueError, match="M26-02 result exceeds"):
+        M2602LineageService.verify({"oversized": "x" * M2602_MAX_CANONICAL_RESULT_BYTES})
