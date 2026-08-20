@@ -484,7 +484,7 @@ class PdcClient:
     def study_snapshot(self, study_id: str, *, limit: int = 16) -> PdcStudySnapshot:
         if not study_id.startswith("PDC") or not study_id[3:].isdigit():
             raise ValueError("study_id must be a PDC accession")
-        if not 1 <= limit <= 128:
+        if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("limit must be between 1 and 128")
         query = (
             '{ filesCountPerStudy(pdc_study_id: "'

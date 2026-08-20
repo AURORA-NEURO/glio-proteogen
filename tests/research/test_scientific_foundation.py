@@ -588,6 +588,8 @@ def test_pdc_validates_accession_and_limit() -> None:
         pdc.PdcClient().study_snapshot("not-pdc")
     with pytest.raises(ValueError):
         pdc.PdcClient().study_snapshot("PDC000204", limit=129)
+    with pytest.raises(ValueError):
+        pdc.PdcClient().study_snapshot("PDC000204", limit=True)  # type: ignore[arg-type]
 
 
 def test_fasta_stream_and_digest_validation_edges() -> None:

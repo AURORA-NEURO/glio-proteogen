@@ -40,6 +40,8 @@ an authenticated PDC source in downstream evidence.
 The metadata client's timeout and response-byte cap also require strict numeric
 types; boolean values are rejected rather than coerced through Python's
 `bool`-is-an-`int` relationship.
+The bounded study-file snapshot limit follows the same strict integer rule, so
+boolean values cannot be interpolated into the GraphQL request as a row count.
 
 Raw-file receipts apply the same check to caller-constructed snapshots: every
 file in the captured inventory must belong to the snapshot study, even when the
