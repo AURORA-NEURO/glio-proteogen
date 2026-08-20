@@ -214,12 +214,12 @@ def test_forbidden_scope_in_aggregate_values_abstains() -> None:
     assert any(item.code is FusionFindingCode.OWNERSHIP_UNCLEAR for item in result.findings)
 
 
-def test_contribution_artifact_binding_requires_exact_id_and_digest() -> None:
+def test_contribution_artifact_binding_requires_exact_identity() -> None:
     request = _request()
     mismatched = request.source_artifacts[0].model_copy(
         update={"digest": sha256_digest("m2003:forged-source")}
     )
-    with pytest.raises(ValidationError, match="bind every contribution artifact exactly"):
+    with pytest.raises(ValidationError, match="bind every contribution artifact by exact identity"):
         FuseProteinSubtypeEvidenceRequest.model_validate(
             request.model_dump(mode="python")
             | {"source_artifacts": (mismatched, *request.source_artifacts[1:])}
@@ -231,6 +231,21 @@ def test_contribution_artifact_binding_requires_exact_id_and_digest() -> None:
         FuseProteinSubtypeEvidenceRequest.model_validate(
             request.model_dump(mode="python")
             | {"source_artifacts": (request.source_artifacts[0], duplicate_id)}
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("version", "2.0.0"), ("media_type", "application/vnd.forged+json")],
+)
+def test_contribution_artifact_binding_rejects_identity_mutations(field: str, value: str) -> None:
+    request = _request()
+    mutated = request.source_artifacts[0].model_copy(update={field: value})
+
+    with pytest.raises(ValidationError, match="bind every contribution artifact by exact identity"):
+        FuseProteinSubtypeEvidenceRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (mutated, *request.source_artifacts[1:])}
         )
 
 
