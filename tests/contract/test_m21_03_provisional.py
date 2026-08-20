@@ -9,9 +9,11 @@ from typing import Any, cast
 import pytest
 
 from glio_proteogen.contracts.m21_03 import (
+    M2103_CONTRACT_VERSION,
     M2103_DOSSIER_SHA256,
     M2103_DOSSIER_SLICE,
     M2103_M2102_INPUT_MEDIA_TYPE,
+    M2103_MODULE_ID,
     M2103_OUTPUT_MEDIA_TYPE,
     M2103_PROVISIONAL_ABI,
     BaselineKind,
@@ -219,7 +221,7 @@ def _dossier(request: RunComplexActivityInternalBenchmarkRequest) -> BenchmarkDo
     )
 
 
-def _provenance() -> ProvenanceRecord:
+def _provenance(request: RunComplexActivityInternalBenchmarkRequest) -> ProvenanceRecord:
     states: dict[ControlRole, str] = {
         ControlRole.APPROVED_CONFIGURATION: UpstreamDecisionState.ACCEPTED.value,
         ControlRole.IDENTITY_LINEAGE: IdentityLineageState.RESOLVED.value,
@@ -232,11 +234,21 @@ def _provenance() -> ProvenanceRecord:
     return ProvenanceRecord(
         activity_id="benchmark-activity",
         actor_id="benchmark-actor",
-        module_id="GLIO-PROTEOGEN-M21-03",
-        module_version="0.1.0-provisional",
+        module_id=M2103_MODULE_ID,
+        module_version=M2103_CONTRACT_VERSION,
         generated_at=datetime(2026, 8, 16, tzinfo=UTC),
-        input_digests=(sha256_digest("synthetic-truth"),),
-        configuration_digest=sha256_digest("benchmark-config"),
+        input_digests=(
+            *(artifact.digest for artifact in request.source_artifacts),
+            sha256_digest(request.split),
+        ),
+        configuration_digest=sha256_digest(
+            {
+                "split": request.split,
+                "baselines": request.baseline_runs,
+                "ablations": request.ablations,
+                "comparisons": request.comparisons,
+            }
+        ),
         consent_decision_id="consent-granted",
         consent_state=ConsentState.GRANTED,
         consent_policy_version="1.0.0",
@@ -274,7 +286,7 @@ def _completed_result(
         dossier=_dossier(request),
         support_decision=support,
         uncertainty=_uncertainty(),
-        provenance=_provenance(),
+        provenance=_provenance(request),
         limitations=(
             Limitation(code="metadata_only", statement="No parent conclusion is emitted."),
         ),
@@ -514,7 +526,7 @@ def test_abstention_requires_safe_status_and_no_dossier() -> None:
         abstention_reason="M21-02 input is unsupported.",
         support_decision=support,
         uncertainty=_uncertainty(),
-        provenance=_provenance(),
+        provenance=_provenance(request),
         limitations=(Limitation(code="unsupported", statement="No benchmark is emitted."),),
     )
     result = ComplexActivityInternalBenchmarkResult.model_validate(

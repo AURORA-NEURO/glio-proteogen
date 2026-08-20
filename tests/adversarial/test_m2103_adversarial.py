@@ -23,6 +23,7 @@ from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_abl
     BenchmarkSubmission,
     M2103AuthorizationError,
     M2103Plugin,
+    M2103ReplayError,
     M2103Service,
 )
 from tests.contract.test_m21_03_provisional import (
@@ -134,6 +135,29 @@ def test_replay_rejects_self_rehashed_provenance_mutation() -> None:
     )
 
     with pytest.raises(ValueError, match="deterministic regeneration"):
+        service.replay(tampered)
+
+
+@pytest.mark.parametrize(
+    "provenance_update",
+    [
+        {"module_id": "GLIO-PROTEOGEN-M21-02"},
+        {"module_version": "9.9.9"},
+        {"configuration_digest": "sha256:" + "f" * 64},
+        {"input_digests": ("sha256:" + "f" * 64,)},
+    ],
+)
+def test_replay_rejects_self_rehashed_provenance_binding_mutations(
+    provenance_update: dict[str, object],
+) -> None:
+    service = M2103Service()
+    result = service.generate(_request())
+    tampered = _self_rehashed(
+        result,
+        provenance=result.provenance.model_copy(update=provenance_update),
+    )
+
+    with pytest.raises(M2103ReplayError):
         service.replay(tampered)
 
 

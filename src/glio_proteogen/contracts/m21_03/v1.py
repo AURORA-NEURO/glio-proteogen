@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m21_03.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -278,6 +279,43 @@ class RunComplexActivityInternalBenchmarkRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: ComplexActivityInternalBenchmarkResult) -> str | None:
+    configuration_digest = sha256_digest(
+        {
+            "split": result.request.split,
+            "baselines": result.request.baseline_runs,
+            "ablations": result.request.ablations,
+            "comparisons": result.request.comparisons,
+        }
+    )
+    expected_inputs = (
+        *(artifact.digest for artifact in result.request.source_artifacts),
+        sha256_digest(result.request.split),
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2103_MODULE_ID,
+            "result provenance module does not bind M21-03",
+        ),
+        (
+            result.provenance.module_version == M2103_CONTRACT_VERSION,
+            "result provenance version does not bind M21-03",
+        ),
+        (
+            result.provenance.configuration_digest == configuration_digest,
+            "result provenance configuration does not bind the benchmark request",
+        ),
+        (
+            result.provenance.input_digests == expected_inputs,
+            "result provenance inputs do not bind source artifacts and split",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ComplexActivityInternalBenchmarkResult(FrozenModel):
     """Internal benchmark dossier with explicit support and safe abstention."""
 
@@ -332,6 +370,9 @@ class ComplexActivityInternalBenchmarkResult(FrozenModel):
             raise ValueError("abstained result requires no dossier and safe status")
         if len(self.findings) != len({finding.finding_id for finding in self.findings}):
             raise ValueError("result finding ids must be unique")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self
