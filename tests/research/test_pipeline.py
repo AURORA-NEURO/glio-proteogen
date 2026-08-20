@@ -76,8 +76,9 @@ def test_pipeline_executes_search_fdr_spectral_counts_and_groups() -> None:
     assert dict(result.search_diagnostics)["matched_psms"] == 1
     assert dict(result.search_diagnostics)["candidate_psms"] == 1
     assert dict(result.configuration)["search_version"] == (
-        "fragment-search-5-candidate-audit-decoy-tie-abstention-assignment"
+        "fragment-search-6-candidate-audit-decoy-tie-abstention-charge-assignment"
     )
+    assert dict(result.configuration)["fragment_charges"] == [1, 2]
     assert dict(result.search_diagnostics)["contested_spectra"] == 0
     assert len(result.competition_audit) == 1
     assert result.competition_audit[0].target_candidates == 1
