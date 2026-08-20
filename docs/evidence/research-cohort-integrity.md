@@ -14,13 +14,13 @@ non-inference contracts are unchanged.
 
 ## Executable closure
 
-- `252` research tests pass without coverage instrumentation.
+- `369` research tests pass without coverage instrumentation.
 - The cohort evaluator executes `10/10` locked scenarios, including
   `pdc_manifest_receipt_identity`.
 - Adversarial unit coverage rejects forged source ID, catalog-response digest, and PDC file-name
   bindings; the existing replay and tamper checks remain active.
-- Research namespace branch coverage is `95.10%` (`2,611` statements, `982` branches,
-  fail-under `95`).
+- Current consolidated research namespace branch coverage is `95.61%` (`3,443` statements,
+  `1,344` branches, `106` missed statements, `104` missed branch arcs, fail-under `95`).
 - `tools/verify_research_pipeline.py` passes after the evaluator and cohort fixture digests are
   refreshed.
 

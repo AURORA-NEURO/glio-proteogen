@@ -141,9 +141,10 @@ C03/C04 computation contract:
 - Cohort source identity is a separate replay-bound `CohortSourceManifest`. It binds each
   sample to the exact source digest/size and any caller-provided PDC file, catalog, receipt,
   or metadata snapshot digests, while retaining a declared biological/technical/unknown
-  replicate kind. Biological reuse of one source is rejected; technical reuse remains visible
-  but cannot inflate independent-replicate or normalization support; unknown independence
-  abstains support-dependent projections. No independence is inferred from names or order.
+  replicate kind. Biological reuse of one source, declared aliquot, or acquisition identity is
+  rejected; technical reuse remains visible but cannot inflate independent-replicate or
+  normalization support; unknown independence abstains support-dependent projections. No
+  independence is inferred from names or order.
 - Every cohort result also carries three inner evidence receipts (`cohort.matrix.v1`,
   `cohort.qc.v1`, and `cohort.provenance.v1`) inside one content-addressed bundle. The
   public `aggregate_cohort_evidence` helper recomputes and verifies these receipts without
