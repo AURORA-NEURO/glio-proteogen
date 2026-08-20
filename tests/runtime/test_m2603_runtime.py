@@ -9,8 +9,11 @@ from evals.m26_03.fixture import build_request, denied_request
 
 from glio_proteogen.contracts.m26_03 import (
     ExecutionStatus,
+    PipelineFinding,
+    PipelineFindingCode,
     StepStatus,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
@@ -140,6 +143,25 @@ def test_replay_rejects_payload_request_and_digest_tampering() -> None:
             result.model_copy(update={"result_digest": sha256_digest("tampered")}),
             replay=False,
         )
+
+
+def test_verify_rejects_resigned_semantic_mutation_when_replay_is_disabled() -> None:
+    """A self-consistent result is not enough without deterministic regeneration."""
+
+    engine = M2603Engine()
+    result = engine.execute(build_request())
+    forged_finding = PipelineFinding(
+        finding_id="m2603.forged-finding",
+        code=PipelineFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+        message="forged semantic finding",
+    )
+    forged = result.model_copy(update={"findings": (forged_finding,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2603ReplayError, match="cannot be disabled"):
+        engine.verify(forged, replay=False)
+    with pytest.raises(M2603ReplayError, match="deterministic replay mismatch"):
+        engine.verify(forged)
 
 
 def test_public_function_and_invalid_result_are_closed() -> None:
