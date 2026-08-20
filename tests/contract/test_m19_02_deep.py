@@ -46,6 +46,9 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
+    m19_02_cross_source_alignment as m1902,
+)
 
 _WHEN = datetime(2026, 1, 1, tzinfo=UTC)
 _DIMENSIONS = tuple(AlignmentDimension)
@@ -502,6 +505,26 @@ def test_result_identity_replay_and_tamper_are_fail_closed() -> None:
                 }
             )
         )
+
+
+def test_provenance_covers_nested_alignment_evidence() -> None:
+    request = _request()
+    result = m1902.M1902Engine().align(request)
+    nested_digests = {
+        *(artifact.digest for artifact in request.source_artifacts),
+        *(item.reference.digest for item in request.configuration.evidence),
+        *(
+            item.reference.digest
+            for observation in request.observations
+            for item in observation.evidence
+        ),
+        *(
+            item.reference.digest
+            for discrepancy in request.discrepancies
+            for item in discrepancy.evidence
+        ),
+    }
+    assert nested_digests <= set(result.provenance.input_digests)
 
 
 def test_abstention_requires_typed_findings_and_review_for_biological_conflict() -> None:

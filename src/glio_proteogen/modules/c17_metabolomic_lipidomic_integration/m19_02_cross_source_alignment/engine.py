@@ -142,13 +142,31 @@ def _control_decisions(
 
 def _provenance(request: AlignProteotypeSourcesRequest) -> ProvenanceRecord:
     refs = request.context.references
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in request.configuration.evidence),
+                *(
+                    item.reference.digest
+                    for observation in request.observations
+                    for item in observation.evidence
+                ),
+                *(
+                    item.reference.digest
+                    for discrepancy in request.discrepancies
+                    for item in discrepancy.evidence
+                ),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id=f"activity.{request.request_id}",
         actor_id=request.context.actor_id,
         module_id=M1902_MODULE_ID,
         module_version=M1902_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=tuple(artifact.digest for artifact in request.source_artifacts),
+        input_digests=input_digests,
         configuration_digest=sha256_digest(request.configuration),
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,
