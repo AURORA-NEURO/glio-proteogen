@@ -425,9 +425,7 @@ def test_evidence_quality_weights_each_source_once_across_projections() -> None:
             EvidenceRecord.create(
                 "source-a-matrix", "source-a", "matrix", {}, quality=source_quality
             ),
-            EvidenceRecord.create(
-                "source-a-qc", "source-a", "qc", {}, quality=source_quality
-            ),
+            EvidenceRecord.create("source-a-qc", "source-a", "qc", {}, quality=source_quality),
             EvidenceRecord.create(
                 "source-b-matrix", "source-b", "matrix", {}, quality=other_quality
             ),
@@ -522,9 +520,7 @@ def test_evidence_record_rejects_ambiguous_identity_fields(field: str, value: st
     values = {"evidence_id": "id", "source": "source", "kind": "kind"}
     values[field] = value
     with pytest.raises(ValueError, match=field):
-        EvidenceRecord.create(
-            values["evidence_id"], values["source"], values["kind"], {}
-        )
+        EvidenceRecord.create(values["evidence_id"], values["source"], values["kind"], {})
 
 
 def test_abstained_quality_cannot_look_complete() -> None:

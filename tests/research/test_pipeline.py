@@ -793,6 +793,50 @@ def test_pipeline_rejects_non_strict_controls(field: str, value: object) -> None
         run_research_protein_inference(request)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("fragment_tolerance_da", 0.0),
+        ("fragment_tolerance_da", 6.0),
+        ("fragment_tolerance_da", float("nan")),
+        ("precursor_tolerance_ppm", 501),
+        ("min_matched_ions", 101),
+        ("missed_cleavages", 5),
+        ("max_spectra", 0),
+        ("max_variable_modifications", 4),
+        ("q_value_threshold", float("inf")),
+        ("decoy_strategy", "unsupported"),
+        ("decoy_prefix", "bad prefix"),
+    ],
+)
+def test_pipeline_rejects_additional_control_boundaries(field: str, value: object) -> None:
+    request = ResearchRunRequest("control-boundaries", _mzml(), b">P1\nMPEPTIDER\n")
+    object.__setattr__(request, field, value)
+    with pytest.raises(ValueError):
+        run_research_protein_inference(request)
+
+
+def test_pipeline_rejects_variable_modifications_without_site_budget() -> None:
+    request = ResearchRunRequest("modification-budget", _mzml(), b">P1\nMPEPTIDER\n")
+    object.__setattr__(request, "variable_modifications", ("oxidation:M",))
+    with pytest.raises(ValueError, match="site limit"):
+        run_research_protein_inference(request)
+
+
+def test_pipeline_rejects_text_and_over_limit_binary_streams() -> None:
+    with pytest.raises(TypeError, match="BinaryIO"):
+        ResearchRunRequest(
+            "text-stream-run",
+            io.StringIO("<mzML/>"),  # type: ignore[arg-type]
+            b">P1\nMPEPTIDER\n",
+        )
+
+    oversized = ResearchRunRequest("oversized-stream", _mzml(), b">P1\nMPEPTIDER\n")
+    object.__setattr__(oversized, "max_bytes", 8)
+    with pytest.raises(ValueError, match="byte limit"):
+        run_research_protein_inference(oversized)
+
+
 def test_pipeline_replay_rejects_forged_digest() -> None:
     request = ResearchRunRequest(
         "forged",
