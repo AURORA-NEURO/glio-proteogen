@@ -323,6 +323,28 @@ class VariantPeptideExternalTransportResult(FrozenModel):
                 or self.report.evaluations != self.request.evaluations
             ):
                 raise ValueError("evaluated report must bind the exact request declarations")
+            narrowed = tuple(
+                item.dimension
+                for item in self.request.evaluations
+                if item.status is TransportStatus.DOMAIN_NARROWED
+            )
+            retained = tuple(
+                item.dimension
+                for item in self.request.evaluations
+                if item.status is not TransportStatus.DOMAIN_NARROWED
+            )
+            expected_retained = retained or (narrowed[0],)
+            expected_status = (
+                TransportStatus.DOMAIN_NARROWED if narrowed else TransportStatus.SUPPORTED
+            )
+            support_domain = self.report.support_domain
+            if (
+                support_domain.version != self.request.configuration.version
+                or support_domain.status is not expected_status
+                or support_domain.retained_dimensions != expected_retained
+                or support_domain.narrowed_dimensions != narrowed
+            ):
+                raise ValueError("evaluated support domain must bind request evaluations")
         elif (
             self.report is not None
             or self.abstention_reason is None

@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m23_04 import (
     TransportStatus,
     VariantPeptideExternalTransportResult,
     canonical_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
@@ -207,6 +208,25 @@ def test_result_closure_rejects_report_status_and_digest_tamper() -> None:
             VariantPeptideExternalTransportResult.model_validate_json(
                 canonical_json_bytes(data), strict=True
             )
+
+
+def test_strict_result_validation_rejects_self_rehashed_support_domain_mutation() -> None:
+    result = M2304Engine().evaluate(_request())
+    assert result.report is not None
+    support_domain = result.report.support_domain.model_copy(
+        update={
+            "status": TransportStatus.DOMAIN_NARROWED,
+            "retained_dimensions": result.report.support_domain.retained_dimensions[1:],
+            "narrowed_dimensions": (TransportDimension.SITE,),
+        }
+    )
+    forged_report = result.report.model_copy(update={"support_domain": support_domain})
+    forged = result.model_copy(update={"report": forged_report})
+    payload = forged.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValueError, match="support domain must bind"):
+        type(result).model_validate(payload, strict=True)
 
 
 def test_canonical_projection_accepts_mapping_input() -> None:
