@@ -7,7 +7,7 @@ import io
 import struct
 from dataclasses import replace
 from hashlib import md5, sha256
-from typing import Any, cast
+from typing import Any, BinaryIO, cast
 
 import pytest
 
@@ -420,8 +420,8 @@ def test_pipeline_drains_short_read_streams_before_digesting_inputs() -> None:
     fasta = b">P1\nMPEPTIDER\n"
     request = ResearchRunRequest(
         "short-read-stream",
-        ShortRead(mzml),
-        ShortRead(fasta),
+        cast("BinaryIO", ShortRead(mzml)),
+        cast("BinaryIO", ShortRead(fasta)),
         min_matched_ions=1,
         min_peptide_length=7,
         max_peptide_length=12,
