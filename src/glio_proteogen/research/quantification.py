@@ -254,6 +254,17 @@ def _observation_digest(observations: tuple[tuple[str, float], ...]) -> str:
     ).hexdigest()
 
 
+def _materialize_bounded[T](values: Iterable[T], *, limit: int, label: str) -> tuple[T, ...]:
+    """Materialize an iterable while enforcing its declared admission bound."""
+
+    materialized: list[T] = []
+    for index, value in enumerate(values):
+        if index >= limit:
+            raise ValueError(f"{label} exceed max_input_observations ({limit})")
+        materialized.append(value)
+    return tuple(materialized)
+
+
 def quantify_matched_ions(
     sample_id: str,
     observations: Iterable[tuple[str, float]],
@@ -293,9 +304,11 @@ def quantify_matched_ions_with_receipt(
         or any(character.isspace() or ord(character) < 32 for character in sample_id)
     ):
         raise ValueError("sample_id must be a bounded non-empty string")
-    observed = tuple(observations)
-    if len(observed) > selected_policy.max_input_observations:
-        raise ValueError("observations exceed max_input_observations")
+    observed = _materialize_bounded(
+        observations,
+        limit=selected_policy.max_input_observations,
+        label="observations",
+    )
     totals: dict[str, float] = defaultdict(float)
     normalized_observations: list[tuple[str, float]] = []
     for item in observed:

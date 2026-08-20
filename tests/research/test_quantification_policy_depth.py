@@ -135,6 +135,25 @@ def test_observation_limit_is_enforced_before_materialization() -> None:
         )
 
 
+def test_observation_limit_stops_lazy_producer_at_first_excess_item() -> None:
+    touched = 0
+
+    def observations():
+        nonlocal touched
+        for index in range(10):
+            touched += 1
+            yield (f"P{index}", 1.0)
+
+    with pytest.raises(ValueError, match="max_input_observations"):
+        quantify_matched_ions_with_receipt(
+            "sample",
+            observations(),
+            policy=QuantificationPolicy(max_input_observations=2),
+        )
+
+    assert touched == 3
+
+
 def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None:
     policy = QuantificationPolicy(
         normalization_method="none_v1",

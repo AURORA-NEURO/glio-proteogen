@@ -64,6 +64,9 @@ one deterministic, auditable path:
    normalization target, and scale factor. The run configuration and computed protein-group
    evidence derive their quantification version and unit directly from this receipt, so
    `none_v1` is reported as arbitrary matched-ion intensity rather than median-scaled signal.
+   The `max_input_observations` admission bound is enforced while iterating, before a
+   lazy producer can be fully materialized; an oversized iterable therefore fails at
+   the first excess item and cannot bypass the bounded receipt contract.
 9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.
