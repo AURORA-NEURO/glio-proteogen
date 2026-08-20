@@ -89,10 +89,19 @@ class PsmCompetition:
     runner_up_score: float | None
     score_margin: float | None
     candidate_digest: str
+    winner_decoy: bool = False
+    winner_collision: bool = False
+    decoy_prefix: str = "DECOY_"
 
     @classmethod
-    def from_candidates(cls, candidates: Iterable[Psm]) -> PsmCompetition:
-        ordered = tuple(sorted(candidates, key=_competition_sort_key, reverse=True))
+    def from_candidates(
+        cls, candidates: Iterable[Psm], *, decoy_prefix: str = "DECOY_"
+    ) -> PsmCompetition:
+        _validate_decoy_prefix(decoy_prefix)
+        validated = tuple(candidates)
+        for candidate in validated:
+            _validate_target_decoy_psm(candidate, decoy_prefix=decoy_prefix)
+        ordered = tuple(sorted(validated, key=_competition_sort_key, reverse=True))
         if not ordered:
             raise ValueError("competition receipt requires at least one candidate")
         spectrum_id = ordered[0].spectrum_id
@@ -115,6 +124,9 @@ class PsmCompetition:
             runner_up_score=runner_up,
             score_margin=ordered[0].score - runner_up if runner_up is not None else None,
             candidate_digest=digest,
+            winner_decoy=ordered[0].decoy,
+            winner_collision=ordered[0].target_decoy_collision,
+            decoy_prefix=decoy_prefix,
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -122,11 +134,14 @@ class PsmCompetition:
             "candidate_count": self.candidate_count,
             "candidate_digest": self.candidate_digest,
             "collision_candidates": self.collision_candidates,
+            "decoy_prefix": self.decoy_prefix,
             "decoy_candidates": self.decoy_candidates,
             "runner_up_score": self.runner_up_score,
             "score_margin": self.score_margin,
             "spectrum_id": self.spectrum_id,
             "target_candidates": self.target_candidates,
+            "winner_collision": self.winner_collision,
+            "winner_decoy": self.winner_decoy,
             "winner_score": self.winner_score,
         }
 

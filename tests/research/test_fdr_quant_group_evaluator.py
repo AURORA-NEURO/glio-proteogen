@@ -155,3 +155,30 @@ def test_duplicate_spectrum_contenders_are_permutation_stable() -> None:
         (higher_signal, lower_signal), q_value_threshold=0.01
     )
     assert forward_summary.competition_digest == reverse_summary.competition_digest
+
+
+def test_competition_receipt_validates_class_and_binds_winner_for_custom_prefix() -> None:
+    target = Psm("scan=custom", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    forged = replace(target, protein_accessions=("DECOY_P1",))
+    with pytest.raises(ValueError, match="target/decoy flags"):
+        PsmCompetition.from_candidates((forged,))
+
+    decoy = Psm(
+        "scan=custom",
+        "PEPTIDER",
+        ("REV_P1",),
+        6.0,
+        3,
+        decoy=True,
+    )
+    receipt = PsmCompetition.from_candidates((target, decoy), decoy_prefix="REV_")
+    assert receipt.decoy_prefix == "REV_"
+    assert receipt.winner_decoy is True
+    assert receipt.winner_collision is False
+    assert receipt.as_dict()["winner_decoy"] is True
+
+
+def test_competition_receipt_rejects_nonfinite_candidate_score() -> None:
+    malformed = Psm("scan=nonfinite", "PEPTIDER", ("P1",), float("inf"), 3, decoy=False)
+    with pytest.raises(ValueError, match="score"):
+        PsmCompetition.from_candidates((malformed,))
