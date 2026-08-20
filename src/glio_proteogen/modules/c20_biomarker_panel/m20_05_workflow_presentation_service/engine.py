@@ -385,7 +385,11 @@ class M2005Engine:
             raise M2005ReplayError("M20-05 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2005ReplayError("M20-05 result payload digest mismatch")  # noqa: TRY003
-        return _RESULT_ADAPTER.validate_python(result, strict=True)
+        validated = _RESULT_ADAPTER.validate_python(result, strict=True)
+        expected = self.present(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M2005ReplayError("M20-05 result semantic replay mismatch")  # noqa: TRY003
+        return validated
 
 
 def present_protein_subtype_human_review_workspace(
