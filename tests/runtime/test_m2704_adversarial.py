@@ -9,6 +9,7 @@ from glio_proteogen.contracts.m27_04 import (
     AccessProtocol,
     AsyncJobRecord,
     CompatibilityStatus,
+    ComplexActivityAccessSurfaceResult,
     GatewayConfiguration,
     GatewayFindingCode,
     GatewayStatus,
@@ -16,7 +17,10 @@ from glio_proteogen.contracts.m27_04 import (
     OperationStatus,
     PublishComplexActivityAccessSurfaceRequest,
 )
-from glio_proteogen.contracts.m27_04.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_04.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,
@@ -236,3 +240,18 @@ def test_replay_checks_each_digest_and_identifier_binding() -> None:
         forged = result.model_copy(update={field: value})
         with pytest.raises(M2704ReplayError):
             engine.replay(forged)
+
+
+def test_result_rejects_self_rehashed_gateway_media_mutation() -> None:
+    result = M2704GatewayEngine().publish(_request())
+    assert result.access_surface is not None
+    forged_operation = result.access_surface.operations[0].model_copy(
+        update={"response_media_type": "application/json"}
+    )
+    forged_surface = result.access_surface.model_copy(update={"operations": (forged_operation,)})
+    forged = result.model_copy(update={"access_surface": forged_surface})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request gateway graph"):
+        ComplexActivityAccessSurfaceResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )

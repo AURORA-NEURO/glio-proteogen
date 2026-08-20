@@ -345,6 +345,17 @@ class ComplexActivityAccessSurfaceResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("published result requires a supported access surface")
+            if (
+                self.access_surface.operations != self.request.operations
+                or self.access_surface.authorizations != self.request.authorizations
+                or self.access_surface.idempotency_records != self.request.idempotency_records
+                or self.access_surface.jobs != self.request.jobs
+                or self.access_surface.compatibility_rules != self.request.compatibility_rules
+                or self.access_surface.errors != self.request.errors
+                or self.access_surface.audit_events != self.request.audit_events
+                or self.access_surface.configuration != self.request.configuration
+            ):
+                raise ValueError("published surface must bind exact request gateway graph")
         elif (
             self.access_surface is not None
             or self.abstention_reason is None
