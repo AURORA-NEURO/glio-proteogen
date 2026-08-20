@@ -186,15 +186,25 @@ class LineageGraph(FrozenModel):
             raise ValueError("lineage edge references an unknown node")
         if {item.kind for item in self.nodes} != set(LineageNodeKind):
             raise ValueError("lineage graph must cover every required node kind")
-        parents = {edge.child_node_id: edge.parent_node_id for edge in self.edges}
+        parents: dict[str, set[str]] = {node_id: set() for node_id in known}
+        for edge in self.edges:
+            parents[edge.child_node_id].add(edge.parent_node_id)
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(node_id: str) -> None:
+            if node_id in visiting:
+                raise ValueError("lineage graph cannot contain a directed cycle")
+            if node_id in visited:
+                return
+            visiting.add(node_id)
+            for parent_id in parents[node_id]:
+                visit(parent_id)
+            visiting.remove(node_id)
+            visited.add(node_id)
+
         for node_id in known:
-            seen: set[str] = set()
-            current = node_id
-            while current in parents:
-                if current in seen:
-                    raise ValueError("lineage graph cannot contain a directed cycle")
-                seen.add(current)
-                current = parents[current]
+            visit(node_id)
         return self
 
 

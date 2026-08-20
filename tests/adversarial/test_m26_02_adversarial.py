@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m26_02 import (
     M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
+    LineageGraph,
     LineageRelation,
     ProteinSubtypeLineageResult,
     graph_payload_digest,
@@ -84,6 +85,24 @@ def test_duplicate_edge_and_unknown_edge_are_rejected() -> None:
     )
     with pytest.raises(ValidationError, match="unknown node"):
         M2602LineageService().execute(unknown)
+
+
+def test_graph_rejects_cycle_hidden_by_multiple_parent_edges() -> None:
+    request = _request()
+    hidden_cycle = LineageEdge(
+        edge_id="edge-hidden-cycle",
+        parent_node_id="node-7",
+        child_node_id="node-2",
+        relation=LineageRelation.DERIVED_FROM,
+    )
+    with pytest.raises(ValidationError, match="directed cycle"):
+        LineageGraph(
+            graph_id="graph-hidden-cycle",
+            version=request.graph_version,
+            nodes=request.nodes,
+            edges=(hidden_cycle, *request.edges),
+            graph_digest=request.reproducibility_bundle.graph_digest,
+        )
 
 
 def test_duplicate_node_ids_are_rejected_before_engine() -> None:
