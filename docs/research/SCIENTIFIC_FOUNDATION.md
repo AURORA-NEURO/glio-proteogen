@@ -87,6 +87,9 @@ C03/C04 computation contract:
   missing projection with no imputation. Non-default policy fields, below-LOQ counts, and
   per-peptide status vectors are part of the single-run configuration/receipt digest, so a
   replay cannot silently change units, normalization, LOQ semantics, or the input observations.
+  The composed pipeline copies the receipt's algorithm version and measurement unit into both
+  run configuration and computed protein-group evidence; a `none_v1` run therefore reports
+  arbitrary matched-ion intensity rather than the median-scaled unit.
 - Protein-group quantification now validates the input partition before computing any
   signal: accessions and peptide memberships must be disjoint across groups, and every
   supplied intensity or PSM-count key must belong to that declared partition. Each

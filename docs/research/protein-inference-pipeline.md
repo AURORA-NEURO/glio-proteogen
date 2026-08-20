@@ -56,7 +56,9 @@ one deterministic, auditable path:
    counts remain a separate transparent measure. Every run emits a replay-bound
    quantification receipt containing the arbitrary measurement unit, raw and normalized
    peptide signals, duplicate-observation count, positive/missing counts, raw median,
-   normalization target, and scale factor.
+   normalization target, and scale factor. The run configuration and computed protein-group
+   evidence derive their quantification version and unit directly from this receipt, so
+   `none_v1` is reported as arbitrary matched-ion intensity rather than median-scaled signal.
 9. Quantify each reportable protein group from the median positive unique-peptide
    intensity. Shared signal remains visible, but shared-only groups are explicitly
    non-quantifiable rather than assigned a fabricated protein value.

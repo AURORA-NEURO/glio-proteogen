@@ -155,6 +155,20 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     assert result.quantification_receipt is not None
     assert result.quantification_receipt.limit_of_quantification == 25.0
     assert result.quantification_receipt.below_loq_peptides == 0
+    assert config["quantification_version"] == result.quantification_receipt.version
+    assert config["quantification_receipt_version"] == result.quantification_receipt.version
+    assert config["quantification_unit"] == "matched_ion_intensity_arbitrary"
+    protein_group_evidence = next(
+        record
+        for record in result.evidence.records
+        if record.evidence_id == "computed:protein-groups"
+    )
+    assert protein_group_evidence.payload_jsonable["quantification_version"] == (
+        result.quantification_receipt.version
+    )
+    assert protein_group_evidence.payload_jsonable["quantification_unit"] == (
+        result.quantification_receipt.measurement_unit
+    )
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
     forged = replace(
         result,
