@@ -288,7 +288,16 @@ def _findings(
                     evidence,
                 )
             )
-        if performance_item.equity_status in {
+        if performance_item.equity_status is EquityStatus.NOT_EVALUABLE:
+            findings.append(
+                _finding(
+                    f"finding.{performance_item.metric_id}.equity",
+                    SubgroupFindingCode.COVERAGE_LIMITED,
+                    "Subgroup equity status is not evaluable.",
+                    evidence,
+                )
+            )
+        elif performance_item.equity_status in {
             EquityStatus.BELOW_FLOOR,
             EquityStatus.RESTRICTED,
         }:
@@ -325,7 +334,8 @@ def _findings(
             evidence,
         )
         for coverage_item in request.coverage
-        if coverage_item.status in {CoverageStatus.UNSUPPORTED, CoverageStatus.NOT_EVALUABLE}
+        if coverage_item.status
+        in {CoverageStatus.UNSUPPORTED, CoverageStatus.NOT_EVALUABLE, CoverageStatus.LIMITED}
     )
     findings.extend(
         _finding(

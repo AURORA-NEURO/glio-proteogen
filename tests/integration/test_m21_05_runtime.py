@@ -43,6 +43,7 @@ def test_nominal_evaluation_is_deterministic_and_replayable() -> None:
         ("coverage_status", CoverageStatus.NOT_EVALUABLE),
         ("coverage_status", CoverageStatus.LIMITED),
         ("equity_status", EquityStatus.BELOW_FLOOR),
+        ("equity_status", EquityStatus.NOT_EVALUABLE),
     ],
 )
 def test_unsafe_subgroup_evidence_abstains_without_report(
@@ -87,6 +88,18 @@ def test_coverage_and_calibration_failures_are_safe_abstentions() -> None:
         "coverage_limited",
         "calibration_failure",
     }
+
+
+def test_limited_coverage_summary_is_not_promoted() -> None:
+    request = _request()
+    coverage = list(request.coverage)
+    coverage[0] = coverage[0].model_copy(update={"status": CoverageStatus.LIMITED})
+
+    result = M2105Engine().evaluate(request.model_copy(update={"coverage": tuple(coverage)}))
+
+    assert result.status is EvaluationStatus.ABSTAINED
+    assert result.report is None
+    assert any(finding.code.value == "coverage_limited" for finding in result.findings)
 
 
 @pytest.mark.parametrize(
