@@ -337,10 +337,24 @@ def _read_bytes(source: bytes | bytearray | str | BinaryIO, max_bytes: int) -> b
         if len(value) > max_bytes:
             raise ValueError("research input exceeds the byte limit")
         return value
-    value = source.read(max_bytes + 1)
-    if len(value) > max_bytes:
-        raise ValueError("research input exceeds the byte limit")
-    return bytes(value)
+    # BinaryIO.read(n) may legally return fewer than n bytes without reaching
+    # EOF (for example, a throttled download or a non-seekable provenance
+    # stream).  A single read would silently snapshot only a prefix, changing
+    # the analysed search space while still producing a self-consistent digest.
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        remaining = max_bytes - total
+        value = source.read(min(65_536, remaining + 1))
+        if value in (b"", ""):
+            break
+        if not isinstance(value, (bytes, bytearray)):
+            raise TypeError("research BinaryIO must yield bytes")
+        total += len(value)
+        if total > max_bytes:
+            raise ValueError("research input exceeds the byte limit")
+        chunks.append(bytes(value))
+    return b"".join(chunks)
 
 
 def _psm_dict(value: Psm) -> dict[str, object]:

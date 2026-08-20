@@ -401,6 +401,38 @@ def test_pipeline_snapshots_streams_binds_configuration_and_freezes_evidence() -
     assert changed.result_digest != first.result_digest
 
 
+def test_pipeline_drains_short_read_streams_before_digesting_inputs() -> None:
+    class ShortRead:
+        def __init__(self, payload: bytes, chunk_size: int = 7) -> None:
+            self.payload = payload
+            self.chunk_size = chunk_size
+            self.position = 0
+
+        def read(self, _limit: int = -1) -> bytes:
+            if self.position >= len(self.payload):
+                return b""
+            end = min(self.position + self.chunk_size, len(self.payload))
+            chunk = self.payload[self.position : end]
+            self.position = end
+            return chunk
+
+    mzml = _mzml()
+    fasta = b">P1\nMPEPTIDER\n"
+    request = ResearchRunRequest(
+        "short-read-stream",
+        ShortRead(mzml),
+        ShortRead(fasta),
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+    )
+    assert request.mzml_source == mzml
+    assert request.fasta_source == fasta
+    result = run_research_protein_inference(request)
+    assert result.mzml_sha256 == sha256(mzml).hexdigest()
+    assert result.fasta_sha256 == sha256(fasta).hexdigest()
+
+
 def test_pipeline_abstains_when_precursor_metadata_is_missing() -> None:
     result = run_research_protein_inference(
         ResearchRunRequest(
