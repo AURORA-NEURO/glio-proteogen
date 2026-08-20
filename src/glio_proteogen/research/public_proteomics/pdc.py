@@ -291,4 +291,10 @@ class PDCMetadataClient:
         studies = data.get("study")
         if not isinstance(studies, list) or len(studies) != 1:
             raise PDCError(f"PDC study lookup for {study_id} was not unique")
-        return PDCStudyMetadata.from_dict(studies[0])
+        metadata = PDCStudyMetadata.from_dict(studies[0])
+        # A valid response for a different study would still have a valid
+        # content digest. Bind the catalog identity to the requested study
+        # before archiving the snapshot under that request's source ID.
+        if metadata.pdc_study_id != study_id:
+            raise PDCError("PDC response study does not match requested study")
+        return metadata

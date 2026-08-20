@@ -68,6 +68,10 @@ def test_pdc_metadata_rejects_missing_text_and_bad_counts() -> None:
         PDCMetadataClient._parse_response({"data": {"study": [bad_count]}}, "PDC000204")
     with pytest.raises(PDCError, match="object"):
         PDCMetadataClient._parse_response({"data": {"study": [None]}}, "PDC000204")
+    wrong_study = dict(record)
+    wrong_study["pdc_study_id"] = "PDC999999"
+    with pytest.raises(PDCError, match="does not match requested study"):
+        PDCMetadataClient._parse_response({"data": {"study": [wrong_study]}}, "PDC000204")
 
 
 @pytest.mark.parametrize(
