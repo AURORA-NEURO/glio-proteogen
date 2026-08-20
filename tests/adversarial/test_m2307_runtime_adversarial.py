@@ -149,6 +149,31 @@ def test_report_and_result_replay_closures_reject_forgery() -> None:
         type(result).model_validate(payload)
 
 
+def test_result_retains_nested_operational_evidence_and_provenance() -> None:
+    request = build_request()
+    result = m2307.M2307Service().evaluate(request)
+    references = request.context.references
+    nested_digests = {
+        *(evidence.reference.digest for metric in request.metrics for evidence in metric.evidence),
+        *(
+            evidence.reference.digest
+            for fallback in request.fallbacks
+            for evidence in fallback.evidence
+        ),
+        *(evidence.reference.digest for evidence in request.configuration.evidence),
+        references.approved_configuration.evidence.digest,
+        references.identity_lineage.evidence.digest,
+        references.provenance.evidence.digest,
+        references.consent.evidence.digest,
+        references.quality.evidence.digest,
+        references.support.evidence.digest,
+        references.intended_use.evidence.digest,
+    }
+    result_evidence = {evidence.reference.digest for evidence in result.evidence}
+    assert nested_digests <= result_evidence
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 @pytest.mark.parametrize("mutation", ["report", "evidence"])
 def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
     service = m2307.M2307Service()
