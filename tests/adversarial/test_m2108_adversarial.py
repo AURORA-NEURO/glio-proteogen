@@ -374,6 +374,14 @@ def test_request_requires_context_upstream_and_both_source_media_types() -> None
     with pytest.raises(ValidationError, match="M21-06"):
         AdjudicateComplexActivityEvidenceGateRequest(**missing_m2106)
 
+    duplicate_m2106 = request.model_dump(mode="python")
+    duplicate_m2106["source_artifacts"] = (
+        *duplicate_m2106["source_artifacts"],
+        _artifact("m2106-duplicate", M2108_M2106_INPUT_MEDIA_TYPE),
+    )
+    with pytest.raises(ValidationError, match="exactly one M21-06"):
+        AdjudicateComplexActivityEvidenceGateRequest(**duplicate_m2106)
+
     mismatched_context = request.model_dump(mode="python")
     mismatched_context["context"]["request_id"] = "request.other"
     with pytest.raises(ValidationError, match="request identifier"):

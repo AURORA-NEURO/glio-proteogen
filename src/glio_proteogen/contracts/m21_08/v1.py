@@ -266,10 +266,15 @@ class AdjudicateComplexActivityEvidenceGateRequest(FrozenModel):
             self.upstream_evidence.media_type,
         ) not in set(source_keys):
             raise ValueError("request source artifacts must include M21-07 evidence")
-        if not any(
-            item.media_type == M2108_M2106_INPUT_MEDIA_TYPE for item in self.source_artifacts
-        ):
-            raise ValueError("request source artifacts must retain M21-06 robustness evidence")
+        m2106_sources = tuple(
+            item
+            for item in self.source_artifacts
+            if item.media_type == M2108_M2106_INPUT_MEDIA_TYPE
+        )
+        if len(m2106_sources) != 1:
+            raise ValueError(
+                "request source artifacts must retain exactly one M21-06 robustness evidence"
+            )
         return self
 
 
