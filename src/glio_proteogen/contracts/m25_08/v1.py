@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m25_08.canonical import (
     result_identifier,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     EvidenceReference,
@@ -325,6 +326,20 @@ class ProteotypeEvidenceGateResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("adjudicated result requires a supported release record")
+            expected_release_id = "release." + self.request_digest.removeprefix("sha256:")
+            expected_signature = sha256_digest(f"M2508.release:{self.request_digest}")
+            if (
+                self.release_record.release_id != expected_release_id
+                or self.release_record.version != self.request.configuration.version
+                or self.release_record.requirements != self.request.requirements
+                or self.release_record.benchmarks != self.request.benchmarks
+                or self.release_record.residual_risks != self.request.residual_risks
+                or self.release_record.approvals != self.request.approvals
+                or self.release_record.post_release_obligations
+                != self.request.post_release_obligations
+                or self.release_record.signature_digest != expected_signature
+            ):
+                raise ValueError("adjudicated release record must bind exact request declarations")
         elif (
             self.release_record is not None
             or self.abstention_reason is None

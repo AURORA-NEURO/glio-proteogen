@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m25_08 import (
     BenchmarkOutcome,
     GateFinding,
     GateFindingCode,
+    ProteotypeEvidenceGateResult,
     RiskSeverity,
     SignedReleaseRecord,
     result_payload_digest,
@@ -237,6 +238,17 @@ def test_self_rehashed_release_evidence_mutation_is_rejected() -> None:
     assert forged.result_digest == result_payload_digest(forged)
     with pytest.raises(M2508ReplayError, match="replay"):
         M2508Engine().verify(forged)
+
+
+def test_self_rehashed_release_record_declaration_mutation_is_rejected() -> None:
+    result = M2508Engine().evaluate(build_request())
+    assert result.release_record is not None
+    forged = result.model_copy(
+        update={"release_record": result.release_record.model_copy(update={"version": "9.9.9"})}
+    )
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        ProteotypeEvidenceGateResult.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_request_context_identity_binding_is_required() -> None:

@@ -25,7 +25,9 @@ its runtime ABI is not imported or inferred in this lane.
 - deterministic results carry canonical request/result identities, seven
   uncertainty dimensions, provenance/control decisions, evidence, limits,
   human-review requirement, and mandatory semantic replay verification; a
-  caller cannot disable replay or self-rehash a forged release payload;
+  caller cannot disable replay or self-rehash a forged release payload; an
+  adjudicated release record is also bound to the exact request declarations,
+  configuration version, deterministic release identity, and signature digest;
 - FastAPI, Typer, and the strict parse-once plugin expose the same service
   semantics with sanitized errors and no-overwrite output behavior.
 
