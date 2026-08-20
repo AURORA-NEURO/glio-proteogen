@@ -23,6 +23,11 @@ source evidence, seven non-estimable uncertainty dimensions, limitations,
 human-review requirement, and `emits_parent=false`. It makes no biological,
 identity, consent, kinase, all-omics, treatment, or unsupported-negative claim.
 
+Verification always performs deterministic replay from the bound request. The
+legacy `replay` keyword remains accepted for adapter compatibility, but
+`replay=False` is rejected so a caller cannot turn verification into
+payload-digest-only checking and re-sign a semantic mutation.
+
 The strict service, FastAPI, Typer, and parse-once plugin adapters share the
 same canonical request/result validators. Release evidence is independently
 checked by `tools/verify_m2603_release.py`.
