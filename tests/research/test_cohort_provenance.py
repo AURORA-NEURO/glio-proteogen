@@ -18,7 +18,7 @@ from glio_proteogen.research import (
     run_research_cohort,
 )
 from glio_proteogen.research.public_proteomics.pdc import PDCSnapshot, PDCStudyMetadata
-from glio_proteogen.research.public_proteomics.provenance import SourceReference
+from glio_proteogen.research.public_proteomics.provenance import SourceReference, sha256_digest
 
 
 def _sample(sample_id: str, replicate: str) -> ResearchCohortSample:
@@ -30,6 +30,47 @@ def _manifest(samples: tuple[ResearchCohortSample, ...], kind: str) -> CohortSou
     return CohortSourceManifest.from_requests(
         tuple(sample.request for sample in samples),
         replicate_kinds={sample.sample_id: kind for sample in samples},
+    )
+
+
+def _metadata_snapshot() -> PDCSnapshot:
+    metadata = PDCStudyMetadata.from_dict(
+        {
+            "study_id": "PDC000204",
+            "pdc_study_id": "PDC000204",
+            "study_submitter_id": "submitter",
+            "project_id": "project",
+            "study_name": "fixture",
+            "study_description": "fixture metadata",
+            "program_name": "program",
+            "project_name": "project",
+            "disease_type": "not asserted",
+            "primary_site": "not asserted",
+            "analytical_fraction": "proteome",
+            "experiment_type": "discovery",
+            "cases_count": 1,
+            "aliquots_count": 1,
+        }
+    )
+    query = "fixture-query"
+    response = b"fixture-metadata-response"
+    metadata_source = SourceReference(
+        source_id="pdc:PDC000204:metadata",
+        locator="https://pdc.cancer.gov/graphql",
+        media_type="application/json",
+        sha256=sha256_digest(response),
+        byte_length=len(response),
+        retrieved_at="2026-08-18T00:00:00Z",
+        license_or_terms="fixture metadata",
+    )
+    return PDCSnapshot(
+        metadata=metadata,
+        endpoint="https://pdc.cancer.gov/graphql",
+        query=query,
+        query_sha256=sha256_digest(query),
+        response_sha256=sha256_digest(response),
+        response_bytes=len(response),
+        source_reference=metadata_source,
     )
 
 
@@ -206,47 +247,48 @@ def test_pdc_binding_can_join_a_matching_study_metadata_snapshot() -> None:
     sample = _pdc_sample(target, "pdc-a", "r1")
     receipt = sample.request.external_pdc_receipt
     assert receipt is not None
-    metadata = PDCStudyMetadata.from_dict(
-        {
-            "study_id": "PDC000204",
-            "pdc_study_id": "PDC000204",
-            "study_submitter_id": "submitter",
-            "project_id": "project",
-            "study_name": "fixture",
-            "study_description": "fixture metadata",
-            "program_name": "program",
-            "project_name": "project",
-            "disease_type": "not asserted",
-            "primary_site": "not asserted",
-            "analytical_fraction": "proteome",
-            "experiment_type": "discovery",
-            "cases_count": 1,
-            "aliquots_count": 1,
-        }
-    )
-    metadata_source = SourceReference(
-        source_id="pdc:PDC000204:metadata",
-        locator="https://pdc.cancer.gov/graphql",
-        media_type="application/json",
-        sha256="sha256:" + "a" * 64,
-        byte_length=1,
-        retrieved_at="2026-08-18T00:00:00Z",
-        license_or_terms="fixture metadata",
-    )
-    snapshot = PDCSnapshot(
-        metadata=metadata,
-        endpoint="https://pdc.cancer.gov/graphql",
-        query="fixture-query",
-        query_sha256="a" * 64,
-        response_sha256="a" * 64,
-        response_bytes=1,
-        source_reference=metadata_source,
-    )
+    snapshot = _metadata_snapshot()
     binding = CohortSourceBinding.from_pdc_receipt(
         sample.request, receipt, metadata_snapshot=snapshot, replicate_kind="technical"
     )
     assert binding.pdc_study_id == "PDC000204"
     assert binding.metadata_snapshot_digest == snapshot.digest.removeprefix("sha256:")
+
+
+def test_request_metadata_snapshot_is_bound_into_cohort_provenance_and_replay() -> None:
+    target = next(item for item in scenarios() if item.scenario_id == "target_supported")
+    metadata = _metadata_snapshot()
+    first = _pdc_sample(target, "pdc-a", "r1")
+    second = _pdc_sample(target, "pdc-b", "r2")
+    first = replace(
+        first,
+        request=replace(first.request, external_pdc_metadata_snapshot=metadata),
+    )
+    second = replace(
+        second,
+        request=replace(second.request, external_pdc_metadata_snapshot=metadata),
+    )
+    result = run_research_cohort(
+        ResearchCohortRequest((first, second), provenance_policy="external_same_study")
+    )
+    assert result.source_manifest is not None
+    assert result.source_manifest.for_sample(
+        "pdc-a"
+    ).metadata_snapshot_digest == metadata.digest.removeprefix("sha256:")
+    assert dict(result.configuration)["sample_source_provenance"]
+    tampered = replace(
+        result.source_manifest.for_sample("pdc-a"), metadata_snapshot_digest="f" * 64
+    )
+    with pytest.raises(ValueError, match="metadata snapshot"):
+        run_research_cohort(
+            ResearchCohortRequest(
+                (first, second),
+                provenance_policy="external_same_study",
+                source_manifest=CohortSourceManifest(
+                    (tampered, result.source_manifest.for_sample("pdc-b"))
+                ),
+            )
+        )
 
 
 @pytest.mark.parametrize(

@@ -160,6 +160,31 @@ def test_successful_retrieval_is_receipt_bound_and_commits_only_verified_bytes()
     assert verify_pdc_source_content(receipt, io.BytesIO(payload)) is receipt
 
 
+def test_empty_catalog_file_cannot_be_retrieved_or_receipted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"<mzML>non-empty</mzML>"
+    file = _file("https://pdc.cancer.gov/files/empty", payload)
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _MemoryResponse(payload),
+    )
+    with pytest.raises(PdcError, match="positive byte size"):
+        PdcClient().download_file(replace(file, file_size=0), io.BytesIO())
+    snapshot, reference = _snapshot_and_reference(file, payload)
+    receipt = PdcSourceReceipt(
+        snapshot=snapshot,
+        file=file,
+        source_reference=reference,
+        observed_sha256=reference.sha256,
+        observed_md5=hashlib.md5(payload, usedforsecurity=False).hexdigest(),
+        observed_size=len(payload),
+    )
+    with pytest.raises(ValueError, match="positive"):
+        replace(receipt, observed_size=0)
+
+
 def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> None:
     payload = b"<mzML>verified-content</mzML>"
     file = _file("memory://PDC000204/content", payload)
