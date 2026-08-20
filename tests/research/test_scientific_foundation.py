@@ -405,6 +405,59 @@ def test_evidence_quality_is_explicit_weighted_and_replay_bound() -> None:
         )
 
 
+def test_evidence_quality_weights_each_source_once_across_projections() -> None:
+    source_quality = EvidenceQuality(
+        status="verified",
+        auditability=1.0,
+        completeness=1.0,
+        independent_sources=3,
+        basis="source_bytes",
+    )
+    other_quality = EvidenceQuality(
+        status="verified",
+        auditability=0.0,
+        completeness=0.0,
+        independent_sources=1,
+        basis="source_bytes",
+    )
+    bundle = aggregate_evidence(
+        (
+            EvidenceRecord.create(
+                "source-a-matrix", "source-a", "matrix", {}, quality=source_quality
+            ),
+            EvidenceRecord.create(
+                "source-a-qc", "source-a", "qc", {}, quality=source_quality
+            ),
+            EvidenceRecord.create(
+                "source-b-matrix", "source-b", "matrix", {}, quality=other_quality
+            ),
+        )
+    )
+    assert bundle.quality_summary is not None
+    # Source A emits two projections, but its three declared inputs count once:
+    # (3 * 1.0 + 1 * 0.0) / (3 + 1), rather than counting source A twice.
+    assert bundle.quality_summary.quality_source_groups == 2
+    assert bundle.quality_summary.weighted_auditability == pytest.approx(0.75)
+    assert bundle.quality_summary.weighted_completeness == pytest.approx(0.75)
+    assert bundle.quality_summary.weighted_score == pytest.approx(0.5625)
+    assert verify_evidence_bundle(bundle).as_dict() == bundle.as_dict()
+
+
+def test_evidence_quality_rejects_conflicting_source_independence() -> None:
+    first = EvidenceQuality(
+        status="verified", auditability=1.0, completeness=1.0, independent_sources=1, basis="bytes"
+    )
+    second = EvidenceQuality(
+        status="verified", auditability=1.0, completeness=1.0, independent_sources=2, basis="bytes"
+    )
+    records = (
+        EvidenceRecord.create("a", "same-source", "matrix", {}, quality=first),
+        EvidenceRecord.create("b", "same-source", "qc", {}, quality=second),
+    )
+    with pytest.raises(ValueError, match="independent_sources conflict"):
+        aggregate_evidence(records)
+
+
 def test_evidence_aggregation_rejects_conflicting_source_kind_receipts() -> None:
     first = EvidenceRecord.create("one", "external", "catalog", {"study": "PDC000204"})
     second = EvidenceRecord.create("two", "external", "catalog", {"study": "PDC000205"})
@@ -461,6 +514,27 @@ def test_evidence_quality_statuses_are_not_truth_claims(quality: EvidenceQuality
 def test_evidence_quality_rejects_unbounded_assessments(quality: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         EvidenceQuality(**quality)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("field", ["evidence_id", "source", "kind"])
+@pytest.mark.parametrize("value", ["", " leading", "trailing ", "line\nbreak", "x" * 257])
+def test_evidence_record_rejects_ambiguous_identity_fields(field: str, value: str) -> None:
+    values = {"evidence_id": "id", "source": "source", "kind": "kind"}
+    values[field] = value
+    with pytest.raises(ValueError, match=field):
+        EvidenceRecord.create(
+            values["evidence_id"], values["source"], values["kind"], {}
+        )
+
+
+def test_abstained_quality_cannot_look_complete() -> None:
+    with pytest.raises(ValueError, match="zero completeness"):
+        EvidenceQuality(
+            status="abstained",
+            auditability=1.0,
+            completeness=1.0,
+            basis="unsupported_input",
+        )
 
 
 def test_evidence_quality_and_record_shape_edge_paths() -> None:
