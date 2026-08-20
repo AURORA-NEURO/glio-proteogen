@@ -398,6 +398,21 @@ def test_result_rejects_self_rehashed_output_binding_mutations() -> None:
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
     with pytest.raises(ValueError, match="cover every requested metric"):
         ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+    duplicate = result.telemetry_stream.samples[0].model_copy(
+        update={"sample_id": "m2705.sample.duplicate"}
+    )
+    forged_stream = result.telemetry_stream.model_copy(
+        update={"samples": (*result.telemetry_stream.samples, duplicate)}
+    )
+    forged = result.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request telemetry metrics"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
+    forged_stream = result.telemetry_stream.model_copy(update={"stream_id": "m2705.stream.forged"})
+    forged = result.model_copy(update={"telemetry_stream": forged_stream})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request telemetry metrics"):
+        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
     payload = result.model_dump(mode="json")
     payload["status"] = "abstained"
     payload["telemetry_stream"] = None

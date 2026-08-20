@@ -309,6 +309,13 @@ class ProteomicsTelemetryResult(FrozenModel):
             sample_metrics = {sample.metric for sample in self.telemetry_stream.samples}
             if not set(self.request.requested_metrics).issubset(sample_metrics):
                 raise ValueError("emitted stream must cover every requested metric")
+            expected_stream_id = "m2705.stream." + self.request.request_id
+            stream_metrics = tuple(sample.metric for sample in self.telemetry_stream.samples)
+            if (
+                self.telemetry_stream.stream_id != expected_stream_id
+                or stream_metrics != self.request.requested_metrics
+            ):
+                raise ValueError("emitted stream must bind exact request telemetry metrics")
             if self.dashboards != self.request.dashboard_definitions:
                 raise ValueError("emitted dashboards must bind exact request definitions")
         elif (
