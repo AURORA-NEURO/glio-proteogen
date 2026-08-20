@@ -29,6 +29,27 @@ def test_runtime_is_deterministic_and_replay_verifiable() -> None:
     assert run_complex_activity_internal_benchmark(request).result_digest == first.result_digest
 
 
+def test_provenance_covers_nested_benchmark_evidence() -> None:
+    request = _request()
+    result = M2103Service().generate(request)
+    nested_evidence = (
+        *request.split.evidence,
+        *(item for baseline in request.baseline_runs for item in baseline.evidence),
+        *(
+            item
+            for baseline in request.baseline_runs
+            for metric in baseline.metrics
+            for item in metric.evidence
+        ),
+        *(item for ablation in request.ablations for item in ablation.evidence),
+        *(item for comparison in request.comparisons for item in comparison.evidence),
+    )
+
+    assert {item.reference.digest for item in nested_evidence} <= set(
+        result.provenance.input_digests
+    )
+
+
 def test_runtime_rejects_denied_controls_before_benchmarking() -> None:
     request = _request()
     rejected_support = request.context.references.support.model_copy(update={"state": "rejected"})
