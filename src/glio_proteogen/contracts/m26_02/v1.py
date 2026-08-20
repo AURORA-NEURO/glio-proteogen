@@ -277,6 +277,9 @@ class ProteinSubtypeLineageResult(FrozenModel):
     def result_is_closed(self) -> ProteinSubtypeLineageResult:
         if self.request_digest != canonical_request_digest(self.request):
             raise ValueError("result request digest does not bind exact request")
+        expected_result_id = "result.m2602." + self.request_digest.removeprefix("sha256:")
+        if self.result_id != expected_result_id:
+            raise ValueError("result id must bind the request digest")
         if self.status is LineageStatus.BUILT:
             if (
                 self.lineage_graph is None
@@ -285,6 +288,16 @@ class ProteinSubtypeLineageResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("built result requires supported graph and bundle")
+            if self.reproducibility_bundle != self.request.reproducibility_bundle:
+                raise ValueError("built result bundle must bind the exact request bundle")
+            if (
+                self.lineage_graph.graph_id != self.request.graph_id
+                or self.lineage_graph.version != self.request.graph_version
+                or self.lineage_graph.nodes != self.request.nodes
+                or self.lineage_graph.edges != self.request.edges
+                or self.lineage_graph.graph_digest != self.reproducibility_bundle.graph_digest
+            ):
+                raise ValueError("built lineage graph must bind exact request graph material")
         elif (
             self.lineage_graph is not None
             or self.reproducibility_bundle is not None

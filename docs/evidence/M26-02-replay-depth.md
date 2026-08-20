@@ -12,7 +12,8 @@ and reseal `result_digest` while retaining a structurally valid envelope.
 The replay path now:
 
 1. validates the request and result payload digests;
-2. checks graph and reproducibility-bundle closure;
+2. checks graph and reproducibility-bundle closure, including exact graph,
+   bundle, and deterministic result-ID binding to the request;
 3. regenerates the complete result through the deterministic engine; and
 4. compares the canonical JSON of every result field.
 

@@ -19,6 +19,8 @@ from glio_proteogen.contracts.m26_02 import (
     BuildProteinSubtypeLineageRequest,
     LineageEdge,
     LineageRelation,
+    ProteinSubtypeLineageResult,
+    graph_payload_digest,
     result_payload_digest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
@@ -110,6 +112,19 @@ def test_replay_rejects_graph_tampering() -> None:
     tampered = result.model_copy(update={"lineage_graph": tampered_graph})
     with pytest.raises(ValidationError):
         service.verify(tampered)
+
+
+def test_strict_result_rejects_self_rehashed_graph_identity_mutation() -> None:
+    result = M2602LineageService().execute(_request())
+    assert result.lineage_graph is not None
+    changed_graph = result.lineage_graph.model_copy(update={"graph_id": "graph.forged"})
+    changed_graph = changed_graph.model_copy(
+        update={"graph_digest": graph_payload_digest(changed_graph)}
+    )
+    forged = result.model_copy(update={"lineage_graph": changed_graph})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="exact request graph material"):
+        ProteinSubtypeLineageResult.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_replay_rejects_self_rehashed_provenance_mutation() -> None:
