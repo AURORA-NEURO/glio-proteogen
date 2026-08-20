@@ -284,6 +284,45 @@ class EvaluateProteinRnaDiscordanceExternalTransportRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(
+    result: ProteinRnaDiscordanceExternalTransportResult,
+) -> str | None:
+    request = result.request
+    expected_inputs = tuple(
+        dict.fromkeys(
+            (
+                canonical_request_digest(request),
+                request.benchmark_package.digest,
+                request.upstream_truth.digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+            )
+        )
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2204_MODULE_ID,
+            "provenance module id must identify M22-04",
+        ),
+        (
+            result.provenance.module_version == M2204_CONTRACT_VERSION,
+            "provenance module version must identify M22-04",
+        ),
+        (
+            result.provenance.configuration_digest
+            == request.context.references.approved_configuration.evidence.digest,
+            "provenance configuration must bind approved transport policy",
+        ),
+        (
+            result.provenance.input_digests == expected_inputs,
+            "provenance inputs must bind the request and source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ProteinRnaDiscordanceExternalTransportResult(FrozenModel):
     """Transportability result with support-domain narrowing and abstention."""
 
@@ -330,6 +369,9 @@ class ProteinRnaDiscordanceExternalTransportResult(FrozenModel):
         }
         if not required_digests <= set(self.provenance.input_digests):
             raise ValueError("provenance must include every upstream result digest")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.status is EvaluationStatus.EVALUATED:
             if (
                 self.report is None
