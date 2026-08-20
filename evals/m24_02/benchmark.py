@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from statistics import mean, median
 from time import perf_counter_ns
 
+if __package__ in {None, ""}:
+    _SOURCE_ROOT = Path(__file__).resolve().parents[2]
+    if str(_SOURCE_ROOT) not in sys.path:
+        sys.path.insert(0, str(_SOURCE_ROOT))
+
+from evals.m24_02.fixture import request
 from glio_proteogen.modules.c21_reference_material import (
     m24_02_synthetic_truth_generator as m2402,
 )
-
-from .fixture import request
 
 _MAX_ITERATIONS = 1000
 
