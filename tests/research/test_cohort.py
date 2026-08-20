@@ -468,3 +468,9 @@ def test_cohort_provenance_policy_closes_local_only_and_unattested_external_path
         ResearchCohortRequest((local_a, external), provenance_policy="mixed_declared")
     )
     assert dict(mixed.configuration)["cohort_provenance_policy"] == "mixed_declared"
+    with pytest.raises(
+        ValueError, match="external PDC declarations require a catalog source receipt"
+    ):
+        run_research_cohort(
+            ResearchCohortRequest((local_a, unattested), provenance_policy="mixed_declared")
+        )
