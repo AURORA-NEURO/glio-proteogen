@@ -112,8 +112,10 @@ C03/C04 computation contract:
   exposes unique-peptide versus shared-only identifiability before quantification. The summary
   records input-versus-unique spectra and shared-peptide counts, so a changed lower-scoring
   contender cannot replay as the same group result. A target group supported only by shared
-  peptides remains visible with shared signal and an explicit `abstained` acceptance; it cannot
-  become a reportable primary estimate merely because its group q-value is numerically small.
+  peptides remains visible with shared signal and an explicit `abstained` acceptance; a connected
+  group in which only some accessions have unique-peptide support is also marked
+  `partially_unique_ambiguous` and abstained. Neither can become a reportable primary estimate
+  merely because its group q-value is numerically small.
   Direct target/decoy q-value entry also validates accession-derived class flags before
   competition, preventing a forged decoy from entering the target denominator. This is
   transparent research FDR evidence, not a calibrated protein probability.

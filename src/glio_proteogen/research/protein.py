@@ -186,13 +186,7 @@ def infer_protein_group_candidates(
                 status=status,
                 q_value=None,
                 acceptance="abstained" if status == "collision" else "pending",
-                identifiability=(
-                    "target_decoy_collision"
-                    if status == "collision"
-                    else "shared_only_ambiguous"
-                    if not group.unique_peptides
-                    else "unique_peptide_supported"
-                ),
+                identifiability=_group_identifiability(group, peptide_to_proteins, status),
             )
         )
     ordered = sorted(
@@ -234,7 +228,7 @@ def infer_protein_group_candidates(
                 and q_value <= q_value_threshold
             )
             else "abstained"
-            if candidate.identifiability == "shared_only_ambiguous"
+            if candidate.identifiability in {"shared_only_ambiguous", "partially_unique_ambiguous"}
             else "rejected"
             if candidate.status != "collision"
             else "abstained"
@@ -281,6 +275,32 @@ def infer_protein_group_candidates(
         ),
     )
     return finalized, summary
+
+
+def _group_identifiability(
+    group: ProteinGroup, peptide_to_proteins: dict[str, set[str]], status: str
+) -> str:
+    """Classify whether every accession in a target group has unique support.
+
+    Connected components preserve shared-peptide ambiguity, but a component
+    can contain both a uniquely supported accession and an accession linked
+    only through shared evidence.  Treating that component as fully unique
+    would turn a partial protein assignment into an accepted group-level claim.
+    """
+
+    if status == "collision":
+        return "target_decoy_collision"
+    if not group.unique_peptides:
+        return "shared_only_ambiguous"
+    uniquely_supported = {
+        accession
+        for peptide in group.unique_peptides
+        for accession in peptide_to_proteins[peptide]
+        if accession in group.accessions
+    }
+    if uniquely_supported != set(group.accessions):
+        return "partially_unique_ambiguous"
+    return "unique_peptide_supported"
 
 
 def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...]]:

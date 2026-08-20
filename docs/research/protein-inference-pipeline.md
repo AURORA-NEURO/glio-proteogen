@@ -48,8 +48,9 @@ one deterministic, auditable path:
    the group summary. Each candidate receives a deterministic max-supporting-PSM score and
    monotone group-level target/decoy q-value. Decoy groups are rejected, mixed groups are retained
    as null-q collision abstentions. Collision groups still count in the group-FDR numerator,
-   while shared-only groups are marked ambiguous before
-   quantification. Only target groups passing this second threshold become reportable groups.
+   while shared-only groups and partially unique connected groups are marked ambiguous before
+   quantification. Only fully uniquely supported target groups passing this second threshold
+   become reportable groups.
    This is transparent group-FDR evidence, not a calibrated protein probability.
 8. Aggregate matched fragment-ion intensity for peptides belonging to reportable groups
    and median-normalize within the sample with explicit zero-signal missingness; spectral

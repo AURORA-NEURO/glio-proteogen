@@ -48,3 +48,20 @@ def test_group_rejects_nonfinite_score_before_winner_selection() -> None:
     malformed = Psm("scan=1", "PEPTIDER", ("P1",), float("nan"), 3, decoy=False)
     with pytest.raises(ValueError, match="finite and non-negative"):
         infer_protein_group_candidates((malformed,), q_value_threshold=0.01)
+
+
+def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:
+    candidates, summary = infer_protein_group_candidates(
+        (
+            Psm("shared", "SHARED", ("P1", "P2"), 10.0, 3, decoy=False),
+            Psm("unique", "UNIQUE", ("P1",), 9.0, 3, decoy=False),
+            Psm("decoy", "DECOY_ONLY", ("DECOY_P3",), 1.0, 3, decoy=True),
+        ),
+        q_value_threshold=0.01,
+    )
+
+    target = next(item for item in candidates if item.accessions == ("P1", "P2"))
+    assert target.q_value == 0.0
+    assert target.identifiability == "partially_unique_ambiguous"
+    assert target.acceptance == "abstained"
+    assert summary.accepted_targets == 0
