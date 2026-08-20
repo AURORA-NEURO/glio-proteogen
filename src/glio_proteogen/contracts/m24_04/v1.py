@@ -237,6 +237,25 @@ class EvaluateBiomarkerPanelExternalTransportRequest(FrozenModel):
             raise ValueError("request must cover every configured transport dimension")
         if len(evaluation_dims) != len(self.evaluations):
             raise ValueError("request evaluation dimensions must be unique")
+        required_artifacts = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.benchmark_package,
+        )
+        artifact_ids = tuple(item.artifact_id for item in required_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("transport input artifact IDs must be unique")
+        required_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in required_artifacts
+        }
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        if len(source_keys) != len(self.source_artifacts) or source_keys != required_keys:
+            raise ValueError("source artifacts must bind every transport input exactly once")
         return self
 
 
