@@ -23,7 +23,10 @@ from glio_proteogen.contracts.m27_07 import (
     RevalidationPlan,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m27_07.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_07.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import ConsentState, IdentityLineageState
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control import (
     ChangeControlSubmission,
@@ -182,6 +185,22 @@ def test_result_replay_detects_forged_status() -> None:
     result = service.execute(build_request())
     forged = result.model_copy(update={"human_review_required": True})
     assert service.verify(forged) is False
+
+
+def test_result_rejects_self_rehashed_package_control_mutations() -> None:
+    result = M2707Service().execute(build_request())
+    assert result.approved_change_package is not None
+    forged_package = result.approved_change_package.model_copy(
+        update={
+            "rollback_point": result.approved_change_package.rollback_point.model_copy(
+                update={"rollback_reason": "forged rollback instruction"}
+            )
+        }
+    )
+    forged = result.model_copy(update={"approved_change_package": forged_package})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValueError, match="exact request change controls"):
+        type(result).model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_api_rejects_non_object_payload() -> None:

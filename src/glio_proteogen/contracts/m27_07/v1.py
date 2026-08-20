@@ -276,6 +276,16 @@ class ComplexActivityChangeControlResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("approved result requires a supported change package")
+            if (
+                self.approved_change_package.classification != self.request.classification
+                or self.approved_change_package.revalidation != self.request.revalidation
+                or self.approved_change_package.rollback_point != self.request.rollback_point
+                or self.approved_change_package.comparison.champion_digest
+                != self.request.champion_digest
+                or self.approved_change_package.comparison.challenger_digest
+                != self.request.challenger_digest
+            ):
+                raise ValueError("approved package must bind exact request change controls")
         elif (
             self.approved_change_package is not None
             or self.safe_failure_report is None
