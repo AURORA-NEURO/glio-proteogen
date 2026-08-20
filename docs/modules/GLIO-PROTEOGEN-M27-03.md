@@ -38,9 +38,10 @@ orchestration metadata.
 The engine uses a stable node-ID topological order and hashes the seed, order, upstream digest,
 container identities, policy, checkpoint selections, and environment declaration. It emits a typed
 execution record and reproducible result package from those declarations. `verify(..., replay=True)`
-re-executes the request and compares the complete canonical result. JSON service and plugin adapters
-parse strict JSON once; plugin execution requires an opaque validated token. API and CLI errors are
-sanitized and CLI output refuses overwrite.
+re-executes the request and compares the complete canonical result; replay cannot be disabled
+because a payload digest alone would accept a self-rehashed semantic mutation. JSON service and
+plugin adapters parse strict JSON once; plugin execution requires an opaque validated token. API
+and CLI errors are sanitized and CLI output refuses overwrite.
 
 ## Evidence commands
 
