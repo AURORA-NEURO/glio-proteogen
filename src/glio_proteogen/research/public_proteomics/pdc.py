@@ -161,6 +161,29 @@ class PDCSnapshot:
     response_bytes: int
     source_reference: SourceReference
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.metadata, PDCStudyMetadata):
+            raise TypeError("metadata must be a PDCStudyMetadata")
+        if type(self.endpoint) is not str or not self.endpoint.strip():
+            raise ValueError("PDC snapshot endpoint must be non-empty text")
+        if type(self.query) is not str or not self.query.strip():
+            raise ValueError("PDC snapshot query must be non-empty text")
+        if not isinstance(self.source_reference, SourceReference):
+            raise TypeError("source_reference must be a SourceReference")
+        if self.query_sha256 != sha256_digest(self.query):
+            raise ValueError("PDC snapshot query hash does not match the query")
+        if self.response_sha256 != self.source_reference.sha256:
+            raise ValueError("PDC snapshot response hash does not match the source reference")
+        if type(self.response_bytes) is not int or self.response_bytes < 0:
+            raise ValueError("PDC snapshot response size must be a non-negative integer")
+        if self.response_bytes != self.source_reference.byte_length:
+            raise ValueError("PDC snapshot response size does not match the source reference")
+        if self.endpoint != self.source_reference.locator:
+            raise ValueError("PDC snapshot endpoint does not match the source reference")
+        expected_source_id = f"pdc:{self.metadata.pdc_study_id}:metadata"
+        if self.source_reference.source_id != expected_source_id:
+            raise ValueError("PDC snapshot source identity does not match the study")
+
     @property
     def digest(self) -> str:
         return sha256_digest(self.as_dict())

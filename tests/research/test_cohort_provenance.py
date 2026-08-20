@@ -19,7 +19,7 @@ from glio_proteogen.research import (
     run_research_cohort,
 )
 from glio_proteogen.research.public_proteomics.pdc import PDCSnapshot, PDCStudyMetadata
-from glio_proteogen.research.public_proteomics.provenance import SourceReference
+from glio_proteogen.research.public_proteomics.provenance import SourceReference, sha256_digest
 
 
 def _sample(sample_id: str, replicate: str) -> ResearchCohortSample:
@@ -298,8 +298,8 @@ def test_pdc_binding_can_join_a_matching_study_metadata_snapshot() -> None:
         metadata=metadata,
         endpoint="https://pdc.cancer.gov/graphql",
         query="fixture-query",
-        query_sha256="a" * 64,
-        response_sha256="a" * 64,
+        query_sha256=sha256_digest("fixture-query"),
+        response_sha256="sha256:" + "a" * 64,
         response_bytes=1,
         source_reference=metadata_source,
     )
@@ -308,6 +308,12 @@ def test_pdc_binding_can_join_a_matching_study_metadata_snapshot() -> None:
     )
     assert binding.pdc_study_id == "PDC000204"
     assert binding.metadata_snapshot_digest == snapshot.digest.removeprefix("sha256:")
+    with pytest.raises(ValueError, match="query hash"):
+        replace(snapshot, query_sha256=sha256_digest("changed-query"))
+    with pytest.raises(ValueError, match="response hash"):
+        replace(snapshot, response_sha256="sha256:" + "b" * 64)
+    with pytest.raises(ValueError, match="response size"):
+        replace(snapshot, response_bytes=2)
 
 
 @pytest.mark.parametrize(
