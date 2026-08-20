@@ -76,7 +76,7 @@ def test_rejects_response_for_a_different_requested_study() -> None:
         ),
         _transport(payload, response_bytes),
     )
-    with pytest.raises(PDCError, match="does not match the requested study"):
+    with pytest.raises(PDCError, match="does not match requested study"):
         client.fetch("PDC000204", retrieved_at="2026-08-17T00:00:00Z")
 
 
@@ -132,9 +132,9 @@ def test_config_restricts_endpoint_and_response_bound() -> None:
     with pytest.raises(PDCError, match="response cap"):
         PDCClientConfig(max_response_bytes=5 * 1024 * 1024)
     with pytest.raises(PDCError, match="timeout"):
-        PDCClientConfig(timeout_seconds=True)  # type: ignore[arg-type]
+        PDCClientConfig(timeout_seconds=True)
     with pytest.raises(PDCError, match="response cap"):
-        PDCClientConfig(max_response_bytes=True)  # type: ignore[arg-type]
+        PDCClientConfig(max_response_bytes=True)
 
 
 def test_snapshot_rejects_untrusted_metadata_endpoint() -> None:
