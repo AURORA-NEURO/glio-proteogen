@@ -499,6 +499,4 @@ def test_result_rejects_self_rehashed_provenance_binding_forgery(
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
 
     with pytest.raises(ValidationError, match="provenance"):
-        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(
-            forged, strict=True
-        )
+        TypeAdapter(ComplexActivitySubgroupEvaluationResult).validate_python(forged, strict=True)
