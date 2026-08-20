@@ -14,7 +14,10 @@ from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
-from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708Service
+from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import (
+    M2708Service,
+    RetirementAuthorizationError,
+)
 
 
 def test_all_ten_schemas_are_strict_and_identified() -> None:
@@ -76,6 +79,22 @@ def test_duplicate_source_artifacts_are_rejected_before_retirement() -> None:
     )
     with pytest.raises(ValueError, match="source artifact ids"):
         M2708Service().execute(duplicate)
+
+
+@pytest.mark.parametrize(
+    "media_type",
+    [
+        "application/vnd.attacker.m27-07+json",
+        "text/m27-07",
+        "application/vnd.glio-proteogen.m27-07+json;profile=attacker",
+    ],
+)
+def test_upstream_media_type_requires_exact_m27_07_contract(media_type: str) -> None:
+    request = build_request()
+    forged_artifact = request.source_artifacts[0].model_copy(update={"media_type": media_type})
+    forged = request.model_copy(update={"source_artifacts": (forged_artifact,)})
+    with pytest.raises(RetirementAuthorizationError, match="unsupported upstream artifact"):
+        M2708Service().execute(forged)
 
 
 def test_invalid_archive_status_is_not_executed() -> None:
