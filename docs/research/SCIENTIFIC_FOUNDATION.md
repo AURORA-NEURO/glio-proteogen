@@ -95,7 +95,8 @@ C03/C04 computation contract:
   replay cannot silently change units, normalization, LOQ semantics, or the input observations.
   The composed pipeline copies the receipt's algorithm version and measurement unit into both
   run configuration and computed protein-group evidence; a `none_v1` run therefore reports
-  arbitrary matched-ion intensity rather than the median-scaled unit.
+  arbitrary matched-ion intensity rather than the median-scaled unit. Its receipt also leaves
+  the normalization target and scale factor null because no normalization operation was applied.
 - Protein-group quantification now validates the input partition before computing any
   signal: accessions and peptide memberships must be disjoint across groups, and every
   supplied intensity or PSM-count key must belong to that declared partition. Each

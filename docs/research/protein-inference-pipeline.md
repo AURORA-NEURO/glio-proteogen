@@ -71,6 +71,8 @@ one deterministic, auditable path:
    normalization target, and scale factor. The run configuration and computed protein-group
    evidence derive their quantification version and unit directly from this receipt, so
    `none_v1` is reported as arbitrary matched-ion intensity rather than median-scaled signal.
+   Under `none_v1`, the receipt leaves `normalization_target` and `scale_factor` null because
+   no normalization operation was applied; a raw median is not presented as an executed scale.
    The `max_input_observations` admission bound is enforced while iterating, before a
    lazy producer can be fully materialized; an oversized iterable therefore fails at
    the first excess item and cannot bypass the bounded receipt contract.

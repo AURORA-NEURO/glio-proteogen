@@ -405,9 +405,17 @@ def quantify_matched_ions_with_receipt(
         ),
         positive_signal_fraction=(positive_count / len(values) if values else 0.0),
         signal_quality=_signal_quality(positive_count),
-        normalization_target=raw_median,
+        normalization_target=(
+            raw_median
+            if selected_policy.normalization_method == "sample_median_scaled_v1"
+            else None
+        ),
         normalized_total_signal=sum(item.intensity for item in normalized),
-        scale_factor=1.0 if positive else None,
+        scale_factor=(
+            1.0
+            if positive and selected_policy.normalization_method == "sample_median_scaled_v1"
+            else None
+        ),
         raw_peptide_signals=tuple((item.peptide, item.intensity, item.missing) for item in values),
         normalized_peptide_signals=tuple(
             (item.peptide, item.intensity, item.missing) for item in normalized

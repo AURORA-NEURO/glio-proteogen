@@ -87,6 +87,8 @@ def test_loq_and_no_normalization_are_explicit_and_non_imputing() -> None:
     assert receipt.quantifiable_peptides == 2
     assert receipt.limit_of_quantification == 4.0
     assert receipt.normalization_method == "none"
+    assert receipt.normalization_target is None
+    assert receipt.scale_factor is None
     assert receipt.max_input_observations == 100_000
     assert len(receipt.observation_digest) == 64
     assert receipt.as_dict()["raw_peptide_statuses"] == [
