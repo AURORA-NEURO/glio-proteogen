@@ -260,13 +260,19 @@ class AdjudicateProteinSubtypeQueueRequest(FrozenModel):
         )
         if len(assignment_keys) != len(set(assignment_keys)):
             raise ValueError("request contains duplicate blinded reviewer assignments")
-        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        artifact_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
         if len(artifact_keys) != len(set(artifact_keys)):
-            raise ValueError("request source artifacts must be unique by id and digest")
-        if (
+            raise ValueError("request source artifacts must be unique by full identity")
+        upstream_key = (
             self.upstream_result.artifact_id,
+            self.upstream_result.version,
             self.upstream_result.digest,
-        ) not in set(artifact_keys):
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(artifact_keys):
             raise ValueError("request source artifacts must include the upstream workflow result")
         return self
 

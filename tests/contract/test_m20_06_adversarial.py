@@ -259,6 +259,24 @@ def test_request_binds_context_upstream_and_source_artifact() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", sha256_digest("m2006:forged-upstream")),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_request_requires_full_upstream_artifact_identity(field: str, value: str) -> None:
+    request = _request()
+    forged_source = request.upstream_result.model_copy(update={field: value})
+
+    with pytest.raises(ValueError, match="upstream workflow result"):
+        AdjudicateProteinSubtypeQueueRequest.model_validate(
+            request.model_copy(update={"source_artifacts": (forged_source,)}), strict=True
+        )
+
+
 def test_request_rejects_duplicate_reviewer_pair() -> None:
     request = _request()
     duplicate = request.assignments[0].model_copy(update={"assignment_id": "assignment.m2006.two"})
