@@ -174,6 +174,20 @@ def test_plugin_bytes_foreign_token_and_seal_tamper() -> None:
         first.run(token)
 
 
+def test_plugin_rejects_nested_request_mutation_and_replacement() -> None:
+    plugin = M2706Plugin()
+    token = plugin.validate(SecuritySubmission(build_request()))
+    object.__setattr__(token.request, "request_id", "m2706.request.tampered")
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+    replacement = build_request(action="write")
+    token = plugin.validate(SecuritySubmission(build_request()))
+    token.request = replacement
+    with pytest.raises(TypeError):
+        plugin.run(token)
+
+
 def test_plugin_invalid_submission_and_service_mapping() -> None:
     plugin = M2706Plugin()
     with pytest.raises(TypeError):
