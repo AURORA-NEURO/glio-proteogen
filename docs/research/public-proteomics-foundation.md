@@ -46,6 +46,10 @@ the canonical PDC study locator and to contain typed, non-negative count rows;
 file declarations must carry the bounded `PDC` accession form, so forged
 catalog projections cannot be promoted to source evidence.
 
+Verified PDC bytes are copied with a progress-checked destination contract;
+zero-progress or invalid short writes fail the retrieval instead of returning a
+successful receipt for a truncated caller-owned file.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint

@@ -474,3 +474,22 @@ def test_read_failure_and_over_limit_are_safe_before_destination_write(
     )
     with pytest.raises(PdcError, match="exceeded"):
         PdcClient().download_file(file, io.BytesIO())
+
+
+def test_destination_zero_progress_is_rejected_after_verified_download(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"<mzML>destination</mzML>"
+    file = _file("https://pdc.cancer.gov/files/destination", payload)
+
+    class _NoProgress:
+        def write(self, _chunk: bytes) -> int:
+            return 0
+
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _MemoryResponse(payload),
+    )
+    with pytest.raises(PdcError, match="destination write"):
+        PdcClient().download_file(file, _NoProgress())  # type: ignore[arg-type]

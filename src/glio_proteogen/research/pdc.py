@@ -219,6 +219,20 @@ def _validate_catalog_snapshot(snapshot: PdcStudySnapshot) -> None:
             raise ValueError("PDC snapshot count rows are malformed")
 
 
+def _write_verified_chunk(destination: BinaryIO, chunk: bytes) -> None:
+    """Commit one verified chunk without accepting a silent short write."""
+
+    offset = 0
+    while offset < len(chunk):
+        try:
+            written = destination.write(chunk[offset:])
+        except (OSError, ValueError) as error:
+            raise PdcError("PDC destination write failed") from error
+        if type(written) is not int or written <= 0 or written > len(chunk) - offset:
+            raise PdcError("PDC destination write made no valid progress")
+        offset += written
+
+
 def verify_pdc_source_content(
     receipt: PdcSourceReceipt,
     content: bytes | bytearray | BinaryIO,
@@ -643,5 +657,5 @@ class PdcClient:
                     raise PdcError("PDC download bytes differ from the source reference")
                 spool.seek(0)
                 while chunk := spool.read(_DOWNLOAD_CHUNK_BYTES):
-                    destination.write(chunk)
+                    _write_verified_chunk(destination, chunk)
         return total, md5_hex, sha256_hex, response_media
