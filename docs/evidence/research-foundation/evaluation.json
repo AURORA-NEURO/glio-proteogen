@@ -6044,11 +6044,11 @@
     "result_digest": "db97b74d7566c962590c74baba7bb367b0cac32247d3280bfbe745b7caa08560"
   },
   "coverage": {
-    "statements": 3728,
-    "missed_statements": 129,
-    "branches": 1536,
-    "partial_branches": 121,
-    "percent": 95.13677811550151,
+    "statements": 3740,
+    "missed_statements": 132,
+    "branches": 1538,
+    "partial_branches": 122,
+    "percent": 95.07389162561576,
     "fail_under": 95
   },
   "precursor_policy_evaluation": {

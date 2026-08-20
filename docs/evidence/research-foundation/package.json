@@ -1,7 +1,7 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-  "base_commit": "e0cedfc1",
+  "base_commit": "282ecc14",
   "pipeline_commit": "depth/m20-replay-integration",
   "source_fixture": {
     "study": "PDC000204",
@@ -70,31 +70,31 @@
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
     "fixture_sha256": "551af4d49ad995b5e8c2614e5964d509cdc3d2c9492c47d166caae70c680bcbc",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-    "focused_tests": 457,
+    "focused_tests": 458,
     "coverage": {
-      "statements": 3728,
-      "missed_statements": 129,
-      "branches": 1536,
-      "partial_branches": 121,
-      "percent": 95.13677811550151,
+      "statements": 3740,
+      "missed_statements": 132,
+      "branches": 1538,
+      "partial_branches": 122,
+      "percent": 95.07389162561576,
       "fail_under": 95
     },
     "wheel": {
       "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-      "bytes": 3899900,
+      "bytes": 3900226,
       "members": 1991,
-      "sha256": "75e30caf3358780302634f53ee0cceeb7f4799031bcc6cf4ce0d6032c52b48c5"
+      "sha256": "7a98d2472dccfa3c31c019a89970d700c4a28c3e271f1301a00bd1899ac85d26"
     },
     "sdist": {
       "filename": "glio_proteogen-0.1.0.tar.gz",
-      "bytes": 4619517,
+      "bytes": 4620154,
       "members": 4664,
-      "sha256": "6ab4c9f157b3b7eb38e0e5fe628c0e0c91d8e774cdeaa2efa5daca2c0a09da67"
+      "sha256": "cfe12b850983c903f909a2e92c466a59614ea890b9e7f079bf17b2ac76af8419"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-      "wheel": "75e30caf3358780302634f53ee0cceeb7f4799031bcc6cf4ce0d6032c52b48c5",
-      "sdist": "6ab4c9f157b3b7eb38e0e5fe628c0e0c91d8e774cdeaa2efa5daca2c0a09da67"
+      "wheel": "7a98d2472dccfa3c31c019a89970d700c4a28c3e271f1301a00bd1899ac85d26",
+      "sdist": "cfe12b850983c903f909a2e92c466a59614ea890b9e7f079bf17b2ac76af8419"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800
