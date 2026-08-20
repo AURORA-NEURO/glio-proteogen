@@ -222,12 +222,19 @@ class EvaluateComplexActivitySubgroupEquityRequest(FrozenModel):
             raise ValueError("request must bind the provisional M21-04 evaluator result")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context must bind the request identifier")
-        artifact_keys = tuple((item.artifact_id, item.digest) for item in self.source_artifacts)
+        artifact_keys = tuple(
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        )
         if len(artifact_keys) != len(set(artifact_keys)):
             raise ValueError("request source artifacts must be unique")
-        if (self.upstream_result.artifact_id, self.upstream_result.digest) not in set(
-            artifact_keys
-        ):
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(artifact_keys):
             raise ValueError("request source artifacts must include upstream result")
         return self
 

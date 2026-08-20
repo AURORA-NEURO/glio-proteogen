@@ -424,6 +424,23 @@ def test_request_requires_exact_upstream_media_context_and_source_closure() -> N
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + ("f" * 64)),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_request_binds_upstream_source_by_full_artifact_identity(field: str, value: str) -> None:
+    request = _request()
+    forged_source = request.source_artifacts[0].model_copy(update={field: value})
+    with pytest.raises(ValidationError, match="include upstream"):
+        EvaluateComplexActivitySubgroupEquityRequest.model_validate(
+            request.model_dump() | {"source_artifacts": (forged_source,)}
+        )
+
+
 def test_result_identity_evidence_finding_and_status_closures() -> None:
     result = _result()
     payload = result.model_dump()
