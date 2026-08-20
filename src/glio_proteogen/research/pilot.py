@@ -401,7 +401,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             psms.append(psm)
         if len(psms) >= request.limits.max_psms:
             break
-    scored = target_decoy_qvalues(psms)
+    scored = target_decoy_qvalues(psms, decoy_prefix=request.parameters.decoy_prefix)
     if not scored:
         return _abstained(
             request,
