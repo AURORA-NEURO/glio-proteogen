@@ -258,17 +258,24 @@ class EvaluateVariantPeptideExternalTransportRequest(FrozenModel):
             raise ValueError("request evaluation dimensions must be unique")
         if len(validation_dims) != len(self.validations):
             raise ValueError("request validation dimensions must be unique")
-        artifact_ids = (
-            self.mass_spectrometry_proteome.artifact_id,
-            self.genome_transcriptome.artifact_id,
-            self.ptm_annotations.artifact_id,
-            self.benchmark_package.artifact_id,
+        required_artifacts = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+            self.benchmark_package,
         )
-        source_ids = tuple(item.artifact_id for item in self.source_artifacts)
-        required_artifacts = set(artifact_ids)
-        if len(artifact_ids) != len(required_artifacts):
+        artifact_ids = tuple(item.artifact_id for item in required_artifacts)
+        if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("transport input artifact IDs must be unique")
-        if len(source_ids) != len(set(source_ids)) or set(source_ids) != required_artifacts:
+        required_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in required_artifacts
+        }
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        if len(source_keys) != len(self.source_artifacts) or source_keys != required_keys:
             raise ValueError("source artifacts must bind every transport input exactly once")
         return self
 

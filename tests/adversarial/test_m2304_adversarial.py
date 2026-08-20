@@ -69,6 +69,26 @@ def test_source_artifact_substitution_is_rejected() -> None:
         _request_from_json(data)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + ("f" * 64)),
+        ("media_type", "application/x-forged-transport-input"),
+    ],
+)
+def test_declared_transport_input_metadata_must_match_source_artifact(
+    field: str, value: str
+) -> None:
+    data = _data(_request())
+    declared = dict(data["mass_spectrometry_proteome"])
+    declared[field] = value
+    data["mass_spectrometry_proteome"] = declared
+
+    with pytest.raises(ValueError, match="source artifacts"):
+        _request_from_json(data)
+
+
 def test_duplicate_validation_and_evaluation_dimensions_are_rejected() -> None:
     data = _data(_request())
     data["configuration"]["required_dimensions"] = [
