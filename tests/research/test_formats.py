@@ -75,7 +75,7 @@ def test_mzidentml_reference_binding_rejects_unrelated_inputs() -> None:
         b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
         b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=missing"/>'
-        b'</AnalysisData></MzIdentML>'
+        b"</AnalysisData></MzIdentML>"
     )
     summary = extract_mzidentml_structure(data)
     with pytest.raises(FormatError, match="spectrumID"):
@@ -92,7 +92,7 @@ def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> N
         b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
         b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=1"/>'
-        b'</AnalysisData></MzIdentML>'
+        b"</AnalysisData></MzIdentML>"
     )
     summary = extract_mzidentml_structure(data)
     with pytest.raises(TypeError, match="structure"):
@@ -113,7 +113,7 @@ def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> N
 
 @pytest.mark.parametrize(
     ("data", "message"),
-    (
+    [
         (
             b'<MzIdentML><SequenceCollection><DBSequence accession="P1"/>'
             b"</SequenceCollection></MzIdentML>",
@@ -134,7 +134,7 @@ def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> N
             b"</SequenceCollection></MzIdentML>",
             "unresolved DBSequence",
         ),
-    ),
+    ],
 )
 def test_mzidentml_reference_binding_rejects_malformed_object_graph(
     data: bytes, message: str
