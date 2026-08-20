@@ -231,6 +231,20 @@ class ControlProteinSubtypeChangeRequest(FrozenModel):
             raise ValueError("request comparison belongs to a different proposal")
         if any(not item.no_regression for item in self.comparisons):
             raise ValueError("critical regression prevents promotion")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifact identifiers must be unique")
+        declared_artifacts = (
+            self.rollback_point.restore_artifact,
+            *(item.reference for item in self.proposal.evidence),
+            *(evidence.reference for item in self.revalidations for evidence in item.evidence),
+            *(evidence.reference for item in self.comparisons for evidence in item.evidence),
+            *(evidence.reference for evidence in self.rollback_point.evidence),
+        )
+        if any(source_by_id.get(item.artifact_id) != item for item in declared_artifacts):
+            raise ValueError(
+                "source artifacts must bind every declared change-control artifact exactly"
+            )
         return self
 
 

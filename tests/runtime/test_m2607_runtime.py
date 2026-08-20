@@ -164,7 +164,12 @@ def _request(
         revalidations=revalidations or (passed,),
         comparisons=(comparison,),
         rollback_point=rollback,
-        source_artifacts=(_artifact("upstream-change"),),
+        source_artifacts=(
+            _artifact("upstream-change"),
+            _artifact("proposal"),
+            _artifact("restore", media_type="application/vnd.glio-proteogen.restore+json"),
+            _artifact("rollback-evidence"),
+        ),
     )
 
 

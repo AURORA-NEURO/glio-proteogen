@@ -78,6 +78,43 @@ def test_revalidation_cross_proposal_is_rejected_at_request_boundary() -> None:
         )
 
 
+def test_request_binds_nested_rollback_and_evidence_artifacts_exactly() -> None:
+    request = _request()
+    missing_restore = tuple(
+        artifact
+        for artifact in request.source_artifacts
+        if artifact.artifact_id != "artifact.restore"
+    )
+    forged_evidence = request.source_artifacts[-1].model_copy(
+        update={"digest": "sha256:" + "f" * 64}
+    )
+
+    with pytest.raises(ValidationError, match="bind every declared"):
+        ControlProteinSubtypeChangeRequest.model_validate(
+            request.model_dump(mode="python") | {"source_artifacts": missing_restore}
+        )
+    with pytest.raises(ValidationError, match="bind every declared"):
+        ControlProteinSubtypeChangeRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "source_artifacts": (
+                    *request.source_artifacts[:-1],
+                    forged_evidence,
+                )
+            }
+        )
+
+
+def test_request_rejects_duplicate_source_artifact_identifiers() -> None:
+    request = _request()
+
+    with pytest.raises(ValidationError, match="identifiers must be unique"):
+        ControlProteinSubtypeChangeRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (*request.source_artifacts, request.source_artifacts[0])}
+        )
+
+
 def test_result_id_tamper_is_rejected_even_when_digest_shape_is_valid() -> None:
     service = M2607ChangeControlService()
     result = service.control(_request())
