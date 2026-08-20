@@ -32,8 +32,9 @@ adapted.
   traversal. Each is recorded in the seven-entry provenance record.
 - Evidence tier and audience are checked against the declared intended use. Display must disclose
   support, uncertainty, provenance, evidence and limitations.
-- Results are deterministic and replay-safe. The result identifier derives from the canonical
-  request digest and payload tampering is rejected.
+- Results are deterministic and replay-safe. Verification derives the full adapter result again
+  from the canonical request, compares it field-for-field, and rejects payload tampering even
+  when a caller recomputes the result digest.
 - Failed policy emits no adapted object and returns explicit abstention with unsupported support
   and human-review escalation. All seven uncertainty dimensions remain `not_estimable`.
 
