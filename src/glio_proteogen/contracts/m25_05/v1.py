@@ -170,6 +170,17 @@ class EvaluationConfiguration(FrozenModel):
         return self
 
 
+def _thresholds_match_configuration(
+    configuration: EvaluationConfiguration,
+    performance: tuple[SubgroupPerformance, ...],
+    calibration: tuple[CalibrationSummary, ...],
+) -> None:
+    if any(item.safety_floor != configuration.safety_floor for item in performance):
+        raise ValueError("performance safety floors must match the locked configuration")
+    if any(item.coverage_target != configuration.nominal_coverage_target for item in calibration):
+        raise ValueError("calibration coverage targets must match the locked configuration")
+
+
 class SubgroupEvaluationReport(FrozenModel):
     report_id: Identifier
     version: SemanticVersion
@@ -182,6 +193,7 @@ class SubgroupEvaluationReport(FrozenModel):
 
     @model_validator(mode="after")
     def report_is_closed(self) -> SubgroupEvaluationReport:
+        _thresholds_match_configuration(self.configuration, self.performance, self.calibration)
         ids = (
             tuple(item.metric_id for item in self.performance)
             + tuple(item.calibration_id for item in self.calibration)
@@ -223,6 +235,7 @@ class EvaluateProteotypeSubgroupEquityRequest(FrozenModel):
             raise ValueError("request must bind the provisional M25-04 evaluator result")
         if self.context.request_id != self.request_id:
             raise ValueError("execution context request_id must match request_id")
+        _thresholds_match_configuration(self.configuration, self.performance, self.calibration)
         ids = (
             tuple(item.metric_id for item in self.performance)
             + tuple(item.calibration_id for item in self.calibration)

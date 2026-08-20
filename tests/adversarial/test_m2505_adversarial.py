@@ -86,6 +86,27 @@ def test_non_finite_numeric_input_is_rejected() -> None:
         EvaluateProteotypeSubgroupEquityRequest.model_validate(data, strict=True)
 
 
+@pytest.mark.parametrize(
+    ("collection", "field", "message"),
+    [
+        ("performance", "safety_floor", "safety floors"),
+        ("calibration", "coverage_target", "coverage targets"),
+    ],
+)
+def test_request_rejects_thresholds_forged_away_from_locked_configuration(
+    collection: str,
+    field: str,
+    message: str,
+) -> None:
+    data = _request_data()
+    item = dict(data[collection][0])
+    item[field] = 0.6 if collection == "performance" else 0.8
+    data[collection] = (item, *data[collection][1:])
+
+    with pytest.raises(ValidationError, match=message):
+        EvaluateProteotypeSubgroupEquityRequest.model_validate(data, strict=True)
+
+
 def test_context_request_id_mismatch_is_rejected() -> None:
     request = build_request()
     data = request.model_dump(mode="python")
@@ -303,6 +324,18 @@ def test_report_and_request_dimension_alignment_are_closed() -> None:
             request.model_copy(update={"coverage": shifted_coverage}).model_dump(mode="python"),
             strict=True,
         )
+
+
+def test_report_rejects_thresholds_forged_away_from_locked_configuration() -> None:
+    result = M2505Service().execute(build_request())
+    assert result.report is not None
+    changed = result.report.performance[0].model_copy(update={"safety_floor": 0.6})
+    forged = result.report.model_copy(
+        update={"performance": (changed, *result.report.performance[1:])}
+    )
+
+    with pytest.raises(ValidationError, match="safety floors"):
+        SubgroupEvaluationReport.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_result_request_digest_and_terminal_state_closures_are_strict() -> None:
