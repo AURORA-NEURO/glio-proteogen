@@ -7,6 +7,7 @@ from __future__ import annotations
 import pytest
 
 from glio_proteogen.contracts.m17_02 import AlignmentResultStatus, AlignmentStatus
+from glio_proteogen.contracts.m17_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
@@ -73,11 +74,14 @@ def test_service_replay_and_tamper_are_deterministic() -> None:
 
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert service.verify(first).result_digest == first.result_digest
-    assert service.verify(first, replay=False).result_digest == first.result_digest
     with pytest.raises(m1702.M1702ReplayVerificationError):
         service.verify(
             first.model_copy(update={"result_digest": sha256_digest("tampered")}), replay=False
         )
+    mutated = first.model_copy(update={"human_review_required": True})
+    resigned = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+    with pytest.raises(m1702.M1702ReplayVerificationError):
+        service.verify(resigned, replay=False)
 
 
 def test_preflight_and_invalid_requests_fail_closed() -> None:
