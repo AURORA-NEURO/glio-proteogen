@@ -374,15 +374,17 @@ def _read_bytes(source: bytes | bytearray | str | BinaryIO, max_bytes: int) -> b
     total = 0
     while True:
         remaining = max_bytes - total
-        value = source.read(min(65_536, remaining + 1))
-        if value in (b"", ""):
-            break
-        if not isinstance(value, (bytes, bytearray)):
+        raw_value: object = source.read(min(65_536, remaining + 1))
+        if isinstance(raw_value, str):
             raise TypeError("research BinaryIO must yield bytes")
-        total += len(value)
+        if raw_value == b"":
+            break
+        if not isinstance(raw_value, (bytes, bytearray)):
+            raise TypeError("research BinaryIO must yield bytes")
+        total += len(raw_value)
         if total > max_bytes:
             raise ValueError("research input exceeds the byte limit")
-        chunks.append(bytes(value))
+        chunks.append(bytes(raw_value))
     return b"".join(chunks)
 
 

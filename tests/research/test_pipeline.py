@@ -450,6 +450,15 @@ def test_pipeline_drains_short_reads_before_snapshot_and_replay() -> None:
     )
 
 
+def test_pipeline_rejects_empty_text_streams_at_snapshot_boundary() -> None:
+    with pytest.raises(TypeError, match="BinaryIO"):
+        ResearchRunRequest(
+            "text-stream",
+            io.StringIO(""),  # type: ignore[arg-type]
+            b">P1\nMPEPTIDER\n",
+        )
+
+
 def test_pipeline_binds_all_declared_controls_even_when_output_is_unchanged() -> None:
     """No-op policy knobs still belong to the provenance/configuration boundary."""
 
