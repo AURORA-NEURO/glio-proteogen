@@ -1,9 +1,12 @@
 """M27-07 runtime and replay tests."""
 
+import pytest
 from evals.m27_07.fixture import build_request
 
 from glio_proteogen.contracts.m27_07 import ChangeControlStatus
+from glio_proteogen.contracts.m27_07.canonical import result_payload_digest
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control import (
+    ChangeControlReplayError,
     ChangeControlSubmission,
     M2707ChangeControlEngine,
     M2707Plugin,
@@ -37,3 +40,16 @@ def test_service_json_roundtrip() -> None:
     request = build_request()
     result = M2707Service().execute_json(request.model_dump_json())
     assert result.status is ChangeControlStatus.APPROVED
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    engine = M2707ChangeControlEngine()
+    result = engine.evaluate(build_request())
+    mutated_support = result.support_decision.model_copy(
+        update={"rationale": "caller-rehashed semantic mutation"}
+    )
+    mutated = result.model_copy(update={"support_decision": mutated_support})
+    rehashed = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+
+    with pytest.raises(ChangeControlReplayError, match="differs from request"):
+        engine.replay(rehashed)
