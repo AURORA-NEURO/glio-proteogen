@@ -15,6 +15,7 @@ from glio_proteogen.research import (
     CohortSourceManifest,
     ResearchCohortRequest,
     ResearchCohortSample,
+    replay_research_cohort,
     run_research_cohort,
 )
 from glio_proteogen.research.public_proteomics.pdc import PDCSnapshot, PDCStudyMetadata
@@ -108,6 +109,51 @@ def test_technical_duplicate_of_one_biological_run_is_allowed_but_not_support() 
     assert result.label_qc[0].independent_replicates == 1
     assert result.label_qc[0].technical_replicates == 1
     assert result.label_qc[0].status == "abstained_insufficient_replicates"
+
+
+def test_mixed_biological_and_technical_replicates_normalize_only_biology() -> None:
+    samples = tuple(_sample(sample_id, sample_id) for sample_id in ("a", "b", "c"))
+    distinct = tuple(
+        replace(
+            sample,
+            request=replace(
+                sample.request,
+                mzml_source=cast("bytes", sample.request.mzml_source).replace(
+                    b"</mzML>", f"<!--{sample.sample_id}--></mzML>".encode()
+                ),
+            ),
+        )
+        for sample in samples
+    )
+    manifest = CohortSourceManifest.from_requests(
+        tuple(sample.request for sample in distinct),
+        replicate_kinds={"a": "biological", "b": "biological", "c": "technical"},
+    )
+    result = run_research_cohort(
+        ResearchCohortRequest(
+            distinct,
+            normalization_policy="within_label_median_v1",
+            source_manifest=manifest,
+        )
+    )
+    scales = {item.sample_id: item for item in result.sample_scales}
+    assert scales["a"].scale_factor is not None
+    assert scales["b"].scale_factor is not None
+    assert scales["c"].scale_factor is None
+    assert scales["c"].status == "abstained_technical_replicate"
+    assert result.raw_matrix[0][1][2] is not None
+    assert result.normalized_matrix[0][1][2] is None
+    assert result.label_qc[0].independent_replicates == 2
+    assert result.label_qc[0].technical_replicates == 1
+    assert result.label_group_evidence[0].independent_observed_replicates == 2
+    request = ResearchCohortRequest(
+        distinct,
+        normalization_policy="within_label_median_v1",
+        source_manifest=manifest,
+    )
+    assert replay_research_cohort(request, result) == result
+    with pytest.raises(ValueError, match="digest"):
+        replay_research_cohort(request, replace(result, result_digest="0" * 64))
 
 
 def test_unknown_independence_abstains_only_when_normalization_is_requested() -> None:

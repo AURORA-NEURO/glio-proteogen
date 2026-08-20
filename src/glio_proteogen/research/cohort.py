@@ -802,12 +802,19 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
             }
             target = float(median(tuple(sample_centers.values())))
             factors = {
-                index: target / sample_centers[index]
-                if isfinite(sample_centers[index]) and sample_centers[index] > 0
+                index: (
+                    target / sample_centers[index]
+                    if isfinite(sample_centers[index]) and sample_centers[index] > 0
+                    else None
+                )
+                if index in sample_centers
                 else None
                 for index in indices
             }
-            if any(factor is None or not isfinite(factor) for factor in factors.values()):
+            if any(
+                factor is None or not isfinite(factor)
+                for factor in (factors[index] for index in support_indices)
+            ):
                 status = "abstained_invalid_scale"
                 factors = dict.fromkeys(indices)
             else:
@@ -851,7 +858,11 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                 scale_factor=factor,
                 overlap_groups=len(shared),
                 positive_groups=positive_counts[index],
-                status=status,
+                status=(
+                    "abstained_technical_replicate"
+                    if technical_count and index not in biological_indices and factor is None
+                    else status
+                ),
             )
         if qc_status.startswith("abstained"):
             for index in indices:
