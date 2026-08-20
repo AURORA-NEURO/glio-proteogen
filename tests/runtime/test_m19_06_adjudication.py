@@ -2,7 +2,14 @@
 
 import pytest
 
-from glio_proteogen.contracts.m19_06 import QueueEntryState, QueueResultStatus, ReviewDecision
+from glio_proteogen.contracts.m19_06 import (
+    QueueEntryState,
+    QueueResultStatus,
+    ReviewDecision,
+    canonical_request_digest,
+)
+from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import EvidenceReference
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudication import (
     M1906AuthorizationError,
     M1906Engine,
@@ -44,6 +51,48 @@ def test_unresolved_queue_abstains_without_promoting_a_record() -> None:
     assert result.record is None
     assert result.abstention_reason is not None
     assert result.support_decision.status.value == "review_required"
+
+
+def test_provenance_binds_nested_review_evidence_artifact_identity() -> None:
+    request = _request()
+
+    def with_digest(evidence: EvidenceReference, label: str) -> EvidenceReference:
+        reference = evidence.reference.model_copy(
+            update={
+                "artifact_id": f"artifact.{label}",
+                "digest": sha256_digest(label),
+            }
+        )
+        return evidence.model_copy(update={"reference": reference})
+
+    entry = request.entries[0].model_copy(
+        update={"evidence": (with_digest(request.entries[0].evidence[0], "entry"),)}
+    )
+    assignment = request.assignments[0].model_copy(
+        update={"evidence": (with_digest(request.assignments[0].evidence[0], "assignment"),)}
+    )
+    configuration = request.configuration.model_copy(
+        update={"evidence": (with_digest(request.entries[0].evidence[0], "configuration"),)}
+    )
+    bound_request = request.model_copy(
+        update={
+            "entries": (entry,),
+            "assignments": (assignment,),
+            "configuration": configuration,
+        }
+    )
+
+    result = M1906Engine().adapt(bound_request)
+    input_digests = set(result.provenance.input_digests)
+    assert canonical_request_digest(bound_request) in input_digests
+    assert all(
+        digest in input_digests
+        for digest in (
+            entry.evidence[0].reference.digest,
+            assignment.evidence[0].reference.digest,
+            configuration.evidence[0].reference.digest,
+        )
+    )
 
 
 def test_missing_or_rejected_control_fails_before_queue_traversal() -> None:

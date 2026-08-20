@@ -31,6 +31,9 @@ negative finding solely because evidence is missing or unsupported.
 - Seven caller-declared controls are checked before upstream material is
   considered. Every decision retains control, support, provenance, evidence,
   and seven-dimensional uncertainty metadata.
+- Provenance binds the canonical request, upstream/source artifacts, workspace
+  configuration evidence, queue-entry evidence and reviewer-assignment evidence
+  by exact artifact digest, preserving the full adjudication input identity.
 - Critical discrepancies require two distinct blinded reviewers. Assignment
   IDs, discrepancy IDs, audit IDs, and sequence numbers are unique; history is
   contiguous, append-only, and hash chained.
