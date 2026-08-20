@@ -203,6 +203,10 @@ status is not exactly `descriptive` are also withheld: they produce `abstained_l
 null difference, ratio, and log2-ratio fields. This prevents unknown-independence, missingness,
 or insufficient-support labels from being presented as derived effects while retaining their
 raw and QC evidence.
+Finite positive medians whose derived difference, ratio, or log2 ratio would overflow or underflow
+are likewise withheld as `abstained_nonfinite_derived`, with all derived effect fields null.
+This keeps floating-point boundary behavior deterministic and prevents an extreme finite input
+from becoming an infinite or zero effect that could be mistaken for a measured contrast.
 External metadata
 snapshot digests must be identical across a cohort or all be absent; a mixed metadata
 version is rejected rather than silently combining catalog contexts. The receipt remains

@@ -16,6 +16,7 @@ from evals.research_proteomics.run import (
 
 from glio_proteogen.research import (
     CohortLabelContrast,
+    CohortLabelGroupEvidence,
     CohortSourceManifest,
     ResearchCohortRequest,
     ResearchCohortSample,
@@ -25,6 +26,7 @@ from glio_proteogen.research import (
 )
 from glio_proteogen.research.cohort import (
     _build_evidence_bundle,
+    _build_label_contrasts,
     _compatible_configuration,
     _digest,
 )
@@ -320,6 +322,48 @@ def test_cohort_label_contrast_abstains_when_label_qc_is_unverified() -> None:
         replay_research_cohort(request, tampered_status)
     with pytest.raises(ValueError, match="digest"):
         replay_research_cohort(request, replace(result, result_digest="0" * 64))
+
+
+@pytest.mark.parametrize(
+    ("label_a_median", "label_b_median"),
+    [(1e308, 1e-308), (1e-308, 1e308)],
+)
+def test_cohort_label_contrast_abstains_when_derived_ratio_is_nonfinite(
+    label_a_median: float, label_b_median: float
+) -> None:
+    evidence = _build_label_contrasts(
+        (
+            CohortLabelGroupEvidence(
+                cohort_label="case",
+                group_accessions=("P1",),
+                observed_replicates=2,
+                missing_replicates=0,
+                missingness_rate=0.0,
+                median_normalized_intensity=label_a_median,
+                mad_normalized_intensity=0.0,
+                status="descriptive",
+            ),
+            CohortLabelGroupEvidence(
+                cohort_label="control",
+                group_accessions=("P1",),
+                observed_replicates=2,
+                missing_replicates=0,
+                missingness_rate=0.0,
+                median_normalized_intensity=label_b_median,
+                mad_normalized_intensity=0.0,
+                status="descriptive",
+            ),
+        )
+    )
+
+    assert len(evidence) == 1
+    contrast = evidence[0]
+    assert contrast.status == "abstained_nonfinite_derived"
+    assert contrast.label_a_median == label_a_median
+    assert contrast.label_b_median == label_b_median
+    assert contrast.median_difference is None
+    assert contrast.median_ratio is None
+    assert contrast.log2_median_ratio is None
 
 
 def test_cohort_evidence_bundle_rejects_tampered_outer_or_inner_receipt() -> None:

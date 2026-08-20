@@ -302,8 +302,9 @@ class CohortLabelContrast:
     differential-expression test.  Labels are supplied by the caller and are
     never inferred from values, disease metadata, or protein names.  A ratio
     and log2 ratio are emitted only when both label medians are positive and
-    both upstream label QC statuses are descriptive; missing, non-positive, or
-    unverified-QC cells remain explicit abstentions rather than imputed effects.
+    both upstream label QC statuses are descriptive; missing, non-positive,
+    non-finite-derived, or unverified-QC cells remain explicit abstentions
+    rather than imputed effects.
     """
 
     cohort_label_a: str
@@ -351,6 +352,7 @@ class CohortLabelContrast:
             "descriptive",
             "abstained_label_qc",
             "abstained_missing_or_nonpositive",
+            "abstained_nonfinite_derived",
         }:
             raise ValueError("contrast status is not supported")
         nonnegative = (
@@ -769,8 +771,20 @@ def _build_label_contrasts(
                 else:
                     difference = left_median - right_median
                     ratio = left_median / right_median
-                    log_ratio = log2(ratio)
-                    status = "descriptive"
+                    if not isfinite(difference) or not isfinite(ratio) or ratio <= 0.0:
+                        difference = None
+                        ratio = None
+                        log_ratio = None
+                        status = "abstained_nonfinite_derived"
+                    else:
+                        log_ratio = log2(ratio)
+                        if not isfinite(log_ratio):
+                            difference = None
+                            ratio = None
+                            log_ratio = None
+                            status = "abstained_nonfinite_derived"
+                        else:
+                            status = "descriptive"
                 contrasts.append(
                     CohortLabelContrast(
                         cohort_label_a=label_a,
