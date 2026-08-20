@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m17_08 import (
     TranslationHealthState,
     WorkflowEffectObservation,
 )
+from glio_proteogen.contracts.m17_08.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -247,4 +248,13 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(m1708.M1708ReplayError, match="payload digest"):
+        m1708.M1708Engine().replay(tampered)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    result = m1708.M1708Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1708.M1708ReplayError, match="semantic replay"):
         m1708.M1708Engine().replay(tampered)
