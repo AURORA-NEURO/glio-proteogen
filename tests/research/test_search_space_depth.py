@@ -109,6 +109,17 @@ def test_receipt_is_order_stable_and_source_bound() -> None:
     assert forward.source_sha256 != changed_source.source_sha256
 
 
+def test_receipt_round_trips_with_one_character_decoy_prefix() -> None:
+    entries = (FastaEntry("P1", "MPEPTIDER"), FastaEntry("XP1", "MPEPTIDER"))
+    receipt = build_search_space_receipt(
+        b">P1\nMPEPTIDER\n>XP1\nMPEPTIDER\n",
+        entries,
+        decoy_prefix="X",
+    )
+    assert receipt.decoy_prefix == "X"
+    assert verify_search_space_receipt(receipt) == receipt
+
+
 def test_receipt_rejects_duplicate_accessions_and_bad_source() -> None:
     entry = FastaEntry("P1", "MPEPTIDER")
     with pytest.raises(ValueError, match="unique"):

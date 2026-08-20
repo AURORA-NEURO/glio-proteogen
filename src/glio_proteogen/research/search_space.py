@@ -386,8 +386,9 @@ def _validate_receipt_structure(receipt: SearchSpaceReceipt) -> None:  # noqa: P
         or type(receipt.min_peptide_length) is not int
         or type(receipt.max_peptide_length) is not int
         or not 1 <= receipt.min_peptide_length <= receipt.max_peptide_length <= 100
-        or len(receipt.decoy_prefix) < 2
-        or any(character.isspace() for character in receipt.decoy_prefix)
+        or not isinstance(receipt.decoy_prefix, str)
+        or not 1 <= len(receipt.decoy_prefix) <= 32
+        or any(character.isspace() or ord(character) < 33 for character in receipt.decoy_prefix)
     ):
         raise ValueError("search-space digestion controls are invalid")
     if type(receipt.pairs) is not tuple:

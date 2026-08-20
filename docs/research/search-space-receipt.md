@@ -38,6 +38,10 @@ separate search-space projection recorded by the `modified_*` fields; residue
 eligibility must not turn identical cleavage into a reported cleavage mismatch
 or make the FDR search-space receipt depend on an optional PTM policy.
 
+Custom decoy prefixes use the same bounded one-to-32-character,
+non-whitespace rule at construction and verification, so a valid one-character
+namespace remains replayable.
+
 This remains a research-only receipt. It does not infer protein identity,
 calibrate FDR, validate a search engine, authenticate a public data provider,
 or support clinical, glioma, mechanism, proteoform, or isoform claims. A future
