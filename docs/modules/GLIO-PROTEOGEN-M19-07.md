@@ -22,7 +22,8 @@ compatibility, granted consent, supported input, a caller-declared signature,
 seven uncertainty dimensions, provenance, evidence and limitations. Every
 request is bound to the seven execution controls and to the M19-06 upstream
 media type. Field IDs/names, evidence digests, result identity and canonical
-payload digests are closed and immutable.
+payload digests are closed and immutable. Provenance input identity includes
+configuration, consent, field and all seven control evidence digests.
 
 The module does not own kinase state, generic all-omics fusion, direct
 treatment recommendation, identity inference, consent inference or negative

@@ -213,6 +213,25 @@ def _provenance(
     request_digest: str,
 ) -> ProvenanceRecord:
     refs = request.context.references
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                request_digest,
+                request.upstream_result.digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in request.configuration.evidence),
+                request.consent.evidence.digest,
+                *(item.reference.digest for field in request.fields for item in field.evidence),
+                refs.approved_configuration.evidence.digest,
+                refs.identity_lineage.evidence.digest,
+                refs.provenance.evidence.digest,
+                refs.consent.evidence.digest,
+                refs.quality.evidence.digest,
+                refs.support.evidence.digest,
+                refs.intended_use.evidence.digest,
+            )
+        )
+    )
     controls = (
         ControlDecisionRecord(
             role=ControlRole.APPROVED_CONFIGURATION,
@@ -271,11 +290,7 @@ def _provenance(
         module_id=M1907_MODULE_ID,
         module_version=M1907_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            request_digest,
-            request.upstream_result.digest,
-            *(artifact.digest for artifact in request.source_artifacts),
-        ),
+        input_digests=input_digests,
         configuration_digest=request.configuration.evidence[0].reference.digest,
         consent_decision_id=refs.consent.decision_id,
         consent_state=refs.consent.state,

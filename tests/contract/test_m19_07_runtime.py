@@ -25,6 +25,26 @@ def test_engine_exports_and_replays_canonical_result() -> None:
     assert engine.verify(result) == result
 
 
+def test_provenance_binds_all_export_evidence_artifact_identity() -> None:
+    request = _request()
+    result = M1907Engine().export(request)
+    input_digests = set(result.provenance.input_digests)
+    references = request.context.references
+    nested_evidence_digests = (
+        *(item.reference.digest for item in request.configuration.evidence),
+        request.consent.evidence.digest,
+        *(item.reference.digest for field in request.fields for item in field.evidence),
+        references.approved_configuration.evidence.digest,
+        references.identity_lineage.evidence.digest,
+        references.provenance.evidence.digest,
+        references.consent.evidence.digest,
+        references.quality.evidence.digest,
+        references.support.evidence.digest,
+        references.intended_use.evidence.digest,
+    )
+    assert set(nested_evidence_digests).issubset(input_digests)
+
+
 def test_engine_abstains_for_unsupported_declared_field() -> None:
     engine = M1907Engine()
     result = engine.export(_request(fields=(_field("unsupported"),)))
