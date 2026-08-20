@@ -28,6 +28,14 @@ This closes a concrete resource gap: the prior adapters used unbounded
 materialized before the declared limit was checked. Existing API behavior and
 scientific semantics remain unchanged.
 
+The central Typer registry is also a canonical surface: each command-group
+name must occur exactly once. Duplicate registrations are not rejected by
+Typer and can make help/dispatch order-dependent. The M18-08
+translation-health group had been registered twice; the duplicate was removed
+and the integration suite now asserts uniqueness across the complete registry.
+This is a transport and operator-surface invariant only; it does not promote
+any provisional M20 ABI or add a scientific claim.
+
 ## Verification
 
 The focused matrix covers sparse request/result files one byte over every M20
@@ -36,6 +44,7 @@ verify routes for all four apps, and an AST guard preventing direct
 `Path.read_bytes()` from returning to the affected files.
 
 * 22 resource-boundary tests passed;
+* central CLI registry uniqueness and late-surface tests passed;
 * 26 existing M20 integration/evaluator tests passed;
 * 47 focused tests passed with coverage disabled;
 * Ruff check/format, strict MyPy, compileall, and `git diff --check` passed.
