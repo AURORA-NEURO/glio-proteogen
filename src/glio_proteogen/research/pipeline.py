@@ -770,12 +770,11 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             if request.external_pdc_receipt is not None
             else None
         ),
-        "external_pdc_metadata_snapshot": (
-            request.external_pdc_metadata_snapshot.as_dict()
-            if request.external_pdc_metadata_snapshot is not None
-            else None
-        ),
     }
+    if request.external_pdc_metadata_snapshot is not None:
+        configuration_payload["external_pdc_metadata_snapshot"] = (
+            request.external_pdc_metadata_snapshot.as_dict()
+        )
     configuration_payload.update(
         {
             "modification_version": _MODIFICATION_VERSION,
