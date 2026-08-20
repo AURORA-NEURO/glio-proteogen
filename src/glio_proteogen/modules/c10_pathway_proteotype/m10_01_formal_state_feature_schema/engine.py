@@ -412,7 +412,14 @@ class M1001FormalStateEngine:
             )
         expected_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected_bytes
-        deterministic_verified = typed.result_digest == result_payload_digest(typed)
+        try:
+            replayed = self.execute(typed.request)
+        except Exception:  # noqa: BLE001 - verification fails closed on replay errors.
+            deterministic_verified = False
+        else:
+            deterministic_verified = typed.result_digest == result_payload_digest(typed) and (
+                replayed.result.model_dump(mode="json") == typed.model_dump(mode="json")
+            )
         verified = content_verified and deterministic_verified
         return ValidateProteinRnaDiscordanceStateVerification(
             content_verified=content_verified,
