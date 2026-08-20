@@ -811,7 +811,9 @@ def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
             value is not None for _, values in result.matrix for value in (values[index],)
         )
         missing = len(result.group_accessions) - observed
-        expected_missingness = missing / len(result.group_accessions) if result.group_accessions else 1.0
+        expected_missingness = (
+            missing / len(result.group_accessions) if result.group_accessions else 1.0
+        )
         if (
             item.quantified_groups != observed
             or item.missing_groups != missing
