@@ -30,6 +30,7 @@ from glio_proteogen.contracts.m27_03.canonical import (
     execution_id_for_request_digest,
     package_id_for_request_digest,
     result_id_for_request_digest,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -268,6 +269,19 @@ def test_tampered_result_is_rejected_by_replay() -> None:
     tampered = result.model_copy(update={"result_id": "m2703.result." + "f" * 64})
     with pytest.raises(M2703ReplayError):
         M2703Engine().verify(tampered, replay=False)
+
+
+def test_replay_rejects_self_rehashed_semantic_mutation() -> None:
+    engine = M2703Engine()
+    result = engine.execute(_request())
+    mutated_support = result.support_decision.model_copy(
+        update={"rationale": "caller-rehashed semantic mutation"}
+    )
+    mutated = result.model_copy(update={"support_decision": mutated_support})
+    rehashed = mutated.model_copy(update={"result_digest": result_payload_digest(mutated)})
+
+    with pytest.raises(M2703ReplayError, match="deterministic replay mismatch"):
+        engine.verify(rehashed)
 
 
 def test_fastapi_exposes_schema_and_sanitizes_bad_json() -> None:
