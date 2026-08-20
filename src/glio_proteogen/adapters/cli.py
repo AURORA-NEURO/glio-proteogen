@@ -684,6 +684,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904Service,
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
+    M2702ReplayError,
     M2702Service,
     preflight_m2702_authorization,
 )
@@ -1531,12 +1532,16 @@ def resolve_m2702_lineage(request: RequestArgument) -> None:
 def verify_m2702_lineage(result: RequestArgument) -> None:
     """Replay and validate one sealed M27-02 result envelope."""
 
-    parsed = _load_request(
-        result,
-        TypeAdapter(ComplexActivityLineageResult),
-        max_bytes=M2702_MAX_CANONICAL_RESULT_BYTES,
-    )
-    _emit(parsed)
+    try:
+        parsed = _load_request(
+            result,
+            TypeAdapter(ComplexActivityLineageResult),
+            max_bytes=M2702_MAX_CANONICAL_RESULT_BYTES,
+        )
+        _emit(M2702Service().replay(parsed))
+    except M2702ReplayError as error:
+        typer.echo(f"M27-02 replay verification failed: {error}", err=True)
+        raise typer.Exit(code=1) from error
 
 
 def _load_release_files(
