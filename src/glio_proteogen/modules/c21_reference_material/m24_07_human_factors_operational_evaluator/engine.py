@@ -25,6 +25,7 @@ from glio_proteogen.contracts.m24_07 import (
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
+    ArtifactReference,
     ConsentState,
     ControlDecisionRecord,
     ControlRole,
@@ -298,9 +299,32 @@ def _uncertainty() -> UncertaintyProfile:
 def _evidence(
     request: EvaluateBiomarkerPanelHumanFactorsRequest,
 ) -> tuple[EvidenceReference, ...]:
+    references = request.context.references
+    artifacts = list(request.source_artifacts)
+    artifacts.extend(
+        evidence.reference for metric in request.metrics for evidence in metric.evidence
+    )
+    artifacts.extend(
+        evidence.reference for fallback in request.fallbacks for evidence in fallback.evidence
+    )
+    artifacts.extend(evidence.reference for evidence in request.configuration.evidence)
+    artifacts.extend(
+        (
+            references.approved_configuration.evidence,
+            references.identity_lineage.evidence,
+            references.provenance.evidence,
+            references.consent.evidence,
+            references.quality.evidence,
+            references.support.evidence,
+            references.intended_use.evidence,
+        )
+    )
+    unique: dict[str, ArtifactReference] = {}
+    for artifact in artifacts:
+        unique.setdefault(artifact.digest, artifact)
     return tuple(
         EvidenceReference(reference=artifact, role="evidence", claim=M2407_EVIDENCE_CLAIM)
-        for artifact in request.source_artifacts
+        for artifact in tuple(unique.values())[:64]
     )
 
 
@@ -331,16 +355,24 @@ def _provenance(
         )
         for role, decision in controls
     )
+    emitted_evidence = _evidence(request)
+    input_digests = tuple(
+        dict.fromkeys(
+            (
+                request_digest,
+                request.upstream_result.digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+                *(item.reference.digest for item in emitted_evidence),
+            )
+        )
+    )
     return ProvenanceRecord(
         activity_id="m2407.activity." + request_digest.removeprefix("sha256:"),
         actor_id=request.context.actor_id,
         module_id=M2407_MODULE_ID,
         module_version=M2407_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
-        input_digests=(
-            request.upstream_result.digest,
-            *tuple(a.digest for a in request.source_artifacts),
-        ),
+        input_digests=input_digests,
         configuration_digest=canonical_request_digest(request.configuration),
         consent_decision_id=references.consent.decision_id,
         consent_state=references.consent.state,

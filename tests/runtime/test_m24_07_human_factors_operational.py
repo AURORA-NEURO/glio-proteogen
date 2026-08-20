@@ -51,6 +51,31 @@ def test_supported_result_closes_report_provenance_and_uncertainty() -> None:
     )
 
 
+def test_result_retains_nested_operational_evidence_and_provenance() -> None:
+    typed = request()
+    result = m2407.M2407Service().evaluate(typed)
+    references = typed.context.references
+    nested_digests = {
+        *(evidence.reference.digest for metric in typed.metrics for evidence in metric.evidence),
+        *(
+            evidence.reference.digest
+            for fallback in typed.fallbacks
+            for evidence in fallback.evidence
+        ),
+        *(evidence.reference.digest for evidence in typed.configuration.evidence),
+        references.approved_configuration.evidence.digest,
+        references.identity_lineage.evidence.digest,
+        references.provenance.evidence.digest,
+        references.consent.evidence.digest,
+        references.quality.evidence.digest,
+        references.support.evidence.digest,
+        references.intended_use.evidence.digest,
+    }
+    result_evidence = {evidence.reference.digest for evidence in result.evidence}
+    assert nested_digests <= result_evidence
+    assert nested_digests <= set(result.provenance.input_digests)
+
+
 def test_repeat_json_and_plugin_are_byte_deterministic() -> None:
     service = m2407.M2407Service()
     typed = request()
