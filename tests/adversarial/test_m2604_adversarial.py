@@ -133,6 +133,29 @@ def test_request_rejects_unknown_operation_references() -> None:
         )
 
 
+def test_request_rejects_authorized_operation_without_idempotency_coverage() -> None:
+    request = _request()
+    second_operation = request.operations[0].model_copy(
+        update={"operation_id": "m2604.operation.write", "name": "write gateway surface"}
+    )
+    second_authorization = request.authorizations[0].model_copy(
+        update={
+            "authorization_id": "m2604.authorization.write",
+            "operation_id": second_operation.operation_id,
+        }
+    )
+    forged = request.model_copy(
+        update={
+            "operations": (*request.operations, second_operation),
+            "authorizations": (*request.authorizations, second_authorization),
+        }
+    )
+    with pytest.raises(ValidationError, match="idempotency coverage"):
+        PublishProteinSubtypeAccessSurfaceRequest.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
+
+
 def test_disabled_operation_abstains_and_preserves_finding() -> None:
     request = _request()
     disabled = request.operations[0].model_copy(update={"status": OperationStatus.DISABLED})

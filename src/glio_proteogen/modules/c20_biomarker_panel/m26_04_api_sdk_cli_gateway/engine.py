@@ -156,6 +156,17 @@ def _findings(  # noqa: C901 - explicit decision matrix.
                     evidence=evidence,
                 )
             )
+    idempotency_operation_ids = {record.operation_id for record in request.idempotency_records}
+    for operation in request.operations:
+        if operation.operation_id not in idempotency_operation_ids:
+            findings.append(  # noqa: PERF401 - preserves typed finding order.
+                GatewayFinding(
+                    finding_id="m2604.finding.idempotency." + operation.operation_id,
+                    code=GatewayFindingCode.IDEMPOTENCY_MISSING,
+                    message=f"operation {operation.operation_id} has no idempotency record",
+                    evidence=evidence,
+                )
+            )
     for job in request.jobs:
         if job.status is not JobStatus.SUCCEEDED:
             findings.append(  # noqa: PERF401 - preserves typed finding order.

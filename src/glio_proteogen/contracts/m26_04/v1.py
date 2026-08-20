@@ -263,6 +263,8 @@ class AccessSurface(FrozenModel):
             raise ValueError("audit event references unknown operation")
         if any(job.idempotency not in self.idempotency_records for job in self.jobs):
             raise ValueError("every async job idempotency record must be declared")
+        if {record.operation_id for record in self.idempotency_records} != operation_ids:
+            raise ValueError("every gateway operation requires idempotency coverage")
         if any(
             operation.protocol not in self.configuration.supported_protocols
             for operation in self.operations
@@ -328,6 +330,8 @@ class PublishProteinSubtypeAccessSurfaceRequest(FrozenModel):
             raise ValueError("every gateway operation requires authorization")
         if any(job.idempotency not in self.idempotency_records for job in self.jobs):
             raise ValueError("every async job idempotency record must be declared")
+        if {record.operation_id for record in self.idempotency_records} != known:
+            raise ValueError("every gateway operation requires idempotency coverage")
         source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source artifacts must have unique artifact IDs")
