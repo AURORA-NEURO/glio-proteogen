@@ -237,6 +237,51 @@ class ResolveComplexActivityLineageRequest(FrozenModel):
         return self
 
 
+def _graph_binds_exact_request(
+    graph: LineageGraph,
+    request: ResolveComplexActivityLineageRequest,
+    request_digest: Sha256Digest,
+) -> bool:
+    source_ids = tuple(artifact.artifact_id for artifact in request.source_artifacts)
+    source_versions = tuple(artifact.version for artifact in request.source_artifacts)
+    source_digests = tuple(artifact.digest for artifact in request.source_artifacts)
+    source_media_types = tuple(artifact.media_type for artifact in request.source_artifacts)
+    source_nodes = graph.nodes[1:]
+    edges = graph.edges
+    bundle = graph.reproducibility_bundle
+    root = graph.nodes[0]
+    return (
+        graph.graph_id == "graph.m2702." + request_digest.removeprefix("sha256:")
+        and graph.version == M2702_CONTRACT_VERSION
+        and tuple(node.node_id for node in graph.nodes) == (request.root_object_id, *source_ids)
+        and root.kind is LineageNodeKind.TRANSFORMATION
+        and root.name == "complex_activity_lineage_root"
+        and root.version == M2702_CONTRACT_VERSION
+        and root.digest == request_digest
+        and root.media_type == M2702_OUTPUT_MEDIA_TYPE
+        and tuple(node.kind for node in source_nodes)
+        == (LineageNodeKind.SOURCE_DATA,) * len(source_ids)
+        and tuple(node.name for node in source_nodes) == source_ids
+        and tuple(node.version for node in source_nodes) == source_versions
+        and tuple(node.digest for node in source_nodes) == source_digests
+        and tuple(node.media_type for node in source_nodes) == source_media_types
+        and tuple(edge.edge_id for edge in edges)
+        == tuple(f"edge.m2702.{index}" for index in range(len(source_ids)))
+        and tuple(edge.source_node_id for edge in edges) == source_ids
+        and tuple(edge.target_node_id for edge in edges)
+        == (request.root_object_id,) * len(source_ids)
+        and tuple(edge.relation for edge in edges)
+        == (LineageRelation.DERIVED_FROM,) * len(source_ids)
+        and tuple(edge.producing_version for edge in edges) == source_versions
+        and bundle.bundle_id == "bundle.m2702." + request_digest.removeprefix("sha256:")
+        and bundle.version == M2702_CONTRACT_VERSION
+        and bundle.root_node_id == request.root_object_id
+        and bundle.node_ids == tuple(node.node_id for node in graph.nodes)
+        and bundle.edge_ids == tuple(edge.edge_id for edge in edges)
+        and bundle.producing_versions == tuple(sorted({M2702_CONTRACT_VERSION, *source_versions}))
+    )
+
+
 class ComplexActivityLineageResult(FrozenModel):
     """Queryable lineage graph and reproducibility bundle or safe failure."""
 
@@ -276,6 +321,10 @@ class ComplexActivityLineageResult(FrozenModel):
                 or self.human_review_required
             ):
                 raise ValueError("resolved result requires a supported lineage graph")
+            if not _graph_binds_exact_request(
+                self.lineage_graph, self.request, self.request_digest
+            ):
+                raise ValueError("resolved lineage graph must bind exact request dependencies")
             if self.lineage_graph.reproducibility_bundle.manifest_digest != graph_payload_digest(
                 self.lineage_graph
             ):

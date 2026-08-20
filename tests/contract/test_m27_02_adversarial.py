@@ -71,6 +71,26 @@ def test_resigned_graph_manifest_tamper_is_rejected() -> None:
         ComplexActivityLineageResult.model_validate(payload, strict=True)
 
 
+def test_resigned_graph_rejects_request_dependency_mutation() -> None:
+    result = M2702LineageResolver().resolve(_request())
+    assert result.lineage_graph is not None
+    graph = result.lineage_graph
+    forged_source = graph.nodes[1].model_copy(update={"digest": "sha256:" + "f" * 64})
+    forged_graph = graph.model_copy(
+        update={"nodes": (graph.nodes[0], forged_source, *graph.nodes[2:])}
+    )
+    sealed_bundle = forged_graph.reproducibility_bundle.model_copy(
+        update={"manifest_digest": graph_payload_digest(forged_graph)}
+    )
+    forged_graph = forged_graph.model_copy(update={"reproducibility_bundle": sealed_bundle})
+    payload = result.model_dump(mode="python")
+    payload["lineage_graph"] = forged_graph
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="exact request dependencies"):
+        ComplexActivityLineageResult.model_validate(payload, strict=True)
+
+
 def test_resigned_result_rejects_partial_reproducibility_bundle() -> None:
     result = M2702LineageResolver().resolve(_request())
     assert result.lineage_graph is not None
