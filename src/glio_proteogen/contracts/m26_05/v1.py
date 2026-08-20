@@ -338,6 +338,8 @@ class ProteomicsTelemetryResult(FrozenModel):
                 and not self.human_review_required
             ):
                 raise ValueError("open or suppressed alerts require human review")
+            if self.dashboards != self.request.dashboard_definitions:
+                raise ValueError("emitted dashboards must bind exact request definitions")
         elif (
             self.telemetry_stream is not None
             or self.dashboards

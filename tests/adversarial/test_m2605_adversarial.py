@@ -151,6 +151,19 @@ def test_self_rehashed_telemetry_mutation_is_rejected_by_all_replay_seams() -> N
         M2605Plugin().replay(forged)
 
 
+def test_strict_result_validation_rejects_self_rehashed_dashboard_substitution() -> None:
+    result = M2605ObservabilityEngine().emit(_request())
+    dashboard = result.request.dashboard_definitions[0].model_copy(
+        update={"owner": "forged-dashboard-owner"}
+    )
+    forged = result.model_copy(update={"dashboards": (dashboard,)})
+    payload = forged.model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="exact request definitions"):
+        TypeAdapter(ProteomicsTelemetryResult).validate_python(payload, strict=True)
+
+
 def test_api_and_cli_reject_self_rehashed_telemetry_mutation(tmp_path: Path) -> None:
     result = M2605ObservabilityEngine().emit(_request())
     assert result.telemetry_stream is not None
