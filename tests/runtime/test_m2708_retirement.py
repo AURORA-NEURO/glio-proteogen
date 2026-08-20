@@ -3,7 +3,11 @@
 # These tests assert sanitized boundary errors and capability rejection.
 # ruff: noqa: PT017, TRY003
 
+from http import HTTPStatus
+
+import pytest
 from evals.m27_08.fixture import build_request
+from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m27_08 import (
     M2708_MAX_CANONICAL_REQUEST_BYTES,
@@ -16,6 +20,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import (
     M2708Service,
     RetirementSubmission,
 )
+from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import api as m2708_api
 
 
 def test_engine_executes_complete_retirement() -> None:
@@ -82,3 +87,28 @@ def test_service_rejects_oversized_bytes() -> None:
         assert "validation failed" in str(error)
     else:
         raise AssertionError("oversized request must be rejected")
+
+
+def test_service_rejects_oversized_mapping_after_json_reencoding() -> None:
+    payload = build_request().model_dump(mode="json")
+    payload["context"]["actor_id"] = "a" * M2708_MAX_CANONICAL_REQUEST_BYTES
+    try:
+        M2708Service().validate_request(payload)
+    except ValueError as error:
+        assert "validation failed" in str(error)
+    else:
+        raise AssertionError("oversized mapping must be rejected")
+
+
+def test_api_applies_request_and_result_byte_caps(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(m2708_api, "M2708_MAX_CANONICAL_REQUEST_BYTES", 1)
+    monkeypatch.setattr(m2708_api, "M2708_MAX_CANONICAL_RESULT_BYTES", 1)
+    client = TestClient(m2708_api.create_app())
+    assert (
+        client.post("/v1/modules/M27-08/validate", content=b"").status_code
+        == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
+    assert (
+        client.post("/v1/modules/M27-08/verify", content=b"").status_code
+        == HTTPStatus.UNPROCESSABLE_ENTITY
+    )
