@@ -184,6 +184,13 @@ def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> No
         verify_pdc_source_content(receipt, io.StringIO("not bytes"))  # type: ignore[arg-type]
 
 
+def test_pdc_file_rejects_boolean_size_metadata() -> None:
+    payload = b"<mzML>verified</mzML>"
+    file = _file("memory://PDC000204/content", payload)
+    with pytest.raises(ValueError, match="file_size"):
+        replace(file, file_size=True)  # type: ignore[arg-type]
+
+
 def test_receipt_rejects_tampered_observed_media_type() -> None:
     payload = b"<mzML>verified</mzML>"
     with _http_server({"/ok": _Route(200, payload, "application/mzML; charset=binary")}) as base:

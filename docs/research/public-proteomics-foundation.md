@@ -36,6 +36,11 @@ file in the captured inventory must belong to the snapshot study, even when the
 selected file itself matches. This prevents a valid file receipt from carrying
 an otherwise contaminated cross-study catalog inventory.
 
+Catalog file declarations require an exact non-negative integer byte size at
+construction. Boolean values are rejected rather than being treated as `0` or
+`1` through Python's `bool`-is-an-`int` relationship, preserving the exact-size
+source binding used by raw-file receipts.
+
 ## Captured public record
 
 On 2026-08-17, the public PDC GraphQL endpoint

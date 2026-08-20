@@ -49,6 +49,10 @@ class PdcFile:
     location: str
     signed_url: str | None = None
 
+    def __post_init__(self) -> None:
+        if type(self.file_size) is not int or self.file_size < 0:
+            raise ValueError("PDC file_size must be a non-negative integer")
+
 
 @dataclass(frozen=True, slots=True)
 class PdcStudySnapshot:
