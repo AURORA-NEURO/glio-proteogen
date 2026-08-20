@@ -11,7 +11,8 @@ from glio_proteogen.contracts.m19_03 import (
     FusionStatus,
     ReliabilityBand,
 )
-from glio_proteogen.kernel.models import SupportStatus
+from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import EvidenceReference, SupportStatus
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
     M1903AuthorizationError,
     M1903Engine,
@@ -47,6 +48,50 @@ def test_resolved_disagreement_is_preserved_in_integrated_object() -> None:
     assert result.status is FusionStatus.INTEGRATED
     assert result.integrated_evidence is not None
     assert result.integrated_evidence.disagreements == (disagreement,)
+
+
+def test_provenance_binds_nested_fusion_evidence_artifact_identity() -> None:
+    request = _request()
+    base_evidence = request.contributions[0].evidence[0]
+
+    def with_digest(label: str) -> EvidenceReference:
+        reference = base_evidence.reference.model_copy(
+            update={"artifact_id": f"artifact.m1903.{label}", "digest": sha256_digest(label)}
+        )
+        return base_evidence.model_copy(update={"reference": reference})
+
+    contribution = request.contributions[0].model_copy(
+        update={"evidence": (with_digest("contribution"),)}
+    )
+    configuration = request.configuration.model_copy(
+        update={"evidence": (with_digest("configuration"),)}
+    )
+    disagreement = DisagreementRecord(
+        disagreement_id="disagreement.m1903.provenance",
+        source_ids=("source.m1903.proteome", "source.m1903.genome"),
+        description="Synthetic resolved source difference.",
+        status=DisagreementStatus.RESOLVED,
+        resolution="Reviewed by the owning evidence authority.",
+        evidence=(with_digest("disagreement"),),
+    )
+    bound_request = request.model_copy(
+        update={
+            "contributions": (contribution, request.contributions[1]),
+            "configuration": configuration,
+            "disagreements": (disagreement,),
+        }
+    )
+
+    result = M1903Engine().adapt(bound_request)
+    input_digests = set(result.provenance.input_digests)
+    assert all(
+        evidence.reference.digest in input_digests
+        for evidence in (
+            contribution.evidence[0],
+            configuration.evidence[0],
+            disagreement.evidence[0],
+        )
+    )
 
 
 def test_open_disagreement_abstains_without_erasing_conflict() -> None:
