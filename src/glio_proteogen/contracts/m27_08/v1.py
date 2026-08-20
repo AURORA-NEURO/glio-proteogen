@@ -306,7 +306,13 @@ class ComplexActivityRetirementResult(FrozenModel):
             (self.provenance.generated_at, self.request.context.occurred_at, "generated time"),
             (
                 self.provenance.input_digests,
-                (self.request_digest, *(item.digest for item in self.request.source_artifacts)),
+                (
+                    self.request_digest,
+                    self.request.mass_spectrometry_proteome.digest,
+                    self.request.genome_transcriptome.digest,
+                    self.request.ptm_annotations.digest,
+                    *(item.digest for item in self.request.source_artifacts),
+                ),
                 "input digests",
             ),
             (
