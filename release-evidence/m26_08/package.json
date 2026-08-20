@@ -8,8 +8,8 @@
   },
   "sdist": {
     "filename": "glio_proteogen-0.1.0.tar.gz",
-    "size_bytes": 4695888,
-    "sha256": "b7a2001417f0ae82cc15bef01e404122dc9de7ad269ba322330547edff5954ed"
+    "size_bytes": 4695884,
+    "sha256": "a964b599c305ef679d30a3efca04b9ebb10ae1e2e5523ecedb83363bba4f5a6d"
   },
   "build_backend": "hatchling 1.31.0",
   "reproducibility": {
@@ -17,7 +17,7 @@
     "byte_identical": true,
     "source_date_epoch": 315532800,
     "wheel_sha256": "31ff9793c6638852675472263dd8bb742dce018ab19263092491db12fbe98fd0",
-    "sdist_sha256": "b7a2001417f0ae82cc15bef01e404122dc9de7ad269ba322330547edff5954ed"
+    "sdist_sha256": "a964b599c305ef679d30a3efca04b9ebb10ae1e2e5523ecedb83363bba4f5a6d"
   },
   "isolated_import_passed": true,
   "release_verifier_passed": true,
