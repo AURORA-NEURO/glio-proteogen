@@ -421,15 +421,22 @@ class M2703Engine:
             raise M2703EvaluationError("M27-03 result construction failed safely") from error
 
     def verify(self, result: object, *, replay: bool = True) -> ComplexActivityPipelineResult:
+        if replay is False:
+            # A payload digest only proves that the submitted envelope is
+            # internally self-consistent.  M27-03 claims reproducible
+            # orchestration, so verification must regenerate the result from
+            # its bound request; accepting an opt-out would allow a caller to
+            # re-sign a semantic mutation as a valid pipeline result.
+            raise M2703ReplayError("M27-03 replay verification cannot be disabled")
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except Exception as error:
             raise M2703ReplayError("M27-03 result is invalid") from error
         if validated.result_digest != result_payload_digest(validated):
             raise M2703ReplayError("M27-03 result digest mismatch")
-        if replay and self.execute(validated.request).model_dump(
+        if self.execute(validated.request).model_dump(mode="json") != validated.model_dump(
             mode="json"
-        ) != validated.model_dump(mode="json"):
+        ):
             raise M2703ReplayError("M27-03 deterministic replay mismatch")
         return validated
 
