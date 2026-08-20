@@ -1003,6 +1003,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
+    M2702ReplayError,
     M2702Service,
     preflight_m2702_authorization,
 )
@@ -4081,7 +4082,13 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def verify_m2702_lineage(
         result: Annotated[ComplexActivityLineageResult, Depends(_m2702_result_body_dependency)],
     ) -> ComplexActivityLineageResult:
-        return result
+        try:
+            return m2702_service.replay(result)
+        except M2702ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M27-02 replay verification failed",
+            ) from error
 
     @app.get("/v1/modules/M19-01/schema/{name}", tags=["M19-01"])
     def central_m1901_schema(name: str) -> JSONResponse:
