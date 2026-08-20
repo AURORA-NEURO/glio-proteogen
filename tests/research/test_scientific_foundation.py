@@ -1505,7 +1505,7 @@ def test_searches_with_two_plus_fragment_ions_when_declared() -> None:
     peptide = "PEPTIDER"
     singly = search_module._fragments(peptide)
     observed = tuple((value + search_module._PROTON) / 2 for value in (singly[0][0], singly[1][0]))
-    peptide_map = {peptide: ("P1",)}
+    peptide_map: dict[str, tuple[str, ...]] = {peptide: ("P1",)}
 
     assert (
         search_spectrum_candidates(
