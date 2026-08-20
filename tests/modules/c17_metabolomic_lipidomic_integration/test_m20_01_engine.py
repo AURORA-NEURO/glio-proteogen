@@ -40,6 +40,18 @@ def test_supported_resolution_is_deterministic_and_replayable() -> None:
     assert engine.replay(first) == first
 
 
+def test_provenance_binds_candidate_provenance_artifacts() -> None:
+    request = _request()
+    result = M2001Engine().resolve(request)
+    provenance_digests = {
+        candidate.provenance_artifact.digest
+        for candidate in request.candidates
+        if candidate.provenance_artifact is not None
+    }
+
+    assert provenance_digests <= set(result.provenance.input_digests)
+
+
 def test_unknown_compatibility_abstains_without_negative_conversion() -> None:
     unknown = _candidate(
         "candidate.unknown",
