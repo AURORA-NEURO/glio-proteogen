@@ -14,6 +14,7 @@ from glio_proteogen.contracts.m16_06 import (
     ReviewDecision,
     ReviewerAssignment,
     ReviewWorkspaceConfiguration,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -205,6 +206,15 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "2" * 64})
     with pytest.raises(M1606ReplayError, match="digest"):
         M1606Engine().replay(tampered)
+
+
+def test_replay_rejects_semantic_mutation_with_recomputed_digest() -> None:
+    result = M1606Engine().adjudicate(_request())
+    forged = result.model_copy(update={"human_review_required": False})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M1606ReplayError, match="deterministic replay"):
+        M1606Engine().replay(forged)
 
 
 def test_missing_controls_fail_before_traversal() -> None:
