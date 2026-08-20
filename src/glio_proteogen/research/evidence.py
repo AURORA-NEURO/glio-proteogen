@@ -219,13 +219,14 @@ class EvidenceBundle:
 def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
     if not records:
         raise ValueError("at least one evidence record is required")
-    if len({record.evidence_id for record in records}) != len(records):
-        raise ValueError("evidence IDs must be unique")
-    by_source_kind: dict[tuple[str, str], set[str]] = {}
     for record in records:
         _validate_record_identity(record.evidence_id, "evidence_id")
         _validate_record_identity(record.source, "source")
         _validate_record_identity(record.kind, "kind")
+    if len({record.evidence_id for record in records}) != len(records):
+        raise ValueError("evidence IDs must be unique")
+    by_source_kind: dict[tuple[str, str], set[str]] = {}
+    for record in records:
         by_source_kind.setdefault((record.source, record.kind), set()).add(record.digest)
     for record in records:
         raw = json.dumps(
