@@ -1,6 +1,6 @@
 """Deep M17-03 contract, runtime, replay, interface, and adversarial tests."""
 
-# ruff: noqa: ARG002, E501, PLR2004, TC003, TRY003
+# ruff: noqa: ARG002, PLR2004, TC003, TRY003
 
 from __future__ import annotations
 
@@ -205,7 +205,9 @@ def test_object_request_and_result_closures_cover_duplicate_and_safe_failure_pat
             integrated.model_copy(
                 update={
                     "propagation": (
-                        integrated.propagation[0].model_copy(update={"source_id": "source.unknown"}),
+                        integrated.propagation[0].model_copy(
+                            update={"source_id": "source.unknown"}
+                        ),
                     )
                 }
             ),
@@ -274,7 +276,11 @@ def test_object_request_and_result_closures_cover_duplicate_and_safe_failure_pat
     with pytest.raises(ValueError, match="supported attributable"):
         VariantPeptideIntegratedEvidenceResult.model_validate(
             engine.infer(request).model_copy(
-                update={"support_decision": engine.infer(request).support_decision.model_copy(update={"status": SupportStatus.UNSUPPORTED})}
+                update={
+                    "support_decision": engine.infer(request).support_decision.model_copy(
+                        update={"status": SupportStatus.UNSUPPORTED}
+                    )
+                }
             ),
             strict=True,
         )
@@ -314,14 +320,23 @@ def test_request_duplicate_and_plugin_service_error_paths(
     invalid = dict(payload)
     invalid.pop("contributions")
     assert client.post("/v1/modules/M17-03/fuse", json=invalid).status_code == 422
-    assert client.post("/v1/modules/M17-03/verify", content=b"{}", headers={"content-type": "text/plain"}).status_code == 415
+    assert (
+        client.post(
+            "/v1/modules/M17-03/verify", content=b"{}", headers={"content-type": "text/plain"}
+        ).status_code
+        == 415
+    )
     assert client.post("/v1/modules/M17-03/verify", json={}).status_code == 422
+
     class DenyEngine:
         def infer(self, request: object) -> object:
             raise M1703AuthorizationError
 
     monkeypatch.setattr(adapter._SERVICE, "_engine", DenyEngine())
-    assert client.post("/v1/modules/M17-03/fuse", json=request.model_dump(mode="json")).status_code == 403
+    assert (
+        client.post("/v1/modules/M17-03/fuse", json=request.model_dump(mode="json")).status_code
+        == 403
+    )
     runner = CliRunner()
     malformed = tmp_path / "malformed.json"
     malformed.write_text("{", encoding="utf-8")
@@ -341,7 +356,9 @@ def test_replay_service_plugin_and_public_operation_parity() -> None:
     service = M1703Service()
     plugin = M1703Plugin(service)
     token = plugin.validate(request)
-    assert plugin.run(token).model_dump(mode="json") == service.execute(token.request).model_dump(mode="json")
+    assert plugin.run(token).model_dump(mode="json") == service.execute(token.request).model_dump(
+        mode="json"
+    )
     with pytest.raises(TypeError):
         plugin.run(cast("ValidatedM1703Request", request))
     with pytest.raises(TypeError):
@@ -369,7 +386,10 @@ def test_schemas_evaluator_and_interfaces_are_closed(tmp_path: Path) -> None:
     schemas = contract_json_schemas()
     assert len(schemas) == 8
     assert all(schema["x-glio-contract"]["provisionalAbi"] for schema in schemas.values())
-    assert all(schema["x-glio-contract"]["parentTarget"] == "variant_peptide" for schema in schemas.values())
+    assert all(
+        schema["x-glio-contract"]["parentTarget"] == "variant_peptide"
+        for schema in schemas.values()
+    )
     report = run_evaluator()
     assert report["passed"] is True
     assert report["declared_cases"] == report["executed_cases"] == 6
@@ -380,9 +400,25 @@ def test_schemas_evaluator_and_interfaces_are_closed(tmp_path: Path) -> None:
     response = client.post("/v1/modules/M17-03/fuse", json=payload)
     assert response.status_code == 200
     assert client.post("/v1/modules/M17-03/verify", json=response.json()).status_code == 200
-    assert client.post("/v1/modules/M17-03/fuse", content=b"{", headers={"content-type": "application/json"}).status_code == 422
-    assert client.post("/v1/modules/M17-03/fuse", json=build_scenario_request(accepted=False).model_dump(mode="json")).status_code == 403
-    assert client.post("/v1/modules/M17-03/fuse", content=b"{}", headers={"content-type": "text/plain"}).status_code == 415
+    assert (
+        client.post(
+            "/v1/modules/M17-03/fuse", content=b"{", headers={"content-type": "application/json"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/v1/modules/M17-03/fuse",
+            json=build_scenario_request(accepted=False).model_dump(mode="json"),
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/v1/modules/M17-03/fuse", content=b"{}", headers={"content-type": "text/plain"}
+        ).status_code
+        == 415
+    )
     runner = CliRunner()
     request_path = tmp_path / "request.json"
     output_path = tmp_path / "result.json"
@@ -390,6 +426,16 @@ def test_schemas_evaluator_and_interfaces_are_closed(tmp_path: Path) -> None:
     assert runner.invoke(m1703_app, ["export-schema", "output"]).exit_code == 0
     assert runner.invoke(m1703_app, ["export-schema", "unknown"]).exit_code != 0
     assert runner.invoke(m1703_app, ["fuse", str(request_path)]).exit_code == 0
-    assert runner.invoke(m1703_app, ["fuse", str(request_path), "--output", str(output_path)]).exit_code == 0
-    assert runner.invoke(m1703_app, ["fuse", str(request_path), "--output", str(output_path)]).exit_code != 0
+    assert (
+        runner.invoke(
+            m1703_app, ["fuse", str(request_path), "--output", str(output_path)]
+        ).exit_code
+        == 0
+    )
+    assert (
+        runner.invoke(
+            m1703_app, ["fuse", str(request_path), "--output", str(output_path)]
+        ).exit_code
+        != 0
+    )
     assert runner.invoke(m1703_app, ["verify", str(output_path)]).exit_code == 0

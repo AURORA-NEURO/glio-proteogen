@@ -25,11 +25,7 @@ def _spectra_result(payload: bytes) -> ProteinInferenceRawAdmissionResult:
 
 def _spectra_diagnostics(payload: bytes) -> set[ProteinInferenceDiagnosticCode]:
     result = _spectra_result(payload)
-    return {
-        item.code
-        for item in result.diagnostics
-        if item.source_ids == ("source.spectra.mzml",)
-    }
+    return {item.code for item in result.diagnostics if item.source_ids == ("source.spectra.mzml",)}
 
 
 def test_mzml_duplicate_ids_are_quarantined_before_admission() -> None:

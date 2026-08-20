@@ -165,10 +165,7 @@ def _provenance(request: AdaptProteinSubtypeIntendedUseRequest) -> ProvenanceRec
                 request.upstream_result.digest,
                 *(artifact.digest for artifact in request.source_artifacts),
                 *(item.reference.digest for item in request.registration.evidence),
-                *(
-                    item.reference.digest
-                    for item in request.registration.claim_ceiling.evidence
-                ),
+                *(item.reference.digest for item in request.registration.claim_ceiling.evidence),
                 *(
                     item.reference.digest
                     for item in request.registration.display_semantics.evidence

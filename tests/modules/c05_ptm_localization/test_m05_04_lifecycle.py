@@ -126,8 +126,7 @@ def test_json_replay_binds_decoded_candidate_to_serialized_body(
         m0504_engine._validate_json_request_capability(decoded, alternate_serialized)
 
     assert (
-        m0504_engine._validate_json_request_capability(decoded, serialized).request
-        == m0504_request
+        m0504_engine._validate_json_request_capability(decoded, serialized).request == m0504_request
     )
 
 

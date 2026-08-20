@@ -1080,9 +1080,7 @@ def _materialize_raw_input_value(  # noqa: PLR0912 - explicit hostile-value shap
     _byte_budget: list[int] | None = None,
     _node_budget: list[int] | None = None,
 ) -> object:
-    budget = (
-        [_MAX_RAW_INPUT_CANONICAL_BYTES] if _byte_budget is None else _byte_budget
-    )
+    budget = [_MAX_RAW_INPUT_CANONICAL_BYTES] if _byte_budget is None else _byte_budget
     nodes = [_MAX_RAW_INPUT_NODES] if _node_budget is None else _node_budget
     if _depth > _MAX_RAW_INPUT_DEPTH:
         raise TypeError("M04-04 raw-input replay exceeds its nesting depth")
