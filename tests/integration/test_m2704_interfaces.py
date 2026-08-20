@@ -6,10 +6,12 @@ import json
 from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m27_04 import AuthorizationDecision, contract_json_schemas
 from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import api as m2704_api
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.api import create_app
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.cli import app
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.sdk import M2704Client
@@ -17,6 +19,8 @@ from tests.runtime.test_m2704_runtime import _request
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 HTTP_OK = 200
 HTTP_NOT_FOUND = 404
@@ -59,6 +63,27 @@ def test_api_rejects_duplicate_json_keys_and_true_async_claims() -> None:
 
     assert duplicate_response.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert claim_response.status_code == HTTP_UNPROCESSABLE_CONTENT
+
+
+def test_api_streams_bounded_bodies_and_applies_result_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = _request()
+
+    def forbidden_body(_request: Request) -> bytes:
+        raise AssertionError
+
+    monkeypatch.setattr(Request, "body", forbidden_body)
+    monkeypatch.setattr(m2704_api, "M2704_MAX_CANONICAL_RESULT_BYTES", 4)
+    with TestClient(create_app()) as client:
+        published = client.post(
+            "/v1/modules/M27-04/publish",
+            content=request.model_dump_json().encode(),
+        )
+        oversized_result = client.post("/v1/modules/M27-04/verify", content=b'{"x":1}')
+
+    assert published.status_code == HTTP_OK
+    assert oversized_result.status_code == HTTP_UNPROCESSABLE_CONTENT
 
 
 def test_api_verify_rejects_non_object_and_tampered_envelopes() -> None:

@@ -9,6 +9,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m27_04 import (
     M2704_CONTRACT_VERSION,
+    M2704_MAX_CANONICAL_REQUEST_BYTES,
     M2704_MODULE_ID,
     AccessSurface,
     AuthorizationDecision,
@@ -98,7 +99,10 @@ def preflight_m2704_authorization(candidate: object) -> None:
 
 def _validate_request(candidate: object) -> PublishComplexActivityAccessSurfaceRequest:
     if isinstance(candidate, (bytes, bytearray, str)):
-        decoded = strict_json_loads(candidate)
+        decoded = strict_json_loads(
+            candidate,
+            max_bytes=M2704_MAX_CANONICAL_REQUEST_BYTES,
+        )
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
     if isinstance(candidate, Mapping):
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(candidate)), strict=True)

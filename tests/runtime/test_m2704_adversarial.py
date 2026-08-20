@@ -22,6 +22,9 @@ from glio_proteogen.contracts.m27_04.canonical import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.strict_json import StrictJsonError
+from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway import (
+    engine as m2704_engine,
+)
 from glio_proteogen.modules.c20_biomarker_panel.m27_04_api_sdk_cli_gateway.engine import (
     M2704GatewayEngine,
     M2704ReplayError,
@@ -94,6 +97,15 @@ def test_service_rejects_duplicate_keys_and_unknown_payload_fields() -> None:
     payload["untrusted_claim"] = "not accepted"
     with pytest.raises((ValueError, ValidationError)):
         service.publish(payload)
+
+
+def test_engine_json_path_enforces_the_m2704_request_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    encoded = _request().model_dump_json()
+    monkeypatch.setattr(m2704_engine, "M2704_MAX_CANONICAL_REQUEST_BYTES", len(encoded) - 1)
+    with pytest.raises(StrictJsonError):
+        m2704_engine._validate_request(encoded)
 
 
 def test_replay_rejects_forged_payload_and_plugin_metadata_is_closed() -> None:

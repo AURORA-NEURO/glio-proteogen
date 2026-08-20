@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m27_04 import (
     M2704_MAX_CANONICAL_REQUEST_BYTES,
+    M2704_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityAccessSurfaceResult,
     PublishComplexActivityAccessSurfaceRequest,
     contract_json_schema,
@@ -45,6 +46,19 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M27-04 contract")
 
 
+async def _read_body(request: Request, *, max_bytes: int) -> bytes:
+    """Read an HTTP body without buffering beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _parse_request(body: bytes) -> PublishComplexActivityAccessSurfaceRequest:
     try:
         strict_json_loads(body, max_bytes=M2704_MAX_CANONICAL_REQUEST_BYTES)
@@ -53,9 +67,9 @@ def _parse_request(body: bytes) -> PublishComplexActivityAccessSurfaceRequest:
         raise _invalid_request(error) from error
 
 
-def _parse_object(body: bytes) -> dict[str, Any]:
+def _parse_object(body: bytes, *, max_bytes: int) -> dict[str, Any]:
     try:
-        value = strict_json_loads(body, max_bytes=M2704_MAX_CANONICAL_REQUEST_BYTES)
+        value = strict_json_loads(body, max_bytes=max_bytes)
     except (StrictJsonError, ValueError) as error:
         raise HTTPException(status_code=422, detail="request JSON is invalid") from error
     if not isinstance(value, dict):
@@ -81,7 +95,9 @@ def create_app(service: M2704Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-04/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2704_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             typed = boundary.validate_request(payload)
         except (ValidationError, ValueError, M2704AuthorizationError) as error:
@@ -90,7 +106,9 @@ def create_app(service: M2704Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-04/publish")
     async def publish(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2704_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             result = boundary.publish(payload)
         except (ValidationError, ValueError, M2704AuthorizationError) as error:
@@ -99,7 +117,10 @@ def create_app(service: M2704Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-04/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await _read_body(request, max_bytes=M2704_MAX_CANONICAL_RESULT_BYTES),
+            max_bytes=M2704_MAX_CANONICAL_RESULT_BYTES,
+        )
         candidate = envelope.get("result", envelope)
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
