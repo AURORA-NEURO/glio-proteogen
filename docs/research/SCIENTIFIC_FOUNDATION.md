@@ -122,9 +122,16 @@ C03/C04 computation contract:
   Each record may additionally carry an `EvidenceQuality` assessment that separates
   byte/computation auditability, observed completeness, and caller-declared independent source
   count. `EvidenceQualitySummary` reports a deterministic source-count-weighted auditability
-  projection and is explicitly not a probability of biological truth. Aggregation rejects two
-  different payloads claiming the same source/kind so a stale or contradictory external receipt
-  cannot silently coexist with a newer one under a different evidence ID.
+  projection and is explicitly not a probability of biological truth. When one source emits
+  multiple derived views (for example, matrix, QC, provenance, and contrast), those views are
+  averaged inside one source group and the declared independent-source weight is applied once;
+  adding more projections cannot manufacture evidence weight. A source's quality records must
+  agree on their declared independent-source count, and the summary records the number of
+  quality source groups. Receipt IDs, source IDs, and kinds are bounded non-whitespace identities,
+  and an abstained quality record must report zero completeness so an unsupported result cannot
+  look complete. Aggregation rejects two different payloads claiming the same source/kind so a
+  stale or contradictory external receipt cannot silently coexist with a newer one under a
+  different evidence ID.
 - `aggregate_external_evidence` provides a separate external-cohort evidence ledger. Each
   observation is bound to an opaque caller claim, study/source identity, source SHA-256/size, and
   method ID. The ledger preserves caller-declared support, contradiction, inconclusive, and
