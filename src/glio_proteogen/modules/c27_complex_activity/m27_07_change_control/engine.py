@@ -102,9 +102,23 @@ def preflight_change_control_authorization(request: ControlComplexActivityChange
             continue
         if state != "accepted":
             raise ChangeControlAuthorizationError("required control is not accepted")
-    ids = tuple(item.artifact_id for item in request.source_artifacts)
-    if len(ids) != len(set(ids)):
-        raise ChangeControlAuthorizationError("source artifact ids must be unique")
+    if not _source_artifacts_are_bound(request):
+        raise ChangeControlAuthorizationError(
+            "source artifact IDs must be unique and source artifacts must bind upstream and nested evidence exactly"
+        )
+
+
+def _source_artifacts_are_bound(request: ControlComplexActivityChangeRequest) -> bool:
+    source_by_id = {item.artifact_id: item for item in request.source_artifacts}
+    if len(source_by_id) != len(request.source_artifacts):
+        return False
+    declared_artifacts = (
+        request.upstream_result,
+        *(item.reference for item in request.classification.evidence),
+        *(item.reference for item in request.revalidation.evidence),
+        *(item.reference for item in request.rollback_point.evidence),
+    )
+    return all(source_by_id.get(item.artifact_id) == item for item in declared_artifacts)
 
 
 def _uncertainty() -> UncertaintyProfile:

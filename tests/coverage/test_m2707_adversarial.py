@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m27_07 import (
     ApprovedChangePackage,
     ChampionChallengerComparison,
     ComparisonStatus,
+    ControlComplexActivityChangeRequest,
     MetricComparison,
     PromotionState,
     RevalidationPlan,
@@ -76,6 +77,38 @@ def test_duplicate_source_artifacts_are_denied() -> None:
     request = build_request()
     object.__setattr__(request, "source_artifacts", (request.source_artifacts[0],) * 2)
     with pytest.raises(ChangeControlAuthorizationError):
+        M2707ChangeControlEngine().evaluate(request)
+
+
+def test_source_artifacts_bind_upstream_and_nested_evidence_exactly() -> None:
+    request = build_request()
+    missing_upstream = tuple(
+        artifact
+        for artifact in request.source_artifacts
+        if artifact.artifact_id != request.upstream_result.artifact_id
+    )
+    forged_rollback = request.source_artifacts[3].model_copy(
+        update={"digest": "sha256:" + "f" * 64}
+    )
+
+    with pytest.raises(ValueError, match="bind upstream"):
+        ControlComplexActivityChangeRequest.model_validate(
+            request.model_dump(mode="python") | {"source_artifacts": missing_upstream}
+        )
+    with pytest.raises(ValueError, match="bind upstream"):
+        ControlComplexActivityChangeRequest.model_validate(
+            request.model_dump(mode="python")
+            | {
+                "source_artifacts": (
+                    *request.source_artifacts[:3],
+                    forged_rollback,
+                    *request.source_artifacts[4:],
+                )
+            }
+        )
+
+    object.__setattr__(request, "source_artifacts", missing_upstream)
+    with pytest.raises(ChangeControlAuthorizationError, match="bind upstream"):
         M2707ChangeControlEngine().evaluate(request)
 
 

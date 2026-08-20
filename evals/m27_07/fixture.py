@@ -143,6 +143,10 @@ def build_request(
         challenger_digest=challenger,
         rollback_point=rollback,
         source_artifacts=(
+            _artifact("upstream", upstream_media_type),
+            _artifact("classification"),
+            _artifact("revalidation"),
+            _artifact("rollback"),
             _artifact("source-regression-a" if challenger_regression else "source-a"),
             _artifact("source-b"),
         ),

@@ -225,6 +225,19 @@ class ControlComplexActivityChangeRequest(FrozenModel):
             raise ValueError("request must bind the provisional M27-06 security result")
         if self.champion_digest == self.challenger_digest:
             raise ValueError("champion and challenger digests must be distinct")
+        source_by_id = {item.artifact_id: item for item in self.source_artifacts}
+        if len(source_by_id) != len(self.source_artifacts):
+            raise ValueError("source artifact IDs must be unique")
+        declared_artifacts = (
+            self.upstream_result,
+            *(item.reference for item in self.classification.evidence),
+            *(item.reference for item in self.revalidation.evidence),
+            *(item.reference for item in self.rollback_point.evidence),
+        )
+        if any(source_by_id.get(item.artifact_id) != item for item in declared_artifacts):
+            raise ValueError(
+                "source artifacts must bind upstream and change-control evidence exactly"
+            )
         return self
 
 
