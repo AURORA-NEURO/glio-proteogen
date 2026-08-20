@@ -12,6 +12,17 @@ from types import MappingProxyType
 _QUALITY_STATUSES = frozenset({"computed", "verified", "declared", "abstained", "ungraded"})
 
 
+def _validate_record_identity(value: str, field: str) -> None:
+    if (
+        type(value) is not str
+        or not value
+        or len(value) > 256
+        or value != value.strip()
+        or any(character.isspace() or ord(character) < 32 for character in value)
+    ):
+        raise ValueError(f"{field} must be a bounded non-empty identifier")
+
+
 def _freeze(value: object) -> object:
     if isinstance(value, Mapping):
         return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
@@ -119,7 +130,12 @@ class EvidenceQualitySummary:
 
 
 def _canonical_record_payload(record: EvidenceRecord) -> dict[str, object]:
-    payload: dict[str, object] = {"payload": record.payload_jsonable}
+    payload: dict[str, object] = {
+        "evidence_id": record.evidence_id,
+        "kind": record.kind,
+        "payload": record.payload_jsonable,
+        "source": record.source,
+    }
     if record.quality is not None:
         payload["quality"] = record.quality.as_dict()
     return payload
@@ -144,12 +160,14 @@ class EvidenceRecord:
         *,
         quality: EvidenceQuality | None = None,
     ) -> EvidenceRecord:
+        _validate_record_identity(evidence_id, "evidence_id")
+        _validate_record_identity(source, "source")
+        _validate_record_identity(kind, "kind")
         frozen = _freeze(payload)
         if not isinstance(frozen, Mapping):
             raise TypeError("evidence payload must be a mapping")
-        canonical: dict[str, object] = {"payload": _thaw(frozen)}
-        if quality is not None:
-            canonical["quality"] = quality.as_dict()
+        record = cls(evidence_id, source, kind, frozen, "", quality)
+        canonical = _canonical_record_payload(record)
         raw = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return cls(evidence_id, source, kind, frozen, sha256(raw).hexdigest(), quality)
 
@@ -205,6 +223,9 @@ def aggregate_evidence(records: tuple[EvidenceRecord, ...]) -> EvidenceBundle:
         raise ValueError("evidence IDs must be unique")
     by_source_kind: dict[tuple[str, str], set[str]] = {}
     for record in records:
+        _validate_record_identity(record.evidence_id, "evidence_id")
+        _validate_record_identity(record.source, "source")
+        _validate_record_identity(record.kind, "kind")
         by_source_kind.setdefault((record.source, record.kind), set()).add(record.digest)
     for record in records:
         raw = json.dumps(
