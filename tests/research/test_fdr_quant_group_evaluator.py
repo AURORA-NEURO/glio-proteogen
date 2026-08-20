@@ -10,10 +10,10 @@ from evals.research_proteomics.fdr_quant_group_invariants import (
 )
 
 from glio_proteogen.research import (
-    Psm,
-    PsmCompetition,
     ProteinGroupCandidate,
     ProteinGroupFdrSummary,
+    Psm,
+    PsmCompetition,
     infer_protein_group_candidates,
     infer_protein_groups,
     target_decoy_qvalues,
@@ -297,11 +297,13 @@ def test_group_receipt_rejects_order_duplicate_and_summary_count_tampering() -> 
     candidates, summary = _group_receipt()
     target = Psm("target-2", "PEPTIDER2", ("P2",), 3.0, 3, decoy=False)
     expanded, expanded_summary = infer_protein_group_candidates(
-        (*(
-            Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False),
-            Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True),
-            target,
-        ),),
+        (
+            *(
+                Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False),
+                Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True),
+                target,
+            ),
+        ),
         q_value_threshold=0.01,
     )
     with pytest.raises(ValueError, match="sorted"):
