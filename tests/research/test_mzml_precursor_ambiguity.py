@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import struct
+
 import pytest
 
 from glio_proteogen.research import ResearchRunRequest, parse_mzml, run_research_protein_inference
@@ -35,6 +38,35 @@ def test_parser_rejects_duplicate_spectrum_ids_before_fdr() -> None:
     )
     with pytest.raises(ValueError, match="spectrum IDs must be unique"):
         parse_mzml(duplicate)
+
+
+def test_parser_rejects_ambiguous_arrays_and_nonphysical_values() -> None:
+    def array(values: tuple[float, ...], accession: str) -> bytes:
+        encoded = base64.b64encode(struct.pack(f"<{len(values)}d", *values))
+        return (
+            b'<binaryDataArray><cvParam accession="'
+            + accession.encode()
+            + b'"/><cvParam accession="MS:1000521"/><binary>'
+            + encoded
+            + b"</binary></binaryDataArray>"
+        )
+
+    prefix = b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
+    suffix = b"</binaryDataArrayList></spectrum></spectrumList></run></mzML>"
+    with pytest.raises(ValueError, match="positive"):
+        parse_mzml(prefix + array((0.0,), "MS:1000514") + suffix)
+    with pytest.raises(ValueError, match="non-negative"):
+        parse_mzml(prefix + array((100.0,), "MS:1000514") + array((-1.0,), "MS:1000515") + suffix)
+    duplicate = prefix + array((100.0,), "MS:1000514") + array((200.0,), "MS:1000514") + suffix
+    with pytest.raises(ValueError, match="duplicate m/z"):
+        parse_mzml(duplicate)
+    with pytest.raises(ValueError, match="retention"):
+        parse_mzml(
+            b'<mzML><run><spectrumList><spectrum><cvParam accession="MS:1000016" value="-1"/>'
+            b"</spectrum></spectrumList></run></mzML>"
+        )
+    with pytest.raises(ValueError, match="limits"):
+        parse_mzml(b"<mzML/>", max_bytes=True)
 
 
 def test_pipeline_abstains_ambiguous_ms2_before_precursor_search() -> None:
