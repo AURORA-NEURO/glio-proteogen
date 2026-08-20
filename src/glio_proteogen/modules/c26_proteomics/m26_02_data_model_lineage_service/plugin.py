@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 from pydantic import TypeAdapter
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 _REQUEST_ADAPTER: Final[TypeAdapter[BuildProteinSubtypeLineageRequest]] = TypeAdapter(
     BuildProteinSubtypeLineageRequest
 )
+_TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M26-02",
     title="Data, model, and version lineage service",
@@ -47,6 +48,7 @@ class ValidatedM2602Request:
     """Opaque validated token required by :meth:`M2602LineagePlugin.run`."""
 
     request: BuildProteinSubtypeLineageRequest
+    _seal: object | None = field(default=None, repr=False, compare=False)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -74,10 +76,13 @@ class M2602LineagePlugin(ModulePlugin[object, ValidatedM2602Request, ProteinSubt
         else:
             preflight_lineage_authorization(request)
             validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
-        return ValidatedM2602Request(request=self._service.validate_request(validated))
+        return ValidatedM2602Request(
+            request=self._service.validate_request(validated),
+            _seal=_TOKEN_SEAL,
+        )
 
     def run(self, request: ValidatedM2602Request) -> ProteinSubtypeLineageResult:
-        if not isinstance(request, ValidatedM2602Request):
+        if not isinstance(request, ValidatedM2602Request) or request._seal is not _TOKEN_SEAL:
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 

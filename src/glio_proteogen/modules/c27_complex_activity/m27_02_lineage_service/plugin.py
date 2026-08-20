@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final, cast
 
 from pydantic import TypeAdapter
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     )
 
 _REQUEST_ADAPTER: Final = TypeAdapter(ResolveComplexActivityLineageRequest)
+_TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M27-02",
     title="Complex-activity lineage service",
@@ -44,6 +45,7 @@ class ValidatedM2702Request:
     """Opaque capability proving strict M27-02 request validation."""
 
     request: ResolveComplexActivityLineageRequest
+    _seal: object | None = field(default=None, repr=False, compare=False)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -72,10 +74,13 @@ class M2702Plugin(ModulePlugin[object, ValidatedM2702Request, ComplexActivityLin
             )
             preflight_m2702_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(serialized, strict=True)
-        return ValidatedM2702Request(request=self._service.validate_request(candidate))
+        return ValidatedM2702Request(
+            request=self._service.validate_request(candidate),
+            _seal=_TOKEN_SEAL,
+        )
 
     def run(self, request: ValidatedM2702Request) -> ComplexActivityLineageResult:
-        if type(request) is not ValidatedM2702Request:
+        if type(request) is not ValidatedM2702Request or request._seal is not _TOKEN_SEAL:
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 

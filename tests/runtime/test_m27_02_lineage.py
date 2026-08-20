@@ -151,6 +151,9 @@ def test_plugin_strict_json_validate_then_run_matches_typed_request() -> None:
     token = plugin.validate(canonical_json_bytes(request.model_dump(mode="json")))
 
     assert plugin.run(token) == M2702LineageResolver().resolve(request)
+    forged = type(token)(request=token.request)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
 

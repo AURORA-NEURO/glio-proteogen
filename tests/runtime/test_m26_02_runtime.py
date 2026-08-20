@@ -200,6 +200,9 @@ def test_plugin_parse_once_and_raw_tamper_are_closed() -> None:
     validated = plugin.validate(json.dumps(request.model_dump(mode="json"), sort_keys=True))
     result = plugin.run(validated)
     assert result.result_digest == M2602LineageService().execute(request).result_digest
+    forged = type(validated)(request=validated.request)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(request)  # type: ignore[arg-type]
     tampered = result.model_copy(update={"result_id": "tampered-result"})
