@@ -448,6 +448,28 @@ def test_pipeline_abstains_when_precursor_metadata_is_missing() -> None:
     assert result.missing_precursor_ms2 == 1
 
 
+def test_pipeline_abstains_when_multiple_precursors_are_selected() -> None:
+    payload = _mzml().replace(
+        b"</selectedIon></selectedIonList>",
+        b"</selectedIon><selectedIon>"
+        b'<cvParam accession="MS:1000744" value="1088.508837466"/>'
+        b'<cvParam accession="MS:1000041" value="1"/>'
+        b"</selectedIon></selectedIonList>",
+    )
+    result = run_research_protein_inference(
+        ResearchRunRequest(
+            "ambiguous-precursor",
+            payload,
+            b">P1\nMPEPTIDER\n",
+            min_matched_ions=1,
+            min_peptide_length=7,
+            max_peptide_length=12,
+        )
+    )
+    assert result.psms == ()
+    assert result.missing_precursor_ms2 == 1
+
+
 def test_pipeline_binds_caller_downloaded_pdc_mzml_provenance() -> None:
     payload = _mzml()
     pdc_file = PdcFile(

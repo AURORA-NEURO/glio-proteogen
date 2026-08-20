@@ -10,6 +10,9 @@ and does not widen M03/M04 contracts.
 one deterministic, auditable path:
 
 1. Decode bounded mzML spectra and retain MS2 spectra only for identification.
+   A spectrum with multiple selected ions is marked as ambiguous and abstains
+   from this single-precursor search rather than inheriting a document-order
+   ``cvParam`` value.
    An optional caller-supplied mzIdentML file is structurally parsed separately;
    its bytes, identifiers, identification-result/item counts, peptide-evidence count,
    protein-detection-hypothesis count, and pass-threshold item count become a receipt.

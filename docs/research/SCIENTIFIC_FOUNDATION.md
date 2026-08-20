@@ -60,8 +60,9 @@ C03/C04 computation contract:
   matching and applies a caller-declared integer precursor tolerance bounded to
   0–500 ppm. The tolerance is applied before candidate competition and is bound into
   diagnostics, configuration, result digest, and replay; missing precursor metadata
-  abstains rather than opening an implicit open search. This is an auditable mass
-  filter, not a calibrated identification probability.
+  or multiple selected ions abstain rather than opening an implicit open search or
+  inheriting an arbitrary last precursor. This is an auditable mass filter, not a
+  calibrated identification probability.
 - `summarize_target_decoy` records winner-level target/decoy counts, accepted targets, threshold,
   and descriptive decoy/target ratio in the replay-bound result evidence.
 - `quantify_matched_ions` aggregates finite matched-fragment intensity per peptide and applies

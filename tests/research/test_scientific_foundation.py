@@ -639,6 +639,18 @@ def test_mzml_precision_compression_retention_and_limits() -> None:
     precursor = parse_mzml(precursor_payload)[0]
     assert precursor.precursor_mz == pytest.approx(544.258056966)
     assert precursor.precursor_charge == 2
+    assert not precursor.precursor_ambiguous
+    ambiguous_payload = precursor_payload.replace(
+        b"</selectedIon></selectedIonList>",
+        b"</selectedIon><selectedIon>"
+        b'<cvParam accession="MS:1000744" value="545.258056966"/>'
+        b'<cvParam accession="MS:1000041" value="2"/>'
+        b"</selectedIon></selectedIonList>",
+    )
+    ambiguous = parse_mzml(ambiguous_payload)[0]
+    assert ambiguous.precursor_ambiguous
+    assert ambiguous.precursor_mz is None
+    assert ambiguous.precursor_charge is None
     empty = (
         b"<mzML><run><spectrumList><spectrum><binaryDataArrayList>"
         b"<binaryDataArray /></binaryDataArrayList></spectrum>"
