@@ -212,7 +212,17 @@ class RunProteotypeInternalBenchmarkRequest(FrozenModel):
         source_ids = tuple(item.artifact_id for item in self.source_artifacts)
         if len(source_ids) != len(set(source_ids)):
             raise ValueError("source artifact identifiers must be unique")
-        if self.upstream_result.artifact_id not in set(source_ids):
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in source_keys:
             raise ValueError("source artifacts must include the declared upstream result")
         baseline_ids = tuple(item.run_id for item in self.baseline_runs)
         if len(baseline_ids) != len(set(baseline_ids)):

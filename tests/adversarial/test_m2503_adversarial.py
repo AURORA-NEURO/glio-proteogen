@@ -63,6 +63,24 @@ def test_duplicate_source_artifacts_are_rejected() -> None:
         RunProteotypeInternalBenchmarkRequest.model_validate(data, strict=True)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + ("f" * 64)),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_upstream_source_artifact_requires_full_identity_binding(field: str, value: str) -> None:
+    request = build_request()
+    data = request.model_dump(mode="python")
+    forged_source = request.source_artifacts[0].model_copy(update={field: value})
+    data["source_artifacts"] = (forged_source,)
+
+    with pytest.raises(ValidationError, match="include the declared upstream"):
+        RunProteotypeInternalBenchmarkRequest.model_validate(data, strict=True)
+
+
 def test_duplicate_baselines_are_rejected() -> None:
     request = build_request()
     data = request.model_dump(mode="python")
