@@ -32,6 +32,11 @@ one ID would collapse their contenders into one winner and distort spectral
 counts and FDR evidence. Duplicate IDs therefore fail at mzML admission
 before fragment search.
 
+Explicit IDs must also be bounded, non-empty, and free of surrounding or
+embedded control whitespace so malformed identity reaches neither candidate
+competition nor FDR. A missing ID retains the deterministic fallback identity
+used by this research parser.
+
 The search primitive supports precursor charges 1--20. An mzML file may carry a
 larger positive charge value, so parsing preserves that metadata, but the
 pipeline treats it as unsupported precursor evidence and abstains the MS2 before

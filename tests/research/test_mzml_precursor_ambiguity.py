@@ -48,6 +48,15 @@ def test_parser_rejects_duplicate_spectrum_ids_before_fdr() -> None:
         parse_mzml(duplicate)
 
 
+@pytest.mark.parametrize("spectrum_id", ["", "  scan=1  ", "scan=1\n"])
+def test_parser_rejects_invalid_explicit_spectrum_ids(spectrum_id: str) -> None:
+    malformed = _ambiguous_mzml().replace(
+        b'id="scan=ambiguous"', f'id="{spectrum_id}"'.encode()
+    )
+    with pytest.raises(ValueError, match="spectrum IDs"):
+        parse_mzml(malformed)
+
+
 def test_parser_rejects_ambiguous_arrays_and_nonphysical_values() -> None:
     def array(values: tuple[float, ...], accession: str) -> bytes:
         encoded = base64.b64encode(struct.pack(f"<{len(values)}d", *values))

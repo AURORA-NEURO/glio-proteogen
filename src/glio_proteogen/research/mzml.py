@@ -217,9 +217,17 @@ def parse_mzml(  # noqa: PLR0915 - parser keeps XML state and safety checks toge
             raise ValueError("mzML intensity values must be finite and non-negative")
         if len(mz) != len(intensity):
             raise ValueError("mzML m/z and intensity arrays differ in length")
+        spectrum_id = element.attrib.get("id", f"scan={len(output) + 1}")
+        if (
+            not spectrum_id
+            or len(spectrum_id) > 256
+            or spectrum_id != spectrum_id.strip()
+            or any(character.isspace() or ord(character) < 32 for character in spectrum_id)
+        ):
+            raise ValueError("mzML spectrum IDs must be bounded opaque strings")
         output.append(
             Spectrum(
-                element.attrib.get("id", f"scan={len(output) + 1}"),
+                spectrum_id,
                 ms_level,
                 retention,
                 mz,
