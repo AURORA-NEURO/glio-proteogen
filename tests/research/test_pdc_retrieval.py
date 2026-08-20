@@ -191,6 +191,14 @@ def test_pdc_file_rejects_boolean_size_metadata() -> None:
         replace(file, file_size=True)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize("study_id", ["TCGA000204", "PDC", "PDCabc"])
+def test_pdc_file_rejects_non_pdc_study_identity(study_id: str) -> None:
+    payload = b"<mzML>verified</mzML>"
+    file = _file("memory://PDC000204/content", payload)
+    with pytest.raises(ValueError, match="study_id"):
+        replace(file, study_id=study_id)
+
+
 @pytest.mark.parametrize(
     ("snapshot_change", "message"),
     [

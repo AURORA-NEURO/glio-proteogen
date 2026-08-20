@@ -50,6 +50,12 @@ class PdcFile:
     signed_url: str | None = None
 
     def __post_init__(self) -> None:
+        if (
+            type(self.study_id) is not str
+            or not self.study_id.startswith("PDC")
+            or not self.study_id[3:].isdigit()
+        ):
+            raise ValueError("PDC study_id must be a PDC accession")
         if type(self.file_size) is not int or self.file_size < 0:
             raise ValueError("PDC file_size must be a non-negative integer")
 

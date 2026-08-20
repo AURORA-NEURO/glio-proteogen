@@ -43,7 +43,8 @@ source binding used by raw-file receipts.
 
 Raw-file receipts also require the captured catalog snapshot to remain bound to
 the canonical PDC study locator and to contain typed, non-negative count rows;
-forged catalog projections cannot be promoted to source evidence.
+file declarations must carry the bounded `PDC` accession form, so forged
+catalog projections cannot be promoted to source evidence.
 
 ## Captured public record
 
