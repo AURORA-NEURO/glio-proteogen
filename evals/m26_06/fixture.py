@@ -129,7 +129,7 @@ def request_for(
         policy_version="1.0.0",
         requested_controls=tuple(SecurityControlKind),
         control_declarations=declarations,
-        consent_reference=artifact("consent.reference"),
+        consent_reference=artifact("consent"),
         source_artifacts=(source,),
     )
 

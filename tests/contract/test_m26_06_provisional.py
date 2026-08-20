@@ -156,7 +156,7 @@ def _request() -> EvaluateProteomicsSecurityAccessRequest:
             )
             for control in SecurityControlKind
         ),
-        consent_reference=_artifact("consent.reference"),
+        consent_reference=_artifact("consent"),
         source_artifacts=(source,),
     )
 

@@ -141,7 +141,7 @@ def preflight_m2606_authorization(candidate: object) -> None:
 
 
 def _evidence(request: EvaluateProteomicsSecurityAccessRequest) -> tuple[EvidenceReference, ...]:
-    return tuple(
+    source_evidence = tuple(
         EvidenceReference(
             reference=artifact,
             role="evidence",
@@ -151,6 +151,16 @@ def _evidence(request: EvaluateProteomicsSecurityAccessRequest) -> tuple[Evidenc
             ),
         )
         for artifact in request.source_artifacts
+    )
+    if request.consent_reference is None:
+        return source_evidence
+    return (
+        *source_evidence,
+        EvidenceReference(
+            reference=request.consent_reference,
+            role="evidence",
+            claim="Caller-declared consent artifact bound to the granted context decision.",
+        ),
     )
 
 
@@ -167,6 +177,19 @@ def _findings(
 ) -> tuple[SecurityFinding, ...]:
     evidence = (*_evidence(request), *_declaration_evidence(request))
     findings: list[SecurityFinding] = []
+    if request.consent_reference != request.context.references.consent.evidence:
+        findings.append(
+            SecurityFinding(
+                finding_id="finding.m2606.consent-reference.mismatch",
+                code=SecurityFindingCode.CONSENT_MISSING,
+                severity=SecurityFindingSeverity.CRITICAL,
+                message=(
+                    "explicit consent reference is missing or does not match the granted "
+                    "context evidence; access is not evaluated"
+                ),
+                evidence=evidence,
+            )
+        )
     for declaration in request.control_declarations:
         if declaration.status is ControlStatus.FAILED:
             if declaration.control is SecurityControlKind.CONSENT:
@@ -274,6 +297,11 @@ def _provenance(
                 {
                     request_digest,
                     request.upstream_result.digest,
+                    *(
+                        (request.consent_reference.digest,)
+                        if request.consent_reference is not None
+                        else ()
+                    ),
                     *(artifact.digest for artifact in request.source_artifacts),
                     *(item.evidence_digest for item in controls),
                 }
@@ -315,8 +343,12 @@ def _posture(
     findings: tuple[SecurityFinding, ...],
 ) -> SecurityPostureRecord:
     evidence = (*_evidence(request), *_declaration_evidence(request))
+    consent_reference_bound = (
+        request.consent_reference is not None
+        and request.consent_reference == request.context.references.consent.evidence
+    )
     statuses = {item.status for item in request.control_declarations}
-    if statuses == {ControlStatus.PASSED}:
+    if statuses == {ControlStatus.PASSED} and consent_reference_bound:
         status = SecurityPostureStatus.COMPLIANT
     elif ControlStatus.FAILED in statuses:
         status = SecurityPostureStatus.CRITICAL
@@ -327,8 +359,16 @@ def _posture(
     checks = tuple(
         SecurityControlCheck(
             control=item.control,
-            status=item.status,
-            rationale=item.rationale,
+            status=(
+                item.status
+                if item.control is not SecurityControlKind.CONSENT or consent_reference_bound
+                else ControlStatus.REVIEW_REQUIRED
+            ),
+            rationale=(
+                item.rationale
+                if item.control is not SecurityControlKind.CONSENT or consent_reference_bound
+                else "Explicit consent artifact is missing or does not match context evidence."
+            ),
             evidence=item.evidence,
         )
         for item in request.control_declarations
@@ -373,7 +413,15 @@ def _build_result(
     provenance = _provenance(request, request_digest, controls)
     evidence = (*_evidence(request), *_declaration_evidence(request))
     posture = _posture(request, findings)
-    evaluated = all_passed and request.context.references.consent.state is ConsentState.GRANTED
+    consent_reference_bound = (
+        request.consent_reference is not None
+        and request.consent_reference == request.context.references.consent.evidence
+    )
+    evaluated = (
+        all_passed
+        and request.context.references.consent.state is ConsentState.GRANTED
+        and consent_reference_bound
+    )
     status = SecurityAssessmentStatus.EVALUATED if evaluated else SecurityAssessmentStatus.ABSTAINED
     decision_state = (
         AccessDecisionState.ALLOW

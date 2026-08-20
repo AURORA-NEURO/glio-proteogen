@@ -133,6 +133,38 @@ def test_abstention_never_becomes_negative_access_evidence() -> None:
     assert result.support_decision.status.value == "review_required"
 
 
+def test_consent_reference_must_bind_granted_context_evidence() -> None:
+    request = _request()
+    assert request.consent_reference == request.context.references.consent.evidence
+    baseline = M2606SecurityEngine().evaluate(request)
+    assert any(item.reference == request.consent_reference for item in baseline.evidence)
+    assert request.consent_reference.digest in baseline.provenance.input_digests
+
+    forged = request.model_copy(
+        update={
+            "consent_reference": request.consent_reference.model_copy(
+                update={"digest": "sha256:" + "f" * 64}
+            )
+        }
+    )
+    forged_result = M2606SecurityEngine().evaluate(forged)
+    assert forged_result.status is SecurityAssessmentStatus.ABSTAINED
+    assert forged_result.access_decision is None
+    assert forged_result.safe_failure_report is not None
+    assert forged_result.security_posture is not None
+    assert forged_result.security_posture.status.value == "not_evaluable"
+    assert any(
+        finding.code.value == "consent_missing"
+        for finding in forged_result.security_posture.findings
+    )
+
+    missing_result = M2606SecurityEngine().evaluate(
+        request.model_copy(update={"consent_reference": None})
+    )
+    assert missing_result.status is SecurityAssessmentStatus.ABSTAINED
+    assert missing_result.access_decision is None
+
+
 def test_canonical_request_digest_ignores_only_no_fields_and_is_stable() -> None:
     request = _request()
     payload = request.model_dump(mode="json")
