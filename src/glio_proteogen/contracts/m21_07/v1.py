@@ -211,6 +211,42 @@ class EvaluateComplexActivityHumanFactorsRequest(FrozenModel):
         return self
 
 
+def _provenance_binding_error(result: ComplexActivityHumanFactorsResult) -> str | None:
+    request = result.request
+    expected_inputs = tuple(
+        dict.fromkeys(
+            (
+                canonical_request_digest(request),
+                request.upstream_result.digest,
+                *(artifact.digest for artifact in request.source_artifacts),
+            )
+        )
+    )
+    provenance_checks = (
+        (
+            result.provenance.module_id == M2107_MODULE_ID,
+            "result provenance module does not bind M21-07",
+        ),
+        (
+            result.provenance.module_version == M2107_CONTRACT_VERSION,
+            "result provenance version does not bind M21-07",
+        ),
+        (
+            result.provenance.configuration_digest
+            == request.context.references.approved_configuration.evidence.digest,
+            "result provenance configuration does not bind approved operational policy",
+        ),
+        (
+            result.provenance.input_digests == expected_inputs,
+            "result provenance inputs do not bind the request and source artifacts",
+        ),
+    )
+    for bound, message in provenance_checks:
+        if not bound:
+            return message
+    return None
+
+
 class ComplexActivityHumanFactorsResult(FrozenModel):
     """Human-factors and operational validation with safe abstention."""
 
@@ -265,6 +301,9 @@ class ComplexActivityHumanFactorsResult(FrozenModel):
             not in {SupportStatus.UNSUPPORTED, SupportStatus.REVIEW_REQUIRED}
         ):
             raise ValueError("abstained result requires no report and safe status")
+        provenance_error = _provenance_binding_error(self)
+        if provenance_error is not None:
+            raise ValueError(provenance_error)
         if self.result_digest != result_payload_digest(self):
             raise ValueError("result digest does not match canonical result content")
         return self

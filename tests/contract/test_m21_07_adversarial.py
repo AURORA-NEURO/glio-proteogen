@@ -203,6 +203,29 @@ def test_self_rehashed_request_is_rejected_after_regeneration() -> None:
         M2107Engine().replay(_self_rehashed(forged, {}))
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("module_id", "GLIO-PROTEOGEN-M21-06"),
+        ("module_version", "9.9.9"),
+        ("configuration_digest", "sha256:" + "f" * 64),
+        ("input_digests", ("sha256:" + "f" * 64,)),
+    ],
+)
+def test_self_rehashed_provenance_binding_mutations_are_rejected(
+    field: str,
+    value: object,
+) -> None:
+    result = M2107Engine().evaluate(_request())
+    forged = _self_rehashed(
+        result,
+        {"provenance": result.provenance.model_copy(update={field: value})},
+    )
+
+    with pytest.raises(M2107ReplayError):
+        M2107Engine().replay(forged)
+
+
 def test_preflight_and_metric_status_boundaries_fail_closed() -> None:
     class Hostile:
         @property
