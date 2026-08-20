@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m23_03 import (
     ComputeMatchedComparison,
     canonical_request_digest,
     result_identifier,
+    result_payload_digest,
 )
 from glio_proteogen.modules.c21_reference_material.m23_03_internal_benchmark_ablation import (
     M2303Service,
@@ -107,6 +108,16 @@ def test_result_envelope_rejects_identity_and_status_drift() -> None:
     changed["abstention_reason"] = "manual review required"
     with pytest.raises(ValidationError, match="safe status"):
         result.__class__.model_validate(changed)
+
+
+def test_self_rehashed_dossier_declaration_mutation_is_rejected() -> None:
+    result = M2303Service().generate(_request())
+    assert result.dossier is not None
+    changed_dossier = result.dossier.model_copy(update={"version": "9.9.9"})
+    forged = result.model_copy(update={"dossier": changed_dossier})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        result.__class__.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 __all__ = []

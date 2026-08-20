@@ -301,6 +301,10 @@ class VariantPeptideInternalBenchmarkResult(FrozenModel):
             raise ValueError("result request digest does not bind exact request")
         if self.result_id != result_identifier(self.request):
             raise ValueError("result identifier must be derived from request digest")
+        if self.provenance.module_id != M2303_MODULE_ID:
+            raise ValueError("provenance module id must identify M23-03")
+        if self.request.upstream_result.digest not in self.provenance.input_digests:
+            raise ValueError("provenance must include the upstream result digest")
         if self.status is BenchmarkStatus.COMPLETED:
             if (
                 self.dossier is None
@@ -308,6 +312,17 @@ class VariantPeptideInternalBenchmarkResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("completed result requires a supported benchmark dossier")
+            expected_dossier_id = "m2303.dossier." + self.request_digest.removeprefix("sha256:")
+            if self.dossier.dossier_id != expected_dossier_id:
+                raise ValueError("completed dossier id must bind the request digest")
+            if (
+                self.dossier.version != self.request.split.version
+                or self.dossier.split != self.request.split
+                or self.dossier.baselines != self.request.baseline_runs
+                or self.dossier.ablations != self.request.ablations
+                or self.dossier.comparisons != self.request.comparisons
+            ):
+                raise ValueError("completed dossier must bind exact request declarations")
         elif (
             self.dossier is not None
             or self.abstention_reason is None

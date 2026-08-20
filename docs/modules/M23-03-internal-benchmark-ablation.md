@@ -23,7 +23,9 @@ Contract and safety boundaries:
   material is read. Denied, unsupported, malformed, or not-evaluable inputs do
   not become negative scientific findings.
 - Replay verifies request digest, deterministic result identity, provenance,
-  upstream digest binding, and canonical result digest.
+  upstream digest binding, canonical result digest, and exact completed-dossier
+  binding to the requested split, baselines, ablations, comparisons, version,
+  and deterministic dossier identity.
 - The strict parse-once plugin, FastAPI adapter, Typer adapter, service,
   evaluator, and benchmark share one canonical request/result path.
 - KINOPHOS kinase-state ownership, generic all-omics fusion, treatment
