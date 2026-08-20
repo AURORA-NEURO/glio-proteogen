@@ -146,3 +146,8 @@ def test_central_late_cli_exports_are_json_and_unknown_schema_is_sanitized() -> 
     assert json.loads(success.stdout)["x-glio-contract"]["moduleId"] == ("GLIO-PROTEOGEN-M20-03")
     assert failure.exit_code == CLI_USAGE_ERROR
     assert "unknown M20-03 schema" in failure.output
+
+
+def test_central_cli_group_names_are_unique() -> None:
+    names = [group.name for group in central_cli.registered_groups if group.name is not None]
+    assert len(names) == len(set(names)), "duplicate central CLI group registration"

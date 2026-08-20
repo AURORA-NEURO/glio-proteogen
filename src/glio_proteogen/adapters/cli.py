@@ -893,11 +893,6 @@ m1808_app = typer.Typer(
     help="M18-08 translation health monitoring and rollback.",
 )
 app.add_typer(m1808_app, name="m1808-translation-health")
-m1808_app = typer.Typer(
-    no_args_is_help=True,
-    help="M18-08 translation health monitoring and rollback.",
-)
-app.add_typer(m1808_app, name="m1808-translation-health")
 m1806_app = typer.Typer(
     no_args_is_help=True,
     help="M18-06 reviewer discrepancy and adjudication queue.",
