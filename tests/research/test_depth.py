@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import urllib.error
 import urllib.request
@@ -8,6 +9,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 import pytest
 
+from glio_proteogen.research.pdc import PdcClient, PdcFile
 from glio_proteogen.research.public_proteomics import (
     FormatError,
     PDCClientConfig,
@@ -54,6 +56,27 @@ def test_pdc_config_rejects_each_invalid_bound() -> None:
         PDCClientConfig(max_response_bytes=0)
     with pytest.raises(PDCError, match="user agent"):
         PDCClientConfig(user_agent="  ")
+
+
+def test_pdc_download_rejects_boolean_timeout_before_network_access() -> None:
+    file = PdcFile(
+        study_id="PDC000204",
+        file_name="fixture.mzML",
+        file_type="mzML",
+        data_category="Proteome",
+        file_format="mzML",
+        file_size=1,
+        md5=None,
+        location="https://pdc.cancer.gov/fixture.mzML",
+    )
+    with pytest.raises(ValueError, match="timeout"):
+        PdcClient._download_file(
+            file,
+            io.BytesIO(),
+            max_bytes=1,
+            timeout_seconds=True,
+            approved_hosts=(),
+        )
 
 
 def test_pdc_metadata_rejects_missing_text_and_bad_counts() -> None:

@@ -553,6 +553,7 @@ class PdcClient:
             raise ValueError("max_bytes is outside supported bounds")
         if (
             type(timeout_seconds) not in (int, float)
+            or isinstance(timeout_seconds, bool)
             or not math.isfinite(timeout_seconds)
             or not 0 < timeout_seconds <= _MAX_DOWNLOAD_TIMEOUT_SECONDS
         ):

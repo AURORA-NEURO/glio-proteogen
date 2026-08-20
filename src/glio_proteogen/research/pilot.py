@@ -27,7 +27,7 @@ from .public_proteomics import (
     sha256_digest,
 )
 from .quantification import PeptideQuant, median_normalize
-from .search import Psm, SearchParameters, search_spectrum, target_decoy_qvalues
+from .search import Psm, SearchParameters, search_spectrum_candidates, target_decoy_qvalues
 
 PilotStatus = Literal["COMPLETED", "ABSTAINED"]
 _PILOT_TERMS = "local research fixture; no production or clinical use"
@@ -93,13 +93,16 @@ class PilotLimits:
     max_psms: int = 10_000
 
     def __post_init__(self) -> None:
-        if not 0 < self.max_input_bytes <= 512 * 1024 * 1024:
+        if (
+            type(self.max_input_bytes) is not int
+            or not 0 < self.max_input_bytes <= 512 * 1024 * 1024
+        ):
             raise PilotError("pilot input byte cap is outside the bounded range")
-        if not 0 < self.max_spectra <= 1_000_000:
+        if type(self.max_spectra) is not int or not 0 < self.max_spectra <= 1_000_000:
             raise PilotError("pilot spectrum cap is outside the bounded range")
-        if not 0 < self.max_peptides <= 2_000_000:
+        if type(self.max_peptides) is not int or not 0 < self.max_peptides <= 2_000_000:
             raise PilotError("pilot peptide cap is outside the bounded range")
-        if not 0 < self.max_psms <= self.max_spectra:
+        if type(self.max_psms) is not int or not 0 < self.max_psms <= self.max_spectra:
             raise PilotError("pilot PSM cap is outside the bounded range")
 
     def as_dict(self) -> dict[str, int]:
@@ -186,6 +189,7 @@ class PilotResult:
     limits: PilotLimits
     limitations: tuple[str, ...]
     result_digest: str
+    candidate_psms: tuple[Psm, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         payload = _result_payload(self)
@@ -199,6 +203,7 @@ def _result_payload(result: PilotResult) -> dict[str, object]:
         "fasta_digest": result.fasta_digest,
         "limitations": list(result.limitations),
         "matched_psms": [_psm_payload(psm) for psm in result.matched_psms],
+        "candidate_psms": [_psm_payload(psm) for psm in result.candidate_psms],
         "metadata_digest": result.metadata_digest,
         "ms2_spectra": result.ms2_spectra,
         "mzml_digest": result.mzml_digest,
@@ -389,7 +394,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             or spectrum.precursor_charge != request.parameters.precursor_charge
         ):
             continue
-        psm = search_spectrum(
+        candidates = search_spectrum_candidates(
             spectrum.spectrum_id,
             spectrum.precursor_mz if spectrum.precursor_mz is not None else 0.0,
             peptide_map,
@@ -397,8 +402,8 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             spectrum.intensity,
             parameters=request.parameters,
         )
-        if psm is not None:
-            psms.append(psm)
+        remaining = request.limits.max_psms - len(psms)
+        psms.extend(candidates[:remaining])
         if len(psms) >= request.limits.max_psms:
             break
     scored = target_decoy_qvalues(psms)
@@ -457,6 +462,7 @@ def run_pilot(request: PilotRequest) -> PilotResult:
             limits=request.limits,
             limitations=_NO_CLAIMS,
             result_digest="",
+            candidate_psms=tuple(psms),
         )
     )
 

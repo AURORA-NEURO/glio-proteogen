@@ -431,6 +431,7 @@ def _validate_request(request: ResearchRunRequest) -> None:
         raise ValueError("sample_id must be a bounded opaque identifier")
     if (
         type(request.fragment_tolerance_da) not in (int, float)
+        or isinstance(request.fragment_tolerance_da, bool)
         or not math.isfinite(request.fragment_tolerance_da)
         or request.fragment_tolerance_da <= 0
     ):

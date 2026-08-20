@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from tools.verify_research_pilot import verify as verify_pilot_evidence
 
+import glio_proteogen.research.pilot as pilot_module
 from glio_proteogen.research import (
     PilotError,
     PilotLimits,
@@ -20,6 +21,7 @@ from glio_proteogen.research import (
     verify_pilot_replay,
 )
 from glio_proteogen.research.public_proteomics.provenance import sha256_digest
+from glio_proteogen.research.search import Psm
 
 _ROOT = Path(__file__).parents[2]
 _METADATA = _ROOT / "research" / "fixtures" / "pdc" / "pdc000204.metadata.json"
@@ -76,6 +78,24 @@ def test_positive_pilot_is_content_addressed_and_replayable() -> None:
     assert json.loads(result_json(result))["result_digest"] == result.result_digest
 
 
+def test_pilot_binds_all_target_decoy_candidates_before_winner_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = Psm("pilot-scan-1", "MPEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    decoy = Psm("pilot-scan-1", "MPEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True)
+    monkeypatch.setattr(
+        pilot_module,
+        "search_spectrum_candidates",
+        lambda *_args, **_kwargs: (target, decoy),
+    )
+    result = run_pilot(_request(_mzml_with_ms2()))
+    assert result.candidate_psms == (target, decoy)
+    assert result.matched_psms[0].peptide == "MPEPTIDER"
+    # The target wins this spectrum-level competition; the lower decoy remains
+    # in the candidate receipt but is not counted as a decoy winner for FDR.
+    assert result.matched_psms[0].q_value is None
+
+
 def test_checked_in_empty_spectrum_fixture_abstains_safely() -> None:
     result = run_pilot(_request(_NO_SPECTRA.read_bytes()))
     assert result.status == "ABSTAINED"
@@ -110,9 +130,18 @@ def test_policy_is_closed_against_network_or_claim_expansion() -> None:
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    [("max_input_bytes", 0), ("max_spectra", 0), ("max_peptides", 0), ("max_psms", 0)],
+    [
+        ("max_input_bytes", 0),
+        ("max_spectra", 0),
+        ("max_peptides", 0),
+        ("max_psms", 0),
+        ("max_input_bytes", True),
+        ("max_spectra", True),
+        ("max_peptides", True),
+        ("max_psms", True),
+    ],
 )
-def test_limits_reject_zero_or_negative_caps(field: str, value: int) -> None:
+def test_limits_reject_zero_or_non_integer_caps(field: str, value: int) -> None:
     with pytest.raises(PilotError):
         PilotLimits(**{field: value})
 

@@ -59,6 +59,13 @@ REPRESENTATIVE_MZML_BYTES = 193_963_708
 MS2_LEVEL = 2
 
 
+def test_search_parameters_reject_boolean_numeric_controls() -> None:
+    with pytest.raises(ValueError, match="fragment_tolerance"):
+        SearchParameters(fragment_tolerance_da=True)
+    with pytest.raises(ValueError, match="matched_ions"):
+        SearchParameters(min_matched_ions=True)
+
+
 def _array(values: tuple[float, ...], accession: str) -> str:
     encoded = base64.b64encode(struct.pack(f"<{len(values)}d", *values)).decode("ascii")
     return (

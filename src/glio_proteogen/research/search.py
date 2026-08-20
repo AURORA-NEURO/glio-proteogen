@@ -25,9 +25,14 @@ class SearchParameters:
     def __post_init__(self) -> None:
         if type(self.precursor_tolerance_ppm) is not int or self.precursor_tolerance_ppm < 0:
             raise ValueError("precursor_tolerance_ppm must be non-negative")
-        if not isfinite(self.fragment_tolerance_da) or self.fragment_tolerance_da <= 0:
+        if (
+            type(self.fragment_tolerance_da) not in (int, float)
+            or isinstance(self.fragment_tolerance_da, bool)
+            or not isfinite(self.fragment_tolerance_da)
+            or self.fragment_tolerance_da <= 0
+        ):
             raise ValueError("fragment_tolerance_da must be finite and positive")
-        if self.min_matched_ions < 1:
+        if type(self.min_matched_ions) is not int or self.min_matched_ions < 1:
             raise ValueError("min_matched_ions must be positive")
         if type(self.precursor_charge) is not int or not 1 <= self.precursor_charge <= 20:
             raise ValueError("precursor_charge must be positive")
