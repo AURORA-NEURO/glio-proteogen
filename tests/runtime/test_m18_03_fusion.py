@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m18_03 import (
     SourceContribution,
     SourceKind,
 )
+from glio_proteogen.contracts.m18_03.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -249,3 +250,13 @@ def test_tampered_result_digest_is_rejected() -> None:
 
     with pytest.raises(m1803.M1803ReplayError, match="payload digest"):
         m1803.M1803Engine().replay(tampered)
+
+
+def test_self_rehashed_semantic_tamper_is_rejected_by_replay() -> None:
+    engine = m1803.M1803Engine()
+    result = engine.adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1803.M1803ReplayError, match="deterministic replay"):
+        engine.replay(tampered)
