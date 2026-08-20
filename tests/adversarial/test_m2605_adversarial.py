@@ -143,6 +143,10 @@ def test_self_rehashed_telemetry_mutation_is_rejected_by_all_replay_seams() -> N
             )
         },
     )
+    with pytest.raises(ValidationError, match="exact request telemetry material"):
+        TypeAdapter(ProteomicsTelemetryResult).validate_python(
+            forged.model_dump(mode="python"), strict=True
+        )
     with pytest.raises(M2605ReplayError):
         verify_telemetry_result(forged)
     with pytest.raises(M2605ReplayError):
@@ -184,7 +188,7 @@ def test_api_and_cli_reject_self_rehashed_telemetry_mutation(tmp_path: Path) -> 
     result_path.write_text(forged.model_dump_json(), encoding="utf-8")
     invoked = CliRunner().invoke(cli.app, ["verify", str(result_path)])
     assert invoked.exit_code != 0
-    assert "replay is invalid" in invoked.output
+    assert "forged" not in invoked.output
 
 
 def test_api_sanitizes_service_validation_errors() -> None:
