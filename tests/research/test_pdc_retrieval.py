@@ -178,6 +178,8 @@ def test_source_content_verifier_rejects_hash_length_and_limit_tampering() -> No
         verify_pdc_source_content(receipt, payload[:-1])
     with pytest.raises(PdcError, match="limit"):
         verify_pdc_source_content(receipt, payload, max_bytes=len(payload) - 1)
+    with pytest.raises(ValueError, match="max_bytes"):
+        verify_pdc_source_content(receipt, payload, max_bytes=0)
     with pytest.raises(TypeError, match="bytes"):
         verify_pdc_source_content(receipt, io.StringIO("not bytes"))  # type: ignore[arg-type]
 
