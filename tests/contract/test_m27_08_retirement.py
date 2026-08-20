@@ -3,6 +3,8 @@
 # Contract tests intentionally exercise exact numeric/cardinality boundaries.
 # ruff: noqa: PLR2004
 
+from typing import Any, cast
+
 import pytest
 from evals.m27_08.fixture import build_request
 
@@ -18,7 +20,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708S
 
 
 def test_all_ten_schemas_are_strict_and_identified() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == 10
     assert all(value["$schema"].endswith("2020-12/schema") for value in schemas.values())
     assert all(value["x-glio-contract"]["provisionalAbi"] for value in schemas.values())
@@ -52,6 +54,17 @@ def test_result_replay_rejects_self_rehashed_forged_package() -> None:
     forged_package = result.package.model_copy(update={"version": "9.9.9"})
     forged = result.model_copy(update={"package": forged_package})
     rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert not M2708Service().verify(rehashed)
+
+
+def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
+    result = M2708Service().execute(build_request())
+    changed_request = build_request(request_id="m2708.request.changed")
+    forged = result.model_copy(update={"request": changed_request})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    # Rehashing the outer envelope must not bypass the request-digest and
+    # result-identity closure enforced by the result model.
     assert not M2708Service().verify(rehashed)
 
 
