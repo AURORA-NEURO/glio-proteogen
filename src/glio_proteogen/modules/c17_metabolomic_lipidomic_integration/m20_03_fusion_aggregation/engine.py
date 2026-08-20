@@ -193,9 +193,9 @@ def _provenance(request: FuseProteinSubtypeEvidenceRequest) -> ProvenanceRecord:
 
 def _evidence(request: FuseProteinSubtypeEvidenceRequest) -> tuple[EvidenceReference, ...]:
     items: list[EvidenceReference] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str, str]] = set()
     for artifact in (request.alignment_result, *request.source_artifacts):
-        key = (artifact.artifact_id, artifact.digest)
+        key = (artifact.artifact_id, artifact.version, artifact.digest, artifact.media_type)
         if key not in seen and len(items) < M2003_MAX_EVIDENCE:
             seen.add(key)
             items.append(
@@ -206,7 +206,8 @@ def _evidence(request: FuseProteinSubtypeEvidenceRequest) -> tuple[EvidenceRefer
         *(item for contribution in request.contributions for item in contribution.evidence),
         *(item for disagreement in request.disagreements for item in disagreement.evidence),
     ):
-        key = (evidence.reference.artifact_id, evidence.reference.digest)
+        reference = evidence.reference
+        key = (reference.artifact_id, reference.version, reference.digest, reference.media_type)
         if key not in seen and len(items) < M2003_MAX_EVIDENCE:
             seen.add(key)
             items.append(evidence)

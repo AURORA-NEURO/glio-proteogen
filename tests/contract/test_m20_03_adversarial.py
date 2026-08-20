@@ -249,6 +249,41 @@ def test_contribution_artifact_binding_rejects_identity_mutations(field: str, va
         )
 
 
+def test_evidence_inventory_preserves_full_artifact_identity() -> None:
+    request = _request()
+    source = request.source_artifacts[0]
+    variant = source.model_copy(
+        update={
+            "version": "2.0.0",
+            "media_type": "application/vnd.glio-proteogen.variant+json",
+        }
+    )
+    configuration = request.configuration.model_copy(update={"evidence": (_evidence(variant),)})
+    result = M2003Engine().fuse(request.model_copy(update={"configuration": configuration}))
+    identities = {
+        (
+            item.reference.artifact_id,
+            item.reference.version,
+            item.reference.digest,
+            item.reference.media_type,
+        )
+        for item in result.evidence
+    }
+
+    assert (
+        source.artifact_id,
+        source.version,
+        source.digest,
+        source.media_type,
+    ) in identities
+    assert (
+        variant.artifact_id,
+        variant.version,
+        variant.digest,
+        variant.media_type,
+    ) in identities
+
+
 def test_control_denial_precedes_source_traversal() -> None:
     request = _request()
     denied = request.context.references.consent.model_copy(update={"state": "withheld"})
