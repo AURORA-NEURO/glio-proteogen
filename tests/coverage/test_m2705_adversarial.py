@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m27_05 import (
+    M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     AlertRecord,
     AlertSeverity,
     AlertState,
@@ -29,6 +31,7 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryUnit,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
     M2705Plugin,
@@ -68,9 +71,27 @@ def test_schema_single_routes_and_api_validation_replay() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert (
-        client.post("/v1/modules/M27-05/verify", content=b"[]").status_code
-        == _HTTP_UNPROCESSABLE
+        client.post("/v1/modules/M27-05/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
     )
+
+
+def test_api_and_service_reject_oversized_replay_before_validation() -> None:
+    oversized_request = b"{" + b" " * M2705_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    oversized_result = b"{" + b" " * M2705_MAX_CANONICAL_RESULT_BYTES + b"}"
+    client = TestClient(create_app())
+
+    request_response = client.post("/v1/modules/M27-05/validate", content=oversized_request)
+    result_response = client.post("/v1/modules/M27-05/verify", content=oversized_result)
+
+    assert request_response.status_code == _HTTP_UNPROCESSABLE
+    assert result_response.status_code == _HTTP_UNPROCESSABLE
+    assert "byte limit" in result_response.text
+
+    service = M2705Service()
+    with pytest.raises(StrictJsonError):
+        service.replay(oversized_result)
+    with pytest.raises(ValueError, match="M27-05 result exceeds"):
+        service.replay({"oversized": "x" * M2705_MAX_CANONICAL_RESULT_BYTES})
 
 
 def test_api_validation_and_emit_sanitize_denied_controls() -> None:

@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m27_05 import (
     M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     EmitProteomicsTelemetryRequest,
     ProteomicsTelemetryResult,
     contract_json_schema,
@@ -49,6 +50,19 @@ def _parse_request(body: bytes) -> EmitProteomicsTelemetryRequest:
         raise _invalid_request(error) from error
 
 
+async def _read_bounded(request: Request, *, max_bytes: int, detail: str) -> bytes:
+    """Drain an HTTP body without retaining bytes beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail=detail)
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def create_app(service: M2705Service | None = None) -> FastAPI:
     """Create schema, validation, emission, and replay routes."""
 
@@ -67,7 +81,13 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-05/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_bounded(
+                request,
+                max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES,
+                detail="request exceeds the M27-05 byte limit",
+            )
+        )
         try:
             typed = boundary.validate_request(payload)
         except (ValidationError, ValueError, M2705AuthorizationError) as error:
@@ -76,7 +96,13 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-05/emit")
     async def emit(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_bounded(
+                request,
+                max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES,
+                detail="request exceeds the M27-05 byte limit",
+            )
+        )
         try:
             result = boundary.emit(payload)
         except (ValidationError, ValueError, M2705AuthorizationError) as error:
@@ -86,7 +112,14 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
     @app.post("/v1/modules/M27-05/verify")
     async def verify(request: Request) -> dict[str, object]:
         try:
-            candidate = strict_json_loads(await request.body())
+            candidate = strict_json_loads(
+                await _read_bounded(
+                    request,
+                    max_bytes=M2705_MAX_CANONICAL_RESULT_BYTES,
+                    detail="replay envelope exceeds the M27-05 byte limit",
+                ),
+                max_bytes=M2705_MAX_CANONICAL_RESULT_BYTES,
+            )
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
             replay = boundary.replay(result)
         except (StrictJsonError, ValueError, ValidationError, TypeError) as error:

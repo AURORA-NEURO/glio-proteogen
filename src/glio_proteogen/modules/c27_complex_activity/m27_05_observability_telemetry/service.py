@@ -8,6 +8,7 @@ from pydantic import TypeAdapter
 
 from glio_proteogen.contracts.m27_05 import (
     M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     EmitProteomicsTelemetryRequest,
     ProteomicsTelemetryResult,
 )
@@ -18,6 +19,13 @@ from .engine import M2705TelemetryEngine, preflight_m2705_authorization
 
 _REQUEST_ADAPTER = TypeAdapter(EmitProteomicsTelemetryRequest)
 _RESULT_ADAPTER = TypeAdapter(ProteomicsTelemetryResult)
+
+
+def _bounded_mapping_json(mapping: Mapping[object, object], *, max_bytes: int, label: str) -> bytes:
+    encoded = canonical_json_bytes(dict(mapping))
+    if len(encoded) > max_bytes:
+        raise ValueError(f"{label} exceeds canonical byte limit")  # noqa: TRY003
+    return encoded
 
 
 class M2705Service:
@@ -35,7 +43,14 @@ class M2705Service:
             return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         preflight_m2705_authorization(request)
         if isinstance(request, Mapping):
-            return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(dict(request)), strict=True)
+            return _REQUEST_ADAPTER.validate_json(
+                _bounded_mapping_json(
+                    request,
+                    max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES,
+                    label="M27-05 request",
+                ),
+                strict=True,
+            )
         return _REQUEST_ADAPTER.validate_python(request, strict=True)
 
     def emit(self, request: object) -> ProteomicsTelemetryResult:
@@ -43,10 +58,17 @@ class M2705Service:
 
     def replay(self, result: object) -> ProteomicsTelemetryResult:
         if isinstance(result, (bytes, bytearray, str)):
-            decoded = strict_json_loads(result)
+            decoded = strict_json_loads(result, max_bytes=M2705_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         elif isinstance(result, Mapping):
-            typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
+            typed = _RESULT_ADAPTER.validate_json(
+                _bounded_mapping_json(
+                    result,
+                    max_bytes=M2705_MAX_CANONICAL_RESULT_BYTES,
+                    label="M27-05 result",
+                ),
+                strict=True,
+            )
         else:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         return self._engine.replay(typed)
