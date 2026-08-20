@@ -50,6 +50,36 @@ def test_plugin_rejects_oversized_json() -> None:
         M2608Plugin().validate(RetirementSubmission(payload))
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    ["mass_spectrometry_proteome", "genome_transcriptome", "ptm_annotations"],
+)
+def test_request_rejects_declared_source_omitted_from_provenance(
+    field_name: str,
+) -> None:
+    request = _request()
+    declared = getattr(request, field_name)
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = tuple(
+        item for item in request.source_artifacts if item.artifact_id != declared.artifact_id
+    )
+
+    with pytest.raises(ValidationError, match="every declared input"):
+        RetireProteinSubtypeServiceRequest.model_validate(payload, strict=True)
+
+
+def test_request_rejects_source_artifact_digest_substitution() -> None:
+    request = _request()
+    substituted = request.mass_spectrometry_proteome.model_copy(
+        update={"digest": "sha256:" + "f" * 64}
+    )
+    payload = request.model_dump(mode="python")
+    payload["source_artifacts"] = (substituted, *request.source_artifacts[1:])
+
+    with pytest.raises(ValidationError, match="every declared input"):
+        RetireProteinSubtypeServiceRequest.model_validate(payload, strict=True)
+
+
 def test_replay_rejects_tampered_result_id() -> None:
     service = M2608RetirementService()
     result = service.retire(_request())
