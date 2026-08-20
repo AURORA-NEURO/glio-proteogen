@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m28_04 import (
     contract_json_schemas,
 )
 from glio_proteogen.kernel.models import UpstreamDecisionState
+from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway import api as m2804_api
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.api import create_app
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.cli import _read_bounded, app
 from glio_proteogen.modules.c13_proteotype.m28_04_api_sdk_cli_gateway.sdk import M2804Client
@@ -195,3 +196,13 @@ def test_cli_bounded_reader_avoids_unbounded_path_read_bytes(tmp_path: Path) -> 
     path.write_bytes(b"{}")
     with patch.object(Path, "read_bytes", side_effect=AssertionError("unbounded read")):
         assert _read_bounded(path, max_bytes=2) == b"{}"
+
+
+def test_api_rejects_oversized_stream_before_json_parse() -> None:
+    client = TestClient(create_app())
+    with patch.object(m2804_api, "M2804_MAX_CANONICAL_REQUEST_BYTES", 1):
+        request_result = client.post("/v1/modules/M28-04/validate", content=b"{}")
+    with patch.object(m2804_api, "M2804_MAX_CANONICAL_RESULT_BYTES", 1):
+        result_result = client.post("/v1/modules/M28-04/verify", content=b"{}")
+    assert request_result.status_code == HTTP_UNPROCESSABLE_CONTENT
+    assert result_result.status_code == HTTP_UNPROCESSABLE_CONTENT
