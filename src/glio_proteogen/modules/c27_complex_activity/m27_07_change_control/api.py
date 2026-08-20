@@ -21,6 +21,19 @@ from glio_proteogen.kernel.strict_json import strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service import M2707Service
 
 
+async def _read_body(request: Request, *, max_bytes: int) -> bytes:
+    """Read an HTTP body without buffering beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def create_app() -> FastAPI:
     api = FastAPI(title="GLIO-PROTEOGEN M27-07")
     service = M2707Service()
@@ -37,7 +50,7 @@ def create_app() -> FastAPI:
 
     async def _body(request: Request, *, max_bytes: int) -> dict[str, Any]:
         try:
-            raw = await request.body()
+            raw = await _read_body(request, max_bytes=max_bytes)
             value = strict_json_loads(raw, max_bytes=max_bytes)
             if not isinstance(value, dict):
                 raise ValueError("object required")
@@ -73,7 +86,7 @@ def create_app() -> FastAPI:
     @api.post("/v1/modules/M27-07/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
-            raw = await request.body()
+            raw = await _read_body(request, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
             value = strict_json_loads(raw, max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES)
             if not isinstance(value, dict):
                 raise ValueError("object required")

@@ -45,6 +45,19 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M26-08 contract")
 
 
+async def _read_body(request: Request, *, max_bytes: int) -> bytes:
+    """Read an HTTP body without buffering beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _parse_request(body: bytes) -> RetireProteinSubtypeServiceRequest:
     try:
         strict_json_loads(body, max_bytes=M2608_MAX_CANONICAL_REQUEST_BYTES)
@@ -81,7 +94,9 @@ def create_app(service: M2608RetirementService | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-08/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2608_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             typed = boundary.validate_request(payload)
         except (ValidationError, ValueError, M2608AuthorizationError) as error:
@@ -90,7 +105,9 @@ def create_app(service: M2608RetirementService | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-08/retire")
     async def retire(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2608_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             result = boundary.retire(payload)
         except (ValidationError, ValueError, M2608AuthorizationError) as error:
@@ -99,7 +116,9 @@ def create_app(service: M2608RetirementService | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-08/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await _read_body(request, max_bytes=M2608_MAX_CANONICAL_RESULT_BYTES)
+        )
         candidate = envelope.get("result", envelope)
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)

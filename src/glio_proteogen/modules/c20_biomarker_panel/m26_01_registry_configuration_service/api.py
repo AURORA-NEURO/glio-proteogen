@@ -33,6 +33,19 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M26-01 contract")
 
 
+async def _read_body(request: Request, *, max_bytes: int) -> bytes:
+    """Read an HTTP body without buffering beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _parse_request(body: bytes) -> RegisterProteinSubtypeRegistryRequest:
     try:
         strict_json_loads(body, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
@@ -75,7 +88,9 @@ def create_app(service: M2601Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-01/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             typed = boundary.validate_request(payload)
         except (ValidationError, ValueError, M2601AuthorizationError) as error:
@@ -84,7 +99,9 @@ def create_app(service: M2601Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M26-01/register")
     async def register(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2601_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             result = boundary.register(payload)
         except (ValidationError, ValueError, M2601AuthorizationError) as error:
@@ -94,7 +111,7 @@ def create_app(service: M2601Service | None = None) -> FastAPI:
     @app.post("/v1/modules/M26-01/verify")
     async def verify(request: Request) -> dict[str, object]:
         envelope = _parse_object(
-            await request.body(),
+            await _read_body(request, max_bytes=M2601_MAX_CANONICAL_RESULT_BYTES),
             max_bytes=M2601_MAX_CANONICAL_RESULT_BYTES,
             invalid_detail="replay envelope JSON is invalid",
             object_detail="replay envelope JSON must be an object",

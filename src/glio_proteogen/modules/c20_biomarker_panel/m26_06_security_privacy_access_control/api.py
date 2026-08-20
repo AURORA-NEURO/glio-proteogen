@@ -46,6 +46,19 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M26-06 contract")
 
 
+async def _read_body(request: Request, *, max_bytes: int) -> bytes:
+    """Read an HTTP body without buffering beyond its contract ceiling."""
+
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _parse_request(body: bytes) -> EvaluateProteomicsSecurityAccessRequest:
     try:
         decoded = strict_json_loads(body, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
@@ -82,7 +95,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             typed = boundary.validate_request(payload)
         except M2606AuthorizationError as error:
@@ -95,7 +110,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/evaluate")
     async def evaluate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_body(request, max_bytes=M2606_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             result = boundary.execute(payload)
         except M2606AuthorizationError as error:
@@ -108,7 +125,9 @@ def create_m2606_app(service: M2606SecurityService | None = None) -> FastAPI:  #
 
     @app.post("/v1/modules/M26-06/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await _read_body(request, max_bytes=M2606_MAX_CANONICAL_RESULT_BYTES)
+        )
         candidate = envelope.get("result", envelope)
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
