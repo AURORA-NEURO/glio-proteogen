@@ -85,6 +85,25 @@ def test_authorization_is_fail_closed_before_evaluation() -> None:
         M2104Engine().evaluate(request.model_copy(update={"context": context}))
 
 
+def test_service_and_plugin_validation_reject_withheld_consent() -> None:
+    request = _request()
+    consent = request.context.references.consent.model_copy(update={"state": ConsentState.WITHHELD})
+    references = request.context.references.model_copy(update={"consent": consent})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
+
+    service = M2104Service()
+    with pytest.raises(M2104AuthorizationError):
+        service.validate_request(denied)
+
+    plugin = M2104Plugin(service)
+    with pytest.raises(M2104AuthorizationError):
+        plugin.validate(denied)
+    with pytest.raises(M2104AuthorizationError):
+        plugin.validate_request(denied)
+
+
 def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     request = _request()
     service = M2104Service()

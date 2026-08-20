@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final
+from typing import TYPE_CHECKING, Final
 from weakref import WeakKeyDictionary
-
-from pydantic import TypeAdapter
-
-from glio_proteogen.contracts.m21_04 import (
-    ComplexActivityExternalTransportResult,
-    EvaluateComplexActivityExternalTransportRequest,
-)
 
 from .service import M2104Service
 
-_REQUEST_ADAPTER: Final = TypeAdapter(EvaluateComplexActivityExternalTransportRequest)
+if TYPE_CHECKING:
+    from glio_proteogen.contracts.m21_04 import (
+        ComplexActivityExternalTransportResult,
+        EvaluateComplexActivityExternalTransportRequest,
+    )
+
 _TOKENS: WeakKeyDictionary[ValidatedM2104Request, object] = WeakKeyDictionary()
 
 
@@ -69,13 +67,13 @@ class M2104Plugin:
         self._seal = object()
 
     def validate(self, request: object) -> ValidatedM2104Request:
-        validated = _REQUEST_ADAPTER.validate_python(request, strict=True)
+        validated = self._service.validate_request(request)
         token = ValidatedM2104Request(validated, self._seal)
         _TOKENS[token] = self._seal
         return token
 
     def validate_request(self, request: object) -> EvaluateComplexActivityExternalTransportRequest:
-        return _REQUEST_ADAPTER.validate_python(request, strict=True)
+        return self._service.validate_request(request)
 
     def run(self, token: ValidatedM2104Request) -> ComplexActivityExternalTransportResult:
         if not isinstance(token, ValidatedM2104Request) or _TOKENS.get(token) is not self._seal:

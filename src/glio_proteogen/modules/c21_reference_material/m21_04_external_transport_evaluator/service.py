@@ -11,7 +11,7 @@ from glio_proteogen.contracts.m21_04 import (
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import strict_json_loads
 
-from .engine import M2104Engine
+from .engine import M2104Engine, preflight_m2104_authorization
 
 
 class M2104Service:
@@ -21,6 +21,7 @@ class M2104Service:
         self._engine = engine or M2104Engine()
 
     def validate_request(self, request: object) -> EvaluateComplexActivityExternalTransportRequest:
+        preflight_m2104_authorization(request)
         return EvaluateComplexActivityExternalTransportRequest.model_validate(request, strict=True)
 
     def evaluate(self, request: object) -> ComplexActivityExternalTransportResult:

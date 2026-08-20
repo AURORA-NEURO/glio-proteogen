@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m21_04 import TransportDimension, TransportStatus
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_reference_material.m21_04_external_transport_evaluator import (
     M2104Service,
     cli_app,
@@ -85,6 +86,20 @@ def test_fastapi_validate_route_accepts_strict_request() -> None:
     response = client.post("/v1/modules/M21-04/validate", json=_request().model_dump(mode="json"))
     assert response.status_code == _HTTP_OK
     assert response.json()["operation"] == "evaluate_complex_activity_external_transport"
+
+
+def test_fastapi_validate_route_rejects_withheld_consent() -> None:
+    client = TestClient(create_app())
+    request = _request()
+    consent = request.context.references.consent.model_copy(update={"state": ConsentState.WITHHELD})
+    references = request.context.references.model_copy(update={"consent": consent})
+    denied = request.model_copy(
+        update={"context": request.context.model_copy(update={"references": references})}
+    )
+
+    response = client.post("/v1/modules/M21-04/validate", json=denied.model_dump(mode="json"))
+    assert response.status_code == _HTTP_UNPROCESSABLE_ENTITY
+    assert response.json() == {"detail": "request does not satisfy the M21-04 contract"}
 
 
 def test_typer_evaluate_verify_and_no_overwrite(tmp_path: Path) -> None:
