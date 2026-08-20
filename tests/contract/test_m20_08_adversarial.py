@@ -94,7 +94,7 @@ def test_signal_configuration_and_rollback_bounds_are_closed() -> None:
 
 def test_request_requires_retained_upstream_and_unique_sources() -> None:
     request = _request()
-    with pytest.raises(ValidationError, match="retain the upstream"):
+    with pytest.raises(ValidationError, match="exact M20-07 result"):
         type(request).model_validate(
             request.model_copy(update={"source_artifacts": (_artifact("other"),)})
         )

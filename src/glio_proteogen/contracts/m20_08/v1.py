@@ -252,10 +252,14 @@ class MonitorProteinSubtypeTranslationHealthRequest(FrozenModel):
         )
         if len(keys) != len(set(keys)):
             raise ValueError("monitor source artifact references must be unique")
-        if self.upstream_result.artifact_id not in {
-            item.artifact_id for item in self.source_artifacts
-        }:
-            raise ValueError("monitor source artifacts must retain the upstream result")
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in set(keys):
+            raise ValueError("monitor source artifacts must include the exact M20-07 result")
         if self.configuration.version != self.upstream_result.version:
             raise ValueError("monitor configuration version must bind the upstream result version")
         return self

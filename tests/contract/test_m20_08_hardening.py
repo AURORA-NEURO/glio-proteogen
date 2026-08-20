@@ -178,6 +178,34 @@ def test_authority_and_upstream_boundary_are_explicit() -> None:
     assert _request().upstream_result.media_type == M2008_M2007_INPUT_MEDIA_TYPE
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", "2.0.0"),
+        ("digest", sha256_digest("m2008:forged-upstream")),
+        ("media_type", "application/vnd.forged+json"),
+    ],
+)
+def test_request_requires_exact_m20_07_artifact_identity(field: str, value: str) -> None:
+    request = _request()
+    mutated = request.source_artifacts[0].model_copy(update={field: value})
+    payload = request.model_dump(mode="python") | {
+        "source_artifacts": (mutated, request.source_artifacts[1])
+    }
+
+    with pytest.raises(ValidationError, match="exact M20-07 result"):
+        TypeAdapter(MonitorProteinSubtypeTranslationHealthRequest).validate_python(
+            payload, strict=True
+        )
+
+    with pytest.raises(ValidationError, match="exact M20-07 result"):
+        TypeAdapter(MonitorProteinSubtypeTranslationHealthRequest).validate_python(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (request.source_artifacts[1],)},
+            strict=True,
+        )
+
+
 def test_signal_bounds_and_source_references_are_closed() -> None:
     with pytest.raises(ValidationError, match="within its bounds"):
         HealthSignal.model_validate(_signal().model_dump() | {"observed_value": 2.0})
