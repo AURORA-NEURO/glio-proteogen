@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
 from hashlib import sha256
 from itertools import pairwise
+from pathlib import Path
 
 from glio_proteogen.research import (
     Psm,
@@ -15,7 +17,11 @@ from glio_proteogen.research import (
     target_decoy_qvalues,
 )
 
-from .run import build_scenario_request, scenarios
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from evals.research_proteomics.run import build_scenario_request, scenarios
+else:
+    from .run import build_scenario_request, scenarios
 
 _EXPECTED_WINNERS = 3
 _EXPECTED_BELOW_LOQ = 2
