@@ -194,8 +194,7 @@ def _limitations() -> tuple[Limitation, ...]:
         Limitation(
             code="no_identity_inference",
             statement=(
-                "Identity, consent, treatment, and upstream evidence "
-                "are not inferred or mutated."
+                "Identity, consent, treatment, and upstream evidence are not inferred or mutated."
             ),
         ),
     )
@@ -332,8 +331,7 @@ class M1701Engine:
                 status=SupportStatus.SUPPORTED,
                 reason_code="compatible_upstream",
                 rationale=(
-                    "At least one upstream candidate satisfies the configured "
-                    "compatibility rules."
+                    "At least one upstream candidate satisfies the configured compatibility rules."
                 ),
             )
             abstention_reason = None
@@ -383,6 +381,9 @@ class M1701Engine:
             raise M1701ReplayError("M17-01 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1701ReplayError("M17-01 result payload digest mismatch")  # noqa: TRY003
+        expected = self.resolve(result.request)
+        if result.model_dump(mode="json") != expected.model_dump(mode="json"):
+            raise M1701ReplayError("M17-01 semantic replay mismatch")  # noqa: TRY003
         return result
 
 

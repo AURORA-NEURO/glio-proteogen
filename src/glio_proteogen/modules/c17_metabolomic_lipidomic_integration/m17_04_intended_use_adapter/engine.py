@@ -255,9 +255,7 @@ def _policy_decision(
             )
         )
         blocked_claims.append("evidence tier")
-    if not _REQUIRED_DISPLAY_SECTIONS.issubset(
-        set(registration.display_semantics.section_order)
-    ):
+    if not _REQUIRED_DISPLAY_SECTIONS.issubset(set(registration.display_semantics.section_order)):
         findings.append(
             AdapterFinding(
                 finding_id=f"finding.{request.request_id}.display",
@@ -389,6 +387,9 @@ class M1704Engine:
             raise M1704ReplayError("M17-04 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1704ReplayError("M17-04 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adapt(result.request)
+        if result.model_dump(mode="json") != expected.model_dump(mode="json"):
+            raise M1704ReplayError("M17-04 semantic replay mismatch")  # noqa: TRY003
         return result
 
 
