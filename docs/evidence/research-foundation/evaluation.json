@@ -3901,7 +3901,7 @@
       {
         "id": "technical_duplicate_visibility",
         "passed": true,
-        "result_digest": "c8cc890665d8564ae50b64b0055a7595d96323a509e59f6eecc54ecff919bbff",
+        "result_digest": "38edb353601f599346e8c60fccff1e732d69be70d7de96b2812236c47f4cd7c9",
         "missing_cells": 0,
         "projection": {
           "child_result_digests": [
@@ -4046,7 +4046,7 @@
               ]
             ]
           ],
-          "result_digest": "c8cc890665d8564ae50b64b0055a7595d96323a509e59f6eecc54ecff919bbff",
+          "result_digest": "38edb353601f599346e8c60fccff1e732d69be70d7de96b2812236c47f4cd7c9",
           "sample_ids": [
             "duplicate-a",
             "duplicate-b"
@@ -4066,7 +4066,7 @@
               "sample_id": "duplicate-a",
               "spectra_seen": 2,
               "normalization_scale": null,
-              "normalization_status": "abstained_technical_replicate"
+              "normalization_status": "abstained_insufficient_replicates"
             },
             {
               "accepted_psms": 1,
@@ -4082,7 +4082,7 @@
               "sample_id": "duplicate-b",
               "spectra_seen": 2,
               "normalization_scale": null,
-              "normalization_status": "abstained_technical_replicate"
+              "normalization_status": "abstained_insufficient_replicates"
             }
           ],
           "sample_scales": [
@@ -4092,7 +4092,7 @@
               "positive_groups": 1,
               "sample_id": "duplicate-a",
               "scale_factor": null,
-              "status": "abstained_technical_replicate"
+              "status": "abstained_insufficient_replicates"
             },
             {
               "cohort_label": "locked-cohort",
@@ -4100,7 +4100,7 @@
               "positive_groups": 1,
               "sample_id": "duplicate-b",
               "scale_factor": null,
-              "status": "abstained_technical_replicate"
+              "status": "abstained_insufficient_replicates"
             }
           ],
           "label_qc": [
@@ -4174,7 +4174,7 @@
             ]
           },
           "evidence_bundle": {
-            "digest": "abd59807d3191247fd6542f8444dbc72dc8ca96df001a45017131880f443dfa9",
+            "digest": "b9bc41353535d54930babe7051c8e2d799b1a266e2400deaf1bfa4f131690da0",
             "limitations": [
               "External evidence provenance is recorded but issuer truth is not authenticated.",
               "Computed spectra/search/quantification/inference objects require owner-approved production ABI.",
@@ -4399,7 +4399,7 @@
                 "source": "glio_proteogen.research.cohort"
               },
               {
-                "digest": "d6dd95269947a33eee06d896d6ca39ff0b2e725ad343126d247a5ad4a6c0d9f2",
+                "digest": "cce69a59b5c6f2a843de5aebbfff0a87aa12ad0029da841189fb53800387f97f",
                 "evidence_id": "cohort.qc.v1",
                 "kind": "descriptive_qc",
                 "payload": {
@@ -4463,7 +4463,7 @@
                       "sample_id": "duplicate-a",
                       "spectra_seen": 2,
                       "normalization_scale": null,
-                      "normalization_status": "abstained_technical_replicate"
+                      "normalization_status": "abstained_insufficient_replicates"
                     },
                     {
                       "accepted_psms": 1,
@@ -4479,7 +4479,7 @@
                       "sample_id": "duplicate-b",
                       "spectra_seen": 2,
                       "normalization_scale": null,
-                      "normalization_status": "abstained_technical_replicate"
+                      "normalization_status": "abstained_insufficient_replicates"
                     }
                   ],
                   "sample_scales": [
@@ -4489,7 +4489,7 @@
                       "positive_groups": 1,
                       "sample_id": "duplicate-a",
                       "scale_factor": null,
-                      "status": "abstained_technical_replicate"
+                      "status": "abstained_insufficient_replicates"
                     },
                     {
                       "cohort_label": "locked-cohort",
@@ -4497,7 +4497,7 @@
                       "positive_groups": 1,
                       "sample_id": "duplicate-b",
                       "scale_factor": null,
-                      "status": "abstained_technical_replicate"
+                      "status": "abstained_insufficient_replicates"
                     }
                   ]
                 },
@@ -6014,20 +6014,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      772800,
-      765100,
-      795200,
-      713700,
-      699800,
-      681800,
-      718200,
-      721300,
-      709200,
-      713300
+      707400,
+      687700,
+      685400,
+      704600,
+      687800,
+      864400,
+      812100,
+      705600,
+      699700,
+      999100
     ],
-    "mean_ns": 729040.0,
-    "median_ns": 718200,
-    "p95_ns": 795200,
+    "mean_ns": 755380.0,
+    "median_ns": 705600,
+    "p95_ns": 999100,
     "result_digest": "22fe20bc8e622ec17ebfc92dc91a1153fc5d015c4348d4316adc7840f3d92a27"
   },
   "coverage": {
