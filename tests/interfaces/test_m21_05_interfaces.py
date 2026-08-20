@@ -11,6 +11,10 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m21_05 import (
+    M2105_MAX_CANONICAL_REQUEST_BYTES,
+    M2105_MAX_CANONICAL_RESULT_BYTES,
+)
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c21_complex_activity.m21_05_subgroup_equity_evaluator import (
     M2105Plugin,
@@ -22,6 +26,8 @@ from tests.contract.test_m21_05_adversarial import _request
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
+_HTTP_PAYLOAD_TOO_LARGE = 413
+_HTTP_UNSUPPORTED_MEDIA_TYPE = 415
 _HTTP_UNPROCESSABLE = 422
 
 
@@ -48,12 +54,44 @@ def test_fastapi_schema_validate_evaluate_verify_and_sanitized_errors() -> None:
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert client.get("/v1/modules/M21-05/schemas/unknown").status_code == _HTTP_NOT_FOUND
-    invalid = client.post("/v1/modules/M21-05/validate", content=b"[]")
+    invalid = client.post(
+        "/v1/modules/M21-05/validate",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in invalid.text
     assert client.post("/v1/modules/M21-05/verify", json={"result": {}}).status_code == (
         _HTTP_UNPROCESSABLE
     )
+
+
+def test_fastapi_enforces_content_type_and_transport_limits() -> None:
+    request = _request()
+    client = TestClient(create_app(M2105Service()))
+    body = canonical_json_bytes(request)
+    wrong_type = client.post(
+        "/v1/modules/M21-05/validate",
+        content=body,
+        headers={"content-type": "text/plain"},
+    )
+    assert wrong_type.status_code == _HTTP_UNSUPPORTED_MEDIA_TYPE
+
+    oversized_request = b"{" + b'"padding":"' + b"x" * M2105_MAX_CANONICAL_REQUEST_BYTES + b'"}'
+    request_response = client.post(
+        "/v1/modules/M21-05/validate",
+        content=oversized_request,
+        headers={"content-type": "application/json"},
+    )
+    assert request_response.status_code == _HTTP_PAYLOAD_TOO_LARGE
+
+    oversized_result = b"{" + b'"result":"' + b"x" * M2105_MAX_CANONICAL_RESULT_BYTES + b'"}'
+    result_response = client.post(
+        "/v1/modules/M21-05/verify",
+        content=oversized_result,
+        headers={"content-type": "application/json"},
+    )
+    assert result_response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
