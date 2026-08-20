@@ -67,6 +67,25 @@ def test_duplicate_source_artifacts_are_rejected() -> None:
         EvaluateProteotypeSubgroupEquityRequest.model_validate(data, strict=True)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("artifact_id", "m2505.unrelated-source"),
+        ("version", "9.9.9"),
+        ("digest", "sha256:" + ("f" * 64)),
+        ("media_type", "application/x-forged-upstream"),
+    ],
+)
+def test_source_manifest_must_bind_full_upstream_identity(field: str, value: str) -> None:
+    request = build_request()
+    data = request.model_dump(mode="python")
+    forged_source = request.source_artifacts[0].model_copy(update={field: value})
+    data["source_artifacts"] = (forged_source,)
+
+    with pytest.raises(ValidationError, match="include the declared upstream"):
+        EvaluateProteotypeSubgroupEquityRequest.model_validate(data, strict=True)
+
+
 def test_wrong_upstream_media_type_is_rejected() -> None:
     request = build_request()
     data = request.model_dump(mode="python")

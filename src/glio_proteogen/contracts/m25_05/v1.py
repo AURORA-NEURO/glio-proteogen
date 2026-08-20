@@ -233,6 +233,18 @@ class EvaluateProteotypeSubgroupEquityRequest(FrozenModel):
         artifacts = tuple(item.artifact_id for item in self.source_artifacts)
         if len(artifacts) != len(set(artifacts)):
             raise ValueError("source artifact identifiers must be unique")
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        upstream_key = (
+            self.upstream_result.artifact_id,
+            self.upstream_result.version,
+            self.upstream_result.digest,
+            self.upstream_result.media_type,
+        )
+        if upstream_key not in source_keys:
+            raise ValueError("source artifacts must include the declared upstream result")
         if len({item.dimension for item in self.performance}) != len(
             {item.dimension for item in self.calibration}
         ):
