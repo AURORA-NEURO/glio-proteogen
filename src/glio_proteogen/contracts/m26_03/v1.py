@@ -259,11 +259,14 @@ class ExecutionRecord(FrozenModel):
     @model_validator(mode="after")
     def record_is_closed(self) -> ExecutionRecord:
         attempt_ids = tuple(item.attempt_id for item in self.attempts)
-        known_steps = {item.step_id for item in self.workflow.steps}
+        steps_by_id = {item.step_id: item for item in self.workflow.steps}
+        known_steps = set(steps_by_id)
         if len(attempt_ids) != len(set(attempt_ids)):
             raise ValueError("execution attempt ids must be unique")
         if any(item.step_id not in known_steps for item in self.attempts):
             raise ValueError("execution attempt references an unknown workflow step")
+        if any(item.retry_index > steps_by_id[item.step_id].max_retries for item in self.attempts):
+            raise ValueError("execution attempt exceeds the workflow retry budget")
         if (
             self.execution_status is ExecutionStatus.COMPLETED
             and {item.step_id for item in self.attempts if item.status is StepStatus.COMPLETED}
@@ -274,6 +277,17 @@ class ExecutionRecord(FrozenModel):
             item.status is not StepStatus.COMPLETED for item in self.attempts
         ):
             raise ValueError("completed execution requires completed attempts")
+        expected_digest = sha256_digest(
+            {
+                "workflow": self.workflow,
+                "environment": self.environment,
+                "attempts": self.attempts,
+            }
+        )
+        if self.execution_digest != expected_digest:
+            raise ValueError("execution digest does not match canonical record contents")
+        if self.execution_id != "execution." + expected_digest.removeprefix("sha256:"):
+            raise ValueError("execution id must bind the canonical execution digest")
         return self
 
 

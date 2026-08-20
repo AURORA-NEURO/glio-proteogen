@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m26_03 import (
     WorkflowDefinition,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c21_reference_material.m26_03_reproducible_pipeline_orchestrator import (  # noqa: E501
     M2603AuthorizationError,
@@ -371,6 +372,42 @@ def test_attempt_and_record_closure_rejects_missing_or_unknown_attempts() -> Non
             execution_status=ExecutionStatus.FAILED,
             execution_digest=step.container_digest,
         )
+
+
+def test_execution_record_binds_digest_identity_and_retry_budget() -> None:
+    result = M2603Engine().execute(build_request())
+    assert result.execution_record is not None
+    record = result.execution_record
+    with pytest.raises(ValidationError, match="execution digest"):
+        ExecutionRecord.model_validate(
+            record.model_copy(update={"execution_digest": "sha256:" + "f" * 64}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+    with pytest.raises(ValidationError, match="execution id"):
+        ExecutionRecord.model_validate(
+            record.model_copy(update={"execution_id": "execution.forged"}).model_dump(
+                mode="python"
+            ),
+            strict=True,
+        )
+
+    first = record.attempts[0]
+    over_budget = first.model_copy(update={"retry_index": record.workflow.steps[0].max_retries + 1})
+    attempts = (over_budget, *record.attempts[1:])
+    execution_digest = sha256_digest(
+        {"workflow": record.workflow, "environment": record.environment, "attempts": attempts}
+    )
+    forged = record.model_copy(
+        update={
+            "attempts": attempts,
+            "execution_digest": execution_digest,
+            "execution_id": "execution." + execution_digest.removeprefix("sha256:"),
+        }
+    )
+    with pytest.raises(ValidationError, match="retry budget"):
+        ExecutionRecord.model_validate(forged.model_dump(mode="python"), strict=True)
 
 
 def test_attempt_closure_rejects_temporal_and_terminal_field_tampering() -> None:
