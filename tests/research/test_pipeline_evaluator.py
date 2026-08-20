@@ -66,6 +66,10 @@ def test_locked_research_pipeline_evaluator() -> None:
     assert generated_receipt["decoy_strategy"] == "reverse_protein"
     assert generated_receipt["generated_decoy_entries"] == 1
     assert generated_receipt["collision_peptides"] == 0
+    identity = cast("dict[str, object]", report["evidence_identity_binding"])
+    assert identity["passed"] is True
+    assert identity["original_digest"] == identity["forged_digest"]
+    assert identity["rejection"] == "identity-bound-inner-digest"
 
 
 def test_research_pipeline_benchmark_is_deterministic() -> None:

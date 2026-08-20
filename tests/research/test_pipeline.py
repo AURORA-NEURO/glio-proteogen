@@ -7,6 +7,7 @@ import io
 import struct
 from dataclasses import replace
 from hashlib import md5, sha256
+from typing import Any, cast
 
 import pytest
 
@@ -649,3 +650,27 @@ def test_evidence_payload_is_immutable_and_digest_bound() -> None:
         aggregate_evidence((replace(record, digest="0" * 64),))
     with pytest.raises(TypeError):
         EvidenceRecord.create("bad", "source", "kind", {"unsupported": object()})
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("evidence_id", "renamed"), ("source", "relabeled-source"), ("kind", "relabeled-kind")],
+)
+def test_evidence_record_digest_binds_provenance_identity(field: str, value: str) -> None:
+    record = EvidenceRecord.create("identity-bound", "source", "kind", {"value": 1})
+    tampered = replace(record, **cast("Any", {field: value}))
+    with pytest.raises(ValueError, match="digest"):
+        aggregate_evidence((tampered,))
+
+
+@pytest.mark.parametrize("field", ["evidence_id", "source", "kind"])
+def test_evidence_record_identity_is_bounded(field: str) -> None:
+    values: dict[str, object] = {
+        "evidence_id": "evidence",
+        "source": "source",
+        "kind": "kind",
+        "payload": {},
+    }
+    values[field] = "bad id"
+    with pytest.raises(ValueError, match="identifier"):
+        EvidenceRecord.create(**values)  # type: ignore[arg-type]
