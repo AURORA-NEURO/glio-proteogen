@@ -25,12 +25,14 @@ Safety and closure rules:
   traversal: approved configuration, identity lineage, provenance, consent,
   quality, support, and intended use.
 - Performance, calibration, and coverage strata must align exactly across all
-  eight required dimensions. Numeric fields are finite and bounded; safety
-  floors, nominal coverage, canonical fractions, unique IDs, and evidence
-  closure are enforced.
-- Unsupported/limited coverage, equity floor breaches, rare-context gaps,
-  calibration failure, denied controls, malformed upstream media, and replay
-  tampering produce safe abstention or sanitized validation failure.
+  eight required dimensions; a partial report is rejected rather than being
+  treated as representative of missing dimensions. Numeric fields are finite
+  and bounded; safety floors, nominal coverage, canonical fractions, unique
+  IDs, and evidence closure are enforced.
+- Unsupported/limited/non-evaluable coverage or equity, equity floor breaches,
+  rare-context gaps, calibration failure, denied controls, malformed upstream
+  media, and replay tampering produce safe abstention or sanitized validation
+  failure.
 - Results retain seven uncertainty dimensions, provenance, control decisions,
   evidence, limitations, canonical request/result digests, and explicit
   `emits_parent=false` semantics. No parent complex-activity result is emitted.
