@@ -13,7 +13,9 @@ from glio_proteogen.research import (
     Psm,
     PsmCompetition,
     infer_protein_group_candidates,
+    infer_protein_groups,
     target_decoy_qvalues,
+    verify_protein_group_fdr_summary,
 )
 
 
@@ -201,3 +203,47 @@ def test_group_fdr_abstains_partial_unique_support_in_connected_component() -> N
     assert target.acceptance == "abstained"
     assert summary.partially_unique_candidates == 1
     assert target.as_dict()["ambiguous_accessions"] == ["P1"]
+
+
+def test_group_fdr_receipt_binds_partition_and_declares_empirical_error_evidence() -> None:
+    target = Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    decoy = Psm("decoy", "PEPTIDEK", ("DECOY_P1",), 4.0, 3, decoy=True)
+    candidates, summary = infer_protein_group_candidates((target, decoy), q_value_threshold=0.01)
+
+    assert summary.evidence_status == "empirical_target_decoy_evidence"
+    assert summary.error_candidates == 1
+    assert summary.target_denominator == 1
+    assert len(summary.group_partition_digest) == 64
+    assert all(len(item.evidence_digest) == 64 for item in candidates)
+    verify_protein_group_fdr_summary(candidates, summary)
+
+    forged = replace(summary, group_partition_digest="0" * 64)
+    with pytest.raises(ValueError, match="partition digest"):
+        verify_protein_group_fdr_summary(candidates, forged)
+
+
+def test_group_fdr_declares_missing_decoy_evidence_instead_of_zero_fdr() -> None:
+    target = Psm("target", "PEPTIDER", ("P1",), 5.0, 3, decoy=False)
+    candidates, summary = infer_protein_group_candidates((target,), q_value_threshold=0.01)
+
+    assert summary.evidence_status == "abstained_no_decoy_evidence"
+    assert summary.error_candidates == 0
+    assert summary.target_denominator == 1
+    assert candidates[0].q_value is None
+    verify_protein_group_fdr_summary(candidates, summary)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"PEP": ["P1"]},
+        {"PEP": ("P1", "P1")},
+        {"PEP ": ("P1",)},
+        {"PEP": ("P 1",)},
+    ],
+)
+def test_protein_group_partition_rejects_malformed_memberships(
+    mapping: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        infer_protein_groups(mapping)  # type: ignore[arg-type]
