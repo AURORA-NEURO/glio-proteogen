@@ -7,6 +7,7 @@ from dataclasses import replace
 import pytest
 
 from glio_proteogen.research import (
+    PeptideQuant,
     QuantificationPolicy,
     QuantificationReceipt,
     ResearchRunRequest,
@@ -41,6 +42,27 @@ def test_policy_rejects_open_ended_units_and_controls() -> None:
         QuantificationPolicy(limit_of_quantification=float("nan"))
     with pytest.raises(ValueError, match="max_input_observations"):
         QuantificationPolicy(max_input_observations=0)
+    with pytest.raises(ValueError, match="limit_of_quantification"):
+        QuantificationPolicy(limit_of_quantification=True)
+
+
+@pytest.mark.parametrize("intensity", [True, -1.0, float("nan"), float("inf"), "1.0"])
+def test_quantification_rejects_nonphysical_observation_values(intensity: object) -> None:
+    with pytest.raises(ValueError, match="intensity"):
+        quantify_matched_ions_with_receipt("sample", (("P1", intensity),))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        PeptideQuant("sample", "P1", -1.0),
+        PeptideQuant("sample", "P1", float("nan")),
+        PeptideQuant("sample", "P1", intensity=True),  # type: ignore[arg-type]
+    ],
+)
+def test_direct_normalization_rejects_invalid_peptide_values(value: PeptideQuant) -> None:
+    with pytest.raises(ValueError, match="intensity"):
+        median_normalize((value,))
 
 
 def test_loq_and_no_normalization_are_explicit_and_non_imputing() -> None:

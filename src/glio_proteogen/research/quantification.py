@@ -46,6 +46,7 @@ class QuantificationPolicy:
             raise ValueError("missingness_policy is not supported")
         if (
             type(self.limit_of_quantification) not in (int, float)
+            or isinstance(self.limit_of_quantification, bool)
             or not isfinite(self.limit_of_quantification)
             or self.limit_of_quantification < 0
         ):
@@ -390,6 +391,30 @@ def median_normalize(
 ) -> tuple[PeptideQuant, ...]:
     if method not in {"none_v1", "sample_median_scaled_v1"}:
         raise ValueError("normalization method is not supported")
+    for item in values:
+        if not isinstance(item, PeptideQuant):
+            raise TypeError("values must contain PeptideQuant values")
+        if (
+            type(item.sample_id) is not str
+            or not item.sample_id
+            or len(item.sample_id) > 128
+            or item.sample_id != item.sample_id.strip()
+            or any(character.isspace() or ord(character) < 32 for character in item.sample_id)
+        ):
+            raise ValueError("peptide sample_id must be a bounded non-empty string")
+        if (
+            type(item.peptide) is not str
+            or not item.peptide
+            or len(item.peptide) > 256
+            or any(character.isspace() or ord(character) < 32 for character in item.peptide)
+        ):
+            raise ValueError("peptide must be a bounded non-empty string")
+        if type(item.intensity) not in (int, float) or not isfinite(item.intensity):
+            raise ValueError("peptide intensity must be finite and numeric")
+        if item.intensity < 0:
+            raise ValueError("peptide intensity must be non-negative")
+        if type(item.missing) is not bool:
+            raise ValueError("peptide missingness must be boolean")
     if method == "none_v1":
         return tuple(
             item
