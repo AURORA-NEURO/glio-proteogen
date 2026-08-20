@@ -224,6 +224,21 @@ def test_self_rehashed_result_rejects_forged_package_digest(field: str, message:
         ComplexActivityPipelineResult.model_validate(payload, strict=True)
 
 
+def test_self_rehashed_result_rejects_forged_package_dependency_references() -> None:
+    result = M2703Engine().execute(_request())
+    assert result.result_package is not None
+    package = result.result_package
+    forged_source = package.artifact_references[1].model_copy(update={"digest": _digest(904)})
+    forged_package = package.model_copy(
+        update={"artifact_references": (package.artifact_references[0], forged_source)}
+    )
+    payload = result.model_copy(update={"result_package": forged_package}).model_dump(mode="python")
+    payload["result_digest"] = result_payload_digest(payload)
+
+    with pytest.raises(ValidationError, match="exact request dependencies"):
+        ComplexActivityPipelineResult.model_validate(payload, strict=True)
+
+
 def test_rejected_support_abstains_without_execution_or_negative_claim() -> None:
     result = M2703Engine().execute(_request(support=UpstreamDecisionState.REJECTED))
     assert result.status is PipelineStatus.ABSTAINED

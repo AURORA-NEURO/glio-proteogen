@@ -324,6 +324,17 @@ class ComplexActivityPipelineResult(FrozenModel):
                 raise ValueError("result package must bind execution environment")
             if execution.output_digest is None:
                 raise ValueError("executed record requires output digest")
+            expected_result_artifact = ArtifactReference(
+                artifact_id="m2703.result." + self.request_digest.removeprefix("sha256:"),
+                version=M2703_CONTRACT_VERSION,
+                digest=execution.output_digest,
+                media_type=M2703_OUTPUT_MEDIA_TYPE,
+            )
+            if package.artifact_references != (
+                expected_result_artifact,
+                *self.request.source_artifacts,
+            ):
+                raise ValueError("result package artifacts must bind exact request dependencies")
             expected_manifest_digest = sha256_digest(
                 {
                     "upstream": self.request.upstream_result,
