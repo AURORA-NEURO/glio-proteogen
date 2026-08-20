@@ -758,6 +758,12 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
             if source_manifest.for_sample(ordered_samples[index].sample_id).replicate_kind
             == "biological"
         )
+        technical_indices = tuple(
+            index
+            for index in indices
+            if source_manifest.for_sample(ordered_samples[index].sample_id).replicate_kind
+            == "technical"
+        )
         biological_sources = {
             source_manifest.for_sample(ordered_samples[index].sample_id).source_identity
             for index in biological_indices
@@ -860,7 +866,7 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                 positive_groups=positive_counts[index],
                 status=(
                     "abstained_technical_replicate"
-                    if technical_count and index not in biological_indices and factor is None
+                    if index in technical_indices and factor is None and status == "normalized"
                     else status
                 ),
             )
