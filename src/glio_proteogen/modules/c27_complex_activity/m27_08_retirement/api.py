@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m27_08 import (
     contract_json_schema,
     contract_json_schemas,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import StrictJsonError, strict_json_loads
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.service import M2708Service
 
@@ -75,7 +76,9 @@ def create_app() -> FastAPI:
     async def verify(request: Request) -> JSONResponse:
         try:
             value = await body(request, max_bytes=M2708_MAX_CANONICAL_RESULT_BYTES)
-            result = ComplexActivityRetirementResult.model_validate(value, strict=True)
+            result = ComplexActivityRetirementResult.model_validate_json(
+                canonical_json_bytes(value), strict=True
+            )
             return JSONResponse({"verified": service.verify(result)})
         except (ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="result verification failed") from error
