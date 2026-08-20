@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from glio_proteogen.contracts.m23_07 import (
     HumanFactorsOperationalReport,
     OperationalStatus,
+    VariantPeptideHumanFactorsResult,
     result_payload_digest,
 )
 from glio_proteogen.modules.c21_reference_material import (
@@ -166,6 +167,22 @@ def test_replay_rejects_self_rehashed_semantic_mutations(mutation: str) -> None:
 
     with pytest.raises(m2307.M2307ReplayError):
         service.replay(forged)
+
+
+def test_strict_result_validation_rejects_self_rehashed_report_mutation() -> None:
+    result = m2307.M2307Service().evaluate(build_request())
+    assert result.report is not None
+    changed_metric = result.report.metrics[0].model_copy(update={"observed_value": 999.0})
+    changed_report = result.report.model_copy(
+        update={"metrics": (changed_metric, *result.report.metrics[1:])}
+    )
+    forged = result.model_copy(update={"report": changed_report})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(ValidationError, match="exact request declarations"):
+        VariantPeptideHumanFactorsResult.model_validate(
+            forged.model_dump(mode="python"), strict=True
+        )
 
 
 def test_preflight_and_runtime_wrapper_cover_hostile_and_public_paths() -> None:

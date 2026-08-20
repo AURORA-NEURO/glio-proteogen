@@ -274,6 +274,13 @@ class VariantPeptideHumanFactorsResult(FrozenModel):
                 or self.support_decision.status is not SupportStatus.SUPPORTED
             ):
                 raise ValueError("evaluated result requires a supported operational report")
+            if (
+                self.report.version != self.request.configuration.version
+                or self.report.configuration != self.request.configuration
+                or self.report.metrics != self.request.metrics
+                or self.report.fallbacks != self.request.fallbacks
+            ):
+                raise ValueError("evaluated report must bind the exact request declarations")
         elif (
             self.report is not None
             or self.abstention_reason is None
