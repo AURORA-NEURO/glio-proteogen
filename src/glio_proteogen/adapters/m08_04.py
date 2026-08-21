@@ -17,7 +17,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import (
+    MAX_REQUEST_BYTES,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m08_04 import (
     M0804_MAX_CANONICAL_REQUEST_BYTES,
     ContractName,
@@ -43,6 +47,11 @@ def create_m0804_app(service: m0804_runtime.M0804Service | None = None) -> FastA
 
     executor = service or m0804_runtime.M0804Service()
     app = FastAPI(title="GLIO-PROTEOGEN M08-04 (provisional)", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=MAX_REQUEST_BYTES,
+        result_max_bytes=MAX_REQUEST_BYTES * 2,
+    )
 
     @app.get("/v1/contracts/M08-04/{name}/schema", tags=["contracts"])
     def export_contract_schema(name: ContractName) -> dict[str, object]:
