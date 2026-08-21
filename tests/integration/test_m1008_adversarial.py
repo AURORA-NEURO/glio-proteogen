@@ -16,6 +16,7 @@ HTTP_FORBIDDEN = 403
 HTTP_CONFLICT = 409
 HTTP_UNPROCESSABLE = 422
 HTTP_NOT_FOUND = 404
+HTTP_REQUEST_TOO_LARGE = 413
 CLI_INVALID = 2
 CLI_REPLAY_FAILURE = 1
 
@@ -56,7 +57,7 @@ def test_api_result_boundary_uses_result_limit_and_rejects_oversize_body() -> No
         content=oversized,
         headers={"content-type": "application/json"},
     )
-    assert response.status_code == HTTP_BAD_REQUEST
+    assert response.status_code == HTTP_REQUEST_TOO_LARGE
 
 
 def test_cli_publish_verify_replay_and_sanitized_failures() -> None:

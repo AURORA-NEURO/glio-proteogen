@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import sys
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -11,6 +12,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.adapters import m1004, m1005, m1006, m1008
@@ -125,3 +128,96 @@ def test_m1008_stdin_reader_enforces_the_same_ceiling(monkeypatch: pytest.Monkey
 
     with pytest.raises(RequestBodyTooLargeError):
         m1008._read_path("-", max_bytes=_TEST_LIMIT)
+
+
+@pytest.mark.parametrize(
+    ("module", "factory_name", "request_limit", "request_path"),
+    [
+        (
+            m1004,
+            "create_m1004_app",
+            "M1004_MAX_CANONICAL_REQUEST_BYTES",
+            "/v1/m10-04/validate",
+        ),
+        (
+            m1005,
+            "create_m1005_app",
+            "M1005_MAX_CANONICAL_REQUEST_BYTES",
+            "/v1/m10-05/validate",
+        ),
+        (
+            m1006,
+            "create_m1006_app",
+            "M1006_MAX_CANONICAL_REQUEST_BYTES",
+            "/v1/m10-06/validate",
+        ),
+        (
+            m1008,
+            "create_m1008_app",
+            "M1008_MAX_CANONICAL_REQUEST_BYTES",
+            "/v1/m10-08/validate",
+        ),
+    ],
+)
+def test_m1004_to_m1008_http_requests_are_rejected_before_parsing(
+    monkeypatch: pytest.MonkeyPatch,
+    module: Any,
+    factory_name: str,
+    request_limit: str,
+    request_path: str,
+) -> None:
+    """HTTP transport admission must precede JSON parsing for every adapter."""
+
+    monkeypatch.setattr(module, request_limit, 1)
+    app = getattr(module, factory_name)()
+    assert isinstance(app, FastAPI)
+    with TestClient(app) as client:
+        response = client.post(request_path, content=b"{}")
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert response.json() == {"detail": "request body exceeds the byte limit"}
+
+
+@pytest.mark.parametrize(
+    ("module", "factory_name", "result_limit", "verify_path"),
+    [
+        (
+            m1004,
+            "create_m1004_app",
+            "M1004_MAX_CANONICAL_RESULT_BYTES",
+            "/v1/m10-04/verify",
+        ),
+        (
+            m1005,
+            "create_m1005_app",
+            "M1005_MAX_CANONICAL_RESULT_BYTES",
+            "/v1/m10-05/verify",
+        ),
+        (
+            m1006,
+            "create_m1006_app",
+            "M1006_MAX_CANONICAL_RESULT_BYTES",
+            "/v1/m10-06/verify",
+        ),
+        (
+            m1008,
+            "create_m1008_app",
+            "M1008_MAX_CANONICAL_RESULT_BYTES",
+            "/v1/m10-08/verify",
+        ),
+    ],
+)
+def test_m1004_to_m1008_http_verify_uses_result_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+    module: Any,
+    factory_name: str,
+    result_limit: str,
+    verify_path: str,
+) -> None:
+    """Replay endpoints admit their declared result envelope, independently."""
+
+    monkeypatch.setattr(module, result_limit, 1)
+    app = getattr(module, factory_name)()
+    assert isinstance(app, FastAPI)
+    with TestClient(app) as client:
+        response = client.post(verify_path, content=b"{}")
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
