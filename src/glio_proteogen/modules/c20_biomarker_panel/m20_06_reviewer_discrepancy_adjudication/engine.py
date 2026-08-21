@@ -383,6 +383,9 @@ class M2006Engine:
             raise M2006ReplayError("M20-06 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2006ReplayError("M20-06 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adjudicate(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M2006ReplayError("M20-06 result semantic replay mismatch")  # noqa: TRY003
         return _RESULT_ADAPTER.validate_python(result, strict=True)
 
 
