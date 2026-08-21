@@ -171,7 +171,9 @@ def evaluate() -> EvaluationReport:
             ),
         )
     )
-    tampered = results["replay_tamper"].model_copy(update={"human_review_required": True})
+    tampered = results["replay_tamper"].model_copy(
+        update={"result_id": "result.tampered.semantic"}
+    )
     replay_denied = False
     try:
         engine.replay(tampered)

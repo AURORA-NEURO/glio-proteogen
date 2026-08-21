@@ -186,8 +186,8 @@ def test_supported_candidate_is_validated_with_complete_uncertainty_and_controls
     assert result.status.value == "validated"
     assert result.bundle is not None
     assert result.bundle.compatibility_report.selected_candidate_ids == ("candidate.proteome",)
-    assert result.support_decision.status is SupportStatus.SUPPORTED
-    assert result.human_review_required is False
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.uncertainty.measurement.state is EstimateState.NOT_ESTIMABLE
 
@@ -229,7 +229,7 @@ def test_service_replay_accepts_exact_result_and_rejects_request_or_payload_tamp
     with pytest.raises(M1801ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
     with pytest.raises(M1801ReplayError, match="payload digest"):
-        service.replay(result.model_copy(update={"human_review_required": True}))
+        service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
 
 
 def test_strict_request_adapter_rejects_non_model_candidate_mapping() -> None:
