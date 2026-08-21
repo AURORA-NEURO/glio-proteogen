@@ -35,7 +35,11 @@ class M2107Service:
             )
         return self._engine.evaluate(request)
 
-    def replay(self, result: object) -> ComplexActivityHumanFactorsResult:
+    def replay(
+        self,
+        result: object,
+        request: EvaluateComplexActivityHumanFactorsRequest | None = None,
+    ) -> ComplexActivityHumanFactorsResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=8 * 1024 * 1024)
             result = ComplexActivityHumanFactorsResult.model_validate_json(
@@ -47,6 +51,11 @@ class M2107Service:
             )
         else:
             result = ComplexActivityHumanFactorsResult.model_validate(result, strict=True)
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
     @property
