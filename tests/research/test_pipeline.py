@@ -642,6 +642,34 @@ def test_pipeline_replay_rejects_forged_digest() -> None:
         replay_research_protein_inference(request, replace(result, result_digest="0" * 64))
 
 
+def test_pipeline_configuration_binds_empty_modification_limit() -> None:
+    base = ResearchRunRequest(
+        "mod-limit",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+        max_variable_modifications=0,
+    )
+    changed = ResearchRunRequest(
+        "mod-limit",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+        max_variable_modifications=1,
+    )
+    first = run_research_protein_inference(base)
+    second = run_research_protein_inference(changed)
+    first_configuration = dict(first.configuration)
+    second_configuration = dict(second.configuration)
+    assert first_configuration["max_variable_modifications"] == 0
+    assert second_configuration["max_variable_modifications"] == 1
+    assert first.result_digest != second.result_digest
+
+
 def test_evidence_payload_is_immutable_and_digest_bound() -> None:
     record = EvidenceRecord.create("immutable", "source", "kind", {"nested": [1, 2]})
     assert record.payload_jsonable == {"nested": [1, 2]}

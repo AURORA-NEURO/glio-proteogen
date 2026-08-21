@@ -644,6 +644,7 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
         "min_peptide_length": request.min_peptide_length,
         "max_peptide_length": request.max_peptide_length,
         "max_spectra": request.max_spectra,
+        "max_variable_modifications": request.max_variable_modifications,
         "q_value_threshold": request.q_value_threshold,
         "decoy_strategy": request.decoy_strategy,
         "decoy_prefix": request.decoy_prefix,
@@ -686,7 +687,6 @@ def run_research_protein_inference(request: ResearchRunRequest) -> ResearchRunRe
             {
                 "modification_version": _MODIFICATION_VERSION,
                 "variable_modifications": list(request.variable_modifications),
-                "max_variable_modifications": request.max_variable_modifications,
             }
         )
     if request.quantification_policy != QuantificationPolicy():
