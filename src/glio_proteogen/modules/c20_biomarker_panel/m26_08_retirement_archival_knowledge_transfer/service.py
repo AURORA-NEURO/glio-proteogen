@@ -44,9 +44,17 @@ class M2608RetirementService:
         return self._engine.retire(self.validate_request(request))
 
     @staticmethod
-    def verify(result: object) -> ProteinSubtypeRetirementResult:
+    def verify(
+        result: object,
+        request: RetireProteinSubtypeServiceRequest | None = None,
+    ) -> ProteinSubtypeRetirementResult:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+            if request is not None:
+                result_request = typed.request.model_dump(mode="json")
+                supplied_request = request.model_dump(mode="json")
+                if result_request != supplied_request:
+                    return _raise_replay_mismatch()
             return verify_retirement_result(typed)
         except M2608ReplayError:
             raise
@@ -74,3 +82,7 @@ class M2608RetirementService:
 
 
 __all__ = ["M2608ReplayError", "M2608RetirementService"]
+
+
+def _raise_replay_mismatch() -> ProteinSubtypeRetirementResult:
+    raise M2608ReplayError

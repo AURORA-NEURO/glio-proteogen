@@ -41,7 +41,14 @@ def test_fastapi_schema_validate_retire_and_verify_routes() -> None:
         retired = client.post("/v1/modules/M26-08/retire", content=body)
         verified = client.post(
             "/v1/modules/M26-08/verify",
-            content=canonical_json_bytes({"result": retired.json()}),
+            content=canonical_json_bytes(
+                {"request": request.model_dump(mode="json"), "result": retired.json()}
+            ),
+        )
+        forged = request.model_copy(update={"request_id": "request.m2608.forged"})
+        mismatch = client.post(
+            "/v1/modules/M26-08/verify",
+            json={"request": forged.model_dump(mode="json"), "result": retired.json()},
         )
 
     assert schemas.status_code == HTTP_OK
@@ -52,6 +59,7 @@ def test_fastapi_schema_validate_retire_and_verify_routes() -> None:
     assert retired.json()["status"] == "executed"
     assert verified.status_code == HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTP_UNPROCESSABLE
 
 
 def test_fastapi_rejects_duplicate_keys_and_unknown_schema() -> None:
