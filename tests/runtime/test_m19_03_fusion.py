@@ -161,5 +161,5 @@ def test_service_replay_rejects_supplied_request_mismatch() -> None:
     result = M1903Service().fuse(request)
     altered = request.model_copy(update={"request_id": "request.m1903.altered"})
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=""):
         M1903Service().replay(result, altered)
