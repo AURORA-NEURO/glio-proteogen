@@ -18,7 +18,9 @@ C03/C04 computation contract:
   captured catalog file and observed SHA-256/MD5/size. The opt-in raw-byte path requires an HTTPS
   PDC delivery host or an exact caller-approved host (loopback HTTP is test-only), bounds timeout
   and decoded bytes, validates mzML media and declared length, revalidates every redirect, and
-  stages bytes until all catalog/reference hashes pass. It never fetches raw cohort data implicitly.
+  stages bytes until all catalog/reference hashes pass, including a short-write-safe retry loop for
+  the internal staging file so a partial write cannot silently truncate bytes under a full-response
+  receipt. It never fetches raw cohort data implicitly.
   The resulting `PdcSourceReceipt` also records the normalized response media type and binds it
   to the catalog format and caller source-reference media, so a replay cannot relabel verified
   mzML bytes as another transport format. This is provenance evidence, not issuer or biological

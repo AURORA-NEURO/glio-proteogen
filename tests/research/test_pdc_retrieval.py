@@ -577,3 +577,42 @@ def test_destination_zero_progress_is_rejected_after_verified_download(
     )
     with pytest.raises(PdcError, match="destination write"):
         PdcClient().download_file(file, _NoProgress())  # type: ignore[arg-type]
+
+
+def test_short_write_staging_file_cannot_truncate_verified_download(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"<mzML>staging-short-write</mzML>"
+    file = _file("https://pdc.cancer.gov/files/staging-short-write", payload)
+
+    class _ShortWriteSpool:
+        def __init__(self, **_kwargs: object) -> None:
+            self._buffer = io.BytesIO()
+
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def write(self, chunk: bytes) -> int:
+            # A BinaryIO is allowed to make partial progress.  The production
+            # boundary must retry the remainder instead of losing it.
+            return self._buffer.write(chunk[:1])
+
+        def seek(self, offset: int) -> int:
+            return self._buffer.seek(offset)
+
+        def read(self, size: int = -1) -> bytes:
+            return self._buffer.read(size)
+
+    monkeypatch.setattr(
+        pdc_module,
+        "_open_download_response",
+        lambda *_args, **_kwargs: _MemoryResponse(payload),
+    )
+    monkeypatch.setattr(pdc_module, "SpooledTemporaryFile", _ShortWriteSpool)
+    destination = io.BytesIO()
+
+    assert PdcClient().download_file(file, destination) == len(payload)
+    assert destination.getvalue() == payload
