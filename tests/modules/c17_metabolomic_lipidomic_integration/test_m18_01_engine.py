@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m18_01 import (
     UpstreamCandidate,
     UpstreamSourceKind,
 )
+from glio_proteogen.contracts.m18_01.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -230,6 +231,10 @@ def test_service_replay_accepts_exact_result_and_rejects_request_or_payload_tamp
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "0" * 64}))
     with pytest.raises(M1801ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+    tampered = result.model_copy(update={"human_review_required": False})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M1801ReplayError, match="deterministic replay"):
+        service.replay(tampered)
 
 
 def test_strict_request_adapter_rejects_non_model_candidate_mapping() -> None:

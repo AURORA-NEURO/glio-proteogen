@@ -394,6 +394,12 @@ class M1801Engine:
             raise M1801ReplayError("M18-01 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1801ReplayError("M18-01 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.resolve(result.request)
+        except Exception as exc:
+            raise M1801ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1801ReplayError("M18-01 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 
