@@ -170,6 +170,9 @@ def preflight_m2502_authorization(candidate: object) -> None:
             if isinstance(candidate, Mapping)
             else None
         )
+        context_identity_matches = _member(candidate, "request_id") == _member(
+            context, "request_id"
+        )
         references = _member(context, "references")
         expected = {
             "approved_configuration": UpstreamDecisionState.ACCEPTED.value,
@@ -186,7 +189,7 @@ def preflight_m2502_authorization(candidate: object) -> None:
         )
     except Exception:  # noqa: BLE001 - fail closed at hostile mapping boundary.
         raise M2502AuthorizationError from None
-    if not authorized:
+    if not context_identity_matches or not authorized:
         raise M2502AuthorizationError
 
 
