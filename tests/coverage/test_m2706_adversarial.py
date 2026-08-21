@@ -59,9 +59,7 @@ _SCHEMA_COUNT = 8
         ("service:m27-06", "dataset:threat-model"),
     ],
 )
-def test_opaque_subject_labels_do_not_change_action_decision(
-    principal: str, resource: str
-) -> None:
+def test_opaque_subject_labels_do_not_change_action_decision(principal: str, resource: str) -> None:
     """Denial markers belong to action policy, not opaque subject labels."""
 
     request = build_request(principal=principal, resource=resource, action="read")
