@@ -439,8 +439,8 @@ class M1906Engine:
             )
             status = QueueResultStatus.RECORDED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="adjudication_resolved",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="adjudication_resolved_review_required",
                 rationale="The immutable review record preserves blinded decisions and evidence.",
             )
             abstention_reason = None
