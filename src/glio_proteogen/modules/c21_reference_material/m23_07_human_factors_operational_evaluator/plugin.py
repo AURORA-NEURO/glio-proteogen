@@ -97,8 +97,9 @@ class M2307Plugin(
     def replay(
         self,
         result: VariantPeptideHumanFactorsResult,
+        request: EvaluateVariantPeptideHumanFactorsRequest | None = None,
     ) -> VariantPeptideHumanFactorsResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["HumanFactorsEvaluationSubmission", "M2307Plugin", "ValidatedM2307Request"]
