@@ -680,7 +680,11 @@ class PdcClient:
                         raise PdcError("PDC download exceeded the declared or caller limit")
                     md5_digest.update(chunk)
                     sha256_digest.update(chunk)
-                    spool.write(chunk)
+                    # The staging file is itself a BinaryIO boundary.  A
+                    # short write here would otherwise leave the destination
+                    # truncated even though the response hashes below still
+                    # describe the complete downloaded payload.
+                    _write_verified_chunk(spool, chunk)
                 if total != file.file_size:
                     raise PdcError("PDC download length differs from metadata")
                 md5_hex = md5_digest.hexdigest().lower()
