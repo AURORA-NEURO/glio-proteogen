@@ -68,7 +68,12 @@ class VerifyPayload(FrozenModel):
 app = FastAPI(title="GLIO-PROTEOGEN M11-07", version="0.1.0-provisional")
 app.add_middleware(
     RequestSizeLimitMiddleware,
-    max_bytes=M1107_MAX_CANONICAL_RESULT_BYTES,
+    max_bytes=lambda: M1107_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=lambda: M1107_MAX_CANONICAL_RESULT_BYTES,
+    path_max_bytes={
+        "/v1/modules/M11-07/plausibility": lambda: M1107_MAX_CANONICAL_REQUEST_BYTES,
+        "/v1/modules/M11-07/verify": lambda: M1107_MAX_CANONICAL_REQUEST_BYTES,
+    },
 )
 m1107_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
@@ -137,7 +142,9 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int = M1107_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
+def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
+    if max_bytes is None:
+        max_bytes = M1107_MAX_CANONICAL_REQUEST_BYTES
     try:
         body = read_bounded(path, max_bytes)
     except (OSError, RequestBodyTooLargeError) as error:
