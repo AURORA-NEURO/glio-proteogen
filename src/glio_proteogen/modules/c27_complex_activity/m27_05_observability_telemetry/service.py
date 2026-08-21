@@ -41,7 +41,11 @@ class M2705Service:
     def emit(self, request: object) -> ProteomicsTelemetryResult:
         return self._engine.emit(self.validate_request(request))
 
-    def replay(self, result: object) -> ProteomicsTelemetryResult:
+    def replay(
+        self,
+        result: object,
+        request: EmitProteomicsTelemetryRequest | None = None,
+    ) -> ProteomicsTelemetryResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
@@ -49,6 +53,11 @@ class M2705Service:
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
         else:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+        if request is not None:
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(typed)
 
     @property

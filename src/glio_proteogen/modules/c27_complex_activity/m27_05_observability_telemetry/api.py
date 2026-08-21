@@ -103,9 +103,16 @@ def create_app(service: M2705Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> dict[str, object]:
         _require_json(request)
         try:
-            candidate = strict_json_loads(await request.body())
+            envelope = strict_json_loads(await request.body())
+            candidate = envelope.get("result", envelope)
+            supplied_request = envelope.get("request")
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
-            replay = boundary.replay(result)
+            typed_request = (
+                _REQUEST_ADAPTER.validate_json(canonical_json_bytes(supplied_request), strict=True)
+                if supplied_request is not None
+                else None
+            )
+            replay = boundary.replay(result, typed_request)
         except (StrictJsonError, ValueError, ValidationError, TypeError) as error:
             raise HTTPException(status_code=422, detail="replay envelope is invalid") from error
         return {
