@@ -343,8 +343,12 @@ class M1404MechanismEngine:
             "parent_target": M1404_PARENT,
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if safe else SupportStatus.UNSUPPORTED,
-                reason_code="m1404_mechanism_inferred" if safe else "m1404_mechanism_abstained",
+                status=SupportStatus.REVIEW_REQUIRED if safe else SupportStatus.UNSUPPORTED,
+                reason_code=(
+                    "m1404_provisional_mechanism_review_required"
+                    if safe
+                    else "m1404_mechanism_abstained"
+                ),
                 rationale=(
                     "Explicit posterior/state method, bounds, calibration references, and "
                     "counter-evidence passed."
@@ -352,11 +356,11 @@ class M1404MechanismEngine:
                     else "The mechanism request is outside the safely evaluable support domain."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=safe),
+            "uncertainty": expected_uncertainty(supported=False if safe else safe),
             "provenance": expected_provenance(request, request_hash),
             "evidence": evidence,
             "limitations": _limitations(supported=safe),
-            "human_review_required": not safe,
+            "human_review_required": True if safe else not safe,
         }
         constructed = ProteinSubtypeMechanismInferenceResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)
