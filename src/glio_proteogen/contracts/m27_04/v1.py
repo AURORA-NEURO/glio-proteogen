@@ -309,6 +309,20 @@ class PublishComplexActivityAccessSurfaceRequest(FrozenModel):
             raise ValueError("source artifact ids must be unique")
         if len(set(artifact_digests)) != len(artifact_digests):
             raise ValueError("source artifact digests must be unique")
+        declared_inputs = (
+            self.mass_spectrometry_proteome,
+            self.genome_transcriptome,
+            self.ptm_annotations,
+        )
+        source_keys = {
+            (item.artifact_id, item.version, item.digest, item.media_type)
+            for item in self.source_artifacts
+        }
+        if any(
+            (item.artifact_id, item.version, item.digest, item.media_type) not in source_keys
+            for item in declared_inputs
+        ):
+            raise ValueError("source artifacts must include all declared gateway inputs")
         return self
 
 
