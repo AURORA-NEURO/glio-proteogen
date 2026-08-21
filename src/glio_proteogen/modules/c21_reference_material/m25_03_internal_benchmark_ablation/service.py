@@ -44,7 +44,7 @@ class M2503Service:
         if request is not None and result.request.model_dump(mode="json") != request.model_dump(
             mode="json"
         ):
-            raise ValueError from None
+            raise ValueError("replay request mismatch") from None  # noqa: TRY003
         return self._engine.replay(result)
 
 

@@ -72,6 +72,17 @@ def test_plugin_requires_submission_and_validated_token() -> None:
         plugin.run(build_request())  # type: ignore[arg-type]
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2503Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2503.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2503Plugin(service).replay(result, altered)
+
+
 def test_plugin_strict_json_submission_is_parse_once() -> None:
     request = build_request()
     payload = request.model_dump_json()
