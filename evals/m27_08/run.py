@@ -16,7 +16,7 @@ if __package__ in {None, ""}:
         sys.path.insert(0, str(_PROJECT_ROOT))
 
 from evals.m27_08.fixture import build_request
-from glio_proteogen.contracts.m27_08 import RetirementRunStatus
+from glio_proteogen.contracts.m27_08 import MigrationStatus, RetirementRunStatus
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708Service
 
@@ -25,6 +25,31 @@ def main() -> int:
     service = M2708Service()
     approved = service.execute(build_request())
     review = service.execute(build_request(incomplete=True))
+    marker_only_request = build_request().model_copy(
+        update={
+            "migrations": (
+                build_request()
+                .migrations[0]
+                .model_copy(update={"dependency_id": "active-looking-service"}),
+            )
+        }
+    )
+    status_only_request = build_request().model_copy(
+        update={
+            "migrations": (
+                build_request()
+                .migrations[0]
+                .model_copy(
+                    update={
+                        "dependency_id": "retired-service",
+                        "status": MigrationStatus.IN_PROGRESS,
+                    }
+                ),
+            )
+        }
+    )
+    marker_only = service.execute(marker_only_request)
+    status_only = service.execute(status_only_request)
     denied = False
     try:
         service.execute(build_request(consent=ConsentState.WITHHELD))
@@ -35,6 +60,10 @@ def main() -> int:
         and approved.package is not None,
         "abstained": review.status is RetirementRunStatus.ABSTAINED and review.package is None,
         "safe_failure": review.human_review_required and bool(review.findings),
+        "opaque_id_not_active": marker_only.status is RetirementRunStatus.EXECUTED
+        and not any(finding.code.value == "active_dependency" for finding in marker_only.findings),
+        "status_controls_activity": status_only.status is RetirementRunStatus.ABSTAINED
+        and any(finding.code.value == "active_dependency" for finding in status_only.findings),
         "authorization_denied": denied,
         "replay": service.verify(approved),
         "tamper_rejected": not service.verify(
