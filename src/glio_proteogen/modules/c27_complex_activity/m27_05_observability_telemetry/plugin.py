@@ -78,9 +78,7 @@ class M2705Plugin:
         candidate = submission.request
         if isinstance(candidate, (bytes, bytearray, str)):
             decoded = strict_json_loads(candidate, max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES)
-            candidate = _REQUEST_ADAPTER.validate_json(
-                canonical_json_bytes(decoded), strict=True
-            )
+            candidate = _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
         validated = self._service.validate_request(candidate)
         token = ValidatedM2705Request(validated, self._seal)
         _TOKENS[token] = self._seal
