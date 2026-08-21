@@ -147,8 +147,31 @@ def test_result_replay_rejects_resigned_semantic_mutation() -> None:
 
 
 def test_api_rejects_non_object_payload() -> None:
-    response = TestClient(create_app()).post("/v1/modules/M27-07/validate", content=b"[]")
+    response = TestClient(create_app()).post(
+        "/v1/modules/M27-07/validate",
+        content=b"[]",
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code == 422
+
+
+def test_api_enforces_json_content_type_and_preparse_limit() -> None:
+    client = TestClient(create_app())
+    payload = build_request().model_dump(mode="json")
+    assert (
+        client.post(
+            "/v1/modules/M27-07/control",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+    response = client.post(
+        "/v1/modules/M27-07/control",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
 
 
 def test_api_rejects_unknown_schema() -> None:
@@ -159,8 +182,22 @@ def test_api_rejects_unknown_schema() -> None:
 def test_api_named_schema_and_parse_errors() -> None:
     client = TestClient(create_app())
     assert client.get("/v1/contracts/M27-07/request/schema").status_code == 200
-    assert client.post("/v1/modules/M27-07/validate", content=b"not-json").status_code == 422
-    assert client.post("/v1/modules/M27-07/verify", content=b"not-json").status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M27-07/validate",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/v1/modules/M27-07/verify",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
 
 
 def test_api_sanitizes_invalid_control() -> None:

@@ -10,7 +10,10 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m27_07 import (
+    M2707_MAX_CANONICAL_REQUEST_BYTES,
+    M2707_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityChangeControlResult,
     contract_json_schema,
     contract_json_schemas,
@@ -20,6 +23,11 @@ from glio_proteogen.modules.c27_complex_activity.m27_07_change_control.service i
 
 def create_app() -> FastAPI:
     api = FastAPI(title="GLIO-PROTEOGEN M27-07")
+    api.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2707_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2707_MAX_CANONICAL_RESULT_BYTES,
+    )
     service = M2707Service()
 
     @api.get("/v1/contracts/M27-07/schema")
@@ -33,6 +41,9 @@ def create_app() -> FastAPI:
         return contract_json_schema(name)
 
     async def _body(request: Request) -> dict[str, Any]:
+        media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
             raw = await request.body()
             value = json.loads(raw)
@@ -69,6 +80,9 @@ def create_app() -> FastAPI:
 
     @api.post("/v1/modules/M27-07/verify")
     async def verify(request: Request) -> JSONResponse:
+        media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
             raw = await request.body()
             result = ComplexActivityChangeControlResult.model_validate_json(raw, strict=True)
