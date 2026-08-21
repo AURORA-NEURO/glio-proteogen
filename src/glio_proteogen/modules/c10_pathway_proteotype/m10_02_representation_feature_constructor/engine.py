@@ -461,12 +461,19 @@ def construct_protein_rna_representation(request: object) -> ProteinRnaRepresent
     return M1002RepresentationEngine().compute(request)
 
 
-def verify_result_replay(result: ProteinRnaRepresentationResult) -> bool:
+def verify_result_replay(
+    result: ProteinRnaRepresentationResult,
+    request: object | None = None,
+) -> bool:
     """Verify both request binding and the exact result payload digest."""
 
-    return result.request_digest == canonical_request_digest(
+    digest_valid = result.request_digest == canonical_request_digest(
         result.request
     ) and result.result_digest == result_payload_digest(result)
+    if not digest_valid or request is None:
+        return digest_valid
+    regenerated = M1002RepresentationEngine().compute(request)
+    return result.model_dump(mode="json") == regenerated.model_dump(mode="json")
 
 
 def validate_json_request(

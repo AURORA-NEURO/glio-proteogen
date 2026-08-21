@@ -15,11 +15,15 @@ from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature
     cli_app,
     create_m1002_app,
 )
+from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.service import M1002Service
 from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.engine import (
     RepresentationAuthorizationError,
 )
 from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.interfaces import (
     _error_response,
+)
+from glio_proteogen.modules.c10_pathway_proteotype.m10_02_representation_feature_constructor.service import (
+    M1002Service,
 )
 from tests.modules.test_m10_02_representation_constructor import _request
 
@@ -39,6 +43,13 @@ def test_api_construct_and_schema_are_strict_and_replay_bound() -> None:
     assert response.json()["status"] == "constructed"
     assert client.get("/v1/m10-02/schema/request").status_code == 200
     assert client.get("/v1/m10-02/schema/unknown").status_code == 404
+
+
+def test_request_bound_replay_rejects_resigned_representation() -> None:
+    request = _request()
+    result = M1002Service().execute(request)
+    forged = result.model_copy(update={"status": "abstained"})
+    assert not M1002Service().verify(forged, request)
 
 
 def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
