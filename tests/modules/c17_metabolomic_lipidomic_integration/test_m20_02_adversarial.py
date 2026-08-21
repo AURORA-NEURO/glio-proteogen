@@ -18,7 +18,6 @@ from glio_proteogen.contracts.m20_02 import (
     ProteinSubtypeAlignmentResult,
 )
 from glio_proteogen.contracts.m20_02.canonical import canonical_request_digest
-from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_02_cross_source_alignment_reconciliation import (  # noqa: E501
     M2002Engine,
 )
