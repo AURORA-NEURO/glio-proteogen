@@ -57,9 +57,18 @@ def test_fastapi_validate_evaluate_and_verify_are_canonical() -> None:
     assert validated.status_code == _HTTP_OK
     assert evaluated.status_code == _HTTP_OK
     result = evaluated.json()
-    verified = client.post("/v1/modules/M26-06/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M26-06/verify", json={"request": payload, "result": result}
+    )
+    forged = dict(payload)
+    forged["request_id"] = "request.m2606.forged"
+    mismatch = client.post(
+        "/v1/modules/M26-06/verify",
+        json={"request": forged, "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json() == {"verified": True, "result_digest": result["result_digest"]}
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_fastapi_sanitizes_invalid_and_unauthorized_requests() -> None:
