@@ -6067,20 +6067,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      936200,
-      833800,
-      870300,
-      976700,
-      1026500,
-      937400,
-      863800,
-      973700,
-      919700,
-      1006600
+      894700,
+      873200,
+      853400,
+      914300,
+      924200,
+      884500,
+      1026400,
+      1020700,
+      895800,
+      897400
     ],
-    "mean_ns": 934470.0,
-    "median_ns": 937400,
-    "p95_ns": 1026500,
+    "mean_ns": 918460.0,
+    "median_ns": 897400,
+    "p95_ns": 1026400,
     "result_digest": "313eda678caf8b273cc70a69ca7934355b812e0459da45719bb5e86716194c1a"
   },
   "coverage": {
@@ -6112,8 +6112,8 @@
   "mzidentml_provenance_evaluation": {
     "evaluator": "mzidentml-structural-provenance-v1",
     "passed": true,
-    "declared": 12,
-    "executed": 12,
+    "declared": 13,
+    "executed": 13,
     "checks": {
       "structure_present": true,
       "result_count": true,
@@ -6123,14 +6123,15 @@
       "pass_threshold_count": true,
       "spectrum_reference_count": true,
       "protein_reference_count": true,
+      "peptide_reference_count": true,
       "identifications_not_imported": true,
       "replay_passes": true,
       "changed_receipt_rejected": true,
       "digest_changes_with_receipt": true
     },
     "baseline_result_digest": "313eda678caf8b273cc70a69ca7934355b812e0459da45719bb5e86716194c1a",
-    "bound_result_digest": "d95e37a912ba2cb6e32d75431e4f782b46d28c4790e9d37449d7db60a193c8fd",
-    "mzidentml_sha256": "sha256:7a9197d8882eeb0cfb341f779cefa93601a5731b16e362d3671bf4cd3d4dc0e6"
+    "bound_result_digest": "98d26eb876c8195c76e26cc1d158bc2fa832d2c70dde2903c4bf8fa95e904218",
+    "mzidentml_sha256": "sha256:d36107fe077b3967e4a17f626b5db5c7b7321855fcdfae0cb03a82d1d809a6b2"
   },
   "fdr_quant_group_invariants_evaluation": {
     "evaluator": "fdr-quantification-group-invariants-v1",

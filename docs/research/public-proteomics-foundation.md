@@ -26,6 +26,14 @@ not biological conclusions. Structural receipt fields require exact integer
 counts and byte lengths; boolean values are rejected rather than coerced through
 Python's `bool`-is-an-`int` behavior.
 
+When an mzIdentML receipt is bound to searched mzML and FASTA inputs, the binding
+gate follows the local object graph as well as the file hash. Every identification
+item and peptide-evidence row must point to a unique declared `Peptide`; every
+peptide-evidence row must point to a unique `DBSequence`, whose accession must be
+present in the searched FASTA. Missing or unresolved links are rejected before the
+receipt is used as replayable provenance. This closes structural reference gaps
+without importing scores, PSM acceptance, protein inference, or biological claims.
+
 Catalog snapshots fail closed when any returned file declares a different PDC
 study than the requested study. This prevents a mixed-study metadata response
 from being archived under the requested study identity before any raw-file

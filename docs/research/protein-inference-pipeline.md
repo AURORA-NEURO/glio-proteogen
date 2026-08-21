@@ -278,12 +278,18 @@ threshold and its digest boundary rather than only checking that a field seriali
 `ResearchRunRequest.mzidentml_source` is an explicit, bounded structural-evidence input.
 The parser rejects malformed/unsafe XML and records an exact SHA-256, identifier digest,
 result/item/evidence/hypothesis counts, pass-threshold item count, and any matched
-spectrum/protein reference counts in the run configuration, evidence bundle, result
-projection, and replay digest. Explicit references that resolve outside the searched
-mzML/FASTA inputs are rejected before search. Providing or changing this file therefore
-changes the content-addressed run even when mzML/FASTA search output is unchanged. This
-is provenance of an external identification artifact, not acceptance of its PSMs,
-protein hypotheses, FDR, or biological claims.
+spectrum/protein/peptide reference counts in the run configuration, evidence bundle,
+result projection, and replay digest. A bound artifact must also contain a local
+`Peptide` catalogue: every `SpectrumIdentificationItem.peptide_ref` and
+`PeptideEvidence.peptide_ref` must resolve to a unique `Peptide`, and every
+`PeptideEvidence.dBSequence_ref` must resolve to a unique DBSequence whose accession
+is present in the searched FASTA. Missing or unresolved links abstain before search;
+structural extraction remains permissive when no binding is requested. Explicit
+references that resolve outside the searched mzML/FASTA inputs are rejected before
+search. Providing or changing this file therefore changes the content-addressed run
+even when mzML/FASTA search output is unchanged. This is provenance of an external
+identification artifact, not acceptance of its PSMs, protein hypotheses, FDR, or
+biological claims.
 
 Every single-run result also carries the complete `EvidenceBundle` projection, including
 each record's identity, payload, quality metadata, the derived quality summary, limitations,
