@@ -1,12 +1,12 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "446aa76c5c8744bbdc04930960b8c1003872f3ca9a9332ce009668f7bec52c6e",
+  "fixture_sha256": "3e14be69c87ce55a2326da7e72ba04371dcdfe047a3e38a444216492144e48fd",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "446aa76c5c8744bbdc04930960b8c1003872f3ca9a9332ce009668f7bec52c6e",
+    "fixture_sha256": "3e14be69c87ce55a2326da7e72ba04371dcdfe047a3e38a444216492144e48fd",
     "generated_search_space": {
       "passed": true,
       "result_digest": "f3a45ea4392cc65766c0b6e430f5930cd049389ca7d08025891e8e6234a45a5e",
@@ -6068,20 +6068,20 @@
     "iterations": 10,
     "percentile_method": "nearest_rank",
     "samples_ns": [
-      1075100,
-      953200,
-      951900,
-      856000,
-      952900,
-      1006600,
-      869400,
-      855800,
-      871500,
-      869900
+      930400,
+      923300,
+      912100,
+      1057900,
+      947100,
+      897000,
+      892800,
+      1038200,
+      947400,
+      888200
     ],
-    "mean_ns": 926230.0,
-    "median_ns": 951900,
-    "p95_ns": 1075100,
+    "mean_ns": 943440.0,
+    "median_ns": 930400,
+    "p95_ns": 1057900,
     "result_digest": "51416d8b2bdd3a9485bd21aabad85fd137ceb4440b4389a845136b4f7b0acc7d"
   },
   "coverage": {
