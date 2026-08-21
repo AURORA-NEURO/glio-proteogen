@@ -45,7 +45,7 @@ def _invalid_request(error: Exception) -> HTTPException:
 
 def _require_object(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
-        raise TypeError("replay envelope must be an object")
+        raise TypeError
     return value
 
 
