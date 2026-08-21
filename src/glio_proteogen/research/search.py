@@ -216,11 +216,16 @@ class FdrSummary:
         if self.accepted_targets == 0:
             if self.max_accepted_q_value is not None:
                 raise ValueError("FDR summary max accepted q-value requires accepted targets")
-        elif (
-            not _is_finite_real(self.max_accepted_q_value)
-            or not 0 <= self.max_accepted_q_value <= self.q_value_threshold
-        ):
-            raise ValueError("FDR summary max accepted q-value is outside the declared threshold")
+        else:
+            max_accepted_q_value = self.max_accepted_q_value
+            if max_accepted_q_value is None or not _is_finite_real(max_accepted_q_value):
+                raise ValueError(
+                    "FDR summary max accepted q-value is outside the declared threshold"
+                )
+            if not 0 <= float(max_accepted_q_value) <= self.q_value_threshold:
+                raise ValueError(
+                    "FDR summary max accepted q-value is outside the declared threshold"
+                )
         expected_ratio = (
             (self.decoy_winners + self.collision_winners) / self.target_winners
             if self.target_winners
@@ -486,7 +491,7 @@ def _assign_fragment_peaks(
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(  # noqa: PLR0917
+    def better(
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
