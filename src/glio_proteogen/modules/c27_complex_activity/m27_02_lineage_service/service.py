@@ -33,5 +33,16 @@ class M2702Service:
     def execute(self, request: object) -> ComplexActivityLineageResult:
         return self._resolver.resolve(request)
 
+    def verify(
+        self,
+        result: ComplexActivityLineageResult,
+        request: ResolveComplexActivityLineageRequest | None = None,
+    ) -> ComplexActivityLineageResult:
+        typed_request = request or result.request
+        expected = self.execute(typed_request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise ValueError("lineage replay mismatch")  # noqa: TRY003
+        return result
+
 
 __all__ = ["M2702Service"]
