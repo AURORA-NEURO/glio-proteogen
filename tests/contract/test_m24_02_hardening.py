@@ -163,6 +163,15 @@ def test_request_requires_context_and_upstream_source_closure() -> None:
             | {"source_artifacts": (request.source_artifacts[0],) * 2},
             strict=True,
         )
+    mismatched_upstream = request.source_artifacts[0].model_copy(
+        update={"digest": "sha256:" + "f" * 64}
+    )
+    with pytest.raises(ValidationError, match="full upstream identity"):
+        GenerateBiomarkerPanelSyntheticTruthRequest.model_validate(
+            request.model_dump(mode="python")
+            | {"source_artifacts": (mismatched_upstream, request.source_artifacts[1])},
+            strict=True,
+        )
 
 
 def test_configuration_and_manifest_ids_are_unique() -> None:

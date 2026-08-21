@@ -166,6 +166,28 @@ def test_contract_rejects_corpus_and_manifest_case_drift() -> None:
         )
 
 
+def test_result_closure_rejects_manifest_and_case_count_drift() -> None:
+    result = m2402.M2402Service().generate(_request())
+    assert result.corpus is not None
+    assert result.manifest is not None
+    changed_manifest = result.manifest.model_copy(update={"manifest_id": "m2402.forged"})
+    with pytest.raises(ValidationError, match="manifest must match corpus"):
+        BiomarkerPanelSyntheticTruthResult.model_validate(
+            result.model_dump(mode="python") | {"manifest": changed_manifest},
+            strict=True,
+        )
+    short_manifest = result.manifest.model_copy(update={"case_ids": result.manifest.case_ids[:1]})
+    changed_corpus = result.corpus.model_copy(
+        update={"cases": result.corpus.cases[:1], "manifest": short_manifest}
+    )
+    with pytest.raises(ValidationError, match="case count must match request"):
+        BiomarkerPanelSyntheticTruthResult.model_validate(
+            result.model_dump(mode="python")
+            | {"corpus": changed_corpus, "manifest": short_manifest},
+            strict=True,
+        )
+
+
 def test_contract_rejects_duplicate_corpus_cases_and_forged_result_closure() -> None:
     service = m2402.M2402Service()
     result = service.generate(_request())
