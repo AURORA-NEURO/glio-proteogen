@@ -33,7 +33,7 @@ def test_supported_research_request_emits_bounded_object() -> None:
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.uncertainty.measurement.state.value == "not_estimable"
-    assert result.human_review_required is False
+    assert result.human_review_required is True
 
 
 def test_clinical_review_is_adapted_but_requires_review() -> None:
@@ -123,7 +123,7 @@ def test_service_replay_rejects_request_and_payload_tamper() -> None:
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
     with pytest.raises(m1804.M1804ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"human_review_required": False}))
-    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = result.model_copy(update={"human_review_required": False})
     tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
     with pytest.raises(m1804.M1804ReplayError, match="deterministic replay"):
         service.replay(tampered)
