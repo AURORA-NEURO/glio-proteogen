@@ -113,6 +113,17 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
         plugin.run(cast("Any", object()))
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2108Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2108Plugin(service).verify(result, request=altered)
+
+
 def test_replay_rejects_payload_and_request_tampering() -> None:
     engine = M2108Engine()
     result = engine.evaluate(_request())

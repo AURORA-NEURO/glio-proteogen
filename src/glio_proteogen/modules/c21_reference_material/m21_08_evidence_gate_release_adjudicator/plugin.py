@@ -76,12 +76,13 @@ class M2108Plugin:
         result: object,
         *,
         replay: bool = True,
+        request: AdjudicateComplexActivityEvidenceGateRequest | None = None,
     ) -> ComplexActivityEvidenceGateResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except (TypeError, ValueError, ValidationError) as error:
             raise M2108ReplayError from error
-        return self._service.verify(validated, replay=replay)
+        return self._service.verify(validated, replay=replay, request=request)
 
 
 __all__ = ["M2108Plugin", "ValidatedM2108Request"]

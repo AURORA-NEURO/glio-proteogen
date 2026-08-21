@@ -42,7 +42,7 @@ class M2108Service:
         if request is not None:
             typed = self._engine.verify(result, replay=replay)
             if typed.request.model_dump(mode="json") != request.model_dump(mode="json"):
-                raise ValueError
+                raise ValueError("replay request mismatch")  # noqa: TRY003
             return typed
         return self._engine.verify(result, replay=replay)
 
