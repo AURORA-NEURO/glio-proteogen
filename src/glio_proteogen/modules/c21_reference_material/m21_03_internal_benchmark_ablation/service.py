@@ -37,7 +37,12 @@ class M2103Service:
     def replay(
         self,
         result: ComplexActivityInternalBenchmarkResult,
+        request: RunComplexActivityInternalBenchmarkRequest | None = None,
     ) -> ComplexActivityInternalBenchmarkResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
         return self._engine.replay(result)
 
 
