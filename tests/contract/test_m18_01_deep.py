@@ -40,7 +40,7 @@ from glio_proteogen.kernel.models import (
     UpstreamDecisionReference,
     UpstreamDecisionState,
 )
-from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver.service import (
+from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m18_01_upstream_contract_resolver import (
     M1801Service,
 )
 
