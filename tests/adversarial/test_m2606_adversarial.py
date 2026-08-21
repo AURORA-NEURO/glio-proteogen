@@ -105,7 +105,7 @@ def test_api_rejects_oversized_and_non_object_replay_envelopes() -> None:
         content=b"{" + b'"x":"' + b"a" * (4 * 1024 * 1024) + b'"}',
     )
     scalar = client.post("/v1/modules/M26-06/verify", content=b"[]")
-    assert oversized.status_code == _HTTP_UNPROCESSABLE
+    assert oversized.status_code == 413  # noqa: PLR2004
     assert scalar.status_code == _HTTP_UNPROCESSABLE
 
 
