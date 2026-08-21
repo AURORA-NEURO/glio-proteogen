@@ -28,6 +28,8 @@ _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_UNSUPPORTED_MEDIA = 415
+_HTTP_TOO_LARGE = 413
 
 
 def test_api_and_cli_export_identical_schema_inventory() -> None:
@@ -47,7 +49,11 @@ def test_api_and_cli_validate_identical_request(tmp_path) -> None:
     request_path = tmp_path / "request.json"
     request_path.write_bytes(encoded)
     with TestClient(m0605_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-05/validate", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-05/validate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0605_cli.app, ["validate", str(request_path)])
     assert api.status_code == _HTTP_OK
     assert cli.exit_code == 0
@@ -59,12 +65,33 @@ def test_api_and_cli_integrate_identical_canonical_result(tmp_path) -> None:
     request_path = tmp_path / "request.json"
     request_path.write_bytes(encoded)
     with TestClient(m0605_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-05/integrate", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-05/integrate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0605_cli.app, ["integrate", str(request_path)])
     assert api.status_code == _HTTP_OK
     assert cli.exit_code == 0
     assert api.json()["result"] == json.loads(cli.stdout)
     assert json.loads(api.json()["canonical"]) == json.loads(cli.stdout)
+
+
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    payload = _request().model_dump(mode="json")
+    with TestClient(m0605_api.create_app()) as client:
+        wrong_media = client.post(
+            "/v1/modules/M06-05/integrate",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M06-05/integrate",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == _HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == _HTTP_TOO_LARGE
 
 
 def test_plugin_parse_once_requires_validated_token() -> None:
@@ -93,7 +120,11 @@ def test_duplicate_json_keys_are_rejected_without_secret_leak(tmp_path) -> None:
     request_path = tmp_path / "duplicate.json"
     request_path.write_bytes(payload)
     with TestClient(m0605_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-05/validate", content=payload)
+        api = client.post(
+            "/v1/modules/M06-05/validate",
+            content=payload,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0605_cli.app, ["validate", str(request_path)])
     assert api.status_code == _HTTP_UNPROCESSABLE
     assert "secret" not in api.text
@@ -109,7 +140,11 @@ def test_unknown_schema_and_invalid_request_are_sanitized(tmp_path) -> None:
     invalid = runner.invoke(m0605_cli.app, ["validate", str(invalid_path)])
     with TestClient(m0605_api.create_app()) as client:
         api_unknown = client.get("/v1/modules/M06-05/schemas/unknown")
-        api_invalid = client.post("/v1/modules/M06-05/validate", content=b"{}")
+        api_invalid = client.post(
+            "/v1/modules/M06-05/validate",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
     assert unknown.exit_code != 0
     assert invalid.exit_code != 0
     assert api_unknown.status_code == _HTTP_NOT_FOUND
@@ -138,6 +173,7 @@ def test_api_denies_withheld_consent_before_integration() -> None:
         response = client.post(
             "/v1/modules/M06-05/integrate",
             content=canonical_json_bytes(withheld.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == _HTTP_FORBIDDEN
     assert "authorization denied" in response.text
