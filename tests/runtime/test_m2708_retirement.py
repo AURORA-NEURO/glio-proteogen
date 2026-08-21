@@ -48,9 +48,7 @@ def test_active_dependency_is_never_retired() -> None:
 
 def test_opaque_dependency_identifier_does_not_create_active_finding() -> None:
     request = build_request()
-    migration = request.migrations[0].model_copy(
-        update={"dependency_id": "active-looking-service"}
-    )
+    migration = request.migrations[0].model_copy(update={"dependency_id": "active-looking-service"})
     complete = request.model_copy(update={"migrations": (migration,)})
     result = M2708Service().execute(complete)
     assert result.status is RetirementRunStatus.EXECUTED
