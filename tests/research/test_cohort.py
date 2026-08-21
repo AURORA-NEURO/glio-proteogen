@@ -91,6 +91,7 @@ def _valid_contrast() -> CohortLabelContrast:
         ({"log2_median_ratio": float("inf")}, "derived fields"),
         ({"median_difference": 1.0}, "derived from"),
         ({"label_a_median": None}, "two positive"),
+        ({"label_a_observed_replicates": 0}, "positive medians and observed replicates"),
         (
             {"status": "abstained_missing_or_nonpositive", "median_difference": -10.0},
             "abstained contrast",

@@ -381,10 +381,14 @@ class CohortLabelContrast:
                 or self.label_b_median is None
                 or self.label_a_median <= 0
                 or self.label_b_median <= 0
+                or self.label_a_observed_replicates < 1
+                or self.label_b_observed_replicates < 1
                 or self.median_ratio is None
                 or self.log2_median_ratio is None
             ):
-                raise ValueError("descriptive contrast requires two positive medians")
+                raise ValueError(
+                    "descriptive contrast requires two positive medians and observed replicates"
+                )
             if self.label_a_status != "descriptive" or self.label_b_status != "descriptive":
                 raise ValueError("descriptive contrast requires descriptive label QC")
             expected_ratio = self.label_a_median / self.label_b_median

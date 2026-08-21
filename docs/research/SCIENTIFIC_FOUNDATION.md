@@ -164,7 +164,8 @@ C03/C04 computation contract:
   replay verification. Its opt-in `within_label_median_v1` normalization computes bounded
   scale factors only from positive groups shared by every replicate of a caller-declared label,
   retaining raw and normalized matrices plus label/group descriptive evidence. Insufficient
-  overlap or replicate support abstains explicitly; no null is imputed. It aggregates evidence
+  overlap or replicate support abstains explicitly; descriptive contrasts also require at least
+  one observed replicate per label; no null is imputed. It aggregates evidence
   only; it does not perform differential testing, batch correction, glioma inference, or
   mechanism discovery.
 - Cohort QC is an explicit, replay-bound `CohortQcPolicy`: minimum replicates, minimum observed
