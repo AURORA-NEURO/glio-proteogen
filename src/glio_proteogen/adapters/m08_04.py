@@ -59,16 +59,19 @@ def create_m0804_app(service: m0804_runtime.M0804Service | None = None) -> FastA
 
     @app.post("/v1/modules/M08-04/probabilistic-estimate", tags=["M08-04"])
     async def estimate(request: Request) -> JSONResponse:
-        if (
-            request.headers.get("content-type", "").partition(";")[0].strip().lower()
-            != "application/json"
-        ):
-            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         raw = await request.body()
         if len(raw) > M0804_MAX_CANONICAL_REQUEST_BYTES:
             return JSONResponse(status_code=413, content={"detail": "request too large"})
         try:
             candidate = strict_json_loads(raw, max_bytes=M0804_MAX_CANONICAL_REQUEST_BYTES)
+            # Authorization is intentionally evaluated before media-type policy so a
+            # valid-but-withheld request cannot be masked as a transport error.
+            m0804_runtime.preflight_m0804_authorization(candidate)
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
             typed = m0804_runtime.validate_json_request(candidate, raw)
             result = executor.execute(typed)
         except m0804_runtime.M0804AuthorizationError as error:
