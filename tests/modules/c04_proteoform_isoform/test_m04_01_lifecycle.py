@@ -283,6 +283,20 @@ def test_strict_plugin_json_rejects_duplicate_unknown_coercion_and_oversize() ->
             plugin.validate(candidate)
 
 
+@pytest.mark.parametrize("shape", ["scalar", "aggregate"])
+def test_direct_service_caps_plain_request_string_bytes_before_model_validation(
+    shape: str,
+) -> None:
+    payload = build_scenario_request().model_dump(mode="python")
+    if shape == "scalar":
+        payload["protocol_schema"]["schema_id"] = "x" * (4 * 1024 * 1024)
+    else:
+        payload["protocol_schema"]["required_identity_keys"] = ["x" * 2_048 for _ in range(2_100)]
+
+    with pytest.raises(TypeError, match="strict request values"):
+        M0401Service().validate_request(payload)
+
+
 def test_result_recursively_preserves_parent_and_authority_ceiling() -> None:
     result = evaluate_proteoform_protocol(build_scenario_request())
     assert result.parent_target == "protein_rna_discordance"
