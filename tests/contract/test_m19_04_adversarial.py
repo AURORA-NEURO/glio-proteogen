@@ -359,7 +359,7 @@ def test_result_closure_rejects_identifier_and_object_tampering() -> None:
         code=AdapterFindingCode.CLAIM_EXCEEDS_CEILING,
         message="Duplicate finding identity.",
     )
-    with pytest.raises(ValueError, match="finding ids"):
+    with pytest.raises(ValueError, match="review-only"):
         _revalidate(result.model_copy(update={"findings": (finding, finding)}))
 
 
