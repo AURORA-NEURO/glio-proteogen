@@ -35,7 +35,11 @@ class M2008Service:
             )
         return self._engine.infer(request)
 
-    def verify(self, result: object) -> ProteinSubtypeTranslationHealthResult:
+    def verify(
+        self,
+        result: object,
+        request: MonitorProteinSubtypeTranslationHealthRequest | None = None,
+    ) -> ProteinSubtypeTranslationHealthResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=8 * 1024 * 1024)
             result = ProteinSubtypeTranslationHealthResult.model_validate_json(
@@ -45,7 +49,12 @@ class M2008Service:
             result = ProteinSubtypeTranslationHealthResult.model_validate_json(
                 canonical_json_bytes(dict(result)), strict=True
             )
-        return self._engine.verify(result)
+        verified = self._engine.verify(result)
+        if request is not None and (
+            verified.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
+        return verified
 
     def monitor(self, request: object) -> ProteinSubtypeTranslationHealthResult:
         return self.execute(request)
