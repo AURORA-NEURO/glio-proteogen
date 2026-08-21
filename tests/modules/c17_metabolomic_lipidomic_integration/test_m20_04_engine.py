@@ -105,3 +105,13 @@ def test_service_and_plugin_keep_same_typed_boundary() -> None:
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.descriptor.claim_ceiling_required is True
 
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m2004.M2004Service().adapt(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2004.M2004Service().replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2004.M2004Plugin().replay(result, altered)
+
