@@ -17,6 +17,7 @@ from .test_pipeline import _mzml
 _MZIDENTML = b"""\
 <MzIdentML id="fixture">
   <SequenceCollection>
+    <Peptide id="PEP1"/>
     <DBSequence id="P1" accession="P1"/>
     <PeptideEvidence id="PE1" peptide_ref="PEP1" dBSequence_ref="P1"/>
     <PeptideEvidence id="PE2" peptide_ref="PEP1" dBSequence_ref="P1"/>
@@ -24,8 +25,8 @@ _MZIDENTML = b"""\
   <AnalysisData>
     <SpectrumIdentificationList id="SIL1">
       <SpectrumIdentificationResult id="SIR1" spectrumID="scan=1">
-        <SpectrumIdentificationItem id="SII1" passThreshold="true"/>
-        <SpectrumIdentificationItem id="SII2" passThreshold="false"/>
+        <SpectrumIdentificationItem id="SII1" peptide_ref="PEP1" passThreshold="true"/>
+        <SpectrumIdentificationItem id="SII2" peptide_ref="PEP1" passThreshold="false"/>
       </SpectrumIdentificationResult>
     </SpectrumIdentificationList>
     <ProteinDetectionList id="PDL1">
@@ -65,6 +66,8 @@ def test_mzidentml_structure_is_replay_bound_without_inference_import() -> None:
     assert structure.spectrum_reference_match_count == 1
     assert structure.protein_reference_count == 2
     assert structure.protein_reference_match_count == 2
+    assert structure.peptide_reference_count == 4
+    assert structure.peptide_reference_match_count == 4
     assert dict(with_ident.configuration)["mzidentml_sha256"] == structure.sha256
     assert any(
         record.kind == "identification_evidence_structure" for record in with_ident.evidence.records
@@ -86,4 +89,10 @@ def test_mzidentml_mutation_rejects_replay() -> None:
 def test_mzidentml_unrelated_spectrum_reference_abstains_before_search() -> None:
     changed = _MZIDENTML.replace(b'spectrumID="scan=1"', b'spectrumID="scan=missing"')
     with pytest.raises(ValueError, match="spectrumID"):
+        run_research_protein_inference(_request(changed))
+
+
+def test_mzidentml_unresolved_peptide_reference_abstains_before_search() -> None:
+    changed = _MZIDENTML.replace(b'peptide_ref="PEP1"', b'peptide_ref="missing"', 1)
+    with pytest.raises(ValueError, match="peptide_ref"):
         run_research_protein_inference(_request(changed))

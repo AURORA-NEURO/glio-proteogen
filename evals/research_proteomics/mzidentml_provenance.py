@@ -15,13 +15,14 @@ from .run import build_scenario_request, scenarios
 _MZIDENTML = b"""\
 <MzIdentML id="evaluation">
   <SequenceCollection>
+    <Peptide id="PEP1"/>
     <DBSequence id="P1" accession="P1"/>
     <PeptideEvidence id="PE1" peptide_ref="PEP1" dBSequence_ref="P1"/>
   </SequenceCollection>
   <AnalysisData>
     <SpectrumIdentificationList id="SIL1">
       <SpectrumIdentificationResult id="SIR1" spectrumID="scan=1">
-        <SpectrumIdentificationItem id="SII1" passThreshold="true"/>
+        <SpectrumIdentificationItem id="SII1" peptide_ref="PEP1" passThreshold="true"/>
       </SpectrumIdentificationResult>
     </SpectrumIdentificationList>
     <ProteinDetectionList id="PDL1">
@@ -32,6 +33,7 @@ _MZIDENTML = b"""\
   </AnalysisData>
 </MzIdentML>
 """
+_EXPECTED_PEPTIDE_REFERENCES = 2
 
 
 def _request(mzidentml: bytes = _MZIDENTML) -> ResearchRunRequest:
@@ -62,6 +64,9 @@ def run_mzidentml_provenance_evaluator() -> dict[str, object]:
         "protein_reference_count": structure is not None
         and structure.protein_reference_count == 1
         and structure.protein_reference_match_count == 1,
+        "peptide_reference_count": structure is not None
+        and structure.peptide_reference_count == _EXPECTED_PEPTIDE_REFERENCES
+        and structure.peptide_reference_match_count == _EXPECTED_PEPTIDE_REFERENCES,
         "identifications_not_imported": bound.psms == baseline.psms,
         "replay_passes": (
             replay_research_protein_inference(_request(), bound).result_digest

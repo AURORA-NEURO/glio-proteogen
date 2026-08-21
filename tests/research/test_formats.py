@@ -72,8 +72,9 @@ def test_mzidentml_counts_identification_structure_without_inference() -> None:
 
 def test_mzidentml_reference_binding_rejects_unrelated_inputs() -> None:
     data = (
-        b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
-        b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+        b'<DBSequence id="db1" accession="P1"/>'
+        b'<PeptideEvidence id="pe1" peptide_ref="pep1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=missing"/>'
         b"</AnalysisData></MzIdentML>"
     )
@@ -89,8 +90,9 @@ def test_mzidentml_reference_binding_rejects_unrelated_inputs() -> None:
 
 def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> None:
     data = (
-        b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P1"/>'
-        b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+        b'<DBSequence id="db1" accession="P1"/>'
+        b'<PeptideEvidence id="pe1" peptide_ref="pep1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=1"/>'
         b"</AnalysisData></MzIdentML>"
     )
@@ -130,7 +132,8 @@ def test_mzidentml_reference_binding_closes_catalogue_and_structure_types() -> N
             "unique",
         ),
         (
-            b'<MzIdentML><SequenceCollection><PeptideEvidence dBSequence_ref="missing"/>'
+            b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+            b'<PeptideEvidence peptide_ref="pep1" dBSequence_ref="missing"/>'
             b"</SequenceCollection></MzIdentML>",
             "unresolved DBSequence",
         ),
@@ -151,13 +154,67 @@ def test_mzidentml_reference_binding_rejects_malformed_object_graph(
 
 def test_mzidentml_reference_binding_rejects_unresolved_protein_accession() -> None:
     data = (
-        b'<MzIdentML><SequenceCollection><DBSequence id="db1" accession="P2"/>'
-        b'<PeptideEvidence id="pe1" dBSequence_ref="db1"/></SequenceCollection>'
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+        b'<DBSequence id="db1" accession="P2"/>'
+        b'<PeptideEvidence id="pe1" peptide_ref="pep1" dBSequence_ref="db1"/></SequenceCollection>'
         b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=1"/>'
         b"</AnalysisData></MzIdentML>"
     )
     summary = extract_mzidentml_structure(data)
     with pytest.raises(FormatError, match="protein reference"):
+        bind_mzidentml_references(
+            data,
+            summary,
+            spectrum_ids=("scan=1",),
+            protein_accessions=("P1",),
+        )
+
+
+@pytest.mark.parametrize(
+    ("data", "message"),
+    [
+        (
+            b'<MzIdentML><SequenceCollection><Peptide id="pep1"/></SequenceCollection>'
+            b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=1">'
+            b'<SpectrumIdentificationItem id="sii1"/></SpectrumIdentificationResult>'
+            b"</AnalysisData></MzIdentML>",
+            "SpectrumIdentificationItem requires peptide_ref",
+        ),
+        (
+            b'<MzIdentML><SequenceCollection><Peptide id="pep1"/></SequenceCollection>'
+            b'<AnalysisData><SpectrumIdentificationResult spectrumID="scan=1">'
+            b'<SpectrumIdentificationItem id="sii1" peptide_ref="missing"/>'
+            b"</SpectrumIdentificationResult></AnalysisData></MzIdentML>",
+            "unresolved peptide_ref",
+        ),
+        (
+            b'<MzIdentML><SequenceCollection><Peptide id="pep1"/>'
+            b'<PeptideEvidence id="pe1" peptide_ref="missing" dBSequence_ref="db1"/>'
+            b"</SequenceCollection></MzIdentML>",
+            "unresolved peptide_ref",
+        ),
+    ],
+)
+def test_mzidentml_reference_binding_rejects_unresolved_peptide_links(
+    data: bytes, message: str
+) -> None:
+    summary = extract_mzidentml_structure(data)
+    with pytest.raises(FormatError, match=message):
+        bind_mzidentml_references(
+            data,
+            summary,
+            spectrum_ids=("scan=1",),
+            protein_accessions=("P1",),
+        )
+
+
+def test_mzidentml_reference_binding_rejects_duplicate_peptide_ids() -> None:
+    data = (
+        b'<MzIdentML><SequenceCollection><Peptide id="pep1"/><Peptide id="pep1"/>'
+        b"</SequenceCollection></MzIdentML>"
+    )
+    summary = extract_mzidentml_structure(data)
+    with pytest.raises(FormatError, match="Peptide IDs must be unique"):
         bind_mzidentml_references(
             data,
             summary,
