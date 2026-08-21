@@ -154,3 +154,12 @@ def test_service_and_plugin_use_same_canonical_runtime() -> None:
     assert plugin.descriptor.parent_target == "proteotype"
     assert plugin.run(request) == service_result
     assert plugin.replay(service_result) == service_result
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M1903Service().fuse(request)
+    altered = request.model_copy(update={"request_id": "request.m1903.altered"})
+
+    with pytest.raises(ValueError):
+        M1903Service().replay(result, altered)
