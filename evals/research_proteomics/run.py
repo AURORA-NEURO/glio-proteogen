@@ -356,6 +356,19 @@ def run_evaluator() -> dict[str, object]:
             and result.fdr_summary.target_winners == scenario.expected_target_winners
             and result.fdr_summary.decoy_winners == scenario.expected_decoy_winners
             and result.fdr_summary.collision_winners == scenario.expected_collision_winners
+            and result.fdr_summary.decoy_to_target_ratio
+            == (
+                expected["expected_fdr_ratio"]
+                if "expected_fdr_ratio" in expected
+                else (
+                    None
+                    if scenario.expected_target_winners == 0
+                    else (
+                        scenario.expected_decoy_winners + scenario.expected_collision_winners
+                    )
+                    / scenario.expected_target_winners
+                )
+            )
             and result.fdr_summary.accepted_targets == scenario.expected_accepted
             and result.protein_group_fdr_summary is not None
             and result.protein_group_fdr_summary.as_dict() == expected["expected_group_fdr"]

@@ -1,8 +1,8 @@
 {
   "lane": "research-scientific-foundation",
   "status": "research_only_not_production_abi",
-    "base_commit": "ce4ac8bc",
-    "pipeline_commit": "94af6f7b",
+  "base_commit": "ce4ac8bc",
+  "pipeline_commit": "94af6f7b",
   "source_fixture": {
     "study": "PDC000204",
     "title": "CPTAC GBM Discovery Study",
@@ -66,10 +66,10 @@
   },
   "verification": {
     "research_pipeline_verifier": "tools/verify_research_pipeline.py",
-    "fixture_sha256": "3c5ef148710ace3e8e2d119689249b2fa8e8d2a6e5ead355926b345b7c293fe2",
+    "fixture_sha256": "3c8a63791366992ad0125abb293e399b8a731dd1ac4cb4d371833d8d24f08712",
     "cohort_fixture_sha256": "b930c2a71286dab22b25fabe2a600d36af7806933da9ec8f3a5aa1ad2c855bfe",
-      "focused_tests": 361,
-      "coverage": {
+    "focused_tests": 361,
+    "coverage": {
       "statements": 3421,
       "missed_statements": 105,
       "branches": 1328,
@@ -77,22 +77,22 @@
       "percent": 95.62,
       "fail_under": 95
     },
-      "wheel": {
-        "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
-        "bytes": 3879552,
-        "members": 1991,
-        "sha256": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63"
-      },
-      "sdist": {
-        "filename": "glio_proteogen-0.1.0.tar.gz",
-        "bytes": 4558999,
-        "members": 4658,
-        "sha256": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9"
+    "wheel": {
+      "filename": "glio_proteogen-0.1.0-py3-none-any.whl",
+      "bytes": 3879552,
+      "members": 1991,
+      "sha256": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63"
+    },
+    "sdist": {
+      "filename": "glio_proteogen-0.1.0.tar.gz",
+      "bytes": 4558999,
+      "members": 4658,
+      "sha256": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9"
     },
     "reproducible_builds": 2,
     "reproducible_hashes": {
-        "wheel": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63",
-        "sdist": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9"
+      "wheel": "1a185808890486da2f47d211d1a8ee14dcc28a14235a2a18394ff6f67f8aea63",
+      "sdist": "b039a1aa261ee744698202d1a077131c412223354ffca53f82c1eaaa5a29a7b9"
     },
     "isolated_import": true,
     "source_date_epoch": 315532800

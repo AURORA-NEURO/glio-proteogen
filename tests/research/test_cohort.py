@@ -206,12 +206,34 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
 
 
 def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
+    def sample(label: str, replicate: str) -> ResearchCohortSample:
+        base = _sample("target_supported", f"{label}-{replicate}", replicate)
+        return replace(
+            base,
+            cohort_label=label,
+            request=replace(
+                base.request,
+                mzml_source=(f"<!--{label}-{replicate}-->".encode() + base.request.mzml_source),
+            ),
+        )
+
+    samples = tuple(
+        sample(label, replicate)
+        for label in ("case", "control")
+        for replicate in ("r1", "r2")
+    )
     result = run_research_cohort(
         ResearchCohortRequest(
-            (
-                replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
-                replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
-            )
+            samples,
+            source_manifest=CohortSourceManifest(
+                tuple(
+                    replace(binding, source_id=f"local:{binding.sample_id}")
+                    for binding in CohortSourceManifest.from_requests(
+                        tuple(item.request for item in samples),
+                        replicate_kinds={item.sample_id: "biological" for item in samples},
+                    ).bindings
+                )
+            ),
         )
     )
     assert len(result.label_contrasts) == 1

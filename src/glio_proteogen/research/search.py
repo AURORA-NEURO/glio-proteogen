@@ -145,7 +145,7 @@ class FdrSummary:
     accepted_targets: int
     q_value_threshold: float
     max_accepted_q_value: float | None
-    decoy_to_target_ratio: float
+    decoy_to_target_ratio: float | None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -297,7 +297,7 @@ def _assign_fragment_peaks(
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(
+    def better(  # noqa: PLR0917 - dynamic-programming comparison tuple
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
@@ -571,6 +571,6 @@ def summarize_target_decoy(
         q_value_threshold=q_value_threshold,
         max_accepted_q_value=max(accepted_q_values) if accepted_q_values else None,
         decoy_to_target_ratio=(
-            (decoy_winners + collision_winners) / target_winners if target_winners else 0.0
+            (decoy_winners + collision_winners) / target_winners if target_winners else None
         ),
     )

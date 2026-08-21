@@ -335,7 +335,11 @@ class CohortLabelContrast:
         ):
             if type(value) not in (int, float) or not isfinite(value) or not 0.0 <= value <= 1.0:
                 raise ValueError(f"{field_name} must be a finite fraction")
-        if self.status not in {"descriptive", "abstained_missing_or_nonpositive"}:
+        if self.status not in {
+            "descriptive",
+            "abstained_missing_or_nonpositive",
+            "abstained_label_qc",
+        }:
             raise ValueError("contrast status is not supported")
         nonnegative = (
             self.label_a_median,
@@ -678,18 +682,24 @@ def _build_label_contrasts(
                 right = by_key[(label_b, group)]
                 left_median = left.median_normalized_intensity
                 right_median = right.median_normalized_intensity
-                if (
+                positive = (
                     left_median is not None
                     and right_median is not None
                     and isfinite(left_median)
                     and isfinite(right_median)
                     and left_median > 0
                     and right_median > 0
-                ):
+                )
+                if positive and left.status == "descriptive" and right.status == "descriptive":
                     difference = left_median - right_median
                     ratio = left_median / right_median
                     log_ratio = log2(ratio)
                     status = "descriptive"
+                elif positive:
+                    difference = None
+                    ratio = None
+                    log_ratio = None
+                    status = "abstained_label_qc"
                 else:
                     difference = None
                     ratio = None
