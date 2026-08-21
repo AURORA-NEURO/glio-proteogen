@@ -125,9 +125,7 @@ def test_group_duplicate_ties_prefer_stricter_existing_q_value() -> None:
     )
     higher_q = replace(lower_q, q_value=0.99)
 
-    selected, _ = infer_protein_group_candidates(
-        (higher_q, lower_q), q_value_threshold=0.5
-    )
+    selected, _ = infer_protein_group_candidates((higher_q, lower_q), q_value_threshold=0.5)
     expected, _ = infer_protein_group_candidates((lower_q,), q_value_threshold=0.5)
 
     assert selected == expected
