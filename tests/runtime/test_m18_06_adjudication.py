@@ -255,3 +255,12 @@ def test_tampered_result_digest_is_rejected() -> None:
     resigned = resigned.model_copy(update={"result_digest": result_payload_digest(resigned)})
     with pytest.raises(m1806.M1806ReplayError, match="deterministic replay"):
         m1806.M1806Engine().replay(resigned)
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m1806.M1806Service().adjudicate(request)
+    altered = request.model_copy(update={"request_id": "request.m1806.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1806.M1806Service().replay(result, altered)
