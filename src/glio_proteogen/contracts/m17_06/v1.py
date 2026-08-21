@@ -298,9 +298,9 @@ class VariantPeptideAdjudicationResult(FrozenModel):
             if (
                 self.record is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("recorded result requires a supported immutable record")
+                raise ValueError("recorded result requires a review-only immutable record")
             if self.record.status is not AdjudicationRecordStatus.RESOLVED:
                 raise ValueError("recorded result requires a resolved record")
             request_ids = {item.discrepancy_id for item in self.request.entries}

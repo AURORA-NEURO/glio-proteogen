@@ -354,7 +354,7 @@ def test_result_closure_rejects_record_status_membership_and_abstention_mutation
         VariantPeptideAdjudicationResult.model_validate(
             result.model_dump(mode="python") | {"record": mismatched}
         )
-    with pytest.raises(ValidationError, match="supported immutable"):
+    with pytest.raises(ValidationError, match="review-only immutable"):
         VariantPeptideAdjudicationResult.model_validate(
             result.model_dump(mode="python")
             | {
