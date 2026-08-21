@@ -15,7 +15,7 @@ import typer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m07_08 import (
     M0708_MAX_CANONICAL_REQUEST_BYTES,
     ProteotypeEvidencePublicationResult,
@@ -61,6 +61,11 @@ def create_m0708_app(
         version="0.1.0-provisional",
         docs_url=None,
         redoc_url=None,
+    )
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0708_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0708_MAX_CANONICAL_REQUEST_BYTES,
     )
     service = service_factory()
 
