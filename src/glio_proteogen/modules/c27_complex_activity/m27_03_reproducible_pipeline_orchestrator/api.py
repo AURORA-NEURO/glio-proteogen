@@ -7,8 +7,10 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m27_03 import (
     M2703_MAX_CANONICAL_REQUEST_BYTES,
+    M2703_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityPipelineResult,
     OrchestrateComplexActivityPipelineRequest,
     contract_json_schema,
@@ -57,11 +59,23 @@ def _parse_object(body: bytes) -> dict[str, Any]:
     return cast("dict[str, Any]", value)
 
 
-def create_app(service: M2703Service | None = None) -> FastAPI:
+def create_app(service: M2703Service | None = None) -> FastAPI:  # noqa: C901
     """Create strict schema, validation, execution, and replay routes."""
 
     boundary = service or M2703Service()
     app = FastAPI(title="GLIO-PROTEOGEN M27-03", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2703_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES,
+    )
+
+    def _require_json(request: Request) -> None:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
 
     @app.get("/v1/modules/M27-03/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -75,6 +89,7 @@ def create_app(service: M2703Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-03/validate")
     async def validate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             typed = boundary.validate_request(payload)
@@ -84,6 +99,7 @@ def create_app(service: M2703Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-03/execute")
     async def execute(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             result = boundary.execute(payload)
@@ -93,6 +109,7 @@ def create_app(service: M2703Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-03/verify")
     async def verify(request: Request) -> dict[str, object]:
+        _require_json(request)
         envelope = _parse_object(await request.body())
         candidate = envelope.get("result", envelope)
         try:

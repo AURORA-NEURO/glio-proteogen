@@ -275,7 +275,11 @@ def test_fastapi_exposes_schema_and_sanitizes_bad_json() -> None:
     response = client.get("/v1/modules/M27-03/schemas/request")
     assert response.status_code == 200
     assert response.json()["x-glio-contract"]["provisionalAbi"] is True
-    bad = client.post("/v1/modules/M27-03/validate", content=b"{bad")
+    bad = client.post(
+        "/v1/modules/M27-03/validate",
+        content=b"{bad",
+        headers={"content-type": "application/json"},
+    )
     assert bad.status_code == 422
     assert "traceback" not in bad.text.lower()
 
@@ -285,15 +289,31 @@ def test_fastapi_validate_execute_verify_and_unknown_schema() -> None:
     client = TestClient(create_app())
     body = request.model_dump_json()
     assert client.get("/v1/modules/M27-03/schemas/nope").status_code == 404
-    validated = client.post("/v1/modules/M27-03/validate", content=body)
+    validated = client.post(
+        "/v1/modules/M27-03/validate",
+        content=body,
+        headers={"content-type": "application/json"},
+    )
     assert validated.status_code == 200
-    executed = client.post("/v1/modules/M27-03/execute", content=body)
+    executed = client.post(
+        "/v1/modules/M27-03/execute",
+        content=body,
+        headers={"content-type": "application/json"},
+    )
     assert executed.status_code == 200
     result = executed.json()
-    verified = client.post("/v1/modules/M27-03/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M27-03/verify",
+        json={"result": result},
+        headers={"content-type": "application/json"},
+    )
     assert verified.status_code == 200
     assert verified.json()["verified"] is True
-    malformed = client.post("/v1/modules/M27-03/verify", json={"result": {"bad": True}})
+    malformed = client.post(
+        "/v1/modules/M27-03/verify",
+        json={"result": {"bad": True}},
+        headers={"content-type": "application/json"},
+    )
     assert malformed.status_code == 422
 
 
@@ -308,10 +328,39 @@ def test_fastapi_sanitizes_route_service_errors() -> None:
     client = TestClient(create_app(FailingService()))
     body = _request().model_dump_json()
     assert client.get("/v1/modules/M27-03/schemas").status_code == 200
-    assert client.post("/v1/modules/M27-03/validate", content=body).status_code == 422
-    assert client.post("/v1/modules/M27-03/execute", content=body).status_code == 422
-    assert client.post("/v1/modules/M27-03/verify", content=b"[]").status_code == 422
-    assert client.post("/v1/modules/M27-03/verify", content=b"{bad").status_code == 422
+    headers = {"content-type": "application/json"}
+    assert (
+        client.post("/v1/modules/M27-03/validate", content=body, headers=headers).status_code == 422
+    )
+    assert (
+        client.post("/v1/modules/M27-03/execute", content=body, headers=headers).status_code == 422
+    )
+    assert (
+        client.post("/v1/modules/M27-03/verify", content=b"[]", headers=headers).status_code == 422
+    )
+    assert (
+        client.post("/v1/modules/M27-03/verify", content=b"{bad", headers=headers).status_code
+        == 422
+    )
+
+
+def test_fastapi_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(create_app())
+    payload = _request().model_dump(mode="json")
+    assert (
+        client.post(
+            "/v1/modules/M27-03/execute",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+    response = client.post(
+        "/v1/modules/M27-03/execute",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
 
 
 def test_cli_schema_validate_execute_verify_and_no_overwrite(tmp_path: Path) -> None:
