@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from glio_proteogen.contracts.m23_02 import VariantPeptideSyntheticTruthResult
+
 from .engine import M2302Engine
 
 if TYPE_CHECKING:
     from glio_proteogen.contracts.m23_02 import (
         GenerateVariantPeptideSyntheticTruthRequest,
-        VariantPeptideSyntheticTruthResult,
     )
 
 
@@ -27,7 +28,21 @@ class M2302Service:
     ) -> VariantPeptideSyntheticTruthResult:
         return self._engine.generate(request)
 
-    def verify(self, result: object) -> VariantPeptideSyntheticTruthResult:
+    def verify(
+        self,
+        result: object,
+        request: GenerateVariantPeptideSyntheticTruthRequest | None = None,
+    ) -> VariantPeptideSyntheticTruthResult:
+        if request is not None:
+            typed = (
+                result
+                if isinstance(result, VariantPeptideSyntheticTruthResult)
+                else self._engine.replay(result)
+            )
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
 
