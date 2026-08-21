@@ -19,6 +19,9 @@ from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evalua
     create_app,
 )
 from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
+    api as api_module,
+)
+from glio_proteogen.modules.c21_reference_material.m23_05_subgroup_equity_evaluator import (
     cli as cli_module,
 )
 from tests.contract.test_m23_05_hardening import _request
@@ -76,6 +79,16 @@ def test_fastapi_unsupported_coverage_is_explicit_abstention() -> None:
     assert response.status_code == _HTTP_OK
     assert response.json()["status"] == "abstained"
     assert response.json()["report"] is None
+
+
+def test_fastapi_verify_rejects_oversized_result_body(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_module, "M2305_MAX_CANONICAL_RESULT_BYTES", 64)
+    oversized = b'{"result":"' + (b"x" * 128) + b'"}'
+    response = TestClient(create_app(M2305Service())).post(
+        "/v1/modules/M23-05/verify", content=oversized
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+    assert "Traceback" not in response.text
 
 
 def test_fastapi_denied_controls_are_sanitized() -> None:
