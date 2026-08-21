@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_07 import M2607_MAX_CANONICAL_REQUEST_BYTES
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.modules.c20_biomarker_panel.m26_07_change_control_rollback import (
     M2607ChangeControlService,
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 HTTP_OK = 200
 HTTP_UNPROCESSABLE = 422
 HTTP_NOT_FOUND = 404
+HTTP_PAYLOAD_TOO_LARGE = 413
 SCHEMA_COUNT = 8
 
 
@@ -69,6 +71,15 @@ def test_fastapi_rejects_duplicate_keys_and_unknown_schema() -> None:
     assert duplicate.status_code == HTTP_UNPROCESSABLE
     assert "strict" not in duplicate.text.lower()
     assert unknown.status_code == HTTP_NOT_FOUND
+
+
+def test_fastapi_request_ceiling_applies_before_control_parsing() -> None:
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/modules/M26-07/control",
+            content=b"{" + b"x" * M2607_MAX_CANONICAL_REQUEST_BYTES + b"}",
+        )
+    assert response.status_code == HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_sdk_preserves_service_canonical_result() -> None:
