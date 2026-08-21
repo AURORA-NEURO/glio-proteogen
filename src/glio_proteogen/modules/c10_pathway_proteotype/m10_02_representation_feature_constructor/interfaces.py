@@ -17,9 +17,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware, read_bounded
 from glio_proteogen.contracts.m10_02 import (
     M1002_MAX_CANONICAL_REQUEST_BYTES,
+    M1002_MAX_CANONICAL_RESULT_BYTES,
     contract_json_schema,
     contract_json_schemas,
 )
@@ -61,6 +62,11 @@ def create_m1002_app() -> FastAPI:
     """Create an isolated FastAPI app for the provisional M10-02 surface."""
 
     app = FastAPI(title="GLIO-PROTEOGEN M10-02", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1002_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1002_MAX_CANONICAL_RESULT_BYTES,
+    )
     plugin = M1002Plugin(M1002Service())
 
     @app.get("/v1/m10-02/schema/{name}")
@@ -73,6 +79,11 @@ def create_m1002_app() -> FastAPI:
     @app.post("/v1/m10-02/validate")
     async def validate(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return _error_response(ValueError("unsupported media type"))
             body = await request.body()
             token = plugin.validate(body)
             return JSONResponse(content=token.request.model_dump(mode="json"))
@@ -82,6 +93,11 @@ def create_m1002_app() -> FastAPI:
     @app.post("/v1/m10-02/construct")
     async def construct(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return _error_response(ValueError("unsupported media type"))
             body = await request.body()
             token = plugin.validate(body)
             result = plugin.run(token)
