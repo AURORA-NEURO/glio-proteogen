@@ -1048,7 +1048,12 @@ def _build_label_evidence(  # noqa: PLR0915, PLR0917
                     else status
                 ),
             )
-        if qc_status.startswith("abstained"):
+        # A no-normalization request is an identity projection, not a claim that
+        # QC passed.  Preserve that caller-requested projection (and its scale
+        # receipts) while retaining the abstained QC status that gates derived
+        # label evidence.  Support-dependent normalization policies continue to
+        # null their projection when a QC gate fails.
+        if qc_status.startswith("abstained") and policy != "none":
             for index in indices:
                 normalized_rows[index] = dict.fromkeys(groups)
         label_values = tuple(
