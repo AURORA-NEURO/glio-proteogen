@@ -137,6 +137,21 @@ def test_release_verifier_binds_external_artifact_bytes(tmp_path: Path) -> None:
         verify_release(directory, artifacts)
 
 
+def test_release_verifier_rejects_symlinked_external_artifact(tmp_path: Path) -> None:
+    directory = _evidence(tmp_path)
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    outside = tmp_path / "outside.whl"
+    outside.write_bytes(b"good")
+    try:
+        (artifacts / "package.whl").symlink_to(outside)
+    except (OSError, NotImplementedError) as error:
+        pytest.skip(f"symlink creation unavailable: {error}")
+    (artifacts / "package.tar.gz").write_bytes(b"good")
+    with pytest.raises(M0308ReleaseEvidenceError, match="regular non-linked file"):
+        verify_release(directory, artifacts)
+
+
 def test_release_verifier_rejects_forged_evaluator_inventory(tmp_path: Path) -> None:
     directory = _evidence(tmp_path)
     evaluation = json.loads((directory / "evaluation.json").read_text(encoding="utf-8"))
