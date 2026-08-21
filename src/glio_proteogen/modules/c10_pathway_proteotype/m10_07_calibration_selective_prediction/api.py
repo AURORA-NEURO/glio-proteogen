@@ -120,14 +120,19 @@ def create_app(service: M1007Service | None = None) -> FastAPI:  # noqa: C901
         envelope = _parse_body(await request.body(), max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
         result = envelope.get("result")
         canonical = envelope.get("canonical")
-        if not isinstance(result, dict) or not isinstance(canonical, (str, dict)):
+        request_payload = envelope.get("request")
+        if (
+            not isinstance(result, dict)
+            or not isinstance(canonical, (str, dict))
+            or (request_payload is not None and not isinstance(request_payload, dict))
+        ):
             raise HTTPException(status_code=422, detail="verify envelope is invalid")
         canonical_bytes = (
             canonical_json_bytes(canonical)
             if isinstance(canonical, dict)
             else canonical.encode("utf-8")
         )
-        replay = boundary.verify(result, canonical_bytes)
+        replay = boundary.verify(result, canonical_bytes, request_payload)
         return {
             "verified": replay.verified,
             "reason": replay.reason,

@@ -44,6 +44,29 @@ def test_api_validate_execute_verify_and_schema_are_canonical() -> None:
         assert verified.json()["verified"] is True
 
 
+def test_api_request_bound_verify_rejects_resigned_semantic_result() -> None:
+    request = _request()
+    with TestClient(create_app()) as client:
+        built = client.post(
+            "/v1/modules/M10-07/execute",
+            content=request.model_dump_json(),
+            headers={"content-type": "application/json"},
+        ).json()
+        forged = dict(built["result"])
+        forged["status"] = "abstained"
+        response = client.post(
+            "/v1/modules/M10-07/verify",
+            json={
+                "request": request.model_dump(mode="json"),
+                "result": forged,
+                "canonical": forged,
+            },
+            headers={"content-type": "application/json"},
+        )
+        assert response.status_code == _HTTP_OK
+        assert response.json()["verified"] is False
+
+
 def test_api_sanitizes_invalid_json_and_replay_tampering() -> None:
     request = _request()
     with TestClient(create_app()) as client:
