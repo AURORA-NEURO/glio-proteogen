@@ -51,9 +51,19 @@ def test_fastapi_validate_evaluate_verify_and_sanitized_errors() -> None:
     assert client.post("/v1/modules/M23-05/validate", json=body).status_code == _HTTP_OK
     generated = client.post("/v1/modules/M23-05/evaluate", json=body)
     assert generated.status_code == _HTTP_OK
-    verified = client.post("/v1/modules/M23-05/verify", json={"result": generated.json()})
+    verified = client.post(
+        "/v1/modules/M23-05/verify",
+        json={"request": body, "result": generated.json()},
+    )
+    forged = dict(body)
+    forged["request_id"] = "request.m2305.forged"
+    mismatch = client.post(
+        "/v1/modules/M23-05/verify",
+        json={"request": forged, "result": generated.json()},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
     assert client.get("/v1/modules/M23-05/schemas/unknown").status_code == _HTTP_NOT_FOUND
     assert (
         client.post("/v1/modules/M23-05/validate", content=b"[]").status_code == _HTTP_UNPROCESSABLE
