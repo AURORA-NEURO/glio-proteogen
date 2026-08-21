@@ -22,7 +22,10 @@ from glio_proteogen.contracts.m27_07 import (
     RevalidationPlan,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m27_07.canonical import canonical_request_digest
+from glio_proteogen.contracts.m27_07.canonical import (
+    canonical_request_digest,
+    result_payload_digest,
+)
 from glio_proteogen.kernel.models import ConsentState, IdentityLineageState
 from glio_proteogen.modules.c27_complex_activity.m27_07_change_control import (
     ChangeControlSubmission,
@@ -133,6 +136,14 @@ def test_result_replay_detects_forged_status() -> None:
     result = service.execute(build_request())
     forged = result.model_copy(update={"human_review_required": True})
     assert service.verify(forged) is False
+
+
+def test_result_replay_rejects_resigned_semantic_mutation() -> None:
+    service = M2707Service()
+    result = service.execute(build_request())
+    forged = result.model_copy(update={"human_review_required": True})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    assert service.verify(resigned) is False
 
 
 def test_api_rejects_non_object_payload() -> None:
