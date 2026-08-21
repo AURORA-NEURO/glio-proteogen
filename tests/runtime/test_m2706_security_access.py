@@ -84,6 +84,18 @@ def test_plugin_token_parity_and_replay_tamper_rejection() -> None:
         plugin.replay(result.model_copy(update={"result_id": "m2706.result.forged"}))
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2706Service()
+    result = service.emit(request)
+    altered = request.model_copy(update={"request_id": "m2706.request.mismatch"})
+    plugin = M2706Plugin(service)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        plugin.replay(result, altered)
+
+
 def test_json_service_roundtrip() -> None:
     service = M2706Service()
     request = build_request()
