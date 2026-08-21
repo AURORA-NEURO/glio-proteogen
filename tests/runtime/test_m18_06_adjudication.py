@@ -264,3 +264,12 @@ def test_service_replay_rejects_supplied_request_mismatch() -> None:
 
     with pytest.raises(ValueError, match="replay request mismatch"):
         m1806.M1806Service().replay(result, altered)
+
+
+def test_plugin_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m1806.M1806Plugin().run(request)
+    altered = request.model_copy(update={"request_id": "request.m1806.plugin-altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1806.M1806Plugin().replay(result, altered)
