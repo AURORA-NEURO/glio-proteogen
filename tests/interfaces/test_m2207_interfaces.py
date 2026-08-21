@@ -58,6 +58,24 @@ def test_fastapi_validate_evaluate_verify_and_sanitized_errors() -> None:
     assert "Traceback" not in malformed.text
 
 
+def test_fastapi_enforces_request_and_replay_body_ceilings(monkeypatch: Any) -> None:
+    monkeypatch.setattr(m2207.api, "M2207_MAX_CANONICAL_REQUEST_BYTES", 32)
+    monkeypatch.setattr(m2207.api, "M2207_MAX_CANONICAL_RESULT_BYTES", 32)
+    client = TestClient(m2207.create_app(m2207.M2207Service()))
+
+    oversized_request = b'{"request_id":"' + (b"x" * 32) + b'"}'
+    assert (
+        client.post("/v1/modules/M22-07/validate", content=oversized_request).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+
+    oversized_result = b'{"result":' + (b" " * 32) + b"}"
+    assert (
+        client.post("/v1/modules/M22-07/verify", content=oversized_result).status_code
+        == _HTTP_UNPROCESSABLE
+    )
+
+
 def test_fastapi_not_evaluable_dimension_is_explicit_abstention() -> None:
     request = _request().model_dump(mode="json")
     request["metrics"][0]["status"] = "not_evaluable"
