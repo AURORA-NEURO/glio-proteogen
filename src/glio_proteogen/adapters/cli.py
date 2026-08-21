@@ -683,6 +683,9 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
     M1904ReplayError,
     M1904Service,
 )
+from glio_proteogen.modules.c21_reference_material import (
+    m24_02_synthetic_truth_simulation_generator as m2402_module,
+)
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702ReplayError,
     M2702Service,
@@ -912,6 +915,7 @@ app.add_typer(m1905_app, name="m19-05-presentation")
 app.add_typer(m2002_app, name="m20-02-alignment")
 app.add_typer(m2003_app, name="m20-03-fusion")
 app.add_typer(m2004_app, name="m20-04-intended-use")
+app.add_typer(m2402_module.cli_app, name="m2402-synthetic-truth")
 m1704_app = typer.Typer(
     no_args_is_help=True,
     help="M17-04 bounded intended-use policy adaptation.",

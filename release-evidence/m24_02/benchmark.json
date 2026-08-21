@@ -1,0 +1,11 @@
+{
+  "budget_mean_ns": 500000000,
+  "budget_p95_ns": 750000000,
+  "iterations": 10,
+  "mean_ns": 6174520,
+  "median_ns": 5899900,
+  "module_id": "GLIO-PROTEOGEN-M24-02",
+  "p95_ns": 6378300,
+  "passed": true,
+  "samples_ns": [8430400, 5948900, 5724100, 6173500, 6378300, 5505400, 6174000, 5740400, 5819300, 5850900]
+}

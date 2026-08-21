@@ -31,6 +31,11 @@ _LATE_MODULE_ROUTES = {
     "/v1/modules/M20-03/verify",
     "/v1/modules/M20-04/adapt",
     "/v1/modules/M20-04/verify",
+    "/v1/modules/M24-02/schemas",
+    "/v1/modules/M24-02/schemas/{name}",
+    "/v1/modules/M24-02/validate",
+    "/v1/modules/M24-02/generate",
+    "/v1/modules/M24-02/verify",
 }
 _LATE_CLI_GROUPS = {
     "m19-01-upstream",
@@ -39,6 +44,7 @@ _LATE_CLI_GROUPS = {
     "m20-02-alignment",
     "m20-03-fusion",
     "m20-04-intended-use",
+    "m2402-synthetic-truth",
 }
 HTTP_OK = 200
 HTTP_UNPROCESSABLE = 422
@@ -85,6 +91,8 @@ def test_central_m2002_api_and_cli_share_one_canonical_result(tmp_path: Path) ->
 def test_central_late_routes_reject_malformed_json_before_execution(tmp_path: Path) -> None:
     with TestClient(create_app(tmp_path / "events.sqlite")) as client:
         for path in sorted(_LATE_MODULE_ROUTES):
+            if path.endswith("/schemas") or "{name}" in path:
+                continue
             response = client.post(
                 path,
                 content=b"{not-json",
@@ -103,3 +111,20 @@ def test_central_late_cli_exports_are_json_and_unknown_schema_is_sanitized() -> 
     assert json.loads(success.stdout)["x-glio-contract"]["moduleId"] == ("GLIO-PROTEOGEN-M20-03")
     assert failure.exit_code == CLI_USAGE_ERROR
     assert "unknown M20-03 schema" in failure.output
+
+
+def test_central_m2402_schema_route_and_cli_export_share_contract_id(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path / "events.sqlite")) as client:
+        response = client.get("/v1/contracts/M24-02/request/schema")
+
+    cli_result = CliRunner().invoke(
+        central_cli,
+        ["m2402-synthetic-truth", "export-schema", "request"],
+    )
+
+    assert response.status_code == HTTP_OK, response.text
+    assert cli_result.exit_code == CLI_SUCCESS, cli_result.output
+    api_schema = response.json()
+    cli_schema = json.loads(cli_result.stdout)
+    assert api_schema["$id"] == cli_schema["$id"]
+    assert api_schema["x-glio-contract"]["moduleId"] == "GLIO-PROTEOGEN-M24-02"
