@@ -612,6 +612,7 @@ from glio_proteogen.contracts.m19_03.schema import (
 )
 from glio_proteogen.contracts.m19_03.v1 import (
     M1903_MAX_CANONICAL_REQUEST_BYTES,
+    M1903_MAX_CANONICAL_RESULT_BYTES,
     FuseProteotypeEvidenceRequest,
     ProteotypeIntegratedEvidenceResult,
 )
@@ -2186,7 +2187,11 @@ async def _m1903_body(request: Request) -> FuseProteotypeEvidenceRequest:
 
 
 async def _m1903_result_body(request: Request) -> ProteotypeIntegratedEvidenceResult:
-    return await _strict_json_body(request, _M1903_RESULT_ADAPTER)
+    return await _strict_json_body(
+        request,
+        _M1903_RESULT_ADAPTER,
+        max_bytes=M1903_MAX_CANONICAL_RESULT_BYTES,
+    )
 
 
 def _validate_m0404_json_request_for_api(
