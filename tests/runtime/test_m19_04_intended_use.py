@@ -148,6 +148,10 @@ def test_service_replay_rejects_request_identifier_and_payload_tamper() -> None:
             result.model_construct(**{**result.model_dump(), "parent_target": "protein abundance"})
         )
 
+    altered = request.model_copy(update={"request_id": "request.m1904.altered"})
+    with pytest.raises(ValueError):
+        service.replay(result, altered)
+
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:
     plugin = m1904.M1904Plugin()
