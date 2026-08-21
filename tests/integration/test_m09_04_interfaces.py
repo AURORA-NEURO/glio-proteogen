@@ -17,6 +17,9 @@ from glio_proteogen.modules.c09_complex_stoichiometry.m09_04_probabilistic_estim
 )
 from tests.modules.c09_complex_stoichiometry.test_m09_04_estimator import _request
 
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
+
 
 def test_api_rejects_unknown_malformed_and_denied_requests() -> None:
     request = _request("stable_support")
@@ -38,7 +41,11 @@ def test_api_rejects_unknown_malformed_and_denied_requests() -> None:
     )
     with TestClient(create_app(M0904Service())) as client:
         unknown = client.get("/v1/modules/M09-04/schemas/not-a-contract")
-        malformed = client.post("/v1/modules/M09-04/validate", content=b"{bad")
+        malformed = client.post(
+            "/v1/modules/M09-04/validate",
+            content=b"{bad",
+            headers={"content-type": "application/json"},
+        )
         invalid = client.post("/v1/modules/M09-04/validate", json={})
         denied_response = client.post(
             "/v1/modules/M09-04/validate", json=denied.model_dump(mode="json")
@@ -51,6 +58,23 @@ def test_api_rejects_unknown_malformed_and_denied_requests() -> None:
     assert denied_response.status_code == HTTPStatus.FORBIDDEN
     assert invalid_verify.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "traceback" not in malformed.text.casefold()
+
+
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(create_app(M0904Service()))
+    body = _request("stable_support").model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/modules/M09-04/estimate",
+        json=body,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/modules/M09-04/estimate",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_api_sanitizes_runtime_rejection() -> None:
