@@ -14,8 +14,9 @@ from glio_proteogen.contracts.m09_08 import (
     PublisherSourceKind,
     ReconstructionStep,
     canonical_request_digest,
+    result_payload_digest,
 )
-from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.canonical import canonical_json_bytes, sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
     ConsentReference,
@@ -206,6 +207,16 @@ def test_replay_rejects_tampered_bytes_and_invalid_result() -> None:
     )
     assert not engine.verify(built.result, tampered).verified
     assert engine.verify(object()).reason.value == "invalid_result"
+
+
+def test_request_bound_replay_rejects_resigned_semantic_mutation() -> None:
+    request = _request()
+    engine = M0908EvidencePublisher()
+    built = engine.publish(request)
+    forged = built.result.model_copy(update={"headline": "attacker"})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    canonical = canonical_json_bytes(forged.model_dump(mode="json"))
+    assert not engine.verify(forged, canonical, request).verified
 
 
 def test_preflight_rejects_withheld_consent() -> None:
