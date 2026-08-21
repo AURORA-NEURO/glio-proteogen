@@ -78,6 +78,16 @@ def test_duplicate_source_artifacts_are_rejected_before_retirement() -> None:
         M2708Service().execute(duplicate)
 
 
+def test_attacker_media_substring_is_rejected() -> None:
+    request = build_request()
+    forged = request.source_artifacts[0].model_copy(
+        update={"media_type": "application/vnd.attacker.m27-07+json"}
+    )
+    request = request.model_copy(update={"source_artifacts": (forged,)})
+    with pytest.raises(ValueError, match="unsupported upstream artifact media type"):
+        M2708Service().execute(request)
+
+
 def test_invalid_archive_status_is_not_executed() -> None:
     result = M2708Service().execute(build_request(incomplete=True, active_dependency=True))
     assert result.status.value == "abstained"
