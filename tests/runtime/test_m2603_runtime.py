@@ -116,6 +116,17 @@ def test_service_and_plugin_share_strict_parse_once_boundary() -> None:
         plugin.validate(object())
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2603Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2603.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2603Plugin(service).verify(result, request=altered)
+
+
 def test_service_accepts_mapping_and_canonical_json() -> None:
     request = build_request()
     service = M2603Service()
