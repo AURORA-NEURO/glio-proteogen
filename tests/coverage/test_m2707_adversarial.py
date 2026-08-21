@@ -115,6 +115,19 @@ def test_source_artifacts_bind_upstream_and_nested_evidence_exactly() -> None:
         M2707ChangeControlEngine().evaluate(request)
 
 
+def test_source_manifest_binds_champion_and_challenger_digests() -> None:
+    request = build_request()
+    unbound = tuple(
+        artifact
+        for artifact in request.source_artifacts
+        if artifact.digest not in {request.champion_digest, request.challenger_digest}
+    )
+    object.__setattr__(request, "source_artifacts", unbound)
+
+    with pytest.raises(ChangeControlAuthorizationError, match="champion/challenger"):
+        M2707ChangeControlEngine().evaluate(request)
+
+
 def test_identity_unresolved_is_denied() -> None:
     request = build_request()
     object.__setattr__(

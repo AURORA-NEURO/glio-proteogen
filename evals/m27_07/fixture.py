@@ -144,6 +144,8 @@ def build_request(
         rollback_point=rollback,
         source_artifacts=(
             _artifact("upstream", upstream_media_type),
+            _artifact("champion", upstream_media_type),
+            _artifact("challenger", upstream_media_type),
             _artifact("classification"),
             _artifact("revalidation"),
             _artifact("rollback"),
