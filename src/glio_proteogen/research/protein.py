@@ -340,7 +340,7 @@ def _build_group_fdr_summary(
         else "empirical_target_decoy_evidence"
     )
     return ProteinGroupFdrSummary(
-        method="max-psm-score-monotone-group-target-decoy-collision-abstain-ties-5",
+        method="max-psm-score-monotone-group-target-decoy-collision-abstain-ties-6-qvalue",
         candidates=len(candidates),
         target_candidates=target_candidates,
         decoy_candidates=decoy_candidates,
@@ -491,12 +491,18 @@ def _is_hex_digest(value: str) -> bool:
     return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
 
 
-def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[str, ...], str]:
+def _group_competition_key(
+    value: Psm,
+) -> tuple[float, bool, bool, str, tuple[str, ...], float, str]:
     """Order group contenders conservatively on exact score ties.
 
     A collision is unresolved evidence and therefore outranks a pure target;
     a pure decoy outranks a target at equal score. This prevents group FDR
     from converting indistinguishable target/decoy evidence into acceptance.
+    When all declared score/class/identity fields are tied, a lower existing
+    peptide-level q-value is stricter evidence and wins; a missing q-value is
+    treated as least informative. The complete PSM projection remains the
+    final replay tie-break.
     """
 
     return (
@@ -505,6 +511,7 @@ def _group_competition_key(value: Psm) -> tuple[float, bool, bool, str, tuple[st
         value.decoy,
         value.peptide,
         value.protein_accessions,
+        -(value.q_value if value.q_value is not None else 1.0),
         # Group-level replay has the same duplicate-contender hazard as
         # peptide-level FDR.  Canonicalize the complete projection only after
         # the declared class and identity tie policy above.
