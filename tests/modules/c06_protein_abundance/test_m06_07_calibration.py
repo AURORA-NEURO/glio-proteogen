@@ -437,9 +437,7 @@ def test_provenance_binds_policy_evidence() -> None:
         update={"reference": _artifact("policy-evidence-mutated", "8")}
     )
     mutated = request.model_copy(
-        update={
-            "policy": request.policy.model_copy(update={"evidence": (mutated_evidence,)})
-        }
+        update={"policy": request.policy.model_copy(update={"evidence": (mutated_evidence,)})}
     )
     mutated_result = engine.calibrate(mutated).result
     assert mutated_result.provenance.input_digests != result.provenance.input_digests
