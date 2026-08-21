@@ -28,7 +28,12 @@ class M1903Service:
     def replay(
         self,
         result: ProteotypeIntegratedEvidenceResult,
+        request: FuseProteotypeEvidenceRequest | None = None,
     ) -> ProteotypeIntegratedEvidenceResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.replay(result)
 
 
