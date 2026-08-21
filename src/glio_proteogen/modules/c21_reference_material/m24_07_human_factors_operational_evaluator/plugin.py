@@ -92,8 +92,9 @@ class M2407Plugin(ModulePlugin[object, ValidatedM2407Request, BiomarkerPanelHuma
     def replay(
         self,
         result: BiomarkerPanelHumanFactorsResult,
+        request: EvaluateBiomarkerPanelHumanFactorsRequest | None = None,
     ) -> BiomarkerPanelHumanFactorsResult:
-        return self._service.verify_replay(result)
+        return self._service.verify_replay(result, request)
 
 
 __all__ = ["HumanFactorsSubmission", "M2407Plugin", "ValidatedM2407Request"]

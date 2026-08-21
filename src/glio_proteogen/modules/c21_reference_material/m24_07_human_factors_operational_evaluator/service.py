@@ -54,7 +54,7 @@ class M2407Service:
             result_request = result.request.model_dump(mode="json")
             supplied_request = request.model_dump(mode="json")
             if result_request != supplied_request:
-                raise ValueError
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.verify_replay(result)
 
     @staticmethod
