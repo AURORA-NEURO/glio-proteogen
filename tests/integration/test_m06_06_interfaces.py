@@ -63,6 +63,7 @@ _SCHEMA_NAMES = (
 )
 _HTTP_OK = 200
 _HTTP_UNSUPPORTED_MEDIA_TYPE = 415
+_HTTP_TOO_LARGE = 413
 _HTTP_UNPROCESSABLE_ENTITY = 422
 _CLI_INVALID_REQUEST = 2
 
@@ -343,6 +344,16 @@ def test_api_rejects_wrong_media_and_duplicate_json(tmp_path: Path) -> None:
         )
     assert wrong.status_code == _HTTP_UNSUPPORTED_MEDIA_TYPE
     assert duplicate.status_code == _HTTP_UNPROCESSABLE_ENTITY
+
+
+def test_central_api_rejects_oversized_m0606_request_before_parsing(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path / "oversized.sqlite")) as client:
+        response = client.post(
+            "/v1/modules/M06-06/decompose",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == _HTTP_TOO_LARGE
 
 
 def test_cli_schema_and_file_result_parity(tmp_path: Path) -> None:
