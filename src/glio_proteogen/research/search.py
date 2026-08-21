@@ -441,7 +441,7 @@ def _assign_fragment_peaks(
     errors = [[0.0] * (observed_count + 1) for _ in range(theoretical_count + 1)]
     actions = [["" for _ in range(observed_count + 1)] for _ in range(theoretical_count + 1)]
 
-    def better(
+    def better(  # noqa: PLR0917
         candidate_count: int,
         candidate_error: float,
         candidate_action: str,
