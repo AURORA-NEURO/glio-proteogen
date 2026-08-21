@@ -84,15 +84,25 @@ def test_api_rejects_denied_and_tampered_requests() -> None:
 
 def test_api_verify_replays_and_rejects_tamper() -> None:
     client = TestClient(create_app())
+    request = build_request()
     result = client.post(
-        "/v1/modules/M25-05/evaluate", json=build_request().model_dump(mode="json")
+        "/v1/modules/M25-05/evaluate", json=request.model_dump(mode="json")
     ).json()
-    verified = client.post("/v1/modules/M25-05/verify", json={"result": result})
+    forged_request = request.model_copy(update={"request_id": "request.m2505.forged"})
+    verified = client.post(
+        "/v1/modules/M25-05/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    mismatch = client.post(
+        "/v1/modules/M25-05/verify",
+        json={"request": forged_request.model_dump(mode="json"), "result": result},
+    )
     result["result_digest"] = "sha256:" + ("f" * 64)
     tampered = client.post("/v1/modules/M25-05/verify", json={"result": result})
 
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
     assert tampered.status_code == _HTTP_UNPROCESSABLE
 
 

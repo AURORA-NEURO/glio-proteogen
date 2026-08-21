@@ -39,7 +39,13 @@ class M2507Service:
     def verify_replay(
         self,
         result: ProteotypeHumanFactorsResult,
+        request: EvaluateProteotypeHumanFactorsRequest | None = None,
     ) -> ProteotypeHumanFactorsResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.replay(result)
 
 
