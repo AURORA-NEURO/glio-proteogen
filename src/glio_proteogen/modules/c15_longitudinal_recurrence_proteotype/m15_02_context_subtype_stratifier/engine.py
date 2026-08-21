@@ -232,6 +232,10 @@ def _uncertainty() -> UncertaintyProfile:
 
 def _provenance(request: StratifyContextAndSubtypeRequest, request_hash: str) -> ProvenanceRecord:
     controls = request.context.references
+    nested_evidence_digests = (
+        *(item.reference.digest for attribute in request.attributes for item in attribute.evidence),
+        *(item.reference.digest for mechanism in request.mechanisms for item in mechanism.evidence),
+    )
     return ProvenanceRecord(
         activity_id=f"activity.m1502.{request_hash.removeprefix('sha256:')[:32]}",
         actor_id=request.context.actor_id,
@@ -239,8 +243,10 @@ def _provenance(request: StratifyContextAndSubtypeRequest, request_hash: str) ->
         module_version=M1502_CONTRACT_VERSION,
         generated_at=request.context.occurred_at,
         input_digests=(
+            request_hash,
             request.upstream_result.digest,
             *(item.digest for item in request.source_artifacts),
+            *nested_evidence_digests,
         ),
         configuration_digest=sha256_digest(
             request.context.references.approved_configuration.evidence.model_dump(mode="json")

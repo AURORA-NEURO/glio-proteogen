@@ -139,6 +139,33 @@ def test_supported_declaration_is_replay_stable_and_non_parent_emitting() -> Non
     assert service.verify(result).result_digest == result.result_digest
 
 
+def test_provenance_binds_context_evidence_and_request_digest() -> None:
+    request = _request()
+    service = m1502.M1502Service()
+    result = service.execute(request)
+    nested_digests = {
+        item.reference.digest for attribute in request.attributes for item in attribute.evidence
+    }
+    nested_digests.update(
+        item.reference.digest for mechanism in request.mechanisms for item in mechanism.evidence
+    )
+    assert result.request_digest in result.provenance.input_digests
+    assert nested_digests <= set(result.provenance.input_digests)
+
+    mutated = request.model_copy(
+        update={
+            "attributes": (
+                request.attributes[0].model_copy(
+                    update={"evidence": (_evidence("subtype-mutated"),)}
+                ),
+                *request.attributes[1:],
+            )
+        }
+    )
+    mutated_result = service.execute(mutated)
+    assert mutated_result.provenance.input_digests != result.provenance.input_digests
+
+
 def test_inferred_context_abstains_without_promoting_a_profile() -> None:
     result = m1502.M1502Service().execute(_request(status=ContextValueStatus.INFERRED))
     assert result.status is ContextStratificationStatus.ABSTAINED
