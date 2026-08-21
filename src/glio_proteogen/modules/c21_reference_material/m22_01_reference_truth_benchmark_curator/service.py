@@ -49,7 +49,12 @@ class M2201Service:
     def verify_replay(
         self,
         result: ProteinRnaDiscordanceReferenceTruthResult,
+        request: CurateProteinRnaDiscordanceReferenceTruthRequest | None = None,
     ) -> ProteinRnaDiscordanceReferenceTruthResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
         return self._engine.verify_replay(result)
 
 
