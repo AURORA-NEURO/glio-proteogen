@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
@@ -42,7 +43,10 @@ def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
 
 _CENTRAL_SERVICE = M1905Service()
 
-def _handlers(service: M1905Service) -> tuple:
+Handler = Callable[[Request], Awaitable[JSONResponse]]
+
+
+def _handlers(service: M1905Service) -> tuple[Handler, Handler]:
     async def present_with_service(request: Request) -> JSONResponse:
         try:
             result = service.execute(
@@ -52,7 +56,7 @@ def _handlers(service: M1905Service) -> tuple:
             raise HTTPException(status_code=403, detail="M19-05 authorization denied") from error
         except Exception as error:
             raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+        return JSONResponse(content=result.model_dump(mode="json"))
 
     async def verify_with_service(request: Request) -> JSONResponse:
         try:
@@ -65,7 +69,7 @@ def _handlers(service: M1905Service) -> tuple:
             ) from error
         except Exception as error:
             raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+        return JSONResponse(content=result.model_dump(mode="json"))
 
     return present_with_service, verify_with_service
 
@@ -81,7 +85,9 @@ async def verify(request: Request) -> JSONResponse:
 async def central_present(request: Request) -> JSONResponse:
     """Central-compatible M19-05 presentation endpoint."""
 
-    return await create_app().routes[5].endpoint(request)
+    route = create_app().routes[5]
+    handler = cast("Handler", route.endpoint)  # type: ignore[attr-defined]
+    return await handler(request)
 
 
 def create_app(service: M1905Service | None = None) -> FastAPI:
