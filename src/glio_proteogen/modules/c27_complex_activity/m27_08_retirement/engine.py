@@ -186,7 +186,9 @@ class M2708RetirementEngine:
         missing_evidence = any(not item.retrievable for item in request.preserved_evidence)
         unacknowledged = any(not item.acknowledged for item in request.communications)
         archive_unverified = request.archive.status is not ArchiveStatus.VERIFIED
-        active = any("active" in item.dependency_id for item in request.migrations)
+        # ``status`` is the governed migration state.  Identifiers are opaque
+        # caller labels and must never be interpreted as operational state.
+        active = any(item.status is MigrationStatus.IN_PROGRESS for item in request.migrations)
         failed = (
             unsatisfied
             or incomplete
