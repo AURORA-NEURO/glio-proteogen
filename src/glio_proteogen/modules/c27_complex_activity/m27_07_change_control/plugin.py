@@ -44,5 +44,19 @@ class M2707Plugin:
             raise ValueError("M27-07 capability is not issued or is stale")
         return self._service.execute(token.request)
 
+    def verify(
+        self,
+        result: ComplexActivityChangeControlResult,
+        request: ControlComplexActivityChangeRequest | None = None,
+    ) -> bool:
+        return self._service.verify(result, request)
+
+    def replay(
+        self,
+        result: ComplexActivityChangeControlResult,
+        request: ControlComplexActivityChangeRequest | None = None,
+    ) -> ComplexActivityChangeControlResult:
+        return self._service.replay(result, request)
+
 
 __all__ = ["ChangeControlSubmission", "M2707Plugin"]

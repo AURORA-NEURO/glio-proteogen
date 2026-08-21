@@ -49,16 +49,30 @@ class M2707Service:
     ) -> ComplexActivityChangeControlResult:
         return self.execute(self.validate_request(payload))
 
-    def verify(self, result: ComplexActivityChangeControlResult) -> bool:
+    def verify(
+        self,
+        result: ComplexActivityChangeControlResult,
+        request: ControlComplexActivityChangeRequest | None = None,
+    ) -> bool:
         try:
+            if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+                mode="json"
+            ):
+                return False
             self.engine.replay(result)
         except ChangeControlReplayError:
             return False
         return True
 
     def replay(
-        self, result: ComplexActivityChangeControlResult
+        self,
+        result: ComplexActivityChangeControlResult,
+        request: ControlComplexActivityChangeRequest | None = None,
     ) -> ComplexActivityChangeControlResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("replay request mismatch")
         return self.engine.replay(result)
 
 

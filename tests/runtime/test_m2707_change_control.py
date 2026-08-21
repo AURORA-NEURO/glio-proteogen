@@ -1,5 +1,6 @@
 """M27-07 runtime and replay tests."""
 
+import pytest
 from evals.m27_07.fixture import build_request
 
 from glio_proteogen.contracts.m27_07 import ChangeControlStatus
@@ -31,6 +32,17 @@ def test_plugin_issued_token_replays_exact_request() -> None:
     request = build_request()
     token = plugin.validate(ChangeControlSubmission(request))
     assert plugin.run(token).status is ChangeControlStatus.APPROVED
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2707Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2707.request.mismatch"})
+    assert service.verify(result, altered) is False
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    assert M2707Plugin().verify(result, altered) is False
 
 
 def test_service_json_roundtrip() -> None:
