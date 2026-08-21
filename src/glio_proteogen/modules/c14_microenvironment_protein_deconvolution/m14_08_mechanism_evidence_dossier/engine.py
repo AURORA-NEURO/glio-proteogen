@@ -280,7 +280,7 @@ class M1408DossierEngine:
             "parent_target": M1408_PARENT,
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.REVIEW_REQUIRED,
+                status=SupportStatus.REVIEW_REQUIRED,
                 reason_code="m1408_dossier_review_ready"
                 if supported
                 else "m1408_dossier_abstained",
@@ -293,7 +293,7 @@ class M1408DossierEngine:
                     else "The dossier is outside the safely reviewable support domain."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False),
             "provenance": expected_provenance(request, request_hash),
             "evidence": evidence,
             "limitations": _limitations(supported=supported),
