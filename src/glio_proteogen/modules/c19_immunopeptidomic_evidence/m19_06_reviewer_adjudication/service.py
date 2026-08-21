@@ -25,7 +25,15 @@ class M1906Service:
     def adjudicate(self, candidate: object) -> ProteotypeAdjudicationResult:
         return self._engine.adapt(candidate)
 
-    def replay(self, result: ProteotypeAdjudicationResult) -> ProteotypeAdjudicationResult:
+    def replay(
+        self,
+        result: ProteotypeAdjudicationResult,
+        request: AdjudicateProteotypeQueueRequest | None = None,
+    ) -> ProteotypeAdjudicationResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.replay(result)
 
 
