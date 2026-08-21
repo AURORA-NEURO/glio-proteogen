@@ -367,8 +367,8 @@ class M1904Engine:
                 evidence=_evidence(request),
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="intended_use_registered",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="intended_use_review_required",
                 rationale="A registered intended-use policy permits the bounded object.",
             )
             abstention_reason = None
@@ -391,8 +391,7 @@ class M1904Engine:
             "provenance": _provenance(request),
             "evidence": _evidence(request),
             "limitations": _limitations(),
-            "human_review_required": bool(findings)
-            or policy.status is PolicyDecisionStatus.REVIEW_REQUIRED,
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteotypeIntendedUseAdapterResult.model_construct(**payload)
