@@ -292,6 +292,17 @@ def test_plugin_rejects_invalid_execution_token() -> None:
         plugin.run(cast("Any", object()))
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2501Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2501.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2501Plugin(service).replay(result, altered)
+
+
 def test_plugin_descriptor_is_explicit() -> None:
     descriptor = M2501Plugin(M2501Service()).descriptor()
 
