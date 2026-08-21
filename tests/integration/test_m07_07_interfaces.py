@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
 from evals.m07_07.fixtures import request
@@ -18,8 +19,14 @@ from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_
     cli_app,
     router,
 )
+from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction import (
+    app as m0707_app,
+)
 
 pytestmark = pytest.mark.integration
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _payload() -> dict[str, object]:
@@ -76,7 +83,23 @@ def test_fastapi_tampered_result_is_rejected_without_echo() -> None:
     assert "sha256:" + "f" * 64 not in response.text
 
 
-def test_typer_validate_schema_calibrate_and_no_overwrite(tmp_path) -> None:
+def test_app_transport_rejects_oversized_body_before_parsing() -> None:
+    response = TestClient(m0707_app).post(
+        "/modules/m07-07/validate",
+        content=b"{" + b"x" * (4 * 1024 * 1024) + b"}",
+    )
+    assert response.status_code == 413
+
+
+def test_app_verify_uses_result_ceiling() -> None:
+    response = TestClient(m0707_app).post(
+        "/modules/m07-07/verify",
+        content=b"{" + b"x" * (8 * 1024 * 1024 - 8) + b"}",
+    )
+    assert response.status_code != 413
+
+
+def test_typer_validate_schema_calibrate_and_no_overwrite(tmp_path: Path) -> None:
     runner = CliRunner()
     input_path = tmp_path / "request.json"
     input_path.write_text(json.dumps(_payload()), encoding="utf-8")

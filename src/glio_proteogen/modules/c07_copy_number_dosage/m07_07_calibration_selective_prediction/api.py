@@ -10,11 +10,13 @@ from __future__ import annotations
 
 from typing import cast
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m07_07 import (
     M0707_MAX_CANONICAL_REQUEST_BYTES,
+    M0707_MAX_CANONICAL_RESULT_BYTES,
     canonical_request_digest,
     contract_json_schemas,
 )
@@ -28,6 +30,19 @@ from .engine import CalibrationAuthorizationError, CalibrationInputError
 from .service import M0707Service
 
 router = APIRouter(prefix="/modules/m07-07", tags=["GLIO-PROTEOGEN-M07-07"])
+
+
+def create_app() -> FastAPI:
+    """Create an isolated app with request/result ceilings installed."""
+
+    app = FastAPI(title="GLIO Proteogen M07-07", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0707_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0707_MAX_CANONICAL_RESULT_BYTES,
+    )
+    app.include_router(router)
+    return app
 
 
 async def _body(request: Request) -> object:
@@ -123,4 +138,6 @@ async def verify(request: Request) -> dict[str, object]:
     return {"valid": True, "result_digest": typed.result_digest}
 
 
-__all__ = ["calibrate", "export_schema", "router", "validate", "verify"]
+app = create_app()
+
+__all__ = ["app", "calibrate", "create_app", "export_schema", "router", "validate", "verify"]
