@@ -41,7 +41,12 @@ class M2203Service:
     def replay(
         self,
         result: ProteinRnaDiscordanceInternalBenchmarkResult,
+        request: RunProteinRnaDiscordanceInternalBenchmarkRequest | None = None,
     ) -> ProteinRnaDiscordanceInternalBenchmarkResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
         return self._engine.replay(result)
 
 
