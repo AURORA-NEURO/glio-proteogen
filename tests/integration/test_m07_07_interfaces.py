@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m07_07 import CalibrationStatus
 from glio_proteogen.modules.c07_copy_number_dosage.m07_07_calibration_selective_prediction import (
     M0707Plugin,
     M0707Service,
@@ -81,6 +82,15 @@ def test_fastapi_tampered_result_is_rejected_without_echo() -> None:
     response = client.post("/modules/m07-07/verify", json=result)
     assert response.status_code == 422
     assert "sha256:" + "f" * 64 not in response.text
+
+
+def test_verify_replays_bound_request_not_only_self_reported_digest() -> None:
+    service = M0707Service()
+    typed_request = request()
+    result = service.execute(typed_request)
+    result = result.model_copy(update={"status": CalibrationStatus.ABSTAINED})
+    with pytest.raises(ValueError, match="result|abstained"):
+        service.verify_result(result, typed_request)
 
 
 def test_app_transport_rejects_oversized_body_before_parsing() -> None:
