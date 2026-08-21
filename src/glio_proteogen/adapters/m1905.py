@@ -11,7 +11,11 @@ import typer
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m19_05 import (
     M1905_MAX_CANONICAL_REQUEST_BYTES,
     M1905_MAX_CANONICAL_RESULT_BYTES,
@@ -85,6 +89,11 @@ def create_app(service: M1905Service | None = None) -> FastAPI:
     """Create an isolated strict M19-05 API."""
 
     api = FastAPI(title="GLIO-PROTEOGEN M19-05", version="0.1.0-provisional")
+    api.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @api.get("/v1/m19-05/schema/{name}")
     async def schema(name: str) -> JSONResponse:
