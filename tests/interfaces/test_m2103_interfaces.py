@@ -55,9 +55,18 @@ def test_fastapi_validate_benchmark_verify_and_sanitized_errors() -> None:
     generated = client.post("/v1/modules/M21-03/benchmark", json=body)
     assert generated.status_code == _HTTP_OK
     result = generated.json()
-    verified = client.post("/v1/modules/M21-03/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M21-03/verify", json={"request": body, "result": result}
+    )
+    forged = dict(body)
+    forged["request_id"] = "request.m2103.forged"
+    mismatch = client.post(
+        "/v1/modules/M21-03/verify",
+        json={"request": forged, "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
     assert client.get("/v1/modules/M21-03/schemas/unknown").status_code == _HTTP_NOT_FOUND
     assert client.get("/v1/modules/M21-03/schemas/unknown").status_code == _HTTP_NOT_FOUND
     assert (
