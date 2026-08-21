@@ -402,7 +402,8 @@ class M0906UncertaintyDecompositionEngine:
     def verify(
         result: object,
         canonical: bytes | bytearray | str,
-    ) -> M0906ReplayVerification:
+        request: object | None = None,
+    ) -> M0906ReplayVerification:  # noqa: PLR0911
         try:
             raw = (
                 canonical
@@ -423,6 +424,13 @@ class M0906UncertaintyDecompositionEngine:
                     verified=False,
                     reason="canonical result differs from supplied result",
                 )
+            if request is not None:
+                regenerated = M0906UncertaintyDecompositionEngine().execute(request).result
+                if typed != regenerated:
+                    return M0906ReplayVerification(
+                        verified=False,
+                        reason="result does not replay from supplied request",
+                    )
             request_digest_verified = typed.request_digest == canonical_request_digest(
                 typed.request
             )

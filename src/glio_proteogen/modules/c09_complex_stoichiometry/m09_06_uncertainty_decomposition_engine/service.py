@@ -32,8 +32,9 @@ class M0906Service:
         self,
         result: object,
         canonical: bytes | bytearray | str,
+        request: object | None = None,
     ) -> M0906ReplayVerification:
-        return self._engine.verify(result, canonical)
+        return self._engine.verify(result, canonical, request)
 
 
 __all__ = ["M0906Service"]

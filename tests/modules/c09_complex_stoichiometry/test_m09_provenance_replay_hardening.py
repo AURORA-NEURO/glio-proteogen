@@ -140,6 +140,25 @@ def test_m0906_replay_rejects_recomputed_digest_with_forged_provenance() -> None
     assert outcome.verified is False
 
 
+def test_m0906_request_bound_replay_rejects_semantic_mutation() -> None:
+    request = request_m0906()
+    built = m0906.M0906Service().execute(request)
+    forged = built.result.model_copy(
+        update={
+            "uncertainty": built.result.uncertainty.model_copy(
+                update={"sensitivity_notes": ("attacker mutation",)}
+            )
+        }
+    )
+    forged = forged.model_copy(update={"result_digest": digest_m0906(forged)})
+    outcome = m0906.M0906Service().verify(
+        forged,
+        canonical_json_bytes(forged.model_dump(mode="json")),
+        request,
+    )
+    assert outcome.verified is False
+
+
 def test_m0908_replay_rejects_recomputed_digest_with_forged_provenance() -> None:
     built = m0908.M0908EvidencePublisher().publish(request_m0908())
     forged = built.result.model_copy(
