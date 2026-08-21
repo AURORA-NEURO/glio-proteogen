@@ -318,7 +318,7 @@ def _request_digest(request: PublishProteinRnaEvidenceRequest) -> str:
     return canonical_request_digest(request)
 
 
-def verify_publication_result(result: object) -> bool:
+def verify_publication_result(result: object, request: object | None = None) -> bool:
     """Verify strict model closure and the canonical result digest."""
 
     try:
@@ -328,7 +328,12 @@ def verify_publication_result(result: object) -> bool:
             typed = ProteinRnaEvidencePublicationResult.model_validate(result, strict=True)
         else:
             return False
-        return typed.result_digest == result_payload_digest(typed)
+        if typed.result_digest != result_payload_digest(typed):
+            return False
+        if request is None:
+            return True
+        regenerated = M1008EvidencePublisherEngine().publish(request)
+        return typed.model_dump(mode="json") == regenerated.model_dump(mode="json")
     except (TypeError, ValueError, ValidationError):
         return False
 

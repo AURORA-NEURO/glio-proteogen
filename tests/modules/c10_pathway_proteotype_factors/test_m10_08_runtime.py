@@ -182,6 +182,13 @@ def test_tampered_result_is_rejected() -> None:
     assert not m1008_runtime.M1008EvidencePublisherService.verify(tampered)
 
 
+def test_request_bound_replay_rejects_resigned_publication_mutation() -> None:
+    request = _request()
+    result = m1008_runtime.M1008EvidencePublisherService().execute(request)
+    forged = result.model_copy(update={"abstention_reason": "attacker"})
+    assert not m1008_runtime.M1008EvidencePublisherService.verify(forged, request)
+
+
 def test_plugin_is_parse_once_and_rejects_duplicate_json() -> None:
     request_json = _request().model_dump_json()
     plugin = m1008_runtime.M1008EvidencePublisherPlugin(
