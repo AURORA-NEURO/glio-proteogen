@@ -12,9 +12,11 @@ from glio_proteogen.contracts.m20_05 import (
     M2005_MAX_EVIDENCE,
     M2005_MODULE_ID,
     HumanReviewWorkspace,
+    OrderingPolicy,
     PresentProteinSubtypeHumanReviewWorkspaceRequest,
     ProteinSubtypeHumanReviewWorkspaceResult,
     ReviewItemStatus,
+    ViewKind,
     WorkflowFinding,
     WorkflowFindingCode,
     WorkspaceStatus,
@@ -304,10 +306,38 @@ def _workspace(
     request: PresentProteinSubtypeHumanReviewWorkspaceRequest,
     evidence: tuple[EvidenceReference, ...],
 ) -> HumanReviewWorkspace:
+    status_rank = {
+        ReviewItemStatus.ABSTAINED: 0,
+        ReviewItemStatus.UNRESOLVED: 1,
+        ReviewItemStatus.CONFLICTED: 2,
+        ReviewItemStatus.LIMITED: 3,
+        ReviewItemStatus.SUPPORTED: 4,
+    }
+    view_rank = {
+        ViewKind.DISCREPANCY: 0,
+        ViewKind.UNCERTAINTY: 1,
+        ViewKind.EVIDENCE_REVIEW: 2,
+        ViewKind.PROVENANCE: 3,
+        ViewKind.NEXT_ACTION: 4,
+        ViewKind.TASK_SUMMARY: 5,
+    }
+    if request.policy.default_ordering is OrderingPolicy.UNCERTAINTY_FIRST:
+        ordered_items = sorted(
+            request.review_items,
+            key=lambda item: (view_rank[item.view_kind], status_rank[item.status], item.position),
+        )
+    else:
+        ordered_items = sorted(
+            request.review_items,
+            key=lambda item: (status_rank[item.status], view_rank[item.view_kind], item.position),
+        )
     return HumanReviewWorkspace(
         workspace_id=f"workspace.{request.request_id}",
         version=request.policy.configuration.version,
-        items=request.review_items,
+        items=tuple(
+            item.model_copy(update={"position": position})
+            for position, item in enumerate(ordered_items)
+        ),
         ordering=request.policy.default_ordering,
         automation_bias_warning=(
             "Review evidence, uncertainty and provenance before accepting any machine-suggested "

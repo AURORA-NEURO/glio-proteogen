@@ -276,10 +276,10 @@ class ProteinSubtypeHumanReviewWorkspaceResult(FrozenModel):
                 raise ValueError("presented result requires output evidence")
             if self.workspace.ordering is not self.request.policy.default_ordering:
                 raise ValueError("workspace ordering must match the requested policy")
-            workspace_ids = tuple(item.item_id for item in self.workspace.items)
-            request_ids = tuple(item.item_id for item in self.request.review_items)
+            workspace_ids = {item.item_id for item in self.workspace.items}
+            request_ids = {item.item_id for item in self.request.review_items}
             if workspace_ids != request_ids:
-                raise ValueError("workspace must preserve request review items in order")
+                raise ValueError("workspace must bind exactly the request review items")
             if (
                 self.workspace.source_bundle.artifact_id
                 != self.request.aligned_evidence_bundle.artifact_id
