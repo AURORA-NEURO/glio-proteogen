@@ -84,6 +84,17 @@ def test_plugin_requires_issued_token_and_preserves_parity() -> None:
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2705Service()
+    result = service.emit(request)
+    altered = request.model_copy(update={"request_id": "m2705.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2705Plugin(service).replay(result, altered)
+
+
 def test_json_service_roundtrip() -> None:
     service = M2705Service()
     request = build_request()
