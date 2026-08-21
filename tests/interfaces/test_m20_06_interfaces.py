@@ -101,6 +101,15 @@ def test_late_m20_apps_reject_oversized_streams_before_json_parse() -> None:
     assert verify.status_code == _HTTP_CONTENT_TOO_LARGE
 
 
+def test_fastapi_global_middleware_uses_request_ceiling() -> None:
+    client = TestClient(create_app(M2006Service()))
+    response = client.post(
+        "/v1/modules/M20-06/validate",
+        content=b"{" + b"x" * M2006_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == _HTTP_CONTENT_TOO_LARGE
+
+
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:
     request = _request()
     plugin = M2006Plugin(M2006Service())

@@ -76,7 +76,9 @@ def create_app(service: M2006Service | None = None) -> FastAPI:
 
     boundary = service or M2006Service()
     app = FastAPI(title="GLIO-PROTEOGEN M20-06", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2006_MAX_CANONICAL_RESULT_BYTES)
+    # Enforce the request ceiling before body materialization; verification
+    # applies the larger result ceiling in its bounded reader.
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2006_MAX_CANONICAL_REQUEST_BYTES)
 
     @app.get("/v1/modules/M20-06/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
