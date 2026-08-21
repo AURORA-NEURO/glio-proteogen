@@ -431,12 +431,11 @@ def verify_protein_group_fdr_summary(  # noqa: PLR0915
                 raise ValueError("decoy and collision groups must have null q-values")
             if candidate.acceptance == "accepted":
                 raise ValueError("decoy and collision groups cannot be accepted")
-        elif candidate.acceptance == "accepted" and (
-            candidate.q_value is None or candidate.identifiability != "unique_peptide_supported"
-        ):
-            raise ValueError("accepted target groups require unique support and a q-value")
-        elif candidate.acceptance == "accepted" and candidate.q_value > summary.q_value_threshold:
-            raise ValueError("accepted target q-value exceeds the group-FDR threshold")
+        elif candidate.acceptance == "accepted":
+            if candidate.q_value is None or candidate.identifiability != "unique_peptide_supported":
+                raise ValueError("accepted target groups require unique support and a q-value")
+            if candidate.q_value > summary.q_value_threshold:
+                raise ValueError("accepted target q-value exceeds the group-FDR threshold")
         if candidate.status == "collision" and (
             candidate.q_value is not None or candidate.acceptance != "abstained"
         ):

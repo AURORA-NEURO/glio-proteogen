@@ -1,12 +1,12 @@
 {
   "lane": "research-protein-inference-pipeline",
-  "fixture_sha256": "3e14be69c87ce55a2326da7e72ba04371dcdfe047a3e38a444216492144e48fd",
+  "fixture_sha256": "446aa76c5c8744bbdc04930960b8c1003872f3ca9a9332ce009668f7bec52c6e",
   "verifier": "tools/verify_research_pipeline.py",
   "evaluator": {
     "passed": true,
     "declared": 8,
     "executed": 8,
-    "fixture_sha256": "3e14be69c87ce55a2326da7e72ba04371dcdfe047a3e38a444216492144e48fd",
+    "fixture_sha256": "446aa76c5c8744bbdc04930960b8c1003872f3ca9a9332ce009668f7bec52c6e",
     "generated_search_space": {
       "passed": true,
       "result_digest": "f3a45ea4392cc65766c0b6e430f5930cd049389ca7d08025891e8e6234a45a5e",
