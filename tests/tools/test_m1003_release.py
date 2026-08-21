@@ -17,11 +17,15 @@ def _copy_release_tree(tmp_path: Path) -> Path:
 
 
 def test_release_verifier_accepts_complete_receipt() -> None:
+    if not Path("dist-m10-03").is_dir():
+        pytest.skip("build the M10-03 package artifacts before artifact-bound verification")
     result = verify_release()
     assert result == {"module": "GLIO-PROTEOGEN-M10-03", "verified": True}
 
 
 def test_release_verifier_rejects_fixture_case_tampering(tmp_path: Path) -> None:
+    if not Path("dist-m10-03").is_dir():
+        pytest.skip("build the M10-03 package artifacts before artifact-bound verification")
     root = _copy_release_tree(tmp_path)
     path = root / "release-evidence/M10-03/evaluation.json"
     evidence = json.loads(path.read_text(encoding="utf-8"))
@@ -32,6 +36,8 @@ def test_release_verifier_rejects_fixture_case_tampering(tmp_path: Path) -> None
 
 
 def test_release_verifier_rejects_package_hash_tampering(tmp_path: Path) -> None:
+    if not Path("dist-m10-03").is_dir():
+        pytest.skip("build the M10-03 package artifacts before artifact-bound verification")
     root = _copy_release_tree(tmp_path)
     path = root / "release-evidence/M10-03/package.json"
     evidence = json.loads(path.read_text(encoding="utf-8"))
