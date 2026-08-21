@@ -153,7 +153,9 @@ def test_resolved_result_has_bundle_parent_provenance_and_uncertainty() -> None:
     assert result.parent_target == "protein_rna_discordance"
     assert result.emits_parent is False
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M16-01"
-    assert result.uncertainty.measurement.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     assert len(result.bundle.accepted_candidates) == 3
 
 
@@ -227,9 +229,9 @@ def test_request_and_result_closures_reject_tamper() -> None:
             no_result_evidence, strict=True
         )
     resolved_invalid = result.model_dump(mode="python")
-    resolved_invalid["support_decision"] = result.support_decision.model_copy(
-        update={"status": SupportStatus.REVIEW_REQUIRED}
-    )
+        resolved_invalid["support_decision"] = result.support_decision.model_copy(
+            update={"status": SupportStatus.SUPPORTED}
+        )
     resolved_invalid["result_digest"] = result_payload_digest(resolved_invalid)
     with pytest.raises(ValueError, match="resolved result"):
         ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(resolved_invalid, strict=True)

@@ -256,9 +256,11 @@ class ProteinRnaDiscordanceUpstreamResolutionResult(FrozenModel):
                 self.bundle is None
                 or self.compatibility_report.status is not CompatibilityStatus.ACCEPTED
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("resolved result requires a supported accepted bundle")
+                raise ValueError("resolved result requires a review-only accepted bundle")
+            if not self.human_review_required:
+                raise ValueError("resolved result requires human review")
         elif (
             self.bundle is not None
             or self.abstention_reason is None
