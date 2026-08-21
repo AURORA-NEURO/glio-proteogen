@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import pytest
@@ -95,7 +96,7 @@ def test_m19_result_ceiling_is_used_by_api_and_plugin(
     monkeypatch.setattr(m1907_api, "M1907_MAX_CANONICAL_RESULT_BYTES", _SMALL_LIMIT)
     with TestClient(m1907_api.create_m1907_app()) as client:
         response = client.post("/v1/modules/M19-07/verify", content=result_bytes)
-    assert response.status_code == _UNPROCESSABLE_CONTENT
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
     result_path = tmp_path / "result.json"
     result_path.write_bytes(result_bytes)

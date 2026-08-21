@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m19_07 import (
     M1907_MAX_CANONICAL_REQUEST_BYTES,
     M1907_MAX_CANONICAL_RESULT_BYTES,
@@ -26,10 +27,21 @@ _REQUEST_ADAPTER: Final = TypeAdapter(ExportProteotypeDownstreamContractRequest)
 _RESULT_ADAPTER: Final = TypeAdapter(ProteotypeDownstreamExportResult)
 
 
+async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 async def _request_body(request: Request) -> ExportProteotypeDownstreamContractRequest:
     try:
         decoded = strict_json_loads(
-            await request.body(),
+            await _read_bounded(request, max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES),
             max_bytes=M1907_MAX_CANONICAL_REQUEST_BYTES,
         )
         return _REQUEST_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
@@ -40,7 +52,7 @@ async def _request_body(request: Request) -> ExportProteotypeDownstreamContractR
 async def _result_body(request: Request) -> ProteotypeDownstreamExportResult:
     try:
         decoded = strict_json_loads(
-            await request.body(),
+            await _read_bounded(request, max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES),
             max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES,
         )
         return _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
@@ -53,6 +65,7 @@ def create_m1907_app(service: M1907Service | None = None) -> FastAPI:
 
     m1907_service = service or M1907Service()
     app = FastAPI(title="GLIO-PROTEOGEN M19-07", version="0.1.0-provisional")
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1907_MAX_CANONICAL_RESULT_BYTES)
 
     @app.exception_handler(M1907AuthorizationError)
     async def authorization_handler(
