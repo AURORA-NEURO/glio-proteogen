@@ -149,7 +149,7 @@ def test_service_replay_rejects_request_identifier_and_payload_tamper() -> None:
         )
 
     altered = request.model_copy(update={"request_id": "request.m1904.altered"})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="replay request mismatch"):
         service.replay(result, altered)
 
 
