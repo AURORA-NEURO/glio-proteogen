@@ -899,7 +899,7 @@ def _validate_matrix_qc_projection(result: ResearchCohortResult) -> None:
             raise ValueError("cohort sample QC is not linked to sample scales")
 
 
-def _build_label_evidence(  # noqa: PLR0915, PLR0917
+def _build_label_evidence(  # noqa: PLR0915
     ordered_samples: tuple[ResearchCohortSample | _CohortLabelSample, ...],
     groups: tuple[tuple[str, ...], ...],
     raw_matrix: tuple[tuple[tuple[str, ...], tuple[float | None, ...]], ...],
