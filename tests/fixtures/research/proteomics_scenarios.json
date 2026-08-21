@@ -39,7 +39,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "bd4ba2944811a5e58cd2b24d9d650fc2e5ac097f450505bdbd06c0c5fe3d4af8",
+      "expected_result_digest": "0b277327bd7a920b726a2884d4e78a25d1113cc459e911900d67dbb4fa04e364",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -98,7 +98,8 @@
         }
       ],
       "expected_shared": [],
-      "expected_collision_winners": 0
+      "expected_collision_winners": 0,
+      "expected_fdr_ratio": 0.0
     },
     {
       "id": "decoy_rejected",
@@ -136,7 +137,7 @@
       ],
       "fasta_sha256": "87082ab37015eefef4b7bd1017cdf18ab5e3b6df33ed023fc8aa56269d790055",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "9ac951e15cf0c5b49f9ce6e32e6c28bd5d47b9ef21b2c1851f8bb4b793ffdeff",
+      "expected_result_digest": "3373ce0ae0ed8d0d87125956070df6a64eca6198b967459846cdbd96960be5d5",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -197,7 +198,8 @@
       "expected_groups": [],
       "expected_shared": [],
       "expected_collision_winners": 0,
-      "expected_group_quant": []
+      "expected_group_quant": [],
+      "expected_fdr_ratio": null
     },
     {
       "id": "target_decoy_collision",
@@ -237,7 +239,7 @@
       ],
       "fasta_sha256": "eeb074a89bd85caa8bbc4a83e213187358b43c1955030bacba43ed2190a16135",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "1d7b61e266fdad837bc716b097f6e78627955c44afd3a51d82c316663b77c324",
+      "expected_result_digest": "a0f0f148835690dad11ecc70bd5f902587527fcc6c8b24114c750fded39f1b83",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -297,7 +299,8 @@
       ],
       "expected_groups": [],
       "expected_shared": [],
-      "expected_group_quant": []
+      "expected_group_quant": [],
+      "expected_fdr_ratio": null
     },
     {
       "id": "no_match",
@@ -326,7 +329,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "42532d3f66cb39078e78461e6c4fedb45a3a547c946cf248a1cd8d35d16f46b1",
-      "expected_result_digest": "f9229c5bbcaea1812ca228b37242f7883b43b98cfc2f583fad77123472906267",
+      "expected_result_digest": "68dbad339681a9993bf72b5d3062750cff3763591189aa21fbf12fbb2c7c25ee",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -371,7 +374,8 @@
       "expected_groups": [],
       "expected_shared": [],
       "expected_collision_winners": 0,
-      "expected_group_quant": []
+      "expected_group_quant": [],
+      "expected_fdr_ratio": null
     },
     {
       "id": "precursor_rejected",
@@ -400,7 +404,7 @@
       "expected_group_candidates": [],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "bdd5ed59bf621bb595d79a0fea2de8802e1a1d51b06b21f8b9680f0db189fd65",
-      "expected_result_digest": "4eb0e22234a8b9517e13d70ec811fe9625ca19d65a69cffe623bf54ae87476bd",
+      "expected_result_digest": "35960c6e3652ff06e5a0fbf3a6b5dfcae31d7ab5c7f09ebfa7569d1125df6ea0",
       "expected_psm_peptides": [],
       "expected_q_values": [],
       "expected_peptide_intensities": [],
@@ -445,7 +449,8 @@
       "expected_groups": [],
       "expected_shared": [],
       "expected_collision_winners": 0,
-      "expected_group_quant": []
+      "expected_group_quant": [],
+      "expected_fdr_ratio": null
     },
     {
       "id": "shared_peptide_group",
@@ -503,7 +508,7 @@
       ],
       "fasta_sha256": "31562dc9bdfb8e40359fb7bcce8b810bf2bd1b1182f05b64959bdd0cf15520d7",
       "mzml_sha256": "56e3fd495776f0f1d142843120a6f90c3a4d1411d7bb9703dc5b1e076312702f",
-      "expected_result_digest": "6a5c2817a37d2db837779120f305d1099c35e813047ed823caccc7871e84f34b",
+      "expected_result_digest": "251016b3e300853b51b1e69cb952175e49b1a6c85b52081979887247868a0fb8",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -561,7 +566,8 @@
           "winner_score": 1.5342417579452687
         }
       ],
-      "expected_collision_winners": 0
+      "expected_collision_winners": 0,
+      "expected_fdr_ratio": 0.0
     },
     {
       "id": "multi_spectrum",
@@ -601,7 +607,7 @@
       ],
       "fasta_sha256": "83aa881dc3f68aa3e1e0a8d4b60a01bb408aa7b9b49f16d5de7cbdc35679981e",
       "mzml_sha256": "ffbdb925a73a3ba9af6379b4363f25c6f5d43c7076729ffc0d9e1ddff5d3a5bf",
-      "expected_result_digest": "4ec48caff7367f02564c240a6bfc4e814f40d9537a2a0584bd7177eebb873041",
+      "expected_result_digest": "05ea92a7100fd22a398ab796179820446363fd1bb41a77fc4c6a107daa0176be",
       "expected_psm_peptides": [
         "MPEPTIDER"
       ],
@@ -660,7 +666,8 @@
         }
       ],
       "expected_shared": [],
-      "expected_collision_winners": 0
+      "expected_collision_winners": 0,
+      "expected_fdr_ratio": 0.0
     },
     {
       "id": "multi_peptide_quantification",
@@ -708,7 +715,7 @@
       ],
       "fasta_sha256": "634a0bb39698bb16afe95791a32a5872036442c6bfc140e403aca95d8b133b5f",
       "mzml_sha256": "07eb26ed1891fb301ba2221433b73ee55580bd366701245ac9aa745a9b44c4ed",
-      "expected_result_digest": "3b0cd07e2dec7889497164e91498a3a46d3542ba0d9fd68b59e11031ee814b11",
+      "expected_result_digest": "f6bca623c042d978ecaa6d4127437a60763314d01f0053fbc39a7e507614bd34",
       "expected_psm_peptides": [
         "MPEPTIDER",
         "PEPTIDEK"
@@ -780,7 +787,8 @@
         }
       ],
       "expected_shared": [],
-      "expected_collision_winners": 0
+      "expected_collision_winners": 0,
+      "expected_fdr_ratio": 0.0
     }
   ],
   "claims": {
@@ -788,5 +796,6 @@
     "clinical": false,
     "glioma": false,
     "mechanism": false
-  }
+  },
+  "fixture_sha256": null
 }
