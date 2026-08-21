@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from glio_proteogen.contracts.m24_07 import (
+    BiomarkerPanelHumanFactorsResult,
     EvaluateBiomarkerPanelHumanFactorsRequest,
     EvaluationStatus,
     OperationalStatus,
@@ -98,6 +99,19 @@ def test_replay_rejects_request_identity_result_id_and_digest_tampering() -> Non
         service.verify_replay(result.model_copy(update={"result_id": "m2407.forged"}))
     with pytest.raises(m2407.M2407ReplayError, match="payload digest"):
         service.verify_replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
+
+
+def test_replay_rejects_divergent_regenerator_semantics() -> None:
+    class DivergentEvaluator(m2407.M2407HumanFactorsOperationalEvaluator):
+        def evaluate(self, request_value: object) -> BiomarkerPanelHumanFactorsResult:
+            expected = super().evaluate(request_value)
+            return expected.model_copy(update={"status": EvaluationStatus.ABSTAINED})
+
+    request_value = request()
+    result = m2407.M2407Service().evaluate(request_value)
+    divergent_service = m2407.M2407Service(engine=DivergentEvaluator())
+    with pytest.raises(m2407.M2407ReplayError, match="semantic replay"):
+        divergent_service.verify_replay(result)
 
 
 def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
