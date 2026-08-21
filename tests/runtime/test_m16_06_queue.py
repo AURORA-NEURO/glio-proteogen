@@ -11,9 +11,12 @@ from glio_proteogen.contracts.m16_06 import (
     DiscrepancyReasonCode,
     DiscrepancySeverity,
     QueueEntryState,
+    QueueFinding,
+    QueueFindingCode,
     ReviewDecision,
     ReviewerAssignment,
     ReviewWorkspaceConfiguration,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -171,6 +174,24 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"result_digest": "sha256:" + "2" * 64})
     with pytest.raises(M1606ReplayError, match="digest"):
         M1606Engine().replay(tampered)
+
+
+def test_self_rehashed_semantic_mutation_is_rejected() -> None:
+    result = M1606Engine().adjudicate(_request())
+    finding = QueueFinding(
+        finding_id="finding.forged",
+        code=QueueFindingCode.REVIEW_REQUIRED,
+        message="Forged semantic finding.",
+        evidence=result.evidence,
+    )
+    mutated = result.model_copy(
+        update={"findings": (finding,), "result_digest": "sha256:" + "0" * 64}
+    )
+    mutated = mutated.model_copy(
+        update={"result_digest": result_payload_digest(mutated)}
+    )
+    with pytest.raises(M1606ReplayError, match="semantic"):
+        M1606Engine().replay(mutated)
 
 
 def test_missing_controls_fail_before_traversal() -> None:
