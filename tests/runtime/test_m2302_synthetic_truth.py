@@ -62,6 +62,17 @@ def test_plugin_parses_once_and_service_verifies_canonical_result() -> None:
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M23-02"
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = m2302.M2302Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2302.M2302Plugin(service).verify(result, altered)
+
+
 def test_plugin_rejects_forged_token() -> None:
     request = _request()
     plugin = m2302.M2302Plugin()
