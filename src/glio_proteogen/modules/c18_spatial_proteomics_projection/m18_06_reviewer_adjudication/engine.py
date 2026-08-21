@@ -346,8 +346,12 @@ class M1806Engine:
             )
             status = QueueResultStatus.RECORDED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code=("adjudication_resolved" if resolved else "adjudication_escalated"),
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code=(
+                    "adjudication_resolved_review_required"
+                    if resolved
+                    else "adjudication_escalated"
+                ),
                 rationale=(
                     "The immutable review record preserves blinded decisions and escalation state."
                 ),
