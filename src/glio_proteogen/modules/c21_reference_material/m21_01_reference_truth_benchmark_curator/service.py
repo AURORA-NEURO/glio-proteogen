@@ -36,7 +36,12 @@ class M2101Service:
     def verify_replay(
         self,
         result: ComplexActivityReferenceTruthResult,
+        request: CurateComplexActivityReferenceTruthRequest | None = None,
     ) -> ComplexActivityReferenceTruthResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError
         return self._engine.verify_replay(result)
 
 

@@ -101,6 +101,19 @@ def test_strict_precursor_policy_abstains_without_precursor_metadata() -> None:
     assert result.searched_spectra == 1
 
 
+def test_decoy_only_winner_abstains_before_grouping_or_signal_projection() -> None:
+    request = replace(
+        _request(_mzml_with_ms2()),
+        fasta_bytes=b">DECOY_P1 decoy fixture\nMPEPTIDER\n",
+    )
+    result = run_pilot(request)
+    assert result.status == "ABSTAINED"
+    assert result.abstention_reason == "NO_ACCEPTED_TARGET_PSM"
+    assert result.matched_psms == ()
+    assert result.protein_groups == ()
+    assert result.signal_proxies == ()
+
+
 def test_policy_is_closed_against_network_or_claim_expansion() -> None:
     with pytest.raises(PilotError, match="network_access"):
         PilotPolicy(network_access=True)  # type: ignore[arg-type]
@@ -226,3 +239,23 @@ def test_checked_in_pilot_evidence_and_package_receipt_are_closed() -> None:
         "passed": True,
         "artifacts": ["wheel", "sdist"],
     }
+
+
+def test_pilot_evidence_verifier_rejects_scenario_inventory_tampering(tmp_path: Path) -> None:
+    evidence = _ROOT / "docs" / "evidence" / "research_pilot"
+    destination = tmp_path / "docs" / "evidence" / "research_pilot"
+    destination.mkdir(parents=True)
+    for name in (
+        "manifest.json",
+        "coverage.json",
+        "evaluation.json",
+        "benchmark.json",
+        "package.json",
+    ):
+        (destination / name).write_bytes((evidence / name).read_bytes())
+    evaluation_path = destination / "evaluation.json"
+    evaluation = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    evaluation["scenarios"]["attacker_case"] = {"passed": True}
+    evaluation_path.write_text(json.dumps(evaluation), encoding="utf-8")
+    with pytest.raises(Exception, match="scenario inventory"):
+        verify_pilot_evidence(tmp_path)

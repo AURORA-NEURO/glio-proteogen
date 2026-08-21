@@ -93,8 +93,9 @@ class M2505Plugin(ModulePlugin[object, ValidatedM2505Request, ProteotypeSubgroup
     def replay(
         self,
         result: ProteotypeSubgroupEvaluationResult,
+        request: EvaluateProteotypeSubgroupEquityRequest | None = None,
     ) -> ProteotypeSubgroupEvaluationResult:
-        return self._service.verify_replay(result)
+        return self._service.verify_replay(result, request)
 
 
 __all__ = ["M2505Plugin", "SubgroupEquitySubmission", "ValidatedM2505Request"]

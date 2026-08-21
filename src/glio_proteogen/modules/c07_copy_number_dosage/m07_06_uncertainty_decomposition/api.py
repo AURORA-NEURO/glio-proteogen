@@ -8,8 +8,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m07_06 import (
     M0706_MAX_CANONICAL_REQUEST_BYTES,
+    M0706_MAX_CANONICAL_RESULT_BYTES,
     CopyNumberDosageUncertaintyDecompositionResult,
     DecomposeCopyNumberDosageUncertaintyRequest,
     contract_json_schema,
@@ -37,6 +39,9 @@ def _validation_error(error: ValidationError) -> HTTPException:
 
 
 async def _strict_body(request: Request) -> bytes:
+    media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if media_type != "application/json":
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
     body = await request.body()
     try:
         strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
@@ -50,6 +55,11 @@ def create_app(service: M0706Service | None = None) -> FastAPI:  # noqa: C901
 
     uncertainty_service = service or M0706Service()
     app = FastAPI(title="GLIO Proteogen M07-06", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0706_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M07-06/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:
@@ -93,10 +103,17 @@ def create_app(service: M0706Service | None = None) -> FastAPI:  # noqa: C901
     async def verify(request: Request) -> JSONResponse:
         body = await _strict_body(request)
         try:
-            strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_REQUEST_BYTES)
-            result = _RESULT_ADAPTER.validate_json(body, strict=True)
+            envelope = strict_json_loads(body, max_bytes=M0706_MAX_CANONICAL_RESULT_BYTES)
+            if not isinstance(envelope, dict):
+                return JSONResponse(
+                    status_code=422, content={"detail": "verification envelope invalid"}
+                )
+            result_document = envelope.get("result", envelope)
+            result = _RESULT_ADAPTER.validate_json(
+                canonical_json_bytes(result_document), strict=True
+            )
             verified = uncertainty_service.verify(result, replay=True)
-        except (ValidationError, M0706ReplayVerificationError) as error:
+        except (ValidationError, TypeError, ValueError, M0706ReplayVerificationError) as error:
             if isinstance(error, ValidationError):
                 raise _validation_error(error) from error
             raise HTTPException(

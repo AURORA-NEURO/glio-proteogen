@@ -352,14 +352,16 @@ def _result(
         ),
         "parent_target": "protein subtype",
         "emits_parent": False,
-        "support_decision": SupportDecision(
-            status=(
-                SupportStatus.SUPPORTED
-                if status is ResolverStatus.VALIDATED
-                else SupportStatus.REVIEW_REQUIRED
-            ),
-            reason_code="accepted" if status is ResolverStatus.VALIDATED else "review",
-            rationale="Typed support state is preserved.",
+            "support_decision": SupportDecision(
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code=(
+                    "accepted_review" if status is ResolverStatus.VALIDATED else "review"
+                ),
+                rationale=(
+                    "Caller-declared compatibility is retained for human review."
+                    if status is ResolverStatus.VALIDATED
+                    else "Typed support state is preserved."
+                ),
         ),
         "uncertainty": _uncertainty(),
         "provenance": _provenance(request),
@@ -367,7 +369,7 @@ def _result(
         "limitations": (
             Limitation(code="caller_declared", statement="Upstream authority is external."),
         ),
-        "human_review_required": status is ResolverStatus.ABSTAINED,
+            "human_review_required": True,
     }
     payload["result_id"] = f"result.{payload['request_digest'].removeprefix('sha256:')}"
     payload["result_digest"] = result_payload_digest(
@@ -585,12 +587,12 @@ def test_result_identity_replay_and_safe_abstention_are_closed() -> None:
         ProteinSubtypeUpstreamResolutionResult.model_validate(
             result.model_copy(update={"result_digest": "sha256:" + "0" * 64})
         )
-    with pytest.raises(ValidationError, match="supported upstream"):
+    with pytest.raises(ValidationError, match="review-only upstream"):
         ProteinSubtypeUpstreamResolutionResult.model_validate(
             result.model_copy(
                 update={
                     "support_decision": SupportDecision(
-                        status=SupportStatus.REVIEW_REQUIRED,
+                        status=SupportStatus.SUPPORTED,
                         reason_code="review",
                         rationale="Forced review.",
                     )
@@ -599,7 +601,7 @@ def test_result_identity_replay_and_safe_abstention_are_closed() -> None:
         )
     with pytest.raises(ValidationError, match="human review"):
         ProteinSubtypeUpstreamResolutionResult.model_validate(
-            result.model_copy(update={"human_review_required": True})
+            result.model_copy(update={"human_review_required": False})
         )
     unknown = _candidate(
         "candidate.unknown",

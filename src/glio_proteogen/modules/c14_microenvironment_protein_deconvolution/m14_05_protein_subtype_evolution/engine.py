@@ -345,8 +345,8 @@ class M1405EvolutionEngine:
             "parent_target": M1405_PARENT,
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="m1405_metadata_replay_supported",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1405_metadata_replay_review_only",
                 rationale=(
                     "Ordered caller-declared trajectory metadata was replayed; no biological "
                     "state or change point was inferred."

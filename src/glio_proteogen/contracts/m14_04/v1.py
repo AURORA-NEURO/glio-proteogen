@@ -190,9 +190,10 @@ class ProteinSubtypeMechanismInferenceResult(FrozenModel):
             if (
                 not self.estimates
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("inferred result requires supported mechanism estimates")
+                raise ValueError("inferred result requires review-only mechanism estimates")
         elif (
             self.estimates
             or self.abstention_reason is None

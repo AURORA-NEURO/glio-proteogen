@@ -82,14 +82,47 @@ def test_api_denies_unknown_schema_and_invalid_control() -> None:
     assert response.status_code == 422
 
 
+def test_api_enforces_exact_json_and_preparse_request_limit() -> None:
+    client = TestClient(create_app())
+    payload = build_request().model_dump(mode="json")
+    assert (
+        client.post(
+            "/v1/modules/M27-08/retire",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == 415
+    )
+    response = client.post(
+        "/v1/modules/M27-08/retire",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
 def test_api_malformed_and_unknown_payloads_are_sanitized() -> None:
     client = TestClient(create_app())
-    assert client.post("/v1/modules/M27-08/validate", content=b"not-json").status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M27-08/validate",
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
     invalid = build_request().model_dump(mode="json")
     invalid["unknown"] = "canary"
     response = client.post("/v1/modules/M27-08/validate", json=invalid)
     assert response.status_code == 422
-    assert client.post("/v1/modules/M27-08/verify", content=b"{}").status_code == 422
+    assert (
+        client.post(
+            "/v1/modules/M27-08/verify",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == 422
+    )
 
 
 def test_cli_error_paths_are_non_destructive(tmp_path: Path) -> None:

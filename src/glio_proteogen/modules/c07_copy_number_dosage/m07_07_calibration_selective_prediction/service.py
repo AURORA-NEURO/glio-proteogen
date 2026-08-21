@@ -65,6 +65,9 @@ class M0707Service:
             expected_request = M0707Service.validate_request(request)
             if typed.request_digest != canonical_request_digest(expected_request):
                 raise ValueError("result request digest does not match replay request")  # noqa: TRY003
+            regenerated = M0707CalibrationEngine().calibrate(expected_request)
+            if regenerated.model_dump(mode="json") != typed.model_dump(mode="json"):
+                raise ValueError("result does not match deterministic replay")  # noqa: TRY003
         if typed.result_digest != result_payload_digest(typed):
             raise ValueError("result digest does not match replay payload")  # noqa: TRY003
         return typed

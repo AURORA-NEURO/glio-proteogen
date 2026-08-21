@@ -8,8 +8,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m08_05 import (
     M0805_MAX_CANONICAL_REQUEST_BYTES,
+    M0805_MAX_CANONICAL_RESULT_BYTES,
     IntegrateTranscriptProteinConstraintsRequest,
     contract_json_schema,
 )
@@ -42,11 +44,16 @@ async def _strict_body(request: Request) -> bytes:
     return body
 
 
-def create_app(service: M0805Service | None = None) -> FastAPI:
+def create_app(service: M0805Service | None = None) -> FastAPI:  # noqa: C901
     """Create an isolated API with no persistence or content traversal."""
 
     integration_service = service or M0805Service()
     app = FastAPI(title="GLIO Proteogen M08-05", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0805_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0805_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M08-05/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:
@@ -56,6 +63,11 @@ def create_app(service: M0805Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M08-05/validate")
     async def validate_request(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         body = await _strict_body(request)
         try:
             typed = integration_service.validate_request(
@@ -69,6 +81,11 @@ def create_app(service: M0805Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M08-05/integrate")
     async def integrate(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         body = await _strict_body(request)
         try:
             typed = integration_service.validate_request(

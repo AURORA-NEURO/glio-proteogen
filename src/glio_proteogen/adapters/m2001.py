@@ -42,7 +42,7 @@ app = FastAPI(
     title="GLIO-PROTEOGEN M20-01 upstream contract resolver",
     version="0.1.0-provisional",
 )
-app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2001_MAX_CANONICAL_RESULT_BYTES)
+app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2001_MAX_CANONICAL_REQUEST_BYTES)
 m2001_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 
 

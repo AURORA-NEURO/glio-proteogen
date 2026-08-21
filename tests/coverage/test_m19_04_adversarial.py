@@ -39,7 +39,7 @@ def test_each_upstream_control_is_fail_closed(control: str, state: str) -> None:
 @pytest.mark.parametrize(
     ("intended_use", "evidence_tier", "expected_status", "expected_review"),
     [
-        (IntendedUseKind.INTERNAL_VALIDATION, 2, PolicyDecisionStatus.ALLOWED, 0),
+            (IntendedUseKind.INTERNAL_VALIDATION, 2, PolicyDecisionStatus.ALLOWED, 1),
         (IntendedUseKind.INTERNAL_VALIDATION, 1, PolicyDecisionStatus.BLOCKED, 1),
         (IntendedUseKind.RELEASE_REVIEW, 4, PolicyDecisionStatus.REVIEW_REQUIRED, 1),
     ],
@@ -88,5 +88,7 @@ def test_replay_rejects_unvalidated_mapping_and_model_tampering() -> None:
     with pytest.raises(M1904ReplayError, match="contract validation"):
         engine.replay(tampered_mapping)  # type: ignore[arg-type]
 
-    with pytest.raises(M1904ReplayError, match="result digest"):
-        engine.replay(result.model_copy(update={"human_review_required": True}))
+    with pytest.raises(M1904ReplayError, match="contract validation"):
+        engine.replay(
+            result.model_construct(**{**result.model_dump(), "parent_target": "protein abundance"})
+        )

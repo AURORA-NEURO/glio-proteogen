@@ -366,10 +366,11 @@ class M1708Engine:
                 evidence=evidence,
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
+                status=SupportStatus.REVIEW_REQUIRED,
                 reason_code=f"translation_health_{state.value}",
                 rationale=(
-                    "Declared telemetry and support evidence produced a bounded health state."
+                    "Declared telemetry and support evidence produced a bounded health state "
+                    "for review; this monitor does not establish calibrated scientific support."
                 ),
             )
             abstention_reason = None
@@ -406,6 +407,12 @@ class M1708Engine:
             raise M1708ReplayError("M17-08 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1708ReplayError("M17-08 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(result.request)
+        except Exception as exc:
+            raise M1708ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1708ReplayError("M17-08 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 

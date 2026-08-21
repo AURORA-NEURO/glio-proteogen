@@ -92,6 +92,17 @@ def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
     assert service.descriptor["module_id"] == "GLIO-PROTEOGEN-M21-07"
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2107Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2107Plugin(service).replay(result, altered)
+
+
 def test_replay_rejects_tampering_and_public_entry_point_is_deterministic() -> None:
     request = _request()
     result = evaluate_complex_activity_human_factors(request)

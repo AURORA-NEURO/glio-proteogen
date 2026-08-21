@@ -137,7 +137,7 @@ def evaluate() -> dict[str, object]:
     checks.append(
         EvalCheck(
             "uncertainty_provenance_complete",
-            first.uncertainty.transport.probability == 0.9
+            first.uncertainty.transport.probability is None
             and len(first.provenance.control_decisions) == 7,
             "seven uncertainty dimensions and seven controls are explicit",
         )

@@ -82,8 +82,12 @@ class M2706Plugin:
             raise M2706TokenError
         return self._service.emit(token.request)
 
-    def replay(self, result: object) -> ComplexActivitySecurityAccessResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: EvaluateComplexActivitySecurityAccessRequest | None = None,
+    ) -> ComplexActivitySecurityAccessResult:
+        return self._service.replay(result, request)
 
 
 __all__ = [

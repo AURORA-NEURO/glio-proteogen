@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m19_05 import (
     M1905_MAX_CANONICAL_REQUEST_BYTES,
     M1905_MAX_CANONICAL_RESULT_BYTES,
@@ -36,11 +41,64 @@ def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
     return json.loads(canonical_json_bytes(parsed))
 
 
+_CENTRAL_SERVICE = M1905Service()
+
+Handler = Callable[[Request], Awaitable[JSONResponse]]
+
+
+def _handlers(service: M1905Service) -> tuple[Handler, Handler]:
+    async def present_with_service(request: Request) -> JSONResponse:
+        try:
+            result = service.execute(
+                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES)
+            )
+        except M1905AuthorizationError as error:
+            raise HTTPException(status_code=403, detail="M19-05 authorization denied") from error
+        except Exception as error:
+            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
+        return JSONResponse(content=result.model_dump(mode="json"))
+
+    async def verify_with_service(request: Request) -> JSONResponse:
+        try:
+            result = service.verify(
+                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES)
+            )
+        except M1905ReplayError as error:
+            raise HTTPException(
+                status_code=422, detail="M19-05 replay verification failed"
+            ) from error
+        except Exception as error:
+            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
+        return JSONResponse(content=result.model_dump(mode="json"))
+
+    return present_with_service, verify_with_service
+
+
+async def present(request: Request) -> JSONResponse:
+    return await _handlers(_CENTRAL_SERVICE)[0](request)
+
+
+async def verify(request: Request) -> JSONResponse:
+    return await _handlers(_CENTRAL_SERVICE)[1](request)
+
+
+async def central_present(request: Request) -> JSONResponse:
+    """Central-compatible M19-05 presentation endpoint."""
+
+    route = create_app().routes[5]
+    handler = cast("Handler", route.endpoint)  # type: ignore[attr-defined]
+    return await handler(request)
+
+
 def create_app(service: M1905Service | None = None) -> FastAPI:
     """Create an isolated strict M19-05 API."""
 
-    operation = service or M1905Service()
     api = FastAPI(title="GLIO-PROTEOGEN M19-05", version="0.1.0-provisional")
+    api.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @api.get("/v1/m19-05/schema/{name}")
     async def schema(name: str) -> JSONResponse:
@@ -49,32 +107,10 @@ def create_app(service: M1905Service | None = None) -> FastAPI:
         except (KeyError, ValueError, TypeError) as error:
             raise HTTPException(status_code=404, detail="unknown M19-05 contract") from error
 
-    @api.post("/v1/modules/M19-05/present")
-    async def present(request: Request) -> JSONResponse:
-        try:
-            result = operation.execute(
-                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES)
-            )
-        except M1905AuthorizationError as error:
-            raise HTTPException(status_code=403, detail="M19-05 authorization denied") from error
-        except Exception as error:
-            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+    present_handler, verify_handler = _handlers(service or _CENTRAL_SERVICE)
+    api.add_api_route("/v1/modules/M19-05/present", present_handler, methods=["POST"])
 
-    @api.post("/v1/modules/M19-05/verify")
-    async def verify(request: Request) -> JSONResponse:
-        try:
-            result = operation.verify(
-                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES)
-            )
-        except M1905ReplayError as error:
-            raise HTTPException(
-                status_code=422,
-                detail="M19-05 replay verification failed",
-            ) from error
-        except Exception as error:
-            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+    api.add_api_route("/v1/modules/M19-05/verify", verify_handler, methods=["POST"])
 
     return api
 

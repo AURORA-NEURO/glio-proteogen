@@ -8,6 +8,7 @@ from glio_proteogen.contracts.m10_02 import (
 from .engine import (
     M1002RepresentationEngine,
     _validate_request,
+    verify_result_replay,
 )
 
 
@@ -25,6 +26,13 @@ class M1002Service:
 
     def execute(self, request: object) -> ProteinRnaRepresentationResult:
         return self._engine.compute(request)
+
+    def verify(
+        self,
+        result: ProteinRnaRepresentationResult,
+        request: object | None = None,
+    ) -> bool:
+        return verify_result_replay(result, request)
 
 
 __all__ = ["M1002Service"]

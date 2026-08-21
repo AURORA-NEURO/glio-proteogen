@@ -18,7 +18,6 @@ from glio_proteogen.contracts.m20_02 import (
     ProteinSubtypeAlignmentResult,
 )
 from glio_proteogen.contracts.m20_02.canonical import canonical_request_digest
-from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration.m20_02_cross_source_alignment_reconciliation import (  # noqa: E501
     M2002Engine,
 )
@@ -142,12 +141,12 @@ def test_result_contract_rejects_duplicate_findings_and_evidence() -> None:
 def test_result_contract_rejects_unsafe_aligned_and_abstained_closures() -> None:
     aligned = M2002Engine().resolve(_request())
     assert aligned.aligned_bundle is not None
-    unsupported = aligned.support_decision.model_copy(
-        update={"status": SupportStatus.REVIEW_REQUIRED}
+    unsupported = aligned.model_construct(
+        **{**aligned.model_dump(mode="python"), "human_review_required": False}
     )
-    with pytest.raises(ValidationError, match="supported evidence bundle"):
+    with pytest.raises(ValidationError, match="review-only evidence bundle"):
         ProteinSubtypeAlignmentResult.model_validate(
-            aligned.model_copy(update={"support_decision": unsupported}).model_dump(mode="python"),
+            unsupported.model_dump(mode="python"),
             strict=True,
         )
     conflicted_observation = aligned.aligned_bundle.observations[0].model_copy(

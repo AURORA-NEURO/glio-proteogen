@@ -63,7 +63,7 @@ def test_missingness_gate_abstains_and_keeps_raw_matrix() -> None:
         )
     )
     assert result.raw_matrix == ((("P1",), (None, 20.0)),)
-    assert result.normalized_matrix == ((("P1",), (None, None)),)
+    assert result.normalized_matrix == ((("P1",), (None, 20.0)),)
     assert result.label_qc[0].status == "abstained_missingness"
     assert result.label_qc[0].normalization_status == "not_applied"
     assert result.label_group_evidence[0].status == "abstained_missingness"

@@ -5,8 +5,10 @@ from __future__ import annotations
 from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m10_07 import (
     M1007_MAX_CANONICAL_REQUEST_BYTES,
     M1007_MAX_CANONICAL_RESULT_BYTES,
@@ -48,11 +50,16 @@ def _parse_request(body: bytes) -> CalibrateProteinRnaDiscordanceSelectivePredic
         raise _safe_validation(error) from error
 
 
-def create_app(service: M1007Service | None = None) -> FastAPI:
+def create_app(service: M1007Service | None = None) -> FastAPI:  # noqa: C901
     """Create an API app with strict validation and sanitized errors."""
 
     boundary = service or M1007Service()
     app = FastAPI(title="GLIO-PROTEOGEN M10-07", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1007_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M10-07/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -74,6 +81,11 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M10-07/validate")
     async def validate(request: Request) -> dict[str, object]:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         payload = _parse_request(await request.body())
         try:
             typed = boundary.validate_request(payload)
@@ -83,6 +95,11 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M10-07/execute")
     async def execute(request: Request) -> dict[str, object]:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         payload = _parse_request(await request.body())
         try:
             built = boundary.execute(payload)
@@ -95,17 +112,27 @@ def create_app(service: M1007Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M10-07/verify")
     async def verify(request: Request) -> dict[str, object]:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         envelope = _parse_body(await request.body(), max_bytes=M1007_MAX_CANONICAL_RESULT_BYTES)
         result = envelope.get("result")
         canonical = envelope.get("canonical")
-        if not isinstance(result, dict) or not isinstance(canonical, (str, dict)):
+        request_payload = envelope.get("request")
+        if (
+            not isinstance(result, dict)
+            or not isinstance(canonical, (str, dict))
+            or (request_payload is not None and not isinstance(request_payload, dict))
+        ):
             raise HTTPException(status_code=422, detail="verify envelope is invalid")
         canonical_bytes = (
             canonical_json_bytes(canonical)
             if isinstance(canonical, dict)
             else canonical.encode("utf-8")
         )
-        replay = boundary.verify(result, canonical_bytes)
+        replay = boundary.verify(result, canonical_bytes, request_payload)
         return {
             "verified": replay.verified,
             "reason": replay.reason,

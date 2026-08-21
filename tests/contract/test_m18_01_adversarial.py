@@ -105,12 +105,12 @@ def test_result_closure_rejects_digest_identity_support_and_review_tampering() -
         BiomarkerPanelUpstreamResolutionResult.model_validate(
             result.model_copy(update={"result_id": "result.tampered"})
         )
-    with pytest.raises(ValidationError, match="supported upstream"):
+    with pytest.raises(ValidationError, match="review-only upstream"):
         BiomarkerPanelUpstreamResolutionResult.model_validate(
             result.model_copy(
                 update={
                     "support_decision": SupportDecision(
-                        status=SupportStatus.REVIEW_REQUIRED,
+                        status=SupportStatus.SUPPORTED,
                         reason_code="review",
                         rationale="Forced review.",
                     )

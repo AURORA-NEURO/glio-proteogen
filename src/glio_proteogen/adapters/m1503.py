@@ -15,7 +15,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import RequestBodyTooLargeError, read_bounded
+from glio_proteogen.adapters.limits import (
+    RequestBodyTooLargeError,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m15_03 import (
     M1503_MAX_CANONICAL_REQUEST_BYTES,
     M1503_MAX_CANONICAL_RESULT_BYTES,
@@ -45,6 +49,11 @@ _OUTPUT_EXISTS: Final = "output already exists"
 app = FastAPI(
     title="GLIO-PROTEOGEN M15-03 mechanistic feature constructor",
     version="0.1.0-provisional",
+)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_bytes=M1503_MAX_CANONICAL_REQUEST_BYTES,
+    result_max_bytes=M1503_MAX_CANONICAL_RESULT_BYTES,
 )
 m1503_app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 

@@ -36,6 +36,17 @@ def test_service_returns_supported_deterministic_completed_result() -> None:
     assert {baseline.kind.value for baseline in first.dossier.baselines} == {"simple", "mature"}
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2303Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2303Plugin(service).replay(result, altered)
+
+
 def test_failed_declared_metric_is_visible_without_unsafe_abstention() -> None:
     request = _request()
     simple = request.baseline_runs[0]

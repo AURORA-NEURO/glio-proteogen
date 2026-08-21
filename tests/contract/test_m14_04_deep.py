@@ -31,6 +31,7 @@ from glio_proteogen.contracts.m14_04 import (
 )
 from glio_proteogen.contracts.m14_04.canonical import normalized_request
 from glio_proteogen.kernel.canonical import canonical_json_bytes
+from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution.m14_04_network_state_mechanism_inference import (
     M1404MechanismAuthorizationError,
     M1404MechanismEngine,
@@ -118,6 +119,9 @@ def test_uncertainty_is_explicit_on_supported_and_abstained_paths() -> None:
 def test_posterior_result_has_counter_evidence_and_provenance() -> None:
     result = M1404MechanismEngine().infer(build_scenario_request())
     assert result.status is MechanismInferenceStatus.INFERRED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required is True
+    assert result.uncertainty.measurement.probability is None
     assert result.estimates[0].counter_evidence
     assert result.provenance.module_id == "GLIO-PROTEOGEN-M14-04"
     assert result.parent_target == "protein_subtype"
@@ -155,8 +159,10 @@ def test_request_and_result_closure_reject_forged_payloads() -> None:
     duplicated_findings["result_digest"] = result_payload_digest(duplicated_findings)
     with pytest.raises(ValueError, match="finding ids"):
         ProteinSubtypeMechanismInferenceResult.model_validate(duplicated_findings, strict=True)
-    with pytest.raises(ValueError, match="inferred result"):
-        ProteinSubtypeMechanismInferenceResult.model_validate(resigned(estimates=()), strict=True)
+    with pytest.raises(ValueError, match="review-only"):
+        ProteinSubtypeMechanismInferenceResult.model_validate(
+            resigned(support_decision={**result.support_decision.model_dump(mode="python"), "status": SupportStatus.SUPPORTED}, human_review_required=False), strict=True
+        )
     invalid_abstention = {
         **abstained.model_dump(mode="python"),
         "estimates": result.estimates,

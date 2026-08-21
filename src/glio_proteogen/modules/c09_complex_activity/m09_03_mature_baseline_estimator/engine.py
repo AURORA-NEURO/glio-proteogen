@@ -455,22 +455,27 @@ class M0903BaselineEstimator:
             raise M0903InputError("result_limit")
         return BuiltM0903Result(result=result, canonical_bytes=canonical_bytes)
 
-    def verify(self, result: object, canonical_bytes: bytes | None = None) -> bool:
-        try:
-            typed = _RESULT_ADAPTER.validate_python(result, strict=True)
-        except (TypeError, ValueError, ValidationError):
+    def verify(
+        self,
+        result: object,
+        canonical_bytes: bytes | None = None,
+        request: object | None = None,
+    ) -> bool:  # noqa: PLR0911, RUF100
+        typed = _validated_result(result)
+        if typed is None:
             return False
-        if typed.provenance != _provenance(typed.request):
-            return False
-        if canonical_bytes is not None:
-            if (
-                type(canonical_bytes) is not bytes
-                or len(canonical_bytes) > M0903_MAX_CANONICAL_RESULT_BYTES
-            ):
-                return False
-            if canonical_bytes != canonical_json_bytes(typed.model_dump(mode="json")):
-                return False
-        return typed.result_digest == result_payload_digest(typed)
+        canonical_ok = canonical_bytes is None or (
+            type(canonical_bytes) is bytes
+            and len(canonical_bytes) <= M0903_MAX_CANONICAL_RESULT_BYTES
+            and canonical_bytes == canonical_json_bytes(typed.model_dump(mode="json"))
+        )
+        digest_ok = typed.provenance == _provenance(
+            typed.request
+        ) and typed.result_digest == result_payload_digest(typed)
+        replay_ok = request is None or (
+            self.construct(request).result.model_dump(mode="json") == typed.model_dump(mode="json")
+        )
+        return canonical_ok and digest_ok and replay_ok
 
     def execute(self, request: object) -> BuiltM0903Result:
         return self.construct(request)
@@ -480,6 +485,13 @@ def estimate_complex_activity_baseline(request: object) -> BuiltM0903Result:
     """Estimate one complex-activity baseline with explicit safe failure."""
 
     return M0903BaselineEstimator().construct(request)
+
+
+def _validated_result(result: object) -> ComplexActivityBaselineResult | None:
+    try:
+        return _RESULT_ADAPTER.validate_python(result, strict=True)
+    except (TypeError, ValueError, ValidationError):
+        return None
 
 
 __all__ = [

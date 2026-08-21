@@ -32,6 +32,8 @@ _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_UNSUPPORTED_MEDIA = 415
+_HTTP_TOO_LARGE = 413
 
 
 def test_api_and_cli_export_identical_schema_inventory() -> None:
@@ -54,7 +56,11 @@ def test_api_and_cli_validate_identical_canonical_request(tmp_path) -> None:
     request_path.write_bytes(encoded)
 
     with TestClient(m0602_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-02/validate", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-02/validate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0602_cli.app, ["validate", str(request_path)])
 
     assert api.status_code == _HTTP_OK
@@ -68,7 +74,11 @@ def test_api_and_cli_reject_duplicate_keys_without_leaking_secret(tmp_path) -> N
     request_path.write_bytes(payload)
 
     with TestClient(m0602_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-02/validate", content=payload)
+        api = client.post(
+            "/v1/modules/M06-02/validate",
+            content=payload,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0602_cli.app, ["validate", str(request_path)])
 
     assert api.status_code == _HTTP_UNPROCESSABLE
@@ -84,7 +94,11 @@ def test_api_and_cli_construct_identical_canonical_result(tmp_path) -> None:
     request_path.write_bytes(encoded)
 
     with TestClient(m0602_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-02/construct", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-02/construct",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0602_cli.app, ["construct", str(request_path)])
 
     assert api.status_code == _HTTP_OK
@@ -95,6 +109,23 @@ def test_api_and_cli_construct_identical_canonical_result(tmp_path) -> None:
     assert json.loads(api_payload["canonical"]) == cli_payload
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    payload = _request().model_dump(mode="json")
+    with TestClient(m0602_api.create_app()) as client:
+        wrong_media = client.post(
+            "/v1/modules/M06-02/construct",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M06-02/construct",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == _HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == _HTTP_TOO_LARGE
+
+
 def test_api_and_cli_sanitize_unknown_contract_and_invalid_request(tmp_path) -> None:
     invalid_path = tmp_path / "invalid.json"
     invalid_path.write_bytes(b"{}")
@@ -103,7 +134,11 @@ def test_api_and_cli_sanitize_unknown_contract_and_invalid_request(tmp_path) -> 
     invalid = runner.invoke(m0602_cli.app, ["validate", str(invalid_path)])
     with TestClient(m0602_api.create_app()) as client:
         api_unknown = client.get("/v1/modules/M06-02/schemas/unknown")
-        api_invalid = client.post("/v1/modules/M06-02/validate", content=b"{}")
+        api_invalid = client.post(
+            "/v1/modules/M06-02/validate",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
 
     assert unknown.exit_code != 0
     assert invalid.exit_code != 0
@@ -133,6 +168,7 @@ def test_api_denies_withheld_consent_before_construction() -> None:
         response = client.post(
             "/v1/modules/M06-02/construct",
             content=canonical_json_bytes(withheld.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == _HTTP_FORBIDDEN
     assert "authorization denied" in response.text
@@ -147,10 +183,15 @@ def test_api_construct_sanitizes_validation_and_input_failures() -> None:
             raise m0602_engine.RepresentationInputError("result_bytes")
 
     with TestClient(m0602_api.create_app(FailingService())) as client:  # type: ignore[arg-type]
-        invalid = client.post("/v1/modules/M06-02/construct", content=b"{}")
+        invalid = client.post(
+            "/v1/modules/M06-02/construct",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
         rejected = client.post(
             "/v1/modules/M06-02/construct",
             content=canonical_json_bytes(_request().model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert invalid.status_code == _HTTP_UNPROCESSABLE
     assert rejected.status_code == _HTTP_UNPROCESSABLE
@@ -179,6 +220,7 @@ def test_api_validate_denies_withheld_consent() -> None:
         response = client.post(
             "/v1/modules/M06-02/validate",
             content=canonical_json_bytes(withheld.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == _HTTP_FORBIDDEN
 

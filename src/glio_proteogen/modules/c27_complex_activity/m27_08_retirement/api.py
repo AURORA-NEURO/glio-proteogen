@@ -11,7 +11,10 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m27_08 import (
+    M2708_MAX_CANONICAL_REQUEST_BYTES,
+    M2708_MAX_CANONICAL_RESULT_BYTES,
     ComplexActivityRetirementResult,
     contract_json_schema,
     contract_json_schemas,
@@ -21,6 +24,11 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement.service impor
 
 def create_app() -> FastAPI:
     api = FastAPI(title="GLIO-PROTEOGEN M27-08")
+    api.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2708_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2708_MAX_CANONICAL_RESULT_BYTES,
+    )
     service = M2708Service()
 
     @api.get("/v1/contracts/M27-08/schema")
@@ -34,6 +42,9 @@ def create_app() -> FastAPI:
         return contract_json_schema(name)
 
     async def body(request: Request) -> dict[str, Any]:
+        media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
             raw = await request.body()
             value = json.loads(raw)
@@ -65,11 +76,20 @@ def create_app() -> FastAPI:
 
     @api.post("/v1/modules/M27-08/verify")
     async def verify(request: Request) -> JSONResponse:
+        media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+        if media_type != "application/json":
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
         try:
-            result = ComplexActivityRetirementResult.model_validate_json(
-                await request.body(), strict=True
+            decoded = json.loads(await request.body())
+            if not isinstance(decoded, dict):
+                raise ValueError
+            candidate = decoded.get("result", decoded)
+            result = ComplexActivityRetirementResult.model_validate(candidate, strict=True)
+            supplied = decoded.get("request")
+            typed_request = (
+                service.validate_request(supplied) if supplied is not None else None
             )
-            return JSONResponse({"verified": service.verify(result)})
+            return JSONResponse({"verified": service.verify(result, typed_request)})
         except (ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="result verification failed") from error
 

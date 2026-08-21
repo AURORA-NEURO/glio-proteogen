@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from evals.m21_03.fixture import denied_request
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m21_03 import (
@@ -24,6 +25,7 @@ from glio_proteogen.modules.c21_reference_material.m21_03_internal_benchmark_abl
     M2103AuthorizationError,
     M2103Plugin,
     M2103Service,
+    create_app,
 )
 from tests.contract.test_m21_03_provisional import (
     _completed_result,
@@ -158,3 +160,16 @@ def test_plugin_rejects_malformed_json_and_denied_mapping() -> None:
     denied = denied_request()
     with pytest.raises(M2103AuthorizationError):
         plugin.validate(BenchmarkSubmission(request=denied.model_dump_json()))
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2103Service().generate(request)
+    assert result.dossier is not None
+    forged_dossier = result.dossier.model_copy(update={"dossier_id": "forged"})
+    forged = _self_rehashed(result, dossier=forged_dossier)
+    response = TestClient(create_app()).post(
+        "/v1/modules/M21-03/verify",
+        json={"request": request.model_dump(mode="json"), "result": forged.model_dump(mode="json")},
+    )
+    assert response.status_code == 422  # noqa: PLR2004

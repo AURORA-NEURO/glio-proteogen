@@ -18,6 +18,7 @@ from glio_proteogen.contracts.m18_06 import (
     ReviewerAssignment,
     ReviewWorkspaceConfiguration,
 )
+from glio_proteogen.contracts.m18_06.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -250,3 +251,25 @@ def test_tampered_result_digest_is_rejected() -> None:
 
     with pytest.raises(m1806.M1806ReplayError, match="payload digest"):
         m1806.M1806Engine().replay(tampered)
+    resigned = result.model_copy(update={"human_review_required": False})
+    resigned = resigned.model_copy(update={"result_digest": result_payload_digest(resigned)})
+    with pytest.raises(m1806.M1806ReplayError, match="deterministic replay"):
+        m1806.M1806Engine().replay(resigned)
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m1806.M1806Service().adjudicate(request)
+    altered = request.model_copy(update={"request_id": "request.m1806.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1806.M1806Service().replay(result, altered)
+
+
+def test_plugin_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m1806.M1806Plugin().run(request)
+    altered = request.model_copy(update={"request_id": "request.m1806.plugin-altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1806.M1806Plugin().replay(result, altered)

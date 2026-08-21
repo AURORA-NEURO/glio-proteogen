@@ -92,5 +92,12 @@ class M2301Plugin(ModulePlugin[object, ValidatedM2301Request, VariantPeptideRefe
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 
+    def replay(
+        self,
+        result: VariantPeptideReferenceTruthResult,
+        request: CurateVariantPeptideReferenceTruthRequest | None = None,
+    ) -> VariantPeptideReferenceTruthResult:
+        return self._service.verify_replay(result, request)
+
 
 __all__ = ["M2301Plugin", "ReferenceTruthSubmission", "ValidatedM2301Request"]

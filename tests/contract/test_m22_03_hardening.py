@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m22_03 import (
@@ -52,6 +53,10 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
     UpstreamDecisionReference,
     UpstreamDecisionState,
+)
+from glio_proteogen.modules.c21_reference_material.m22_03_internal_benchmark_ablation import (
+    M2203Service,
+    create_app,
 )
 
 
@@ -400,3 +405,18 @@ def test_result_replay_identity_provenance_and_findings_are_closed() -> None:
                 update={"module_id": "GLIO-PROTEOGEN-M22-01"}
             ),
         )
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2203Service().generate(request)
+    forged = result.model_copy(update={"status": BenchmarkStatus.ABSTAINED})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M22-03/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004

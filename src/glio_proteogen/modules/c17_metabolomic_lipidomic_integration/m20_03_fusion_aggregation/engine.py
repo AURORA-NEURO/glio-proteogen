@@ -318,10 +318,11 @@ class M2003Engine:
                 evidence=evidence,
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="component_specific_fusion_complete",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="component_specific_fusion_review_only",
                 rationale=(
-                    "Attributable source contributions satisfy the declared reliability policy."
+                    "Attributable caller-declared contributions are retained as an integrated "
+                    "evidence object for review; they do not establish calibrated biology."
                 ),
             )
             abstention_reason = None
@@ -343,7 +344,7 @@ class M2003Engine:
             "provenance": _provenance(request),
             "evidence": evidence,
             "limitations": _limitations(),
-            "human_review_required": bool(findings),
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteinSubtypeIntegratedEvidenceResult.model_construct(**payload)

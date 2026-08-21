@@ -322,7 +322,7 @@ def test_result_closure_rejects_request_and_evidence_tampering() -> None:
     with pytest.raises(ValueError, match="request digest"):
         _validate_result(result.model_copy(update={"request_digest": zero}))
 
-    with pytest.raises(ValueError, match="supported attributable"):
+    with pytest.raises(ValueError, match="result digest"):
         _validate_result(
             result.model_copy(
                 update={

@@ -25,6 +25,7 @@ from tests.contract.test_m20_08_hardening import _request
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE_ENTITY = 422
+_HTTP_PAYLOAD_TOO_LARGE = 413
 
 
 class _RejectingService(M2008Service):
@@ -71,6 +72,15 @@ def test_fastapi_parse_once_error_paths_are_sanitized() -> None:
     assert invalid_envelope.status_code == _HTTP_UNPROCESSABLE_ENTITY
     malformed_envelope = client.post("/v1/modules/M20-08/verify", content=b"{")
     assert malformed_envelope.status_code == _HTTP_UNPROCESSABLE_ENTITY
+
+
+def test_fastapi_request_ceiling_applies_before_route_parsing() -> None:
+    client = TestClient(create_app())
+    response = client.post(
+        "/v1/modules/M20-08/monitor",
+        content=b"{" + b"x" * M2008_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_fastapi_service_errors_are_sanitized() -> None:

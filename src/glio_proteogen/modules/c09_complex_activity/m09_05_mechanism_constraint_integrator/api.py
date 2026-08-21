@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m09_05 import (
     M0905_MAX_CANONICAL_REQUEST_BYTES,
     IntegrateComplexActivityConstraintsRequest,
@@ -47,6 +48,10 @@ def create_app(service: M0905Service | None = None) -> FastAPI:
 
     integration_service = service or M0905Service()
     application = FastAPI(title="GLIO Proteogen M09-05", version="0.1.0-provisional")
+    application.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0905_MAX_CANONICAL_REQUEST_BYTES,
+    )
 
     @application.get("/v1/modules/M09-05/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:

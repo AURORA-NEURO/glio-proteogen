@@ -25,14 +25,18 @@ from glio_proteogen.modules.c09_complex_stoichiometry.m09_08_evidence_explanatio
 )
 from tests.modules.c09_complex_stoichiometry.test_m09_08_publisher import _request
 
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
+
 
 def test_api_validate_publish_and_schema_are_strict() -> None:
     request = _request()
     payload = request.model_dump(mode="json")
     with TestClient(create_app(M0908Service())) as client:
+        headers = {"content-type": "application/json"}
         schema = client.get("/v1/modules/M09-08/schemas/verification")
-        validated = client.post("/v1/modules/M09-08/validate", json=payload)
-        published = client.post("/v1/modules/M09-08/publish", json=payload)
+        validated = client.post("/v1/modules/M09-08/validate", json=payload, headers=headers)
+        published = client.post("/v1/modules/M09-08/publish", json=payload, headers=headers)
         unknown = client.get("/v1/modules/M09-08/schemas/unknown")
 
     assert schema.status_code == HTTPStatus.OK
@@ -50,10 +54,28 @@ def test_api_rejects_duplicate_json_keys_without_leaking_details() -> None:
         response = client.post(
             "/v1/modules/M09-08/validate",
             content=body[:-1] + ',"request_id":"forged"}',
+            headers={"content-type": "application/json"},
         )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "traceback" not in response.text.casefold()
+
+
+def test_api_enforces_media_type_and_preparse_request_limit() -> None:
+    payload = _request().model_dump(mode="json")
+    with TestClient(create_app(M0908Service())) as client:
+        wrong_media = client.post(
+            "/v1/modules/M09-08/publish",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M09-08/publish",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_cli_and_plugin_emit_the_same_canonical_result(tmp_path) -> None:
@@ -115,7 +137,11 @@ def test_api_error_handlers_cover_validation_authorization_and_input_failure() -
         denied_publish = client.post(
             "/v1/modules/M09-08/publish", json=denied.model_dump(mode="json")
         )
-        malformed = client.post("/v1/modules/M09-08/validate", content=b"{not-json")
+        malformed = client.post(
+            "/v1/modules/M09-08/validate",
+            content=b"{not-json",
+            headers={"content-type": "application/json"},
+        )
     with TestClient(create_app(InputRejectingService())) as client:
         rejected = client.post("/v1/modules/M09-08/publish", json=request.model_dump(mode="json"))
 

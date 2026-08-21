@@ -38,9 +38,15 @@ class M2206Service:
         self,
         result: object,
         *,
+        request: ChallengeProteinRnaDiscordanceRobustnessRequest | None = None,
         replay: bool = True,
     ) -> ProteinRnaDiscordanceRobustnessChallengeResult:
-        return self._engine.verify(result, replay=replay)
+        verified = self._engine.verify(result, replay=replay)
+        if request is not None and (
+            verified.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
+        return verified
 
 
 __all__ = ["M2206Service"]

@@ -104,7 +104,7 @@ def test_qualified_and_abstained_policies_are_explicit() -> None:
     qualified = engine.infer(
         build_scenario_request(policy=_policy(tier=EvidenceTier.EXPLORATORY))
     )
-    assert qualified.status is AdapterStatus.ADAPTED
+    assert qualified.status is AdapterStatus.ABSTAINED
     assert qualified.policy_decision.status is PolicyDecisionStatus.QUALIFIED
     blocked = engine.infer(
         build_scenario_request(policy=_policy(permitted=("Recommend treatment.",)))

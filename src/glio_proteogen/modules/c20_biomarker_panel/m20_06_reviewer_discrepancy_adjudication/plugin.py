@@ -91,8 +91,12 @@ class M2006Plugin(ModulePlugin[object, ValidatedM2006Request, ProteinSubtypeAdju
             raise _InvalidExecutionTokenError
         return self._service.adjudicate(request.request)
 
-    def replay(self, result: ProteinSubtypeAdjudicationResult) -> ProteinSubtypeAdjudicationResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: ProteinSubtypeAdjudicationResult,
+        request: AdjudicateProteinSubtypeQueueRequest | None = None,
+    ) -> ProteinSubtypeAdjudicationResult:
+        return self._service.replay(result, request)
 
 
 __all__ = ["AdjudicationSubmission", "M2006Plugin", "ValidatedM2006Request"]

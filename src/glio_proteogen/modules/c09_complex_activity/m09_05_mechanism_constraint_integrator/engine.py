@@ -375,6 +375,7 @@ class M0905ConstraintIntegrator:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> IntegrateComplexActivityConstraintsVerification:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
@@ -409,6 +410,9 @@ class M0905ConstraintIntegrator:
         expected_bytes = canonical_json_bytes(typed.model_dump(mode="json"))
         content_verified = canonical_bytes is None or canonical_bytes == expected_bytes
         deterministic_verified = typed.result_digest == result_payload_digest(typed)
+        if request is not None:
+            regenerated = self.integrate(request).result
+            deterministic_verified = deterministic_verified and typed == regenerated
         verified = content_verified and deterministic_verified
         reason = (
             ConstraintReplayReason.VERIFIED

@@ -24,6 +24,7 @@ from glio_proteogen.contracts.m16_02 import (
 )
 from glio_proteogen.contracts.m16_02.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
+from glio_proteogen.kernel.models import EstimateState
 from glio_proteogen.modules.c16_kinophos_object_consumer.m16_02_cross_source_alignment_reconciliation import (
     M1602AlignmentEngine,
     M1602AuthorizationError,
@@ -153,10 +154,25 @@ def evaluate() -> dict[str, object]:
     checks.append(
         EvalCheck(
             "uncertainty_provenance_complete",
-            first.uncertainty.measurement.probability == 0.9
+            all(
+                dimension.state is EstimateState.NOT_ESTIMABLE
+                and dimension.probability is None
+                for dimension in (
+                    first.uncertainty.measurement,
+                    first.uncertainty.sampling,
+                    first.uncertainty.parameter,
+                    first.uncertainty.model_form,
+                    first.uncertainty.identification,
+                    first.uncertainty.support,
+                    first.uncertainty.transport,
+                )
+            )
             and len(first.provenance.control_decisions) == 7
+            and first.provenance.configuration_digest
+            == first.request.configuration.reference_artifact.digest
+            and bool(first.provenance.input_digests)
             and first.result_digest == result_payload_digest(first),
-            "seven uncertainty dimensions, controls, and digest are explicit",
+            "seven uncertainty dimensions, control roles, input/configuration bindings, and digest are explicit",
         )
     )
 

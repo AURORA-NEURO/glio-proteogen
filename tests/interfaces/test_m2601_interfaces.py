@@ -44,9 +44,18 @@ def test_fastapi_schema_validate_register_verify_parity() -> None:
     registered = client.post("/v1/modules/M26-01/register", content=body, headers=headers)
     assert registered.status_code == HTTPStatus.OK
     result = registered.json()
-    verified = client.post("/v1/modules/M26-01/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M26-01/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2601.forged"})
+    mismatch = client.post(
+        "/v1/modules/M26-01/verify",
+        json={"request": forged.model_dump(mode="json"), "result": result},
+    )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_fastapi_sanitizes_invalid_and_nonobject_replay() -> None:
@@ -124,8 +133,8 @@ def test_interfaces_reject_oversized_request_and_result_before_parse(tmp_path: P
     client = TestClient(m2601_api.create_app())
     oversized = b"{" + b"a" * M2601_MAX_CANONICAL_RESULT_BYTES + b"}"
     api_response = client.post("/v1/modules/M26-01/verify", content=oversized)
-    assert api_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert "replay envelope JSON is invalid" in api_response.text
+    assert api_response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "request body exceeds the byte limit" in api_response.text
     assert "StrictJsonError" not in api_response.text
 
 

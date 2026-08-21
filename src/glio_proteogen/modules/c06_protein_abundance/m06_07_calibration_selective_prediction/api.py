@@ -8,11 +8,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m06_07 import (
     M0607_MAX_CANONICAL_REQUEST_BYTES,
+    M0607_MAX_CANONICAL_RESULT_BYTES,
     CalibrateSelectiveProteinAbundanceRequest,
     contract_json_schema,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -43,6 +46,9 @@ def _validation_error(error: ValidationError) -> HTTPException:
 
 
 async def _strict_body(request: Request) -> bytes:
+    media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if media_type != "application/json":
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
     body = await request.body()
     try:
         strict_json_loads(body, max_bytes=M0607_MAX_CANONICAL_REQUEST_BYTES)
@@ -51,11 +57,16 @@ async def _strict_body(request: Request) -> bytes:
     return body
 
 
-def create_app(service: M0607Service | None = None) -> FastAPI:
+def create_app(service: M0607Service | None = None) -> FastAPI:  # noqa: C901
     """Create an isolated API app with no persistence or model side effects."""
 
     calibration_service = service or M0607Service()
     app = FastAPI(title="GLIO Proteogen M06-07", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0607_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0607_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M06-07/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:
@@ -94,6 +105,34 @@ def create_app(service: M0607Service | None = None) -> FastAPI:
                 "canonical": built.canonical_bytes.decode("utf-8"),
             }
         )
+
+    @app.post("/v1/modules/M06-07/verify")
+    async def verify(request: Request) -> JSONResponse:
+        body = await _strict_body(request)
+        try:
+            envelope = strict_json_loads(body, max_bytes=M0607_MAX_CANONICAL_RESULT_BYTES)
+            if not isinstance(envelope, dict):
+                return JSONResponse(
+                    status_code=422,
+                    content={"detail": "verification envelope invalid"},
+                )
+            result = envelope.get("result")
+            original = envelope.get("request")
+            canonical = envelope.get("canonical")
+            canonical_bytes = canonical.encode("utf-8") if isinstance(canonical, str) else None
+            result_payload = canonical_json_bytes(result)
+            request_payload = canonical_json_bytes(original)
+            verified = calibration_service.verify_json(
+                result_payload,
+                request_payload,
+                canonical_bytes,
+            )
+        except (StrictJsonError, TypeError, ValueError, ValidationError) as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M06-07 result verification failed",
+            ) from error
+        return JSONResponse(content=verified.model_dump(mode="json"))
 
     @app.exception_handler(CalibrationInputError)
     async def calibration_input_error(

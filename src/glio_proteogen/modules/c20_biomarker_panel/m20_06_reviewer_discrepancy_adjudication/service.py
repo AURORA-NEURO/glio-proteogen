@@ -25,7 +25,15 @@ class M2006Service:
     def adjudicate(self, candidate: object) -> ProteinSubtypeAdjudicationResult:
         return self._engine.adjudicate(candidate)
 
-    def replay(self, result: ProteinSubtypeAdjudicationResult) -> ProteinSubtypeAdjudicationResult:
+    def replay(
+        self,
+        result: ProteinSubtypeAdjudicationResult,
+        request: AdjudicateProteinSubtypeQueueRequest | None = None,
+    ) -> ProteinSubtypeAdjudicationResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 

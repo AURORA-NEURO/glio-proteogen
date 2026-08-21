@@ -46,6 +46,10 @@ from glio_proteogen.kernel.models import (
     UncertaintyProfile,
 )
 
+
+class M1306ReplayError(ValueError):
+    """Raised when a perturbation result fails deterministic replay."""
+
 _EXPECTED_CONTROL_STATES: Final = {
     "approved_configuration": "accepted",
     "identity_lineage": "resolved",
@@ -334,6 +338,20 @@ class M1306PerturbationSensitivityEngine:
         payload["result_digest"] = result_payload_digest(digest_source)
         return ProteotypePerturbationSensitivityResult.model_validate(payload)
 
+    def verify(
+        self, result: ProteotypePerturbationSensitivityResult
+    ) -> ProteotypePerturbationSensitivityResult:
+        """Recompute the bounded surface and reject semantic self-rehashes."""
+        validated = ProteotypePerturbationSensitivityResult.model_validate(result, strict=True)
+        if validated.request_digest != canonical_request_digest(validated.request):
+            raise M1306ReplayError
+        if validated.result_digest != result_payload_digest(validated):
+            raise M1306ReplayError
+        expected = self.compute(validated.request)
+        if expected.model_dump(mode="json") != validated.model_dump(mode="json"):
+            raise M1306ReplayError
+        return validated
+
 
 def simulate_proteotype_perturbation_sensitivity(
     candidate: object,
@@ -346,6 +364,7 @@ def simulate_proteotype_perturbation_sensitivity(
 __all__ = [
     "M1306AuthorizationError",
     "M1306PerturbationSensitivityEngine",
+    "M1306ReplayError",
     "preflight_m1306_authorization",
     "simulate_proteotype_perturbation_sensitivity",
 ]

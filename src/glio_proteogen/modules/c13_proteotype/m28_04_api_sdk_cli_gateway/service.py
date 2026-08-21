@@ -41,7 +41,11 @@ class M2804Service:
     def publish(self, request: object) -> ProteinRnaDiscordanceAccessSurfaceResult:
         return self._engine.publish(self.validate_request(request))
 
-    def replay(self, result: object) -> ProteinRnaDiscordanceAccessSurfaceResult:
+    def replay(
+        self,
+        result: object,
+        request: PublishProteinRnaDiscordanceAccessSurfaceRequest | None = None,
+    ) -> ProteinRnaDiscordanceAccessSurfaceResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2804_MAX_CANONICAL_RESULT_BYTES)
             typed = ProteinRnaDiscordanceAccessSurfaceResult.model_validate_json(
@@ -58,6 +62,10 @@ class M2804Service:
             typed = ProteinRnaDiscordanceAccessSurfaceResult.model_validate(result, strict=True)
         else:
             raise TypeError from None
+        if request is not None and typed.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError from None
         return self._engine.replay(typed)
 
     @property

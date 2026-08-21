@@ -128,19 +128,19 @@ def _request(
     )
 
 
-def test_presented_workspace_has_all_safe_views_and_provenance() -> None:
+def test_review_workspace_has_all_safe_views_and_non_estimable_uncertainty() -> None:
     result = M1605PresentationEngine().present(_request())
 
-    assert result.status is WorkspacePresentationStatus.PRESENTED
+    assert result.status is WorkspacePresentationStatus.REVIEW_REQUIRED
     assert result.workspace is not None
     assert {view.kind for view in result.workspace.views} == set(WorkspaceViewKind)
     assert all(view.safe_default for view in result.workspace.views)
     assert all(
         view.items[0].status is WorkspaceItemStatus.AVAILABLE for view in result.workspace.views
     )
-    assert result.support_decision.status is SupportStatus.SUPPORTED
-    assert not result.human_review_required
-    assert result.uncertainty.transport.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.human_review_required
+    assert result.uncertainty.transport.probability is None
     assert len(result.provenance.control_decisions) == 7
 
 

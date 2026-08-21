@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m20_04 import (
     IntendedUseKind,
     PolicyDecisionStatus,
 )
+from glio_proteogen.contracts.m20_04.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c17_metabolomic_lipidomic_integration import (
     m20_04_intended_use_adapter as m2004,
@@ -27,7 +28,7 @@ def test_supported_registration_adapts_and_replays_deterministically() -> None:
     assert first.status is AdapterStatus.ADAPTED
     assert first.adapted_object is not None
     assert first.policy_decision.status is PolicyDecisionStatus.ALLOWED
-    assert first.support_decision.status is SupportStatus.SUPPORTED
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert first.result_digest == second.result_digest
     assert engine.replay(first) == first
 
@@ -86,6 +87,10 @@ def test_upstream_media_and_tamper_replay_are_closed() -> None:
     result = engine.adapt(request)
     with pytest.raises(m2004.M2004ReplayError, match="payload digest"):
         engine.replay(result.model_copy(update={"human_review_required": True}))
+    semantic = result.model_copy(update={"human_review_required": True})
+    semantic = semantic.model_copy(update={"result_digest": result_payload_digest(semantic)})
+    with pytest.raises(m2004.M2004ReplayError, match="deterministic replay"):
+        engine.replay(semantic)
 
 
 def test_service_and_plugin_keep_same_typed_boundary() -> None:
@@ -99,3 +104,14 @@ def test_service_and_plugin_keep_same_typed_boundary() -> None:
     assert plugin.descriptor.external_content_traversal is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.descriptor.claim_ceiling_required is True
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    result = m2004.M2004Service().adapt(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2004.M2004Service().replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2004.M2004Plugin().replay(result, altered)
+

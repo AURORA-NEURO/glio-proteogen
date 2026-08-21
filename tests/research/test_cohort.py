@@ -83,6 +83,7 @@ def _valid_contrast() -> CohortLabelContrast:
         ({"log2_median_ratio": float("inf")}, "derived fields"),
         ({"median_difference": 1.0}, "derived from"),
         ({"label_a_median": None}, "two positive"),
+        ({"label_a_observed_replicates": 0}, "positive medians and observed replicates"),
         (
             {"status": "abstained_missing_or_nonpositive", "median_difference": -10.0},
             "abstained contrast",
@@ -206,12 +207,34 @@ def test_cohort_evidence_bundle_is_domain_split_and_recomputable() -> None:
 
 
 def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
+    def sample(label: str, replicate: str) -> ResearchCohortSample:
+        base = _sample("target_supported", f"{label}-{replicate}", replicate)
+        return replace(
+            base,
+            cohort_label=label,
+            request=replace(
+                base.request,
+                mzml_source=(f"<!--{label}-{replicate}-->".encode() + base.request.mzml_source),
+            ),
+        )
+
+    samples = tuple(
+        sample(label, replicate)
+        for label in ("case", "control")
+        for replicate in ("r1", "r2")
+    )
     result = run_research_cohort(
         ResearchCohortRequest(
-            (
-                replace(_sample("target_supported", "case", "r1"), cohort_label="case"),
-                replace(_sample("target_supported", "control", "r1"), cohort_label="control"),
-            )
+            samples,
+            source_manifest=CohortSourceManifest(
+                tuple(
+                    replace(binding, source_id=f"local:{binding.sample_id}")
+                    for binding in CohortSourceManifest.from_requests(
+                        tuple(item.request for item in samples),
+                        replicate_kinds={item.sample_id: "biological" for item in samples},
+                    ).bindings
+                )
+            ),
         )
     )
     assert len(result.label_contrasts) == 1
@@ -225,10 +248,11 @@ def test_cohort_label_contrast_is_descriptive_and_replay_bound() -> None:
     assert dict(result.configuration)["cohort_contrast_version"] == (
         "caller-label-median-contrast-v1"
     )
-    tampered = replace(
-        result,
-        label_contrasts=(replace(contrast, median_ratio=2.0),),
-    )
+    tampered_contrast = object.__new__(type(contrast))
+    for field in contrast.__dataclass_fields__:
+        object.__setattr__(tampered_contrast, field, getattr(contrast, field))
+    object.__setattr__(tampered_contrast, "median_ratio", 2.0)
+    tampered = replace(result, label_contrasts=(tampered_contrast,))
     with pytest.raises(ValueError, match="not reproducible"):
         aggregate_cohort_evidence(tampered)
 

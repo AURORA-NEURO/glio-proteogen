@@ -8,7 +8,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    M2602_MAX_CANONICAL_RESULT_BYTES,
     BuildProteinSubtypeLineageRequest,
     ProteinSubtypeLineageResult,
     canonical_request_digest,
@@ -53,11 +56,24 @@ def _validated_payload(
         ) from error
 
 
-def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
+def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:  # noqa: C901
     """Create an isolated FastAPI application for tests and bounded deployments."""
 
     active_service = service or M2602LineageService()
     app = FastAPI(title="GLIO-PROTEOGEN M26-02", version="0.1.0-provisional")
+    # The middleware must enforce the request ceiling before any route can
+    # materialize a body; result verification has its own stricter route cap.
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
+
+    async def read_bounded(request: Request, *, max_bytes: int) -> bytes:
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(status_code=413, detail="request body exceeds the byte limit")
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     @app.get("/m26-02/schema/{name}")
     async def export_schema(name: str) -> JSONResponse:
@@ -69,22 +85,20 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:
 
     @app.post("/m26-02/validate")
     async def validate(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _validated_payload(raw, active_service)
-        return JSONResponse(
-            {"valid": True, "requestDigest": canonical_request_digest(validated)}
-        )
+        return JSONResponse({"valid": True, "requestDigest": canonical_request_digest(validated)})
 
     @app.post("/m26-02/construct")
     async def construct(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
         validated = _validated_payload(raw, active_service)
         result = active_service.execute(validated)
         return JSONResponse(result.model_dump(mode="json"))
 
     @app.post("/m26-02/verify")
     async def verify(request: Request) -> JSONResponse:
-        raw = await request.body()
+        raw = await read_bounded(request, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
         try:
             decoded = strict_json_loads(raw, max_bytes=MAX_JSON_BYTES)
             del decoded

@@ -103,7 +103,7 @@ def test_result_digest_identifier_and_request_binding_are_immutable() -> None:
             adapter.validate_python(result.model_copy(update={field: value}), strict=True)
     report = result.report
     assert report is not None
-    with pytest.raises(ValidationError, match="supported transport report"):
+    with pytest.raises(ValidationError, match="review-only transport report"):
         adapter.validate_python(result.model_copy(update={"report": None}), strict=True)
     with pytest.raises(ValidationError, match="configuration must equal"):
         adapter.validate_python(

@@ -94,9 +94,19 @@ def test_api_evaluate_and_verify_parity() -> None:
     evaluated = client.post("/v1/modules/M23-04/evaluate", json=_request().model_dump(mode="json"))
     assert evaluated.status_code == _HTTP_OK
     result = evaluated.json()
-    verified = client.post("/v1/modules/M23-04/verify", json={"result": result})
+    request = _request()
+    verified = client.post(
+        "/v1/modules/M23-04/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2304.forged"})
+    mismatch = client.post(
+        "/v1/modules/M23-04/verify",
+        json={"request": forged.model_dump(mode="json"), "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
 
 
 @pytest.mark.skipif(TestClient is None, reason="FastAPI test client is unavailable")

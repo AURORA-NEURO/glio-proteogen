@@ -138,7 +138,15 @@ def test_supported_runtime_is_scoped_calibrated_and_replayable() -> None:
     assert first.canonical_bytes == second.canonical_bytes
     replay = service.verify(first.result, first.canonical_bytes)
     assert replay.verified is True
-    assert replay.result_digest == first.result.result_digest
+
+
+def test_bound_replay_rejects_semantic_mutation() -> None:
+    service = M1007Service()
+    request = _request()
+    built = service.execute(request)
+    tampered = built.result.model_copy(update={"estimate": None})
+    replay = service.verify(tampered, built.canonical_bytes, request)
+    assert replay.verified is False
 
 
 def test_runtime_abstains_for_support_ood_and_unsupported_inputs() -> None:

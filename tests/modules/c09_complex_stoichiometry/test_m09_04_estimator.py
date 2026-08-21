@@ -231,6 +231,15 @@ def test_replay_rejects_tampered_bytes_and_invalid_token() -> None:
         plugin.run(ValidatedM0904Request(request=built.result.request, _seal=object()))
 
 
+def test_bound_replay_rejects_semantic_mutation() -> None:
+    service = M0904Service()
+    request = _request("stable_support")
+    built = service.build(request)
+    tampered = built.result.model_copy(update={"estimates": ()})
+    verification = service.verify(tampered, built.canonical_bytes, request)
+    assert verification.verified is False
+
+
 def test_contract_closes_nonfinite_values_and_diagnostic_requirements() -> None:
     with pytest.raises(ValueError, match="finite"):
         OptimizationDiagnostic(

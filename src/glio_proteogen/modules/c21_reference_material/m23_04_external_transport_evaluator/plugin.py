@@ -86,8 +86,12 @@ class M2304Plugin:
             raise M2304TokenError
         return self._service._engine.evaluate(token.request)
 
-    def replay(self, result: object) -> VariantPeptideExternalTransportResult:
-        return self._service.verify_replay(result)
+    def replay(
+        self,
+        result: object,
+        request: EvaluateVariantPeptideExternalTransportRequest | None = None,
+    ) -> VariantPeptideExternalTransportResult:
+        return self._service.verify_replay(result, request)
 
 
 __all__ = [

@@ -51,11 +51,11 @@ def test_supported_research_request_emits_bounded_proteotype_object() -> None:
     assert result.adapted_object.parent_target == "proteotype"
     assert result.adapted_object.registration.intended_use is IntendedUseKind.RESEARCH
     assert result.policy_decision.status is PolicyDecisionStatus.ALLOWED
-    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert result.emits_parent is False
     assert len(result.provenance.control_decisions) == _CONTROL_COUNT
     assert result.uncertainty.measurement.state.value == "not_estimable"
-    assert result.human_review_required is False
+    assert result.human_review_required is True
 
 
 def test_clinical_review_is_adapted_but_requires_review() -> None:
@@ -143,8 +143,14 @@ def test_service_replay_rejects_request_identifier_and_payload_tamper() -> None:
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "b" * 64}))
     with pytest.raises(m1904.M1904ReplayError, match="identifier"):
         service.replay(result.model_copy(update={"result_id": "result.tampered"}))
-    with pytest.raises(m1904.M1904ReplayError, match="result digest"):
-        service.replay(result.model_copy(update={"human_review_required": True}))
+    with pytest.raises(m1904.M1904ReplayError, match="contract validation"):
+        service.replay(
+            result.model_construct(**{**result.model_dump(), "parent_target": "protein abundance"})
+        )
+
+    altered = request.model_copy(update={"request_id": "request.m1904.altered"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
 
 
 def test_plugin_descriptor_and_strict_validation_parity() -> None:

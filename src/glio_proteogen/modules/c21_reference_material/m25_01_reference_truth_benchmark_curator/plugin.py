@@ -92,5 +92,12 @@ class M2501Plugin(ModulePlugin[object, ValidatedM2501Request, ProteotypeReferenc
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 
+    def replay(
+        self,
+        result: ProteotypeReferenceTruthResult,
+        request: CurateProteotypeReferenceTruthRequest | None = None,
+    ) -> ProteotypeReferenceTruthResult:
+        return self._service.verify_replay(result, request)
+
 
 __all__ = ["M2501Plugin", "ReferenceTruthSubmission", "ValidatedM2501Request"]

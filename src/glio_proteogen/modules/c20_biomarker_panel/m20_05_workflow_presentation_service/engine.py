@@ -385,6 +385,9 @@ class M2005Engine:
             raise M2005ReplayError("M20-05 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2005ReplayError("M20-05 result payload digest mismatch")  # noqa: TRY003
+        expected = self.present(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M2005ReplayError("M20-05 result semantic replay mismatch")  # noqa: TRY003
         return _RESULT_ADAPTER.validate_python(result, strict=True)
 
 

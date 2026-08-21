@@ -39,7 +39,11 @@ class M2204Service:
             )
         return self._engine.evaluate(request)
 
-    def replay(self, result: object) -> ProteinRnaDiscordanceExternalTransportResult:
+    def replay(
+        self,
+        result: object,
+        request: EvaluateProteinRnaDiscordanceExternalTransportRequest | None = None,
+    ) -> ProteinRnaDiscordanceExternalTransportResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=16 * 1024 * 1024)
             result = ProteinRnaDiscordanceExternalTransportResult.model_validate_json(
@@ -53,7 +57,12 @@ class M2204Service:
             result = ProteinRnaDiscordanceExternalTransportResult.model_validate(
                 result, strict=True
             )
-        return self._engine.replay(result)
+        replayed = self._engine.replay(result)
+        if request is not None and (
+            replayed.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
+        return replayed
 
     @property
     def descriptor(self) -> dict[str, object]:

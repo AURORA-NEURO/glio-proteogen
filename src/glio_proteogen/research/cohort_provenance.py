@@ -310,6 +310,7 @@ class CohortSourceManifest:
 
     def validate_independence(self) -> None:
         by_identity: dict[tuple[str, int], list[CohortSourceBinding]] = {}
+        biological = tuple(item for item in self.bindings if item.replicate_kind == "biological")
         for binding in self.bindings:
             by_identity.setdefault(binding.source_identity, []).append(binding)
         for values in by_identity.values():
@@ -317,3 +318,8 @@ class CohortSourceManifest:
                 raise ValueError(
                     "duplicate source identity cannot be used as biological replicates"
                 )
+        for field in ("declared_aliquot_id", "acquisition_id"):
+            values = tuple(getattr(item, field) for item in biological)
+            present = tuple(value for value in values if value is not None)
+            if len(present) != len(set(present)):
+                raise ValueError(f"duplicate {field} cannot be used as biological replicates")

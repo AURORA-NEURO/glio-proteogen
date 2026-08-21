@@ -148,6 +148,21 @@ def test_api_rejects_tampered_result_digest() -> None:
     assert response.status_code == _HTTP_UNPROCESSABLE
 
 
+def test_api_replay_rejects_resigned_semantic_mutation_with_request() -> None:
+    request = _request()
+    result = M2105Engine().evaluate(request)
+    mutated = result.model_copy(update={"status": "abstained"})
+    resigned = mutated.model_copy(update={"result_digest": result.result_digest})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M21-05/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+
+
 def test_replay_rejects_result_ownership_tamper() -> None:
     engine = M2105Engine()
     result = engine.evaluate(_request())

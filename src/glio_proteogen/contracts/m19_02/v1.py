@@ -338,10 +338,9 @@ class ProteotypeAlignmentResult(FrozenModel):
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
-                or self.human_review_required
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("aligned result requires a supported evidence bundle")
+                raise ValueError("aligned result requires a review-only evidence bundle")
             if any(item.review_required for item in self.aligned_bundle.discrepancies):
                 raise ValueError("aligned result cannot contain a review-required discrepancy")
         elif self.aligned_bundle is not None or self.abstention_reason is None:

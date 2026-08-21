@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+from glio_proteogen.contracts.m26_04 import M2604_MAX_CANONICAL_REQUEST_BYTES
 from glio_proteogen.modules.c20_biomarker_panel.m26_04_api_sdk_cli_gateway import (
     GatewaySubmission,
     M2604Client,
@@ -44,9 +45,18 @@ def test_api_schema_validate_publish_and_verify_parity() -> None:
     )
     assert validated.status_code == HTTPStatus.OK
     assert published.status_code == HTTPStatus.OK
-    verified = client.post("/v1/modules/M26-04/verify", json=published.json())
+    verified = client.post(
+        "/v1/modules/M26-04/verify",
+        json={"request": request.model_dump(mode="json"), "result": published.json()},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2604.forged"})
+    mismatch = client.post(
+        "/v1/modules/M26-04/verify",
+        json={"request": forged.model_dump(mode="json"), "result": published.json()},
+    )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_api_unknown_schema_and_duplicate_json_are_sanitized() -> None:
@@ -72,6 +82,15 @@ def test_api_verify_rejects_nonobject_and_malformed_json() -> None:
     )
     assert nonobject.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_api_request_ceiling_applies_before_publish_parsing() -> None:
+    client = TestClient(api.create_app())
+    response = client.post(
+        "/v1/modules/M26-04/publish",
+        content=b"{" + b"x" * M2604_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
 
 
 def test_sdk_and_plugin_return_same_canonical_result() -> None:

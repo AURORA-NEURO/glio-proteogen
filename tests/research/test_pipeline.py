@@ -7,6 +7,7 @@ import io
 import struct
 from dataclasses import replace
 from hashlib import md5, sha256
+from typing import Any, cast
 
 import pytest
 
@@ -154,10 +155,12 @@ def test_pipeline_replay_rejects_tampered_quantification_receipt() -> None:
     )
     result = run_research_protein_inference(request)
     assert result.quantification_receipt is not None
-    tampered = replace(
-        result,
-        quantification_receipt=replace(result.quantification_receipt, raw_total_signal=999.0),
+    forged_receipt = replace(
+        result.quantification_receipt,
+        raw_positive_median=result.quantification_receipt.raw_positive_median,
+        observation_digest="0" * 64,
     )
+    tampered = replace(result, quantification_receipt=forged_receipt)
     with pytest.raises(ValueError, match="digest"):
         replay_research_protein_inference(request, tampered)
 
@@ -616,6 +619,9 @@ def test_pipeline_rejects_receipt_field_replacement_and_malformed_response_hash(
         ("max_peptide_length", 101),
         ("max_spectra", 1.5),
         ("q_value_threshold", True),
+        ("fragment_tolerance_da", True),
+        ("precursor_tolerance_ppm", True),
+        ("max_variable_modifications", True),
     ],
 )
 def test_pipeline_rejects_non_strict_controls(field: str, value: object) -> None:
@@ -639,6 +645,34 @@ def test_pipeline_replay_rejects_forged_digest() -> None:
         replay_research_protein_inference(request, replace(result, result_digest="0" * 64))
 
 
+def test_pipeline_configuration_binds_empty_modification_limit() -> None:
+    base = ResearchRunRequest(
+        "mod-limit",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+        max_variable_modifications=0,
+    )
+    changed = ResearchRunRequest(
+        "mod-limit",
+        _mzml(),
+        b">P1\nMPEPTIDER\n",
+        min_matched_ions=1,
+        min_peptide_length=7,
+        max_peptide_length=12,
+        max_variable_modifications=1,
+    )
+    first = run_research_protein_inference(base)
+    second = run_research_protein_inference(changed)
+    first_configuration = dict(first.configuration)
+    second_configuration = dict(second.configuration)
+    assert first_configuration["max_variable_modifications"] == 0
+    assert second_configuration["max_variable_modifications"] == 1
+    assert first.result_digest != second.result_digest
+
+
 def test_evidence_payload_is_immutable_and_digest_bound() -> None:
     record = EvidenceRecord.create("immutable", "source", "kind", {"nested": [1, 2]})
     assert record.payload_jsonable == {"nested": [1, 2]}
@@ -648,3 +682,27 @@ def test_evidence_payload_is_immutable_and_digest_bound() -> None:
         aggregate_evidence((replace(record, digest="0" * 64),))
     with pytest.raises(TypeError):
         EvidenceRecord.create("bad", "source", "kind", {"unsupported": object()})
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("evidence_id", "renamed"), ("source", "relabeled-source"), ("kind", "relabeled-kind")],
+)
+def test_evidence_record_digest_binds_provenance_identity(field: str, value: str) -> None:
+    record = EvidenceRecord.create("identity-bound", "source", "kind", {"value": 1})
+    tampered = replace(record, **cast("Any", {field: value}))
+    with pytest.raises(ValueError, match="digest"):
+        aggregate_evidence((tampered,))
+
+
+@pytest.mark.parametrize("field", ["evidence_id", "source", "kind"])
+def test_evidence_record_identity_is_bounded(field: str) -> None:
+    values: dict[str, object] = {
+        "evidence_id": "evidence",
+        "source": "source",
+        "kind": "kind",
+        "payload": {},
+    }
+    values[field] = "bad id"
+    with pytest.raises(ValueError, match="identifier"):
+        EvidenceRecord.create(**values)  # type: ignore[arg-type]

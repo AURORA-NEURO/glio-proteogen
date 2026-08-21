@@ -28,7 +28,8 @@ def test_healthy_monitoring_emits_report_and_replays() -> None:
     assert result.health_report.rollback_decision is RollbackDecision.NONE
     assert result.parent_target == "proteotype"
     assert result.emits_parent is False
-    assert result.human_review_required is False
+    assert result.human_review_required is True
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert engine.replay(result) == result
 
 
@@ -140,7 +141,7 @@ def test_mapping_preflight_rejects_missing_controls() -> None:
 def test_tampered_result_digest_is_rejected() -> None:
     engine = m1908.M1908TranslationMonitoringEngine()
     result = engine.infer(_request())
-    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = result.model_copy(update={"result_id": "result.tampered.semantic"})
     with pytest.raises(m1908.M1908ReplayVerificationError, match="digest"):
         engine.replay(tampered)
 

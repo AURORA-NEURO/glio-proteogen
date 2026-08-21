@@ -344,7 +344,7 @@ def test_result_closure_rejects_identifier_and_object_tampering() -> None:
     assert adapted_object is not None
     with pytest.raises(ValueError, match="identifier"):
         _revalidate(result.model_copy(update={"result_id": "result.wrong"}))
-    with pytest.raises(ValueError, match="adapted object"):
+    with pytest.raises(ValueError, match="review-only"):
         _revalidate(
             result.model_copy(
                 update={
@@ -359,7 +359,7 @@ def test_result_closure_rejects_identifier_and_object_tampering() -> None:
         code=AdapterFindingCode.CLAIM_EXCEEDS_CEILING,
         message="Duplicate finding identity.",
     )
-    with pytest.raises(ValueError, match="finding ids"):
+    with pytest.raises(ValueError, match="review-only"):
         _revalidate(result.model_copy(update={"findings": (finding, finding)}))
 
 

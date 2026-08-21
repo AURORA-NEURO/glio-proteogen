@@ -29,6 +29,7 @@ from glio_proteogen.contracts.m16_02 import (
 )
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
+    SupportStatus,
     ArtifactReference,
     ConsentReference,
     ConsentState,
@@ -300,7 +301,8 @@ def test_result_status_and_digest_closure_reject_invalid_transitions() -> None:
         )
     with pytest.raises(ValidationError, match="reconciled result requires"):
         ProteinRnaDiscordanceAlignmentResult.model_validate(
-            result.model_dump(mode="python") | {"human_review_required": True}
+            result.model_dump(mode="python")
+            | {"support_decision": result.support_decision.model_copy(update={"status": SupportStatus.SUPPORTED})}
         )
     review = M1602AlignmentEngine().reconcile(_request(label="warning"))
     with pytest.raises(ValidationError, match="review result requires"):

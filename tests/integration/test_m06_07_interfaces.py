@@ -24,12 +24,17 @@ from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_p
 from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction import (
     cli as m0607_cli,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction.service import (  # noqa: E501
+    M0607Service,
+)
 from tests.modules.c06_protein_abundance.test_m06_07_calibration import _request
 
 _HTTP_OK = 200
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_UNSUPPORTED_MEDIA = 415
+_HTTP_TOO_LARGE = 413
 
 
 def test_api_and_cli_export_identical_schema_inventory() -> None:
@@ -49,7 +54,11 @@ def test_api_and_cli_validate_identical_request(tmp_path) -> None:
     request_path = tmp_path / "request.json"
     request_path.write_bytes(encoded)
     with TestClient(m0607_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-07/validate", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-07/validate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0607_cli.app, ["validate", str(request_path)])
     assert api.status_code == _HTTP_OK
     assert cli.exit_code == 0
@@ -61,12 +70,58 @@ def test_api_and_cli_calibrate_identical_canonical_result(tmp_path) -> None:
     request_path = tmp_path / "request.json"
     request_path.write_bytes(encoded)
     with TestClient(m0607_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-07/calibrate", content=encoded)
+        api = client.post(
+            "/v1/modules/M06-07/calibrate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0607_cli.app, ["calibrate", str(request_path)])
     assert api.status_code == _HTTP_OK
     assert cli.exit_code == 0
     assert api.json()["result"] == json.loads(cli.stdout)
     assert json.loads(api.json()["canonical"]) == json.loads(cli.stdout)
+
+
+def test_api_verify_binds_request_and_rejects_semantic_tamper() -> None:
+    request = _request()
+    built = M0607Service().execute(request)
+    envelope = {
+        "request": request.model_dump(mode="json"),
+        "result": built.result.model_dump(mode="json"),
+        "canonical": built.canonical_bytes.decode("utf-8"),
+    }
+    with TestClient(m0607_api.create_app()) as client:
+        valid = client.post(
+            "/v1/modules/M06-07/verify",
+            content=canonical_json_bytes(envelope),
+            headers={"content-type": "application/json"},
+        )
+        envelope["result"]["status"] = "abstained"
+        tampered = client.post(
+            "/v1/modules/M06-07/verify",
+            content=canonical_json_bytes(envelope),
+            headers={"content-type": "application/json"},
+        )
+    assert valid.status_code == _HTTP_OK
+    assert valid.json()["verified"] is True
+    assert tampered.status_code == _HTTP_UNPROCESSABLE
+
+
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    payload = _request().model_dump(mode="json")
+    with TestClient(m0607_api.create_app()) as client:
+        wrong_media = client.post(
+            "/v1/modules/M06-07/calibrate",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M06-07/calibrate",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == _HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == _HTTP_TOO_LARGE
 
 
 def test_plugin_parse_once_requires_validated_token() -> None:
@@ -93,7 +148,11 @@ def test_duplicate_json_keys_are_rejected_without_secret_leak(tmp_path) -> None:
     request_path = tmp_path / "duplicate.json"
     request_path.write_bytes(payload)
     with TestClient(m0607_api.create_app()) as client:
-        api = client.post("/v1/modules/M06-07/validate", content=payload)
+        api = client.post(
+            "/v1/modules/M06-07/validate",
+            content=payload,
+            headers={"content-type": "application/json"},
+        )
     cli = CliRunner().invoke(m0607_cli.app, ["validate", str(request_path)])
     assert api.status_code == _HTTP_UNPROCESSABLE
     assert "secret" not in api.text
@@ -109,7 +168,11 @@ def test_unknown_schema_and_invalid_request_are_sanitized(tmp_path) -> None:
     invalid = runner.invoke(m0607_cli.app, ["validate", str(invalid_path)])
     with TestClient(m0607_api.create_app()) as client:
         api_unknown = client.get("/v1/modules/M06-07/schemas/unknown")
-        api_invalid = client.post("/v1/modules/M06-07/validate", content=b"{}")
+        api_invalid = client.post(
+            "/v1/modules/M06-07/validate",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
     assert unknown.exit_code != 0
     assert invalid.exit_code != 0
     assert api_unknown.status_code == _HTTP_NOT_FOUND
@@ -138,6 +201,7 @@ def test_api_denies_withheld_consent_before_calibration() -> None:
         response = client.post(
             "/v1/modules/M06-07/calibrate",
             content=canonical_json_bytes(withheld.model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert response.status_code == _HTTP_FORBIDDEN
     assert "authorization denied" in response.text
@@ -178,18 +242,30 @@ def test_api_validation_auth_and_calibration_input_handlers() -> None:
     )
     encoded = canonical_json_bytes(withheld.model_dump(mode="json"))
     with TestClient(m0607_api.create_app()) as client:
-        denied = client.post("/v1/modules/M06-07/validate", content=encoded)
-        invalid = client.post("/v1/modules/M06-07/calibrate", content=b"{}")
+        denied = client.post(
+            "/v1/modules/M06-07/validate",
+            content=encoded,
+            headers={"content-type": "application/json"},
+        )
+        invalid = client.post(
+            "/v1/modules/M06-07/calibrate",
+            content=b"{}",
+            headers={"content-type": "application/json"},
+        )
     assert denied.status_code == _HTTP_FORBIDDEN
     assert invalid.status_code == _HTTP_UNPROCESSABLE
-    with patch.object(
-        m0607_api.M0607Service,
-        "calibrate",
-        side_effect=CalibrationInputError("result_digest"),
-    ), TestClient(m0607_api.create_app()) as client:
+    with (
+        patch.object(
+            m0607_api.M0607Service,
+            "calibrate",
+            side_effect=CalibrationInputError("result_digest"),
+        ),
+        TestClient(m0607_api.create_app()) as client,
+    ):
         rejected = client.post(
             "/v1/modules/M06-07/calibrate",
             content=canonical_json_bytes(_request().model_dump(mode="json")),
+            headers={"content-type": "application/json"},
         )
     assert rejected.status_code == _HTTP_UNPROCESSABLE
     assert rejected.json() == {"detail": "M06-07 input rejected"}

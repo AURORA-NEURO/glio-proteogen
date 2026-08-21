@@ -346,8 +346,12 @@ class M1806Engine:
             )
             status = QueueResultStatus.RECORDED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code=("adjudication_resolved" if resolved else "adjudication_escalated"),
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code=(
+                    "adjudication_resolved_review_required"
+                    if resolved
+                    else "adjudication_escalated"
+                ),
                 rationale=(
                     "The immutable review record preserves blinded decisions and escalation state."
                 ),
@@ -386,6 +390,12 @@ class M1806Engine:
             raise M1806ReplayError("M18-06 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1806ReplayError("M18-06 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(result.request)
+        except Exception as exc:
+            raise M1806ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1806ReplayError("M18-06 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 

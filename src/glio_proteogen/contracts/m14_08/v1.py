@@ -265,9 +265,9 @@ class ProteinSubtypeMechanismEvidenceDossierResult(FrozenModel):
             if (
                 self.dossier is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("review-ready result requires a supported dossier")
+                raise ValueError("review-ready result requires a review-only dossier")
         elif (
             self.dossier is not None
             or self.abstention_reason is None

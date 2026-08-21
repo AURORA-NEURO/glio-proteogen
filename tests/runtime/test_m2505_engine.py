@@ -99,6 +99,17 @@ def test_service_and_plugin_require_validated_submission() -> None:
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2505Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2505.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2505Plugin(service).replay(result, altered)
+
+
 def test_plugin_strict_json_path_is_parse_once() -> None:
     service = M2505Service()
     plugin = M2505Plugin(service)

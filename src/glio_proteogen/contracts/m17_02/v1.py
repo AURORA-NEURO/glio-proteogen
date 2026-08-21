@@ -291,7 +291,8 @@ class VariantPeptideCrossSourceAlignmentResult(FrozenModel):
             if (
                 self.aligned_bundle is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status
+                not in {SupportStatus.SUPPORTED, SupportStatus.REVIEW_REQUIRED}
                 or self.human_review_required
                 or self.aligned_bundle.alignment_status is not AlignmentStatus.ALIGNED
             ):

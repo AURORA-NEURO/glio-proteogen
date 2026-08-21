@@ -97,8 +97,9 @@ class M2305Plugin(
     def replay(
         self,
         result: VariantPeptideSubgroupEvaluationResult,
+        request: EvaluateVariantPeptideSubgroupEquityRequest | None = None,
     ) -> VariantPeptideSubgroupEvaluationResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["EquityEvaluationSubmission", "M2305Plugin", "ValidatedM2305Request"]

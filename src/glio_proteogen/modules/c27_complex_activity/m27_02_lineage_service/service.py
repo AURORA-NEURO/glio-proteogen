@@ -10,6 +10,7 @@ from glio_proteogen.contracts.m27_02 import (
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service.engine import (
     M2702LineageResolver,
+    M2702ReplayError,
     _plain_value,
     preflight_m2702_authorization,
 )
@@ -32,6 +33,24 @@ class M2702Service:
 
     def execute(self, request: object) -> ComplexActivityLineageResult:
         return self._resolver.resolve(request)
+
+    def replay(self, result: ComplexActivityLineageResult) -> ComplexActivityLineageResult:
+        return self._resolver.replay(result)
+
+    def verify(
+        self,
+        result: ComplexActivityLineageResult,
+        request: ResolveComplexActivityLineageRequest | None = None,
+    ) -> ComplexActivityLineageResult:
+        if request is not None:
+            expected = self.execute(request)
+            if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+                raise ValueError("lineage replay mismatch")  # noqa: TRY003
+            return result
+        try:
+            return self.replay(result)
+        except M2702ReplayError:
+            return False  # type: ignore[return-value]
 
 
 __all__ = ["M2702Service"]

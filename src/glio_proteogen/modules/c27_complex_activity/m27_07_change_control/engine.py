@@ -293,8 +293,13 @@ class M2707ChangeControlEngine:
     def replay(
         self, result: ComplexActivityChangeControlResult
     ) -> ComplexActivityChangeControlResult:
+        if result.request_digest != canonical_request_digest(result.request):
+            raise ChangeControlReplayError("request digest mismatch")
         if result.result_digest != result_payload_digest(result):
             raise ChangeControlReplayError("result digest mismatch")
+        expected = self.evaluate(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise ChangeControlReplayError("semantic replay mismatch")
         return result
 
 

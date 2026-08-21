@@ -74,9 +74,10 @@ class M2302Plugin:
     def verify(
         self,
         result: object,
+        request: GenerateVariantPeptideSyntheticTruthRequest | None = None,
     ) -> VariantPeptideSyntheticTruthResult:
         _RESULT_ADAPTER.validate_python(result, strict=True)
-        return self._service.verify(result)
+        return self._service.verify(result, request)
 
 
 __all__ = ["M2302Plugin", "ValidatedM2302Request"]

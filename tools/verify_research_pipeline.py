@@ -157,6 +157,8 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
     observed = run_evaluator()
     benchmark = run_benchmark(iterations=10)
     recorded_eval = evidence.get("evaluation") or evidence.get("evaluator")
+    if isinstance(evidence.get("evaluation"), dict) and isinstance(evidence.get("evaluator"), dict) and evidence["evaluation"] != evidence["evaluator"]:
+        raise VerificationError("research evidence scenario inventory is not locked")
     recorded_cohort = evidence.get("cohort_evaluation")
     recorded_precursor_policy = evidence.get("precursor_policy_evaluation")
     recorded_mzidentml_provenance = evidence.get("mzidentml_provenance_evaluation")
@@ -189,7 +191,9 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
     recorded_fixture = evidence.get("fixture_sha256", recorded_eval.get("fixture_sha256"))
     if recorded_fixture != observed.get("fixture_sha256"):
         raise VerificationError("research fixture digest does not match the evaluator")
-    recorded_scenarios = recorded_eval.get("scenario_ids", scenario_ids)
+    recorded_scenarios = recorded_eval.get("scenario_ids")
+    if not isinstance(recorded_scenarios, list):
+        raise VerificationError("research evidence scenario inventory is not locked")
     if tuple(recorded_scenarios) != _EXPECTED_SCENARIOS:
         raise VerificationError("research evidence scenario inventory is not locked")
     if (
@@ -214,7 +218,9 @@ def _verify_evaluation(path: Path) -> str:  # noqa: C901, PLR0912, PLR0915
         raise VerificationError("research cohort evaluator did not pass all locked scenarios")
     if recorded_cohort.get("fixture_sha256") != observed_cohort.get("fixture_sha256"):
         raise VerificationError("research cohort fixture digest does not match the evaluator")
-    recorded_cohort_ids = recorded_cohort.get("scenario_ids", cohort_ids)
+    recorded_cohort_ids = recorded_cohort.get("scenario_ids")
+    if not isinstance(recorded_cohort_ids, list):
+        raise VerificationError("research cohort scenario inventory is not locked")
     if tuple(recorded_cohort_ids) != _EXPECTED_COHORT_SCENARIOS:
         raise VerificationError("research cohort scenario inventory is not locked")
     if (

@@ -30,7 +30,7 @@ from glio_proteogen.contracts.m14_01 import (
     result_payload_digest,
 )
 from glio_proteogen.kernel.canonical import canonical_json_bytes
-from glio_proteogen.kernel.models import ConsentState
+from glio_proteogen.kernel.models import ConsentState, SupportStatus
 from glio_proteogen.modules.c14_microenvironment_protein_deconvolution import (
     m14_01_biological_hypothesis_registry as m1401_runtime,
 )
@@ -72,7 +72,9 @@ def test_supported_registry_is_replay_bound_and_preserves_competing_evidence() -
     assert result.registry is not None
     assert result.registry.hypotheses[0].competing_explanations
     assert result.registry.hypotheses[0].falsification_rules
-    assert result.human_review_required is False
+    assert result.human_review_required is True
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.uncertainty.measurement.probability is None
     assert engine.verify(result) == result
 
 

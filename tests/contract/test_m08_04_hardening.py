@@ -235,6 +235,7 @@ def test_api_and_cli_authorization_and_parse_errors(tmp_path) -> None:  # type: 
     malformed = client.post(
         "/v1/modules/M08-04/probabilistic-estimate",
         content=json.dumps(invalid),
+        headers={"content-type": "application/json"},
     )
     assert malformed.status_code == _HTTP_UNPROCESSABLE
 

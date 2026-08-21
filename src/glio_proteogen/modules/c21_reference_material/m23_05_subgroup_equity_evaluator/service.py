@@ -38,7 +38,13 @@ class M2305Service:
     def replay(
         self,
         result: VariantPeptideSubgroupEvaluationResult,
+        request: EvaluateVariantPeptideSubgroupEquityRequest | None = None,
     ) -> VariantPeptideSubgroupEvaluationResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 

@@ -339,19 +339,20 @@ class M1507PlausibilityAdjudicator:
             if supported
             else "One or more controls or conflicts blocked safe promotion.",
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1507_supported" if supported else "m1507_review_required",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1507_review_only" if supported else "m1507_review_required",
                 rationale=(
-                    "All plausibility and negative-control gates passed with no conflict."
+                    "Caller-declared plausibility and negative-control gates pass structurally; "
+                    "scientific validity remains unverified and requires human review."
                     if supported
                     else "Promotion is blocked pending failed controls, support, or conflict review."
                 ),
             ),
-            "uncertainty": expected_uncertainty(supported=supported),
+            "uncertainty": expected_uncertainty(supported=False),
             "provenance": expected_provenance(typed, request_digest),
             "evidence": evidence,
-            "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "limitations": _limitations(supported=False),
+            "human_review_required": True,
         }
         constructed = ComplexActivityPlausibilityAdjudicationResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)

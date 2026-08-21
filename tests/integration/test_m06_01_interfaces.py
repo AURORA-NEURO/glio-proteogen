@@ -40,6 +40,7 @@ SCHEMA_NAMES: Final = (
 )
 HTTP_OK: Final = 200
 HTTP_FORBIDDEN: Final = 403
+HTTP_TOO_LARGE: Final = 413
 HTTP_UNSUPPORTED_MEDIA_TYPE: Final = 415
 HTTP_UNPROCESSABLE_CONTENT: Final = 422
 CLI_USAGE_ERROR: Final = 2
@@ -118,6 +119,16 @@ def test_api_rejects_wrong_media_type_and_malformed_json(tmp_path: Path) -> None
 
     assert media_type.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
     assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
+
+
+def test_central_api_rejects_oversized_m0601_request_before_parsing(tmp_path: Path) -> None:
+    with TestClient(create_app(tmp_path / "oversized.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M06-01/formal-state-validation",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_TOO_LARGE
 
 
 def test_cli_rejects_unknown_request_field_without_reflection(tmp_path: Path) -> None:

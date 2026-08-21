@@ -229,7 +229,7 @@ def run_evaluator() -> dict[str, object]:
     checks.append(
         EvalCheck(
             "qualified_exploratory_policy",
-            qualified.status is AdapterStatus.ADAPTED
+            qualified.status is AdapterStatus.ABSTAINED
             and qualified.policy_decision.status is PolicyDecisionStatus.QUALIFIED,
             qualified.policy_decision.status.value,
         )

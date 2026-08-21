@@ -313,8 +313,8 @@ class M1803Engine:
                 evidence=evidence,
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="component_specific_fusion_complete",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="component_specific_fusion_review_required",
                 rationale=(
                     "Attributable source contributions satisfy the declared reliability policy."
                 ),
@@ -338,7 +338,7 @@ class M1803Engine:
             "provenance": _provenance(request),
             "evidence": evidence,
             "limitations": _limitations(),
-            "human_review_required": bool(findings),
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             BiomarkerPanelIntegratedEvidenceResult.model_construct(**payload)
@@ -353,6 +353,12 @@ class M1803Engine:
             raise M1803ReplayError("M18-03 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1803ReplayError("M18-03 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(result.request)
+        except Exception as exc:
+            raise M1803ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1803ReplayError("M18-03 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 

@@ -96,8 +96,9 @@ class M2203Plugin(
     def replay(
         self,
         result: ProteinRnaDiscordanceInternalBenchmarkResult,
+        request: RunProteinRnaDiscordanceInternalBenchmarkRequest | None = None,
     ) -> ProteinRnaDiscordanceInternalBenchmarkResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["BenchmarkSubmission", "M2203Plugin", "ValidatedM2203Request"]

@@ -298,7 +298,7 @@ def run_evaluator() -> dict[str, object]:
         {
             "id": "qc_abstention",
             "passed": qc_result.raw_matrix == ((("P1",), (None, 20.0)),)
-            and qc_result.normalized_matrix == ((("P1",), (None, None)),)
+            and qc_result.normalized_matrix == ((("P1",), (None, 20.0)),)
             and qc_result.label_qc[0].status == "abstained_missingness"
             and qc_result.label_group_evidence[0].status == "abstained_missingness",
             "result_digest": qc_result.result_digest,

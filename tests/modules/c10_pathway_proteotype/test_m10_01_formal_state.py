@@ -185,3 +185,11 @@ def test_tampered_replay_is_rejected() -> None:
     verification = engine.verify(tampered, built.canonical_bytes)
     assert not verification.verified
     assert verification.reason.value in {"non_canonical", "digest_mismatch", "invalid_result"}
+
+
+def test_request_bound_replay_rejects_resigned_state_mutation() -> None:
+    request = _request()
+    engine = M1001FormalStateEngine()
+    built = engine.execute(request)
+    forged = built.result.model_copy(update={"status": "invalid"})
+    assert not engine.verify(forged, forged.model_dump_json().encode(), request).verified

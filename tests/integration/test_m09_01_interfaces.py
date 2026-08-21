@@ -29,6 +29,7 @@ HTTP_OK = 200
 HTTP_NOT_FOUND = 404
 HTTP_UNPROCESSABLE_CONTENT = 422
 HTTP_FORBIDDEN = 403
+HTTP_TOO_LARGE = 413
 
 
 def test_api_validate_execute_and_verify_are_canonical() -> None:
@@ -59,6 +60,16 @@ def test_api_sanitizes_duplicate_json_and_unknown_schema() -> None:
 
     assert duplicate.status_code == HTTP_UNPROCESSABLE_CONTENT
     assert unknown.status_code == HTTP_NOT_FOUND
+
+
+def test_api_enforces_preparse_result_limit_on_verify() -> None:
+    client = TestClient(m0901_api.create_app())
+    oversized = client.post(
+        "/v1/modules/M09-01/verify",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert oversized.status_code == HTTP_TOO_LARGE
 
 
 def test_api_validation_authorization_and_replay_error_paths() -> None:

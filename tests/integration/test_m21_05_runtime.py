@@ -30,7 +30,7 @@ def test_nominal_evaluation_is_deterministic_and_replayable() -> None:
     assert first == second
     assert first.status is EvaluationStatus.EVALUATED
     assert first.report is not None
-    assert first.support_decision.status is SupportStatus.SUPPORTED
+    assert first.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert first.emits_parent is False
     assert first.human_review_required is False
     assert engine.verify(first).result_digest == first.result_digest
@@ -166,5 +166,5 @@ def test_invalid_request_is_sanitized() -> None:
 def test_result_fixture_is_valid_for_replay_contract() -> None:
     result = _result()
     assert result.status is EvaluationStatus.EVALUATED
-    assert result.support_decision.status is SupportStatus.SUPPORTED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert result.report is not None

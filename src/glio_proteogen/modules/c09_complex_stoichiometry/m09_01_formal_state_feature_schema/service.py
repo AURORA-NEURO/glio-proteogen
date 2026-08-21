@@ -1,6 +1,9 @@
 """Single-validation service boundary for M09-01."""
 
-from glio_proteogen.contracts.m09_01 import ValidateComplexActivityStateRequest
+from glio_proteogen.contracts.m09_01 import (
+    ValidateComplexActivityStateRequest,
+    ValidateComplexActivityStateResult,
+)
 
 from .engine import (
     BuiltM0901Result,
@@ -29,6 +32,14 @@ class M0901Service:
 
     def execute(self, request: object) -> BuiltM0901Result:
         return self._execute_validated(self.validate_request(request))
+
+    def verify(
+        self,
+        result: ValidateComplexActivityStateResult,
+        canonical: bytes | bytearray | str,
+        request: object | None = None,
+    ) -> object:
+        return self._engine.verify(result, canonical, request)
 
 
 __all__ = ["M0901Service"]

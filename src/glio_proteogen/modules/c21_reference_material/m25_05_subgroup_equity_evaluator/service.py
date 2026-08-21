@@ -39,7 +39,13 @@ class M2505Service:
     def verify_replay(
         self,
         result: ProteotypeSubgroupEvaluationResult,
+        request: EvaluateProteotypeSubgroupEquityRequest | None = None,
     ) -> ProteotypeSubgroupEvaluationResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 

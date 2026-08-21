@@ -24,8 +24,8 @@ def test_resolved_queue_emits_record_with_uncertainty_provenance() -> None:
     assert result.status is QueueResultStatus.RECORDED
     assert result.record is not None
     assert result.record.status.value == "resolved"
-    assert result.support_decision.status is SupportStatus.SUPPORTED
-    assert result.uncertainty.transport.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.uncertainty.transport.probability is None
     assert len(result.provenance.control_decisions) == 7
     assert result.human_review_required
 

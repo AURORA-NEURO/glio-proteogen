@@ -234,6 +234,8 @@ def test_preflight_rejects_hostile_and_malformed_inputs() -> None:
     assert plugin.descriptor().module_id == "GLIO-PROTEOGEN-M11-03"
     assert plugin.validate(request).request.request_id == request.request_id
     result = m1103.construct_variant_peptide_mechanistic_features(request)
+    forged = result.model_copy(update={"status": "abstained"})
+    assert not m1103.verify_m1103_replay(forged, request)
     altered = result.model_copy(update={"request": _request(source_id="source.other")})
     assert not m1103.verify_m1103_replay(altered, request)
     config = request.configuration.model_copy(

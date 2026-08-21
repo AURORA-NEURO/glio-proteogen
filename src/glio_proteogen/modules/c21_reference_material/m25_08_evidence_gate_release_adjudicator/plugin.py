@@ -77,6 +77,7 @@ class M2508Plugin:
         result: object,
         *,
         replay: bool = True,
+        request: AdjudicateProteotypeEvidenceGateRequest | None = None,
     ) -> ProteotypeEvidenceGateResult:
         try:
             if isinstance(result, (bytes, bytearray, str)):
@@ -86,7 +87,7 @@ class M2508Plugin:
                 typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         except (TypeError, ValueError, ValidationError) as error:
             raise M2508ReplayError from error
-        return self._service.verify(typed, replay=replay)
+        return self._service.verify(typed, replay=replay, request=request)
 
 
 __all__ = ["M2508Plugin", "ValidatedM2508Request"]

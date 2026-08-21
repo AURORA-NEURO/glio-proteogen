@@ -27,13 +27,12 @@ from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry 
 _EXPECTED_SAMPLE_COUNT = 9
 
 
-def test_supported_emission_retains_all_requested_metrics() -> None:
+def test_supported_request_without_observations_abstains() -> None:
     result = emit_search_quant_observability_telemetry(build_request())
-    assert result.status is TelemetryStatus.EMITTED
-    assert result.telemetry_stream is not None
-    assert len(result.telemetry_stream.samples) == _EXPECTED_SAMPLE_COUNT
-    assert result.alert is not None
-    assert result.safe_failure_report is None
+    assert result.status is TelemetryStatus.ABSTAINED
+    assert result.telemetry_stream is None
+    assert result.alert is None
+    assert result.safe_failure_report is not None
     assert result.parent_target == "complex activity"
     assert result.emits_parent is False
 
@@ -55,6 +54,17 @@ def test_unsupported_upstream_abstains_without_stream() -> None:
     assert result.dashboards == ()
     assert result.safe_failure_report is not None
     assert result.support_decision.status.value == "unsupported"
+
+
+def test_supported_upstream_without_observations_abstains_without_fabrication() -> None:
+    result = M2705TelemetryEngine().emit(build_request())
+    assert result.status is TelemetryStatus.ABSTAINED
+    assert result.telemetry_stream is None
+    assert result.dashboards == ()
+    assert result.alert is None
+    assert result.safe_failure_report is not None
+    assert result.safe_failure_report.trigger == "telemetry_observations_missing"
+    assert result.support_decision.status.value == "review_required"
 
 
 def test_denied_control_fails_before_telemetry_traversal() -> None:
@@ -82,6 +92,17 @@ def test_plugin_requires_issued_token_and_preserves_parity() -> None:
     assert plugin.run(token) == plugin._service.emit(request)
     with pytest.raises(TypeError):
         plugin.run(object())  # type: ignore[arg-type]
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2705Service()
+    result = service.emit(request)
+    altered = request.model_copy(update={"request_id": "m2705.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2705Plugin(service).replay(result, altered)
 
 
 def test_json_service_roundtrip() -> None:

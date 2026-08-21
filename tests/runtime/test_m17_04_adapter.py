@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m17_04 import (
     IntendedUseRegistration,
     PolicyDecisionStatus,
 )
+from glio_proteogen.contracts.m17_04.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -165,10 +166,24 @@ def test_registered_research_use_adapts_and_replays() -> None:
     assert result.status.value == "adapted"
     assert result.adapted_object is not None
     assert result.policy_decision.status is PolicyDecisionStatus.ALLOWED
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.support_decision.reason_code == "caller_declared_policy"
     assert result.parent_target == "variant peptide"
     assert result.emits_parent is False
     assert result.human_review_required is False
     assert m1704.M1704Engine().replay(result) == result
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service_result = m1704.M1704Service().adapt(request)
+    plugin_result = m1704.M1704Plugin().run(request)
+    altered = request.model_copy(update={"request_id": "request.m1704.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1704.M1704Service().replay(service_result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1704.M1704Plugin().replay(plugin_result, altered)
 
 
 def test_treatment_claim_abstains_without_object() -> None:
@@ -242,4 +257,13 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(m1704.M1704ReplayError, match="payload digest"):
+        m1704.M1704Engine().replay(tampered)
+
+
+def test_replay_rejects_resigned_semantic_mutation() -> None:
+    result = m1704.M1704Engine().adapt(_request())
+    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1704.M1704ReplayError, match="deterministic replay"):
         m1704.M1704Engine().replay(tampered)

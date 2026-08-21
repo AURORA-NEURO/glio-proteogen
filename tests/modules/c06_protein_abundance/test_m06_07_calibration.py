@@ -428,6 +428,17 @@ def test_calibration_replay_accepts_canonical_and_rejects_tamper() -> None:
     assert rejected.result_digest is None
 
 
+def test_calibration_bound_replay_rejects_semantic_mutation() -> None:
+    engine = M0607CalibrationEngine()
+    request = _request()
+    built = engine.calibrate(request)
+    tampered = built.result.model_copy(update={"status": built.result.status})
+    tampered = tampered.model_copy(update={"result_digest": built.result.result_digest})
+    tampered.__dict__["estimates"] = ()
+    verified = engine.verify(tampered, built.canonical_bytes, request)
+    assert verified.verified is False
+
+
 def test_upstream_abstention_and_bad_coverage_abstain_safely() -> None:
     engine = M0607CalibrationEngine()
     upstream = engine.calibrate(_request(upstream_decomposed=False))

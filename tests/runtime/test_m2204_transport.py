@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m22_04 import (
     M2204_M2202_INPUT_MEDIA_TYPE,
@@ -17,6 +18,7 @@ from glio_proteogen.contracts.m22_04 import (
     TransportStatus,
     TransportValidation,
 )
+from glio_proteogen.contracts.m22_04.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -40,6 +42,7 @@ from glio_proteogen.modules.c21_reference_material.m22_04_external_transport_eva
     M2204ReplayError,
     M2204Service,
     ValidatedM2204Request,
+    create_app,
     evaluate_protein_rna_discordance_external_transport,
 )
 
@@ -246,3 +249,32 @@ def test_replay_rejects_tampering() -> None:
     result = M2204Engine().evaluate(_request())
     with pytest.raises(M2204ReplayError):
         M2204Engine().replay(result.model_copy(update={"result_digest": "sha256:" + "0" * 64}))
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2204Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2204Plugin(service).replay(result, altered)
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2204Engine().evaluate(request)
+    assert result.report is not None
+    forged = result.model_copy(
+        update={"report": result.report.model_copy(update={"status": "forged"})}
+    )
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M22-04/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004

@@ -35,7 +35,11 @@ class M2104Service:
             )
         return self._engine.evaluate(request)
 
-    def replay(self, result: object) -> ComplexActivityExternalTransportResult:
+    def replay(
+        self,
+        result: object,
+        request: EvaluateComplexActivityExternalTransportRequest | None = None,
+    ) -> ComplexActivityExternalTransportResult:
         if isinstance(result, (bytes, bytearray, str)):
             parsed = strict_json_loads(result, max_bytes=16 * 1024 * 1024)
             result = ComplexActivityExternalTransportResult.model_validate_json(
@@ -47,6 +51,11 @@ class M2104Service:
             )
         else:
             result = ComplexActivityExternalTransportResult.model_validate(result, strict=True)
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
     @property

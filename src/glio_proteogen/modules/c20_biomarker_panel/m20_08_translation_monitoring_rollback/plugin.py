@@ -85,11 +85,19 @@ class M2008Plugin:
             raise M2008TokenError
         return self._service._engine.infer(token.request)
 
-    def verify(self, result: object) -> ProteinSubtypeTranslationHealthResult:
-        return self._service.verify(result)
+    def verify(
+        self,
+        result: object,
+        request: MonitorProteinSubtypeTranslationHealthRequest | None = None,
+    ) -> ProteinSubtypeTranslationHealthResult:
+        return self._service.verify(result, request)
 
-    def replay(self, result: object) -> ProteinSubtypeTranslationHealthResult:
-        return self.verify(result)
+    def replay(
+        self,
+        result: object,
+        request: MonitorProteinSubtypeTranslationHealthRequest | None = None,
+    ) -> ProteinSubtypeTranslationHealthResult:
+        return self.verify(result, request)
 
 
 __all__ = [

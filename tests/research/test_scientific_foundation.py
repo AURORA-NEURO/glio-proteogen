@@ -317,7 +317,9 @@ def test_matched_ion_quantification_receipt_binds_units_duplicates_and_missingne
     ]
 
 
-@pytest.mark.parametrize("observation", [("", 1.0), ("P", -1.0), ("P", math.nan)])
+@pytest.mark.parametrize(
+    "observation", [("", 1.0), ("P", -1.0), ("P", math.nan), ("P", True)]
+)
 def test_matched_ion_quantification_rejects_invalid_observations(
     observation: tuple[str, float],
 ) -> None:
@@ -858,6 +860,35 @@ def test_search_requires_precursor_and_matches_each_peak_once() -> None:
     )
 
 
+def test_search_rejects_boolean_numeric_measurements() -> None:
+    parameters = SearchParameters(
+        fragment_tolerance_da=0.2, min_matched_ions=1, require_precursor_mz=True
+    )
+    peptide_map = {"MPEPTIDER": ("P1",)}
+    assert (
+        search_spectrum(
+            "bool-precursor",
+            True,  # type: ignore[arg-type]  # noqa: FBT003
+            peptide_map,
+            (132.047761466,),
+            (10.0,),
+            parameters=parameters,
+        )
+        is None
+    )
+    assert (
+        search_spectrum(
+            "bool-intensity",
+            1087.508837466,
+            peptide_map,
+            (132.047761466,),
+            (True,),  # type: ignore[arg-type]
+            parameters=parameters,
+        )
+        is None
+    )
+
+
 def test_fragment_assignment_maximizes_cardinality_before_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1036,6 +1067,25 @@ def test_protein_group_candidate_exposes_shared_only_identifiability() -> None:
     assert candidates[0].identifiability == "shared_only_ambiguous"
     assert candidates[0].acceptance == "abstained"
     assert candidates[0].as_dict()["identifiability"] == "shared_only_ambiguous"
+
+
+def test_protein_group_fdr_undefined_ratio_is_explicit_for_decoy_only_and_collision_only() -> None:
+    decoy = Psm("decoy-only", "PEPTIDER", ("DECOY_P1",), 5.0, 3, decoy=True)
+    _, decoy_summary = infer_protein_group_candidates((decoy,), q_value_threshold=0.01)
+    assert decoy_summary.target_candidates == 0
+    assert decoy_summary.decoy_to_target_ratio is None
+    collision = Psm(
+        "collision-only",
+        "PEPTIDER",
+        ("P1", "DECOY_P1"),
+        5.0,
+        3,
+        decoy=False,
+        target_decoy_collision=True,
+    )
+    _, collision_summary = infer_protein_group_candidates((collision,), q_value_threshold=0.01)
+    assert collision_summary.target_candidates == 0
+    assert collision_summary.decoy_to_target_ratio is None
 
 
 class _FakeResponse:

@@ -2,12 +2,18 @@
 
 import pytest
 
-from glio_proteogen.contracts.m19_06 import QueueEntryState, QueueResultStatus, ReviewDecision
+from glio_proteogen.contracts.m19_06 import (
+    QueueEntryState,
+    QueueResultStatus,
+    ReviewDecision,
+)
+from glio_proteogen.contracts.m19_06.canonical import result_payload_digest
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_06_reviewer_adjudication import (
     M1906AuthorizationError,
     M1906Engine,
     M1906Plugin,
     M1906ReplayError,
+    M1906Service,
 )
 from tests.contract.test_m19_06_provisional import _assignment, _entry, _request
 
@@ -65,6 +71,14 @@ def test_replay_rejects_request_and_result_tampering() -> None:
         M1906Engine().replay(tampered_result)
 
 
+def test_resigned_semantic_mutation_is_rejected() -> None:
+    result = M1906Engine().adapt(_request())
+    tampered = result.model_copy(update={"status": QueueResultStatus.ABSTAINED})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M1906ReplayError, match="semantic replay"):
+        M1906Engine().replay(resigned)
+
+
 def test_plugin_descriptor_and_runtime_are_bounded() -> None:
     plugin = M1906Plugin()
     result = plugin.run(_request())
@@ -73,3 +87,12 @@ def test_plugin_descriptor_and_runtime_are_bounded() -> None:
     assert plugin.descriptor.kinase_activity is False
     assert plugin.descriptor.treatment_recommendation is False
     assert plugin.replay(result) == result
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M1906Service().adjudicate(request)
+    altered = request.model_copy(update={"request_id": "request.m1906.altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M1906Service().replay(result, altered)

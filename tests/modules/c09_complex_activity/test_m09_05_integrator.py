@@ -135,6 +135,14 @@ def test_supported_integration_is_deterministic_and_replayable() -> None:
     assert engine.verify(first.result, first.canonical_bytes).verified
 
 
+def test_request_bound_replay_rejects_resigned_constraint_mutation() -> None:
+    request = _request("hold")
+    engine = M0905ConstraintIntegrator()
+    built = engine.integrate(request)
+    forged = built.result.model_copy(update={"disposition": "abstained"})
+    assert not engine.verify(forged, forged.model_dump_json().encode(), request).verified
+
+
 def test_hard_violation_and_unsupported_input_abstain_safely() -> None:
     engine = M0905ConstraintIntegrator()
     hard = engine.integrate(_request("force_violation"))

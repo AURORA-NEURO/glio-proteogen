@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m19_03 import (
     FusionStatus,
     ReliabilityBand,
 )
+from glio_proteogen.contracts.m19_03.canonical import result_payload_digest
 from glio_proteogen.kernel.models import SupportStatus
 from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_03_fusion_aggregation import (
     M1903AuthorizationError,
@@ -29,7 +30,7 @@ def test_attributable_fusion_integrates_and_replays() -> None:
     assert result.integrated_evidence is not None
     assert result.parent_target == "proteotype"
     assert result.emits_parent is False
-    assert result.human_review_required is False
+    assert result.human_review_required is True
     assert M1903Engine().replay(result) == result
 
 
@@ -110,10 +111,19 @@ def test_upstream_media_type_is_strict() -> None:
 
 def test_tampered_result_digest_is_rejected() -> None:
     result = M1903Engine().adapt(_request())
-    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = result.model_copy(update={"human_review_required": False})
 
     with pytest.raises(M1903ReplayError, match="payload digest"):
         M1903Engine().replay(tampered)
+
+
+def test_resigned_semantic_mutation_is_rejected() -> None:
+    result = M1903Engine().adapt(_request())
+    tampered = result.model_copy(update={"status": FusionStatus.ABSTAINED})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(M1903ReplayError, match="semantic replay"):
+        M1903Engine().replay(resigned)
 
 
 def test_duplicate_source_artifact_is_deduplicated_by_runtime() -> None:
@@ -144,3 +154,21 @@ def test_service_and_plugin_use_same_canonical_runtime() -> None:
     assert plugin.descriptor.parent_target == "proteotype"
     assert plugin.run(request) == service_result
     assert plugin.replay(service_result) == service_result
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M1903Service().fuse(request)
+    altered = request.model_copy(update={"request_id": "request.m1903.altered"})
+
+    with pytest.raises(ValueError, match="replay"):
+        M1903Service().replay(result, altered)
+
+
+def test_plugin_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request()
+    result = M1903Plugin().run(request)
+    altered = request.model_copy(update={"request_id": "request.m1903.plugin-altered"})
+
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M1903Plugin().replay(result, altered)

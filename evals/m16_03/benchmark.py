@@ -35,7 +35,7 @@ def main() -> int:
         started = time.perf_counter()
         result = service.construct(request)
         samples.append(time.perf_counter() - started)
-        if result.status.value != "integrated":
+        if result.status.value != "abstained":
             raise _BenchmarkError
     report = {
         "module_id": "GLIO-PROTEOGEN-M16-03",

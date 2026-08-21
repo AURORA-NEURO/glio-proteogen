@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, cast
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -156,10 +156,13 @@ def _provenance(request: CalibrateSelectiveProteinAbundanceRequest) -> Provenanc
 
 
 def _evidence(request: CalibrateSelectiveProteinAbundanceRequest) -> tuple[EvidenceReference, ...]:
-    return tuple(
-        EvidenceReference(reference=item, role="evidence", claim=M0607_EVIDENCE_CLAIM)
-        for item in request.source_artifacts
-    ) + request.policy.evidence
+    return (
+        tuple(
+            EvidenceReference(reference=item, role="evidence", claim=M0607_EVIDENCE_CLAIM)
+            for item in request.source_artifacts
+        )
+        + request.policy.evidence
+    )
 
 
 def _limitations() -> tuple[Limitation, ...]:
@@ -223,18 +226,26 @@ def _build_result(
     upstream_estimates = upstream.request.constraint_result.estimates
     can_calibrate = upstream_supported and quality_ok and bool(upstream_estimates)
     status = CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED
-    reason = None if can_calibrate else (
-        "upstream uncertainty result is not supported for calibration"
-        if not upstream_supported
-        else quality_reason
-        if not quality_ok
-        else "upstream result contains no supported estimates"
+    reason = (
+        None
+        if can_calibrate
+        else (
+            "upstream uncertainty result is not supported for calibration"
+            if not upstream_supported
+            else quality_reason
+            if not quality_ok
+            else "upstream result contains no supported estimates"
+        )
     )
-    support_status = SupportStatus.SUPPORTED if can_calibrate else (
-        SupportStatus.UNSUPPORTED
-        if not upstream_supported
-        and upstream.support_decision.status is SupportStatus.UNSUPPORTED
-        else SupportStatus.REVIEW_REQUIRED
+    support_status = (
+        SupportStatus.SUPPORTED
+        if can_calibrate
+        else (
+            SupportStatus.UNSUPPORTED
+            if not upstream_supported
+            and upstream.support_decision.status is SupportStatus.UNSUPPORTED
+            else SupportStatus.REVIEW_REQUIRED
+        )
     )
     prediction_sets = (
         tuple(
@@ -274,9 +285,7 @@ def _build_result(
     diagnostics = tuple(
         CalibrationDiagnostic(
             diagnostic_id=f"diagnostic.{stratum.stratum_id}",
-            status=CalibrationStatus.CALIBRATED
-            if can_calibrate
-            else CalibrationStatus.ABSTAINED,
+            status=CalibrationStatus.CALIBRATED if can_calibrate else CalibrationStatus.ABSTAINED,
             metric_name="coverage_and_calibration_error",
             metric_value=stratum.calibration_error,
             message=(
@@ -337,9 +346,16 @@ class M0607CalibrationEngine:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> CalibrateSelectiveProteinAbundanceVerification:
         try:
-            typed = _RESULT_ADAPTER.validate_python(result, strict=True)
+            if type(result) in {bytes, bytearray, str}:
+                json_result = cast("str | bytes | bytearray", result)
+                typed = _RESULT_ADAPTER.validate_json(
+                    json_result, strict=True
+                )
+            else:
+                typed = _RESULT_ADAPTER.validate_python(result, strict=True)
         except (TypeError, ValueError, ValidationError):
             return CalibrateSelectiveProteinAbundanceVerification(
                 content_verified=False,
@@ -356,16 +372,24 @@ class M0607CalibrationEngine:
         ):
             content_verified = False
         verified = content_verified and deterministic_verified
+        if verified and request is not None:
+            try:
+                expected = self.calibrate(request).result
+            except (CalibrationAuthorizationError, CalibrationInputError, TypeError, ValueError):
+                verified = False
+            else:
+                verified = expected.model_dump(mode="json") == typed.model_dump(mode="json")
+        replay_reason = (
+            CalibrationReplayReason.VERIFIED
+            if verified
+            else CalibrationReplayReason.DIGEST_MISMATCH
+        )
         return CalibrateSelectiveProteinAbundanceVerification(
             content_verified=content_verified,
             deterministic_verified=deterministic_verified,
             verified=verified,
             result_digest=typed.result_digest if verified else None,
-            reason=(
-                CalibrationReplayReason.VERIFIED
-                if verified
-                else CalibrationReplayReason.DIGEST_MISMATCH
-            ),
+            reason=replay_reason,
         )
 
     def execute(self, request: object) -> BuiltCalibration:

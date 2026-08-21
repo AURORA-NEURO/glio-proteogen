@@ -42,5 +42,12 @@ class M2708Plugin:
             raise ValueError("M27-08 capability is not issued or is stale")
         return self._service.execute(token.request)
 
+    def verify(
+        self,
+        result: ComplexActivityRetirementResult,
+        request: RetireComplexActivityServiceRequest | None = None,
+    ) -> bool:
+        return self._service.verify(result, request)
+
 
 __all__ = ["M2708Plugin", "RetirementSubmission"]

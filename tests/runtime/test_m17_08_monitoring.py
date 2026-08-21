@@ -19,6 +19,7 @@ from glio_proteogen.contracts.m17_08 import (
     TranslationHealthState,
     WorkflowEffectObservation,
 )
+from glio_proteogen.contracts.m17_08.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -178,6 +179,7 @@ def test_healthy_monitoring_emits_report_and_replays() -> None:
     assert result.health_report is not None
     assert result.health_report.health_state is TranslationHealthState.HEALTHY
     assert result.health_report.rollback_decision is RollbackDecision.NONE
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert result.parent_target == "variant peptide"
     assert result.emits_parent is False
     assert result.human_review_required is False
@@ -247,4 +249,20 @@ def test_tampered_result_digest_is_rejected() -> None:
     tampered = result.model_copy(update={"human_review_required": True})
 
     with pytest.raises(m1708.M1708ReplayError, match="payload digest"):
+        m1708.M1708Engine().replay(tampered)
+
+
+def test_replay_rejects_resigned_semantic_mutation() -> None:
+    result = m1708.M1708Engine().adapt(_request())
+    assert result.health_report is not None
+    tampered = result.model_copy(
+        update={
+            "health_report": result.health_report.model_copy(
+                update={"health_state": TranslationHealthState.SUSPENDED}
+            )
+        }
+    )
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1708.M1708ReplayError, match="deterministic replay"):
         m1708.M1708Engine().replay(tampered)

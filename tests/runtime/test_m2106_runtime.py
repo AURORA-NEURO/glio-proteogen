@@ -16,6 +16,7 @@ from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c21_reference_material.m21_06_robustness_shift_ood_challenge import (
     M2106AuthorizationError,
     M2106Engine,
+    M2106Plugin,
     M2106ReplayError,
     M2106Service,
     preflight_m2106_authorization,
@@ -70,6 +71,17 @@ def test_replay_closes_request_and_result_identity_and_public_entrypoint() -> No
     with pytest.raises(M2106ReplayError, match="identifier"):
         M2106Engine().replay(result.model_copy(update={"result_id": "m2106.result.tampered"}))
     assert run_complex_activity_robustness_challenge(request).result_digest == result.result_digest
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _supported_request()
+    service = M2106Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2106Plugin(service).replay(result, altered)
 
 
 def test_preflight_fails_closed_for_hostile_mappings() -> None:

@@ -13,6 +13,7 @@ from glio_proteogen.contracts.m21_02 import (
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.modules.c21_reference_material.m21_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2102AuthorizationError,
+    M2102Plugin,
     M2102ReplayError,
     M2102Service,
     generate_complex_activity_synthetic_truth,
@@ -49,6 +50,17 @@ def test_replay_rejects_request_and_result_tampering() -> None:
         service.replay(result.model_copy(update={"request_digest": sha256_digest("tampered")}))
     with pytest.raises(M2102ReplayError, match="payload digest"):
         service.replay(result.model_copy(update={"result_digest": sha256_digest("tampered")}))
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2102Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2102Plugin(service).replay(result, altered)
 
 
 def test_preflight_and_service_fail_closed_before_generation() -> None:

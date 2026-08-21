@@ -97,8 +97,9 @@ class M2106Plugin(
     def replay(
         self,
         result: ComplexActivityRobustnessChallengeResult,
+        request: ChallengeComplexActivityRobustnessRequest | None = None,
     ) -> ComplexActivityRobustnessChallengeResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["M2106Plugin", "RobustnessSubmission", "ValidatedM2106Request"]

@@ -356,10 +356,12 @@ class M2104Engine:
             "parent_target": "complex activity",
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.REVIEW_REQUIRED if abstained else SupportStatus.SUPPORTED,
-                reason_code="m2104_transport_abstained"
-                if abstained
-                else "m2104_transport_evaluated",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code=(
+                    "m2104_transport_abstained"
+                    if abstained
+                    else "m2104_transport_evaluated_review_required"
+                ),
                 rationale=(
                     "At least one transport dimension is not evaluable; review is required."
                     if abstained

@@ -17,6 +17,7 @@ from glio_proteogen.contracts.m20_06 import (
     AdjudicateProteinSubtypeQueueRequest,
     QueueEntryState,
 )
+from glio_proteogen.contracts.m20_06.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
@@ -114,6 +115,24 @@ def test_api_sanitizes_non_object_unknown_schema_and_denial() -> None:
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "Traceback" not in response.text
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2006Engine().adjudicate(request)
+    assert result.record is not None
+    tampered = result.model_copy(
+        update={"record": result.record.model_copy(update={"resolution_summary": "forged"})}
+    )
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M20-06/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_cli_sanitizes_bad_inputs_and_refuses_overwrite(tmp_path: Any) -> None:

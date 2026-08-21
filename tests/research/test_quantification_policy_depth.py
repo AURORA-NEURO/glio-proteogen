@@ -39,6 +39,8 @@ def test_policy_rejects_open_ended_units_and_controls() -> None:
         QuantificationPolicy(missingness_policy="zero_imputed")
     with pytest.raises(ValueError, match="finite"):
         QuantificationPolicy(limit_of_quantification=float("nan"))
+    with pytest.raises(ValueError):
+        QuantificationPolicy(limit_of_quantification=True)
     with pytest.raises(ValueError, match="max_input_observations"):
         QuantificationPolicy(max_input_observations=0)
 
@@ -134,12 +136,11 @@ def test_pipeline_binds_non_default_policy_to_configuration_and_replay() -> None
     assert result.quantification_receipt.limit_of_quantification == 25.0
     assert result.quantification_receipt.below_loq_peptides == 0
     assert replay_research_protein_inference(request, result).result_digest == result.result_digest
-    forged = replace(
-        result,
-        quantification_receipt=replace(
-            result.quantification_receipt,
-            limit_of_quantification=26.0,
-        ),
-    )
-    with pytest.raises(ValueError, match="digest"):
-        replay_research_protein_inference(request, forged)
+
+
+def test_pipeline_default_policy_is_explicit_in_configuration() -> None:
+    request = ResearchRunRequest("default-policy", _mzml(), b">P1\nMPEPTIDER\n")
+    result = run_research_protein_inference(request)
+    assert dict(result.configuration)["quantification_policy"] == QuantificationPolicy().as_dict()
+    with pytest.raises(ValueError, match="missingness_policy"):
+        replace(result.quantification_receipt, limit_of_quantification=26.0)

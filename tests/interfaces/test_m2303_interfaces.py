@@ -35,9 +35,19 @@ def test_fastapi_schema_validate_benchmark_and_verify_parity() -> None:
     benchmark = client.post("/v1/modules/M23-03/benchmark", content=request_json)
     assert benchmark.status_code == _HTTP_OK
     result = benchmark.json()
-    verified = client.post("/v1/modules/M23-03/verify", json={"result": result})
+    request = _request()
+    verified = client.post(
+        "/v1/modules/M23-03/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2303.forged"})
+    mismatch = client.post(
+        "/v1/modules/M23-03/verify",
+        json={"request": forged.model_dump(mode="json"), "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_fastapi_sanitizes_non_object_and_unknown_schema_errors() -> None:

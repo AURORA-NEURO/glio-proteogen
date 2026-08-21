@@ -113,6 +113,8 @@ async def adjudicate(request: Request) -> JSONResponse:
 @app.post("/v1/modules/M11-07/verify")
 async def verify(request: Request) -> JSONResponse:
     body = await request.body()
+    if len(body) > M1107_MAX_CANONICAL_REQUEST_BYTES:
+        raise HTTPException(status_code=413, detail="verification request exceeds byte limit")
     if len(body) > M1107_MAX_CANONICAL_RESULT_BYTES:
         raise HTTPException(status_code=413, detail="verification envelope exceeds byte limit")
     try:
@@ -137,9 +139,12 @@ async def verify(request: Request) -> JSONResponse:
     return JSONResponse(content={"verified": True, "result_digest": result.result_digest})
 
 
-def _read_json(path: Path, max_bytes: int = M1107_MAX_CANONICAL_REQUEST_BYTES) -> bytes:
+def _read_json(path: Path, max_bytes: int | None = None) -> bytes:
+    effective_limit = (
+        M1107_MAX_CANONICAL_REQUEST_BYTES if max_bytes is None else max_bytes
+    )
     try:
-        body = read_bounded(path, max_bytes)
+        body = read_bounded(path, effective_limit)
     except (OSError, RequestBodyTooLargeError) as error:
         raise _CliParameterError("read") from error
     return body

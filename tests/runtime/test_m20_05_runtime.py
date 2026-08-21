@@ -8,9 +8,11 @@ import pytest
 from pydantic import ValidationError
 
 from glio_proteogen.contracts.m20_05 import ReviewItemStatus, WorkspaceStatus
+from glio_proteogen.contracts.m20_05.canonical import result_payload_digest
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
     M2005AuthorizationError,
     M2005ReplayError,
+    M2005Plugin,
     M2005Service,
     preflight_m2005_authorization,
 )
@@ -29,6 +31,17 @@ def test_service_presents_exact_workspace_and_replays() -> None:
     assert result.workspace.ordering is request.policy.default_ordering
     assert result.support_decision.status.value == "supported"
     assert service.replay(result) == result
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2005Service()
+    result = service.present(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2005Plugin(service).replay(result, altered)
 
 
 def test_abstained_item_emits_safe_abstention_without_workspace() -> None:
@@ -80,6 +93,15 @@ def test_replay_rejects_tampered_request_or_result_digest() -> None:
                 }
             )
         )
+
+
+def test_replay_rejects_resigned_semantic_mutation() -> None:
+    service = M2005Service()
+    result = service.present(_request())
+    tampered = result.model_copy(update={"status": WorkspaceStatus.ABSTAINED})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M2005ReplayError, match="semantic replay"):
+        service.replay(resigned)
 
 
 def test_service_requires_typed_request() -> None:

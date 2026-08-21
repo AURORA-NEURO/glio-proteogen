@@ -407,6 +407,7 @@ from glio_proteogen.contracts.m06_01.schema import (
 )
 from glio_proteogen.contracts.m06_01.v1 import (
     M0601_MAX_CANONICAL_REQUEST_BYTES,
+    M0601_MAX_CANONICAL_RESULT_BYTES,
     ValidateFormalProteinStateRequest,
     ValidateFormalProteinStateResult,
 )
@@ -1001,6 +1002,7 @@ from glio_proteogen.modules.c19_immunopeptidomic_evidence.m19_04_intended_use_ad
 )
 from glio_proteogen.modules.c27_complex_activity.m27_02_lineage_service import (
     M2702AuthorizationError,
+    M2702ReplayError,
     M2702Service,
     preflight_m2702_authorization,
 )
@@ -2658,7 +2660,10 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_bytes=MAX_REQUEST_BYTES,
-        result_max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
+        result_max_bytes=max(
+            M0305_MAX_CANONICAL_RESULT_BYTES,
+            M0601_MAX_CANONICAL_RESULT_BYTES,
+        ),
     )
     # These provisional lanes ship strict standalone adapters as well as the
     # central API.  Include their routers here so a caller using the canonical
@@ -4076,7 +4081,85 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
     def verify_m2702_lineage(
         result: Annotated[ComplexActivityLineageResult, Depends(_m2702_result_body_dependency)],
     ) -> ComplexActivityLineageResult:
-        return result
+        try:
+            return m2702_service.replay(result)
+        except M2702ReplayError as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M27-02 replay verification failed",
+            ) from error
+
+    @app.get("/v1/modules/M19-01/schema/{name}", tags=["M19-01"])
+    def central_m1901_schema(name: str) -> JSONResponse:
+        return m1901_adapter.schema(name)
+
+    @app.post("/v1/modules/M19-01/resolve", tags=["M19-01"])
+    async def central_m1901_resolve(request: Request) -> JSONResponse:
+        return await m1901_adapter.resolve(request)
+
+    @app.post("/v1/modules/M19-01/verify", tags=["M19-01"])
+    async def central_m1901_verify(request: Request) -> JSONResponse:
+        return await m1901_adapter.verify(request)
+
+    @app.get("/v1/modules/M19-02/schema/{name}", tags=["M19-02"])
+    def central_m1902_schema(name: str) -> JSONResponse:
+        return m1902_adapter.schema(name)
+
+    @app.post("/v1/modules/M19-02/align", tags=["M19-02"])
+    async def central_m1902_align(request: Request) -> JSONResponse:
+        return await m1902_adapter.align(request)
+
+    @app.post("/v1/modules/M19-02/verify", tags=["M19-02"])
+    async def central_m1902_verify(request: Request) -> JSONResponse:
+        return await m1902_adapter.verify(request)
+
+    @app.get("/v1/modules/M19-05/schema/{name}", tags=["M19-05"])
+    def central_m1905_schema(name: str) -> JSONResponse:
+        return m1905_adapter.schema(name)
+
+    @app.post("/v1/modules/M19-05/present", tags=["M19-05"])
+    async def central_m1905_present(request: Request) -> JSONResponse:
+        return await m1905_adapter.present(request)
+
+    @app.post("/v1/modules/M19-05/verify", tags=["M19-05"])
+    async def central_m1905_verify(request: Request) -> JSONResponse:
+        return await m1905_adapter.verify(request)
+
+    @app.get("/v1/modules/M20-02/schema/{name}", tags=["M20-02"])
+    def central_m2002_schema(name: str) -> JSONResponse:
+        return m2002_adapter.schema(name)
+
+    @app.post("/v1/modules/M20-02/reconcile", tags=["M20-02"])
+    async def central_m2002_reconcile(request: Request) -> JSONResponse:
+        return await m2002_adapter.reconcile(request)
+
+    @app.post("/v1/modules/M20-02/verify", tags=["M20-02"])
+    async def central_m2002_verify(request: Request) -> JSONResponse:
+        return await m2002_adapter.verify(request)
+
+    @app.get("/v1/modules/M20-03/schema/{name}", tags=["M20-03"])
+    def central_m2003_schema(name: str) -> JSONResponse:
+        return m2003_adapter.schema(name)
+
+    @app.post("/v1/modules/M20-03/fuse", tags=["M20-03"])
+    async def central_m2003_fuse(request: Request) -> JSONResponse:
+        return await m2003_adapter.fuse(request)
+
+    @app.post("/v1/modules/M20-03/verify", tags=["M20-03"])
+    async def central_m2003_verify(request: Request) -> JSONResponse:
+        return await m2003_adapter.verify(request)
+
+    @app.get("/v1/modules/M20-04/schema/{name}", tags=["M20-04"])
+    def central_m2004_schema(name: str) -> JSONResponse:
+        return m2004_adapter.schema(name)
+
+    @app.post("/v1/modules/M20-04/adapt", tags=["M20-04"])
+    async def central_m2004_adapt(request: Request) -> JSONResponse:
+        return await m2004_adapter.adapt(request)
+
+    @app.post("/v1/modules/M20-04/verify", tags=["M20-04"])
+    async def central_m2004_verify(request: Request) -> JSONResponse:
+        return await m2004_adapter.verify(request)
 
     return app
 

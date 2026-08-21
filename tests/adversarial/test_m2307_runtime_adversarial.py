@@ -50,6 +50,17 @@ def test_replay_rejects_request_mutation_even_when_result_digest_is_unchanged() 
         service.replay(tampered)
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = m2307.M2307Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "m2307.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2307.M2307Plugin(service).replay(result, altered)
+
+
 def test_media_boundary_drift_is_rejected_without_upstream_traversal() -> None:
     payload = build_request().model_dump(mode="python")
     payload["upstream_result"]["media_type"] = "application/json"

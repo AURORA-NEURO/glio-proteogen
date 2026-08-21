@@ -96,8 +96,9 @@ class M2303Plugin(
     def replay(
         self,
         result: VariantPeptideInternalBenchmarkResult,
+        request: RunVariantPeptideInternalBenchmarkRequest | None = None,
     ) -> VariantPeptideInternalBenchmarkResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["BenchmarkSubmission", "M2303Plugin", "ValidatedM2303Request"]

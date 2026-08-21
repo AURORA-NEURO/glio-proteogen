@@ -212,6 +212,14 @@ def test_result_tamper_is_rejected() -> None:
         M1206Service().verify(request, tampered)
 
 
+def test_resigned_semantic_result_is_rejected() -> None:
+    request = _request()
+    result = M1206Service().execute(request)
+    forged = result.model_copy(update={"status": SimulatorStatus.ABSTAINED})
+    with pytest.raises((ValueError, M1206ReplayError)):
+        M1206Service().verify(request, forged)
+
+
 def test_plugin_validates_once_and_rejects_unissued_token() -> None:
     request = _request()
     plugin = M1206Plugin(M1206Service())

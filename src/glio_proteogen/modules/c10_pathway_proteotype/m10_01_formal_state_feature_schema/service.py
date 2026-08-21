@@ -34,8 +34,9 @@ class M1001Service:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> ValidateProteinRnaDiscordanceStateVerification:
-        return self._engine.verify(result, canonical_bytes)
+        return self._engine.verify(result, canonical_bytes, request)
 
     def integrate(self, request: object) -> BuiltM1001Result:
         return self._engine.integrate(request)

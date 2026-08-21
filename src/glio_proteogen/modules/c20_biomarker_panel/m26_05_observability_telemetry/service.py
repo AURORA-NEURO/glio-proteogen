@@ -43,11 +43,19 @@ class M2605ObservabilityService:
         return self._engine.emit(self.validate_request(request))
 
     @staticmethod
-    def verify(result: object) -> ProteomicsTelemetryResult:
+    def verify(
+        result: object,
+        request: EmitProteomicsTelemetryRequest | None = None,
+    ) -> ProteomicsTelemetryResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except ValidationError as error:
             raise M2605ReplayError from error
+        if request is not None:
+            result_request = validated.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return verify_telemetry_result(validated)
 
 

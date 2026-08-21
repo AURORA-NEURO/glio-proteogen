@@ -31,8 +31,9 @@ class M0905Service:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> IntegrateComplexActivityConstraintsVerification:
-        return self._engine.verify(result, canonical_bytes)
+        return self._engine.verify(result, canonical_bytes, request)
 
     def execute(self, request: object) -> BuiltM0905Result:
         return self._engine.execute(request)

@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m09_07 import (
     M0907_CONTRACT_VERSION,
     M0907_MAX_CANONICAL_REQUEST_BYTES,
@@ -32,12 +33,17 @@ def _error(status: int, error_type: str, message: str) -> JSONResponse:
     )
 
 
-def create_app(service: M0907Service | None = None) -> FastAPI:
+def create_app(service: M0907Service | None = None) -> FastAPI:  # noqa: C901
     """Create an isolated app whose request body is parsed exactly once."""
 
     application = FastAPI(
         title="GLIO-PROTEOGEN M09-07 calibration/selective prediction",
         version=M0907_CONTRACT_VERSION,
+    )
+    application.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0907_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0907_MAX_CANONICAL_RESULT_BYTES,
     )
     active_service = service or M0907Service()
 
@@ -47,6 +53,11 @@ def create_app(service: M0907Service | None = None) -> FastAPI:
 
     @application.post("/m09-07/calibrate")
     async def calibrate(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return _error(415, "unsupported_media_type", "content-type must be application/json")
         try:
             raw = await request.body()
             decoded = strict_json_loads(raw, max_bytes=M0907_MAX_CANONICAL_REQUEST_BYTES)
@@ -72,6 +83,11 @@ def create_app(service: M0907Service | None = None) -> FastAPI:
 
     @application.post("/m09-07/verify")
     async def verify(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return _error(415, "unsupported_media_type", "content-type must be application/json")
         try:
             decoded = strict_json_loads(
                 await request.body(), max_bytes=M0907_MAX_CANONICAL_RESULT_BYTES

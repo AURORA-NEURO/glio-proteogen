@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 _OK = 200
 _UNPROCESSABLE = 422
 _NOT_FOUND = 404
+_UNSUPPORTED_MEDIA = 415
+_TOO_LARGE = 413
 
 
 def _artifact(
@@ -103,6 +105,23 @@ def test_api_validate_decompose_and_verify_have_stable_shapes() -> None:
     assert client.get("/v1/modules/M07-06/schemas/not-a-contract").status_code == _NOT_FOUND
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(create_app())
+    payload = _request()
+    wrong_media = client.post(
+        "/v1/modules/M07-06/decompose",
+        json=payload,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/modules/M07-06/decompose",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == _UNSUPPORTED_MEDIA
+    assert oversized.status_code == _TOO_LARGE
+
+
 def test_api_rejects_duplicate_json_keys_and_sanitizes_validation() -> None:
     client = TestClient(create_app())
     duplicate = client.post(
@@ -112,7 +131,11 @@ def test_api_rejects_duplicate_json_keys_and_sanitizes_validation() -> None:
     )
     assert duplicate.status_code == _UNPROCESSABLE
     assert duplicate.json()["detail"]["type"] == "json_duplicate_key"
-    invalid = client.post("/v1/modules/M07-06/validate", json={"context": {}})
+    invalid = client.post(
+        "/v1/modules/M07-06/validate",
+        json={"context": {}},
+        headers={"content-type": "application/json"},
+    )
     assert invalid.status_code == _UNPROCESSABLE
     assert all("input" not in error for error in invalid.json()["detail"])
 

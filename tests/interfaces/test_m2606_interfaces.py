@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from glio_proteogen.contracts.m26_06 import (
+    M2606_MAX_CANONICAL_REQUEST_BYTES,
     ControlStatus,
     EvaluateProteomicsSecurityAccessRequest,
     ProteomicsSecurityAccessResult,
@@ -39,6 +40,7 @@ from tests.contract.test_m26_06_provisional import _request
 _HTTP_OK = 200
 _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
+_HTTP_PAYLOAD_TOO_LARGE = 413
 _CLI_ABSTAINED = 3
 
 
@@ -57,9 +59,16 @@ def test_fastapi_validate_evaluate_and_verify_are_canonical() -> None:
     assert validated.status_code == _HTTP_OK
     assert evaluated.status_code == _HTTP_OK
     result = evaluated.json()
-    verified = client.post("/v1/modules/M26-06/verify", json={"result": result})
+    verified = client.post("/v1/modules/M26-06/verify", json={"request": payload, "result": result})
+    forged = dict(payload)
+    forged["request_id"] = "request.m2606.forged"
+    mismatch = client.post(
+        "/v1/modules/M26-06/verify",
+        json={"request": forged, "result": result},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json() == {"verified": True, "result_digest": result["result_digest"]}
+    assert mismatch.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_fastapi_sanitizes_invalid_and_unauthorized_requests() -> None:
@@ -86,6 +95,15 @@ def test_fastapi_sanitizes_invalid_and_unauthorized_requests() -> None:
         "/v1/modules/M26-06/validate", json=denied.model_dump(mode="json")
     )
     assert unauthorized_validate.status_code == _HTTP_FORBIDDEN
+
+
+def test_fastapi_request_ceiling_applies_before_evaluate_parsing() -> None:
+    client = TestClient(create_m2606_app())
+    response = client.post(
+        "/v1/modules/M26-06/evaluate",
+        content=b"{" + b"x" * M2606_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_fastapi_validation_error_paths_are_sanitized() -> None:

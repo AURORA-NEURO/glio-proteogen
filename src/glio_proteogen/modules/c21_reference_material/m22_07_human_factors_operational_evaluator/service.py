@@ -38,8 +38,14 @@ class M2207Service:
     def replay(
         self,
         result: ProteinRnaDiscordanceHumanFactorsResult,
+        request: EvaluateProteinRnaDiscordanceHumanFactorsRequest | None = None,
     ) -> ProteinRnaDiscordanceHumanFactorsResult:
-        return self._engine.replay(result)
+        replayed = self._engine.replay(result)
+        if request is not None and (
+            replayed.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
+        return replayed
 
 
 __all__ = ["M2207Service"]

@@ -45,9 +45,18 @@ def test_api_schema_validate_emit_and_verify_parity() -> None:
     )
     assert validated.status_code == HTTPStatus.OK
     assert emitted.status_code == HTTPStatus.OK
-    verified = client.post("/v1/modules/M26-05/verify", json=emitted.json())
+    verified = client.post(
+        "/v1/modules/M26-05/verify",
+        json={"request": request.model_dump(mode="json"), "result": emitted.json()},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2605.forged"})
+    mismatch = client.post(
+        "/v1/modules/M26-05/verify",
+        json={"request": forged.model_dump(mode="json"), "result": emitted.json()},
+    )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert client.get("/v1/modules/M26-05/schemas/request").status_code == HTTPStatus.OK
 
 

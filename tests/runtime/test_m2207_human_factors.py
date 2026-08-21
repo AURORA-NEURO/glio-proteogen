@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 
 from glio_proteogen.contracts.m22_07 import (
     EvaluationStatus,
     OperationalStatus,
     ProteinRnaDiscordanceHumanFactorsResult,
 )
+from glio_proteogen.contracts.m22_07.canonical import result_payload_digest
 from glio_proteogen.modules.c21_reference_material import (
     m22_07_human_factors_operational_evaluator as m2207,
 )
@@ -28,6 +30,21 @@ def test_runtime_evaluates_supported_operational_material_deterministically() ->
     assert engine.replay(first).result_digest == first.result_digest
 
 
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = m2207.M2207OperationalEngine().generate(request)
+    forged = result.model_copy(update={"human_review_required": False})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(m2207.create_app()).post(
+        "/v1/modules/M22-07/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004
+
+
 def test_runtime_abstains_when_operational_dimension_is_not_evaluable() -> None:
     request = _request().model_dump(mode="python")
     request["metrics"][0]["status"] = OperationalStatus.NOT_EVALUABLE
@@ -39,6 +56,17 @@ def test_runtime_abstains_when_operational_dimension_is_not_evaluable() -> None:
     assert result.abstention_reason is not None
     assert result.support_decision.status.value == "review_required"
     assert engine.replay(result).status is EvaluationStatus.ABSTAINED
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = m2207.M2207Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2207.M2207Plugin(service).replay(result, altered)
 
 
 def test_runtime_exposes_metric_failure_without_turning_it_into_abstention() -> None:

@@ -255,10 +255,11 @@ class M1902Engine:
         findings = () if can_align else _findings(request)
         status = AlignmentStatus.ALIGNED if can_align else AlignmentStatus.ABSTAINED
         support = SupportDecision(
-            status=SupportStatus.SUPPORTED if can_align else SupportStatus.REVIEW_REQUIRED,
-            reason_code="aligned_sources" if can_align else "alignment_review_required",
+            status=SupportStatus.REVIEW_REQUIRED,
+            reason_code="aligned_sources_review_only" if can_align else "alignment_review_required",
             rationale=(
-                "All seven source dimensions agree under the locked configuration."
+                "All seven caller-declared source dimensions agree under the locked configuration "
+                "for review; alignment does not establish calibrated biological support."
                 if can_align
                 else "One or more source dimensions are unresolved and require safe review."
             ),
@@ -285,7 +286,7 @@ class M1902Engine:
             "provenance": _provenance(request),
             "evidence": _evidence(request),
             "limitations": _limitations(),
-            "human_review_required": not can_align,
+            "human_review_required": True,
         }
         payload["result_digest"] = result_payload_digest(
             ProteotypeAlignmentResult.model_construct(**payload)
@@ -299,6 +300,9 @@ class M1902Engine:
             raise M1902ReplayError("M19-02 result identifier mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1902ReplayError("M19-02 result payload digest mismatch")  # noqa: TRY003
+        expected = self.align(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1902ReplayError("M19-02 deterministic replay result mismatch")  # noqa: TRY003
         try:
             return ProteotypeAlignmentResult.model_validate(
                 result.model_dump(mode="python"), strict=True

@@ -3,6 +3,8 @@
 # Contract tests intentionally exercise exact numeric/cardinality boundaries.
 # ruff: noqa: PLR2004
 
+from typing import Any, cast
+
 import pytest
 from evals.m27_08.fixture import build_request
 
@@ -18,7 +20,7 @@ from glio_proteogen.modules.c27_complex_activity.m27_08_retirement import M2708S
 
 
 def test_all_ten_schemas_are_strict_and_identified() -> None:
-    schemas = contract_json_schemas()
+    schemas = cast("dict[str, dict[str, Any]]", contract_json_schemas())
     assert len(schemas) == 10
     assert all(value["$schema"].endswith("2020-12/schema") for value in schemas.values())
     assert all(value["x-glio-contract"]["provisionalAbi"] for value in schemas.values())
@@ -55,6 +57,29 @@ def test_result_replay_rejects_self_rehashed_forged_package() -> None:
     assert not M2708Service().verify(rehashed)
 
 
+def test_result_replay_rejects_stale_request_identity_after_rehash() -> None:
+    result = M2708Service().execute(build_request())
+    changed_request = build_request(request_id="m2708.request.changed")
+    forged = result.model_copy(update={"request": changed_request})
+    rehashed = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    # Rehashing the outer envelope must not bypass the request-digest and
+    # result-identity closure enforced by the result model.
+    assert not M2708Service().verify(rehashed)
+
+
+def test_upstream_media_type_requires_exact_m27_07_contract_value() -> None:
+    request = build_request()
+    hostile = request.source_artifacts[0].model_copy(
+        update={"media_type": "application/vnd.attacker.m27-07+json"}
+    )
+    forged = request.model_copy(
+        update={"source_artifacts": (hostile, *request.source_artifacts[1:])}
+    )
+    with pytest.raises(ValueError, match="unsupported upstream artifact media type"):
+        M2708Service().execute(forged)
+
+
 def test_abstention_has_no_package_and_requires_review() -> None:
     result = M2708Service().execute(build_request(incomplete=True))
     assert result.status.value == "abstained"
@@ -76,6 +101,16 @@ def test_duplicate_source_artifacts_are_rejected_before_retirement() -> None:
     )
     with pytest.raises(ValueError, match="source artifact ids"):
         M2708Service().execute(duplicate)
+
+
+def test_attacker_media_substring_is_rejected() -> None:
+    request = build_request()
+    forged = request.source_artifacts[0].model_copy(
+        update={"media_type": "application/vnd.attacker.m27-07+json"}
+    )
+    request = request.model_copy(update={"source_artifacts": (forged,)})
+    with pytest.raises(ValueError, match="unsupported upstream artifact media type"):
+        M2708Service().execute(request)
 
 
 def test_invalid_archive_status_is_not_executed() -> None:

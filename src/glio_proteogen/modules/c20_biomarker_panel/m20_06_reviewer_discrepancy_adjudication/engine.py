@@ -340,8 +340,8 @@ class M2006Engine:
             )
             status = QueueResultStatus.RECORDED
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="adjudication_resolved",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="adjudication_resolved_review_required",
                 rationale="The immutable review record preserves blinded decisions and evidence.",
             )
             abstention_reason = None
@@ -383,6 +383,9 @@ class M2006Engine:
             raise M2006ReplayError("M20-06 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M2006ReplayError("M20-06 result payload digest mismatch")  # noqa: TRY003
+        expected = self.adjudicate(result.request)
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M2006ReplayError("M20-06 result semantic replay mismatch")  # noqa: TRY003
         return _RESULT_ADAPTER.validate_python(result, strict=True)
 
 

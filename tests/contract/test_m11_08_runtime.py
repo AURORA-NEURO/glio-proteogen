@@ -274,6 +274,13 @@ def test_replay_tamper_is_rejected_and_plugin_requires_capability() -> None:
         plugin.run(object())  # type: ignore[arg-type]
 
 
+def test_request_bound_replay_rejects_resigned_dossier_mutation() -> None:
+    original = request()
+    result = assemble_mechanism_dossier(original)
+    forged = result.model_copy(update={"status": "abstained"})
+    assert not M1108MechanismEvidenceDossierService.verify(forged, original)
+
+
 def test_authorization_preflight_does_not_traverse_opaque_source() -> None:
     original = request()
 

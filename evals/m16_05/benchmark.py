@@ -35,8 +35,8 @@ def measure(iterations: int = 10) -> dict[str, object]:
         started = perf_counter_ns()
         result = engine.present(request)
         elapsed = perf_counter_ns() - started
-        if result.status is not WorkspacePresentationStatus.PRESENTED:
-            raise RuntimeError("benchmark request was not presented")
+        if result.status is not WorkspacePresentationStatus.REVIEW_REQUIRED:
+            raise RuntimeError("benchmark request did not require review")
         samples.append(elapsed)
     ordered = sorted(samples)
     p95 = ordered[min(len(ordered) - 1, max(0, int(len(ordered) * 0.95) - 1))]

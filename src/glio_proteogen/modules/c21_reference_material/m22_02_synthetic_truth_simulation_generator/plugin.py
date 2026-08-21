@@ -94,8 +94,9 @@ class M2202Plugin(
     def replay(
         self,
         result: ProteinRnaDiscordanceSyntheticTruthResult,
+        request: GenerateProteinRnaDiscordanceSyntheticTruthRequest | None = None,
     ) -> ProteinRnaDiscordanceSyntheticTruthResult:
-        return self._service.verify_replay(result)
+        return self._service.verify_replay(result, request)
 
 
 __all__ = ["M2202Plugin", "SyntheticTruthSubmission", "ValidatedM2202Request"]

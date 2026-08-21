@@ -37,6 +37,7 @@ HTTP_OK: Final = 200
 HTTP_FORBIDDEN: Final = 403
 HTTP_UNSUPPORTED_MEDIA_TYPE: Final = 415
 HTTP_UNPROCESSABLE_CONTENT: Final = 422
+HTTP_TOO_LARGE: Final = 413
 CLI_USAGE_ERROR: Final = 2
 
 
@@ -118,6 +119,16 @@ def test_api_rejects_wrong_media_type_and_malformed_json(tmp_path) -> None:
 
     assert media_type.status_code == HTTP_UNSUPPORTED_MEDIA_TYPE
     assert malformed.status_code == HTTP_UNPROCESSABLE_CONTENT
+
+
+def test_central_api_rejects_oversized_m0604_request_before_parsing(tmp_path) -> None:
+    with TestClient(create_app(tmp_path / "oversized.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M06-04/probabilistic-estimation",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == HTTP_TOO_LARGE
 
 
 def test_cli_rejects_unknown_request_field_without_reflection(tmp_path) -> None:

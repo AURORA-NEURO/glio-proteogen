@@ -8,11 +8,16 @@ import math
 import struct
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
 
-from glio_proteogen.research import ResearchRunRequest, run_research_protein_inference
+from glio_proteogen.research import (
+    EvidenceRecord,
+    ResearchRunRequest,
+    aggregate_evidence,
+    run_research_protein_inference,
+)
 
 _DIGEST_LENGTH = 64
 _GENERATED_SEARCH_SPACE_PEPTIDES = 2
@@ -103,6 +108,26 @@ def _multi_peptide_mzml() -> bytes:
         )
         + "</spectrumList></run></mzML>"
     ).encode()
+
+
+def _evidence_identity_boundary() -> dict[str, object]:
+    """Lock that relabeling an evidence record invalidates its inner receipt."""
+
+    record = EvidenceRecord.create(
+        "evaluator-identity-bound", "research:evaluator", "fixture", {"value": 1}
+    )
+    forged = replace(record, source="research:forged")
+    rejected = False
+    try:
+        aggregate_evidence((forged,))
+    except ValueError as error:
+        rejected = "digest" in str(error)
+    return {
+        "passed": rejected,
+        "original_digest": record.digest,
+        "forged_digest": forged.digest,
+        "rejection": "identity-bound-inner-digest",
+    }
 
 
 def scenarios() -> tuple[Scenario, ...]:
@@ -325,6 +350,7 @@ def _cohort_mzml() -> bytes:
 def run_evaluator() -> dict[str, object]:
     locked_scenarios = scenarios()
     fixture_digest = _fixture_sha256(locked_scenarios)
+    evidence_identity = _evidence_identity_boundary()
     fixture_path = (
         Path(__file__).resolve().parents[2]
         / "tests"
@@ -356,6 +382,19 @@ def run_evaluator() -> dict[str, object]:
             and result.fdr_summary.target_winners == scenario.expected_target_winners
             and result.fdr_summary.decoy_winners == scenario.expected_decoy_winners
             and result.fdr_summary.collision_winners == scenario.expected_collision_winners
+            and result.fdr_summary.decoy_to_target_ratio
+            == (
+                expected["expected_fdr_ratio"]
+                if "expected_fdr_ratio" in expected
+                else (
+                    None
+                    if scenario.expected_target_winners == 0
+                    else (
+                        scenario.expected_decoy_winners + scenario.expected_collision_winners
+                    )
+                    / scenario.expected_target_winners
+                )
+            )
             and result.fdr_summary.accepted_targets == scenario.expected_accepted
             and result.protein_group_fdr_summary is not None
             and result.protein_group_fdr_summary.as_dict() == expected["expected_group_fdr"]
@@ -467,11 +506,13 @@ def run_evaluator() -> dict[str, object]:
     }
     return {
         "passed": all(bool(item["passed"]) for item in outcomes)
-        and bool(generated_search_space["passed"]),
+        and bool(generated_search_space["passed"])
+        and bool(evidence_identity["passed"]),
         "declared": len(outcomes),
         "executed": len(outcomes),
         "fixture_sha256": fixture_digest,
         "generated_search_space": generated_search_space,
+        "evidence_identity_binding": evidence_identity,
         "outcomes": outcomes,
     }
 

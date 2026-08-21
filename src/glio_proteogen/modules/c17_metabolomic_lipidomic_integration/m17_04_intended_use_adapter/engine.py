@@ -349,9 +349,12 @@ class M1704Engine:
                 evidence=_evidence(request),
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
-                reason_code="intended_use_registered",
-                rationale="A registered intended-use policy permits the bounded object.",
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="caller_declared_policy",
+                rationale=(
+                    "The bounded object is retained for human review; caller-declared "
+                    "intended-use policy is not scientific support or calibration."
+                ),
             )
             abstention_reason = None
         payload: dict[str, Any] = {
@@ -389,6 +392,12 @@ class M1704Engine:
             raise M1704ReplayError("M17-04 result request digest mismatch")  # noqa: TRY003
         if result.result_digest != result_payload_digest(result):
             raise M1704ReplayError("M17-04 result payload digest mismatch")  # noqa: TRY003
+        try:
+            expected = self.adapt(result.request)
+        except Exception as exc:
+            raise M1704ReplayError from exc
+        if expected.model_dump(mode="json") != result.model_dump(mode="json"):
+            raise M1704ReplayError("M17-04 deterministic replay result mismatch")  # noqa: TRY003
         return result
 
 

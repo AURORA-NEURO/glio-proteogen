@@ -254,9 +254,10 @@ class ProteinSubtypeLongitudinalEvolutionResult(FrozenModel):
             if (
                 not self.trajectory
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
+                or not self.human_review_required
             ):
-                raise ValueError("modeled result requires a supported trajectory")
+                raise ValueError("modeled result requires a review-only trajectory")
         elif (
             self.trajectory
             or self.change_points

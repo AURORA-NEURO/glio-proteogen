@@ -82,8 +82,12 @@ class M2107Plugin:
             raise M2107TokenError
         return self._service._engine.evaluate(token.request)
 
-    def replay(self, result: object) -> ComplexActivityHumanFactorsResult:
-        return self._service.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: EvaluateComplexActivityHumanFactorsRequest | None = None,
+    ) -> ComplexActivityHumanFactorsResult:
+        return self._service.replay(result, request=request)
 
 
 __all__ = [

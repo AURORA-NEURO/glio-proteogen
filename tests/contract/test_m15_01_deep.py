@@ -62,7 +62,14 @@ def test_result_closure_rejects_digest_id_evidence_and_unsafe_statuses() -> None
     assert "evidence references" in str(
         _closed_error(result, evidence=(result.evidence[0].model_copy(update={"role": "input"}),))
     )
-    assert "supported hypotheses" in str(_closed_error(result, human_review_required=True))
+    assert "registered result requires" in str(
+        _closed_error(
+            result,
+            support_decision=result.support_decision.model_copy(
+                update={"status": SupportStatus.SUPPORTED}
+            ),
+        )
+    )
     assert "abstained result" in str(
         _closed_error(
             result,

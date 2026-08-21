@@ -62,9 +62,7 @@ class _InvalidSubmissionError(TypeError):
         super().__init__("M25-03 validation requires a benchmark submission")
 
 
-class M2503Plugin(
-    ModulePlugin[object, ValidatedM2503Request, ProteotypeInternalBenchmarkResult]
-):
+class M2503Plugin(ModulePlugin[object, ValidatedM2503Request, ProteotypeInternalBenchmarkResult]):
     """Expose validate-then-run without an authority or parse bypass."""
 
     __slots__ = ("_service",)
@@ -96,8 +94,9 @@ class M2503Plugin(
     def replay(
         self,
         result: ProteotypeInternalBenchmarkResult,
+        request: RunProteotypeInternalBenchmarkRequest | None = None,
     ) -> ProteotypeInternalBenchmarkResult:
-        return self._service.verify_replay(result)
+        return self._service.verify_replay(result, request)
 
 
 __all__ = ["BenchmarkSubmission", "M2503Plugin", "ValidatedM2503Request"]

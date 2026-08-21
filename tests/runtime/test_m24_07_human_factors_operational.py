@@ -100,6 +100,17 @@ def test_replay_rejects_request_identity_result_id_and_digest_tampering() -> Non
         service.verify_replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request_value = request()
+    service = m2407.M2407Service()
+    result = service.evaluate(request_value)
+    altered = request_value.model_copy(update={"request_id": "m2407.request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m2407.M2407Plugin(service).replay(result, altered)
+
+
 def test_denied_control_and_hostile_mapping_fail_closed_before_content_walk() -> None:
     typed = request()
     support = typed.context.references.support.model_copy(

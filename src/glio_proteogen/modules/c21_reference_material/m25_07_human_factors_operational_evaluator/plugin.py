@@ -93,8 +93,9 @@ class M2507Plugin(ModulePlugin[object, ValidatedM2507Request, ProteotypeHumanFac
     def replay(
         self,
         result: ProteotypeHumanFactorsResult,
+        request: EvaluateProteotypeHumanFactorsRequest | None = None,
     ) -> ProteotypeHumanFactorsResult:
-        return self._service.verify_replay(result)
+        return self._service.verify_replay(result, request)
 
 
 __all__ = ["HumanFactorsSubmission", "M2507Plugin", "ValidatedM2507Request"]

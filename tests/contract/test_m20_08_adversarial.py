@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import TypeAdapter, ValidationError
 
 from glio_proteogen.contracts.m20_08 import (
@@ -18,8 +19,10 @@ from glio_proteogen.contracts.m20_08 import (
     TranslationHealthStatus,
     TranslationMonitoringConfiguration,
 )
+from glio_proteogen.contracts.m20_08.canonical import result_payload_digest
 from glio_proteogen.modules.c20_biomarker_panel.m20_08_translation_monitoring_rollback import (
     M2008TranslationMonitoringEngine,
+    create_app,
 )
 from tests.contract.test_m20_08_hardening import _artifact, _report, _request, _signal
 
@@ -143,3 +146,18 @@ def test_result_evidence_and_report_evidence_must_remain_unique() -> None:
         TranslationHealthReport.model_validate(
             report.model_copy(update={"evidence": report.evidence * 2})
         )
+
+
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2008TranslationMonitoringEngine().infer(request)
+    tampered = result.model_copy(update={"health_status": TranslationHealthStatus.DEGRADED})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M20-08/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422  # noqa: PLR2004

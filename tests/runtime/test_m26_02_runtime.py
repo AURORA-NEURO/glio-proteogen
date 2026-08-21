@@ -207,6 +207,17 @@ def test_plugin_parse_once_and_raw_tamper_are_closed() -> None:
         M2602LineageService.verify(tampered)
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2602LineageService()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2602.request.mismatch"})
+    with pytest.raises(ValueError, match="lineage replay request mismatch"):
+        service.verify(result, altered)
+    with pytest.raises(ValueError, match="lineage replay request mismatch"):
+        M2602LineagePlugin(service).verify(result, altered)
+
+
 def test_request_and_result_closure_reject_invalid_bindings() -> None:
     request = _request()
     missing_root = request.model_copy(

@@ -10,7 +10,10 @@ import pytest
 
 from glio_proteogen.contracts.m22_06 import (
     ChallengeDisposition,
+    ChallengeFinding,
+    ChallengeFindingCode,
     RobustnessStatus,
+    result_payload_digest,
 )
 from glio_proteogen.kernel.models import SupportStatus, UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_06_robustness_shift_ood_challenge import (
@@ -88,6 +91,17 @@ def test_service_plugin_replay_and_public_entrypoint_parity() -> None:
     assert public == result
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2206Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2206Plugin(service).verify(result, request=altered)
+
+
 def test_replay_rejects_tampered_payload() -> None:
     engine = M2206Engine()
     result = engine.evaluate(_request())
@@ -95,3 +109,22 @@ def test_replay_rejects_tampered_payload() -> None:
         engine.verify(result.model_copy(update={"abstention_reason": "tampered"}), replay=False)
     with pytest.raises((TypeError, ValueError)):
         M2206Plugin().validate("{")
+
+
+def test_verify_rejects_resigned_semantic_mutation_when_replay_is_disabled() -> None:
+    """A self-consistent finding still requires deterministic regeneration."""
+
+    engine = M2206Engine()
+    result = engine.evaluate(_request())
+    forged_finding = ChallengeFinding(
+        finding_id="m2206.forged-finding",
+        code=ChallengeFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+        message="forged semantic finding",
+    )
+    forged = result.model_copy(update={"findings": (forged_finding,)})
+    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+
+    with pytest.raises(M2206ReplayError, match="cannot be disabled"):
+        engine.verify(forged, replay=False)
+    with pytest.raises(M2206ReplayError, match="deterministic replay mismatch"):
+        engine.verify(forged)

@@ -55,6 +55,15 @@ def test_plugin_token_is_identity_bound() -> None:
     assert plugin.run(token).status is RetirementRunStatus.EXECUTED
 
 
+def test_service_and_plugin_verify_reject_supplied_request_mismatch() -> None:
+    request = build_request()
+    service = M2708Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "m2708.request.mismatch"})
+    assert service.verify(result, altered) is False
+    assert M2708Plugin().verify(result, altered) is False
+
+
 def test_plugin_rejects_reconstructed_token() -> None:
     plugin = M2708Plugin()
     token = plugin.validate(RetirementSubmission(build_request()))

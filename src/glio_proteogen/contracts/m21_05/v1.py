@@ -269,9 +269,9 @@ class ComplexActivitySubgroupEvaluationResult(FrozenModel):
             if (
                 self.report is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("evaluated result requires a supported subgroup report")
+                raise ValueError("evaluated result requires a review-only subgroup report")
         elif (
             self.report is not None
             or self.abstention_reason is None

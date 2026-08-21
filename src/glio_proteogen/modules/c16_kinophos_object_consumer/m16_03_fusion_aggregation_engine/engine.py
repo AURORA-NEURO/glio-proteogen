@@ -333,7 +333,11 @@ class M1603FusionEngine:
                     evidence,
                 )
             )
-        abstain = bool(low_sources or unsafe_sources)
+        # Reliability is caller-declared and this provisional ABI has no
+        # calibrated estimator or authenticated source evidence. Do not turn
+        # a high score into a supported scientific fusion claim.
+        provisional_boundary = True
+        abstain = bool(low_sources or unsafe_sources or provisional_boundary)
         integrated = None
         status = FusionStatus.ABSTAINED if abstain else FusionStatus.INTEGRATED
         if not abstain:
@@ -357,7 +361,8 @@ class M1603FusionEngine:
             "integrated_evidence": integrated,
             "findings": tuple(findings),
             "abstention_reason": (
-                "Reliability or support boundary prevents safe component-specific aggregation."
+                "Reliability, support, or provisional-ABI boundary prevents safe "
+                "component-specific aggregation."
                 if abstain
                 else None
             ),
@@ -366,12 +371,17 @@ class M1603FusionEngine:
             "support_decision": SupportDecision(
                 status=SupportStatus.REVIEW_REQUIRED if abstain else SupportStatus.SUPPORTED,
                 reason_code=(
-                    "m1603_reliability_boundary"
+                    "m1603_provisional_abi_boundary"
+                    if provisional_boundary
+                    else "m1603_reliability_boundary"
                     if abstain
                     else "m1603_attributable_integration_supported"
                 ),
                 rationale=(
-                    "Aggregation abstained because reliability evidence is outside the "
+                    "Aggregation abstained because the provisional ABI does not authorize "
+                    "a supported fusion claim."
+                    if provisional_boundary
+                    else "Aggregation abstained because reliability evidence is outside the "
                     "configured support envelope."
                     if abstain
                     else (

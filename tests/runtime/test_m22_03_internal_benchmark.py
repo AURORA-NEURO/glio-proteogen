@@ -11,6 +11,7 @@ from glio_proteogen.contracts.m22_03 import BenchmarkStatus
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_03_internal_benchmark_ablation import (
     M2203AuthorizationError,
+    M2203Plugin,
     M2203ReplayError,
     M2203Service,
     preflight_m2203_authorization,
@@ -48,6 +49,17 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2203ReplayError, match="request digest"):
         service.replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2203Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2203Plugin(service).replay(result, altered)
 
 
 def test_authorization_fails_closed_before_material_traversal() -> None:

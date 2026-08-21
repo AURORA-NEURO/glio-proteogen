@@ -39,7 +39,12 @@ class M2501Service:
     def verify_replay(
         self,
         result: ProteotypeReferenceTruthResult,
+        request: CurateProteotypeReferenceTruthRequest | None = None,
     ) -> ProteotypeReferenceTruthResult:
+        if request is not None and result.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("replay request mismatch") from None  # noqa: TRY003
         return self._engine.verify_replay(result)
 
 

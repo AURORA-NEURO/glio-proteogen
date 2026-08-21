@@ -35,9 +35,18 @@ def test_fastapi_schema_validate_generate_verify_parity() -> None:
         headers={"content-type": "application/json"},
     )
     assert generated.status_code == HTTPStatus.OK
-    verified = client.post("/v1/modules/M23-02/verify", json=generated.json())
+    verified = client.post(
+        "/v1/modules/M23-02/verify",
+        json={"request": request.model_dump(mode="json"), "result": generated.json()},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2302.forged"})
+    mismatch = client.post(
+        "/v1/modules/M23-02/verify",
+        json={"request": forged.model_dump(mode="json"), "result": generated.json()},
+    )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json()["verified"] is True
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_fastapi_sanitizes_invalid_request() -> None:

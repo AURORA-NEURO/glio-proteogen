@@ -15,6 +15,9 @@ from glio_proteogen.modules.c09_complex_activity import (
 )
 from tests.modules.c09_complex_activity.test_m09_03_estimator import _request
 
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -52,9 +55,40 @@ def test_api_exports_schema_and_validates_or_estimates() -> None:
     assert not unknown.is_success
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(m0903.api.create_app())
+    body = _request().model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/modules/M09-03/estimate",
+        json=body,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/modules/M09-03/estimate",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
+def test_api_enforces_preparse_result_limit_on_estimate_response() -> None:
+    client = TestClient(m0903.api.create_app())
+    oversized = client.post(
+        "/v1/modules/M09-03/estimate",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_sanitizes_invalid_and_denied_requests() -> None:
     client = TestClient(m0903.api.create_app())
-    invalid = client.post("/v1/modules/M09-03/validate", content=b"{not-json")
+    invalid = client.post(
+        "/v1/modules/M09-03/validate",
+        content=b"{not-json",
+        headers={"content-type": "application/json"},
+    )
     denied_body = _request().model_copy(
         update={
             "context": _request().context.model_copy(

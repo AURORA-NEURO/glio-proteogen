@@ -38,7 +38,13 @@ class M2307Service:
     def replay(
         self,
         result: VariantPeptideHumanFactorsResult,
+        request: EvaluateVariantPeptideHumanFactorsRequest | None = None,
     ) -> VariantPeptideHumanFactorsResult:
+        if request is not None:
+            result_request = result.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 

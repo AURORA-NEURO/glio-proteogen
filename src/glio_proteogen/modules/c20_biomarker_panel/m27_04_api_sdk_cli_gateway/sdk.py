@@ -27,8 +27,12 @@ class M2704Client:
     def publish(self, request: object) -> ComplexActivityAccessSurfaceResult:
         return self._service.publish(request)
 
-    def verify(self, result: object) -> ComplexActivityAccessSurfaceResult:
-        return self._service.replay(result)
+    def verify(
+        self,
+        result: object,
+        request: PublishComplexActivityAccessSurfaceRequest | None = None,
+    ) -> ComplexActivityAccessSurfaceResult:
+        return self._service.replay(result, request)
 
     def publish_json(self, request: object) -> dict[str, Any]:
         return self.publish(request).model_dump(mode="json")

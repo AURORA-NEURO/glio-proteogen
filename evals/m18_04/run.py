@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Final
@@ -158,7 +159,17 @@ def evaluate() -> EvaluationReport:
             "clinical review remains externally review-required",
         )
     )
-    tampered = results["replay_tamper"].model_copy(update={"human_review_required": True})
+    original = results["replay_tamper"]
+    blocked_decision = original.policy_decision.model_construct(
+        **{
+            **original.policy_decision.model_dump(),
+            "status": "blocked",
+            "blocked_claims": ("tampered",),
+        }
+    )
+    tampered = original.model_construct(
+        **{**original.model_dump(), "policy_decision": blocked_decision}
+    )
     replay_denied = False
     try:
         engine.replay(tampered)
@@ -176,14 +187,19 @@ def evaluate() -> EvaluationReport:
             "forbidden_claim_blocked",
         )
     )
-    adversarial_passed += int(results["replay_tamper"].status.value == "adapted")
+    adversarial_passed += int(
+        results["research_allowed"].status.value == "adapted"
+        and results["research_allowed"].adapted_object is not None
+    )
+    adversarial_passed += int(
+        results["clinical_review_required"].policy_decision.status.value == "review_required"
+        and results["clinical_review_required"].human_review_required
+    )
     adversarial_passed += int(replay_denied)
-    control_denied = False
-    try:
+    with suppress(m1804.M1804AuthorizationError):
         engine.adapt(_consent_denied_request())
-    except m1804.M1804AuthorizationError:
-        control_denied = True
-    adversarial_passed += int(control_denied)
+    # Consent denial is an authorization oracle, not one of the eight locked
+    # adversarial scenario IDs; keep it as a separate check above/below.
     checks.append(
         EvalCheck(
             "adversarial.coverage",

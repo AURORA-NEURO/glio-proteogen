@@ -183,14 +183,14 @@ def test_result_status_report_and_support_closure_rejects_tampering() -> None:
         ProteotypeUpstreamResolutionResult.model_validate(
             result.model_dump(mode="python") | {"evidence": (_evidence("same"),) * 2}
         )
-    with pytest.raises(ValidationError, match="supported upstream"):
+    with pytest.raises(ValidationError, match="review-only upstream"):
         ProteotypeUpstreamResolutionResult.model_validate(
             result.model_dump(mode="python")
             | {
                 "support_decision": SupportDecision(
-                    status=SupportStatus.REVIEW_REQUIRED,
-                    reason_code="review",
-                    rationale="Forced review.",
+                    status=SupportStatus.SUPPORTED,
+                    reason_code="supported",
+                    rationale="Forced supported.",
                 )
             }
         )
@@ -200,7 +200,7 @@ def test_result_status_report_and_support_closure_rejects_tampering() -> None:
         )
     with pytest.raises(ValidationError, match="human review"):
         ProteotypeUpstreamResolutionResult.model_validate(
-            result.model_dump(mode="python") | {"human_review_required": True}
+            result.model_dump(mode="python") | {"human_review_required": False}
         )
     abstained = m1901.M1901Engine().resolve(
         _request((_candidate("candidate.unknown", compatibility=CompatibilityStatus.UNKNOWN),))

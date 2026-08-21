@@ -301,9 +301,9 @@ class ProteinSubtypeAdjudicationResult(FrozenModel):
             if (
                 self.record is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("recorded result requires a supported immutable record")
+                raise ValueError("recorded result requires a review-only immutable record")
             request_ids = {item.discrepancy_id for item in self.request.entries}
             record_ids = {item.discrepancy_id for item in self.record.entries}
             if request_ids != record_ids:

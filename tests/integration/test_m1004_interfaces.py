@@ -16,9 +16,13 @@ def test_api_schema_and_validation_are_strict() -> None:
     request = build_request().model_dump(mode="json")
     with TestClient(create_m1004_app()) as client:
         schema = client.get("/v1/m10-04/schema/request")
-        valid = client.post("/v1/m10-04/validate", json=request)
+        valid = client.post(
+            "/v1/m10-04/validate", json=request, headers={"content-type": "application/json"}
+        )
         duplicate = client.post(
-            "/v1/m10-04/validate", content=b'{"request_id":"a","request_id":"b"}'
+            "/v1/m10-04/validate",
+            content=b'{"request_id":"a","request_id":"b"}',
+            headers={"content-type": "application/json"},
         )
     assert schema.status_code == 200
     assert schema.json()["x-glio-contract"]["provisionalAbi"] is True
@@ -30,10 +34,11 @@ def test_api_schema_and_validation_are_strict() -> None:
 def test_api_estimate_and_verify_round_trip() -> None:
     request = build_request().model_dump(mode="json")
     with TestClient(create_m1004_app()) as client:
-        estimated = client.post("/v1/m10-04/estimate", json=request)
-        verified = client.post("/v1/m10-04/verify", json=estimated.json())
+        headers = {"content-type": "application/json"}
+        estimated = client.post("/v1/m10-04/estimate", json=request, headers=headers)
+        verified = client.post("/v1/m10-04/verify", json=estimated.json(), headers=headers)
         tampered = dict(estimated.json(), abstention_reason="tampered")
-        rejected = client.post("/v1/m10-04/verify", json=tampered)
+        rejected = client.post("/v1/m10-04/verify", json=tampered, headers=headers)
     assert estimated.status_code == 200
     assert estimated.json()["status"] == "abstained"
     assert verified.status_code == 200
@@ -44,7 +49,11 @@ def test_api_estimate_and_verify_round_trip() -> None:
 
 def test_api_sanitizes_contract_errors_and_unknown_schema() -> None:
     with TestClient(create_m1004_app()) as client:
-        invalid = client.post("/v1/m10-04/validate", json={"request_id": "secret-value"})
+        invalid = client.post(
+            "/v1/m10-04/validate",
+            json={"request_id": "secret-value"},
+            headers={"content-type": "application/json"},
+        )
         unknown = client.get("/v1/m10-04/schema/not-a-contract")
     assert invalid.status_code == 422
     assert "secret-value" not in invalid.text
@@ -80,14 +89,38 @@ def test_cli_rejects_duplicate_json_without_echoing_payload(tmp_path) -> None:
 def test_api_maps_authorization_and_strict_verify_errors() -> None:
     request = build_request(accepted_controls=False).model_dump(mode="json")
     with TestClient(create_m1004_app()) as client:
-        denied = client.post("/v1/m10-04/estimate", json=request)
-        malformed = client.post("/v1/m10-04/estimate", content=b"not-json")
+        headers = {"content-type": "application/json"}
+        denied = client.post("/v1/m10-04/estimate", json=request, headers=headers)
+        malformed = client.post("/v1/m10-04/estimate", content=b"not-json", headers=headers)
         duplicate = client.post(
-            "/v1/m10-04/verify", content=b'{"result_digest":"a","result_digest":"b"}'
+            "/v1/m10-04/verify",
+            content=b'{"result_digest":"a","result_digest":"b"}',
+            headers=headers,
         )
     assert denied.status_code == 403
     assert malformed.status_code == 400
     assert duplicate.status_code == 400
+
+
+def test_api_enforces_media_type_and_preparse_request_and_result_limits() -> None:
+    client = TestClient(create_m1004_app())
+    payload = build_request().model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/m10-04/estimate", json=payload, headers={"content-type": "text/plain"}
+    )
+    oversized_request = client.post(
+        "/v1/m10-04/estimate",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    oversized_result = client.post(
+        "/v1/m10-04/verify",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == 415
+    assert oversized_request.status_code == 413
+    assert oversized_result.status_code == 413
 
 
 def test_cli_maps_authorization_and_tamper_errors(tmp_path) -> None:

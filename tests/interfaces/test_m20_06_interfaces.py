@@ -21,11 +21,15 @@ from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adju
     cli_app,
     create_app,
 )
+from glio_proteogen.modules.c20_biomarker_panel.m20_06_reviewer_discrepancy_adjudication import (
+    api as m2006_api,
+)
 from tests.contract.test_m20_06_adversarial import _request
 
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_CONTENT_TOO_LARGE = 413
 
 
 def _denied_request() -> Any:
@@ -76,6 +80,34 @@ def test_fastapi_schema_validate_adjudicate_verify_and_sanitized_errors() -> Non
     assert client.post("/v1/modules/M20-06/verify", json={"result": {}}).status_code == (
         _HTTP_UNPROCESSABLE
     )
+
+
+def test_late_m20_apps_reject_oversized_streams_before_json_parse() -> None:
+    original_request = m2006_api.M2006_MAX_CANONICAL_REQUEST_BYTES
+    original_result = m2006_api.M2006_MAX_CANONICAL_RESULT_BYTES
+    m2006_api.M2006_MAX_CANONICAL_REQUEST_BYTES = 1
+    m2006_api.M2006_MAX_CANONICAL_RESULT_BYTES = 1
+    try:
+        response = TestClient(create_app(M2006Service())).post(
+            "/v1/modules/M20-06/validate", content=b"{}"
+        )
+        verify = TestClient(create_app(M2006Service())).post(
+            "/v1/modules/M20-06/verify", content=b"{}"
+        )
+    finally:
+        m2006_api.M2006_MAX_CANONICAL_REQUEST_BYTES = original_request
+        m2006_api.M2006_MAX_CANONICAL_RESULT_BYTES = original_result
+    assert response.status_code == _HTTP_CONTENT_TOO_LARGE
+    assert verify.status_code == _HTTP_CONTENT_TOO_LARGE
+
+
+def test_fastapi_global_middleware_uses_request_ceiling() -> None:
+    client = TestClient(create_app(M2006Service()))
+    response = client.post(
+        "/v1/modules/M20-06/validate",
+        content=b"{" + b"x" * M2006_MAX_CANONICAL_REQUEST_BYTES + b"}",
+    )
+    assert response.status_code == _HTTP_CONTENT_TOO_LARGE
 
 
 def test_plugin_is_strict_parse_once_and_requires_execution_token() -> None:

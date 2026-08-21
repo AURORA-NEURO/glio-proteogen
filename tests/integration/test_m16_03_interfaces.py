@@ -33,11 +33,8 @@ def test_http_schema_operation_and_authorization_boundary(tmp_path: Path) -> Non
             json=_request().model_dump(mode="json"),
         )
         assert valid.status_code == _HTTP_OK
-        assert valid.json()["status"] == "integrated"
-        assert (
-            len(valid.json()["integrated_evidence"]["contributions"])
-            == _CONTRIBUTION_COUNT
-        )
+        assert valid.json()["status"] == "abstained"
+        assert valid.json()["integrated_evidence"] is None
 
         denied_payload = _request().model_dump(mode="json")
         denied_payload["context"]["references"]["consent"]["state"] = "withheld"
@@ -68,4 +65,4 @@ def test_cli_schema_and_fusion(tmp_path: Path) -> None:
     )
     fused = runner.invoke(app, ["fusion-aggregation", "fuse", str(request_path)])
     assert fused.exit_code == 0, fused.stdout
-    assert json.loads(fused.stdout)["status"] == "integrated"
+    assert json.loads(fused.stdout)["status"] == "abstained"

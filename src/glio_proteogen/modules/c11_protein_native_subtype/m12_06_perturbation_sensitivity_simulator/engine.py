@@ -373,6 +373,9 @@ def verify_m1206_result(
     expected_request_digest = canonical_request_digest(validated_request)
     if validated_result.request_digest != expected_request_digest:
         raise M1206ReplayError
+    expected = M1206SimulatorEngine().simulate(validated_request)
+    if validated_result.model_dump(mode="json") != expected.model_dump(mode="json"):
+        raise M1206ReplayError
     return validated_result
 
 

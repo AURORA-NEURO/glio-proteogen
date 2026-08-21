@@ -81,5 +81,12 @@ class M2602LineagePlugin(ModulePlugin[object, ValidatedM2602Request, ProteinSubt
             raise _InvalidExecutionTokenError
         return self._service.execute(request.request)
 
+    def verify(
+        self,
+        result: object,
+        request: BuildProteinSubtypeLineageRequest | None = None,
+    ) -> ProteinSubtypeLineageResult:
+        return self._service.verify(result, request)
+
 
 __all__ = ["M2602LineagePlugin", "ValidatedM2602Request"]

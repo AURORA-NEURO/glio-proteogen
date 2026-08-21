@@ -69,7 +69,11 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
 
     lane = service or M1004Service()
     app = FastAPI(title="GLIO-PROTEOGEN M10-04 (provisional)", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M1004_MAX_CANONICAL_REQUEST_BYTES)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M1004_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M1004_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/m10-04/schema/{contract}")
     async def export_schema(contract: str) -> JSONResponse:
@@ -83,6 +87,13 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
     @app.post("/v1/m10-04/validate")
     async def validate(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(
+                    status_code=415, content={"detail": {"type": "unsupported_media_type"}}
+                )
             parsed = _validated_json(await _body(request))
         except StrictJsonError as error:
             return JSONResponse(
@@ -96,6 +107,13 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
     @app.post("/v1/m10-04/estimate")
     async def estimate(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(
+                    status_code=415, content={"detail": {"type": "unsupported_media_type"}}
+                )
             parsed = _validated_json(await _body(request))
             typed = cast("EstimateProteinRnaDiscordanceProbabilisticRequest", parsed)
             result = lane.execute(typed)
@@ -114,6 +132,13 @@ def create_m1004_app(service: M1004Service | None = None) -> FastAPI:  # noqa: C
     @app.post("/v1/m10-04/verify")
     async def verify(request: Request) -> JSONResponse:
         try:
+            if (
+                request.headers.get("content-type", "").partition(";")[0].strip().lower()
+                != "application/json"
+            ):
+                return JSONResponse(
+                    status_code=415, content={"detail": {"type": "unsupported_media_type"}}
+                )
             parsed = _validated_json(await _body(request, result=True), result=True)
             result = lane.verify(parsed)
         except StrictJsonError as error:

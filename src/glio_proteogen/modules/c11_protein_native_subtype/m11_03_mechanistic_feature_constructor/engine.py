@@ -444,7 +444,7 @@ def verify_m1103_replay(
     result: VariantPeptideMechanisticFeatureResult,
     request: object,
 ) -> bool:
-    """Verify exact request binding and sealed result digest without recomputation."""
+    """Verify exact request binding and regenerate the complete result."""
 
     try:
         if type(request) in {bytes, bytearray, str}:
@@ -457,7 +457,10 @@ def verify_m1103_replay(
             return False
         if result.request != typed:
             return False
-        return result.result_digest == result_payload_digest(result)
+        if result.result_digest != result_payload_digest(result):
+            return False
+        regenerated = M1103MechanisticFeatureEngine().compute(typed)
+        return result.model_dump(mode="json") == regenerated.model_dump(mode="json")
     except (AttributeError, TypeError, ValueError, ValidationError):
         return False
 

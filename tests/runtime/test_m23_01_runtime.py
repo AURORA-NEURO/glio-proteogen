@@ -13,6 +13,7 @@ from glio_proteogen.modules.c21_reference_material.m23_01_reference_truth_benchm
     M2301AuthorizationError,
     M2301ReferenceTruthBenchmarkCurator,
     M2301ReplayError,
+    M2301Plugin,
     M2301Service,
     preflight_m2301_authorization,
 )
@@ -80,6 +81,17 @@ def test_replay_rejects_tampered_result() -> None:
     tampered = result.model_copy(update={"result_id": "tampered-result"})
     with pytest.raises(M2301ReplayError):
         M2301ReferenceTruthBenchmarkCurator().verify_replay(tampered)
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2301Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2301Plugin(service).replay(result, altered)
 
 
 def test_hostile_candidate_types_fail_closed() -> None:

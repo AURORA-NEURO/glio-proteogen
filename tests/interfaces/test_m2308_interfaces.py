@@ -45,8 +45,17 @@ def test_fastapi_schema_validate_adjudicate_verify_parity() -> None:
     )
     assert adjudicated.status_code == HTTPStatus.OK
     result = adjudicated.json()
-    verified = client.post("/v1/modules/M23-08/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M23-08/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2308.forged"})
+    mismatch = client.post(
+        "/v1/modules/M23-08/verify",
+        json={"request": forged.model_dump(mode="json"), "result": result},
+    )
     assert verified.status_code == HTTPStatus.OK
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert verified.json()["verified"] is True
     assert verified.json()["result_digest"] == result["result_digest"]
 

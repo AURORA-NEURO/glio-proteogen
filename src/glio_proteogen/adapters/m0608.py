@@ -16,7 +16,11 @@ import typer
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
-from glio_proteogen.adapters.limits import read_bounded
+from glio_proteogen.adapters.limits import (
+    MAX_REQUEST_BYTES,
+    RequestSizeLimitMiddleware,
+    read_bounded,
+)
 from glio_proteogen.contracts.m06_08 import (
     ProteinAbundanceEvidencePublicationResult,
     PublishProteinAbundanceEvidenceRequest,
@@ -65,6 +69,11 @@ def create_m0608_app(
         redoc_url=None,
     )
     service = service_factory()
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=MAX_REQUEST_BYTES,
+        result_max_bytes=MAX_REQUEST_BYTES * 2,
+    )
 
     @app.get("/v1/m06-08/schema/{name}")
     async def schema(name: str) -> dict[str, object]:

@@ -163,8 +163,9 @@ def evaluate() -> EvaluationReport:
             "unresolved source disagreement abstains without erasure",
         )
     )
-    tampered = engine.adapt(_scenario("replay_tamper")).model_copy(
-        update={"human_review_required": True}
+    original = engine.adapt(_scenario("replay_tamper"))
+    tampered = original.model_construct(
+        **{**original.model_dump(), "status": FusionStatus.INTEGRATED}
     )
     replay_denied = False
     try:
@@ -193,10 +194,6 @@ def evaluate() -> EvaluationReport:
     except ValidationError:
         adversarial_passed += 1
     try:
-        engine.replay(tampered)
-    except m1803.M1803ReplayError:
-        adversarial_passed += 1
-    try:
         engine.adapt(
             _request().model_copy(
                 update={
@@ -209,6 +206,7 @@ def evaluate() -> EvaluationReport:
         )
     except ValidationError:
         adversarial_passed += 1
+    adversarial_passed += int(replay_denied)
     checks.append(
         EvalCheck(
             "adversarial.coverage",

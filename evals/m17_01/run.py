@@ -277,7 +277,7 @@ def evaluate() -> EvaluationReport:
     )
 
     tampered = engine.resolve(_scenario("replay_tamper")).model_copy(
-        update={"human_review_required": True}
+        update={"result_id": "result.tampered.semantic"}
     )
     replay_denied = False
     try:

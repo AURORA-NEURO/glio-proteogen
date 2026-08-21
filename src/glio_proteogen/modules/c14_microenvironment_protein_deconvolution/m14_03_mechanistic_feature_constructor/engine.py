@@ -395,8 +395,8 @@ class M1403MechanisticFeatureEngine:
             status = MechanisticConstructionStatus.CONSTRUCTED
             findings = ()
             abstention_reason = None
-            support_status = SupportStatus.SUPPORTED
-            support_reason = "m1403_feature_construction_supported"
+            support_status = SupportStatus.REVIEW_REQUIRED
+            support_reason = "m1403_feature_construction_review_required"
             human_review_required = True
         payload: dict[str, object] = {
             "output_type": "protein_subtype_mechanistic_features",

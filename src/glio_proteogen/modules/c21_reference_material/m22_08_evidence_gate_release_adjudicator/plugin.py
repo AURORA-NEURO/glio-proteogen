@@ -97,8 +97,9 @@ class M2208Plugin(
     def replay(
         self,
         result: ProteinRnaDiscordanceEvidenceGateResult,
+        request: AdjudicateProteinRnaDiscordanceEvidenceGateRequest | None = None,
     ) -> ProteinRnaDiscordanceEvidenceGateResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = ["EvidenceGateSubmission", "M2208Plugin", "ValidatedM2208Request"]

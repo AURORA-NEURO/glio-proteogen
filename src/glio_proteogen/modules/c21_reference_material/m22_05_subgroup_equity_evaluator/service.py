@@ -40,7 +40,12 @@ class M2205Service:
     def replay(
         self,
         result: ProteinRnaDiscordanceSubgroupEvaluationResult,
+        request: EvaluateProteinRnaDiscordanceSubgroupEquityRequest | None = None,
     ) -> ProteinRnaDiscordanceSubgroupEvaluationResult:
+        if request is not None and (
+            result.request.model_dump(mode="json") != request.model_dump(mode="json")
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.replay(result)
 
 

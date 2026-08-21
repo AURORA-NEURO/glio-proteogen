@@ -376,8 +376,11 @@ class M1706AdjudicationEngine:
                 resolution_summary="All queued discrepancies received final blinded decisions.",
                 evidence=evidence,
             )
+        # The queue record is useful evidence, but the ABI and all decision
+        # inputs remain caller-declared/provisional; a complete review is not
+        # equivalent to calibrated scientific support.
         support_status = (
-            SupportStatus.SUPPORTED
+            SupportStatus.REVIEW_REQUIRED
             if promotable
             else (SupportStatus.UNSUPPORTED if boundary else SupportStatus.REVIEW_REQUIRED)
         )
@@ -402,7 +405,11 @@ class M1706AdjudicationEngine:
             ),
             "support_decision": SupportDecision(
                 status=support_status,
-                reason_code="m1706_recorded" if record is not None else "m1706_review_required",
+                reason_code=(
+                    "m1706_recorded_review_only"
+                    if record is not None
+                    else "m1706_review_required"
+                ),
                 rationale=(
                     "A complete immutable adjudication record was constructed."
                     if record is not None
@@ -411,7 +418,7 @@ class M1706AdjudicationEngine:
                     )
                 ),
             ),
-            "uncertainty": _uncertainty(supported=record is not None),
+            "uncertainty": _uncertainty(supported=False),
             "provenance": _provenance(typed, request_digest),
             "evidence": evidence,
             "limitations": _limitations(supported=record is not None),

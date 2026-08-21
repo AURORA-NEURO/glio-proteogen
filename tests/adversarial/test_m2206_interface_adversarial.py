@@ -48,6 +48,21 @@ def test_fastapi_rejects_malformed_non_object_and_tampered_result() -> None:
     assert client.post("/v1/modules/M22-06/verify", json=result).status_code == 422
 
 
+def test_fastapi_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2206Engine().evaluate(request)
+    forged = result.model_copy(update={"status": "abstained"})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M22-06/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_typer_rejects_malformed_abstained_and_tampered(tmp_path: Path) -> None:
     runner = CliRunner()
     malformed = tmp_path / "malformed.json"
@@ -212,7 +227,14 @@ def test_api_known_schema_and_sanitized_service_errors() -> None:
         def execute(self, _candidate: object) -> NoReturn:
             raise ValueError("secret execution detail")
 
-        def verify(self, _candidate: object, *, replay: bool = True) -> NoReturn:
+        def verify(
+            self,
+            _candidate: object,
+            *,
+            request: ChallengeProteinRnaDiscordanceRobustnessRequest | None = None,
+            replay: bool = True,
+        ) -> NoReturn:
+            del request
             del replay
             raise ValueError("secret replay detail")
 
@@ -250,7 +272,14 @@ def test_cli_schema_output_and_sanitized_service_paths(
         def execute(self, _candidate: object) -> NoReturn:
             raise ValueError("secret execution detail")
 
-        def verify(self, _candidate: object, *, replay: bool = True) -> NoReturn:
+        def verify(
+            self,
+            _candidate: object,
+            *,
+            request: ChallengeProteinRnaDiscordanceRobustnessRequest | None = None,
+            replay: bool = True,
+        ) -> NoReturn:
+            del request
             del replay
             raise ValueError("secret replay detail")
 
@@ -281,9 +310,11 @@ def test_cli_supported_stdout_and_verify_mismatch(
             self,
             result: object,
             *,
+            request: ChallengeProteinRnaDiscordanceRobustnessRequest | None = None,
             replay: bool = True,
         ) -> ProteinRnaDiscordanceRobustnessChallengeResult:
             del result
+            del request
             del replay
             return (
                 M2206Engine()

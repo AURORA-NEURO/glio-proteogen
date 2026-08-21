@@ -44,11 +44,19 @@ class M2606SecurityService:
         return self._engine.evaluate(self.validate_request(request))
 
     @staticmethod
-    def verify(result: object) -> ProteomicsSecurityAccessResult:
+    def verify(
+        result: object,
+        request: EvaluateProteomicsSecurityAccessRequest | None = None,
+    ) -> ProteomicsSecurityAccessResult:
         try:
             validated = _RESULT_ADAPTER.validate_python(result, strict=True)
         except ValidationError as error:
             raise M2606ReplayError from error
+        if request is not None:
+            result_request = validated.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return verify_security_access_result(validated)
 
 

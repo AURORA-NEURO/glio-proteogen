@@ -46,7 +46,13 @@ class M2703Service:
     ) -> ComplexActivityPipelineResult:
         return self._engine.execute(request)
 
-    def verify(self, result: object, *, replay: bool = True) -> ComplexActivityPipelineResult:
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+        request: OrchestrateComplexActivityPipelineRequest | None = None,
+    ) -> ComplexActivityPipelineResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2703_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
@@ -54,6 +60,11 @@ class M2703Service:
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
         else:
             typed = cast("ComplexActivityPipelineResult", result)
+        if request is not None:
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError("replay request mismatch")  # noqa: TRY003
         return self._engine.verify(typed, replay=replay)
 
 

@@ -28,8 +28,8 @@ class M1008EvidencePublisherService:
         return self._engine.publish(request)
 
     @staticmethod
-    def verify(result: object) -> bool:
-        return verify_publication_result(result)
+    def verify(result: object, request: object | None = None) -> bool:
+        return verify_publication_result(result, request)
 
 
 __all__ = ["M1008EvidencePublisherService"]

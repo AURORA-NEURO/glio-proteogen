@@ -111,7 +111,7 @@ def evaluate() -> dict[str, object]:
         EvalCheck(
             "provenance_uncertainty_complete",
             len(first.provenance.control_decisions) == EXPECTED_CONTROL_COUNT
-            and first.uncertainty.measurement.probability == EXPECTED_PROBABILITY
+            and first.uncertainty.measurement.probability is None
             and len(first.uncertainty.sensitivity_notes) >= 1,
             "seven controls and seven uncertainty dimensions are explicit",
         )

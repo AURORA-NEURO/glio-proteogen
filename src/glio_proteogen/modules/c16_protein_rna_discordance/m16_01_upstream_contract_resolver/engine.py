@@ -342,19 +342,22 @@ class M1601UpstreamContractResolverEngine:
             "parent_target": "protein_rna_discordance",
             "emits_parent": False,
             "support_decision": SupportDecision(
-                status=SupportStatus.SUPPORTED if supported else SupportStatus.REVIEW_REQUIRED,
-                reason_code="m1601_compatibility_supported"
+                status=SupportStatus.REVIEW_REQUIRED,
+                reason_code="m1601_compatibility_review"
                 if supported
                 else "m1601_compatibility_abstained",
-                rationale="All required candidates are version- and media-type compatible."
-                if supported
-                else "Compatibility is unresolved; review is required before acceptance.",
+                rationale=(
+                    "Caller-declared candidates are structurally compatible; scientific support "
+                    "remains unverified and requires human review."
+                    if supported
+                    else "Compatibility is unresolved; review is required before acceptance."
+                ),
             ),
-            "uncertainty": _uncertainty(supported=supported),
+            "uncertainty": _uncertainty(supported=False),
             "provenance": _provenance(request, request_hash),
             "evidence": evidence,
-            "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "limitations": _limitations(supported=False),
+            "human_review_required": True,
         }
         constructed = ProteinRnaDiscordanceUpstreamResolutionResult.model_construct(**payload)  # type: ignore[arg-type]
         payload["result_digest"] = result_payload_digest(constructed)

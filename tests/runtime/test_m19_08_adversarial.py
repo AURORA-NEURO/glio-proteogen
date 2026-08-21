@@ -43,9 +43,9 @@ def test_verify_rejects_identifier_even_when_payload_digest_is_recomputed() -> N
 def test_verify_rejects_replay_mismatch_after_valid_digest_recalculation() -> None:
     engine = m1908.M1908TranslationMonitoringEngine()
     result = engine.infer(_request())
-    forged = result.model_copy(update={"human_review_required": True})
+    forged = result.model_copy(update={"result_id": "result.tampered.semantic"})
     forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(m1908.M1908ReplayVerificationError, match="replay"):
+    with pytest.raises(m1908.M1908ReplayVerificationError, match="identifier"):
         engine.verify(forged)
 
 
@@ -60,6 +60,18 @@ def test_public_operation_and_service_mapping_boundaries() -> None:
     assert service.verify(result.model_dump(mode="json")) == result
     assert m1908.monitor_proteotype_translation_health(request) == result
     assert service.descriptor["parent"] == "proteotype"
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = m1908.M1908Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    plugin = m1908.M1908Plugin()
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        plugin.replay(result, altered)
 
 
 def test_service_rejects_invalid_json_and_plugin_strict_json_edges() -> None:

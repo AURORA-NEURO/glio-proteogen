@@ -20,6 +20,7 @@ from glio_proteogen.contracts.m27_08.canonical import (
     canonical_request_digest,
     result_payload_digest,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.models import (
     ControlDecisionRecord,
     ControlRole,
@@ -42,6 +43,9 @@ _CONTROL_ROLES: Final = (
     ControlRole.SUPPORT,
     ControlRole.INTENDED_USE,
 )
+_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
+
+_M2707_INPUT_MEDIA_TYPE: Final = "application/vnd.glio-proteogen.m27-07+json"
 
 
 class RetirementAuthorizationError(ValueError):
@@ -82,7 +86,7 @@ def preflight_retirement_authorization(request: RetireComplexActivityServiceRequ
         request.source_artifacts
     ):
         raise RetirementAuthorizationError("source artifact ids must be unique")
-    if any("m27-07" not in item.media_type for item in request.source_artifacts):
+    if any(item.media_type != _M2707_INPUT_MEDIA_TYPE for item in request.source_artifacts):
         raise RetirementAuthorizationError("unsupported upstream artifact media type")
 
 
@@ -288,15 +292,30 @@ class M2708RetirementEngine:
         )
 
     def replay(self, result: ComplexActivityRetirementResult) -> ComplexActivityRetirementResult:
-        if result.result_digest != result_payload_digest(result):
+        # Re-validate the serialized envelope first.  ``model_copy(update=...)``
+        # intentionally bypasses Pydantic validators, so checking only the
+        # supplied payload digest would accept a stale request digest/result ID
+        # paired with a self-rehashed retirement package.
+        try:
+            validated = ComplexActivityRetirementResult.model_validate_json(
+                canonical_json_bytes(result), strict=True
+            )
+        except Exception as error:
+            raise RetirementReplayError("retirement result envelope is invalid") from error
+        if validated.request_digest != canonical_request_digest(validated.request):
+            raise RetirementReplayError("retirement request digest mismatch")
+        expected_id = f"result.m2708.{validated.request_digest.removeprefix('sha256:')}"
+        if validated.result_id != expected_id:
+            raise RetirementReplayError("retirement result identifier mismatch")
+        if validated.result_digest != result_payload_digest(validated):
             raise RetirementReplayError("result digest mismatch")
         try:
-            recomputed = self.evaluate(result.request)
+            recomputed = self.evaluate(validated.request)
         except Exception as error:
             raise RetirementReplayError("retirement result replay failed") from error
-        if recomputed.model_dump(mode="json") != result.model_dump(mode="json"):
+        if recomputed.model_dump(mode="json") != validated.model_dump(mode="json"):
             raise RetirementReplayError("retirement result replay differs from request")
-        return result
+        return validated
 
 
 def retire_complex_activity_service(

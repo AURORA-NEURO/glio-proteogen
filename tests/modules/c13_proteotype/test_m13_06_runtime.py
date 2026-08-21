@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from glio_proteogen.adapters.cli import app
-from glio_proteogen.contracts.m13_06 import canonical_request_digest
+from glio_proteogen.contracts.m13_06 import canonical_request_digest, result_payload_digest
 from glio_proteogen.contracts.m13_06.v1 import (
     M1306_OPERATION,
     PerturbationKind,
@@ -35,6 +35,7 @@ from glio_proteogen.kernel.models import (
 from glio_proteogen.modules.c13_proteotype.m13_06_perturbation_sensitivity import (
     M1306AuthorizationError,
     M1306Plugin,
+    M1306ReplayError,
     M1306Service,
     preflight_m1306_authorization,
     simulate_proteotype_perturbation_sensitivity,
@@ -169,6 +170,12 @@ def test_supported_request_is_replayable_and_sealed() -> None:
     assert first.emits_parent is False
     assert first.human_review_required is True
     assert len(first.provenance.control_decisions) == _CONTROL_COUNT
+    service = M1306Service()
+    assert service.verify(first) == first
+    tampered = first.model_copy(update={"human_review_required": False})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    with pytest.raises(M1306ReplayError):
+        service.verify(tampered)
 
 
 def test_unsupported_scenario_abstains_without_surface() -> None:

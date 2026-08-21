@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from glio_proteogen.contracts.m06_07 import (
+    CalibrateSelectiveProteinAbundanceRequest,
+    CalibrateSelectiveProteinAbundanceResult,
+)
+
 from .engine import BuiltCalibration, M0607CalibrationEngine
 
 if TYPE_CHECKING:
-    from glio_proteogen.contracts.m06_07 import (
-        CalibrateSelectiveProteinAbundanceRequest,
-        CalibrateSelectiveProteinAbundanceVerification,
-    )
+    from glio_proteogen.contracts.m06_07 import CalibrateSelectiveProteinAbundanceVerification
 
 
 class M0607Service:
@@ -32,8 +34,27 @@ class M0607Service:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> CalibrateSelectiveProteinAbundanceVerification:
-        return self._engine.verify(result, canonical_bytes)
+        return self._engine.verify(result, canonical_bytes, request)
+
+    def verify_json(
+        self,
+        result_json: bytes,
+        request_json: bytes,
+        canonical_bytes: bytes | None = None,
+    ) -> CalibrateSelectiveProteinAbundanceVerification:
+        """Verify canonical JSON payloads after one strict adapter parse."""
+
+        result = CalibrateSelectiveProteinAbundanceResult.model_validate_json(
+            result_json,
+            strict=True,
+        )
+        request = CalibrateSelectiveProteinAbundanceRequest.model_validate_json(
+            request_json,
+            strict=True,
+        )
+        return self._engine.verify(result, canonical_bytes, request)
 
     def execute(self, request: object) -> BuiltCalibration:
         return self._engine.execute(request)

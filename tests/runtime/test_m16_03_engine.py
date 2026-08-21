@@ -165,14 +165,16 @@ def _request() -> FuseProteinRnaDiscordanceEvidenceRequest:
     )
 
 
-def test_integrated_replay_preserves_attribution_conflict_and_propagation() -> None:
+def test_provisional_boundary_abstains_and_preserves_attribution_conflict() -> None:
     service = m1603.M1603Service()
     result = service.execute(_request())
-    assert result.status is FusionStatus.INTEGRATED
-    assert result.integrated_evidence is not None
-    assert len(result.integrated_evidence.contributions) == _CONTRIBUTION_COUNT
-    assert result.integrated_evidence.disagreements[0].status is DisagreementStatus.OPEN
-    assert result.integrated_evidence.propagation[0].signature_digest.startswith("sha256:")
+    assert result.status is FusionStatus.ABSTAINED
+    assert result.integrated_evidence is None
+    assert result.abstention_reason is not None
+    assert result.support_decision.reason_code == "m1603_provisional_abi_boundary"
+    assert len(result.request.contributions) == _CONTRIBUTION_COUNT
+    assert result.request.disagreements[0].status is DisagreementStatus.OPEN
+    assert result.request.propagation[0].signature_digest.startswith("sha256:")
     assert result.findings[1].code is FusionFindingCode.SOURCE_DISAGREEMENT
     assert result.parent_target == "protein-RNA discordance"
     assert result.emits_parent is False
@@ -248,7 +250,7 @@ def test_mapping_plugin_and_descriptor_paths() -> None:
     service = m1603.M1603Service()
     mapping = request.model_dump(mode="python")
     assert service.validate_request(request).request_id == request.request_id
-    assert service.construct(mapping).status is FusionStatus.INTEGRATED
+    assert service.construct(mapping).status is FusionStatus.ABSTAINED
     plugin = m1603.M1603Plugin(service)
     validated = plugin.validate(request.model_dump_json())
     assert plugin.validate(request).request.request_id == request.request_id

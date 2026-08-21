@@ -16,6 +16,7 @@ from glio_proteogen.contracts.m22_02.canonical import result_payload_digest
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_02_synthetic_truth_simulation_generator import (  # noqa: E501
     M2202AuthorizationError,
+    M2202Plugin,
     M2202ReplayError,
     M2202Service,
     generate_protein_rna_discordance_synthetic_truth,
@@ -63,6 +64,17 @@ def test_replay_rejects_identifier_digest_and_request_tampering() -> None:
         service.verify_replay(result.model_copy(update={"result_digest": "sha256:" + "f" * 64}))
     with pytest.raises(M2202ReplayError, match="request digest"):
         service.verify_replay(result.model_copy(update={"request_digest": "sha256:" + "a" * 64}))
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2202Service()
+    result = service.generate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2202Plugin(service).replay(result, altered)
 
 
 def test_replay_rejects_recomputed_digest_for_forged_corpus() -> None:

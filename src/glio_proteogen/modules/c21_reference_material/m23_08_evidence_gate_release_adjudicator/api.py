@@ -7,6 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m23_08 import (
     M2308_MAX_CANONICAL_REQUEST_BYTES,
     AdjudicateVariantPeptideEvidenceGateRequest,
@@ -61,11 +62,23 @@ def _parse_object(body: bytes) -> dict[str, Any]:
     return cast("dict[str, Any]", value)
 
 
+async def _read_bounded(request: Request, *, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=422, detail="request exceeds byte limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def create_app(service: M2308Service | None = None) -> FastAPI:
     """Create strict schema, validation, adjudication, and replay routes."""
 
     boundary = service or M2308Service()
     app = FastAPI(title="GLIO-PROTEOGEN M23-08", version="0.1.0-provisional")
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
 
     @app.get("/v1/modules/M23-08/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -79,7 +92,9 @@ def create_app(service: M2308Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M23-08/validate")
     async def validate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_bounded(request, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             typed = boundary.validate_request(payload)
         except (ValidationError, ValueError, M2308AuthorizationError) as error:
@@ -88,7 +103,9 @@ def create_app(service: M2308Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M23-08/adjudicate")
     async def adjudicate(request: Request) -> dict[str, object]:
-        payload = _parse_request(await request.body())
+        payload = _parse_request(
+            await _read_bounded(request, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
+        )
         try:
             result = boundary.adjudicate(payload)
         except (ValidationError, ValueError, M2308AuthorizationError) as error:
@@ -97,11 +114,19 @@ def create_app(service: M2308Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M23-08/verify")
     async def verify(request: Request) -> dict[str, object]:
-        envelope = _parse_object(await request.body())
+        envelope = _parse_object(
+            await _read_bounded(request, max_bytes=M2308_MAX_CANONICAL_REQUEST_BYTES)
+        )
         candidate = envelope.get("result", envelope)
+        supplied_request = envelope.get("request")
         try:
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
-            replay = boundary.replay(result)
+            typed_request = (
+                _REQUEST_ADAPTER.validate_json(canonical_json_bytes(supplied_request), strict=True)
+                if supplied_request is not None
+                else None
+            )
+            replay = boundary.replay(result, typed_request)
         except (ValidationError, ValueError, TypeError) as error:
             raise HTTPException(status_code=422, detail="replay envelope is invalid") from error
         return {

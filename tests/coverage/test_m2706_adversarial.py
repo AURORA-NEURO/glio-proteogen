@@ -45,23 +45,60 @@ if TYPE_CHECKING:
 _HTTP_OK = 200
 _HTTP_NOT_FOUND = 404
 _HTTP_UNPROCESSABLE = 422
+_HTTP_UNSUPPORTED_MEDIA = 415
+_HTTP_TOO_LARGE = 413
 _CONTROL_COUNT = 8
 _SCHEMA_COUNT = 8
 
 
 def test_schema_routes_and_api_replay() -> None:
-    request = build_request()
     client = TestClient(create_app())
     assert client.get("/v1/modules/M27-06/schemas/request").status_code == _HTTP_OK
     assert client.get("/v1/modules/M27-06/schemas/unknown").status_code == _HTTP_NOT_FOUND
+
+
+def test_api_enforces_json_content_type_and_preparse_limit() -> None:
+    request = build_request()
     body = request.model_dump_json()
-    assert client.post("/v1/modules/M27-06/validate", content=body).status_code == _HTTP_OK
+    client = TestClient(create_app())
+    payload = build_request().model_dump(mode="json")
+    assert (
+        client.post(
+            "/v1/modules/M27-06/evaluate",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        ).status_code
+        == _HTTP_UNSUPPORTED_MEDIA
+    )
+    response = client.post(
+        "/v1/modules/M27-06/evaluate",
+        content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == _HTTP_TOO_LARGE
+    assert (
+        client.post(
+            "/v1/modules/M27-06/validate",
+            content=body,
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_OK
+    )
     result = M2706Service().emit(request)
-    verified = client.post("/v1/modules/M27-06/verify", content=result.model_dump_json())
+    verified = client.post(
+        "/v1/modules/M27-06/verify",
+        content=result.model_dump_json(),
+        headers={"content-type": "application/json"},
+    )
     assert verified.status_code == _HTTP_OK
     assert verified.json()["verified"] is True
     assert (
-        client.post("/v1/modules/M27-06/verify", content=b"[]").status_code == _HTTP_UNPROCESSABLE
+        client.post(
+            "/v1/modules/M27-06/verify",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_UNPROCESSABLE
     )
 
 
@@ -81,6 +118,7 @@ def test_api_emit_denied_control_is_sanitized() -> None:
     response = TestClient(create_app()).post(
         "/v1/modules/M27-06/evaluate",
         content=request.model_copy(update={"context": context}).model_dump_json(),
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == _HTTP_UNPROCESSABLE
     assert "private" not in response.text.lower()
@@ -260,7 +298,12 @@ def test_posture_and_result_projection_closures() -> None:
 def test_api_parse_and_validate_error_paths() -> None:
     client = TestClient(create_app())
     assert (
-        client.post("/v1/modules/M27-06/validate", content=b"[]").status_code == _HTTP_UNPROCESSABLE
+        client.post(
+            "/v1/modules/M27-06/validate",
+            content=b"[]",
+            headers={"content-type": "application/json"},
+        ).status_code
+        == _HTTP_UNPROCESSABLE
     )
     request = build_request()
     denied_context = request.context.model_copy(
@@ -278,6 +321,7 @@ def test_api_parse_and_validate_error_paths() -> None:
         client.post(
             "/v1/modules/M27-06/validate",
             content=request.model_copy(update={"context": denied_context}).model_dump_json(),
+            headers={"content-type": "application/json"},
         ).status_code
         == _HTTP_UNPROCESSABLE
     )

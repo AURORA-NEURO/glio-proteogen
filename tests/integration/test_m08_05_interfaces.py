@@ -23,14 +23,18 @@ from tests.modules.c08_transcript_protein_discordance.test_m08_05_integrator imp
     _request,
 )
 
+_HTTP_UNSUPPORTED_MEDIA = 415
+_HTTP_TOO_LARGE = 413
+
 
 def test_api_validate_integrate_and_schema_are_strict() -> None:
     request = _request("conservation_hold")
     payload = request.model_dump(mode="json")
     with TestClient(create_app(M0805Service())) as client:
+        headers = {"content-type": "application/json"}
         schema = client.get("/v1/modules/M08-05/schemas/verification")
-        validated = client.post("/v1/modules/M08-05/validate", json=payload)
-        integrated = client.post("/v1/modules/M08-05/integrate", json=payload)
+        validated = client.post("/v1/modules/M08-05/validate", json=payload, headers=headers)
+        integrated = client.post("/v1/modules/M08-05/integrate", json=payload, headers=headers)
         unknown = client.get("/v1/modules/M08-05/schemas/not-a-contract")
 
     assert schema.status_code == HTTPStatus.OK
@@ -48,6 +52,7 @@ def test_api_rejects_duplicate_json_keys_without_leaking_details() -> None:
         response = client.post(
             "/v1/modules/M08-05/validate",
             content=body[:-1] + ',"request_id":"forged"}',
+            headers={"content-type": "application/json"},
         )
 
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
@@ -106,7 +111,11 @@ def test_api_validation_authorization_and_input_handlers() -> None:
         denied_integrate = client.post(
             "/v1/modules/M08-05/integrate", json=denied.model_dump(mode="json")
         )
-        malformed = client.post("/v1/modules/M08-05/validate", content=b"{not-json")
+        malformed = client.post(
+            "/v1/modules/M08-05/validate",
+            content=b"{not-json",
+            headers={"content-type": "application/json"},
+        )
     with TestClient(create_app(InputRejectingService())) as client:
         rejected = client.post(
             "/v1/modules/M08-05/integrate",
@@ -119,6 +128,23 @@ def test_api_validation_authorization_and_input_handlers() -> None:
     assert denied_integrate.status_code == HTTPStatus.FORBIDDEN
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert rejected.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+
+
+def test_api_enforces_media_type_and_preparse_request_limit() -> None:
+    request = _request("conservation_hold").model_dump(mode="json")
+    with TestClient(create_app(M0805Service())) as client:
+        wrong_media = client.post(
+            "/v1/modules/M08-05/integrate",
+            json=request,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M08-05/integrate",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == _HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == _HTTP_TOO_LARGE
 
 
 def test_cli_schema_validation_and_safe_output_boundaries(tmp_path) -> None:

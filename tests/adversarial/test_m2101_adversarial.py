@@ -326,6 +326,22 @@ def test_replay_rejects_self_rehashed_reference_evidence_forgery() -> None:
         M2101Service().verify_replay(forged)
 
 
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = build_request()
+    result = M2101Service().execute(request)
+    evidence = result.evidence[0].model_copy(update={"claim": "forged"})
+    forged = result.model_copy(update={"evidence": (evidence, *result.evidence[1:])})
+    resigned = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M21-01/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+
+
 def test_plugin_rejects_unwrapped_request_and_bad_json() -> None:
     plugin = M2101Plugin(M2101Service())
     with pytest.raises(TypeError, match="reference-truth submission"):

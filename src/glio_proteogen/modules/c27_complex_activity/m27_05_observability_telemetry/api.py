@@ -7,8 +7,10 @@ from typing import cast
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m27_05 import (
     M2705_MAX_CANONICAL_REQUEST_BYTES,
+    M2705_MAX_CANONICAL_RESULT_BYTES,
     EmitProteomicsTelemetryRequest,
     ProteomicsTelemetryResult,
     contract_json_schema,
@@ -41,6 +43,12 @@ def _invalid_request(error: Exception) -> HTTPException:
     return HTTPException(status_code=422, detail="request does not satisfy the M27-05 contract")
 
 
+def _require_object(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise TypeError
+    return value
+
+
 def _parse_request(body: bytes) -> EmitProteomicsTelemetryRequest:
     try:
         strict_json_loads(body, max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES)
@@ -49,11 +57,23 @@ def _parse_request(body: bytes) -> EmitProteomicsTelemetryRequest:
         raise _invalid_request(error) from error
 
 
-def create_app(service: M2705Service | None = None) -> FastAPI:
+def create_app(service: M2705Service | None = None) -> FastAPI:  # noqa: C901
     """Create schema, validation, emission, and replay routes."""
 
     boundary = service or M2705Service()
     app = FastAPI(title="GLIO-PROTEOGEN M27-05", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M2705_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M2705_MAX_CANONICAL_RESULT_BYTES,
+    )
+
+    def _require_json(request: Request) -> None:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            raise HTTPException(status_code=415, detail="content-type must be application/json")
 
     @app.get("/v1/modules/M27-05/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
@@ -67,6 +87,7 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-05/validate")
     async def validate(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             typed = boundary.validate_request(payload)
@@ -76,6 +97,7 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-05/emit")
     async def emit(request: Request) -> dict[str, object]:
+        _require_json(request)
         payload = _parse_request(await request.body())
         try:
             result = boundary.emit(payload)
@@ -85,10 +107,19 @@ def create_app(service: M2705Service | None = None) -> FastAPI:
 
     @app.post("/v1/modules/M27-05/verify")
     async def verify(request: Request) -> dict[str, object]:
+        _require_json(request)
         try:
-            candidate = strict_json_loads(await request.body())
+            decoded = strict_json_loads(await request.body())
+            envelope = _require_object(decoded)
+            candidate = envelope.get("result", envelope)
+            supplied_request = envelope.get("request")
             result = _RESULT_ADAPTER.validate_json(canonical_json_bytes(candidate), strict=True)
-            replay = boundary.replay(result)
+            typed_request = (
+                _REQUEST_ADAPTER.validate_json(canonical_json_bytes(supplied_request), strict=True)
+                if supplied_request is not None
+                else None
+            )
+            replay = boundary.replay(result, typed_request)
         except (StrictJsonError, ValueError, ValidationError, TypeError) as error:
             raise HTTPException(status_code=422, detail="replay envelope is invalid") from error
         return {

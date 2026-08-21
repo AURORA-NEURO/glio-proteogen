@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m17_01 import (
     UpstreamCandidate,
     UpstreamSourceKind,
 )
+from glio_proteogen.contracts.m17_01.canonical import result_payload_digest
 from glio_proteogen.kernel.canonical import sha256_digest
 from glio_proteogen.kernel.models import (
     ArtifactReference,
@@ -234,8 +235,30 @@ def test_replay_rejects_tampered_result_payload() -> None:
         _candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE)
     )
     result = m1701.M1701Engine().resolve(request)
-    tampered = result.model_copy(update={"human_review_required": True})
+    tampered = result.model_copy(update={"human_review_required": False})
     tampered = tampered.model_copy(update={"result_digest": result.result_digest})
 
     with pytest.raises(m1701.M1701ReplayError, match="payload digest"):
         m1701.M1701Engine().replay(tampered)
+
+
+def test_replay_rejects_semantic_mutation_even_when_digest_is_resigned() -> None:
+    request = _request(
+        _candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE)
+    )
+    result = m1701.M1701Engine().resolve(request)
+    tampered = result.model_copy(update={"human_review_required": False})
+    tampered = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+
+    with pytest.raises(m1701.M1701ReplayError, match="deterministic replay"):
+        m1701.M1701Engine().replay(tampered)
+
+
+def test_service_replay_rejects_supplied_request_mismatch() -> None:
+    request = _request(
+        _candidate("candidate.accepted", compatibility=CompatibilityStatus.COMPATIBLE)
+    )
+    result = m1701.M1701Service().resolve(request)
+    altered = request.model_copy(update={"request_id": "req-mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        m1701.M1701Service().replay(result, altered)

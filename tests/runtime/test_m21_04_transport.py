@@ -108,6 +108,17 @@ def test_service_and_plugin_keep_parse_once_and_token_boundaries() -> None:
         plugin.run(sealed)
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2104Service()
+    result = service.evaluate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, request=altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2104Plugin(service).replay(result, altered)
+
+
 def test_replay_rejects_tampered_digest_and_public_entry_point_is_deterministic() -> None:
     request = _request()
     result = evaluate_complex_activity_external_transport(request)

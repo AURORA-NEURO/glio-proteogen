@@ -288,9 +288,11 @@ class VariantPeptideUpstreamResolutionResult(FrozenModel):
             if (
                 self.bundle is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("validated result requires a supported upstream bundle")
+                raise ValueError("validated result requires a review-only upstream bundle")
+            if not self.human_review_required:
+                raise ValueError("validated result requires human review")
         elif (
             self.bundle is not None
             or self.abstention_reason is None

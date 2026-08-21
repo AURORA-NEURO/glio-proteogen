@@ -239,7 +239,13 @@ def _policy_evaluation(
             )
         )
     if policy.minimum_evidence_tier is EvidenceTier.EXPLORATORY:
-        return not findings, PolicyDecisionStatus.QUALIFIED, tuple(findings)
+        return False, PolicyDecisionStatus.QUALIFIED, (
+            *findings,
+            (
+                IntendedUseFindingCode.PROVISIONAL_ABI_PENDING_REVIEW,
+                "Caller-declared exploratory evidence cannot authorize a publishable intended-use object.",
+            ),
+        )
     if findings:
         return False, PolicyDecisionStatus.BLOCKED, tuple(findings)
     return True, PolicyDecisionStatus.ALLOWED, tuple(findings)

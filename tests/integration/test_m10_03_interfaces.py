@@ -50,16 +50,38 @@ def test_api_validate_and_estimate_match_plugin() -> None:
     encoded = request.model_dump_json()
     plugin_result = M1003Plugin(M1003Service()).run(M1003Plugin(M1003Service()).validate(encoded))
     client = TestClient(create_m1003_app())
-    validated = client.post("/v1/m10-03/validate", content=encoded)
-    estimated = client.post("/v1/m10-03/estimate", content=encoded)
+    headers = {"content-type": "application/json"}
+    validated = client.post("/v1/m10-03/validate", content=encoded, headers=headers)
+    estimated = client.post("/v1/m10-03/estimate", content=encoded, headers=headers)
     assert validated.status_code == 200
     assert estimated.status_code == 200
     assert json.loads(estimated.text) == plugin_result.model_dump(mode="json")
 
 
+def test_api_enforces_media_type_and_preparse_request_limit() -> None:
+    client = TestClient(create_m1003_app())
+    payload = build_scenario_request().model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/m10-03/estimate",
+        json=payload,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/m10-03/estimate",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == 415
+    assert oversized.status_code == 413
+
+
 def test_api_sanitizes_malformed_json_and_authorization_errors() -> None:
     client = TestClient(create_m1003_app())
-    malformed = client.post("/v1/m10-03/validate", content=b'{"request_id":')
+    malformed = client.post(
+        "/v1/m10-03/validate",
+        content=b'{"request_id":',
+        headers={"content-type": "application/json"},
+    )
     assert malformed.status_code in {400, 422}
     request = build_scenario_request()
     references = request.context.references.model_copy(
@@ -70,7 +92,11 @@ def test_api_sanitizes_malformed_json_and_authorization_errors() -> None:
     blocked = request.model_copy(
         update={"context": request.context.model_copy(update={"references": references})}
     )
-    response = client.post("/v1/m10-03/estimate", content=blocked.model_dump_json())
+    response = client.post(
+        "/v1/m10-03/estimate",
+        content=blocked.model_dump_json(),
+        headers={"content-type": "application/json"},
+    )
     assert response.status_code in {400, 403, 422}
 
 
