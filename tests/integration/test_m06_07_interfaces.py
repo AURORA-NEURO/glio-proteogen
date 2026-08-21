@@ -24,6 +24,9 @@ from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_p
 from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction import (
     cli as m0607_cli,
 )
+from glio_proteogen.modules.c06_protein_abundance.m06_07_calibration_selective_prediction.service import (  # noqa: E501
+    M0607Service,
+)
 from tests.modules.c06_protein_abundance.test_m06_07_calibration import _request
 
 _HTTP_OK = 200
@@ -77,6 +80,31 @@ def test_api_and_cli_calibrate_identical_canonical_result(tmp_path) -> None:
     assert cli.exit_code == 0
     assert api.json()["result"] == json.loads(cli.stdout)
     assert json.loads(api.json()["canonical"]) == json.loads(cli.stdout)
+
+
+def test_api_verify_binds_request_and_rejects_semantic_tamper() -> None:
+    request = _request()
+    built = M0607Service().execute(request)
+    envelope = {
+        "request": request.model_dump(mode="json"),
+        "result": built.result.model_dump(mode="json"),
+        "canonical": built.canonical_bytes.decode("utf-8"),
+    }
+    with TestClient(m0607_api.create_app()) as client:
+        valid = client.post(
+            "/v1/modules/M06-07/verify",
+            content=canonical_json_bytes(envelope),
+            headers={"content-type": "application/json"},
+        )
+        envelope["result"]["status"] = "abstained"
+        tampered = client.post(
+            "/v1/modules/M06-07/verify",
+            content=canonical_json_bytes(envelope),
+            headers={"content-type": "application/json"},
+        )
+    assert valid.status_code == _HTTP_OK
+    assert valid.json()["verified"] is True
+    assert tampered.status_code == _HTTP_UNPROCESSABLE
 
 
 def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:

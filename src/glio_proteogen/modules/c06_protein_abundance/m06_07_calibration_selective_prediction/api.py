@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m06_07 import (
     CalibrateSelectiveProteinAbundanceRequest,
     contract_json_schema,
 )
+from glio_proteogen.kernel.canonical import canonical_json_bytes
 from glio_proteogen.kernel.strict_json import (
     StrictJsonError,
     sanitized_validation_errors,
@@ -56,7 +57,7 @@ async def _strict_body(request: Request) -> bytes:
     return body
 
 
-def create_app(service: M0607Service | None = None) -> FastAPI:
+def create_app(service: M0607Service | None = None) -> FastAPI:  # noqa: C901
     """Create an isolated API app with no persistence or model side effects."""
 
     calibration_service = service or M0607Service()
@@ -104,6 +105,34 @@ def create_app(service: M0607Service | None = None) -> FastAPI:
                 "canonical": built.canonical_bytes.decode("utf-8"),
             }
         )
+
+    @app.post("/v1/modules/M06-07/verify")
+    async def verify(request: Request) -> JSONResponse:
+        body = await _strict_body(request)
+        try:
+            envelope = strict_json_loads(body, max_bytes=M0607_MAX_CANONICAL_RESULT_BYTES)
+            if not isinstance(envelope, dict):
+                return JSONResponse(
+                    status_code=422,
+                    content={"detail": "verification envelope invalid"},
+                )
+            result = envelope.get("result")
+            original = envelope.get("request")
+            canonical = envelope.get("canonical")
+            canonical_bytes = canonical.encode("utf-8") if isinstance(canonical, str) else None
+            result_payload = canonical_json_bytes(result)
+            request_payload = canonical_json_bytes(original)
+            verified = calibration_service.verify_json(
+                result_payload,
+                request_payload,
+                canonical_bytes,
+            )
+        except (StrictJsonError, TypeError, ValueError, ValidationError) as error:
+            raise HTTPException(
+                status_code=422,
+                detail="M06-07 result verification failed",
+            ) from error
+        return JSONResponse(content=verified.model_dump(mode="json"))
 
     @app.exception_handler(CalibrationInputError)
     async def calibration_input_error(
