@@ -229,9 +229,9 @@ def test_request_and_result_closures_reject_tamper() -> None:
             no_result_evidence, strict=True
         )
     resolved_invalid = result.model_dump(mode="python")
-        resolved_invalid["support_decision"] = result.support_decision.model_copy(
-            update={"status": SupportStatus.SUPPORTED}
-        )
+    resolved_invalid["support_decision"] = result.support_decision.model_copy(
+        update={"status": SupportStatus.SUPPORTED}
+    )
     resolved_invalid["result_digest"] = result_payload_digest(resolved_invalid)
     with pytest.raises(ValueError, match="resolved result"):
         ProteinRnaDiscordanceUpstreamResolutionResult.model_validate(resolved_invalid, strict=True)
