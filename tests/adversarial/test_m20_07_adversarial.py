@@ -147,6 +147,21 @@ def test_tampered_contract_and_payload_never_replay() -> None:
         engine.verify(replay_tampered)
 
 
+def test_api_verify_binds_supplied_request_before_replay() -> None:
+    request = _request()
+    result = M2007Engine().export(request)
+    tampered = result.model_copy(update={"human_review_required": True})
+    resigned = tampered.model_copy(update={"result_digest": result_payload_digest(tampered)})
+    response = TestClient(create_app()).post(
+        "/v1/modules/M20-07/verify",
+        json={
+            "request": request.model_dump(mode="json"),
+            "result": resigned.model_dump(mode="json"),
+        },
+    )
+    assert response.status_code == _HTTP_UNPROCESSABLE
+
+
 def test_unsupported_and_negative_claim_text_abstain() -> None:
     request = _request().model_copy(
         update={
