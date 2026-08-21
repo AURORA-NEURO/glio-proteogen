@@ -130,6 +130,12 @@ def test_group_duplicate_ties_prefer_stricter_existing_q_value() -> None:
 
     assert selected == expected
 
+    missing_q = replace(lower_q, q_value=None)
+    selected_with_missing, _ = infer_protein_group_candidates(
+        (missing_q, lower_q), q_value_threshold=0.5
+    )
+    assert selected_with_missing == expected
+
 
 def test_group_abstains_when_only_some_accessions_have_unique_peptide_support() -> None:
     candidates, summary = infer_protein_group_candidates(
