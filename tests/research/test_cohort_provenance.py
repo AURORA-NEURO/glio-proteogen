@@ -170,6 +170,22 @@ def test_manifest_digest_is_permutation_stable_and_tamper_visible() -> None:
     assert CohortSourceManifest((changed, manifest.for_sample("b"))).digest != manifest.digest
 
 
+@pytest.mark.parametrize("field", ["declared_aliquot_id", "acquisition_id"])
+def test_manifest_rejects_duplicate_biological_acquisition_identity(field: str) -> None:
+    samples = (_sample("a", "r1"), _sample("b", "r2"))
+    manifest = _manifest(samples, "biological")
+    first, second = manifest.bindings
+    shared = "shared-biological-identity"
+    forged = CohortSourceManifest(
+        (
+            replace(first, **{field: shared}),
+            replace(second, **{field: shared}),
+        )
+    )
+    with pytest.raises(ValueError, match=f"duplicate {field}"):
+        forged.validate_independence()
+
+
 def test_binding_rejects_inconsistent_pdc_fields() -> None:
     with pytest.raises(ValueError, match="PDC bindings"):
         CohortSourceBinding(
