@@ -48,7 +48,11 @@ from glio_proteogen.contracts.m01_03.schema import (
 from glio_proteogen.contracts.m01_03.schema import (
     contract_json_schema as m0103_contract_json_schema,
 )
-from glio_proteogen.contracts.m01_03.v1 import ValidatedRawInputDescriptor
+from glio_proteogen.contracts.m01_03.v1 import (
+    M0103_MAX_DECODED_BYTES,
+    M0103_MAX_SOURCE_BYTES,
+    ValidatedRawInputDescriptor,
+)
 from glio_proteogen.contracts.m01_04.schema import (
     ContractName as M0104ContractName,
 )
@@ -1083,8 +1087,8 @@ _IDENTIFIER_ADAPTER: Final = TypeAdapter(Identifier)
 _MAX_ADVISORY_FILENAME_BYTES: Final = 512
 _MAX_CHECKSUM_TEXT_LENGTH: Final = 80
 _RAW_API_LIMITS: Final = IngestionLimits(
-    max_source_bytes=MAX_REQUEST_BYTES,
-    max_decoded_bytes=MAX_REQUEST_BYTES * 4,
+    max_source_bytes=M0103_MAX_SOURCE_BYTES,
+    max_decoded_bytes=M0103_MAX_DECODED_BYTES,
 )
 
 
@@ -2691,6 +2695,9 @@ def create_app(database_path: Path) -> FastAPI:  # noqa: PLR0915 - central route
         RequestSizeLimitMiddleware,
         max_bytes=MAX_REQUEST_BYTES,
         result_max_bytes=M0305_MAX_CANONICAL_RESULT_BYTES,
+        path_max_bytes={
+            "/v1/modules/M01-03/inspect": M0103_MAX_SOURCE_BYTES,
+        },
     )
     # These provisional lanes ship strict standalone adapters as well as the
     # central API.  Include their routers here so a caller using the canonical

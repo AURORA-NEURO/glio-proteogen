@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 
 from starlette.responses import JSONResponse
@@ -37,13 +37,17 @@ class RequestSizeLimitMiddleware:
         app: AsgiApp,
         max_bytes: int = MAX_REQUEST_BYTES,
         result_max_bytes: int | None = None,
+        path_max_bytes: Mapping[str, int] | None = None,
     ) -> None:
         self._app = app
         self._max_bytes = max_bytes
         self._result_max_bytes = result_max_bytes
+        self._path_max_bytes = dict(path_max_bytes or {})
 
     def _limit_for_scope(self, scope: Scope) -> int:
         path = scope.get("path", "")
+        if path in self._path_max_bytes:
+            return self._path_max_bytes[path]
         if self._result_max_bytes is not None and path.endswith("/verify"):
             return self._result_max_bytes
         return self._max_bytes
