@@ -354,8 +354,17 @@ class M1702AlignmentEngine:
         declared = _declared(typed)
         boundary = any(token in declared for token in _ABSTENTION_TOKENS + _PROHIBITED_TOKENS)
         discrepancies = _discrepancies(typed.observations)
-        supported = not boundary and not discrepancies
-        status = AlignmentResultStatus.RECONCILED if supported else AlignmentResultStatus.ABSTAINED
+        # Observations and source identity are caller-declared at this
+        # provisional boundary; agreement alone is not authenticated evidence.
+        # Preserve the aligned bundle for review, but never promote it as a
+        # supported scientific reconciliation.
+        supported = False
+        review_aligned = not boundary and not discrepancies
+        status = (
+            AlignmentResultStatus.RECONCILED
+            if review_aligned
+            else AlignmentResultStatus.ABSTAINED
+        )
         bundle = (
             AlignedEvidenceBundle(
                 bundle_id=f"bundle.{request_digest.removeprefix('sha256:')}",
@@ -365,7 +374,7 @@ class M1702AlignmentEngine:
                 alignment_status=AlignmentStatus.ALIGNED,
                 evidence=evidence,
             )
-            if supported
+            if review_aligned
             else None
         )
         findings = [
@@ -386,8 +395,8 @@ class M1702AlignmentEngine:
                 )
             )
         support_status = (
-            SupportStatus.SUPPORTED
-            if supported
+            SupportStatus.REVIEW_REQUIRED
+            if review_aligned
             else (SupportStatus.UNSUPPORTED if boundary else SupportStatus.REVIEW_REQUIRED)
         )
         payload: dict[str, Any] = {
@@ -400,9 +409,9 @@ class M1702AlignmentEngine:
             "aligned_bundle": bundle,
             "discrepancy_map": discrepancies,
             "findings": tuple(findings),
-            "abstention_reason": None
-            if supported
-            else "Cross-source alignment is not safely promotable.",
+            "abstention_reason": (
+                None if review_aligned else "Cross-source alignment is not safely promotable."
+            ),
             "support_decision": SupportDecision(
                 status=support_status,
                 reason_code="m1702_aligned" if supported else "m1702_review_required",
@@ -412,11 +421,11 @@ class M1702AlignmentEngine:
                     else "Discrepancy, support, or prohibited-boundary review blocked alignment."
                 ),
             ),
-            "uncertainty": _uncertainty(supported=supported),
+            "uncertainty": _uncertainty(supported=False),
             "provenance": _provenance(typed, request_digest),
             "evidence": evidence,
             "limitations": _limitations(supported=supported),
-            "human_review_required": not supported,
+            "human_review_required": not review_aligned,
         }
         constructed = VariantPeptideCrossSourceAlignmentResult.model_construct(**payload)
         payload["result_digest"] = result_payload_digest(constructed)

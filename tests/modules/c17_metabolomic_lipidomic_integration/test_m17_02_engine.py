@@ -22,8 +22,8 @@ def test_supported_sources_reconcile_with_explicit_uncertainty_and_provenance() 
     assert result.aligned_bundle is not None
     assert result.aligned_bundle.alignment_status is AlignmentStatus.ALIGNED
     assert not result.discrepancy_map
-    assert result.support_decision.status is SupportStatus.SUPPORTED
-    assert result.uncertainty.transport.probability == 0.9
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
+    assert result.uncertainty.transport.probability is None
     assert len(result.provenance.control_decisions) == 7
     assert result.human_review_required is False
 
