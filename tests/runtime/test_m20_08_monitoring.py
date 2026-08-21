@@ -57,6 +57,25 @@ def test_support_drift_suspends_translation() -> None:
     assert result.human_review_required is True
 
 
+def test_metric_label_cannot_escalate_non_discrepancy_drift() -> None:
+    request = _request()
+    signal = request.signals[0].model_copy(
+        update={
+            "kind": HealthSignalKind.SUPPORT_DRIFT,
+            "metric": "not-critical-support-label",
+            "status": HealthSignalStatus.DRIFTING,
+            "observed_value": 2.0,
+        }
+    )
+    result = M2008TranslationMonitoringEngine().infer(
+        request.model_copy(update={"signals": (signal,)})
+    )
+    assert result.health_status is TranslationHealthStatus.DEGRADED
+    assert result.rollback_decision is RollbackDecision.SUSPEND
+    assert result.report is not None
+    assert result.report.assessments[0].critical is False
+
+
 def test_critical_discrepancy_rolls_back() -> None:
     request = _request()
     signal = request.signals[0].model_copy(
