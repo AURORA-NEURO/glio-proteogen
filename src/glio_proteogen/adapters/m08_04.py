@@ -18,12 +18,12 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from glio_proteogen.adapters.limits import (
-    MAX_REQUEST_BYTES,
     RequestSizeLimitMiddleware,
     read_bounded,
 )
 from glio_proteogen.contracts.m08_04 import (
     M0804_MAX_CANONICAL_REQUEST_BYTES,
+    M0804_MAX_CANONICAL_RESULT_BYTES,
     ContractName,
     contract_json_schema,
 )
@@ -49,8 +49,8 @@ def create_m0804_app(service: m0804_runtime.M0804Service | None = None) -> FastA
     app = FastAPI(title="GLIO-PROTEOGEN M08-04 (provisional)", version="0.1.0-provisional")
     app.add_middleware(
         RequestSizeLimitMiddleware,
-        max_bytes=MAX_REQUEST_BYTES,
-        result_max_bytes=MAX_REQUEST_BYTES * 2,
+        max_bytes=M0804_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0804_MAX_CANONICAL_RESULT_BYTES,
     )
 
     @app.get("/v1/contracts/M08-04/{name}/schema", tags=["contracts"])
@@ -59,6 +59,11 @@ def create_m0804_app(service: m0804_runtime.M0804Service | None = None) -> FastA
 
     @app.post("/v1/modules/M08-04/probabilistic-estimate", tags=["M08-04"])
     async def estimate(request: Request) -> JSONResponse:
+        if (
+            request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            != "application/json"
+        ):
+            return JSONResponse(status_code=415, content={"detail": "unsupported media type"})
         raw = await request.body()
         if len(raw) > M0804_MAX_CANONICAL_REQUEST_BYTES:
             return JSONResponse(status_code=413, content={"detail": "request too large"})
