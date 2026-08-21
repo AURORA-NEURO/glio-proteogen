@@ -25,16 +25,19 @@ from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry 
     emit_search_quant_observability_telemetry,
 )
 
-_EXPECTED_SAMPLE_COUNT = 9
 
-
-def test_supported_emission_retains_all_requested_metrics() -> None:
+def test_missing_observations_abstain_without_fabricated_telemetry() -> None:
     result = emit_search_quant_observability_telemetry(build_request())
-    assert result.status is TelemetryStatus.EMITTED
-    assert result.telemetry_stream is not None
-    assert len(result.telemetry_stream.samples) == _EXPECTED_SAMPLE_COUNT
-    assert result.alert is not None
-    assert result.safe_failure_report is None
+    assert result.status is TelemetryStatus.ABSTAINED
+    assert result.telemetry_stream is None
+    assert result.dashboards == ()
+    assert result.alert is None
+    assert result.safe_failure_report is not None
+    assert result.safe_failure_report.action == "abstain_without_fabricating_telemetry"
+    assert result.support_decision.status.value == "review_required"
+    assert (
+        result.abstention_reason == "M27-05 telemetry observations are not present in the request"
+    )
     assert result.parent_target == "complex activity"
     assert result.emits_parent is False
 

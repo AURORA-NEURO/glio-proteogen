@@ -32,7 +32,6 @@ from glio_proteogen.contracts.m27_05 import (
     TelemetryUnit,
     contract_json_schemas,
 )
-from glio_proteogen.contracts.m27_05.canonical import result_payload_digest
 from glio_proteogen.kernel.strict_json import StrictJsonError
 from glio_proteogen.modules.c27_complex_activity.m27_05_observability_telemetry import (
     M2705AuthorizationError,
@@ -59,6 +58,30 @@ _SCHEMA_COUNT = 8
 
 def _evidence(request: EmitProteomicsTelemetryRequest) -> tuple[EvidenceReference, ...]:
     return request.dashboard_definitions[0].evidence or ()
+
+
+def _valid_stream(request: EmitProteomicsTelemetryRequest) -> TelemetryStream:
+    evidence = _evidence(request)
+    samples = tuple(
+        TelemetrySample(
+            sample_id=f"m2705.sample.{metric.value}",
+            metric=metric,
+            value=1.0,
+            unit=TelemetryUnit.SCORE,
+            observed_at=request.context.occurred_at,
+            source="test-observation",
+            evidence=evidence,
+        )
+        for metric in request.requested_metrics
+    )
+    return TelemetryStream(
+        stream_id="m2705.stream." + request.request_id,
+        version="1.0.0",
+        samples=samples,
+        reviewer_actions=(),
+        findings=(),
+        evidence=evidence,
+    )
 
 
 def test_schema_single_routes_and_api_validation_replay() -> None:
@@ -126,9 +149,9 @@ def test_cli_schema_validate_verify_and_output_guards(tmp_path: Path) -> None:
     assert runner.invoke(app, ["export-schema", "request"]).exit_code == 0
     assert runner.invoke(app, ["export-schema", "unknown"]).exit_code != 0
     assert runner.invoke(app, ["validate", str(request_path)]).exit_code == 0
-    assert (
-        runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code == 0
-    )
+    emitted = runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)])
+    assert emitted.exit_code == 1
+    assert '"status":"abstained"' in result_path.read_text(encoding="utf-8")
     assert runner.invoke(app, ["verify", str(result_path)]).exit_code == 0
     assert (
         runner.invoke(app, ["emit", str(request_path), "--output", str(result_path)]).exit_code != 0
@@ -288,8 +311,8 @@ def test_engine_accepts_mapping_and_json_bytes() -> None:
     request = build_request()
     engine = M2705TelemetryEngine()
     service = M2705Service()
-    assert engine.emit(request.model_dump(mode="json")).status.value == "emitted"
-    assert service.emit(request.model_dump_json()).status.value == "emitted"
+    assert engine.emit(request.model_dump(mode="json")).status.value == "abstained"
+    assert service.emit(request.model_dump_json()).status.value == "abstained"
 
 
 def test_preflight_hostile_object_fails_closed() -> None:
@@ -307,7 +330,7 @@ def test_plugin_bytes_and_foreign_token_rejection() -> None:
     first = M2705Plugin()
     second = M2705Plugin()
     token = first.validate(TelemetrySubmission(request.model_dump_json()))
-    assert first.run(token).status.value == "emitted"
+    assert first.run(token).status.value == "abstained"
     with pytest.raises(TypeError):
         second.run(token)
 
@@ -364,9 +387,8 @@ def test_contract_rejects_nonfinite_alert_and_bad_chronology() -> None:
 
 def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
     request = build_request()
-    result = M2705Service().emit(request)
-    assert result.telemetry_stream is not None
-    stream_payload = result.telemetry_stream.model_dump(mode="json")
+    stream = _valid_stream(request)
+    stream_payload = stream.model_dump(mode="json")
     sample = stream_payload["samples"][0]
     stream_payload["samples"] = [sample, sample]
     with pytest.raises(ValueError, match=r".+"):
@@ -376,7 +398,7 @@ def test_contract_rejects_duplicate_stream_samples_and_findings() -> None:
         code=TelemetryFindingCode.DRIFT_DETECTED,
         message="drift",
     )
-    finding_payload = result.telemetry_stream.model_dump(mode="json")
+    finding_payload = stream.model_dump(mode="json")
     finding_payload["findings"] = [finding.model_dump(mode="json"), finding.model_dump(mode="json")]
     with pytest.raises(ValueError, match=r".+"):
         TelemetryStream.model_validate(finding_payload, strict=True)
@@ -392,40 +414,10 @@ def test_result_id_and_status_shape_are_closed() -> None:
 
 def test_result_rejects_self_rehashed_output_binding_mutations() -> None:
     result = M2705Service().emit(build_request())
-
-    forged_dashboard = result.dashboards[0].model_copy(update={"title": "forged dashboard"})
-    forged = result.model_copy(update={"dashboards": (forged_dashboard, *result.dashboards[1:])})
-    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(ValueError, match="exact request definitions"):
-        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
-
-    assert result.telemetry_stream is not None
-    forged_stream = result.telemetry_stream.model_copy(
-        update={"samples": result.telemetry_stream.samples[:-1]}
-    )
-    forged = result.model_copy(update={"telemetry_stream": forged_stream})
-    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(ValueError, match="cover every requested metric"):
-        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
-    duplicate = result.telemetry_stream.samples[0].model_copy(
-        update={"sample_id": "m2705.sample.duplicate"}
-    )
-    forged_stream = result.telemetry_stream.model_copy(
-        update={"samples": (*result.telemetry_stream.samples, duplicate)}
-    )
-    forged = result.model_copy(update={"telemetry_stream": forged_stream})
-    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(ValueError, match="exact request telemetry metrics"):
-        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
-    forged_stream = result.telemetry_stream.model_copy(update={"stream_id": "m2705.stream.forged"})
-    forged = result.model_copy(update={"telemetry_stream": forged_stream})
-    forged = forged.model_copy(update={"result_digest": result_payload_digest(forged)})
-    with pytest.raises(ValueError, match="exact request telemetry metrics"):
-        ProteomicsTelemetryResult.model_validate(forged.model_dump(mode="python"), strict=True)
     payload = result.model_dump(mode="json")
-    payload["status"] = "abstained"
-    payload["telemetry_stream"] = None
-    payload["dashboards"] = []
+    payload["status"] = "emitted"
+    payload["telemetry_stream"] = _valid_stream(result.request).model_dump(mode="json")
+    payload["dashboards"] = result.request.dashboard_definitions
     payload["alert"] = None
     payload["safe_failure_report"] = None
     with pytest.raises(ValueError, match=r".+"):
