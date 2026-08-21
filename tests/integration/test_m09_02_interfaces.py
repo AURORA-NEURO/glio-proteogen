@@ -13,6 +13,9 @@ from glio_proteogen.modules.c09_complex_activity import (
 )
 from tests.modules.c09_complex_activity.test_m09_02_constructor import _request
 
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -61,9 +64,30 @@ def test_api_validates_and_constructs_strict_body() -> None:
     assert not unknown.is_success
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    client = TestClient(m0902.api.create_app())
+    body = _request().model_dump(mode="json")
+    wrong_media = client.post(
+        "/v1/modules/M09-02/construct",
+        json=body,
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        "/v1/modules/M09-02/construct",
+        content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+        headers={"content-type": "application/json"},
+    )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_sanitizes_invalid_and_denied_requests() -> None:
     client = TestClient(m0902.api.create_app())
-    invalid = client.post("/v1/modules/M09-02/validate", content=b"{not-json")
+    invalid = client.post(
+        "/v1/modules/M09-02/validate",
+        content=b"{not-json",
+        headers={"content-type": "application/json"},
+    )
     denied_body = _request().model_copy(
         update={
             "context": _request().context.model_copy(
