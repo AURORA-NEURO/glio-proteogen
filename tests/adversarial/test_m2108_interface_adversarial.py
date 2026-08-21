@@ -51,7 +51,10 @@ def test_fastapi_tampered_result_is_rejected() -> None:
     )
     result = result_model.model_dump(mode="json")
     result["result_digest"] = result_payload_digest(result_model)
-    response = client.post("/v1/modules/M21-08/verify", json=result)
+    response = client.post(
+        "/v1/modules/M21-08/verify",
+        json={"request": _request().model_dump(mode="json"), "result": result},
+    )
     assert response.status_code == 422
 
 
