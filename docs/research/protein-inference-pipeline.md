@@ -184,11 +184,15 @@ measurement is biologically negative or unusable.
 Every cohort request also carries a closed `CohortQcPolicy` receipt. Its minimum replicate
 count, minimum observed-group count, and maximum missingness rate are validated as finite
 caller-declared values and included in the configuration/result digest. A label that fails an
-active gate keeps its raw values for audit but receives an all-null normalized projection and an
-explicit `abstained_insufficient_replicates`, `abstained_insufficient_observed_groups`, or
-`abstained_missingness` status. This prevents partial observations from being presented as
-normalized cohort evidence; it does not estimate missing values or promote caller labels into
-biological strata.
+active gate under a support-dependent normalization policy keeps its raw values for audit but
+receives an all-null normalized projection and an explicit
+`abstained_insufficient_replicates`, `abstained_insufficient_observed_groups`, or
+`abstained_missingness` status. With `normalization_policy="none"`, the normalized projection is
+instead the caller-requested identity projection (the raw values, with `scale_factor=1.0` and
+`normalization_status="not_applied"`); the QC status remains abstained and blocks derived label
+effects. This preserves evidence for an explicit no-normalization request without presenting
+partial observations as normalized cohort evidence, estimating missing values, or promoting
+caller labels into biological strata.
 
 This is evidence aggregation, not a differential-expression or cohort inference model:
 there are no p-values, effect-size claims, batch correction, survival endpoints, glioma
