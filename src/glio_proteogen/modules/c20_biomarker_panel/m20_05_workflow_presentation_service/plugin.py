@@ -96,8 +96,9 @@ class M2005Plugin(
     def replay(
         self,
         result: ProteinSubtypeHumanReviewWorkspaceResult,
+        request: PresentProteinSubtypeHumanReviewWorkspaceRequest | None = None,
     ) -> ProteinSubtypeHumanReviewWorkspaceResult:
-        return self._service.replay(result)
+        return self._service.replay(result, request)
 
 
 __all__ = [
