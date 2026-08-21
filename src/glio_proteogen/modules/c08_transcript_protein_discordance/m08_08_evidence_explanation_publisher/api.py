@@ -8,8 +8,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter, ValidationError
 
+from glio_proteogen.adapters.limits import RequestSizeLimitMiddleware
 from glio_proteogen.contracts.m08_08 import (
     M0808_MAX_CANONICAL_REQUEST_BYTES,
+    M0808_MAX_CANONICAL_RESULT_BYTES,
     PublishTranscriptProteinEvidenceRequest,
     contract_json_schema,
 )
@@ -44,6 +46,9 @@ def _validation_error(error: ValidationError) -> HTTPException:
 
 
 async def _strict_body(request: Request) -> bytes:
+    media_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if media_type != "application/json":
+        raise HTTPException(status_code=415, detail="content-type must be application/json")
     body = await request.body()
     try:
         strict_json_loads(body, max_bytes=M0808_MAX_CANONICAL_REQUEST_BYTES)
@@ -57,6 +62,11 @@ def create_app(service: M0808Service | None = None) -> FastAPI:
 
     publisher = service or M0808Service()
     app = FastAPI(title="GLIO Proteogen M08-08", version="0.1.0-provisional")
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=M0808_MAX_CANONICAL_REQUEST_BYTES,
+        result_max_bytes=M0808_MAX_CANONICAL_RESULT_BYTES,
+    )
 
     @app.get("/v1/modules/M08-08/schemas/{contract}")
     def export_schema(contract: str) -> dict[str, object]:

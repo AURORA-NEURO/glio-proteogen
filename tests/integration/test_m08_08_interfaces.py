@@ -19,6 +19,9 @@ from glio_proteogen.modules.c08_transcript_protein_discordance.m08_08_evidence_e
 )
 from tests.modules.c08_transcript_protein_discordance.test_m08_08_publisher import _request
 
+HTTP_UNSUPPORTED_MEDIA = 415
+HTTP_TOO_LARGE = 413
+
 
 def test_api_validate_publish_and_schema_are_strict() -> None:
     request = _request("source.1")
@@ -36,6 +39,23 @@ def test_api_validate_publish_and_schema_are_strict() -> None:
     assert unknown.status_code == HTTPStatus.NOT_FOUND
 
 
+def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
+    payload = _request("source.1").model_dump(mode="json")
+    with TestClient(create_app(M0808Service())) as client:
+        wrong_media = client.post(
+            "/v1/modules/M08-08/publish",
+            json=payload,
+            headers={"content-type": "text/plain"},
+        )
+        oversized = client.post(
+            "/v1/modules/M08-08/publish",
+            content=b"{" + b"x" * (4 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert wrong_media.status_code == HTTP_UNSUPPORTED_MEDIA
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_rejects_duplicate_json_keys_and_malformed_body() -> None:
     request = _request("source.1")
     body = json.dumps(request.model_dump(mode="json"), separators=(",", ":"))
@@ -43,8 +63,13 @@ def test_api_rejects_duplicate_json_keys_and_malformed_body() -> None:
         duplicate = client.post(
             "/v1/modules/M08-08/validate",
             content=body[:-1] + ',"request_id":"forged"}',
+            headers={"content-type": "application/json"},
         )
-        malformed = client.post("/v1/modules/M08-08/validate", content=b"{not-json")
+        malformed = client.post(
+            "/v1/modules/M08-08/validate",
+            content=b"{not-json",
+            headers={"content-type": "application/json"},
+        )
     assert duplicate.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert "traceback" not in duplicate.text.casefold()
     assert malformed.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
