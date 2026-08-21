@@ -36,6 +36,51 @@ def _parse_bytes(payload: bytes, *, max_bytes: int) -> object:
     return json.loads(canonical_json_bytes(parsed))
 
 
+_CENTRAL_SERVICE = M1905Service()
+
+
+def _handlers(service: M1905Service) -> tuple:
+    async def present_with_service(request: Request) -> JSONResponse:
+        try:
+            result = service.execute(
+                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES)
+            )
+        except M1905AuthorizationError as error:
+            raise HTTPException(status_code=403, detail="M19-05 authorization denied") from error
+        except Exception as error:
+            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
+        return JSONResponse(result.model_dump(mode="json"))
+
+    async def verify_with_service(request: Request) -> JSONResponse:
+        try:
+            result = service.verify(
+                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES)
+            )
+        except M1905ReplayError as error:
+            raise HTTPException(
+                status_code=422, detail="M19-05 replay verification failed"
+            ) from error
+        except Exception as error:
+            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
+        return JSONResponse(result.model_dump(mode="json"))
+
+    return present_with_service, verify_with_service
+
+
+async def present(request: Request) -> JSONResponse:
+    return await _handlers(_CENTRAL_SERVICE)[0](request)
+
+
+async def verify(request: Request) -> JSONResponse:
+    return await _handlers(_CENTRAL_SERVICE)[1](request)
+
+
+async def central_present(request: Request) -> JSONResponse:
+    """Central-compatible M19-05 presentation endpoint."""
+
+    return await create_app().routes[5].endpoint(request)
+
+
 def create_app(service: M1905Service | None = None) -> FastAPI:
     """Create an isolated strict M19-05 API."""
 
@@ -49,32 +94,10 @@ def create_app(service: M1905Service | None = None) -> FastAPI:
         except (KeyError, ValueError, TypeError) as error:
             raise HTTPException(status_code=404, detail="unknown M19-05 contract") from error
 
-    @api.post("/v1/modules/M19-05/present")
-    async def present(request: Request) -> JSONResponse:
-        try:
-            result = operation.execute(
-                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_REQUEST_BYTES)
-            )
-        except M1905AuthorizationError as error:
-            raise HTTPException(status_code=403, detail="M19-05 authorization denied") from error
-        except Exception as error:
-            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+    present_handler, verify_handler = _handlers(service or _CENTRAL_SERVICE)
+    api.add_api_route("/v1/modules/M19-05/present", present_handler, methods=["POST"])
 
-    @api.post("/v1/modules/M19-05/verify")
-    async def verify(request: Request) -> JSONResponse:
-        try:
-            result = operation.verify(
-                _parse_bytes(await request.body(), max_bytes=M1905_MAX_CANONICAL_RESULT_BYTES)
-            )
-        except M1905ReplayError as error:
-            raise HTTPException(
-                status_code=422,
-                detail="M19-05 replay verification failed",
-            ) from error
-        except Exception as error:
-            raise HTTPException(status_code=422, detail=_sanitized(error)) from error
-        return JSONResponse(result.model_dump(mode="json"))
+    api.add_api_route("/v1/modules/M19-05/verify", verify_handler, methods=["POST"])
 
     return api
 
