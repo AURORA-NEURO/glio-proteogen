@@ -218,12 +218,20 @@ def test_pdc_file_rejects_boolean_size_metadata() -> None:
         replace(file, file_size=True)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("study_id", ["TCGA000204", "PDC", "PDCabc"])
-def test_pdc_file_rejects_non_pdc_study_identity(study_id: str) -> None:
+@pytest.mark.parametrize("study_id", ["TCGA000204", "PDC", "PDCabc", "PDC00020", "PDC0002040"])
+def test_pdc_file_rejects_noncanonical_study_identity(study_id: str) -> None:
     payload = b"<mzML>verified</mzML>"
     file = _file("memory://PDC000204/content", payload)
     with pytest.raises(ValueError, match="study_id"):
         replace(file, study_id=study_id)
+
+
+@pytest.mark.parametrize("study_id", ["PDC", "PDC1", "PDC00020", "PDC0002040"])
+def test_pdc_snapshot_rejects_noncanonical_study_identity_before_network(
+    study_id: str,
+) -> None:
+    with pytest.raises(ValueError, match="study_id"):
+        PdcClient().study_snapshot(study_id)
 
 
 @pytest.mark.parametrize(

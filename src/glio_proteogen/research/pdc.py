@@ -31,10 +31,23 @@ _MZML_GZIP_MEDIA_TYPES = frozenset(
 )
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
+_PDC_ID_LENGTH = 9
 
 
 class PdcError(RuntimeError):
     """Raised when the public API returns malformed or incomplete data."""
+
+
+def _validate_study_id(study_id: str) -> None:
+    """Require the canonical nine-character PDC study accession form."""
+
+    if (
+        type(study_id) is not str
+        or len(study_id) != _PDC_ID_LENGTH
+        or not study_id.startswith("PDC")
+        or not study_id[3:].isdigit()
+    ):
+        raise ValueError("study_id must be a canonical PDC accession")
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,12 +63,7 @@ class PdcFile:
     signed_url: str | None = None
 
     def __post_init__(self) -> None:
-        if (
-            type(self.study_id) is not str
-            or not self.study_id.startswith("PDC")
-            or not self.study_id[3:].isdigit()
-        ):
-            raise ValueError("PDC study_id must be a PDC accession")
+        _validate_study_id(self.study_id)
         if type(self.file_size) is not int or self.file_size < 0:
             raise ValueError("PDC file_size must be a non-negative integer")
 
@@ -482,8 +490,7 @@ class PdcClient:
     """Fetch bounded study metadata; never downloads raw spectra implicitly."""
 
     def study_snapshot(self, study_id: str, *, limit: int = 16) -> PdcStudySnapshot:
-        if not study_id.startswith("PDC") or not study_id[3:].isdigit():
-            raise ValueError("study_id must be a PDC accession")
+        _validate_study_id(study_id)
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("limit must be between 1 and 128")
         query = (

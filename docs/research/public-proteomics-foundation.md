@@ -30,6 +30,9 @@ Catalog snapshots fail closed when any returned file declares a different PDC
 study than the requested study. This prevents a mixed-study metadata response
 from being archived under the requested study identity before any raw-file
 receipt is created.
+Both public metadata and raw-file retrieval paths require the same canonical
+`PDC` plus six-digit study accession form; a merely `PDC`-prefixed digit string
+cannot become a source receipt.
 
 Metadata snapshots also retain the client endpoint only when it is an
 allow-listed HTTPS PDC host with no embedded credentials, query parameters, or
