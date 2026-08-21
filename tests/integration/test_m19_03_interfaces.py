@@ -135,9 +135,10 @@ def test_central_api_accepts_result_between_request_and_result_ceilings(tmp_path
 
     assert len(padded) == target_size
     assert response.status_code == HTTP_OK, response.text
-    assert ProteotypeIntegratedEvidenceResult.model_validate_json(
-        response.content, strict=True
-    ) == result
+    assert (
+        ProteotypeIntegratedEvidenceResult.model_validate_json(response.content, strict=True)
+        == result
+    )
 
 
 def test_api_and_cli_abstain_on_prohibited_caller_claim(tmp_path: Path) -> None:
