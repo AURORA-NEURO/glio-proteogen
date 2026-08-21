@@ -77,6 +77,30 @@ def test_missingness_gate_preserves_none_identity_projection() -> None:
         )
 
 
+def test_none_identity_projection_does_not_enable_qc_failed_contrast() -> None:
+    samples = (
+        replace(_sample("target_supported", "case-present", "r1"), cohort_label="case"),
+        replace(_sample("no_match", "case-absent", "r2"), cohort_label="case"),
+        replace(_sample("target_supported", "control-present", "r1"), cohort_label="control"),
+        replace(_sample("no_match", "control-absent", "r2"), cohort_label="control"),
+    )
+    request = ResearchCohortRequest(
+        samples,
+        normalization_policy="none",
+        qc_policy=CohortQcPolicy(max_missingness_rate=0.0),
+    )
+    result = run_research_cohort(request)
+    assert result.normalized_matrix == result.raw_matrix
+    assert {item.status for item in result.label_qc} == {"abstained_missingness"}
+    assert len(result.label_contrasts) == 1
+    contrast = result.label_contrasts[0]
+    assert contrast.status == "abstained_label_qc"
+    assert contrast.median_difference is None
+    assert contrast.median_ratio is None
+    assert contrast.log2_median_ratio is None
+    assert replay_research_cohort(request, result) == result
+
+
 def test_observed_group_gate_and_policy_replay_are_explicit() -> None:
     samples = (_sample("target_supported", "present", "r1"), _sample("no_match", "absent", "r2"))
     policy = CohortQcPolicy(min_observed_groups=2)
