@@ -124,8 +124,8 @@ def test_interfaces_reject_oversized_request_and_result_before_parse(tmp_path: P
     client = TestClient(m2601_api.create_app())
     oversized = b"{" + b"a" * M2601_MAX_CANONICAL_RESULT_BYTES + b"}"
     api_response = client.post("/v1/modules/M26-01/verify", content=oversized)
-    assert api_response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert "replay envelope JSON is invalid" in api_response.text
+    assert api_response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+    assert "request body exceeds the byte limit" in api_response.text
     assert "StrictJsonError" not in api_response.text
 
 
