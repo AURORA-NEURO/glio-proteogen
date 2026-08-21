@@ -136,7 +136,9 @@ and child/result digests to a fresh run; counts and a fixture hash alone are ins
 
 ### Independence-aware source manifest
 
-Each cohort can carry a frozen `CohortSourceManifest` with one binding per sample. A
+Each cohort can carry a frozen `CohortSourceManifest` with exactly one binding per
+sample. Validation rejects both missing and unrelated bindings, so the manifest cannot
+describe a larger or different cohort than the samples being analyzed. A
 binding records the opaque sample identifier, source kind and identifier, exact mzML
 SHA-256 and non-negative integer byte size, caller-declared replicate kind (`biological`, `technical`, or
 `unknown`), and any available acquisition/aliquot or PDC study/file/locator, catalog

@@ -419,6 +419,14 @@ def test_manifest_validation_rejects_order_count_digest_and_size_mismatch() -> N
         manifest.validate_against_samples(
             ("first", "second"), (first.request, second.request), observed[:1]
         )
+    extra = _sample("extra", "r3")
+    extra_manifest = CohortSourceManifest.from_requests(
+        (first.request, second.request, extra.request)
+    )
+    with pytest.raises(ValueError, match="sample IDs"):
+        extra_manifest.validate_against_samples(
+            ("first", "second"), (first.request, second.request), observed
+        )
     with pytest.raises(ValueError, match="mzML digest"):
         manifest.validate_against_samples(
             ("first", "second"), (first.request, second.request), ("0" * 64, observed[1])

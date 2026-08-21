@@ -282,6 +282,9 @@ class CohortSourceManifest:
     ) -> None:
         if sample_ids != tuple(request.sample_id for request in requests):
             raise ValueError("source manifest sample order does not match cohort samples")
+        manifest_sample_ids = {binding.sample_id for binding in self.bindings}
+        if manifest_sample_ids != set(sample_ids):
+            raise ValueError("source manifest sample IDs do not match cohort samples")
         if len(observed_mzml_sha256) != len(requests):
             raise ValueError("source manifest observation count does not match cohort samples")
         for sample_id, request, observed in zip(
