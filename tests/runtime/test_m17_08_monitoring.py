@@ -178,6 +178,7 @@ def test_healthy_monitoring_emits_report_and_replays() -> None:
     assert result.health_report is not None
     assert result.health_report.health_state is TranslationHealthState.HEALTHY
     assert result.health_report.rollback_decision is RollbackDecision.NONE
+    assert result.support_decision.status is SupportStatus.REVIEW_REQUIRED
     assert result.parent_target == "variant peptide"
     assert result.emits_parent is False
     assert result.human_review_required is False

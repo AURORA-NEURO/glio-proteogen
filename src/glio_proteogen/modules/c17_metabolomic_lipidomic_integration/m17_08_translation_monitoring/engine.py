@@ -366,10 +366,11 @@ class M1708Engine:
                 evidence=evidence,
             )
             support = SupportDecision(
-                status=SupportStatus.SUPPORTED,
+                status=SupportStatus.REVIEW_REQUIRED,
                 reason_code=f"translation_health_{state.value}",
                 rationale=(
-                    "Declared telemetry and support evidence produced a bounded health state."
+                    "Declared telemetry and support evidence produced a bounded health state "
+                    "for review; this monitor does not establish calibrated scientific support."
                 ),
             )
             abstention_reason = None
