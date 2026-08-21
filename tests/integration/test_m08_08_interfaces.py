@@ -56,6 +56,18 @@ def test_api_enforces_json_content_type_and_preparse_request_limit() -> None:
     assert oversized.status_code == HTTP_TOO_LARGE
 
 
+def test_api_result_ceiling_is_installed_for_future_verify_surfaces() -> None:
+    payload = _request("source.1").model_dump(mode="json")
+    with TestClient(create_app(M0808Service())) as client:
+        oversized = client.post(
+            "/v1/modules/M08-08/publish",
+            content=b"{" + b"x" * (8 * 1024 * 1024 + 1) + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert payload
+    assert oversized.status_code == HTTP_TOO_LARGE
+
+
 def test_api_rejects_duplicate_json_keys_and_malformed_body() -> None:
     request = _request("source.1")
     body = json.dumps(request.model_dump(mode="json"), separators=(",", ":"))
