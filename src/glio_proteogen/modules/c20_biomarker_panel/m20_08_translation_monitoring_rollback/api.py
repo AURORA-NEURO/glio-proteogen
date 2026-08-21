@@ -76,7 +76,9 @@ def create_app(service: M2008Service | None = None) -> FastAPI:
 
     boundary = service or M2008Service()
     app = FastAPI(title="GLIO-PROTEOGEN M20-08", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2008_MAX_CANONICAL_RESULT_BYTES)
+    # Enforce the request ceiling before Starlette materializes any body;
+    # /verify applies the larger result ceiling in its bounded reader.
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2008_MAX_CANONICAL_REQUEST_BYTES)
 
     @app.get("/v1/modules/M20-08/schemas")
     async def schemas() -> dict[str, dict[str, object]]:
