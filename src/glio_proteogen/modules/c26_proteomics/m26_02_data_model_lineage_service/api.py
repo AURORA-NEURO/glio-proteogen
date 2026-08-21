@@ -61,7 +61,9 @@ def create_m2602_app(service: M2602LineageService | None = None) -> FastAPI:  # 
 
     active_service = service or M2602LineageService()
     app = FastAPI(title="GLIO-PROTEOGEN M26-02", version="0.1.0-provisional")
-    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2602_MAX_CANONICAL_RESULT_BYTES)
+    # The middleware must enforce the request ceiling before any route can
+    # materialize a body; result verification has its own stricter route cap.
+    app.add_middleware(RequestSizeLimitMiddleware, max_bytes=M2602_MAX_CANONICAL_REQUEST_BYTES)
 
     async def read_bounded(request: Request, *, max_bytes: int) -> bytes:
         chunks: list[bytes] = []

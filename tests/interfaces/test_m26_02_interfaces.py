@@ -6,7 +6,10 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from glio_proteogen.contracts.m26_02 import canonical_request_digest
+from glio_proteogen.contracts.m26_02 import (
+    M2602_MAX_CANONICAL_REQUEST_BYTES,
+    canonical_request_digest,
+)
 from glio_proteogen.kernel.models import ConsentState
 from glio_proteogen.modules.c26_proteomics.m26_02_data_model_lineage_service.api import (
     create_m2602_app,
@@ -19,6 +22,7 @@ _HTTP_BAD_REQUEST = 400
 _HTTP_UNPROCESSABLE = 422
 _HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
+_HTTP_PAYLOAD_TOO_LARGE = 413
 _CLI_VALIDATION_ERROR = 2
 _CLI_ABSTENTION = 3
 
@@ -53,6 +57,14 @@ def test_fastapi_duplicate_keys_are_sanitized_and_rejected() -> None:
     assert response.status_code == _HTTP_BAD_REQUEST
     assert response.json()["detail"]["type"] == "json_duplicate_key"
     assert "request_id" not in response.text
+
+
+def test_fastapi_request_ceiling_applies_before_route_parsing() -> None:
+    client = TestClient(create_m2602_app())
+    response = client.post(
+        "/m26-02/validate", content=b"{" + b"x" * M2602_MAX_CANONICAL_REQUEST_BYTES + b"}"
+    )
+    assert response.status_code == _HTTP_PAYLOAD_TOO_LARGE
 
 
 def test_fastapi_validation_authorization_and_route_errors() -> None:
