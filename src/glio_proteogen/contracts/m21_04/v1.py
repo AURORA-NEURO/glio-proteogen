@@ -304,9 +304,9 @@ class ComplexActivityExternalTransportResult(FrozenModel):
             if (
                 self.report is None
                 or self.abstention_reason is not None
-                or self.support_decision.status is not SupportStatus.SUPPORTED
+                or self.support_decision.status is not SupportStatus.REVIEW_REQUIRED
             ):
-                raise ValueError("evaluated result requires a supported transport report")
+                raise ValueError("evaluated result requires a review-only transport report")
             if self.report.configuration != self.request.configuration:
                 raise ValueError("evaluated report configuration must equal the request")
             if self.report.validations != self.request.validations:
