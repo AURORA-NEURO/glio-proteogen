@@ -38,9 +38,18 @@ def test_fastapi_schema_validate_execute_verify_parity() -> None:
     executed = client.post("/v1/modules/M26-03/execute", content=request_body, headers=headers)
     assert executed.status_code == HTTPStatus.OK
     result = executed.json()
-    verified = client.post("/v1/modules/M26-03/verify", json={"result": result})
+    verified = client.post(
+        "/v1/modules/M26-03/verify",
+        json={"request": request.model_dump(mode="json"), "result": result},
+    )
+    forged = request.model_copy(update={"request_id": "request.m2603.forged"})
+    mismatch = client.post(
+        "/v1/modules/M26-03/verify",
+        json={"request": forged.model_dump(mode="json"), "result": result},
+    )
     assert verified.status_code == HTTPStatus.OK
     assert verified.json() == {"verified": True, "result_digest": result["result_digest"]}
+    assert mismatch.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 def test_fastapi_named_schema_and_denied_validation_are_closed() -> None:

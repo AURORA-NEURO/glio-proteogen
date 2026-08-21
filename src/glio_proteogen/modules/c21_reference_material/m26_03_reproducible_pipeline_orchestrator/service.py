@@ -46,7 +46,13 @@ class M2603Service:
     ) -> ProteinSubtypeExecutionResult:
         return self._engine.execute(request)
 
-    def verify(self, result: object, *, replay: bool = True) -> ProteinSubtypeExecutionResult:
+    def verify(
+        self,
+        result: object,
+        *,
+        replay: bool = True,
+        request: ExecuteProteinSubtypeWorkflowRequest | None = None,
+    ) -> ProteinSubtypeExecutionResult:
         if isinstance(result, (bytes, bytearray, str)):
             decoded = strict_json_loads(result, max_bytes=M2603_MAX_CANONICAL_RESULT_BYTES)
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(decoded), strict=True)
@@ -54,6 +60,11 @@ class M2603Service:
             typed = _RESULT_ADAPTER.validate_json(canonical_json_bytes(dict(result)), strict=True)
         else:
             typed = cast("ProteinSubtypeExecutionResult", result)
+        if request is not None:
+            result_request = typed.request.model_dump(mode="json")
+            supplied_request = request.model_dump(mode="json")
+            if result_request != supplied_request:
+                raise ValueError
         return self._engine.verify(typed, replay=replay)
 
 
