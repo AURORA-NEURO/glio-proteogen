@@ -249,10 +249,12 @@ class M2706SecurityEngine:
                 "consent reference does not match granted consent evidence",
             )
         consent_evidence = _consent_evidence(canonical)
-        denied = any(
-            marker in f"{canonical.principal} {canonical.resource} {canonical.action}".lower()
-            for marker in ("deny", "threat")
-        )
+        # Only the explicit policy action may carry a caller-declared denial
+        # marker.  Principal and resource are opaque authorization subjects;
+        # scanning their labels would let an incidental token such as
+        # ``service:denylisted`` or ``dataset:threat-model`` change the
+        # security decision and the emitted posture.
+        denied = any(marker in canonical.action.lower() for marker in ("deny", "threat"))
         state = AccessDecisionState.DENY if denied else AccessDecisionState.ALLOW
         finding = (
             SecurityFinding(
