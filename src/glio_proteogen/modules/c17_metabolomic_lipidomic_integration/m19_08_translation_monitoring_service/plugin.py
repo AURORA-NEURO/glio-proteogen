@@ -98,11 +98,24 @@ class M1908Plugin:
             raise M1908TokenError
         return self._engine.infer(request.request)
 
-    def verify(self, result: object) -> ProteotypeTranslationMonitoringResult:
-        return self._engine.verify(result)
+    def verify(
+        self,
+        result: object,
+        request: MonitorProteotypeTranslationHealthRequest | None = None,
+    ) -> ProteotypeTranslationMonitoringResult:
+        verified = self._engine.verify(result)
+        if request is not None and verified.request.model_dump(mode="json") != request.model_dump(
+            mode="json"
+        ):
+            raise ValueError("replay request mismatch")  # noqa: TRY003
+        return verified
 
-    def replay(self, result: object) -> ProteotypeTranslationMonitoringResult:
-        return self._engine.replay(result)
+    def replay(
+        self,
+        result: object,
+        request: MonitorProteotypeTranslationHealthRequest | None = None,
+    ) -> ProteotypeTranslationMonitoringResult:
+        return self.verify(result, request)
 
 
 __all__ = [

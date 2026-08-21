@@ -62,6 +62,18 @@ def test_public_operation_and_service_mapping_boundaries() -> None:
     assert service.descriptor["parent"] == "proteotype"
 
 
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = m1908.M1908Service()
+    result = service.execute(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.replay(result, altered)
+    plugin = m1908.M1908Plugin()
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        plugin.replay(result, altered)
+
+
 def test_service_rejects_invalid_json_and_plugin_strict_json_edges() -> None:
     service = m1908.M1908Service()
     with pytest.raises((TypeError, ValueError)):
