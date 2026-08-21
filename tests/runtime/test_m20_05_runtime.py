@@ -7,7 +7,12 @@ from typing import Any, cast
 import pytest
 from pydantic import ValidationError
 
-from glio_proteogen.contracts.m20_05 import ReviewItemStatus, WorkspaceStatus
+from glio_proteogen.contracts.m20_05 import (
+    OrderingPolicy,
+    ReviewItemStatus,
+    ViewKind,
+    WorkspaceStatus,
+)
 from glio_proteogen.contracts.m20_05.canonical import result_payload_digest
 from glio_proteogen.kernel.models import Limitation
 from glio_proteogen.modules.c20_biomarker_panel.m20_05_workflow_presentation_service import (
@@ -25,12 +30,52 @@ def test_service_presents_exact_workspace_and_replays() -> None:
     result = service.present(request)
     assert result.status is WorkspaceStatus.PRESENTED
     assert result.workspace is not None
-    assert tuple(item.item_id for item in result.workspace.items) == tuple(
-        item.item_id for item in request.review_items
+    assert tuple(item.view_kind for item in result.workspace.items) == (
+        ViewKind.DISCREPANCY,
+        ViewKind.UNCERTAINTY,
+        ViewKind.EVIDENCE_REVIEW,
+        ViewKind.PROVENANCE,
+        ViewKind.NEXT_ACTION,
+        ViewKind.TASK_SUMMARY,
     )
     assert result.workspace.ordering is request.policy.default_ordering
     assert result.support_decision.status.value == "supported"
     assert service.replay(result) == result
+
+
+def test_uncertainty_first_policy_changes_output_order_deterministically() -> None:
+    base = _request()
+    request = base.model_copy(
+        update={
+            "policy": base.policy.model_copy(
+                update={"default_ordering": OrderingPolicy.UNCERTAINTY_FIRST}
+            )
+        }
+    )
+    result = M2005Service().present(request)
+
+    assert result.workspace is not None
+    assert tuple(item.view_kind for item in result.workspace.items) == (
+        ViewKind.DISCREPANCY,
+        ViewKind.UNCERTAINTY,
+        ViewKind.EVIDENCE_REVIEW,
+        ViewKind.PROVENANCE,
+        ViewKind.NEXT_ACTION,
+        ViewKind.TASK_SUMMARY,
+    )
+    assert tuple(item.position for item in result.workspace.items) == tuple(range(6))
+
+
+def test_safe_default_prioritizes_limited_review_before_supported_views() -> None:
+    base = _request()
+    limited = _item(ViewKind.TASK_SUMMARY, 0, status=ReviewItemStatus.LIMITED)
+    request = base.model_copy(update={"review_items": (limited, *base.review_items[1:])})
+
+    result = M2005Service().present(request)
+
+    assert result.workspace is not None
+    assert result.workspace.items[0].view_kind is ViewKind.TASK_SUMMARY
+    assert result.workspace.items[0].status is ReviewItemStatus.LIMITED
 
 
 def test_abstained_item_emits_safe_abstention_without_workspace() -> None:

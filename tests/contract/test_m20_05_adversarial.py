@@ -496,7 +496,7 @@ def test_result_rejects_digest_ordering_evidence_source_and_finding_breaks() -> 
         item.model_copy(update={"item_id": f"item.m2005.reordered.{index}"})
         for index, item in enumerate(result.workspace.items)
     )
-    with pytest.raises(ValidationError, match="preserve request"):
+    with pytest.raises(ValidationError, match="bind exactly"):
         ProteinSubtypeHumanReviewWorkspaceResult.model_validate(
             result.model_copy(
                 update={
