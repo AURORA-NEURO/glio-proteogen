@@ -181,6 +181,40 @@ def test_verify_path_can_use_independent_result_transport_ceiling() -> None:
     assert messages == []
 
 
+def test_explicit_path_limit_can_widen_one_binary_route() -> None:
+    downstream_called = False
+    messages: list[Message] = []
+
+    async def downstream(_scope: Scope, _receive: Receive, _send: Send) -> None:
+        nonlocal downstream_called
+        downstream_called = True
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"x" * 24, "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    middleware = RequestSizeLimitMiddleware(
+        cast("AsgiApp", downstream),
+        max_bytes=16,
+        path_max_bytes={"/v1/modules/M01-03/inspect": 32},
+    )
+    asyncio.run(
+        middleware(
+            _http_scope(
+                headers=[(b"content-length", b"24")],
+                path="/v1/modules/M01-03/inspect",
+            ),
+            receive,
+            send,
+        )
+    )
+
+    assert downstream_called is True
+    assert messages == []
+
+
 def test_verify_path_still_rejects_body_above_result_ceiling() -> None:
     downstream_called = False
     messages: list[Message] = []

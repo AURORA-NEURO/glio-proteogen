@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 from glio_proteogen.adapters.api import create_app
 from glio_proteogen.adapters.cli import app as cli_app
+from glio_proteogen.adapters.limits import MAX_REQUEST_BYTES
 from glio_proteogen.contracts.m01_03.v1 import ValidatedRawInputDescriptor
 
 pytestmark = pytest.mark.integration
@@ -57,6 +58,27 @@ def test_binary_api_and_cli_emit_equivalent_metadata(tmp_path: Path) -> None:
     parsed = TypeAdapter(ValidatedRawInputDescriptor).validate_json(response.content, strict=True)
     assert parsed.detected is not None
     assert parsed.detected.format.value == "VCF"
+
+
+def test_binary_api_admits_m0103_source_above_json_transport_ceiling(
+    tmp_path: Path,
+) -> None:
+    prefix = b">synthetic\n"
+    body = prefix + (b"A" * (MAX_REQUEST_BYTES + 1 - len(prefix)))
+
+    with TestClient(create_app(tmp_path / "large-source.sqlite3")) as client:
+        response = client.post(
+            "/v1/modules/M01-03/inspect",
+            params={"source_id": "source.large"},
+            content=body,
+            headers={"content-type": "application/octet-stream"},
+        )
+
+    assert response.status_code == HTTP_OK
+    payload = response.json()
+    assert payload["disposition"] == "accepted"
+    assert payload["source_size_bytes"] == len(body)
+    assert payload["decoded_size_bytes"] == len(body)
 
 
 def test_binary_api_requires_media_type_and_valid_identifier(tmp_path: Path) -> None:
