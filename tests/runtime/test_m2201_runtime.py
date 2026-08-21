@@ -15,6 +15,7 @@ from glio_proteogen.contracts.m22_01 import (
 from glio_proteogen.kernel.models import UpstreamDecisionState
 from glio_proteogen.modules.c21_reference_material.m22_01_reference_truth_benchmark_curator import (
     M2201AuthorizationError,
+    M2201Plugin,
     M2201ReplayError,
     M2201Service,
     curate_protein_rna_discordance_reference_truth,
@@ -80,6 +81,17 @@ def test_replay_rejects_request_identifier_and_digest_tampering() -> None:
         curate_protein_rna_discordance_reference_truth(_request()).result_digest
         == result.result_digest
     )
+
+
+def test_service_and_plugin_replay_reject_supplied_request_mismatch() -> None:
+    request = _request()
+    service = M2201Service()
+    result = service.curate(request)
+    altered = request.model_copy(update={"request_id": "request.mismatch"})
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        service.verify_replay(result, altered)
+    with pytest.raises(ValueError, match="replay request mismatch"):
+        M2201Plugin(service).replay(result, altered)
 
 
 def test_rejected_included_adjudication_abstains_with_lock_finding() -> None:
