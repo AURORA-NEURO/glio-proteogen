@@ -93,6 +93,9 @@ def test_service_and_plugin_require_validated_submission() -> None:
     assert plugin.run(token).result_digest == service.execute(build_request()).result_digest
     with pytest.raises(TypeError, match="validated request token"):
         plugin.run(object())  # type: ignore[arg-type]
+    forged = type(token)(request=token.request)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
 
 
 def test_plugin_strict_json_path_is_parse_once() -> None:

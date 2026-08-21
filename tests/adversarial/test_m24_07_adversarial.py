@@ -59,6 +59,9 @@ def test_plugin_rejects_unwrapped_and_unvalidated_execution() -> None:
         plugin.run(cast("Any", typed))
     token = plugin.validate(m2407.HumanFactorsSubmission(typed))
     assert plugin.run(token).status is EvaluationStatus.EVALUATED
+    forged = type(token)(request=token.request)
+    with pytest.raises(TypeError, match="validated request token"):
+        plugin.run(forged)
 
 
 def test_hostile_mapping_fails_closed_before_material_traversal() -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Final
 
 from pydantic import TypeAdapter
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .service import M2407Service
 
 _REQUEST_ADAPTER: Final = TypeAdapter(EvaluateBiomarkerPanelHumanFactorsRequest)
+_TOKEN_SEAL: Final = object()
 _DESCRIPTOR: Final = ModuleDescriptor(
     module_id="GLIO-PROTEOGEN-M24-07",
     title="Human-factors and operational evaluator (provisional)",
@@ -51,6 +52,7 @@ class ValidatedM2407Request:
     """Opaque capability proving strict M24-07 request validation."""
 
     request: EvaluateBiomarkerPanelHumanFactorsRequest
+    _seal: object | None = field(default=None, repr=False, compare=False)
 
 
 class _InvalidExecutionTokenError(TypeError):
@@ -82,10 +84,13 @@ class M2407Plugin(ModulePlugin[object, ValidatedM2407Request, BiomarkerPanelHuma
             decoded = strict_json_loads(candidate, max_bytes=M2407_MAX_CANONICAL_REQUEST_BYTES)
             preflight_m2407_authorization(decoded)
             candidate = _REQUEST_ADAPTER.validate_json(candidate, strict=True)
-        return ValidatedM2407Request(request=self._service.validate_request(candidate))
+        return ValidatedM2407Request(
+            request=self._service.validate_request(candidate),
+            _seal=_TOKEN_SEAL,
+        )
 
     def run(self, request: ValidatedM2407Request) -> BiomarkerPanelHumanFactorsResult:
-        if not isinstance(request, ValidatedM2407Request):
+        if not isinstance(request, ValidatedM2407Request) or request._seal is not _TOKEN_SEAL:
             raise _InvalidExecutionTokenError
         return self._service.evaluate(request.request)
 
