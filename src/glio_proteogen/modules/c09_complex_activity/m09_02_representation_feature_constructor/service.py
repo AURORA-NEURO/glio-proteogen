@@ -26,8 +26,13 @@ class M0902Service:
     def construct(self, request: object) -> BuiltM0902Result:
         return self._engine.construct(request)
 
-    def verify(self, result: object, canonical_bytes: bytes | None = None) -> bool:
-        return self._engine.verify(result, canonical_bytes)
+    def verify(
+        self,
+        result: object,
+        canonical_bytes: bytes | None = None,
+        request: object | None = None,
+    ) -> bool:
+        return self._engine.verify(result, canonical_bytes, request)
 
     def execute(self, request: object) -> BuiltM0902Result:
         return self._engine.execute(request)

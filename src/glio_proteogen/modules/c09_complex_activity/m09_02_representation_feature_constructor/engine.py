@@ -377,6 +377,7 @@ class M0902RepresentationConstructor:
         self,
         result: object,
         canonical_bytes: bytes | None = None,
+        request: object | None = None,
     ) -> bool:
         try:
             typed = _RESULT_ADAPTER.validate_python(result, strict=True)
@@ -392,7 +393,9 @@ class M0902RepresentationConstructor:
                 return False
             if canonical_bytes != canonical_json_bytes(typed.model_dump(mode="json")):
                 return False
-        return typed.result_digest == result_payload_digest(typed)
+        if typed.result_digest != result_payload_digest(typed):
+            return False
+        return request is None or typed == self.construct(request).result
 
     def execute(self, request: object) -> BuiltM0902Result:
         return self.construct(request)

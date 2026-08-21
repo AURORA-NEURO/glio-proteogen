@@ -131,6 +131,14 @@ def test_constructor_is_deterministic_and_replay_bound() -> None:
     assert engine.verify(first.result, first.canonical_bytes)
 
 
+def test_request_bound_replay_rejects_resigned_feature_mutation() -> None:
+    request = _request()
+    engine = m0902.M0902RepresentationConstructor()
+    built = engine.construct(request)
+    forged = built.result.model_copy(update={"status": "abstained"})
+    assert not engine.verify(forged, forged.model_dump_json().encode(), request)
+
+
 @pytest.mark.parametrize("marker", ["missing", "unsupported", "ood", "not_evaluable"])
 def test_unsupported_or_quality_markers_abstain_without_features(marker: str) -> None:
     result = m0902.M0902RepresentationConstructor().construct(_request(marker=marker)).result
